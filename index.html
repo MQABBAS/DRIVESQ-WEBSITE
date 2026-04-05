@@ -33,6 +33,491 @@
 
 
 
+<!-- DriveSQ Professional DriveBot (Mobile-Friendly Updated) -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">   
+
+<style>
+#drivebot-widget { font-family:'Poppins',sans-serif; z-index:1050; position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; align-items:flex-end; }
+#drivebot-icon { width:70px; height:70px; border-radius:50%; background:#101010; display:flex; justify-content:center; align-items:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); position:relative; margin-bottom:10px; }
+#drivebot-icon img { width:50px; height:50px; border-radius:50%; animation:steering 1.5s infinite alternate; }
+#drivebot-icon .badge { position:absolute; top:5px; right:5px; width:14px; height:14px; background:#d11f26; border-radius:50%; animation:pulse 1.2s infinite; }
+
+@keyframes steering { 0%{transform:rotate(-15deg);} 100%{transform:rotate(15deg);} }
+@keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.3);} 100%{transform:scale(1);} }
+
+#drivebot-chat { width:360px; max-width:90vw; height:520px; border-radius:20px; background:#101010; color:#f2f2f2; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.5);}
+#drivebot-header { background:#d11f26; color:#fff; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:1.1rem; border-top-left-radius:20px; border-top-right-radius:20px; }
+#drivebot-header .brand { font-weight:600; font-size:1.2rem; } 
+#drivebot-header .brand span { font-weight:800; font-size:1.3rem; color:#d11f26; }
+
+#drivebot-messages { flex:1; padding:10px 15px; overflow-y:auto; font-size:0.9rem; display:flex; flex-direction:column; gap:6px; }
+#drivebot-input { flex:1; padding:8px 12px; border-radius:12px; border:none; outline:none; background:#222; color:#fff; }
+#drivebot-send { margin-left:5px; background:#d11f26; border:none; border-radius:12px; padding:8px 12px; color:#fff; font-weight:600; cursor:pointer; }
+
+.bot-msg, .user-msg { padding:8px 12px; border-radius:12px; display:flex; align-items:center; animation:fadeIn 0.4s; max-width:80%; word-wrap:break-word; }
+.bot-msg { background:#222; color:#fff; }
+.user-msg { background:#d11f26; color:#fff; justify-content:flex-end; align-self:flex-end; }
+.bot-msg img { width:30px; height:30px; margin-right:8px; border-radius:50%; }
+.bot-msg .wave { display:inline-block; animation:wave 1s infinite; }
+@keyframes wave { 0%{transform:rotate(0deg);} 50%{transform:rotate(20deg);} 100%{transform:rotate(0deg);} }
+@keyframes fadeIn { 0%{opacity:0;} 100%{opacity:1;} }
+
+#drivebot-footer { padding:8px 15px; display:flex; flex-direction:column; }
+#drivebot-footer .input-container { display:flex; width:100%; margin-top:5px; }
+#drivebot-footer .social-icons a { font-size:1.3rem; margin-right:10px; }
+#drivebot-footer .social-icons a.instagram { color:#E1306C; }
+#drivebot-footer .social-icons a.facebook { color:#3b5998; }
+#drivebot-footer .social-icons a.telephone { color:#fff; }
+#typing-indicator { font-style:italic; color:#ccc; display:none; margin-bottom:5px; font-size:0.85rem; }
+
+@media(max-width:768px){
+  #drivebot-chat{width:90vw;height:70vh;}
+  #drivebot-widget{bottom:10px; right:10px;}
+}
+</style>
+
+<div id="drivebot-widget">
+  <div id="drivebot-icon">
+    <img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveBot Logo">
+    <div class="badge"></div>
+  </div>
+
+  <div id="drivebot-chat" class="d-flex flex-column shadow">
+    <div id="drivebot-header">
+      <span class="brand">DriveBot 🤖</span>
+      <span id="drivebot-close" style="cursor:pointer;">✕</span>
+    </div>
+    <div id="drivebot-messages"></div>
+    <div id="typing-indicator">DriveBot is typing...</div>
+    <div id="drivebot-footer">
+      <div class="input-container">
+        <input type="text" id="drivebot-input" placeholder="Type a question or 'Enroll'..." autocomplete="off">
+        <button id="drivebot-send">Send</button>
+      </div>
+      <div class="social-icons mt-2">
+        <a href="https://www.instagram.com/drive_sq_academy/" target="_blank" class="instagram"><i class="bi bi-instagram"></i></a>
+        <a href="https://www.facebook.com/p/Drive-SQ-100092258175464/" target="_blank" class="facebook"><i class="bi bi-facebook"></i></a>
+        <a href="tel:07352932003" class="telephone"><i class="bi bi-telephone-fill"></i></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const icon=document.getElementById('drivebot-icon');
+  let chat=document.getElementById('drivebot-chat');
+  const closeBtn=document.getElementById('drivebot-close');
+  const input=document.getElementById('drivebot-input');
+  const sendBtn=document.getElementById('drivebot-send');
+  const messages=document.getElementById('drivebot-messages');
+  const typingIndicator=document.getElementById('typing-indicator');
+  const badge=icon.querySelector('.badge');
+
+  let enrollmentState=null;
+  let enrollmentData={};
+  let enrollmentType='booking';
+
+  function showTyping(callback,delay=800){
+    typingIndicator.style.display='block';
+    setTimeout(()=>{ typingIndicator.style.display='none'; callback(); },delay);
+  }
+
+  function botMsg(text,img=null){
+    showTyping(()=>{
+      const m=document.createElement('div');
+      m.className='bot-msg';
+      if(img) m.innerHTML='<img src="'+img+'"> '+text;
+      else m.innerHTML=text;
+      messages.appendChild(m);
+      messages.scrollTop=messages.scrollHeight;
+    }, 800 + Math.random()*400);
+  }
+
+  function userMsg(text){ 
+    const m=document.createElement('div'); 
+    m.className='user-msg'; 
+    m.innerText=text; 
+    messages.appendChild(m); 
+    messages.scrollTop=messages.scrollHeight;
+  }
+
+  async function submitForm(data,url){
+    const formData=new FormData();
+    for(const k in data) formData.append(k,data[k]);
+    await fetch(url,{method:'POST',body:formData});
+  }
+
+  function containsKeyword(text,keywords){
+    text=text.toLowerCase().replace(/[^a-z0-9 ]/g,'');
+    return keywords.some(k=>text.includes(k));
+  }
+
+  const faq=[
+    {keywords:['schedule','timing','hours','batch','days'], reply:'Our courses run Monday–Sunday, 9am–8pm.'},
+    {keywords:['price','cost','fee'], reply:'Standard lesson £34. Block booking: £300 for 10 hours (Manchester area).'},
+    {keywords:['course','classes','lessons','package'], reply:'Courses: Beginner, Intermediate, Advanced, Refresher, Mock Test, Pass Plus.'},
+    {keywords:['instructor','teacher','coach'], reply:'Certified professional instructors with years of experience.'},
+    {keywords:['requirements','eligibility','age'], reply:'Minimum 18 years old with a valid learner permit.'},
+    {keywords:['theory','test','exam','practice'], reply:'We provide theory & practical guidance, hazard perception tips.'},
+    {keywords:['tips','advice','learning'], reply:'Personalised guidance to pass theory & practical efficiently.'},
+    {keywords:['join','instructor','application'], reply:'Type "Join" to apply for our instructor team.'},
+  ];
+
+  function startEnrollment(type='booking'){ 
+    enrollmentState='name'; 
+    enrollmentData={}; 
+    enrollmentType=type;
+    botMsg('Hi! Let’s start your '+(type==='booking'?'lesson booking':'Instructor application')+'. What is your full name? 👋','https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png');
+  }
+
+  function processEnrollment(input){
+    const txt=input.trim();
+    if(enrollmentType==='booking'){
+      switch(enrollmentState){
+        case 'name': enrollmentData.name=txt; enrollmentState='email'; botMsg('Thanks '+txt+'! Your email please.'); break;
+        case 'email': enrollmentData.email=txt; enrollmentState='phone'; botMsg('Phone number?'); break;
+        case 'phone': enrollmentData.phone=txt; enrollmentState='service'; botMsg('Course/Service? Options: Driving Lesson (Manual/Automatic), Refresher, Mock Test, Pass Plus.'); break;
+        case 'service': enrollmentData.service=txt; enrollmentState='availability'; botMsg('Preferred times / availability?'); break;
+        case 'availability': enrollmentData.availability=txt; enrollmentState='notes'; botMsg('Any additional notes?'); break;
+        case 'notes': enrollmentData.notes=txt; enrollmentState=null; 
+          submitForm(enrollmentData,'https://formspree.io/f/xvgjdapp');
+          botMsg('✅ Thank you! We received your info and will contact you shortly. Do you have any other questions?');
+          break;
+      }
+    }
+  }
+
+  function openChat(){ 
+    if(!chat){ location.reload(); }
+    else{ chat.style.display='flex'; icon.style.display='none'; badge.style.display='none'; }
+  }
+
+  function closeChat(){ 
+    if(chat){
+      chat.remove(); 
+      icon.style.display='flex'; badge.style.display='block';
+      chat=null;
+    }
+  }
+
+  icon.addEventListener('click',()=>{ openChat(); });
+  closeBtn.addEventListener('click',()=>{ closeChat(); });
+
+  function handleInput(text){
+    if(enrollmentState) processEnrollment(text);
+    else if(containsKeyword(text,['enroll','book','lesson'])) startEnrollment('booking');
+    else if(containsKeyword(text,['join','instructor','application'])) startEnrollment('join');
+    else if(containsKeyword(text,['call','phone','contact'])) botMsg('You can call us at +44 7352 932003 ☎️');
+    else if(containsKeyword(text,['instagram'])) botMsg('Visit our Instagram: <a href="https://www.instagram.com/drive_sq_academy/" target="_blank">drive_sq_academy</a>');
+    else if(containsKeyword(text,['facebook'])) botMsg('Visit our Facebook: <a href="https://www.facebook.com/p/Drive-SQ-100092258175464/" target="_blank">DriveSQ</a>');
+    else {
+      let answered=false;
+      for(let f of faq){
+        if(containsKeyword(text,f.keywords)){ botMsg(f.reply); answered=true; break; }
+      }
+      if(!answered) botMsg('Sorry, I did not understand that. You can ask about schedules, pricing, courses, instructors, theory/practical tips, or enrollment.');
+    }
+  }
+
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Enter' && input.value.trim()!==''){ userMsg(input.value); handleInput(input.value); input.value=''; }
+  });
+
+  sendBtn.addEventListener('click',()=>{
+    if(input.value.trim()!==''){ userMsg(input.value); handleInput(input.value); input.value=''; }
+  });
+
+  window.addEventListener('load', () => {
+    if(window.innerWidth>768){ // only desktop auto open
+      openChat();
+      botMsg('We can help you with course info, bookings, refresher courses, theory/practical tips, and joining our instructor team. Type "Enroll" to book a lesson or "Join" to apply as an instructor.','https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png');
+    }
+  });
+
+})();
+</script> 
+
+
+<!-- DriveSQ Professional DriveBot (Mobile-Friendly Updated) -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"> 
+
+<style>
+#drivebot-widget { font-family:'Poppins',sans-serif; z-index:1050; position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; align-items:flex-end; }
+#drivebot-icon { width:70px; height:70px; border-radius:50%; background:#101010; display:flex; justify-content:center; align-items:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); position:relative; margin-bottom:10px; }
+#drivebot-icon img { width:50px; height:50px; border-radius:50%; animation:steering 1.5s infinite alternate; }
+#drivebot-icon .badge { position:absolute; top:5px; right:5px; width:14px; height:14px; background:#d11f26; border-radius:50%; animation:pulse 1.2s infinite; }
+
+@keyframes steering { 0%{transform:rotate(-15deg);} 100%{transform:rotate(15deg);} }
+@keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.3);} 100%{transform:scale(1);} }
+
+#drivebot-chat { width:360px; max-width:90vw; height:520px; border-radius:20px; background:#101010; color:#f2f2f2; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.5);}
+#drivebot-header { background:#d11f26; color:#fff; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:1.1rem; border-top-left-radius:20px; border-top-right-radius:20px; }
+#drivebot-header .brand { font-weight:600; font-size:1.2rem; } 
+#drivebot-header .brand span { font-weight:800; font-size:1.3rem; color:#d11f26; }
+
+#drivebot-messages { flex:1; padding:10px 15px; overflow-y:auto; font-size:0.9rem; display:flex; flex-direction:column; gap:6px; }
+#drivebot-input { flex:1; padding:8px 12px; border-radius:12px; border:none; outline:none; background:#222; color:#fff; }
+#drivebot-send { margin-left:5px; background:#d11f26; border:none; border-radius:12px; padding:8px 12px; color:#fff; font-weight:600; cursor:pointer; }
+
+.bot-msg, .user-msg { padding:8px 12px; border-radius:12px; display:flex; align-items:center; animation:fadeIn 0.4s; max-width:80%; word-wrap:break-word; }
+.bot-msg { background:#222; color:#fff; }
+.user-msg { background:#d11f26; color:#fff; justify-content:flex-end; align-self:flex-end; }
+.bot-msg img { width:30px; height:30px; margin-right:8px; border-radius:50%; }
+.bot-msg .wave { display:inline-block; animation:wave 1s infinite; }
+@keyframes wave { 0%{transform:rotate(0deg);} 50%{transform:rotate(20deg);} 100%{transform:rotate(0deg);} }
+@keyframes fadeIn { 0%{opacity:0;} 100%{opacity:1;} }
+
+#drivebot-footer { padding:8px 15px; display:flex; flex-direction:column; }
+#drivebot-footer .input-container { display:flex; width:100%; margin-top:5px; }
+#drivebot-footer .social-icons a { font-size:1.3rem; margin-right:10px; }
+#drivebot-footer .social-icons a.instagram { color:#E1306C; }
+#drivebot-footer .social-icons a.facebook { color:#3b5998; }
+#drivebot-footer .social-icons a.telephone { color:#fff; }
+#typing-indicator { font-style:italic; color:#ccc; display:none; margin-bottom:5px; font-size:0.85rem; }
+
+@media(max-width:768px){
+  #drivebot-chat{width:90vw;height:70vh;}
+  #drivebot-widget{bottom:10px; right:10px;}
+}
+
+
+
+
+
+/* Keep your design, just control size properly */
+#drivebot-chat {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  max-width: 95%;
+  height: 500px;
+  max-height: 85vh;
+  display: none;
+  z-index: 9999;
+}
+
+/* ✅ Mobile fix (fullscreen, same theme) */
+@media (max-width: 768px) {
+  #drivebot-chat {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    right: 0;
+    bottom: 0;
+    border-radius: 0; /* keeps it clean on mobile */
+  }
+}
+
+/* Prevent input zoom on iPhone */
+#drivebot-input {
+  font-size: 16px;
+}
+
+/* Ensure messages scroll properly */
+#drivebot-messages {
+  overflow-y: auto;
+}
+
+/* Fix footer spacing on mobile (keyboard safe) */
+@media (max-width: 768px) {
+  #drivebot-footer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+
+</style>
+
+
+<script>
+
+
+function closeChat(){ 
+  chat.style.display = 'none';
+  icon.style.display = 'flex';
+  badge.style.display = 'block';
+}
+
+
+function openChat(){ 
+  chat.style.display = 'flex';
+  icon.style.display = 'none';
+  badge.style.display = 'none';
+}
+
+
+
+
+(function(){
+  const icon = document.getElementById('drivebot-icon');
+  const chat = document.getElementById('drivebot-chat');
+  const closeBtn = document.getElementById('drivebot-close');
+  const input = document.getElementById('drivebot-input');
+  const sendBtn = document.getElementById('drivebot-send');
+  const messages = document.getElementById('drivebot-messages');
+  const typingIndicator = document.getElementById('typing-indicator');
+  const badge = icon.querySelector('.badge');
+
+  let enrollmentState = null;
+  let enrollmentData = {};
+  let enrollmentType = 'booking';
+  let isOpen = false;
+  let hasWelcomed = false;
+
+  function showTyping(callback, delay = 800){
+    typingIndicator.style.display = 'block';
+    setTimeout(()=>{
+      typingIndicator.style.display = 'none';
+      callback();
+    }, delay);
+  }
+
+  function botMsg(text, img=null){
+    showTyping(()=>{
+      const m = document.createElement('div');
+      m.className = 'bot-msg';
+      m.innerHTML = img ? `<img src="${img}"> ${text}` : text;
+      messages.appendChild(m);
+      messages.scrollTop = messages.scrollHeight;
+    }, 600);
+  }
+
+  function userMsg(text){
+    const m = document.createElement('div');
+    m.className = 'user-msg';
+    m.innerText = text;
+    messages.appendChild(m);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function openChat(){
+    chat.style.display = 'flex';
+    icon.style.display = 'none';
+    badge.style.display = 'none';
+    isOpen = true;
+
+    if(!hasWelcomed){
+      botMsg("Hi 👋 How can I help you today? You can ask about lessons, pricing, or type 'Enroll' to book.");
+      hasWelcomed = true;
+    }
+  }
+
+  function closeChat(){
+    chat.style.display = 'none';
+    icon.style.display = 'flex';
+    badge.style.display = 'block';
+    isOpen = false;
+  }
+
+  icon.addEventListener('click', openChat);
+  closeBtn.addEventListener('click', closeChat);
+
+  function containsKeyword(text, keywords){
+    text = text.toLowerCase().replace(/[^a-z0-9 ]/g,'');
+    return keywords.some(k => text.includes(k));
+  }
+
+  function startEnrollment(type='booking'){ 
+    enrollmentState='name'; 
+    enrollmentData={}; 
+    enrollmentType=type;
+    botMsg(`Let’s start your ${type==='booking'?'lesson booking':'Instructor application'} 👋 What is your full name?`);
+  }
+
+  function processEnrollment(input){
+    const txt = input.trim();
+
+    switch(enrollmentState){
+      case 'name':
+        enrollmentData.name = txt;
+        enrollmentState = 'email';
+        botMsg('Your email please.');
+        break;
+
+      case 'email':
+        enrollmentData.email = txt;
+        enrollmentState = 'phone';
+        botMsg('Phone number?');
+        break;
+
+      case 'phone':
+        enrollmentData.phone = txt;
+        enrollmentState = 'service';
+        botMsg('What service do you need? (Manual, Automatic, Refresher, Mock Test)');
+        break;
+
+      case 'service':
+        enrollmentData.service = txt;
+        enrollmentState = 'availability';
+        botMsg('Preferred time / availability?');
+        break;
+
+      case 'availability':
+        enrollmentData.availability = txt;
+        enrollmentState = null;
+        botMsg('✅ Thanks! We will contact you shortly.');
+        break;
+    }
+  }
+
+  function handleInput(text){
+    if(enrollmentState){
+      processEnrollment(text);
+      return;
+    }
+
+    if(containsKeyword(text,['enroll','book','lesson'])){
+      startEnrollment();
+    }
+    else if(containsKeyword(text,['price','cost'])){
+      botMsg('Lessons are £34 or £300 for 10 hours.');
+    }
+    else if(containsKeyword(text,['schedule','time'])){
+      botMsg('We are available Monday–Sunday, 9am–8pm.');
+    }
+    else if(containsKeyword(text,['contact','phone'])){
+      botMsg('Call us at +44 7352 932003 ☎️');
+    }
+    else{
+      botMsg("I'm not sure I understood. You can ask about lessons, pricing, or booking.");
+    }
+  }
+
+  input.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && input.value.trim()!==''){
+      userMsg(input.value);
+      handleInput(input.value);
+      input.value='';
+    }
+  });
+
+  sendBtn.addEventListener('click', ()=>{
+    if(input.value.trim()!==''){
+      userMsg(input.value);
+      handleInput(input.value);
+      input.value='';
+    }
+  });
+
+  // ✅ AUTO OPEN ONLY ON DESKTOP
+  window.addEventListener('load', () => {
+    if(window.innerWidth > 768){
+      openChat();
+    } else {
+      chat.style.display = 'none';
+    }
+  });
+
+})();
+</script>
+
+
 
 
   <!-- ===================== Styles ===================== -->
