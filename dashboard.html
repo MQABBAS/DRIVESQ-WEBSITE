@@ -4,135 +4,192 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>DriveSQ — My Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <style>
-:root{--red:#D10A11;--red2:#a80008;--red3:#ff2d35;--gold:#F5C518;--blk:#080808;--dk:#111;--dk2:#181818;--dk3:#202020;--bdr:#2a2a2a;--bdr2:#333;--txt:#f0f0f0;--muted:#888;--green:#25D366;--green2:#1da851;--r:12px;--trans:.2s ease}
+:root{--red:#D10A11;--red2:#a80008;--gold:#F5C518;--blk:#080808;--dk:#0f0f0f;--dk2:#161616;--dk3:#1e1e1e;--bdr:#2a2a2a;--bdr2:#333;--txt:#f0f0f0;--muted:#888;--green:#25D366;--trans:.2s ease;--r:12px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
 h1,h2,h3,h4{font-family:'Oswald',sans-serif;line-height:1.05}
 a{color:var(--red);text-decoration:none}
+.hidden{display:none!important}
 
-/* ── NAV ── */
-.nav{background:var(--blk);border-bottom:2px solid var(--red);padding:0;position:sticky;top:0;z-index:200}
-.nav-inner{max-width:1200px;margin:0 auto;padding:8px 20px;display:flex;align-items:center;gap:12px}
-.logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0}
-.brand-wrap{flex:1}
-.brand-name{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
+/* NAV */
+.nav{background:rgba(8,8,8,.98);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;backdrop-filter:blur(16px)}
+.nav-inner{max-width:1320px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:10px;height:60px}
+.logo{width:38px;height:38px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0;box-shadow:0 0 12px rgba(209,10,17,.25)}
+.brand-wrap{flex-shrink:0}
+.brand-name{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
 .brand-name span{color:var(--red)}
-.brand-sub{font-size:.58rem;color:#444;letter-spacing:2px;text-transform:uppercase}
-.type-nav{font-size:.78rem;color:#666;font-style:italic;flex:1;text-align:center;display:none}
-@media(min-width:768px){.type-nav{display:block}}
-.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.instructor-badge{display:flex;align-items:center;gap:7px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.25);border-radius:8px;padding:5px 12px}
-.instructor-badge .name{font-size:.8rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif}
-.instructor-badge .badge-num{font-size:.65rem;color:#555}
-.btn-logout{background:transparent;border:1px solid var(--bdr2);color:#555;border-radius:7px;padding:5px 12px;font-size:.75rem;font-family:'Inter',sans-serif;cursor:pointer;transition:all var(--trans)}
-.btn-logout:hover{border-color:#555;color:#aaa}
+.brand-sub{font-size:.52rem;color:#333;letter-spacing:2px;text-transform:uppercase}
+.type-nav{font-size:.76rem;color:#555;font-style:italic;flex:1;text-align:center}
+@media(max-width:767px){.type-nav{display:none!important}}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.nav-today-btn{background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:var(--red);border-radius:7px;padding:5px 13px;font-size:.76rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;transition:all var(--trans)}
+.nav-today-btn:hover{background:rgba(209,10,17,.25);color:#fff}
+.notif-btn{position:relative;background:transparent;border:1px solid var(--bdr);color:#555;border-radius:8px;padding:5px 10px;font-size:1.05rem;cursor:pointer;transition:all var(--trans);line-height:1}
+.notif-btn:hover{border-color:#555;color:#ccc}
+.notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--blk);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.instructor-badge{display:flex;align-items:center;gap:8px;background:rgba(209,10,17,.07);border:1px solid rgba(209,10,17,.18);border-radius:8px;padding:5px 11px;cursor:pointer;transition:all var(--trans)}
+.instructor-badge:hover{border-color:rgba(209,10,17,.4)}
+.ib-avatar{width:28px;height:28px;border-radius:50%;border:1px solid rgba(209,10,17,.3);object-fit:cover;background:var(--dk3);flex-shrink:0}
+.ib-name{font-size:.78rem;font-weight:700;color:#ccc;font-family:'Oswald',sans-serif}
+.ib-badge{font-size:.6rem;color:#444}
+.btn-logout{background:transparent;border:1px solid var(--bdr);color:#444;border-radius:7px;padding:5px 11px;font-size:.72rem;cursor:pointer;transition:all var(--trans)}
+.btn-logout:hover{border-color:#f87171;color:#f87171}
 
-/* ── LAYOUT ── */
-.main{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+/* NOTIF PANEL */
+.notif-panel{position:fixed;top:64px;right:16px;z-index:300;width:340px;max-height:480px;overflow-y:auto;background:#141414;border:1px solid var(--bdr2);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.7);display:none}
+.notif-panel.open{display:block}
+.notif-panel-head{padding:13px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.notif-panel-head h4{font-family:'Oswald',sans-serif;font-size:1rem;color:#fff}
+.notif-item{padding:12px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background var(--trans)}
+.notif-item:hover{background:rgba(255,255,255,.02)}
+.notif-item.unread{border-left:3px solid var(--red)}
+.notif-item.warning{border-left-color:var(--gold)}
+.notif-item.badge_request{border-left-color:#60a5fa}
+.notif-item.franchise_fee{border-left-color:#f87171}
+.notif-item.suspension{border-left-color:#a855f7}
+.ni-type{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:2px}
+.ni-subj{font-size:.82rem;font-weight:600;color:#ddd;margin-bottom:2px}
+.ni-body{font-size:.74rem;color:#555;line-height:1.5}
+.ni-time{font-size:.62rem;color:#333;margin-top:3px}
+.notif-empty{padding:24px;text-align:center;font-size:.8rem;color:#333}
 
-/* ── STATS ── */
-.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;transition:border-color var(--trans)}
-.stat-card:hover{border-color:rgba(209,10,17,.3)}
+/* MAIN */
+.main{max-width:1320px;margin:0 auto;padding:22px 20px 80px}
+
+/* BANNERS */
+.msg-banners{margin-bottom:18px;display:flex;flex-direction:column;gap:8px}
+.msg-banner{border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px}
+.msg-banner.general{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2)}
+.msg-banner.warning{background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2)}
+.msg-banner.franchise_fee{background:rgba(209,10,17,.07);border:1px solid rgba(209,10,17,.2)}
+.msg-banner.badge_request{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2)}
+.msg-banner.suspension{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.2)}
+.mb-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.mb-body{flex:1}
+.mb-subj{font-size:.82rem;font-weight:700;color:#ddd;margin-bottom:1px;font-family:'Oswald',sans-serif}
+.mb-text{font-size:.75rem;color:#666;line-height:1.5}
+.mb-dismiss{background:none;border:none;color:#333;cursor:pointer;font-size:.8rem;padding:2px 6px;border-radius:4px;transition:color var(--trans);flex-shrink:0}
+.mb-dismiss:hover{color:#aaa}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:22px}
+.stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color var(--trans),transform var(--trans)}
+.stat-card:hover{border-color:rgba(209,10,17,.25);transform:translateY(-1px)}
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red)}
-.stat-label{font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
-.stat-num{font-family:'Oswald',sans-serif;font-size:2.2rem;font-weight:700;color:var(--red);line-height:1}
-.stat-sub{font-size:.7rem;color:#444;margin-top:3px}
-.stat-card.gold-card::before{background:var(--gold)}
-.stat-card.gold-card .stat-num{color:var(--gold)}
-.stat-card.green-card::before{background:var(--green)}
-.stat-card.green-card .stat-num{color:var(--green)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.green::before{background:var(--green)}
+.stat-card.blue::before{background:#60a5fa}
+.stat-label{font-size:.6rem;color:#444;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
+.stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.1rem;font-weight:800;color:var(--red);line-height:1}
+.stat-card.gold .stat-num{color:var(--gold)}
+.stat-card.green .stat-num{color:var(--green)}
+.stat-card.blue .stat-num{color:#60a5fa}
+.stat-sub{font-size:.66rem;color:#333;margin-top:3px}
 
-/* ── SECTION HEADER ── */
-.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.sec-title{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff}
-.week-nav{display:flex;align-items:center;gap:10px}
-.week-btn{background:var(--dk2);border:1px solid var(--bdr);color:#888;border-radius:7px;padding:5px 14px;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif;transition:all var(--trans)}
-.week-btn:hover{border-color:#555;color:#ccc}
-.week-label{font-family:'Oswald',sans-serif;font-size:1rem;color:#ccc;min-width:180px;text-align:center}
+/* SECTION HEADER */
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.sec-title{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fff}
+.week-nav{display:flex;align-items:center;gap:8px}
+.week-btn{background:var(--dk2);border:1px solid var(--bdr);color:#555;border-radius:7px;padding:5px 13px;font-size:.78rem;cursor:pointer;font-family:'Inter',sans-serif;transition:all var(--trans)}
+.week-btn:hover{border-color:var(--red);color:#fff}
+.week-btn.today{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red);font-family:'Oswald',sans-serif;font-weight:600}
+.week-label{font-family:'Oswald',sans-serif;font-size:.9rem;color:#888;min-width:168px;text-align:center;padding:5px 10px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px}
 
-/* ── CALENDAR ── */
+/* CALENDAR */
 .calendar{background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;overflow:hidden}
-.cal-header{display:grid;grid-template-columns:repeat(5,1fr);background:var(--dk);border-bottom:1px solid var(--bdr)}
-.cal-day-head{padding:12px 8px;text-align:center;border-right:1px solid var(--bdr)}
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);background:var(--dk);border-bottom:1px solid var(--bdr)}
+.cal-day-head{padding:10px 5px;text-align:center;border-right:1px solid var(--bdr)}
 .cal-day-head:last-child{border-right:none}
-.cal-day-name{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;color:#888;letter-spacing:.5px;text-transform:uppercase}
-.cal-day-date{font-size:.72rem;color:#444;margin-top:2px}
+.cal-day-name{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;color:#444;letter-spacing:.5px;text-transform:uppercase}
+.cal-day-date{font-size:.68rem;color:#333;margin-top:2px}
 .cal-day-date.today{color:var(--red);font-weight:700}
 .cal-day-head.today-col{background:rgba(209,10,17,.05)}
-.cal-body{display:grid;grid-template-columns:repeat(5,1fr)}
-.cal-col{border-right:1px solid var(--bdr);min-height:420px;padding:10px 8px;display:flex;flex-direction:column;gap:8px}
+.cal-day-head.wknd{background:rgba(245,197,24,.025)}
+.cal-body{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-col{border-right:1px solid var(--bdr);min-height:360px;padding:7px 5px;display:flex;flex-direction:column;gap:6px}
 .cal-col:last-child{border-right:none}
 .cal-col.today-col{background:rgba(209,10,17,.03)}
+.cal-col.wknd{background:rgba(245,197,24,.01)}
 
 /* LESSON SLOT */
-.lesson-slot{background:var(--dk3);border:1px solid rgba(209,10,17,.2);border-radius:10px;padding:10px 10px 8px;position:relative;cursor:pointer;transition:border-color var(--trans),transform var(--trans)}
-.lesson-slot:hover{border-color:rgba(209,10,17,.5);transform:translateY(-1px)}
-.lesson-slot.empty-slot{background:rgba(255,255,255,.02);border:1px dashed var(--bdr);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:68px;color:#333;font-size:.75rem;font-weight:600;letter-spacing:.3px;transition:all var(--trans)}
-.lesson-slot.empty-slot:hover{border-color:rgba(209,10,17,.3);color:#666;background:rgba(209,10,17,.04)}
-.lesson-time{font-size:.65rem;color:var(--red);font-weight:700;margin-bottom:3px;letter-spacing:.3px}
-.lesson-name{font-size:.82rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lesson-addr{font-size:.67rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.lesson-note{font-size:.65rem;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-style:italic}
-.lesson-del{position:absolute;top:6px;right:6px;background:none;border:none;color:#333;cursor:pointer;font-size:.75rem;padding:2px 5px;border-radius:4px;transition:color var(--trans),background var(--trans);line-height:1}
-.lesson-del:hover{color:#ff4444;background:rgba(255,0,0,.1)}
-.slot-count{font-size:.62rem;color:#333;text-align:center;margin-top:4px;letter-spacing:.3px}
+.lesson-slot{background:var(--dk3);border:1px solid rgba(209,10,17,.15);border-radius:9px;padding:8px 8px 6px;position:relative;cursor:pointer;transition:all var(--trans)}
+.lesson-slot:hover{border-color:rgba(209,10,17,.45);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.lesson-slot.empty-slot{background:rgba(255,255,255,.012);border:1px dashed var(--bdr);display:flex;align-items:center;justify-content:center;gap:4px;min-height:50px;color:#2a2a2a;font-size:.7rem;font-weight:600;letter-spacing:.3px;transition:all var(--trans);border-radius:9px;cursor:pointer}
+.lesson-slot.empty-slot:hover{border-color:rgba(209,10,17,.3);color:#555;background:rgba(209,10,17,.03)}
+.lesson-time{font-size:.6rem;color:var(--red);font-weight:700;margin-bottom:2px;letter-spacing:.3px}
+.lesson-name{font-size:.78rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lesson-addr{font-size:.62rem;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.lesson-note{font-size:.6rem;color:#2a2a2a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-style:italic}
+.lesson-del{position:absolute;top:4px;right:4px;background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.68rem;padding:2px 4px;border-radius:4px;transition:all var(--trans);line-height:1}
+.lesson-del:hover{color:#f87171;background:rgba(255,0,0,.1)}
+.slot-count{font-size:.58rem;color:#222;text-align:center;margin-top:2px}
 
-/* ── MODAL ── */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+/* MODALS */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px)}
 .modal-bg.open{display:flex}
-.modal{background:#141414;border:1px solid rgba(209,10,17,.3);border-radius:18px;padding:28px 24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;position:relative}
-.modal h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:4px}
-.modal .modal-sub{font-size:.75rem;color:#555;margin-bottom:20px}
-.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:#555;cursor:pointer;font-size:1.3rem;line-height:1;transition:color var(--trans);padding:4px 6px;border-radius:6px}
-.modal-close:hover{color:#fff;background:rgba(255,255,255,.06)}
+.modal{background:#111;border:1px solid rgba(209,10,17,.2);border-radius:20px;padding:28px 24px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.7)}
+.modal h2{font-family:'Oswald',sans-serif;font-size:1.35rem;font-weight:700;color:#fff;margin-bottom:3px}
+.modal-sub{font-size:.73rem;color:#444;margin-bottom:18px}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);color:#444;cursor:pointer;font-size:.95rem;line-height:1;padding:5px 8px;border-radius:7px;transition:all var(--trans)}
+.modal-close:hover{color:#fff;background:rgba(255,255,255,.08)}
 .form-group{margin-bottom:13px}
-.form-group label{display:block;font-size:.72rem;color:#555;margin-bottom:4px;letter-spacing:.3px}
-.form-group label .req{color:var(--red)}
-.form-control{width:100%;background:#1c1c1c;border:1px solid #2a2a2a;color:var(--txt);border-radius:8px;padding:9px 12px;font-size:.87rem;font-family:'Inter',sans-serif;transition:border-color var(--trans),box-shadow var(--trans);outline:none}
-.form-control:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.12)}
-.form-control::placeholder{color:#2e2e2e}
-select.form-control option{background:#1c1c1c}
+.form-group label{display:block;font-size:.7rem;color:#444;margin-bottom:4px;letter-spacing:.3px}
+.req{color:var(--red)}
+.form-control{width:100%;background:#181818;border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:9px 12px;font-size:.85rem;font-family:'Inter',sans-serif;transition:border-color var(--trans);outline:none}
+.form-control:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.1)}
+.form-control::placeholder{color:#2a2a2a}
+select.form-control option{background:#181818}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.72rem;letter-spacing:.4px;cursor:pointer;transition:background var(--trans)}
-.btn-primary:hover{background:var(--red2)}
-.btn-secondary{background:transparent;border:1px solid var(--bdr2);color:#666;border-radius:8px;padding:.55rem 1rem;font-size:.85rem;font-family:'Inter',sans-serif;cursor:pointer;transition:all var(--trans);width:100%;margin-top:8px;text-align:center}
+.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.72rem;letter-spacing:.4px;cursor:pointer;transition:all var(--trans)}
+.btn-primary:hover{background:linear-gradient(135deg,#e01015,var(--red))}
+.btn-secondary{background:transparent;border:1px solid var(--bdr2);color:#555;border-radius:8px;padding:.5rem 1rem;font-size:.83rem;font-family:'Inter',sans-serif;cursor:pointer;transition:all var(--trans);width:100%;margin-top:8px;text-align:center}
 .btn-secondary:hover{border-color:#555;color:#aaa}
 
-/* ── LESSON DETAIL MODAL ── */
+/* DETAIL MODAL */
 .detail-field{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-bottom:1px solid var(--bdr)}
 .detail-field:last-child{border-bottom:none}
-.detail-label{font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1px}
-.detail-value{font-size:.9rem;color:#ddd}
-.detail-value.empty{color:#333;font-style:italic}
+.detail-label{font-size:.62rem;color:#333;text-transform:uppercase;letter-spacing:1px}
+.detail-value{font-size:.87rem;color:#ccc}
+.detail-value.empty{color:#2a2a2a;font-style:italic}
+.maps-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.25);color:#93c5fd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all var(--trans);text-decoration:none;margin-top:10px}
+.maps-btn:hover{background:rgba(66,133,244,.2);color:#fff}
 
-/* ── EMPTY STATE ── */
-.empty-week{text-align:center;padding:40px 20px;color:#333}
-.empty-week-icon{font-size:3rem;margin-bottom:10px;opacity:.3}
-.empty-week p{font-size:.85rem;line-height:1.6}
+/* PROFILE MODAL */
+.avatar-upload{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.avatar-preview{width:70px;height:70px;border-radius:50%;border:2px solid var(--bdr2);object-fit:cover;background:var(--dk3);flex-shrink:0}
+.upload-btn-label{background:var(--dk3);border:1px dashed var(--bdr2);color:#555;border-radius:8px;padding:7px 13px;font-size:.76rem;cursor:pointer;transition:all var(--trans);display:inline-block}
+.upload-btn-label:hover{border-color:var(--red);color:#aaa}
 
-/* ── MOBILE ── */
+/* MOBILE */
 .mobile-cal{display:none}
 .desktop-cal{display:block}
-@media(max-width:767px){
-  .mobile-cal{display:block}
-  .desktop-cal{display:none}
-  .stats-row{grid-template-columns:1fr 1fr}
-  .type-nav{display:none}
-}
-.mobile-day{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;margin-bottom:12px;overflow:hidden}
-.mobile-day-head{background:var(--dk);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr)}
-.mobile-day-name{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;color:#fff}
-.mobile-day-count{font-size:.7rem;color:#555;background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:2px 8px}
-.mobile-day-body{padding:10px}
+@media(max-width:900px){.mobile-cal{display:block}.desktop-cal{display:none}.stats-row{grid-template-columns:1fr 1fr}}
+.mobile-day{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.mobile-day-head{background:var(--dk);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr)}
+.mobile-day-head.today{border-left:3px solid var(--red)}
+.mobile-day-head.wknd{border-left:3px solid var(--gold)}
+.mobile-day-name{font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:600;color:#fff}
+.mobile-day-count{font-size:.67rem;color:#444;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:2px 7px}
+.mobile-day-body{padding:8px}
 
 /* TOAST */
-.toast{position:fixed;bottom:20px;right:20px;z-index:1000;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:12px 16px;font-size:.82rem;color:#ccc;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:280px}
+.toast{position:fixed;bottom:20px;right:20px;z-index:1000;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:11px 15px;font-size:.79rem;color:#ccc;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.success{border-left-color:var(--green)}
+
+/* WA FLOAT */
+.wa-float{position:fixed;bottom:24px;left:24px;z-index:200;width:50px;height:50px;border-radius:50%;background:#25D366;box-shadow:0 4px 18px rgba(37,211,102,.35);display:flex;align-items:center;justify-content:center;font-size:1.4rem;transition:transform var(--trans)}
+.wa-float:hover{transform:scale(1.08)}
+
+/* SUSPENDED */
+.suspended-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.suspended-box{background:#111;border:1px solid rgba(209,10,17,.4);border-radius:18px;padding:36px 28px;max-width:420px;text-align:center}
+.suspended-box h2{font-family:'Oswald',sans-serif;font-size:1.6rem;color:var(--red);margin-bottom:12px}
+.suspended-box p{font-size:.85rem;color:#666;line-height:1.7;margin-bottom:20px}
 </style>
 </head>
 <body>
@@ -140,17 +197,22 @@ select.form-control option{background:#1c1c1c}
 <!-- NAV -->
 <nav class="nav">
   <div class="nav-inner">
-    <img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+    <img class="logo" id="navLogo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
     <div class="brand-wrap">
       <div class="brand-name">Drive<span>SQ</span></div>
       <div class="brand-sub">Instructor Portal</div>
     </div>
-    <div class="type-nav" id="typeNav">Welcome back, loading…</div>
+    <div class="type-nav" id="typeNav"></div>
     <div class="nav-right">
-      <div class="instructor-badge">
+      <button class="nav-today-btn" onclick="goToday()">📅 Today</button>
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()">
+        🔔<span class="notif-dot hidden" id="notifDot"></span>
+      </button>
+      <div class="instructor-badge" onclick="openProfileModal()" title="Edit Profile">
+        <img class="ib-avatar" id="navAvatar" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/>
         <div>
-          <div class="name" id="navName">Loading…</div>
-          <div class="badge-num" id="navBadge">—</div>
+          <div class="ib-name" id="navName">Loading…</div>
+          <div class="ib-badge" id="navBadge">—</div>
         </div>
       </div>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
@@ -158,27 +220,38 @@ select.form-control option{background:#1c1c1c}
   </div>
 </nav>
 
+<!-- NOTIF PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-head">
+    <h4>🔔 Notifications</h4>
+    <button onclick="toggleNotifPanel()" style="background:none;border:none;color:#444;cursor:pointer;font-size:.8rem">✕</button>
+  </div>
+  <div id="notifList"><div class="notif-empty">No notifications</div></div>
+</div>
+
+<!-- MAIN -->
 <div class="main">
+  <div class="msg-banners" id="msgBanners"></div>
 
   <!-- STATS -->
-  <div class="stats-row" id="statsRow">
+  <div class="stats-row">
     <div class="stat-card">
       <div class="stat-label">Today's Lessons</div>
       <div class="stat-num" id="statToday">0</div>
-      <div class="stat-sub" id="statTodayHrs">0 hrs scheduled</div>
+      <div class="stat-sub" id="statTodayHrs">0 hrs</div>
     </div>
-    <div class="stat-card gold-card">
-      <div class="stat-label">Tomorrow's Lessons</div>
+    <div class="stat-card gold">
+      <div class="stat-label">Tomorrow</div>
       <div class="stat-num" id="statTomorrow">0</div>
-      <div class="stat-sub" id="statTomHrs">0 hrs scheduled</div>
+      <div class="stat-sub" id="statTomHrs">0 hrs</div>
     </div>
-    <div class="stat-card green-card">
-      <div class="stat-label">This Week Total</div>
+    <div class="stat-card green">
+      <div class="stat-label">This Week</div>
       <div class="stat-num" id="statWeek">0</div>
-      <div class="stat-sub" id="statWeekHrs">0 hrs this week</div>
+      <div class="stat-sub" id="statWeekHrs">0 hrs</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Total Students</div>
+    <div class="stat-card blue">
+      <div class="stat-label">Students</div>
       <div class="stat-num" id="statStudents">0</div>
       <div class="stat-sub">unique this week</div>
     </div>
@@ -191,6 +264,7 @@ select.form-control option{background:#1c1c1c}
       <div class="week-nav">
         <button class="week-btn" onclick="changeWeek(-1)">← Prev</button>
         <div class="week-label" id="weekLabel">Loading…</div>
+        <button class="week-btn today" onclick="goToday()">Today</button>
         <button class="week-btn" onclick="changeWeek(1)">Next →</button>
       </div>
     </div>
@@ -206,13 +280,13 @@ select.form-control option{background:#1c1c1c}
       <div class="sec-title">📅 This Week</div>
       <div class="week-nav">
         <button class="week-btn" onclick="changeWeek(-1)">←</button>
-        <div class="week-label" id="weekLabelMob" style="min-width:120px;font-size:.82rem">…</div>
+        <div class="week-label" id="weekLabelMob" style="min-width:100px;font-size:.76rem">…</div>
+        <button class="week-btn today" onclick="goToday()" style="padding:5px 8px;font-size:.7rem">Today</button>
         <button class="week-btn" onclick="changeWeek(1)">→</button>
       </div>
     </div>
     <div id="mobileCal"></div>
   </div>
-
 </div>
 
 <!-- ADD LESSON MODAL -->
@@ -220,7 +294,7 @@ select.form-control option{background:#1c1c1c}
   <div class="modal">
     <button class="modal-close" onclick="closeModal('addModal')">✕</button>
     <h2>Add Lesson</h2>
-    <div class="modal-sub" id="addModalSub">Monday 0 Jan</div>
+    <div class="modal-sub" id="addModalSub">Monday</div>
     <form onsubmit="saveLesson(event)">
       <div class="form-row">
         <div class="form-group">
@@ -231,10 +305,11 @@ select.form-control option{background:#1c1c1c}
           <label>Duration <span class="req">*</span></label>
           <select class="form-control" id="lessonDur" required>
             <option value="1">1 hour</option>
-            <option value="1.5">1.5 hours</option>
+            <option value="1.5">1.5 hrs</option>
             <option value="2" selected>2 hours</option>
-            <option value="2.5">2.5 hours</option>
+            <option value="2.5">2.5 hrs</option>
             <option value="3">3 hours</option>
+            <option value="4">4 hours</option>
           </select>
         </div>
       </div>
@@ -263,7 +338,7 @@ select.form-control option{background:#1c1c1c}
       </div>
       <div class="form-group">
         <label>Notes (optional)</label>
-        <textarea class="form-control" id="lessonNotes" rows="2" placeholder="e.g. Bay parking practice, nervous learner…" style="resize:vertical"></textarea>
+        <textarea class="form-control" id="lessonNotes" rows="2" placeholder="e.g. Bay parking practice…" style="resize:vertical"></textarea>
       </div>
       <button class="btn-primary" type="submit" id="saveLessonBtn">Save Lesson</button>
       <button class="btn-secondary" type="button" onclick="closeModal('addModal')">Cancel</button>
@@ -278,37 +353,107 @@ select.form-control option{background:#1c1c1c}
     <h2 id="detailTitle">Lesson Details</h2>
     <div class="modal-sub" id="detailDate">—</div>
     <div id="detailBody"></div>
+    <div id="mapsSection"></div>
     <button class="btn-secondary" style="margin-top:16px" onclick="closeModal('detailModal')">Close</button>
-    <button class="btn-secondary" style="margin-top:6px;border-color:rgba(255,0,0,.3);color:#cc4444" onclick="deleteFromDetail()">🗑 Remove This Lesson</button>
+    <button class="btn-secondary" style="margin-top:6px;border-color:rgba(255,0,0,.25);color:#cc4444" onclick="deleteFromDetail()">🗑 Remove Lesson</button>
   </div>
 </div>
 
+<!-- PROFILE MODAL -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+    <h2>My Profile</h2>
+    <div class="modal-sub">Update your details — badge number is fixed</div>
+    <div class="avatar-upload">
+      <img class="avatar-preview" id="profileAvatarPreview" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/>
+      <div>
+        <div style="font-size:.74rem;color:#444;margin-bottom:6px">Profile Photo</div>
+        <label class="upload-btn-label" for="profilePhotoInput">📷 Upload Photo</label>
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(event)"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input class="form-control" id="profileName" placeholder="Full name"/>
+    </div>
+    <div class="form-group">
+      <label>Badge Number <span style="color:#333;font-size:.63rem">(cannot be changed)</span></label>
+      <input class="form-control" id="profileBadge" disabled style="color:#333;cursor:not-allowed"/>
+    </div>
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input class="form-control" id="profilePhone" placeholder="07xxx xxx xxx"/>
+    </div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input class="form-control" id="profileEmail" type="email" placeholder="you@email.com"/>
+    </div>
+    <div class="form-group">
+      <label>Area / Postcode</label>
+      <input class="form-control" id="profileArea" placeholder="e.g. M19, Didsbury"/>
+    </div>
+    <div style="background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.15);border-radius:10px;padding:13px;margin-bottom:14px">
+      <div style="font-size:.72rem;color:#444;margin-bottom:8px;font-family:'Oswald',sans-serif">🪪 BADGE PHOTO</div>
+      <img id="badgePhotoPreview" src="" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;display:none"/>
+      <label class="upload-btn-label" for="badgePhotoInput">📎 Upload Badge Photo</label>
+      <input type="file" id="badgePhotoInput" accept="image/*" style="display:none" onchange="handleBadgePhoto(event)"/>
+      <div style="font-size:.66rem;color:#2a2a2a;margin-top:6px">DVSA ADI/PDI badge photo</div>
+    </div>
+    <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
+    <button class="btn-secondary" onclick="closeModal('profileModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- WA FLOAT -->
+<a class="wa-float" href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20help." target="_blank" title="WhatsApp DriveSQ">💬</a>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-/* ── CONFIG ── */
 const SUPABASE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-/* ── AUTH CHECK ── */
-const instructor=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
-if(!instructor){window.location.href='index.html';}
+/* AUTH */
+let instructor=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
+if(!instructor){window.location.href='portal.html';}
 
-/* ── NAV ── */
-document.getElementById('navName').textContent=instructor?.name||'Instructor';
-document.getElementById('navBadge').textContent=instructor?.badge||'—';
+/* SUSPENDED CHECK */
+async function checkSuspension(){
+  const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instructor.id).single();
+  if(data&&data.status==='suspended'){
+    const showL=data.show_lessons!==false;
+    document.body.innerHTML=`<div class="suspended-overlay"><div class="suspended-box">
+      <h2>⛔ Account Suspended</h2>
+      <p>Your account has been temporarily suspended by DriveSQ admin.<br><br>
+      ${showL?'You can still view today\'s lessons below.':''}<br><br>
+      Please contact DriveSQ for more information.</p>
+      <a href="https://wa.me/447352932003" target="_blank" style="display:inline-block;background:#25D366;color:#fff;border-radius:8px;padding:10px 20px;font-family:Oswald,sans-serif;font-weight:600;font-size:.95rem;text-decoration:none">💬 WhatsApp DriveSQ</a>
+      <br><br><button onclick="logout()" style="background:transparent;border:1px solid #333;color:#555;border-radius:7px;padding:7px 16px;font-size:.75rem;cursor:pointer;font-family:Inter,sans-serif">Sign Out</button>
+    </div></div>`;
+    return true;
+  }
+  return false;
+}
 
-/* ── TYPING ── */
+function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
+
+/* NAV UI */
+function updateNavUI(){
+  document.getElementById('navName').textContent=instructor?.name||'Instructor';
+  document.getElementById('navBadge').textContent=instructor?.badge||'—';
+  if(instructor?.profile_photo_url){
+    document.getElementById('navAvatar').src=instructor.profile_photo_url;
+    document.getElementById('navLogo').src=instructor.profile_photo_url;
+  }
+}
+updateNavUI();
+
+/* TYPING — desktop only */
 (function(){
-  const phrases=[
-    'Welcome back, '+( instructor?.name?.split(' ')[0]||'Instructor')+'! 🚗',
-    'Plan your week with ease ✦',
-    'Up to 5 students per day ✦',
-    'DriveSQ — Drive to Succeed ✦',
-    'Manchester\'s finest instructors ✦'
-  ];
+  if(window.innerWidth<768)return;
+  const phrases=['Welcome back, '+(instructor?.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week with ease ✦','DriveSQ — Drive to Succeed ✦',"Manchester's finest instructors ✦"];
   const el=document.getElementById('typeNav');
   if(!el)return;
   let pi=0,ci=0,del=false;
@@ -321,24 +466,24 @@ document.getElementById('navBadge').textContent=instructor?.badge||'—';
   tick();
 })();
 
-function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='index.html';}
-
-/* ── DATES ── */
-const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday', 'Sunday'];
+/* DATE UTILS */
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function getMonday(d){
-  const dt=new Date(d);
+  const dt=new Date(d);dt.setHours(0,0,0,0);
   const day=dt.getDay();
   const diff=dt.getDate()-day+(day===0?-6:1);
-  const m=new Date(dt.setDate(diff));
-  m.setHours(0,0,0,0);
-  return m;
+  const m=new Date(dt);m.setDate(diff);m.setHours(0,0,0,0);return m;
 }
 function dateKey(d){return d.toISOString().slice(0,10);}
 function fmtDate(d){return d.getDate()+' '+MONTHS[d.getMonth()];}
-function fmtDateFull(d){return DAYS[d.getDay()-1]+', '+d.getDate()+' '+FULL_MONTHS[d.getMonth()]+' '+d.getFullYear();}
+function fmtDateFull(d){
+  const day=d.getDay();
+  const name=day===0?'Sunday':DAYS[day-1];
+  return name+', '+d.getDate()+' '+FULL_MONTHS[d.getMonth()]+' '+d.getFullYear();
+}
 
 let currentWeekStart=getMonday(new Date());
 let weekLessons={};
@@ -346,128 +491,130 @@ let activeSlot=null;
 let detailLessonId=null;
 
 function getWeekDays(start){
-  return DAYS.map((_,i)=>{
-    const d=new Date(start);
-    d.setDate(start.getDate()+i);
-    return d;
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(start);d.setDate(start.getDate()+i);return d;
   });
 }
 
-/* ── LOAD LESSONS ── */
+/* LOAD LESSONS */
 async function loadWeekLessons(){
   const days=getWeekDays(currentWeekStart);
-  const from=dateKey(days[0]);
-  const to=dateKey(days[6]);
+  const from=dateKey(days[0]),to=dateKey(days[6]);
   try{
-    const{data,error}=await sb.from('lessons')
-      .select('*')
-      .eq('instructor_id',instructor.id)
-      .gte('lesson_date',from)
-      .lte('lesson_date',to)
-      .order('start_time',{ascending:true});
+    const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instructor.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
     if(error)throw error;
     weekLessons={};
-    (data||[]).forEach(l=>{
-      if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];
-      weekLessons[l.lesson_date].push(l);
-    });
+    (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
   }catch(e){console.error(e);}
   renderCalendar();
   updateStats();
 }
 
-/* ── RENDER ── */
+/* NOTIFICATIONS */
+async function loadNotifications(){
+  try{
+    const{data}=await sb.from('admin_messages').select('*').eq('instructor_id',instructor.id).eq('dismissed',false).order('created_at',{ascending:false});
+    const msgs=data||[];
+    const unread=msgs.filter(m=>!m.is_read);
+    document.getElementById('notifDot').classList.toggle('hidden',unread.length===0);
+    const bannerContainer=document.getElementById('msgBanners');
+    bannerContainer.innerHTML='';
+    msgs.filter(m=>!m.is_read).forEach(m=>{
+      const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',suspension:'🚫'};
+      const div=document.createElement('div');
+      div.className=`msg-banner ${m.message_type}`;
+      div.innerHTML=`<div class="mb-icon">${icons[m.message_type]||'📢'}</div>
+        <div class="mb-body"><div class="mb-subj">${esc(m.subject)}</div><div class="mb-text">${esc(m.body)}</div></div>
+        <button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;
+      bannerContainer.appendChild(div);
+    });
+    const list=document.getElementById('notifList');
+    if(!msgs.length){list.innerHTML='<div class="notif-empty">No notifications</div>';return;}
+    const typeColors={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa',suspension:'#a855f7'};
+    const icons2={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',suspension:'🚫'};
+    list.innerHTML=msgs.map(m=>`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')">
+      <div class="ni-type" style="color:${typeColors[m.message_type]||'#60a5fa'}">${icons2[m.message_type]||'📢'} ${m.message_type.replace('_',' ')}</div>
+      <div class="ni-subj">${esc(m.subject)}</div>
+      <div class="ni-body">${esc(m.body)}</div>
+      <div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+    </div>`).join('');
+  }catch(e){}
+}
+
+async function dismissMsg(id){await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);loadNotifications();}
+async function markRead(id){await sb.from('admin_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('id',id);loadNotifications();}
+function toggleNotifPanel(){document.getElementById('notifPanel').classList.toggle('open');}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');
+  if(p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
+});
+
+/* RENDER */
 function renderCalendar(){
   const days=getWeekDays(currentWeekStart);
   const today=dateKey(new Date());
-  const endDay=days[6];
-  const startDay=days[0];
-
-  // Week label
-  const wl=fmtDate(startDay)+' – '+fmtDate(endDay)+' '+endDay.getFullYear();
+  const wl=fmtDate(days[0])+' – '+fmtDate(days[6])+' '+days[6].getFullYear();
   document.getElementById('weekLabel').textContent=wl;
   document.getElementById('weekLabelMob').textContent=wl;
 
   // Desktop header
-  const hdr=document.getElementById('calHeader');
-  hdr.innerHTML=days.map((d,i)=>{
-    const dk=dateKey(d);
-    const isToday=dk===today;
-    return`<div class="cal-day-head${isToday?' today-col':''}">
+  document.getElementById('calHeader').innerHTML=days.map((d,i)=>{
+    const dk=dateKey(d),isT=dk===today,isW=i>=5;
+    return`<div class="cal-day-head${isT?' today-col':isW?' wknd':''}">
       <div class="cal-day-name">${DAYS[i].slice(0,3)}</div>
-      <div class="cal-day-date${isToday?' today':''}">${fmtDate(d)}${isToday?' · Today':''}</div>
+      <div class="cal-day-date${isT?' today':''}">${fmtDate(d)}${isT?' ·Today':''}</div>
     </div>`;
   }).join('');
 
   // Desktop body
-  const body=document.getElementById('calBody');
-  body.innerHTML=days.map((d,i)=>{
-    const dk=dateKey(d);
-    const isToday=dk===today;
+  document.getElementById('calBody').innerHTML=days.map((d,i)=>{
+    const dk=dateKey(d),isT=dk===today,isW=i>=5;
     const lessons=weekLessons[dk]||[];
-    const slotsUsed=lessons.length;
-    const slotsLeft=7-slotsUsed;
-    let html=lessons.map(l=>lessonSlotHTML(l,dk)).join('');
-    if(slotsLeft>0){
-      html+=`<div class="lesson-slot empty-slot" onclick="openAddModal('${dk}','${DAYS[i]}',${i})">
-        <span style="font-size:1rem;color:rgba(209,10,17,.4)">+</span> Add Student
-      </div>`;
-    }
-    html+=`<div class="slot-count">${slotsUsed}/5 slots used</div>`;
-    return`<div class="cal-col${isToday?' today-col':''}">${html}</div>`;
+    let html=lessons.map(l=>slotHTML(l)).join('');
+    html+=`<div class="lesson-slot empty-slot" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><span style="color:rgba(209,10,17,.4);font-size:.9rem">+</span> Add</div>`;
+    html+=`<div class="slot-count">${lessons.length} lesson${lessons.length!==1?'s':''}</div>`;
+    return`<div class="cal-col${isT?' today-col':isW?' wknd':''}">${html}</div>`;
   }).join('');
 
   // Mobile
-  const mob=document.getElementById('mobileCal');
-  mob.innerHTML=days.map((d,i)=>{
-    const dk=dateKey(d);
-    const isToday=dk===today;
+  document.getElementById('mobileCal').innerHTML=days.map((d,i)=>{
+    const dk=dateKey(d),isT=dk===today,isW=i>=5;
     const lessons=weekLessons[dk]||[];
-    const slotsLeft=5-lessons.length;
-    let inner=lessons.map(l=>lessonSlotHTML(l,dk)).join('');
-    if(slotsLeft>0){
-      inner+=`<div class="lesson-slot empty-slot" style="min-height:52px" onclick="openAddModal('${dk}','${DAYS[i]}',${i})">
-        <span style="font-size:.9rem;color:rgba(209,10,17,.4)">+</span> Add Student
-      </div>`;
-    }
-    
-    
-  
-    inner+=`<div class="slot-count">${lessons.length}/5 slots</div>`;
-    return`<div class="mobile-day${isToday?' ':'' }">
-      <div class="mobile-day-head${isToday?' ':'' }" style="${isToday?'border-left:3px solid var(--red)':''}">
-        <div class="mobile-day-name" style="${isToday?'color:var(--red)':''}">${DAYS[i]}${isToday?' · Today':''}</div>
-        <div class="mobile-day-count">${fmtDate(d)} · ${lessons.length} lesson${lessons.length!==1?'s':''}</div>
+    let inner=lessons.map(l=>slotHTML(l)).join('');
+    inner+=`<div class="lesson-slot empty-slot" style="min-height:46px" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><span style="color:rgba(209,10,17,.4)">+</span> Add</div>`;
+    inner+=`<div class="slot-count">${lessons.length} lesson${lessons.length!==1?'s':''}</div>`;
+    const hc=isT?'today':isW?'wknd':'';
+    return`<div class="mobile-day">
+      <div class="mobile-day-head ${hc}">
+        <div class="mobile-day-name" style="${isT?'color:var(--red)':isW?'color:var(--gold)':''}">${DAYS[i]}${isT?' · Today':''}</div>
+        <div class="mobile-day-count">${fmtDate(d)} · ${lessons.length}</div>
       </div>
       <div class="mobile-day-body">${inner}</div>
     </div>`;
   }).join('');
 }
 
-function lessonSlotHTML(l,dk){
+function slotHTML(l){
   const dur=parseFloat(l.duration_hours)||1;
-  const endTime=calcEndTime(l.start_time,dur);
+  const end=calcEndTime(l.start_time,dur);
   return`<div class="lesson-slot" onclick="openDetail('${l.id}')">
-    <div class="lesson-time">${l.start_time}–${endTime} · ${dur}hr${dur!==1?'s':''}</div>
-    <div class="lesson-name">${escHtml(l.student_name)}</div>
-    <div class="lesson-addr">${escHtml(l.pickup_address||'')}</div>
-    ${l.notes?`<div class="lesson-note">${escHtml(l.notes)}</div>`:''}
-    <button class="lesson-del" onclick="event.stopPropagation();deleteLesson('${l.id}','${dk}')" title="Remove lesson">✕</button>
+    <div class="lesson-time">${l.start_time}–${end} · ${dur}h</div>
+    <div class="lesson-name">${esc(l.student_name)}</div>
+    <div class="lesson-addr">${esc(l.pickup_address||'')}</div>
+    ${l.notes?`<div class="lesson-note">${esc(l.notes)}</div>`:''}
+    <button class="lesson-del" onclick="event.stopPropagation();deleteLesson('${l.id}')" title="Remove">✕</button>
   </div>`;
 }
 
 function calcEndTime(start,hrs){
   if(!start)return'';
-  const [h,m]=start.split(':').map(Number);
-  const total=h*60+m+hrs*60;
-  const nh=Math.floor(total/60)%24;
-  const nm=Math.round(total%60);
-  return String(nh).padStart(2,'0')+':'+String(nm).padStart(2,'0');
+  const[h,m]=start.split(':').map(Number);
+  const t=h*60+m+hrs*60;
+  return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(Math.round(t%60)).padStart(2,'0');
 }
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-/* ── STATS ── */
+/* STATS */
 function updateStats(){
   const today=dateKey(new Date());
   const tom=new Date();tom.setDate(tom.getDate()+1);
@@ -475,45 +622,31 @@ function updateStats(){
   const todayL=weekLessons[today]||[];
   const tomL=weekLessons[tomKey]||[];
   const allWeek=Object.values(weekLessons).flat();
-  const unique=new Set(allWeek.map(l=>l.student_name)).size;
-  const sumHrs=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
-
+  const sum=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   document.getElementById('statToday').textContent=todayL.length;
-  document.getElementById('statTodayHrs').textContent=sumHrs(todayL).toFixed(1)+' hrs today';
+  document.getElementById('statTodayHrs').textContent=sum(todayL).toFixed(1)+' hrs today';
   document.getElementById('statTomorrow').textContent=tomL.length;
-  document.getElementById('statTomHrs').textContent=sumHrs(tomL).toFixed(1)+' hrs tomorrow';
+  document.getElementById('statTomHrs').textContent=sum(tomL).toFixed(1)+' hrs tomorrow';
   document.getElementById('statWeek').textContent=allWeek.length;
-  document.getElementById('statWeekHrs').textContent=sumHrs(allWeek).toFixed(1)+' hrs this week';
-  document.getElementById('statStudents').textContent=unique;
+  document.getElementById('statWeekHrs').textContent=sum(allWeek).toFixed(1)+' hrs this week';
+  document.getElementById('statStudents').textContent=new Set(allWeek.map(l=>l.student_name)).size;
 }
 
-/* ── WEEK NAV ── */
-function changeWeek(dir){
-  currentWeekStart=new Date(currentWeekStart);
-  currentWeekStart.setDate(currentWeekStart.getDate()+dir*7);
-  loadWeekLessons();
-}
+function changeWeek(dir){const d=new Date(currentWeekStart);d.setDate(d.getDate()+dir*7);currentWeekStart=d;loadWeekLessons();}
+function goToday(){currentWeekStart=getMonday(new Date());loadWeekLessons();}
 
-/* ── MODALS ── */
-function openAddModal(dateKey,dayName,dayIndex){
+/* MODALS */
+function openAddModal(dk,dayName,dayIdx){
   const days=getWeekDays(currentWeekStart);
-  const d=days[dayIndex];
-  const lessons=weekLessons[dateKey]||[];
-  if(lessons.length>=5){showToast('Maximum 5 students per day reached.');return;}
-  activeSlot={dateKey,dayName,dayIndex};
+  const d=days[dayIdx];
+  activeSlot={dateKey:dk,dayName,dayIdx};
   document.getElementById('addModalSub').textContent=dayName+', '+fmtDate(d)+' '+d.getFullYear();
   document.getElementById('addModal').classList.add('open');
-  document.getElementById('lessonStudent').focus();
+  setTimeout(()=>document.getElementById('lessonStudent').focus(),100);
 }
-
 function closeModal(id){
   document.getElementById(id).classList.remove('open');
-  if(id==='addModal'){
-    document.getElementById('lessonStudent').value='';
-    document.getElementById('lessonPhone').value='';
-    document.getElementById('lessonAddr').value='';
-    document.getElementById('lessonNotes').value='';
-  }
+  if(id==='addModal'){['lessonStudent','lessonPhone','lessonAddr','lessonNotes'].forEach(f=>document.getElementById(f).value='');}
 }
 
 async function saveLesson(e){
@@ -537,58 +670,118 @@ async function saveLesson(e){
     closeModal('addModal');
     await loadWeekLessons();
     showToast('Lesson saved! ✓','success');
-  }catch(err){showToast('Error saving lesson. Please try again.');}
+  }catch(err){showToast('Error saving lesson.');}
   finally{btn.textContent='Save Lesson';btn.disabled=false;}
 }
 
-async function deleteLesson(id,dk){
+async function deleteLesson(id){
   if(!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',id);
   if(!error){await loadWeekLessons();showToast('Lesson removed.');}
   else showToast('Error removing lesson.');
 }
 
-/* ── DETAIL ── */
+/* DETAIL */
 async function openDetail(id){
   const{data,error}=await sb.from('lessons').select('*').eq('id',id).single();
   if(error||!data)return;
   detailLessonId=id;
-  const days=getWeekDays(currentWeekStart);
   const d=new Date(data.lesson_date+'T00:00:00');
-  const endTime=calcEndTime(data.start_time,parseFloat(data.duration_hours));
+  const end=calcEndTime(data.start_time,parseFloat(data.duration_hours));
   document.getElementById('detailTitle').textContent=data.student_name;
-  document.getElementById('detailDate').textContent=fmtDateFull(d)+' · '+data.start_time+'–'+endTime;
+  document.getElementById('detailDate').textContent=fmtDateFull(d)+' · '+data.start_time+'–'+end;
   document.getElementById('detailBody').innerHTML=`
-    <div class="detail-field"><div class="detail-label">Time</div><div class="detail-value">${data.start_time} – ${endTime} (${data.duration_hours}hr${data.duration_hours!==1?'s':''})</div></div>
-    <div class="detail-field"><div class="detail-label">Lesson Type</div><div class="detail-value">${escHtml(data.lesson_type||'Standard')}</div></div>
-    <div class="detail-field"><div class="detail-label">Student Name</div><div class="detail-value">${escHtml(data.student_name)}</div></div>
-    <div class="detail-field"><div class="detail-label">Phone</div><div class="detail-value ${!data.student_phone?'empty':''}">${data.student_phone?`<a href="tel:${escHtml(data.student_phone)}" style="color:var(--red)">${escHtml(data.student_phone)}</a>`:'Not provided'}</div></div>
-    <div class="detail-field"><div class="detail-label">Pickup Address</div><div class="detail-value ${!data.pickup_address?'empty':''}">${escHtml(data.pickup_address)||'Not provided'}</div></div>
-    <div class="detail-field"><div class="detail-label">Notes</div><div class="detail-value ${!data.notes?'empty':''}" style="font-style:${data.notes?'normal':'italic'}">${escHtml(data.notes)||'None'}</div></div>
-  `;
+    <div class="detail-field"><div class="detail-label">Time</div><div class="detail-value">${data.start_time} – ${end} (${data.duration_hours}hr${data.duration_hours!=1?'s':''})</div></div>
+    <div class="detail-field"><div class="detail-label">Lesson Type</div><div class="detail-value">${esc(data.lesson_type||'Manual')}</div></div>
+    <div class="detail-field"><div class="detail-label">Student</div><div class="detail-value">${esc(data.student_name)}</div></div>
+    <div class="detail-field"><div class="detail-label">Phone</div><div class="detail-value ${!data.student_phone?'empty':''}">${data.student_phone?`<a href="tel:${esc(data.student_phone)}" style="color:var(--red)">${esc(data.student_phone)}</a>`:'Not provided'}</div></div>
+    <div class="detail-field"><div class="detail-label">Pickup Address</div><div class="detail-value ${!data.pickup_address?'empty':''}">${esc(data.pickup_address)||'Not provided'}</div></div>
+    <div class="detail-field"><div class="detail-label">Notes</div><div class="detail-value ${!data.notes?'empty':''}" style="font-style:${data.notes?'normal':'italic'}">${esc(data.notes)||'None'}</div></div>`;
+  const ms=document.getElementById('mapsSection');
+  if(data.pickup_address){
+    const q=encodeURIComponent(data.pickup_address);
+    ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4285F4"/></svg>
+      Open in Google Maps
+    </a>`;
+  }else{ms.innerHTML='';}
   document.getElementById('detailModal').classList.add('open');
 }
 
 async function deleteFromDetail(){
-  if(!detailLessonId)return;
-  if(!confirm('Remove this lesson?'))return;
+  if(!detailLessonId||!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',detailLessonId);
   if(!error){closeModal('detailModal');await loadWeekLessons();showToast('Lesson removed.');}
   else showToast('Error removing lesson.');
 }
 
-/* ── TOAST ── */
+/* PROFILE */
+let profilePhotoFile=null,badgePhotoFile=null;
+
+function openProfileModal(){
+  document.getElementById('profileName').value=instructor.name||'';
+  document.getElementById('profileBadge').value=instructor.badge||'';
+  document.getElementById('profilePhone').value=instructor.phone||'';
+  document.getElementById('profileEmail').value=instructor.email||'';
+  document.getElementById('profileArea').value=instructor.area||'';
+  if(instructor.profile_photo_url)document.getElementById('profileAvatarPreview').src=instructor.profile_photo_url;
+  loadBadgePreview();
+  document.getElementById('profileModal').classList.add('open');
+}
+async function loadBadgePreview(){
+  const{data}=await sb.from('instructors').select('badge_photo_url').eq('id',instructor.id).single();
+  if(data?.badge_photo_url){const p=document.getElementById('badgePhotoPreview');p.src=data.badge_photo_url;p.style.display='block';}
+}
+function handleProfilePhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  profilePhotoFile=f;
+  document.getElementById('profileAvatarPreview').src=URL.createObjectURL(f);
+}
+function handleBadgePhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  badgePhotoFile=f;
+  const p=document.getElementById('badgePhotoPreview');p.src=URL.createObjectURL(f);p.style.display='block';
+}
+async function uploadPhoto(file,path){
+  const{error}=await sb.storage.from('instructor-photos').upload(path,file,{upsert:true});
+  if(error)throw error;
+  return sb.storage.from('instructor-photos').getPublicUrl(path).data.publicUrl;
+}
+async function saveProfile(){
+  const updates={full_name:document.getElementById('profileName').value.trim(),phone:document.getElementById('profilePhone').value.trim(),email:document.getElementById('profileEmail').value.trim(),area:document.getElementById('profileArea').value.trim()};
+  try{
+    if(profilePhotoFile){const url=await uploadPhoto(profilePhotoFile,`profiles/${instructor.id}/profile.${profilePhotoFile.name.split('.').pop()}`);updates.profile_photo_url=url;}
+    if(badgePhotoFile){
+      const url=await uploadPhoto(badgePhotoFile,`badges/${instructor.id}/badge.${badgePhotoFile.name.split('.').pop()}`);
+      updates.badge_photo_url=url;
+      await sb.from('admin_messages').update({dismissed:true}).eq('instructor_id',instructor.id).eq('message_type','badge_request');
+      await sb.from('instructors').update({badge_photo_requested:false}).eq('id',instructor.id);
+    }
+    const{error}=await sb.from('instructors').update(updates).eq('id',instructor.id);
+    if(error)throw error;
+    instructor.name=updates.full_name;instructor.phone=updates.phone;instructor.email=updates.email;instructor.area=updates.area;
+    if(updates.profile_photo_url)instructor.profile_photo_url=updates.profile_photo_url;
+    sessionStorage.setItem('dsq_instructor',JSON.stringify(instructor));
+    updateNavUI();profilePhotoFile=null;badgePhotoFile=null;
+    closeModal('profileModal');showToast('Profile updated! ✓','success');loadNotifications();
+  }catch(err){showToast('Error saving profile.');}
+}
+
+/* TOAST */
 let toastTimer;
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast'+(type?' '+type:'');
   clearTimeout(toastTimer);
   setTimeout(()=>t.classList.add('show'),10);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
 }
 
-/* ── INIT ── */
-loadWeekLessons();
+/* INIT */
+(async()=>{
+  const suspended=await checkSuspension();
+  if(!suspended){loadWeekLessons();loadNotifications();setInterval(loadNotifications,30000);}
+})();
 </script>
 </body>
 </html>
