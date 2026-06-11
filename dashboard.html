@@ -152,6 +152,21 @@ a{color:var(--red);text-decoration:none}
 .student-card:hover{border-color:rgba(209,10,17,.25)}
 .s-init{width:38px;height:38px;border-radius:50%;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--red);flex-shrink:0}
 
+/* ── ROSTER BADGE ── */
+.roster-pill{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
+.roster-pill.saved{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.25)}
+.roster-pill.unsaved{background:rgba(255,255,255,.04);color:#444;border:1px solid var(--bdr)}
+
+/* ── STUDENT SUGGESTION DROPDOWN ── */
+.suggest-wrap{position:relative}
+.suggest-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#141414;border:1px solid var(--bdr);border-radius:10px;z-index:1200;max-height:220px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.7)}
+.suggest-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #1a1a1a;transition:background var(--trans)}
+.suggest-item:last-child{border-bottom:none}
+.suggest-item:hover,.suggest-item.active{background:rgba(209,10,17,.08)}
+.suggest-name{font-size:.82rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif}
+.suggest-meta{font-size:.65rem;color:#444;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suggest-empty{padding:11px 12px;font-size:.74rem;color:#333;text-align:center}
+
 /* REQUEST CARD */
 .req-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px}
 .req-card.pending{border-color:rgba(245,197,24,.25)}
@@ -201,6 +216,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .btn-g:hover{background:rgba(37,211,102,.22)}
 .btn-r-sm{background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.22);color:#f87171;border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:.86rem;cursor:pointer;transition:all var(--trans);min-height:40px}
 .btn-r-sm:hover{background:rgba(209,10,17,.22)}
+.btn-blue{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.22);color:#93c5fd;border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:.86rem;cursor:pointer;transition:all var(--trans);min-height:40px}
+.btn-blue:hover{background:rgba(96,165,250,.22)}
 
 /* DETAIL */
 .det-row{padding:8px 0;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:2px}
@@ -336,7 +353,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <!-- ── STUDENTS ── -->
   <div id="panel-students" class="hidden">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>My Students</div>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>My Students</div>
+        <div style="font-size:.68rem;color:#444;margin-top:2px">Saved students auto-fill when adding lessons</div>
+      </div>
       <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)"/>
     </div>
     <div id="studentList" class="d-flex flex-column gap-2"></div>
@@ -361,7 +381,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="panel-profile" class="hidden pb-3">
     <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-circle me-2" style="color:var(--red)"></i>My Profile</div>
     <div class="row g-3">
-      <!-- Photo + details -->
       <div class="col-12">
         <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:18px">
           <div class="d-flex align-items-center gap-3 mb-3">
@@ -385,7 +404,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </div>
         </div>
       </div>
-      <!-- Badge photo -->
       <div class="col-12 col-md-6">
         <div style="background:var(--dk2);border:1px solid rgba(96,165,250,.18);border-radius:14px;padding:14px;height:100%">
           <div class="section-head" style="color:#93c5fd"><i class="bi bi-card-image me-2"></i>DVSA Badge Photo</div>
@@ -397,7 +415,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <input type="file" id="badgeInput" accept="image/*" style="display:none" onchange="handleBadgePhoto(event)"/>
         </div>
       </div>
-      <!-- Vehicle -->
       <div class="col-12 col-md-6">
         <div style="background:var(--dk2);border:1px solid rgba(245,197,24,.14);border-radius:14px;padding:14px;height:100%">
           <div class="section-head" style="color:var(--gold)"><i class="bi bi-car-front-fill me-2"></i>My Vehicle <span style="font-size:.62rem;color:#333">(optional)</span></div>
@@ -443,7 +460,25 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <button class="modal-x" onclick="closeModal('addModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-plus-circle-fill me-2" style="color:var(--red)"></i>Add Lesson</h5>
     <div class="modal-sub" id="addSub">—</div>
-    <form onsubmit="saveLesson(event)">
+
+    <!-- Student name with autocomplete -->
+    <div class="mb-2">
+      <label class="dsq-lbl">Student Name <span class="req-mark">*</span></label>
+      <div class="suggest-wrap">
+        <input class="dsq-inp" id="lStudent" placeholder="Type name or pick saved student…" required
+          autocomplete="off"
+          oninput="onStudentInput(this.value)"
+          onkeydown="onStudentKeydown(event)"
+          onfocus="onStudentInput(this.value)"/>
+        <div class="suggest-drop hidden" id="suggestDrop"></div>
+      </div>
+      <!-- Loaded-from-roster indicator -->
+      <div id="rosterIndicator" class="hidden mt-1" style="font-size:.67rem;color:#4ade80;display:flex;align-items:center;gap:5px">
+        <i class="bi bi-bookmark-check-fill"></i><span>Filled from saved student — edit freely</span>
+      </div>
+    </div>
+
+    <form onsubmit="saveLesson(event)" id="addLessonForm">
       <div class="row g-2 mb-2">
         <div class="col-6"><label class="dsq-lbl">Start Time <span class="req-mark">*</span></label><input class="dsq-inp" id="lTime" type="time" required value="09:00"/></div>
         <div class="col-6"><label class="dsq-lbl">Duration <span class="req-mark">*</span></label>
@@ -453,7 +488,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </select>
         </div>
       </div>
-      <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="lStudent" placeholder="Full name" required/></div>
       <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="lPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
       <div class="mb-2"><label class="dsq-lbl">Pickup Address <span class="req-mark">*</span></label><input class="dsq-inp" id="lAddr" placeholder="14 Oak Street, M20" required/></div>
       <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
@@ -482,6 +516,32 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="btn-s flex-fill" onclick="closeModal('detailModal')">Close</button>
       <button class="btn-r-sm flex-fill" onclick="deleteFromDetail()"><i class="bi bi-trash me-1"></i>Remove</button>
     </div>
+  </div>
+</div>
+
+<!-- ════ EDIT STUDENT MODAL ════ -->
+<div class="dsq-overlay" id="editStudentModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('editStudentModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student</h5>
+    <div class="modal-sub">Changes save to this student's profile and will auto-fill next time</div>
+    <input type="hidden" id="editStudentId"/>
+    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="esSName" placeholder="Student full name" required/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="esSPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Default Pickup Address</label><input class="dsq-inp" id="esSAddr" placeholder="14 Oak Street, M20"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Default Lesson Type</label>
+      <select class="dsq-inp" id="eSType">
+        <option value="Manual">🔵 Manual</option><option value="Automatic">🟢 Automatic</option>
+        <option value="Mock Test">🔴 Mock Test</option><option value="Intensive">🟠 Intensive</option>
+        <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
+      </select>
+    </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes / Remarks</label><textarea class="dsq-inp" id="eSNotes" rows="2" placeholder="e.g. nervous driver, test booked for May…"></textarea></div>
+    <div class="d-flex gap-2">
+      <button class="btn-p flex-fill" onclick="saveStudentProfile()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+      <button class="btn-r-sm" onclick="removeStudentFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
+    </div>
+    <button class="btn-s mt-2" onclick="closeModal('editStudentModal')">Cancel</button>
   </div>
 </div>
 
@@ -571,20 +631,21 @@ function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 /* STATE */
 let weekStart=getMonday(new Date());
 let weekLessons={};
-let activeDate=null,detailId=null,approveReqData=null;
+let activeDate=null,detailId=null;
 let shownReminders=new Set();
 let pPhotoFile=null,bPhotoFile=null,cPhotoFile=null;
 let allStudentsArr=[];
+// ── roster: array of student_profiles rows
+let rosterMap={};       // key: lowercase name → profile object
+let suggestIdx=-1;      // keyboard nav index in dropdown
 
 /* INIT */
 (async()=>{
   await checkSuspended();
   updateNav();
-  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadProfileData()]);
+  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadProfileData(),loadRoster()]);
   populateInstrDropdowns();
-  // Record last login
   sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
-  // Typing
   if(window.innerWidth>=992){
     const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦',"Manchester's finest ✦"];
     const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
@@ -649,13 +710,11 @@ function renderCal(){
   const tk=todayKey();
   document.getElementById('weekLabel').textContent=fmtS(days[0])+' – '+fmtS(days[6])+' '+days[6].getFullYear();
 
-  // Desktop header
   document.getElementById('calHdr').innerHTML=days.map((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
     return`<div class="cal-dh${isT?' today':isW?' wknd':''}"><div class="cal-dn">${DAYS[i].slice(0,3)}</div><div class="cal-dd${isT?' is-today':''}">${fmtS(d)}${isT?' · Today':''}</div></div>`;
   }).join('');
 
-  // Desktop body
   document.getElementById('calBody').innerHTML=days.map((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
     const ls=weekLessons[dk]||[];
@@ -670,7 +729,6 @@ function renderCal(){
     return`<div class="cal-col${isT?' today':isW?' wknd':''}">${h}</div>`;
   }).join('');
 
-  // Mobile
   const mob=document.getElementById('mobCal');mob.innerHTML='';
   days.forEach((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
@@ -696,26 +754,103 @@ function renderCal(){
   });
 }
 
+/* ════════════════════════════════════
+   STUDENT ROSTER
+   Uses table: student_profiles
+   Columns: id, instructor_id, name, phone, address, lesson_type, notes, created_at, updated_at
+   ════════════════════════════════════ */
+
+async function loadRoster(){
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+  rosterMap={};
+  (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
+}
+
+/* ── AUTOCOMPLETE / SUGGESTION ── */
+let suggestOpen=false;
+
+function getRosterSuggestions(q){
+  if(!q||q.length<1)return[];
+  const qLow=q.toLowerCase().trim();
+  return Object.values(rosterMap).filter(p=>p.name.toLowerCase().includes(qLow)).slice(0,6);
+}
+
+function onStudentInput(val){
+  const suggestions=getRosterSuggestions(val);
+  const drop=document.getElementById('suggestDrop');
+  suggestIdx=-1;
+  if(!suggestions.length){drop.classList.add('hidden');suggestOpen=false;return;}
+  drop.innerHTML=suggestions.map((p,i)=>`
+    <div class="suggest-item" data-idx="${i}" onmousedown="pickSuggestion('${p.name.replace(/'/g,"\\'")}')">
+      <div class="suggest-name">${esc(p.name)}<span class="roster-pill saved ms-2"><i class="bi bi-bookmark-fill me-1"></i>Saved</span></div>
+      <div class="suggest-meta">${[p.phone,p.address,p.lesson_type].filter(Boolean).join(' · ')}</div>
+    </div>`).join('');
+  drop.classList.remove('hidden');
+  suggestOpen=true;
+}
+
+function onStudentKeydown(e){
+  const drop=document.getElementById('suggestDrop');
+  const items=drop.querySelectorAll('.suggest-item');
+  if(!suggestOpen||!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();suggestIdx=Math.min(suggestIdx+1,items.length-1);highlightSuggest(items);}
+  else if(e.key==='ArrowUp'){e.preventDefault();suggestIdx=Math.max(suggestIdx-1,-1);highlightSuggest(items);}
+  else if(e.key==='Enter'&&suggestIdx>=0){e.preventDefault();const name=items[suggestIdx].getAttribute('onmousedown').match(/'([^']+)'/)?.[1];if(name)pickSuggestion(name);}
+  else if(e.key==='Escape'){drop.classList.add('hidden');suggestOpen=false;}
+}
+
+function highlightSuggest(items){
+  items.forEach((el,i)=>el.classList.toggle('active',i===suggestIdx));
+  if(suggestIdx>=0)items[suggestIdx].scrollIntoView({block:'nearest'});
+}
+
+function pickSuggestion(name){
+  const p=rosterMap[name.toLowerCase().trim()];
+  if(!p)return;
+  document.getElementById('lStudent').value=p.name;
+  document.getElementById('lPhone').value=p.phone||'';
+  document.getElementById('lAddr').value=p.address||'';
+  document.getElementById('lType').value=p.lesson_type||'Manual';
+  document.getElementById('lNotes').value=p.notes||'';
+  document.getElementById('suggestDrop').classList.add('hidden');
+  document.getElementById('rosterIndicator').classList.remove('hidden');
+  suggestOpen=false;
+}
+
+// Hide dropdown when clicking outside
+document.addEventListener('click',e=>{
+  const drop=document.getElementById('suggestDrop');
+  const inp=document.getElementById('lStudent');
+  if(drop&&inp&&!drop.contains(e.target)&&e.target!==inp){drop.classList.add('hidden');suggestOpen=false;}
+});
+
 /* ADD LESSON */
 function openAddModal(dk,dayName,idx){
   activeDate=dk;
   const days=weekDays(weekStart);
   document.getElementById('addSub').textContent=dayName+', '+fmtS(days[idx])+' '+days[idx].getFullYear();
-  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';
+  document.getElementById('lStudent').value='';
+  ['lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('lTime').value='09:00';
+  document.getElementById('lDur').value='2';
+  document.getElementById('lType').value='Manual';
+  document.getElementById('rosterIndicator').classList.add('hidden');
+  document.getElementById('suggestDrop').classList.add('hidden');
   openModal('addModal');
   setTimeout(()=>document.getElementById('lStudent').focus(),300);
 }
 
 async function saveLesson(e){
   e.preventDefault();
+  const studentName=document.getElementById('lStudent').value.trim();
+  if(!studentName){showToast('Please enter a student name.');return;}
   const btn=document.getElementById('saveLsBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
   try{
     const{error}=await sb.from('lessons').insert([{
       instructor_id:instr.id,lesson_date:activeDate,
       start_time:document.getElementById('lTime').value,
       duration_hours:parseFloat(document.getElementById('lDur').value),
-      student_name:document.getElementById('lStudent').value.trim(),
+      student_name:studentName,
       student_phone:document.getElementById('lPhone').value.trim(),
       pickup_address:document.getElementById('lAddr').value.trim(),
       lesson_type:document.getElementById('lType').value,
@@ -740,12 +875,13 @@ async function openDetail(id){
   const{data}=await sb.from('lessons').select('*').eq('id',id).single();
   if(!data)return;
   detailId=id;
-  // Use T12:00:00 to avoid timezone shifting the date
   const d=new Date(data.lesson_date+'T12:00:00');
   const end=calcEnd(data.start_time,data.duration_hours);
   document.getElementById('detTitle').textContent=data.student_name;
   document.getElementById('detSub').textContent=fmtFull(d)+' · '+data.start_time+'–'+end;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+  // Check if this student is in the roster
+  const inRoster=!!rosterMap[data.student_name.toLowerCase().trim()];
   document.getElementById('detBody').innerHTML=[
     ['<i class="bi bi-clock me-1"></i>Time',`${data.start_time} – ${end} (${data.duration_hours}hr${data.duration_hours!=1?'s':''})`],
     ['<i class="bi bi-tag me-1"></i>Type',`<span style="color:${tc[data.lesson_type]||'#60a5fa'};font-weight:700">${esc(data.lesson_type||'Manual')}</span>`],
@@ -755,8 +891,11 @@ async function openDetail(id){
     ['<i class="bi bi-sticky me-1"></i>Notes',esc(data.notes)||'None'],
   ].map(([l,v])=>`<div class="det-row"><div class="det-lbl">${l}</div><div class="det-val">${v}</div></div>`).join('');
   const ms=document.getElementById('detMaps');
-  if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>`;}
-  else ms.innerHTML='';
+  let extra='';
+  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${data.student_name.replace(/'/g,"\\'")}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Saved Student Profile</button>`;}
+  else{extra+=`<button class="btn-g mt-2 w-100" onclick="saveStudentToRosterFromLesson('${data.student_name.replace(/'/g,"\\'")}','${(data.student_phone||'').replace(/'/g,"\\'")}','${(data.pickup_address||'').replace(/'/g,"\\'")}','${(data.lesson_type||'Manual').replace(/'/g,"\\'")}')"><i class="bi bi-bookmark-plus me-1"></i>Save to Student Roster</button>`;}
+  if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>${extra}`;}
+  else ms.innerHTML=extra;
   openModal('detailModal');
 }
 
@@ -765,6 +904,82 @@ async function deleteFromDetail(){
   const{error}=await sb.from('lessons').delete().eq('id',detailId);
   if(error){showToast('Error.');return;}
   closeModal('detailModal');await loadWeek();showToast('Lesson removed.');
+}
+
+/* ════ SAVE STUDENT TO ROSTER (from lesson detail) ════ */
+async function saveStudentToRosterFromLesson(name,phone,addr,type){
+  closeModal('detailModal');
+  // Prefill edit modal as a "new" student
+  document.getElementById('editStudentId').value='';
+  document.getElementById('esSName').value=name;
+  document.getElementById('esSPhone').value=phone;
+  document.getElementById('esSAddr').value=addr;
+  document.getElementById('eSType').value=type||'Manual';
+  document.getElementById('eSNotes').value='';
+  // Change modal title to reflect it's a new save
+  document.querySelector('#editStudentModal h5').innerHTML='<i class="bi bi-bookmark-plus me-2" style="color:#4ade80"></i>Save to Student Roster';
+  document.querySelector('#editStudentModal .modal-sub').textContent='This student will auto-fill next time you add a lesson';
+  openModal('editStudentModal');
+}
+
+function openEditStudentFromDetail(name){
+  closeModal('detailModal');
+  const p=rosterMap[name.toLowerCase().trim()];
+  if(!p)return;
+  openEditStudentModal(p);
+}
+
+/* ════ EDIT STUDENT MODAL ════ */
+function openEditStudentModal(p){
+  document.querySelector('#editStudentModal h5').innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student';
+  document.querySelector('#editStudentModal .modal-sub').textContent='Changes will auto-fill next time you add a lesson for this student';
+  document.getElementById('editStudentId').value=p.id||'';
+  document.getElementById('esSName').value=p.name||'';
+  document.getElementById('esSPhone').value=p.phone||'';
+  document.getElementById('esSAddr').value=p.address||'';
+  document.getElementById('eSType').value=p.lesson_type||'Manual';
+  document.getElementById('eSNotes').value=p.notes||'';
+  openModal('editStudentModal');
+}
+
+async function saveStudentProfile(){
+  const name=document.getElementById('esSName').value.trim();
+  if(!name){showToast('Student name is required.');return;}
+  const id=document.getElementById('editStudentId').value;
+  const payload={
+    instructor_id:instr.id,
+    name,
+    phone:document.getElementById('esSPhone').value.trim(),
+    address:document.getElementById('esSAddr').value.trim(),
+    lesson_type:document.getElementById('eSType').value,
+    notes:document.getElementById('eSNotes').value.trim(),
+    updated_at:new Date().toISOString()
+  };
+  let error;
+  if(id){
+    // Update existing
+    ({error}=await sb.from('student_profiles').update(payload).eq('id',id));
+  } else {
+    // Insert new
+    payload.created_at=new Date().toISOString();
+    ({error}=await sb.from('student_profiles').insert([payload]));
+  }
+  if(error){showToast('Error saving student.');console.error(error);return;}
+  closeModal('editStudentModal');
+  await Promise.all([loadRoster(),loadStudents()]);
+  showToast('Student saved to roster ✓','success');
+}
+
+async function removeStudentFromRoster(){
+  const id=document.getElementById('editStudentId').value;
+  const name=document.getElementById('esSName').value.trim();
+  if(!id){showToast('No saved profile to remove.');return;}
+  if(!confirm(`Remove ${name} from your saved roster? Their lessons will not be affected.`))return;
+  const{error}=await sb.from('student_profiles').delete().eq('id',id);
+  if(error){showToast('Error removing from roster.');return;}
+  closeModal('editStudentModal');
+  await Promise.all([loadRoster(),loadStudents()]);
+  showToast('Removed from roster.');
 }
 
 /* REMINDERS */
@@ -784,8 +999,7 @@ async function checkReminders(){
       await sb.from('lesson_reminders').insert([{lesson_id:l.id,instructor_id:instr.id,reminder_type:'1hour',sent_at:new Date().toISOString()}]);
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
-      banner.className='reminder-banner';
-      banner.id='rem-'+l.id;
+      banner.className='reminder-banner';banner.id='rem-'+l.id;
       banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
@@ -951,21 +1165,39 @@ async function loadStudents(){
 
 function renderStudents(students){
   const list=document.getElementById('studentList');
-  if(!students.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No students yet.</div>';return;}
-  list.innerHTML=students.map(s=>`<div class="student-card">
-    <div class="d-flex align-items-center gap-3">
-      <div class="s-init">${(s.name||'?').charAt(0).toUpperCase()}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:700;color:#fff">${esc(s.name)}</div>
-        ${s.phone?`<div style="font-size:.74rem;color:#555"><a href="tel:${esc(s.phone)}" style="color:var(--red)"><i class="bi bi-telephone me-1"></i>${esc(s.phone)}</a></div>`:''}
-        ${s.address?`<div style="font-size:.72rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</div>`:''}
-        <div class="d-flex flex-wrap gap-1 mt-1">
-          <span style="font-size:.66rem;color:#444;background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px">${s.count} lesson${s.count!==1?'s':''}</span>
-          ${[...s.types].map(t=>`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">${esc(t)}</span>`).join('')}
+  if(!students.length){
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">
+      <i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:#222"></i>
+      No students yet. Add lessons to see them here.
+    </div>`;return;
+  }
+  // After roster loaded, show saved pill correctly
+  list.innerHTML=students.map(s=>{
+    const saved=!!rosterMap[s.name.toLowerCase().trim()];
+    return`<div class="student-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="s-init">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <div style="font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:700;color:#fff">${esc(s.name)}</div>
+            <span class="roster-pill ${saved?'saved':'unsaved'}">${saved?'<i class="bi bi-bookmark-fill me-1"></i>Saved':'<i class="bi bi-bookmark me-1"></i>Not saved'}</span>
+          </div>
+          ${s.phone?`<div style="font-size:.74rem;color:#555"><a href="tel:${esc(s.phone)}" style="color:var(--red)"><i class="bi bi-telephone me-1"></i>${esc(s.phone)}</a></div>`:''}
+          ${s.address?`<div style="font-size:.72rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</div>`:''}
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            <span style="font-size:.66rem;color:#444;background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px">${s.count} lesson${s.count!==1?'s':''}</span>
+            ${[...s.types].map(t=>`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">${esc(t)}</span>`).join('')}
+          </div>
+        </div>
+        <div class="d-flex flex-column gap-1 flex-shrink-0">
+          ${saved
+            ?`<button class="btn-blue" style="padding:5px 10px;font-size:.72rem;min-height:32px" onclick="openEditStudentModal(rosterMap['${s.name.toLowerCase().trim().replace(/'/g,"\\'")}'])"><i class="bi bi-pencil me-1"></i>Edit</button>`
+            :`<button class="btn-g" style="padding:5px 10px;font-size:.72rem;min-height:32px" onclick="saveStudentToRosterFromLesson('${s.name.replace(/'/g,"\\'")}','${(s.phone||'').replace(/'/g,"\\'")}','${(s.address||'').replace(/'/g,"\\'")}','${([...s.types][0]||'Manual').replace(/'/g,"\\'")}')"><i class="bi bi-bookmark-plus me-1"></i>Save</button>`
+          }
         </div>
       </div>
-    </div>
-  </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function filterStudents(q){
@@ -1089,8 +1321,4 @@ function showToast(msg,type=''){
 }
 </script>
 </body>
-
-
-
-
 </html>
