@@ -324,7 +324,7 @@ document.getElementById('navBadge').textContent=instructor?.badge||'—';
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='index.html';}
 
 /* ── DATES ── */
-const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday', 'Sunday'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -357,7 +357,7 @@ function getWeekDays(start){
 async function loadWeekLessons(){
   const days=getWeekDays(currentWeekStart);
   const from=dateKey(days[0]);
-  const to=dateKey(days[4]);
+  const to=dateKey(days[6]);
   try{
     const{data,error}=await sb.from('lessons')
       .select('*')
@@ -380,7 +380,7 @@ async function loadWeekLessons(){
 function renderCalendar(){
   const days=getWeekDays(currentWeekStart);
   const today=dateKey(new Date());
-  const endDay=days[4];
+  const endDay=days[6];
   const startDay=days[0];
 
   // Week label
@@ -406,7 +406,7 @@ function renderCalendar(){
     const isToday=dk===today;
     const lessons=weekLessons[dk]||[];
     const slotsUsed=lessons.length;
-    const slotsLeft=5-slotsUsed;
+    const slotsLeft=7-slotsUsed;
     let html=lessons.map(l=>lessonSlotHTML(l,dk)).join('');
     if(slotsLeft>0){
       html+=`<div class="lesson-slot empty-slot" onclick="openAddModal('${dk}','${DAYS[i]}',${i})">
@@ -430,6 +430,9 @@ function renderCalendar(){
         <span style="font-size:.9rem;color:rgba(209,10,17,.4)">+</span> Add Student
       </div>`;
     }
+    
+    
+  
     inner+=`<div class="slot-count">${lessons.length}/5 slots</div>`;
     return`<div class="mobile-day${isToday?' ':'' }">
       <div class="mobile-day-head${isToday?' ':'' }" style="${isToday?'border-left:3px solid var(--red)':''}">
