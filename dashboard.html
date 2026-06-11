@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DriveSQ — My Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{--red:#D10A11;--red2:#a80008;--gold:#F5C518;--blk:#080808;--dk:#111;--dk2:#181818;--dk3:#1e1e1e;--bdr:#2a2a2a;--txt:#f0f0f0;--green:#25D366;--green2:#1da851;--trans:.2s ease}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4{font-family:'Oswald',sans-serif;line-height:1.05}
+a{color:var(--red);text-decoration:none}
+img{max-width:100%;display:block}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.02) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0}
+
+/* NAV */
+.nav{background:rgba(8,8,8,.97);border-bottom:2px solid var(--red);padding:0;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+.nav-inner{max-width:1300px;margin:0 auto;padding:8px 20px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--red);object-fit:cover;box-shadow:0 0 12px rgba(209,10,17,.3)}
+.brand-text{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
+.brand-text span{color:var(--red)}
+.brand-sub{font-size:.56rem;color:#444;letter-spacing:2px;text-transform:uppercase}
+.type-nav{font-size:.78rem;color:#555;font-style:italic;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.nav-name{font-size:.78rem;color:#666;display:flex;align-items:center;gap:6px}
+.nav-badge{background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.25);color:#f08080;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.5px}
+.btn-logout{font-size:.72rem;color:#333;border:1px solid #1e1e1e;border-radius:6px;padding:5px 10px;cursor:pointer;background:transparent;transition:color var(--trans),border-color var(--trans);font-family:'Inter',sans-serif}
+.btn-logout:hover{color:#f87171;border-color:#f87171}
+
+/* LAYOUT */
+.page{max-width:1300px;margin:0 auto;padding:24px 20px 60px;position:relative;z-index:1}
+
+/* GREETING */
+.greeting{margin-bottom:24px}
+.greeting h2{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;color:#fff;line-height:1}
+.greeting h2 span{color:var(--red)}
+.greeting p{color:#444;font-size:.85rem;margin-top:4px}
+
+/* STAT CARDS */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:linear-gradient(145deg,#141414,#111);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:18px 16px;position:relative;overflow:hidden;transition:border-color var(--trans)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red);opacity:0;transition:opacity var(--trans)}
+.stat-card:hover{border-color:rgba(209,10,17,.25)}
+.stat-card:hover::before{opacity:1}
+.stat-card.gold-card::before{background:var(--gold);opacity:1}
+.stat-card.gold-card{border-color:rgba(245,197,24,.2)}
+.stat-card.green-card::before{background:var(--green);opacity:1}
+.stat-card.green-card{border-color:rgba(37,211,102,.15)}
+.stat-label{font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
+.stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.8rem;font-weight:800;line-height:1;color:var(--red)}
+.stat-num.gold{color:var(--gold)}
+.stat-num.green{color:var(--green)}
+.stat-sub{font-size:.72rem;color:#333;margin-top:4px}
+.stat-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:2.2rem;opacity:.07}
+
+/* WEEK NAV */
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.week-nav h3{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff}
+.week-nav-btns{display:flex;align-items:center;gap:8px}
+.week-label{font-size:.82rem;color:#666;padding:5px 14px;background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;min-width:200px;text-align:center}
+.wbtn{background:var(--dk2);border:1px solid var(--bdr);color:#888;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.82rem;transition:all var(--trans);font-family:'Inter',sans-serif}
+.wbtn:hover{border-color:var(--red);color:#fff}
+.wbtn.today-btn{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:#f08080}
+
+/* CALENDAR GRID */
+.cal-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:900px){.cal-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.cal-grid{grid-template-columns:1fr 1fr}}
+
+.day-col{background:linear-gradient(145deg,#141414,#111);border:1px solid rgba(255,255,255,.05);border-radius:14px;overflow:hidden;transition:border-color var(--trans)}
+.day-col.is-today{border-color:rgba(209,10,17,.4);box-shadow:0 0 20px rgba(209,10,17,.08)}
+.day-col.is-today .day-head{background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.08))}
+.day-head{padding:12px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.day-name{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fff;letter-spacing:.3px}
+.day-date{font-size:.7rem;color:#444}
+.day-count{font-size:.65rem;color:#555;background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;font-family:'Oswald',sans-serif}
+.day-count.full{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.25);color:#f08080}
+.day-count.ok{background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.2);color:#4ade80}
+
+.slots{padding:10px}
+.slot{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:9px;padding:10px 11px;margin-bottom:8px;position:relative;transition:border-color var(--trans)}
+.slot:hover{border-color:rgba(255,255,255,.12)}
+.slot-time{font-size:.65rem;color:var(--gold);font-weight:700;font-family:'Oswald',sans-serif;letter-spacing:.5px;margin-bottom:3px}
+.slot-name{font-size:.86rem;font-weight:600;color:#fff;line-height:1.2}
+.slot-detail{font-size:.7rem;color:#444;margin-top:2px;line-height:1.4}
+.slot-del{position:absolute;top:8px;right:8px;background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.2);color:#f08080;border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.65rem;cursor:pointer;transition:background var(--trans);flex-shrink:0}
+.slot-del:hover{background:rgba(209,10,17,.3)}
+
+.add-slot{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:transparent;border:1px dashed rgba(255,255,255,.07);border-radius:9px;color:#2a2a2a;font-size:.78rem;padding:10px;cursor:pointer;transition:all var(--trans);font-family:'Inter',sans-serif;margin-top:4px}
+.add-slot:hover{border-color:rgba(209,10,17,.3);color:#f08080;background:rgba(209,10,17,.04)}
+.add-slot.disabled{cursor:not-allowed;opacity:.4}
+.add-slot.disabled:hover{border-color:rgba(255,255,255,.07);color:#2a2a2a;background:transparent}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.overlay.hidden{display:none}
+.modal{background:linear-gradient(145deg,#181818,#141414);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:28px 24px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;position:relative}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff}
+.modal-close{background:rgba(255,255,255,.06);border:none;color:#888;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:color var(--trans),background var(--trans)}
+.modal-close:hover{background:rgba(209,10,17,.15);color:#f87171}
+.form-group{margin-bottom:13px}
+.form-group label{display:block;font-size:.72rem;color:#555;margin-bottom:5px;letter-spacing:.3px}
+.form-group label .req{color:var(--red)}
+.form-control{width:100%;background:#1e1e1e;border:1px solid #2a2a2a;color:var(--txt);border-radius:8px;padding:10px 12px;font-size:.86rem;font-family:'Inter',sans-serif;transition:border-color var(--trans),box-shadow var(--trans);outline:none}
+.form-control:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.12)}
+.form-control::placeholder{color:#2e2e2e}
+textarea.form-control{resize:vertical;min-height:70px}
+select.form-control option{background:#1e1e1e}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-modal{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.75rem;letter-spacing:.4px;cursor:pointer;transition:background var(--trans);margin-top:6px}
+.btn-modal:hover{background:var(--red2)}
+.btn-modal:disabled{opacity:.6;cursor:not-allowed}
+.modal-date-label{font-size:.8rem;color:#555;margin-bottom:14px;padding:8px 12px;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.15);border-radius:7px;display:flex;align-items:center;gap:6px}
+.modal-date-label span{color:var(--gold);font-weight:700;font-family:'Oswald',sans-serif}
+.msg{padding:9px 12px;border-radius:7px;font-size:.8rem;margin-bottom:10px;line-height:1.5}
+.msg.success{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);color:#4ade80}
+.msg.error{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:#f87171}
+.hidden{display:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 18px;font-size:.82rem;color:var(--txt);z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:280px;line-height:1.5}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:rgba(37,211,102,.3);background:rgba(37,211,102,.08);color:#4ade80}
+.toast.error{border-color:rgba(209,10,17,.3);background:rgba(209,10,17,.08);color:#f87171}
+
+/* EMPTY STATE */
+.empty-week{text-align:center;padding:40px 20px;color:#222;grid-column:1/-1}
+.empty-week p{font-size:.85rem;margin-top:8px}
+
+/* DELETE CONFIRM */
+.del-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.del-overlay.hidden{display:none}
+.del-modal{background:var(--dk2);border:1px solid rgba(209,10,17,.3);border-radius:16px;padding:28px 24px;max-width:360px;width:100%;text-align:center}
+.del-modal h3{font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fff;margin-bottom:8px}
+.del-modal p{font-size:.82rem;color:#555;line-height:1.6;margin-bottom:18px}
+.del-btns{display:flex;gap:10px}
+.del-btns button{flex:1;padding:.68rem;border-radius:8px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;transition:all var(--trans);border:none}
+.del-cancel{background:rgba(255,255,255,.06);color:#888}
+.del-cancel:hover{background:rgba(255,255,255,.1);color:#ccc}
+.del-confirm{background:var(--red);color:#fff}
+.del-confirm:hover{background:var(--red2)}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--bdr);padding:18px 20px;text-align:center;font-size:.7rem;color:#222;position:relative;z-index:1}
+.footer a{color:#333}
+
+@media(max-width:480px){.stats{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="portal.html">
+      <img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+      <div>
+        <div class="brand-text">Drive<span>SQ</span></div>
+        <div class="brand-sub">Instructor Portal</div>
+      </div>
+    </a>
+    <div class="type-nav" id="typeNav"></div>
+    <div class="nav-right">
+      <div class="nav-name">
+        <span id="navName">—</span>
+        <div class="nav-badge" id="navBadge">—</div>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="page">
+
+  <!-- GREETING -->
+  <div class="greeting">
+    <h2>Good <span id="timeOfDay">day</span>, <span id="instrName">Instructor</span> 👋</h2>
+    <p id="dateToday">Loading…</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Today's Lessons</div>
+      <div class="stat-num" id="statToday">0</div>
+      <div class="stat-sub" id="statTodayHours">0 hours scheduled</div>
+      <div class="stat-icon">📅</div>
+    </div>
+    <div class="stat-card gold-card">
+      <div class="stat-label">Tomorrow's Lessons</div>
+      <div class="stat-num gold" id="statTomorrow">0</div>
+      <div class="stat-sub" id="statTomorrowHours">0 hours scheduled</div>
+      <div class="stat-icon">🗓️</div>
+    </div>
+    <div class="stat-card green-card">
+      <div class="stat-label">This Week Total</div>
+      <div class="stat-num green" id="statWeek">0</div>
+      <div class="stat-sub" id="statWeekHours">0 hours this week</div>
+      <div class="stat-icon">📊</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Weekly Slots Used</div>
+      <div class="stat-num" id="statSlots">0/25</div>
+      <div class="stat-sub">max 5 per day · 5 days</div>
+      <div class="stat-icon">👥</div>
+    </div>
+  </div>
+
+  <!-- WEEK NAV -->
+  <div class="week-nav">
+    <h3>📅 Weekly Planner</h3>
+    <div class="week-nav-btns">
+      <button class="wbtn" onclick="changeWeek(-1)">← Prev</button>
+      <div class="week-label" id="weekLabel">Loading…</div>
+      <button class="wbtn today-btn" onclick="goToday()">Today</button>
+      <button class="wbtn" onclick="changeWeek(1)">Next →</button>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="cal-grid" id="calGrid">
+    <div class="empty-week"><div style="font-size:2rem">📅</div><p>Loading your calendar…</p></div>
+  </div>
+
+</div>
+
+<!-- ADD LESSON MODAL -->
+<div class="overlay hidden" id="addOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">➕ Add Lesson</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-date-label">📅 <span id="modalDateLabel">Monday</span></div>
+    <div class="msg hidden" id="modalMsg"></div>
+    <form onsubmit="saveLesson(event)">
+      <div class="form-group">
+        <label>Student Name <span class="req">*</span></label>
+        <input class="form-control" id="fName" placeholder="e.g. Jamie Smith" required/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start Time <span class="req">*</span></label>
+          <input class="form-control" id="fTime" type="time" required value="09:00"/>
+        </div>
+        <div class="form-group">
+          <label>Duration <span class="req">*</span></label>
+          <select class="form-control" id="fDuration" required>
+            <option value="1">1 hour</option>
+            <option value="1.5">1.5 hours</option>
+            <option value="2" selected>2 hours</option>
+            <option value="2.5">2.5 hours</option>
+            <option value="3">3 hours</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Student Phone</label>
+        <input class="form-control" id="fPhone" placeholder="07xxx xxx xxx"/>
+      </div>
+      <div class="form-group">
+        <label>Pickup Address</label>
+        <input class="form-control" id="fAddress" placeholder="e.g. 14 Oak Road, Manchester, M19"/>
+      </div>
+      <div class="form-group">
+        <label>Lesson Type</label>
+        <select class="form-control" id="fType">
+          <option value="Manual">Manual</option>
+          <option value="Automatic">Automatic</option>
+          <option value="Mock Test">Mock Test</option>
+          <option value="Intensive">Intensive</option>
+          <option value="Pass Plus">Pass Plus</option>
+          <option value="Refresher">Refresher</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea class="form-control" id="fNotes" placeholder="e.g. nervous learner, focus on roundabouts, test booked for…"></textarea>
+      </div>
+      <button class="btn-modal" type="submit" id="saveBtn">Save Lesson ✓</button>
+    </form>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="del-overlay hidden" id="delOverlay">
+  <div class="del-modal">
+    <h3>Remove Lesson?</h3>
+    <p id="delDesc">Are you sure you want to remove this lesson? This cannot be undone.</p>
+    <div class="del-btns">
+      <button class="del-cancel" onclick="cancelDelete()">Cancel</button>
+      <button class="del-confirm" onclick="confirmDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<div class="footer"><span id="footerYr"></span> DriveSQ Driving School · Manchester · <a href="https://www.drivesq.co.uk" target="_blank">drivesq.co.uk</a></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ── CONFIG ── */
+const SUPABASE_URL = 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+document.getElementById('footerYr').textContent = '© ' + new Date().getFullYear();
+
+/* ── AUTH GUARD ── */
+const sessRaw = sessionStorage.getItem('dsq_instructor');
+if(!sessRaw) { window.location.href = 'portal.html'; }
+const INSTR = JSON.parse(sessRaw || '{}');
+
+/* ── TYPING NAV ── */
+(function(){
+  const phrases = [
+    'Plan your week · DriveSQ ✦',
+    'Your students, your schedule ✦',
+    'Drive your success forward ✦',
+    'Stay organised. Stay ahead. ✦',
+    'Manchester\'s finest instructors ✦',
+  ];
+  const el = document.getElementById('typeNav');
+  if(!el) return;
+  let pi=0,ci=0,del=false;
+  function tick(){
+    const f=phrases[pi];
+    if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2000);return;}}
+    else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}
+    setTimeout(tick,del?38:78);
+  }
+  tick();
+})();
+
+/* ── GREETING ── */
+document.getElementById('navName').textContent = INSTR.name || 'Instructor';
+document.getElementById('navBadge').textContent = INSTR.badge || '';
+document.getElementById('instrName').textContent = (INSTR.name||'Instructor').split(' ')[0];
+const hr = new Date().getHours();
+document.getElementById('timeOfDay').textContent = hr<12?'morning':hr<17?'afternoon':'evening';
+const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const now = new Date();
+document.getElementById('dateToday').textContent = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+/* ── WEEK STATE ── */
+let weekOffset = 0;
+let currentLessons = [];
+let modalDate = null;
+let deleteId = null;
+
+function getMonday(offset=0){
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day===0 ? -6 : 1-day;
+  d.setDate(d.getDate() + diff + (offset*7));
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function fmtDate(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+
+function fmtDisplay(d){
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+function changeWeek(dir){ weekOffset += dir; renderCalendar(); }
+function goToday(){ weekOffset=0; renderCalendar(); }
+
+function logout(){
+  sessionStorage.removeItem('dsq_instructor');
+  window.location.href='portal.html';
+}
+
+/* ── TOAST ── */
+let toastTimer;
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+type+' show';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.className='toast',3000);
+}
+
+/* ── LOAD LESSONS ── */
+async function loadLessons(){
+  const mon = getMonday(weekOffset);
+  const fri = new Date(mon); fri.setDate(fri.getDate()+4);
+  const {data,error} = await sb.from('lessons')
+    .select('*')
+    .eq('instructor_id', INSTR.id)
+    .gte('lesson_date', fmtDate(mon))
+    .lte('lesson_date', fmtDate(fri))
+    .order('start_time', {ascending:true});
+  if(error){ console.error(error); currentLessons=[]; }
+  else currentLessons = data || [];
+  updateStats();
+  renderCalendar();
+}
+
+/* ── STATS ── */
+function updateStats(){
+  const todayStr = fmtDate(new Date());
+  const tom = new Date(); tom.setDate(tom.getDate()+1);
+  const tomStr = fmtDate(tom);
+
+  const todayL = currentLessons.filter(l=>l.lesson_date===todayStr);
+  const tomL = currentLessons.filter(l=>l.lesson_date===tomStr);
+  const weekL = currentLessons;
+
+  const sumHrs = arr => arr.reduce((s,l)=>s+parseFloat(l.duration_hours||0),0);
+
+  document.getElementById('statToday').textContent = todayL.length;
+  document.getElementById('statTodayHours').textContent = sumHrs(todayL) + ' hours scheduled';
+  document.getElementById('statTomorrow').textContent = tomL.length;
+  document.getElementById('statTomorrowHours').textContent = sumHrs(tomL) + ' hours scheduled';
+  document.getElementById('statWeek').textContent = weekL.length;
+  document.getElementById('statWeekHours').textContent = sumHrs(weekL) + ' hours this week';
+  document.getElementById('statSlots').textContent = weekL.length + '/25';
+}
+
+/* ── RENDER CALENDAR ── */
+function renderCalendar(){
+  const mon = getMonday(weekOffset);
+  const fri = new Date(mon); fri.setDate(fri.getDate()+4);
+  document.getElementById('weekLabel').textContent = `${fmtDisplay(mon)} – ${fmtDisplay(fri)} ${fri.getFullYear()}`;
+
+  const todayStr = fmtDate(new Date());
+  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  for(let i=0;i<5;i++){
+    const d = new Date(mon); d.setDate(d.getDate()+i);
+    const dateStr = fmtDate(d);
+    const isToday = dateStr===todayStr;
+    const dayLessons = currentLessons.filter(l=>l.lesson_date===dateStr);
+    const full = dayLessons.length >= 5;
+
+    const col = document.createElement('div');
+    col.className = 'day-col' + (isToday?' is-today':'');
+
+    const countCls = full ? 'day-count full' : dayLessons.length>0 ? 'day-count ok' : 'day-count';
+    const countTxt = full ? '5/5 Full' : `${dayLessons.length}/5`;
+
+    col.innerHTML = `
+      <div class="day-head">
+        <div>
+          <div class="day-name">${dayNames[i]}${isToday?' <span style="color:var(--red);font-size:.7rem">TODAY</span>':''}</div>
+          <div class="day-date">${fmtDisplay(d)}</div>
+        </div>
+        <div class="${countCls}">${countTxt}</div>
+      </div>
+      <div class="slots" id="slots-${dateStr}"></div>`;
+
+    grid.appendChild(col);
+
+    const slotsEl = col.querySelector('.slots');
+
+    // Render existing lessons
+    dayLessons.forEach(lesson => {
+      const s = document.createElement('div');
+      s.className = 'slot';
+      s.innerHTML = `
+        <div class="slot-time">⏰ ${lesson.start_time} · ${lesson.duration_hours}hr${lesson.duration_hours!=1?'s':''} · ${lesson.lesson_type||'Manual'}</div>
+        <div class="slot-name">${lesson.student_name}</div>
+        ${lesson.student_phone?`<div class="slot-detail">📞 ${lesson.student_phone}</div>`:''}
+        ${lesson.pickup_address?`<div class="slot-detail">📍 ${lesson.pickup_address}</div>`:''}
+        ${lesson.notes?`<div class="slot-detail" style="color:#333;font-style:italic;margin-top:4px">${lesson.notes}</div>`:''}
+        <button class="slot-del" onclick="promptDelete('${lesson.id}','${lesson.student_name.replace(/'/g,"\\'")}','${dateStr}')" title="Remove lesson">✕</button>`;
+      slotsEl.appendChild(s);
+    });
+
+    // Add button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-slot' + (full?' disabled':'');
+    addBtn.innerHTML = full ? '🔒 Day Full' : '＋ Add Student';
+    if(!full) addBtn.onclick = () => openModal(dateStr, dayNames[i]+', '+fmtDisplay(d));
+    slotsEl.appendChild(addBtn);
+  }
+}
+
+/* ── MODAL ── */
+function openModal(dateStr, label){
+  modalDate = dateStr;
+  document.getElementById('modalDateLabel').textContent = label;
+  document.getElementById('addOverlay').classList.remove('hidden');
+  document.getElementById('fName').value='';
+  document.getElementById('fTime').value='09:00';
+  document.getElementById('fDuration').value='2';
+  document.getElementById('fPhone').value='';
+  document.getElementById('fAddress').value='';
+  document.getElementById('fType').value='Manual';
+  document.getElementById('fNotes').value='';
+  document.getElementById('modalMsg').classList.add('hidden');
+  document.getElementById('fName').focus();
+}
+function closeModal(){
+  document.getElementById('addOverlay').classList.add('hidden');
+  modalDate=null;
+}
+
+/* ── SAVE LESSON ── */
+async function saveLesson(e){
+  e.preventDefault();
+  const btn=document.getElementById('saveBtn');
+  btn.textContent='Saving…'; btn.disabled=true;
+  const msgEl=document.getElementById('modalMsg');
+  msgEl.classList.add('hidden');
+
+  try{
+    const {error}=await sb.from('lessons').insert([{
+      instructor_id: INSTR.id,
+      lesson_date: modalDate,
+      student_name: document.getElementById('fName').value.trim(),
+      start_time: document.getElementById('fTime').value,
+      duration_hours: parseFloat(document.getElementById('fDuration').value),
+      student_phone: document.getElementById('fPhone').value.trim(),
+      pickup_address: document.getElementById('fAddress').value.trim(),
+      lesson_type: document.getElementById('fType').value,
+      notes: document.getElementById('fNotes').value.trim(),
+      created_at: new Date().toISOString()
+    }]);
+    if(error) throw error;
+    closeModal();
+    await loadLessons();
+    showToast('✅ Lesson added successfully!','success');
+  }catch(err){
+    msgEl.className='msg error'; msgEl.textContent='Failed to save. Please try again.'; msgEl.classList.remove('hidden');
+  }finally{
+    btn.textContent='Save Lesson ✓'; btn.disabled=false;
+  }
+}
+
+/* ── DELETE ── */
+function promptDelete(id, name, date){
+  deleteId = id;
+  document.getElementById('delDesc').textContent = `Remove lesson for ${name} on ${date}? This cannot be undone.`;
+  document.getElementById('delOverlay').classList.remove('hidden');
+}
+function cancelDelete(){ deleteId=null; document.getElementById('delOverlay').classList.add('hidden'); }
+async function confirmDelete(){
+  if(!deleteId) return;
+  try{
+    const {error}=await sb.from('lessons').delete().eq('id',deleteId);
+    if(error) throw error;
+    document.getElementById('delOverlay').classList.add('hidden');
+    deleteId=null;
+    await loadLessons();
+    showToast('🗑️ Lesson removed.','success');
+  }catch(err){
+    showToast('Failed to remove lesson.','error');
+  }
+}
+
+/* ── CLOSE OVERLAY ON BG CLICK ── */
+document.getElementById('addOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('delOverlay').addEventListener('click',function(e){if(e.target===this)cancelDelete();});
+
+/* ── KEYBOARD ESC ── */
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();cancelDelete();}});
+
+/* ── INIT ── */
+loadLessons();
+</script>
+</body>
+</html>
