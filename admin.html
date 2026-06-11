@@ -2,339 +2,316 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="DriveSQ Admin"/>
+<meta name="theme-color" content="#080808"/>
+<link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
+<link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <title>DriveSQ — Admin Panel</title>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 <style>
-:root{
-  --red:#D10A11;--red2:#a80008;--gold:#F5C518;--blk:#080808;--dk:#0f0f0f;
-  --dk2:#141414;--dk3:#1c1c1c;--bdr:#252525;--bdr2:#2e2e2e;--txt:#efefef;
-  --muted:#666;--green:#25D366;--blue:#3b82f6;--trans:.18s ease;--r:10px
-}
+:root{--red:#D10A11;--gold:#F5C518;--blk:#080808;--dk:#0f0f0f;--dk2:#141414;--dk3:#1c1c1c;--bdr:#252525;--bdr2:#2e2e2e;--txt:#efefef;--green:#25D366;--blue:#3b82f6;--trans:.18s ease}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
-h1,h2,h3,h4,h5{font-family:'Oswald',sans-serif;line-height:1.05}
+body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+h1,h2,h3,h4,h5,h6{font-family:'Oswald',sans-serif;line-height:1.05}
 a{color:var(--red);text-decoration:none}
 .hidden{display:none!important}
-input,select,textarea,button{font-family:inherit}
-
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:#0a0a0a}
-::-webkit-scrollbar-thumb{background:#222;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#333}
+::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
 
-/* ─── LOGIN ─── */
+/* LOGIN */
 .login-screen{position:fixed;inset:0;z-index:9999;background:var(--blk);display:flex;align-items:center;justify-content:center;padding:20px}
-.login-card{background:linear-gradient(160deg,#131313,#0d0d0d);border:1px solid #1e1e1e;border-radius:20px;padding:40px 32px;width:100%;max-width:390px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.8)}
-.login-logo{width:62px;height:62px;border-radius:50%;border:2px solid var(--red);object-fit:cover;margin:0 auto 18px;display:block;box-shadow:0 0 24px rgba(209,10,17,.3)}
-.login-title{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.1rem;font-weight:900;color:#fff;letter-spacing:1px;margin-bottom:4px}
+.login-card{background:linear-gradient(160deg,#131313,#0d0d0d);border:1px solid #1e1e1e;border-radius:20px;padding:36px 28px;width:100%;max-width:380px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.8)}
+.login-logo{width:60px;height:60px;border-radius:50%;border:2px solid var(--red);object-fit:cover;margin:0 auto 16px;display:block;box-shadow:0 0 20px rgba(209,10,17,.3)}
+.login-title{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:#fff;letter-spacing:1px;margin-bottom:3px}
 .login-title span{color:var(--red)}
-.login-sub{font-size:.8rem;color:#333;margin-bottom:26px;letter-spacing:.3px}
-.login-err{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:#f87171;border-radius:8px;padding:9px 13px;font-size:.8rem;margin-bottom:12px;text-align:left}
-.form-lbl{display:block;font-size:.7rem;color:#3a3a3a;margin-bottom:4px;text-align:left;letter-spacing:.4px;text-transform:uppercase}
-.form-inp{width:100%;background:#181818;border:1px solid #222;color:var(--txt);border-radius:8px;padding:10px 13px;font-size:.87rem;outline:none;transition:border-color var(--trans),box-shadow var(--trans);margin-bottom:12px}
-.form-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.1)}
-.form-inp::placeholder{color:#252525}
-.btn-login{width:100%;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;padding:.8rem;cursor:pointer;transition:all var(--trans);letter-spacing:.5px;margin-top:4px}
-.btn-login:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
-.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.login-sub{font-size:.76rem;color:#2a2a2a;margin-bottom:22px;letter-spacing:.3px}
 
-/* ─── NAV ─── */
-.nav{background:rgba(8,8,8,.98);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;backdrop-filter:blur(20px)}
-.nav-inner{max-width:1380px;margin:0 auto;padding:0 22px;display:flex;align-items:center;gap:12px;height:58px}
-.nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0;box-shadow:0 0 10px rgba(209,10,17,.2)}
-.nav-brand{font-family:'Oswald',sans-serif;font-size:1.22rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
-.nav-brand span{color:var(--red)}
-.nav-sub{font-size:.5rem;color:#2a2a2a;letter-spacing:2px;text-transform:uppercase}
-.admin-chip{background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.2);color:var(--gold);font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:1px;flex-shrink:0}
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px}
-.btn-signout{background:transparent;border:1px solid #1e1e1e;color:#2e2e2e;border-radius:7px;padding:5px 12px;font-size:.72rem;cursor:pointer;transition:all var(--trans)}
-.btn-signout:hover{border-color:#f87171;color:#f87171}
+/* NAV */
+.dsq-nav{background:rgba(8,8,8,.98);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.nav-logo{width:34px;height:34px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0}
+.brand-n{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
+.brand-n span{color:var(--red)}
+.brand-s{font-size:.48rem;color:#2a2a2a;letter-spacing:2px;text-transform:uppercase}
+.admin-chip{background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.2);color:var(--gold);font-size:.6rem;font-weight:700;padding:3px 8px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:1px}
 
-/* ─── LAYOUT ─── */
-.page{max-width:1380px;margin:0 auto;padding:24px 22px 80px}
+/* TABS */
+.dsq-tabs{display:flex;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:3px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2px;flex-wrap:nowrap}
+.dsq-tabs::-webkit-scrollbar{display:none}
+.dsq-tab{background:transparent;border:none;color:#333;font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:600;padding:7px 12px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:4px;min-height:36px;flex-shrink:0}
+.dsq-tab.active{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(209,10,17,.3)}
+.dsq-tab:not(.active):hover{color:#ccc;background:rgba(255,255,255,.04)}
+.tab-badge{background:rgba(245,197,24,.15);color:var(--gold);border-radius:8px;padding:1px 5px;font-size:.6rem;font-family:'Inter',sans-serif;font-weight:700}
+.dsq-tab.active .tab-badge{background:rgba(255,255,255,.25);color:#fff}
 
-/* ─── TABS ─── */
-.tabs{display:flex;gap:0;background:var(--dk2);border:1px solid var(--bdr);border-radius:11px;padding:4px;margin-bottom:22px;width:fit-content;flex-wrap:wrap;gap:3px}
-.tab{background:transparent;border:none;color:#3a3a3a;font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:all var(--trans);letter-spacing:.3px;white-space:nowrap}
-.tab.active{background:var(--red);color:#fff;box-shadow:0 4px 12px rgba(209,10,17,.3)}
-.tab:not(.active):hover{color:#ccc;background:rgba(255,255,255,.03)}
-
-/* ─── STATS ─── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:22px}
-.stat{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:13px;padding:15px 17px;position:relative;overflow:hidden;transition:border-color var(--trans)}
-.stat:hover{border-color:rgba(209,10,17,.2)}
-.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.stat.r::before{background:var(--red)}
-.stat.g::before{background:var(--gold)}
-.stat.gr::before{background:var(--green)}
-.stat.b::before{background:var(--blue)}
-.stat-lbl{font-size:.58rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:4px}
-.stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.3rem;font-weight:900;line-height:1}
+/* STAT CARDS */
+.stat-card{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:13px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color var(--trans)}
+.stat-card:hover{border-color:rgba(209,10,17,.2)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.r::before{background:var(--red)}
+.stat-card.g::before{background:var(--gold)}
+.stat-card.gr::before{background:var(--green)}
+.stat-card.b::before{background:var(--blue)}
+.stat-lbl{font-size:.58rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:3px}
+.stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.2rem;font-weight:900;line-height:1}
 .stat-num.r{color:var(--red)}.stat-num.g{color:var(--gold)}.stat-num.gr{color:var(--green)}.stat-num.b{color:var(--blue)}
-.stat-note{font-size:.62rem;color:#222;margin-top:3px}
+.stat-note{font-size:.62rem;color:#222;margin-top:2px}
 
-/* ─── PANEL HEADER ─── */
-.panel-hd{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
-.panel-hd h3{font-family:'Oswald',sans-serif;font-size:1.15rem;color:#fff}
-.search-inp{background:#161616;border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:7px 13px;font-size:.82rem;outline:none;transition:border-color var(--trans);width:230px}
-.search-inp:focus{border-color:var(--red)}
-.search-inp::placeholder{color:#222}
-
-/* ─── TABLE ─── */
-.card{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
-.card-hd{padding:14px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.card-hd h3{font-family:'Oswald',sans-serif;font-size:1.05rem;color:#fff}
-.tbl-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
+/* TABLE */
+.dsq-card{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:600px}
 thead tr{background:rgba(255,255,255,.015);border-bottom:1px solid var(--bdr)}
-th{padding:10px 15px;text-align:left;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;color:#2e2e2e;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
-td{padding:11px 15px;font-size:.8rem;color:#666;border-bottom:1px solid rgba(255,255,255,.025);vertical-align:middle}
+th{padding:9px 13px;text-align:left;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:600;color:#2e2e2e;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+td{padding:10px 13px;font-size:.78rem;color:#666;border-bottom:1px solid rgba(255,255,255,.022);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.012);color:#aaa}
+tr:hover td{background:rgba(255,255,255,.01);color:#aaa}
 
-/* ─── BADGES ─── */
-.chip{font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.5px;white-space:nowrap}
+/* CHIPS */
+.chip{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.4px;white-space:nowrap}
 .chip.adi{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pdi{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
 .chip.approved{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pending{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
 .chip.rejected{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
 .chip.suspended{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);color:#c084fc}
+.chip.declined{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
 
-/* ─── ACTION BUTTONS ─── */
-.abtn{font-size:.68rem;padding:3px 8px;border-radius:5px;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.3px;transition:all var(--trans);display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
-.abtn.approve{background:rgba(37,211,102,.08);color:#4ade80;border:1px solid rgba(37,211,102,.18)}
-.abtn.approve:hover{background:rgba(37,211,102,.2)}
-.abtn.reject{background:rgba(209,10,17,.08);color:#f87171;border:1px solid rgba(209,10,17,.18)}
-.abtn.reject:hover{background:rgba(209,10,17,.2)}
+/* ACTION BTNS */
+.abtn{font-size:.65rem;padding:4px 8px;border-radius:5px;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.3px;transition:all var(--trans);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;min-height:30px}
 .abtn.view{background:rgba(96,165,250,.08);color:#93c5fd;border:1px solid rgba(96,165,250,.18)}
 .abtn.view:hover{background:rgba(96,165,250,.2)}
 .abtn.edit{background:rgba(245,197,24,.08);color:var(--gold);border:1px solid rgba(245,197,24,.18)}
 .abtn.edit:hover{background:rgba(245,197,24,.2)}
-.abtn.del{background:rgba(209,10,17,.06);color:#f87171;border:1px solid rgba(209,10,17,.14)}
-.abtn.del:hover{background:rgba(209,10,17,.18)}
 .abtn.msg{background:rgba(96,165,250,.08);color:#93c5fd;border:1px solid rgba(96,165,250,.18)}
 .abtn.msg:hover{background:rgba(96,165,250,.2)}
 .abtn.block{background:rgba(168,85,247,.08);color:#c084fc;border:1px solid rgba(168,85,247,.18)}
 .abtn.block:hover{background:rgba(168,85,247,.2)}
 .abtn.unblock{background:rgba(37,211,102,.08);color:#4ade80;border:1px solid rgba(37,211,102,.18)}
 .abtn.unblock:hover{background:rgba(37,211,102,.2)}
-.abtn.add{background:rgba(209,10,17,.1);color:#f87171;border:1px solid rgba(209,10,17,.25)}
-.abtn.add:hover{background:rgba(209,10,17,.22)}
+.abtn.del{background:rgba(209,10,17,.06);color:#f87171;border:1px solid rgba(209,10,17,.14)}
+.abtn.del:hover{background:rgba(209,10,17,.18)}
+.abtn.approve{background:rgba(37,211,102,.08);color:#4ade80;border:1px solid rgba(37,211,102,.18)}
+.abtn.approve:hover{background:rgba(37,211,102,.2)}
+.abtn.reject{background:rgba(209,10,17,.08);color:#f87171;border:1px solid rgba(209,10,17,.18)}
+.abtn.reject:hover{background:rgba(209,10,17,.2)}
+.abtn.reassign{background:rgba(245,197,24,.08);color:var(--gold);border:1px solid rgba(245,197,24,.18)}
+.abtn.reassign:hover{background:rgba(245,197,24,.2)}
+.abtn.wa{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.22)}
+.abtn.wa:hover{background:rgba(37,211,102,.25)}
 
-/* ─── BIG BUTTONS ─── */
-.btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;padding:.68rem 1.4rem;cursor:pointer;transition:all var(--trans);letter-spacing:.4px}
-.btn-primary:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:transparent;border:1px solid var(--bdr2);color:#444;border-radius:8px;padding:.6rem 1.2rem;font-size:.85rem;cursor:pointer;transition:all var(--trans)}
-.btn-secondary:hover{border-color:#555;color:#bbb}
-.btn-gold{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:.65rem 1.3rem;cursor:pointer;transition:all var(--trans);letter-spacing:.4px}
+/* BIG BTNS */
+.btn-p{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:.65rem 1.3rem;cursor:pointer;transition:all var(--trans);letter-spacing:.4px;min-height:40px}
+.btn-p:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-s{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;border:1px solid var(--bdr2);color:#444;border-radius:8px;padding:.55rem 1.1rem;font-size:.83rem;cursor:pointer;transition:all var(--trans);min-height:38px}
+.btn-s:hover{border-color:#555;color:#bbb}
+.btn-gold{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;padding:.6rem 1.2rem;cursor:pointer;transition:all var(--trans);letter-spacing:.3px;min-height:38px}
 .btn-gold:hover{background:rgba(245,197,24,.2)}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.btn-green{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.22);color:#4ade80;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;padding:.6rem 1.2rem;cursor:pointer;transition:all var(--trans);min-height:38px}
+.btn-green:hover{background:rgba(37,211,102,.22)}
 
-/* ─── MODALS ─── */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}
-.overlay.open{display:flex}
-.modal{background:#111;border:1px solid rgba(209,10,17,.18);border-radius:20px;padding:28px 26px;width:100%;max-width:520px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.8)}
-.modal.wide{max-width:680px}
-.modal h2{font-family:'Oswald',sans-serif;font-size:1.35rem;color:#fff;margin-bottom:2px}
-.modal-sub{font-size:.72rem;color:#333;margin-bottom:18px}
-.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);color:#333;cursor:pointer;font-size:.9rem;line-height:1;padding:5px 8px;border-radius:7px;transition:all var(--trans)}
-.modal-close:hover{color:#fff;background:rgba(255,255,255,.08)}
-.fg{margin-bottom:13px}
-.fg label{display:block;font-size:.68rem;color:#333;margin-bottom:4px;letter-spacing:.4px;text-transform:uppercase}
-.req{color:var(--red)}
-.fi{width:100%;background:#181818;border:1px solid var(--bdr2);color:var(--txt);border-radius:8px;padding:9px 12px;font-size:.85rem;transition:border-color var(--trans);outline:none}
-.fi:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.08)}
-.fi::placeholder{color:#222}
-.fi:disabled{color:#2a2a2a;cursor:not-allowed}
-select.fi option{background:#181818}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+/* MODALS */
+.dsq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.dsq-overlay.open{display:flex}
+@media(max-width:575px){.dsq-overlay{align-items:flex-end;padding:0}}
+.dsq-modal{background:#111;border:1px solid rgba(209,10,17,.18);border-radius:20px;padding:24px 22px;width:100%;max-width:520px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.8)}
+.dsq-modal.wide{max-width:680px}
+@media(max-width:575px){.dsq-modal{border-radius:20px 20px 0 0;max-width:100%;max-height:92vh}}
+.dsq-modal h5{font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fff;margin-bottom:2px}
+.modal-sub{font-size:.72rem;color:#333;margin-bottom:16px}
+.modal-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);color:#333;cursor:pointer;font-size:.85rem;padding:5px 7px;border-radius:7px;transition:all var(--trans);line-height:1;min-height:32px;min-width:32px;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{color:#fff;background:rgba(255,255,255,.08)}
+.dsq-lbl{display:block;font-size:.68rem;color:#333;margin-bottom:3px;letter-spacing:.4px;text-transform:uppercase}
+.req-mark{color:var(--red)}
+.dsq-inp{width:100%;background:#181818;border:1px solid var(--bdr2);color:var(--txt);border-radius:8px;padding:9px 11px;font-size:.84rem;font-family:'Inter',sans-serif;transition:border-color var(--trans);outline:none}
+.dsq-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.08)}
+.dsq-inp::placeholder{color:#222}
+select.dsq-inp option{background:#181818}
+textarea.dsq-inp{resize:vertical;min-height:65px}
+.dsq-inp:disabled{color:#2a2a2a;cursor:not-allowed}
+.sec-div{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;color:#2a2a2a;letter-spacing:1.5px;text-transform:uppercase;padding:9px 0 5px;border-top:1px solid var(--bdr);margin-top:4px}
 
-/* ─── SECTION DIVIDER ─── */
-.sec-divider{font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;color:#2a2a2a;letter-spacing:1.5px;text-transform:uppercase;padding:10px 0 6px;border-top:1px solid var(--bdr);margin-top:6px}
-
-/* ─── CALENDAR ─── */
-.cal-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.cal-lbl{font-size:.82rem;color:#555;padding:6px 14px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px;min-width:210px;text-align:center;font-family:'Oswald',sans-serif}
-.cal-btn{background:var(--dk2);border:1px solid var(--bdr);color:#444;border-radius:7px;padding:6px 14px;cursor:pointer;font-size:.8rem;transition:all var(--trans)}
-.cal-btn:hover{border-color:var(--red);color:#fff}
-.cal-btn.today{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red);font-family:'Oswald',sans-serif;font-weight:600}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-@media(max-width:900px){.cal-grid{grid-template-columns:repeat(4,1fr)}}
-@media(max-width:600px){.cal-grid{grid-template-columns:repeat(2,1fr)}}
-.day-col{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;min-height:160px}
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));overflow-x:auto}
+.day-col{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:11px;overflow:hidden;min-height:150px}
 .day-col.is-today{border-color:rgba(209,10,17,.35)}
 .day-col.wknd{border-color:rgba(245,197,24,.1)}
-.day-head{padding:9px 11px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.day-head{padding:8px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
 .day-head.is-today{background:rgba(209,10,17,.06)}
 .day-head.wknd{background:rgba(245,197,24,.025)}
-.d-name{font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:#ccc}
-.d-date{font-size:.62rem;color:#2e2e2e;margin-top:1px}
-.d-count{font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:3px;font-family:'Oswald',sans-serif}
-.d-count.none{background:#181818;color:#2a2a2a}
-.d-count.some{background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.15);color:#4ade80}
-.slots{padding:8px}
-.slot{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:8px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:border-color var(--trans)}
+.d-name{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:#ccc}
+.d-date{font-size:.6rem;color:#2e2e2e;margin-top:1px}
+.d-cnt{font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:3px;font-family:'Oswald',sans-serif}
+.d-cnt.none{background:#181818;color:#2a2a2a}
+.d-cnt.some{background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.15);color:#4ade80}
+.slots{padding:6px}
+.slot{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:7px;padding:8px 9px;margin-bottom:5px;cursor:pointer;transition:border-color var(--trans);border-left:3px solid transparent}
 .slot:hover{border-color:rgba(209,10,17,.3)}
-.slot-time{font-size:.6rem;color:var(--gold);font-weight:700;letter-spacing:.4px;margin-bottom:2px}
-.slot-name{font-size:.82rem;font-weight:600;color:#ddd}
-.slot-info{font-size:.68rem;color:#333;margin-top:2px;line-height:1.4}
-.slot-maps{display:inline-flex;align-items:center;gap:4px;margin-top:5px;background:rgba(66,133,244,.08);border:1px solid rgba(66,133,244,.2);color:#93c5fd;border-radius:5px;padding:3px 8px;font-size:.64rem;font-weight:600;cursor:pointer;transition:all var(--trans)}
-.slot-maps:hover{background:rgba(66,133,244,.18);color:#fff}
-.slot-del{float:right;background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.7rem;padding:2px 5px;border-radius:3px;transition:all var(--trans);margin-top:-2px}
+.slot.Manual{border-left-color:#3b82f6}
+.slot.Automatic{border-left-color:#22c55e}
+.slot.Mock-Test{border-left-color:#ef4444}
+.slot.Intensive{border-left-color:#f97316}
+.slot.Pass-Plus{border-left-color:#a855f7}
+.slot.Refresher{border-left-color:#eab308}
+.slot-time{font-size:.58rem;color:var(--gold);font-weight:700;letter-spacing:.3px;margin-bottom:1px}
+.slot-name{font-size:.78rem;font-weight:600;color:#ddd}
+.slot-info{font-size:.65rem;color:#333;margin-top:1px;line-height:1.4}
+.slot-del{float:right;background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.68rem;padding:1px 4px;border-radius:3px;transition:all var(--trans)}
 .slot-del:hover{color:#f87171;background:rgba(255,0,0,.08)}
-.empty-day{padding:14px;text-align:center;font-size:.7rem;color:#1e1e1e}
-.add-slot{display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:#2a2a2a;font-size:.7rem;padding:7px;cursor:pointer;transition:all var(--trans);margin:8px}
+.add-slot{display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:#2a2a2a;font-size:.68rem;padding:6px;cursor:pointer;transition:all var(--trans);margin:6px}
 .add-slot:hover{border-color:rgba(209,10,17,.3);color:#666;background:rgba(209,10,17,.06)}
+.empty-day{padding:12px;text-align:center;font-size:.68rem;color:#1e1e1e}
 
-/* ─── INSTRUCTOR DETAIL HEADER ─── */
-.instr-hd{display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
-.instr-avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0;background:var(--dk3);box-shadow:0 0 14px rgba(209,10,17,.2)}
-.instr-title{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.9rem;font-weight:900;color:#fff;line-height:1}
-.instr-title span{color:var(--red)}
-.back-btn{background:var(--dk2);border:1px solid var(--bdr);color:#555;border-radius:8px;padding:7px 16px;cursor:pointer;font-size:.8rem;transition:all var(--trans);white-space:nowrap}
-.back-btn:hover{border-color:#555;color:#ccc}
+/* INSTR DETAIL */
+.instr-hd{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.instr-avatar{width:58px;height:58px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0;background:var(--dk3)}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:575px){.det-grid{grid-template-columns:1fr}}
+.det-item{background:#181818;border:1px solid var(--bdr);border-radius:8px;padding:10px 12px}
+.det-lbl{font-size:.58rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.det-val{font-size:.82rem;color:#ccc}
+.det-val.empty{color:#1e1e1e;font-style:italic}
 
-/* ─── DETAIL ROWS ─── */
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-@media(max-width:600px){.detail-grid{grid-template-columns:1fr}}
-.detail-item{background:#181818;border:1px solid var(--bdr);border-radius:9px;padding:11px 14px}
-.detail-lbl{font-size:.6rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
-.detail-val{font-size:.85rem;color:#ccc}
-.detail-val.empty{color:#1e1e1e;font-style:italic}
-
-/* ─── MESSAGE PANEL ─── */
-.msg-type-select{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.msg-type-btn{background:transparent;border:1px solid var(--bdr2);color:#333;border-radius:7px;padding:5px 12px;font-size:.75rem;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif;font-weight:600}
-.msg-type-btn.active{color:#fff}
-.msg-type-btn[data-type="general"].active{border-color:#60a5fa;background:rgba(96,165,250,.12);color:#93c5fd}
-.msg-type-btn[data-type="warning"].active{border-color:var(--gold);background:rgba(245,197,24,.1);color:var(--gold)}
-.msg-type-btn[data-type="franchise_fee"].active{border-color:#f87171;background:rgba(209,10,17,.1);color:#f87171}
-.msg-type-btn[data-type="badge_request"].active{border-color:#60a5fa;background:rgba(96,165,250,.1);color:#93c5fd}
-
-/* ─── INBOX TABLE ─── */
-.msg-row{padding:12px 15px;border-bottom:1px solid var(--bdr);display:flex;align-items:flex-start;gap:12px;transition:background var(--trans)}
-.msg-row:hover{background:rgba(255,255,255,.012)}
+/* MSG */
+.msg-type-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.mtype-btn{background:transparent;border:1px solid var(--bdr2);color:#333;border-radius:7px;padding:5px 10px;font-size:.72rem;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif;font-weight:600}
+.mtype-btn[data-t="general"].active{border-color:#60a5fa;background:rgba(96,165,250,.12);color:#93c5fd}
+.mtype-btn[data-t="warning"].active{border-color:var(--gold);background:rgba(245,197,24,.1);color:var(--gold)}
+.mtype-btn[data-t="franchise_fee"].active{border-color:#f87171;background:rgba(209,10,17,.1);color:#f87171}
+.mtype-btn[data-t="badge_request"].active{border-color:#60a5fa;background:rgba(96,165,250,.1);color:#93c5fd}
+.msg-row{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:flex-start;gap:10px;transition:background var(--trans)}
+.msg-row:hover{background:rgba(255,255,255,.01)}
 .msg-row:last-child{border-bottom:none}
 .msg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
 .msg-dot.read{background:#1e1e1e}
-.msg-dot.unread{background:var(--red);box-shadow:0 0 6px rgba(209,10,17,.5)}
-.msg-body{flex:1}
-.msg-to{font-size:.65rem;color:#2e2e2e;margin-bottom:2px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
-.msg-subj{font-size:.82rem;font-weight:600;color:#ccc;margin-bottom:2px}
-.msg-preview{font-size:.73rem;color:#2e2e2e;line-height:1.4}
-.msg-meta{font-size:.62rem;color:#1e1e1e;margin-top:3px}
-.msg-status{font-size:.62rem;padding:2px 7px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;white-space:nowrap}
-.msg-status.read{background:#181818;color:#2e2e2e}
-.msg-status.unread{background:rgba(209,10,17,.08);color:#f87171}
+.msg-dot.unread{background:var(--red);box-shadow:0 0 5px rgba(209,10,17,.5)}
+.msg-to{font-size:.63rem;color:#2e2e2e;margin-bottom:1px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
+.msg-subj{font-size:.8rem;font-weight:600;color:#ccc;margin-bottom:1px}
+.msg-prev{font-size:.7rem;color:#2e2e2e;line-height:1.4}
+.msg-meta{font-size:.6rem;color:#1e1e1e;margin-top:2px}
 
-/* ─── PASSWORD PANEL ─── */
-.pwd-display{background:#181818;border:1px solid var(--bdr2);border-radius:8px;padding:10px 14px;font-family:'Courier New',monospace;font-size:.9rem;color:var(--gold);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.pwd-reveal-btn{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);color:var(--gold);border-radius:5px;padding:3px 9px;font-size:.7rem;cursor:pointer;transition:all var(--trans)}
-.pwd-reveal-btn:hover{background:rgba(245,197,24,.2)}
+/* PWD */
+.pwd-box{background:#181818;border:1px solid var(--bdr2);border-radius:8px;padding:9px 12px;font-family:'Courier New',monospace;font-size:.88rem;color:var(--gold);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pwd-reveal{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);color:var(--gold);border-radius:5px;padding:3px 8px;font-size:.68rem;cursor:pointer;transition:all var(--trans)}
+.pwd-reveal:hover{background:rgba(245,197,24,.2)}
 
-/* ─── TOAST ─── */
-.toast{position:fixed;bottom:22px;right:22px;z-index:9000;background:var(--dk3);border:1px solid var(--bdr2);border-radius:11px;padding:11px 16px;font-size:.8rem;color:#ccc;transform:translateY(80px);opacity:0;transition:all .28s ease;max-width:300px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
-.toast.show{transform:translateY(0);opacity:1}
-.toast.success{border-color:rgba(37,211,102,.3);color:#4ade80}
-.toast.error{border-color:rgba(209,10,17,.3);color:#f87171}
-.toast.warn{border-color:rgba(245,197,24,.3);color:var(--gold)}
+/* FIND CLOSEST */
+.dist-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;transition:border-color var(--trans)}
+.dist-card:hover{border-color:rgba(245,197,24,.2)}
+.dist-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold);border-radius:5px;padding:2px 8px;font-size:.7rem;font-weight:700;font-family:'Oswald',sans-serif}
+.dist-badge.close{background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.18);color:#4ade80}
 
-/* ─── ADD INSTRUCTOR ─── */
-.badge-preview-wrap{width:100%;background:#181818;border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-top:6px;text-align:center}
-.badge-preview-wrap img{max-height:140px;border-radius:6px;object-fit:contain}
+/* REQUEST CARD */
+.req-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+.req-card.pending{border-color:rgba(245,197,24,.2)}
+.req-card.approved{border-color:rgba(37,211,102,.15)}
+.req-card.declined{border-color:rgba(209,10,17,.15);opacity:.75}
 
-/* ─── RESPONSIVE ─── */
-@media(max-width:700px){
-  th:nth-child(4),td:nth-child(4){display:none}
-  .tabs{gap:2px}
-  .tab{font-size:.78rem;padding:7px 12px}
-}
+/* OVERVIEW */
+.login-log-item{padding:9px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.login-log-item:last-child{border-bottom:none}
 
-/* ─── FOOTER ─── */
-.footer{border-top:1px solid var(--bdr);padding:16px 22px;text-align:center;font-size:.68rem;color:#1e1e1e}
-.footer a{color:#252525}
+/* TOAST */
+.dsq-toast{position:fixed;bottom:22px;right:22px;z-index:9000;background:var(--dk3);border:1px solid var(--bdr2);border-radius:11px;padding:10px 16px;font-size:.8rem;color:#ccc;transform:translateY(60px);opacity:0;transition:all .28s ease;max-width:280px;box-shadow:0 10px 30px rgba(0,0,0,.6);pointer-events:none}
+.dsq-toast.show{transform:translateY(0);opacity:1}
+.dsq-toast.success{border-color:rgba(37,211,102,.3);color:#4ade80}
+.dsq-toast.error{border-color:rgba(209,10,17,.3);color:#f87171}
+.dsq-toast.warn{border-color:rgba(245,197,24,.3);color:var(--gold)}
+
+/* FORM */
+.form-inp{width:100%;background:#181818;border:1px solid #222;color:var(--txt);border-radius:8px;padding:10px 13px;font-size:.86rem;outline:none;transition:border-color var(--trans);font-family:'Inter',sans-serif;margin-bottom:11px}
+.form-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.1)}
+.form-inp::placeholder{color:#252525}
+.form-lbl{display:block;font-size:.68rem;color:#3a3a3a;margin-bottom:3px;text-align:left;letter-spacing:.4px;text-transform:uppercase}
+.login-err{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:#f87171;border-radius:8px;padding:8px 12px;font-size:.79rem;margin-bottom:11px;text-align:left}
+.btn-login{width:100%;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:700;padding:.78rem;cursor:pointer;transition:all var(--trans);letter-spacing:.5px}
+.btn-login:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
+.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+@media(max-width:575px){.hide-xs{display:none!important}}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-     LOGIN SCREEN
-══════════════════════════════════════════ -->
+<!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <img class="login-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
     <div class="login-title">Drive<span>SQ</span></div>
     <div class="login-sub">Admin Panel · Restricted Access</div>
     <div class="login-err hidden" id="loginErr"></div>
-    <label class="form-lbl" for="adminEmail">Email</label>
+    <label class="form-lbl">Email</label>
     <input class="form-inp" id="adminEmail" type="email" placeholder="admin@drivesq.co.uk" autocomplete="email"/>
-    <label class="form-lbl" for="adminPass">Password</label>
-    <input class="form-inp" id="adminPass" type="password" placeholder="••••••••" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')doLogin()"/>
+    <label class="form-lbl">Password</label>
+    <input class="form-inp" id="adminPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In →</button>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     NAV
-══════════════════════════════════════════ -->
-<nav class="nav hidden" id="mainNav">
-  <div class="nav-inner">
-    <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
-    <div>
-      <div class="nav-brand">Drive<span>SQ</span></div>
-      <div class="nav-sub">Admin Panel</div>
-    </div>
-    <div class="admin-chip">⚙️ ADMIN</div>
-    <div class="nav-right">
-      <button class="btn-signout" onclick="doLogout()">Sign Out</button>
+<!-- NAV -->
+<nav class="dsq-nav hidden" id="mainNav">
+  <div class="container-fluid px-3">
+    <div class="d-flex align-items-center gap-2 py-2" style="min-height:54px">
+      <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+      <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Admin Panel</div></div>
+      <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
+      <div class="ms-auto">
+        <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
+      </div>
     </div>
   </div>
 </nav>
 
-<!-- ══════════════════════════════════════════
-     PAGE
-══════════════════════════════════════════ -->
-<div class="page hidden" id="mainPage">
+<!-- PAGE -->
+<div class="container-fluid px-3 py-3 hidden" id="mainPage" style="max-width:1400px;margin:0 auto;padding-bottom:40px!important">
 
   <!-- TABS -->
-  <div class="tabs">
-    <button class="tab active" id="tab-instructors" onclick="switchTab('instructors')">👥 Instructors</button>
-    <button class="tab" id="tab-pending" onclick="switchTab('pending')">⏳ Pending <span id="pendingBadge" style="background:rgba(245,197,24,.15);border-radius:4px;padding:1px 6px;font-size:.68rem;margin-left:3px">0</span></button>
-    <button class="tab" id="tab-messages" onclick="switchTab('messages')">💬 Messages</button>
-    <button class="tab" id="tab-add" onclick="switchTab('add')">➕ Add Instructor</button>
-    <button class="tab" id="tab-overview" onclick="switchTab('overview')">📊 Overview</button>
+  <div class="dsq-tabs mb-3">
+    <button class="dsq-tab active" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
+    <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
+    <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
+    <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
+    <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
+    <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
+    <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
+    <button class="dsq-tab" id="tab-overview" onclick="switchTab('overview')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Overview</span></button>
+    <button class="dsq-tab hidden" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i></button>
   </div>
 
   <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat r"><div class="stat-lbl">Total Instructors</div><div class="stat-num r" id="sTotal">0</div></div>
-    <div class="stat g"><div class="stat-lbl">Pending Approval</div><div class="stat-num g" id="sPending">0</div></div>
-    <div class="stat gr"><div class="stat-lbl">Approved</div><div class="stat-num gr" id="sApproved">0</div></div>
-    <div class="stat b"><div class="stat-lbl">Lessons Today</div><div class="stat-num b" id="sToday">0</div></div>
-    <div class="stat r"><div class="stat-lbl">Lessons This Week</div><div class="stat-num r" id="sWeek">0</div></div>
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md-3"><div class="stat-card r"><div class="stat-lbl">Total Instructors</div><div class="stat-num r" id="sTotal">0</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card g"><div class="stat-lbl">Pending</div><div class="stat-num g" id="sPend">0</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card gr"><div class="stat-lbl">Approved</div><div class="stat-num gr" id="sApproved">0</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card b"><div class="stat-lbl">Lessons Today</div><div class="stat-num b" id="sToday">0</div></div></div>
   </div>
 
-  <!-- ── INSTRUCTORS PANEL ── -->
+  <!-- ── INSTRUCTORS ── -->
   <div id="panel-instructors">
-    <div class="panel-hd">
-      <h3 style="font-family:'Oswald',sans-serif;color:#fff">All Instructors</h3>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn-gold" onclick="openSendAllModal()">📢 Message All</button>
-        <input class="search-inp" id="searchInp" type="text" placeholder="Search name, badge, area…" oninput="filterInstructors()"/>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>All Instructors</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn-gold" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
+        <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" placeholder="Search name, badge, postcode…" oninput="filterInstrs(this.value)" id="instrSearch"/>
+        <select class="dsq-inp" style="max-width:140px;padding:6px 10px;font-size:.8rem" onchange="filterInstrs(document.getElementById('instrSearch').value)" id="statusFilter">
+          <option value="">All statuses</option>
+          <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="suspended">Suspended</option>
+          <option value="rejected">Rejected</option>
+        </select>
       </div>
     </div>
-    <div class="card">
-      <div class="tbl-wrap">
+    <div class="dsq-card">
+      <div class="tbl-scroll">
         <table>
           <thead><tr>
-            <th>Name</th><th>Badge</th><th>Type</th><th>Area</th><th>Status</th><th>Joined</th><th>Actions</th>
+            <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th><th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Joined</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -342,1039 +319,1087 @@ select.fi option{background:#181818}
     </div>
   </div>
 
-  <!-- ── PENDING PANEL ── -->
+  <!-- ── PENDING ── -->
   <div id="panel-pending" class="hidden">
-    <div class="panel-hd"><h3>⏳ Pending Applications</h3></div>
-    <div class="card">
-      <div class="tbl-wrap">
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-hourglass-split me-2" style="color:var(--gold)"></i>Pending Applications</div>
+    <div class="dsq-card">
+      <div class="tbl-scroll">
         <table>
-          <thead><tr>
-            <th>Name</th><th>Badge</th><th>Type</th><th>Email</th><th>Phone</th><th>Area</th><th>Submitted</th><th>Actions</th>
-          </tr></thead>
+          <thead><tr><th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Email</th><th class="hide-xs">Phone</th><th class="hide-xs">Area</th><th>Actions</th></tr></thead>
           <tbody id="pendingTbody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ── MESSAGES PANEL ── -->
+  <!-- ── REQUESTS ── -->
+  <div id="panel-requests" class="hidden">
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
+    <div id="reqList" class="d-flex flex-column gap-3"></div>
+  </div>
+
+  <!-- ── TRANSFERS ── -->
+  <div id="panel-transfers" class="hidden">
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Transfer Requests</div>
+    <div id="transferList" class="d-flex flex-column gap-3"></div>
+  </div>
+
+  <!-- ── MESSAGES ── -->
   <div id="panel-messages" class="hidden">
-    <div class="panel-hd">
-      <h3>💬 Sent Messages</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="openSendAllModal()">📢 Message All Instructors</button>
-        <button class="btn-gold" onclick="openMsgModal(null)">✉️ Message Individual</button>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn-p" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
+        <button class="btn-gold" onclick="openMsgModal(null)"><i class="bi bi-envelope me-1"></i>Message Individual</button>
       </div>
     </div>
-    <div class="card">
-      <div id="msgList"><div style="padding:28px;text-align:center;font-size:.82rem;color:#222">Loading messages…</div></div>
-    </div>
+    <div class="dsq-card"><div id="msgList"><div style="padding:24px;text-align:center;font-size:.82rem;color:#222">Loading…</div></div></div>
   </div>
 
-  <!-- ── ADD INSTRUCTOR PANEL ── -->
+  <!-- ── ADD INSTRUCTOR ── -->
   <div id="panel-add" class="hidden">
-    <div class="panel-hd"><h3>➕ Create Instructor Account</h3></div>
-    <div class="card" style="padding:26px 24px;max-width:680px">
-      <div class="frow">
-        <div class="fg">
-          <label>Full Name <span class="req">*</span></label>
-          <input class="fi" id="ai-name" placeholder="e.g. James Fletcher" required/>
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-plus me-2" style="color:var(--red)"></i>Create Instructor Account</div>
+    <div class="dsq-card p-3" style="max-width:680px">
+      <div class="row g-2">
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-name" placeholder="e.g. James Fletcher"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Number <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-badge" placeholder="e.g. ADI-12345"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Type</label>
+          <select class="dsq-inp" id="ai-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select>
         </div>
-        <div class="fg">
-          <label>Badge Number <span class="req">*</span></label>
-          <input class="fi" id="ai-badge" placeholder="e.g. ADI-12345"/>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-email" type="email" placeholder="instructor@email.com"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
+        <div class="col-12"><label class="dsq-lbl">Home Address</label><input class="dsq-inp" id="ai-address" placeholder="Full address"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Password <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-password" type="text" placeholder="Set a password"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Status</label>
+          <select class="dsq-inp" id="ai-status"><option value="approved">Approved</option><option value="pending">Pending</option></select>
         </div>
-      </div>
-      <div class="frow">
-        <div class="fg">
-          <label>Instructor Type <span class="req">*</span></label>
-          <select class="fi" id="ai-type">
-            <option value="ADI">ADI</option>
-            <option value="PDI">PDI</option>
-          </select>
-        </div>
-        <div class="fg">
-          <label>Phone Number</label>
-          <input class="fi" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/>
+        <div class="col-12">
+          <button class="btn-p w-100" onclick="createInstructor()" id="createBtn"><i class="bi bi-check-lg me-1"></i>Create Account</button>
         </div>
       </div>
-      <div class="frow">
-        <div class="fg">
-          <label>Email Address <span class="req">*</span></label>
-          <input class="fi" id="ai-email" type="email" placeholder="instructor@email.com"/>
-        </div>
-        <div class="fg">
-          <label>Area / Postcode</label>
-          <input class="fi" id="ai-area" placeholder="e.g. M19, Didsbury"/>
-        </div>
-      </div>
-      <div class="fg">
-        <label>Home Address</label>
-        <input class="fi" id="ai-address" placeholder="Full address"/>
-      </div>
-      <div class="frow">
-        <div class="fg">
-          <label>Password <span class="req">*</span></label>
-          <input class="fi" id="ai-password" type="text" placeholder="Set a password"/>
-        </div>
-        <div class="fg">
-          <label>Status</label>
-          <select class="fi" id="ai-status">
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn-primary" onclick="createInstructor()" style="width:100%;margin-top:8px" id="createBtn">Create Account</button>
     </div>
   </div>
 
-  <!-- ── OVERVIEW PANEL ── -->
+  <!-- ── FIND CLOSEST ── -->
+  <div id="panel-find" class="hidden">
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-geo-alt-fill me-2" style="color:var(--gold)"></i>Find Closest Instructor</div>
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <div class="dsq-card p-3">
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px">Student Details</div>
+          <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Student full name"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+            <select class="dsq-inp" id="fc-type">
+              <option value="Manual">Manual</option><option value="Automatic">Automatic</option>
+              <option value="Mock Test">Mock Test</option><option value="Intensive">Intensive</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
+          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructors</button>
+        </div>
+      </div>
+      <div class="col-12 col-md-8">
+        <div id="findResults"><div style="padding:32px;text-align:center;font-size:.84rem;color:#333">Enter student details and click Find to see nearby instructors ranked by distance.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
   <div id="panel-overview" class="hidden">
-    <div style="padding:30px;text-align:center;font-size:.88rem;color:#2e2e2e">Overview stats loaded automatically from instructor data.</div>
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Overview</div>
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="dsq-card p-3">
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px"><i class="bi bi-clock-history me-2" style="color:var(--red)"></i>Recent Login Activity</div>
+          <div id="loginLog"><div style="text-align:center;font-size:.8rem;color:#333;padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="dsq-card p-3">
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Lessons This Week (by Instructor)</div>
+          <div id="overviewChart"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- ── CALENDAR / DETAIL PANEL ── -->
+  <!-- ── CALENDAR (instructor view) ── -->
   <div id="panel-calendar" class="hidden">
-    <div class="instr-hd">
-      <button class="back-btn" onclick="backToList()">← Back</button>
-      <img class="instr-avatar" id="calAvatar" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/>
-      <div>
-        <div class="instr-title" id="calName">Instructor</div>
-        <div style="font-size:.72rem;color:#2e2e2e;margin-top:2px" id="calBadge">—</div>
-      </div>
-      <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
-        <button class="abtn edit" onclick="openEditModal()">✏️ Edit Details</button>
-        <button class="abtn msg" onclick="openMsgModal(viewingId)">✉️ Message</button>
-        <button class="abtn" id="blockToggleBtn" onclick="toggleBlock()">⛔ Block</button>
-        <button class="abtn del" onclick="deleteInstructor(viewingId,viewingName)">🗑️ Remove</button>
-      </div>
+    <!-- header injected by JS -->
+    <div id="calInstrHd" class="mb-3"></div>
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <button class="btn-s" onclick="adminChangeWeek(-1)"><i class="bi bi-chevron-left"></i></button>
+      <div id="adminWeekLbl" style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#666;min-width:150px;text-align:center;padding:7px 10px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px">…</div>
+      <button class="btn-s" style="background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red);font-family:'Oswald',sans-serif;font-weight:600" onclick="adminGoToday()">Today</button>
+      <button class="btn-s" onclick="adminChangeWeek(1)"><i class="bi bi-chevron-right"></i></button>
     </div>
-
-    <!-- Instructor details grid -->
-    <div class="detail-grid" id="instrDetailGrid"></div>
-
-    <!-- Request badge photo -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
-      <button class="abtn view" onclick="requestBadgePhoto()">🪪 Request Badge Photo</button>
-      <button class="abtn add" onclick="openAddLessonModal(null)">➕ Add Lesson for This Instructor</button>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:8px;min-width:770px" id="adminCalGrid"></div>
     </div>
-
-    <!-- Calendar navigation -->
-    <div class="cal-nav">
-      <button class="cal-btn" onclick="adminChangeWeek(-1)">← Prev</button>
-      <div class="cal-lbl" id="adminWeekLbl">Loading…</div>
-      <button class="cal-btn today" onclick="adminGoToday()">Today</button>
-      <button class="cal-btn" onclick="adminChangeWeek(1)">Next →</button>
-    </div>
-    <div class="cal-grid" id="adminCalGrid"></div>
   </div>
 
 </div><!-- /page -->
 
-<div class="footer hidden" id="mainFooter">&copy; <span id="footerYr"></span> DriveSQ Driving School · Admin Panel</div>
-<div class="toast" id="toast"></div>
+<div class="dsq-toast" id="toast"></div>
 
-<!-- ══════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════ -->
-
-<!-- EDIT INSTRUCTOR MODAL -->
-<div class="overlay" id="editModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('editModal')">✕</button>
-    <h2>Edit Instructor</h2>
-    <div class="modal-sub">Changes save instantly to the database</div>
+<!-- ════ EDIT MODAL ════ -->
+<div class="dsq-overlay" id="editModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('editModal')"><i class="bi bi-x-lg"></i></button>
+    <h5>Edit Instructor</h5>
+    <div class="modal-sub">Changes save to database immediately</div>
     <input type="hidden" id="edit-id"/>
-    <div class="frow">
-      <div class="fg"><label>Full Name <span class="req">*</span></label><input class="fi" id="edit-name"/></div>
-      <div class="fg"><label>Badge Number</label><input class="fi" id="edit-badge"/></div>
-    </div>
-    <div class="frow">
-      <div class="fg"><label>Type</label><select class="fi" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
-      <div class="fg"><label>Phone</label><input class="fi" id="edit-phone" type="tel"/></div>
-    </div>
-    <div class="frow">
-      <div class="fg"><label>Email</label><input class="fi" id="edit-email" type="email"/></div>
-      <div class="fg"><label>Area</label><input class="fi" id="edit-area"/></div>
-    </div>
-    <div class="fg"><label>Address</label><input class="fi" id="edit-address"/></div>
-    <div class="fg"><label>Status</label>
-      <select class="fi" id="edit-status">
-        <option value="approved">Approved</option>
-        <option value="pending">Pending</option>
-        <option value="rejected">Rejected</option>
-        <option value="suspended">Suspended</option>
-      </select>
-    </div>
-    <div class="sec-divider">Show Lessons When Suspended</div>
-    <div class="fg" style="display:flex;align-items:center;gap:10px;padding:8px 0">
-      <input type="checkbox" id="edit-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
-      <label style="font-size:.8rem;color:#555;text-transform:none;letter-spacing:0">Allow instructor to see today's lessons while suspended</label>
-    </div>
-    <div class="sec-divider">Password</div>
-    <div class="fg">
-      <label>Current Password</label>
-      <div class="pwd-display">
-        <span id="edit-pwd-display" style="filter:blur(4px);user-select:none">••••••••</span>
-        <button class="pwd-reveal-btn" onclick="togglePwdReveal()">👁 Reveal</button>
-      </div>
-    </div>
-    <div class="fg">
-      <label>Set New Password (leave blank to keep current)</label>
-      <input class="fi" id="edit-new-pwd" type="text" placeholder="New password…"/>
-    </div>
-    <button class="btn-primary" onclick="saveEdit()" style="width:100%;margin-top:8px">Save Changes</button>
-    <button class="btn-secondary" onclick="closeModal('editModal')" style="width:100%;margin-top:8px">Cancel</button>
-  </div>
-</div>
-
-<!-- MESSAGE MODAL (individual) -->
-<div class="overlay" id="msgModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('msgModal')">✕</button>
-    <h2>Send Message</h2>
-    <div class="modal-sub" id="msgModalSub">To individual instructor</div>
-    <div class="fg">
-      <label>Instructor</label>
-      <select class="fi" id="msg-recipient">
-        <option value="">Select instructor…</option>
-      </select>
-    </div>
-    <div class="fg">
-      <label>Message Type</label>
-      <div class="msg-type-select">
-        <button class="msg-type-btn active" data-type="general" onclick="setMsgType('general')">📢 General</button>
-        <button class="msg-type-btn" data-type="warning" onclick="setMsgType('warning')">⚠️ Warning</button>
-        <button class="msg-type-btn" data-type="franchise_fee" onclick="setMsgType('franchise_fee')">💰 Franchise Fee</button>
-        <button class="msg-type-btn" data-type="badge_request" onclick="setMsgType('badge_request')">🪪 Badge Request</button>
-      </div>
-    </div>
-    <div class="fg"><label>Subject <span class="req">*</span></label><input class="fi" id="msg-subject" placeholder="Message subject…"/></div>
-    <div class="fg"><label>Body <span class="req">*</span></label><textarea class="fi" id="msg-body" rows="4" placeholder="Message body…" style="resize:vertical"></textarea></div>
-    <button class="btn-primary" onclick="sendMessage()" style="width:100%">Send Message</button>
-    <button class="btn-secondary" onclick="closeModal('msgModal')" style="width:100%;margin-top:8px">Cancel</button>
-  </div>
-</div>
-
-<!-- SEND ALL MODAL -->
-<div class="overlay" id="sendAllModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('sendAllModal')">✕</button>
-    <h2>📢 Message All Instructors</h2>
-    <div class="modal-sub">Sends to all approved instructors</div>
-    <div class="fg">
-      <label>Message Type</label>
-      <div class="msg-type-select">
-        <button class="msg-type-btn active" data-type="general" onclick="setAllMsgType('general')">📢 General</button>
-        <button class="msg-type-btn" data-type="warning" onclick="setAllMsgType('warning')">⚠️ Warning</button>
-        <button class="msg-type-btn" data-type="franchise_fee" onclick="setAllMsgType('franchise_fee')">💰 Franchise Fee</button>
-        <button class="msg-type-btn" data-type="badge_request" onclick="setAllMsgType('badge_request')">🪪 Badge Request</button>
-      </div>
-    </div>
-    <div class="fg"><label>Subject <span class="req">*</span></label><input class="fi" id="all-msg-subject" placeholder="Subject…"/></div>
-    <div class="fg"><label>Body <span class="req">*</span></label><textarea class="fi" id="all-msg-body" rows="4" placeholder="Message body…" style="resize:vertical"></textarea></div>
-    <button class="btn-primary" onclick="sendAllMessages()" style="width:100%" id="sendAllBtn">📢 Send to All</button>
-    <button class="btn-secondary" onclick="closeModal('sendAllModal')" style="width:100%;margin-top:8px">Cancel</button>
-  </div>
-</div>
-
-<!-- ADD LESSON MODAL (admin) -->
-<div class="overlay" id="addLessonModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('addLessonModal')">✕</button>
-    <h2>Add Lesson</h2>
-    <div class="modal-sub" id="addLessonSub">For instructor</div>
-    <div class="fg">
-      <label>Instructor <span class="req">*</span></label>
-      <select class="fi" id="al-instructor"><option value="">Select…</option></select>
-    </div>
-    <div class="fg"><label>Date <span class="req">*</span></label><input class="fi" id="al-date" type="date"/></div>
-    <div class="frow">
-      <div class="fg"><label>Start Time <span class="req">*</span></label><input class="fi" id="al-time" type="time" value="09:00"/></div>
-      <div class="fg"><label>Duration <span class="req">*</span></label>
-        <select class="fi" id="al-duration">
-          <option value="1">1 hour</option>
-          <option value="1.5">1.5 hrs</option>
-          <option value="2" selected>2 hours</option>
-          <option value="2.5">2.5 hrs</option>
-          <option value="3">3 hours</option>
-          <option value="4">4 hours</option>
+    <div class="row g-2">
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="edit-name"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Number</label><input class="dsq-inp" id="edit-badge"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Type</label><select class="dsq-inp" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="edit-phone" type="tel"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="edit-email" type="email"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
+      <div class="col-12"><label class="dsq-lbl">Address</label><input class="dsq-inp" id="edit-address"/></div>
+      <div class="col-12"><label class="dsq-lbl">Status</label>
+        <select class="dsq-inp" id="edit-status">
+          <option value="approved">Approved</option><option value="pending">Pending</option>
+          <option value="rejected">Rejected</option><option value="suspended">Suspended</option>
         </select>
       </div>
     </div>
-    <div class="fg"><label>Student Name <span class="req">*</span></label><input class="fi" id="al-student" placeholder="Full name"/></div>
-    <div class="fg"><label>Student Phone</label><input class="fi" id="al-phone" type="tel" placeholder="07xxx xxx xxx"/></div>
-    <div class="fg"><label>Pickup Address <span class="req">*</span></label><input class="fi" id="al-address" placeholder="e.g. 14 Oak Street, M20"/></div>
-    <div class="fg"><label>Lesson Type</label>
-      <select class="fi" id="al-type">
-        <option value="Manual">Manual</option>
-        <option value="Automatic">Automatic</option>
-        <option value="Mock Test">Mock Test</option>
-        <option value="Intensive">Intensive</option>
-        <option value="Pass Plus">Pass Plus</option>
-        <option value="Refresher">Refresher</option>
+    <div class="sec-div">Show Lessons When Suspended</div>
+    <div class="d-flex align-items-center gap-2 mb-2 py-1">
+      <input type="checkbox" id="edit-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
+      <label style="font-size:.78rem;color:#555;cursor:pointer" for="edit-show-lessons">Allow instructor to view today's lessons while suspended</label>
+    </div>
+    <div class="sec-div">Password</div>
+    <div class="mb-2">
+      <label class="dsq-lbl">Current Password</label>
+      <div class="pwd-box"><span id="edit-pwd-txt" style="filter:blur(4px);user-select:none">••••••••</span><button class="pwd-reveal" onclick="togglePwd()"><i class="bi bi-eye me-1"></i>Reveal</button></div>
+    </div>
+    <div class="mb-3"><label class="dsq-lbl">New Password (leave blank to keep)</label><input class="dsq-inp" id="edit-new-pwd" type="text" placeholder="New password…"/></div>
+    <button class="btn-p w-100 mb-2" onclick="saveEdit()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+    <button class="btn-s w-100" onclick="closeModal('editModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ════ MSG MODAL ════ -->
+<div class="dsq-overlay" id="msgModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('msgModal')"><i class="bi bi-x-lg"></i></button>
+    <h5>Send Message</h5>
+    <div class="modal-sub" id="msgModalSub">To an instructor</div>
+    <div class="mb-2"><label class="dsq-lbl">Instructor</label>
+      <select class="dsq-inp" id="msg-recipient"><option value="">Select instructor…</option></select>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Type</label>
+      <div class="msg-type-row">
+        <button class="mtype-btn active" data-t="general" onclick="setMsgType('general','msgModal')">📢 General</button>
+        <button class="mtype-btn" data-t="warning" onclick="setMsgType('warning','msgModal')">⚠️ Warning</button>
+        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','msgModal')">💰 Franchise Fee</button>
+        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','msgModal')">🪪 Badge Request</button>
+      </div>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="msg-subject" placeholder="Subject…"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Body <span class="req-mark">*</span></label><textarea class="dsq-inp" id="msg-body" rows="4" placeholder="Message body…"></textarea></div>
+    <button class="btn-p w-100 mb-2" onclick="sendMsg()"><i class="bi bi-send me-1"></i>Send Message</button>
+    <button class="btn-s w-100" onclick="closeModal('msgModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ════ SEND ALL MODAL ════ -->
+<div class="dsq-overlay" id="sendAllModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('sendAllModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-megaphone me-2" style="color:var(--gold)"></i>Message All Instructors</h5>
+    <div class="modal-sub">Sends to all approved instructors</div>
+    <div class="mb-2"><label class="dsq-lbl">Type</label>
+      <div class="msg-type-row">
+        <button class="mtype-btn active" data-t="general" onclick="setMsgType('general','sendAllModal')">📢 General</button>
+        <button class="mtype-btn" data-t="warning" onclick="setMsgType('warning','sendAllModal')">⚠️ Warning</button>
+        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','sendAllModal')">💰 Franchise Fee</button>
+        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','sendAllModal')">🪪 Badge Request</button>
+      </div>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="all-subject" placeholder="Subject…"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Body <span class="req-mark">*</span></label><textarea class="dsq-inp" id="all-body" rows="4" placeholder="Message body…"></textarea></div>
+    <button class="btn-gold w-100 mb-2" onclick="sendAll()" id="sendAllBtn"><i class="bi bi-megaphone me-1"></i>Send to All</button>
+    <button class="btn-s w-100" onclick="closeModal('sendAllModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ════ ADD LESSON MODAL ════ -->
+<div class="dsq-overlay" id="addLessonModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('addLessonModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-plus-circle-fill me-2" style="color:var(--red)"></i>Add Lesson</h5>
+    <div class="modal-sub" id="addLessonSub">For instructor</div>
+    <div class="mb-2"><label class="dsq-lbl">Instructor</label><select class="dsq-inp" id="al-instr"><option value="">Select…</option></select></div>
+    <div class="mb-2"><label class="dsq-lbl">Date <span class="req-mark">*</span></label><input class="dsq-inp" id="al-date" type="date"/></div>
+    <div class="row g-2 mb-2">
+      <div class="col-6"><label class="dsq-lbl">Start Time</label><input class="dsq-inp" id="al-time" type="time" value="09:00"/></div>
+      <div class="col-6"><label class="dsq-lbl">Duration</label>
+        <select class="dsq-inp" id="al-dur">
+          <option value="1">1 hr</option><option value="1.5">1.5 hrs</option><option value="2" selected>2 hrs</option>
+          <option value="2.5">2.5 hrs</option><option value="3">3 hrs</option><option value="4">4 hrs</option>
+        </select>
+      </div>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="al-student" placeholder="Full name"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Student Phone</label><input class="dsq-inp" id="al-phone" type="tel" placeholder="07xxx xxx xxx"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Pickup Address <span class="req-mark">*</span></label><input class="dsq-inp" id="al-addr" placeholder="e.g. 14 Oak Street, M20"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+      <select class="dsq-inp" id="al-type">
+        <option value="Manual">Manual</option><option value="Automatic">Automatic</option>
+        <option value="Mock Test">Mock Test</option><option value="Intensive">Intensive</option>
+        <option value="Pass Plus">Pass Plus</option><option value="Refresher">Refresher</option>
       </select>
     </div>
-    <div class="fg"><label>Notes</label><textarea class="fi" id="al-notes" rows="2" placeholder="Optional notes…" style="resize:vertical"></textarea></div>
-    <button class="btn-primary" onclick="saveAdminLesson()" style="width:100%">Save Lesson</button>
-    <button class="btn-secondary" onclick="closeModal('addLessonModal')" style="width:100%;margin-top:8px">Cancel</button>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="al-notes" rows="2"></textarea></div>
+    <button class="btn-p w-100 mb-2" onclick="saveAdminLesson()"><i class="bi bi-check-lg me-1"></i>Save Lesson</button>
+    <button class="btn-s w-100" onclick="closeModal('addLessonModal')">Cancel</button>
   </div>
 </div>
 
-<!-- LESSON DETAIL MODAL (admin view) -->
-<div class="overlay" id="lessonDetailModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('lessonDetailModal')">✕</button>
-    <h2 id="ldTitle">Lesson Details</h2>
+<!-- ════ LESSON DETAIL MODAL ════ -->
+<div class="dsq-overlay" id="lessonDetailModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('lessonDetailModal')"><i class="bi bi-x-lg"></i></button>
+    <h5 id="ldTitle">Lesson Details</h5>
     <div class="modal-sub" id="ldDate">—</div>
     <div id="ldBody"></div>
-    <div id="ldMaps" style="margin-top:10px"></div>
-    <button class="btn-secondary" style="width:100%;margin-top:14px" onclick="closeModal('lessonDetailModal')">Close</button>
-    <button class="btn-secondary" style="width:100%;margin-top:6px;border-color:rgba(255,0,0,.2);color:#cc4444" onclick="deleteAdminLesson()">🗑 Remove Lesson</button>
+    <div id="ldMaps" class="mt-2"></div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn-s flex-fill" onclick="closeModal('lessonDetailModal')">Close</button>
+      <button class="btn-s flex-fill" style="border-color:rgba(255,0,0,.2);color:#cc4444" onclick="deleteAdminLesson()"><i class="bi bi-trash me-1"></i>Remove</button>
+    </div>
   </div>
 </div>
 
+<!-- ════ ASSIGN STUDENT MODAL ════ -->
+<div class="dsq-overlay" id="assignModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('assignModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-check-fill me-2" style="color:#4ade80"></i>Assign Student</h5>
+    <div class="modal-sub" id="assignSub">Assigning to instructor</div>
+    <input type="hidden" id="assign-instr-id"/>
+    <input type="hidden" id="assign-instr-name"/>
+    <div id="assignDetails" class="mb-3" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;font-size:.8rem;color:#666;line-height:1.7"></div>
+    <div class="mb-3">
+      <label class="dsq-lbl">WhatsApp Notification (optional)</label>
+      <div style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:12px">
+        <div style="font-size:.76rem;color:#555;margin-bottom:8px">Click the button below to open WhatsApp and notify the instructor. They will receive a message with the student details and a link to check their portal.</div>
+        <a id="waLink" href="#" target="_blank" class="abtn wa w-100" style="justify-content:center;padding:10px;font-size:.82rem;border-radius:8px;text-decoration:none">
+          <i class="bi bi-whatsapp me-1"></i>Open WhatsApp to Notify Instructor
+        </a>
+      </div>
+    </div>
+    <button class="btn-p w-100 mb-2" onclick="confirmAssign()"><i class="bi bi-check-lg me-1"></i>Assign Student</button>
+    <button class="btn-s w-100" onclick="closeModal('assignModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ════ BLOCK MODAL ════ -->
+<div class="dsq-overlay" id="blockModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('blockModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-slash-circle me-2" style="color:#c084fc"></i>Block Instructor</h5>
+    <div class="modal-sub" id="blockModalSub">Block this instructor's access</div>
+    <input type="hidden" id="block-id"/>
+    <div style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:.82rem;color:#888;line-height:1.7">When blocked, the instructor will see a suspension screen when they log in. You can optionally allow them to still view today's lessons.</div>
+    </div>
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <input type="checkbox" id="block-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
+      <label style="font-size:.8rem;color:#555;cursor:pointer" for="block-show-lessons">Allow instructor to view today's lessons while blocked</label>
+    </div>
+    <button class="w-100 mb-2" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;padding:.7rem;cursor:pointer;min-height:44px" onclick="confirmBlock()"><i class="bi bi-slash-circle me-1"></i>Block Instructor</button>
+    <button class="btn-s w-100" onclick="closeModal('blockModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ════ REASSIGN MODAL ════ -->
+<div class="dsq-overlay" id="reassignModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('reassignModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-arrow-repeat me-2" style="color:var(--gold)"></i>Reassign Student</h5>
+    <div class="modal-sub" id="reassignSub">Select a new instructor for this student</div>
+    <input type="hidden" id="reassign-req-id"/>
+    <div class="mb-3"><label class="dsq-lbl">Assign To</label>
+      <select class="dsq-inp" id="reassign-instr"><option value="">Select instructor…</option></select>
+    </div>
+    <button class="btn-gold w-100 mb-2" onclick="confirmReassign()"><i class="bi bi-check-lg me-1"></i>Reassign Student</button>
+    <button class="btn-s w-100" onclick="closeModal('reassignModal')">Cancel</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-/* ══════════════════════════════════════════════════════
-   SUPABASE
-══════════════════════════════════════════════════════ */
-const SB_URL = 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
-const SB_KEY = 'sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
-const sb = supabase.createClient(SB_URL, SB_KEY);
+const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
+const SB_KEY='sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
+const sb=supabase.createClient(SB_URL,SB_KEY);
 
-/* ══════════════════════════════════════════════════════
-   STATE
-══════════════════════════════════════════════════════ */
-let allInstructors = [];
-let viewingId = null, viewingName = '', viewingData = null;
-let adminWeekOffset = 0;
-let adminLessons = [];
-let currentMsgType = 'general';
-let currentAllMsgType = 'general';
-let activeLessonId = null;
-let pwdRevealed = false;
+/* ── AUTH ── */
+if(sessionStorage.getItem('dsq_admin')==='true')showApp();
 
-document.getElementById('footerYr').textContent = new Date().getFullYear();
-
-/* ══════════════════════════════════════════════════════
-   AUTH
-══════════════════════════════════════════════════════ */
-const isLoggedIn = sessionStorage.getItem('dsq_admin') === 'true';
-if (isLoggedIn) showApp();
-
-async function doLogin() {
-  const btn = document.getElementById('loginBtn');
-  const errEl = document.getElementById('loginErr');
-  const email = document.getElementById('adminEmail').value.trim().toLowerCase();
-  const pass = document.getElementById('adminPass').value;
+async function doLogin(){
+  const btn=document.getElementById('loginBtn');
+  const errEl=document.getElementById('loginErr');
+  const email=document.getElementById('adminEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('adminPass').value;
   errEl.classList.add('hidden');
-  if (!email || !pass) { showErr('Please enter email and password.'); return; }
-  btn.textContent = 'Signing in…'; btn.disabled = true;
-  try {
-    const { data, error } = await sb.from('admins').select('*').eq('email', email).single();
-    if (error || !data) { showErr('Admin account not found.'); return; }
-    const hashInput = btoa(pass);
-    if (data.password_hash !== hashInput) { showErr('Incorrect password.'); return; }
-    sessionStorage.setItem('dsq_admin', 'true');
-    showApp();
-  } catch (e) {
-    showErr('Connection error. Please try again.');
-  } finally {
-    btn.textContent = 'Sign In →'; btn.disabled = false;
-  }
+  if(!email||!pass){showLoginErr('Please enter email and password.');return;}
+  btn.textContent='Signing in…';btn.disabled=true;
+  try{
+    const{data,error}=await sb.from('admins').select('*').eq('email',email).single();
+    if(error||!data){showLoginErr('Admin account not found.');return;}
+    if(data.password_hash!==btoa(pass)){showLoginErr('Incorrect password.');return;}
+    sessionStorage.setItem('dsq_admin','true');showApp();
+  }catch(e){showLoginErr('Connection error. Please try again.');}
+  finally{btn.textContent='Sign In →';btn.disabled=false;}
 }
-
-function showErr(msg) {
-  const el = document.getElementById('loginErr');
-  el.textContent = msg; el.classList.remove('hidden');
-}
-
-function showApp() {
+function showLoginErr(msg){const el=document.getElementById('loginErr');el.textContent=msg;el.classList.remove('hidden');}
+function showApp(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainNav').classList.remove('hidden');
   document.getElementById('mainPage').classList.remove('hidden');
-  document.getElementById('mainFooter').classList.remove('hidden');
   loadAll();
 }
+function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reload();}
 
-function doLogout() {
-  sessionStorage.removeItem('dsq_admin');
-  window.location.reload();
-}
+/* ── STATE ── */
+let allInstrs=[];
+let viewingId=null,viewingName='',viewingData=null;
+let adminWeekOffset=0,adminLessons=[];
+let msgTypes={msgModal:'general',sendAllModal:'general'};
+let pwdRevealed=false;
+let activeLessonId=null;
+let fcStudentData=null;
 
-/* ══════════════════════════════════════════════════════
-   TABS
-══════════════════════════════════════════════════════ */
-const tabIds = ['instructors','pending','messages','add','overview','calendar'];
-function switchTab(t) {
-  tabIds.forEach(id => {
-    document.getElementById('panel-'+id)?.classList.toggle('hidden', id !== t);
-    document.getElementById('tab-'+id)?.classList.toggle('active', id === t);
+/* ── UTILS ── */
+function pad2(n){return String(n).padStart(2,'0');}
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+function dateKey(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+function getMonday(offset=0){const d=new Date();const day=d.getDay();const diff=day===0?-6:1-day;d.setDate(d.getDate()+diff+(offset*7));d.setHours(0,0,0,0);return d;}
+function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=h*60+m+parseFloat(hrs)*60;return pad2(Math.floor(t/60)%24)+':'+pad2(Math.round(t%60));}
+function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' at '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
+function fmtD(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ── TABS ── */
+const TABS=['instructors','pending','requests','transfers','messages','add','find','overview','calendar'];
+function switchTab(t){
+  TABS.forEach(id=>{
+    document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
+    document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
   });
-  if (t === 'messages') loadMessages();
+  if(t==='messages')loadMessages();
+  if(t==='overview'){loadLoginLog();loadOverviewChart();}
+  if(t==='requests')loadStudentRequests();
+  if(t==='transfers')loadTransferRequests();
 }
 
-/* ══════════════════════════════════════════════════════
-   LOAD ALL
-══════════════════════════════════════════════════════ */
-async function loadAll() {
-  await loadInstructors();
-  await loadStats();
-  populateInstructorDropdowns();
+/* ── LOAD ALL ── */
+async function loadAll(){
+  await loadInstrs();
+  loadStats();
+  populateDropdowns();
 }
 
-async function loadInstructors() {
-  const { data, error } = await sb.from('instructors').select('*').order('created_at', { ascending: false });
-  if (error) { toast('Failed to load instructors', 'error'); return; }
-  allInstructors = data || [];
-  renderInstructorsTable(allInstructors);
-  renderPendingTable(allInstructors.filter(i => i.status === 'pending'));
-  const pc = allInstructors.filter(i => i.status === 'pending').length;
-  document.getElementById('pendingBadge').textContent = pc;
-  document.getElementById('sTotal').textContent = allInstructors.length;
-  document.getElementById('sPending').textContent = pc;
-  document.getElementById('sApproved').textContent = allInstructors.filter(i => i.status === 'approved').length;
+async function loadInstrs(){
+  const{data}=await sb.from('instructors').select('*').order('created_at',{ascending:false});
+  allInstrs=data||[];
+  renderInstrsTable(allInstrs);
+  renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
+  const pc=allInstrs.filter(i=>i.status==='pending').length;
+  document.getElementById('pendingBadge').textContent=pc;
+  document.getElementById('pendingBadge').classList.toggle('hidden',pc===0);
+  document.getElementById('sTotal').textContent=allInstrs.length;
+  document.getElementById('sPend').textContent=pc;
+  document.getElementById('sApproved').textContent=allInstrs.filter(i=>i.status==='approved').length;
 }
 
-async function loadStats() {
-  const today = fmtDate(new Date());
-  const mon = getMonday(0), sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-  const [todayRes, weekRes] = await Promise.all([
-    sb.from('lessons').select('id', { count: 'exact' }).eq('lesson_date', today),
-    sb.from('lessons').select('id', { count: 'exact' }).gte('lesson_date', fmtDate(mon)).lte('lesson_date', fmtDate(sun))
-  ]);
-  document.getElementById('sToday').textContent = todayRes.count || 0;
-  document.getElementById('sWeek').textContent = weekRes.count || 0;
+async function loadStats(){
+  const tk=todayKey();
+  const{count}=await sb.from('lessons').select('id',{count:'exact'}).eq('lesson_date',tk);
+  document.getElementById('sToday').textContent=count||0;
 }
 
-function populateInstructorDropdowns() {
-  const approved = allInstructors.filter(i => i.status === 'approved');
-  const opts = approved.map(i => `<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number)})</option>`).join('');
-  const allOpts = allInstructors.map(i => `<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number)})</option>`).join('');
-  document.getElementById('msg-recipient').innerHTML = '<option value="">Select instructor…</option>' + allOpts;
-  document.getElementById('al-instructor').innerHTML = '<option value="">Select…</option>' + allOpts;
+function populateDropdowns(){
+  const all=allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number)})</option>`).join('');
+  document.getElementById('msg-recipient').innerHTML='<option value="">Select instructor…</option>'+all;
+  document.getElementById('al-instr').innerHTML='<option value="">Select…</option>'+all;
+  document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
 }
 
-/* ══════════════════════════════════════════════════════
-   TABLES
-══════════════════════════════════════════════════════ */
-function renderInstructorsTable(list) {
-  const tb = document.getElementById('instrTbody');
-  if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#222;padding:28px">No instructors found.</td></tr>';
-    return;
-  }
-  tb.innerHTML = list.map(i => {
-    const isSuspended = i.status === 'suspended';
-    const blockBtn = isSuspended
-      ? `<button class="abtn unblock" onclick="unblockInstructor('${i.id}')">✅ Unblock</button>`
-      : `<button class="abtn block" onclick="blockInstructor('${i.id}','${esc(i.full_name)}')">⛔ Block</button>`;
-    return `<tr>
+/* ── RENDER TABLES ── */
+function renderInstrsTable(list){
+  const tb=document.getElementById('instrTbody');
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#222;padding:24px">No instructors found.</td></tr>';return;}
+  tb.innerHTML=list.map(i=>{
+    const isSusp=i.status==='suspended';
+    const blockBtn=isSusp
+      ?`<button class="abtn unblock" onclick="unblockInstr('${i.id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
+      :`<button class="abtn block" onclick="openBlockModal('${i.id}','${esc(i.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
+    const loginTime=i.last_login?fmtDT(i.last_login):'Never';
+    return`<tr>
       <td style="color:#ddd;font-weight:600">
-        ${i.profile_photo_url ? `<img src="${esc(i.profile_photo_url)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:7px;vertical-align:middle" alt=""/>` : ''}
-        ${esc(i.full_name)}
+        ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>
       </td>
-      <td style="font-family:'Oswald',sans-serif;font-size:.78rem">${esc(i.badge_number)}</td>
+      <td style="font-family:'Oswald',sans-serif;font-size:.75rem">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
-      <td>${esc(i.area||'—')}</td>
+      <td class="hide-xs">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}">${i.status}</span></td>
-      <td style="color:#2a2a2a">${fmtDateShort(i.created_at)}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:#333">${loginTime}</td>
+      <td class="hide-xs" style="color:#2a2a2a">${fmtD(i.created_at)}</td>
       <td style="white-space:nowrap">
-        <button class="abtn view" onclick="viewInstructor('${i.id}')">📅 View</button>
-        <button class="abtn edit" onclick="openEditForId('${i.id}')">✏️</button>
-        <button class="abtn msg" onclick="openMsgModal('${i.id}')">✉️</button>
+        <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
+        <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
+        <button class="abtn msg" onclick="openMsgModal('${i.id}')"><i class="bi bi-envelope"></i></button>
         ${blockBtn}
-        <button class="abtn del" onclick="deleteInstructor('${i.id}','${esc(i.full_name)}')">🗑️</button>
+        <button class="abtn del" onclick="deleteInstr('${i.id}','${esc(i.full_name)}')"><i class="bi bi-trash"></i></button>
       </td>
     </tr>`;
   }).join('');
 }
 
-function renderPendingTable(list) {
-  const tb = document.getElementById('pendingTbody');
-  if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#222;padding:28px">No pending applications.</td></tr>';
-    return;
-  }
-  tb.innerHTML = list.map(i => `<tr>
+function renderPendingTable(list){
+  const tb=document.getElementById('pendingTbody');
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#222;padding:24px">No pending applications.</td></tr>';return;}
+  tb.innerHTML=list.map(i=>`<tr>
     <td style="color:#ddd;font-weight:600">${esc(i.full_name)}</td>
-    <td style="font-family:'Oswald',sans-serif">${esc(i.badge_number)}</td>
+    <td style="font-family:'Oswald',sans-serif">${esc(i.badge_number||'—')}</td>
     <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
-    <td>${esc(i.email||'—')}</td>
-    <td>${esc(i.phone||'—')}</td>
-    <td>${esc(i.area||'—')}</td>
-    <td style="color:#2a2a2a">${fmtDateShort(i.created_at)}</td>
+    <td class="hide-xs">${esc(i.email||'—')}</td>
+    <td class="hide-xs">${esc(i.phone||'—')}</td>
+    <td class="hide-xs">${esc(i.area||'—')}</td>
     <td>
-      <button class="abtn approve" onclick="updateStatus('${i.id}','approved')">✓ Approve</button>
-      <button class="abtn reject" onclick="updateStatus('${i.id}','rejected')">✕ Reject</button>
+      <button class="abtn approve" onclick="updateStatus('${i.id}','approved')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="abtn reject" onclick="updateStatus('${i.id}','rejected')"><i class="bi bi-x-lg me-1"></i>Reject</button>
     </td>
   </tr>`).join('');
 }
 
-function filterInstructors() {
-  const q = document.getElementById('searchInp').value.toLowerCase();
-  renderInstructorsTable(allInstructors.filter(i =>
-    i.full_name.toLowerCase().includes(q) ||
-    (i.badge_number||'').toLowerCase().includes(q) ||
-    (i.area||'').toLowerCase().includes(q)
-  ));
+function filterInstrs(q){
+  const status=document.getElementById('statusFilter').value;
+  let list=allInstrs;
+  if(status)list=list.filter(i=>i.status===status);
+  if(q){const lq=q.toLowerCase();list=list.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq));}
+  renderInstrsTable(list);
 }
 
-async function updateStatus(id, status) {
-  const { error } = await sb.from('instructors').update({ status }).eq('id', id);
-  if (error) { toast('Failed to update status', 'error'); return; }
-  toast(status === 'approved' ? '✅ Instructor approved!' : '❌ Application rejected.', status === 'approved' ? 'success' : 'error');
-  await loadInstructors();
+async function updateStatus(id,status){
+  const{error}=await sb.from('instructors').update({status}).eq('id',id);
+  if(error){showToast('Failed to update status.','error');return;}
+  showToast(status==='approved'?'✅ Approved!':'❌ Rejected.',status==='approved'?'success':'error');
+  await loadInstrs();
 }
 
-async function deleteInstructor(id, name) {
-  if (!confirm(`Remove ${name}? This will permanently delete their account and all their lessons.`)) return;
-  await sb.from('admin_messages').delete().eq('instructor_id', id);
-  await sb.from('lessons').delete().eq('instructor_id', id);
-  const { error } = await sb.from('instructors').delete().eq('id', id);
-  if (error) { toast('Failed to remove instructor', 'error'); return; }
-  toast('🗑️ Instructor removed.', 'error');
-  await loadInstructors();
-  if (viewingId === id) backToList();
+async function deleteInstr(id,name){
+  if(!confirm(`Remove ${name}?\n\nThis will permanently delete their account, all their lessons, and all their messages.`))return;
+  try{
+    await sb.from('lesson_reminders').delete().eq('instructor_id',id);
+    await sb.from('admin_messages').delete().eq('instructor_id',id);
+    await sb.from('lessons').delete().eq('instructor_id',id);
+    await sb.from('student_requests').delete().eq('instructor_id',id);
+    await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
+    const{error}=await sb.from('instructors').delete().eq('id',id);
+    if(error)throw error;
+    showToast('🗑️ Instructor removed.','error');
+    await loadInstrs();
+    if(viewingId===id){viewingId=null;switchTab('instructors');}
+  }catch(e){showToast('Failed to remove instructor.','error');}
 }
 
-/* ══════════════════════════════════════════════════════
-   VIEW INSTRUCTOR + CALENDAR
-══════════════════════════════════════════════════════ */
-async function viewInstructor(id) {
-  const instr = allInstructors.find(i => i.id === id);
-  if (!instr) return;
-  viewingId = id;
-  viewingName = instr.full_name;
-  viewingData = instr;
-  adminWeekOffset = 0;
+/* ── BLOCK / UNBLOCK ── */
+function openBlockModal(id,name){
+  document.getElementById('block-id').value=id;
+  document.getElementById('blockModalSub').textContent='Block '+name;
+  document.getElementById('block-show-lessons').checked=false;
+  openModal('blockModal');
+}
 
-  document.getElementById('calName').textContent = instr.full_name;
-  document.getElementById('calBadge').textContent = `${instr.badge_number} · ${instr.badge_type||'ADI'}`;
-  if (instr.profile_photo_url) {
-    document.getElementById('calAvatar').src = instr.profile_photo_url;
+async function confirmBlock(){
+  const id=document.getElementById('block-id').value;
+  const show=document.getElementById('block-show-lessons').checked;
+  const{error}=await sb.from('instructors').update({status:'suspended',show_lessons:show}).eq('id',id);
+  if(error){showToast('Failed to block instructor.','error');return;}
+  showToast('⛔ Instructor blocked.','warn');
+  closeModal('blockModal');
+  await loadInstrs();
+  // Update block btn if viewing this instructor
+  if(viewingId===id){
+    viewingData=allInstrs.find(i=>i.id===id);
+    updateBlockBtn();
+    if(viewingData)renderInstrDetail(viewingData);
   }
+}
 
-  // Block toggle button label
-  const bb = document.getElementById('blockToggleBtn');
-  if (instr.status === 'suspended') {
-    bb.textContent = '✅ Unblock'; bb.className = 'abtn unblock';
-  } else {
-    bb.textContent = '⛔ Block'; bb.className = 'abtn block';
-  }
+async function unblockInstr(id){
+  const{error}=await sb.from('instructors').update({status:'approved',show_lessons:true}).eq('id',id);
+  if(error){showToast('Failed to unblock.','error');return;}
+  showToast('✅ Instructor unblocked.','success');
+  await loadInstrs();
+  if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);updateBlockBtn();if(viewingData)renderInstrDetail(viewingData);}
+}
 
+function updateBlockBtn(){
+  const bb=document.getElementById('blockToggleBtn');
+  if(!bb)return;
+  if(viewingData?.status==='suspended'){bb.innerHTML='<i class="bi bi-unlock me-1"></i>Unblock';bb.className='abtn unblock';}
+  else{bb.innerHTML='<i class="bi bi-slash-circle me-1"></i>Block';bb.className='abtn block';}
+}
+
+/* ── VIEW INSTRUCTOR + CALENDAR ── */
+async function viewInstr(id){
+  const instr=allInstrs.find(i=>i.id===id);
+  if(!instr)return;
+  viewingId=id;viewingName=instr.full_name;viewingData=instr;
+  adminWeekOffset=0;
+  // Build header
+  const isSusp=instr.status==='suspended';
+  const blockBtnHtml=isSusp
+    ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
+    :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${esc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
+  document.getElementById('calInstrHd').innerHTML=`
+    <div class="instr-hd">
+      <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
+      <img class="instr-avatar" src="${esc(instr.profile_photo_url||'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png')}" alt=""/>
+      <div>
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:#fff;line-height:1">${esc(instr.full_name)}</div>
+        <div style="font-size:.72rem;color:#2e2e2e;margin-top:2px">${esc(instr.badge_number||'—')} · ${esc(instr.badge_type||'ADI')}</div>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <button class="abtn edit" onclick="openEditForId('${id}')"><i class="bi bi-pencil me-1"></i>Edit</button>
+        <button class="abtn msg" onclick="openMsgModal('${id}')"><i class="bi bi-envelope me-1"></i>Message</button>
+        ${blockBtnHtml}
+        <button class="abtn del" onclick="deleteInstr('${id}','${esc(instr.full_name)}')"><i class="bi bi-trash me-1"></i>Remove</button>
+      </div>
+    </div>
+    <div class="det-grid mt-3 mb-3" id="instrDetailGrid"></div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request Badge Photo</button>
+      <button class="abtn approve" onclick="openAddLessonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
+    </div>`;
   renderInstrDetail(instr);
-  tabIds.forEach(t => document.getElementById('panel-'+t)?.classList.add('hidden'));
-  document.getElementById('panel-calendar').classList.remove('hidden');
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  switchTab('calendar');
   await loadAdminLessons();
 }
 
-function renderInstrDetail(instr) {
-  const fields = [
-    ['Full Name', instr.full_name],
-    ['Badge Number', instr.badge_number],
-    ['Instructor Type', instr.badge_type || 'ADI'],
-    ['Email', instr.email],
-    ['Phone', instr.phone],
-    ['Area', instr.area],
-    ['Address', instr.address || instr.area],
-    ['Status', instr.status],
-    ['Joined', fmtDateShort(instr.created_at)],
-    ['Badge Photo', instr.badge_photo_url ? '✅ Uploaded' : '❌ Not uploaded'],
+function renderInstrDetail(instr){
+  const grid=document.getElementById('instrDetailGrid');
+  if(!grid)return;
+  const carInfo=instr.car_model?`${instr.car_model}${instr.car_plate?' · '+instr.car_plate:''} (${instr.car_type||'Manual'})`:'Not provided';
+  const fields=[
+    ['Email',instr.email],['Phone',instr.phone],['Area',instr.area],
+    ['Address',instr.address],['Status',instr.status],
+    ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
+    ['Joined',fmtD(instr.created_at)],['Badge Photo',instr.badge_photo_url?'✅ Uploaded':'❌ Not uploaded'],
+    ['Vehicle',carInfo],
   ];
-  document.getElementById('instrDetailGrid').innerHTML = fields.map(([lbl, val]) =>
-    `<div class="detail-item">
-      <div class="detail-lbl">${lbl}</div>
-      <div class="detail-val ${!val ? 'empty' : ''}">${esc(val||'—')}</div>
-    </div>`
-  ).join('');
+  grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${esc(val||'—')}</div></div>`).join('');
 }
 
-function backToList() {
-  viewingId = null; viewingName = '';
-  document.getElementById('panel-calendar').classList.add('hidden');
-  switchTab('instructors');
+/* ── ADMIN CALENDAR ── */
+async function loadAdminLessons(){
+  if(!viewingId)return;
+  const mon=getMonday(adminWeekOffset);
+  const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const{data}=await sb.from('lessons').select('*').eq('instructor_id',viewingId).gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)).order('start_time',{ascending:true});
+  adminLessons=data||[];
+  renderAdminCal();
 }
 
-/* ── Calendar ── */
-async function loadAdminLessons() {
-  if (!viewingId) return;
-  const mon = getMonday(adminWeekOffset);
-  const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-  const { data } = await sb.from('lessons').select('*')
-    .eq('instructor_id', viewingId)
-    .gte('lesson_date', fmtDate(mon))
-    .lte('lesson_date', fmtDate(sun))
-    .order('start_time', { ascending: true });
-  adminLessons = data || [];
-  renderAdminCalendar();
-}
+function adminChangeWeek(d){adminWeekOffset+=d;loadAdminLessons();}
+function adminGoToday(){adminWeekOffset=0;loadAdminLessons();}
 
-function adminChangeWeek(dir) { adminWeekOffset += dir; loadAdminLessons(); }
-function adminGoToday() { adminWeekOffset = 0; loadAdminLessons(); }
-
-const DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function renderAdminCalendar() {
-  const mon = getMonday(adminWeekOffset);
-  const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-  document.getElementById('adminWeekLbl').textContent =
-    `${mon.getDate()} ${MONTHS_S[mon.getMonth()]} – ${sun.getDate()} ${MONTHS_S[sun.getMonth()]} ${sun.getFullYear()}`;
-
-  const todayStr = fmtDate(new Date());
-  const grid = document.getElementById('adminCalGrid');
-  grid.innerHTML = '';
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(mon); d.setDate(d.getDate() + i);
-    const dk = fmtDate(d);
-    const isToday = dk === todayStr;
-    const isWknd = i >= 5;
-    const dayLessons = adminLessons.filter(l => l.lesson_date === dk);
-
-    const col = document.createElement('div');
-    col.className = 'day-col' + (isToday ? ' is-today' : isWknd ? ' wknd' : '');
-
-    const countCls = dayLessons.length > 0 ? 'd-count some' : 'd-count none';
-    const headCls = isToday ? ' is-today' : isWknd ? ' wknd' : '';
-    col.innerHTML = `
-      <div class="day-head${headCls}">
-        <div>
-          <div class="d-name">${DAY_NAMES[i].slice(0,3)}${isToday ? ' <span style="color:var(--red);font-size:.55rem">TODAY</span>' : ''}</div>
-          <div class="d-date">${d.getDate()} ${MONTHS_S[d.getMonth()]}</div>
-        </div>
-        <div class="${countCls}">${dayLessons.length}</div>
-      </div>
-      <div class="slots" id="aslots-${dk}"></div>
-      <div class="add-slot" onclick="openAddLessonModal('${dk}')">+ Add</div>
-    `;
+function renderAdminCal(){
+  const mon=getMonday(adminWeekOffset);
+  const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  document.getElementById('adminWeekLbl').textContent=mon.getDate()+' '+MS[mon.getMonth()]+' – '+sun.getDate()+' '+MS[sun.getMonth()]+' '+sun.getFullYear();
+  const tk=todayKey();
+  const grid=document.getElementById('adminCalGrid');grid.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d=new Date(mon);d.setDate(d.getDate()+i);
+    const dk=dateKey(d);const isT=dk===tk;const isW=i>=5;
+    const dayLessons=adminLessons.filter(l=>l.lesson_date===dk);
+    const col=document.createElement('div');
+    col.className='day-col'+(isT?' is-today':isW?' wknd':'');
+    col.innerHTML=`<div class="day-head${isT?' is-today':isW?' wknd':''}">
+      <div><div class="d-name">${DAYS[i].slice(0,3)}${isT?'<span style="color:var(--red);font-size:.5rem;margin-left:3px">TODAY</span>':''}</div><div class="d-date">${d.getDate()} ${MS[d.getMonth()]}</div></div>
+      <div class="${dayLessons.length?'d-cnt some':'d-cnt none'}">${dayLessons.length}</div>
+    </div>
+    <div class="slots" id="adm-slots-${dk}"></div>
+    <div class="add-slot" onclick="openAddLessonModal('${dk}')"><i class="bi bi-plus-lg me-1"></i>Add</div>`;
     grid.appendChild(col);
-
-    const slotsEl = col.querySelector('.slots');
-    if (!dayLessons.length) {
-      slotsEl.innerHTML = '<div class="empty-day">No lessons</div>';
-      continue;
-    }
-    dayLessons.forEach(l => {
-      const end = calcEnd(l.start_time, parseFloat(l.duration_hours) || 1);
-      const s = document.createElement('div');
-      s.className = 'slot';
-      const mapsHtml = l.pickup_address
-        ? `<a class="slot-maps" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4285F4"/></svg>
-            Google Maps
-          </a>` : '';
-      s.innerHTML = `
-        <button class="slot-del" onclick="event.stopPropagation();confirmDeleteLesson('${l.id}')">✕</button>
-        <div class="slot-time">${l.start_time}–${end} · ${l.duration_hours}hr · ${esc(l.lesson_type||'Manual')}</div>
+    const slotsEl=col.querySelector('.slots');
+    if(!dayLessons.length){slotsEl.innerHTML='<div class="empty-day">No lessons</div>';continue;}
+    dayLessons.forEach(l=>{
+      const lClass=(l.lesson_type||'Manual').replace(/\s+/g,'-');
+      const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
+      const s=document.createElement('div');
+      s.className=`slot ${lClass}`;
+      s.innerHTML=`<button class="slot-del" onclick="event.stopPropagation();confirmDelLesson('${l.id}')">✕</button>
+        <div class="slot-time">${l.start_time}–${end} · ${l.duration_hours}h</div>
         <div class="slot-name">${esc(l.student_name)}</div>
-        ${l.student_phone ? `<div class="slot-info">📞 ${esc(l.student_phone)}</div>` : ''}
-        ${l.pickup_address ? `<div class="slot-info">📍 ${esc(l.pickup_address)}</div>` : ''}
-        ${l.notes ? `<div class="slot-info" style="color:#2a2a2a;font-style:italic">${esc(l.notes)}</div>` : ''}
-        ${mapsHtml}
-      `;
-      s.addEventListener('click', () => openLessonDetail(l));
+        <div class="slot-info">${esc(l.lesson_type||'Manual')}</div>
+        ${l.pickup_address?`<div class="slot-info"><i class="bi bi-geo-alt"></i> ${esc(l.pickup_address)}</div>`:''}`;
+      s.addEventListener('click',()=>openLessonDetail(l));
       slotsEl.appendChild(s);
     });
   }
 }
 
-function openAddLessonModal(dateKey) {
-  const today = fmtDate(new Date());
-  document.getElementById('al-date').value = dateKey || today;
-  if (viewingId) document.getElementById('al-instructor').value = viewingId;
-  document.getElementById('al-student').value = '';
-  document.getElementById('al-phone').value = '';
-  document.getElementById('al-address').value = '';
-  document.getElementById('al-notes').value = '';
-  document.getElementById('addLessonSub').textContent = viewingName ? `For ${viewingName}` : 'Select instructor';
-  document.getElementById('addLessonModal').classList.add('open');
+function openAddLessonModal(dk){
+  document.getElementById('al-date').value=dk||todayKey();
+  if(viewingId)document.getElementById('al-instr').value=viewingId;
+  ['al-student','al-phone','al-addr','al-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('addLessonSub').textContent=viewingName?`For ${viewingName}`:'Select instructor';
+  openModal('addLessonModal');
 }
 
-async function saveAdminLesson() {
-  const instrId = document.getElementById('al-instructor').value;
-  const dateVal = document.getElementById('al-date').value;
-  const student = document.getElementById('al-student').value.trim();
-  const addr = document.getElementById('al-address').value.trim();
-  if (!instrId || !dateVal || !student || !addr) { toast('Please fill required fields.', 'error'); return; }
-
-  const { error } = await sb.from('lessons').insert([{
-    instructor_id: instrId,
-    lesson_date: dateVal,
-    start_time: document.getElementById('al-time').value,
-    duration_hours: parseFloat(document.getElementById('al-duration').value),
-    student_name: student,
-    student_phone: document.getElementById('al-phone').value.trim(),
-    pickup_address: addr,
-    lesson_type: document.getElementById('al-type').value,
-    notes: document.getElementById('al-notes').value.trim(),
-    created_at: new Date().toISOString()
+async function saveAdminLesson(){
+  const instrId=document.getElementById('al-instr').value;
+  const date=document.getElementById('al-date').value;
+  const student=document.getElementById('al-student').value.trim();
+  const addr=document.getElementById('al-addr').value.trim();
+  if(!instrId||!date||!student||!addr){showToast('Fill required fields.','error');return;}
+  const{error}=await sb.from('lessons').insert([{
+    instructor_id:instrId,lesson_date:date,
+    start_time:document.getElementById('al-time').value,
+    duration_hours:parseFloat(document.getElementById('al-dur').value),
+    student_name:student,student_phone:document.getElementById('al-phone').value.trim(),
+    pickup_address:addr,lesson_type:document.getElementById('al-type').value,
+    notes:document.getElementById('al-notes').value.trim(),
+    created_at:new Date().toISOString()
   }]);
+  if(error){showToast('Failed to save lesson.','error');return;}
+  closeModal('addLessonModal');showToast('Lesson added ✓','success');
+  if(viewingId===instrId)await loadAdminLessons();
+}
 
-  if (error) { toast('Failed to save lesson.', 'error'); return; }
-  closeModal('addLessonModal');
-  toast('Lesson added! ✓', 'success');
+function openLessonDetail(l){
+  activeLessonId=l.id;
+  const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
+  const d=new Date(l.lesson_date+'T12:00:00');
+  document.getElementById('ldTitle').textContent=l.student_name;
+  document.getElementById('ldDate').textContent=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+l.start_time+'–'+end;
+  const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+  document.getElementById('ldBody').innerHTML=[
+    ['Time',`${l.start_time} – ${end} (${l.duration_hours}hr${l.duration_hours!=1?'s':''})`],
+    ['Type',`<span style="color:${tc[l.lesson_type]||'#60a5fa'};font-weight:700">${esc(l.lesson_type||'Manual')}</span>`],
+    ['Student',esc(l.student_name)],
+    ['Phone',l.student_phone?`<a href="tel:${esc(l.student_phone)}" style="color:var(--red)">${esc(l.student_phone)}</a>`:'Not provided'],
+    ['Pickup',esc(l.pickup_address)||'Not provided'],
+    ['Notes',esc(l.notes)||'None'],
+  ].map(([lbl,val])=>`<div style="padding:7px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:.6rem;color:#2a2a2a;text-transform:uppercase;letter-spacing:1px">${lbl}</div><div style="font-size:.83rem;color:#ccc;margin-top:1px">${val}</div></div>`).join('');
+  const ms=document.getElementById('ldMaps');
+  if(l.pickup_address){const q=encodeURIComponent(l.pickup_address);ms.innerHTML=`<a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.22);color:#93c5fd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;text-decoration:none;margin-top:6px"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>`;}
+  else ms.innerHTML='';
+  openModal('lessonDetailModal');
+}
+
+async function deleteAdminLesson(){
+  if(!activeLessonId||!confirm('Remove this lesson?'))return;
+  const{error}=await sb.from('lessons').delete().eq('id',activeLessonId);
+  if(error){showToast('Failed to remove lesson.','error');return;}
+  closeModal('lessonDetailModal');showToast('Lesson removed.');
   await loadAdminLessons();
 }
 
-function openLessonDetail(l) {
-  activeLessonId = l.id;
-  const end = calcEnd(l.start_time, parseFloat(l.duration_hours) || 1);
-  const d = new Date(l.lesson_date + 'T00:00:00');
-  document.getElementById('ldTitle').textContent = l.student_name;
-  document.getElementById('ldDate').textContent = d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) + ' · ' + l.start_time + '–' + end;
-  document.getElementById('ldBody').innerHTML = [
-    ['Time', `${l.start_time} – ${end} (${l.duration_hours}hr${l.duration_hours!=1?'s':''})`],
-    ['Lesson Type', l.lesson_type || 'Manual'],
-    ['Student', l.student_name],
-    ['Phone', l.student_phone || 'Not provided'],
-    ['Pickup Address', l.pickup_address || 'Not provided'],
-    ['Notes', l.notes || 'None'],
-  ].map(([lbl,val]) => `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
-    <div style="font-size:.6rem;color:#2a2a2a;text-transform:uppercase;letter-spacing:1px">${lbl}</div>
-    <div style="font-size:.84rem;color:#ccc;margin-top:2px">${esc(val)}</div>
-  </div>`).join('');
-
-  const ms = document.getElementById('ldMaps');
-  if (l.pickup_address) {
-    const q = encodeURIComponent(l.pickup_address);
-    ms.innerHTML = `<a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"
-      style="display:inline-flex;align-items:center;gap:7px;background:rgba(66,133,244,.08);border:1px solid rgba(66,133,244,.22);color:#93c5fd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;text-decoration:none;transition:all .18s ease"
-      onmouseover="this.style.background='rgba(66,133,244,.18)'" onmouseout="this.style.background='rgba(66,133,244,.08)'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4285F4"/></svg>
-      Open in Google Maps
-    </a>`;
-  } else { ms.innerHTML = ''; }
-  document.getElementById('lessonDetailModal').classList.add('open');
+async function confirmDelLesson(id){
+  if(!confirm('Remove this lesson?'))return;
+  const{error}=await sb.from('lessons').delete().eq('id',id);
+  if(error){showToast('Failed.','error');return;}
+  showToast('Lesson removed.');await loadAdminLessons();
 }
 
-async function deleteAdminLesson() {
-  if (!activeLessonId || !confirm('Remove this lesson?')) return;
-  const { error } = await sb.from('lessons').delete().eq('id', activeLessonId);
-  if (error) { toast('Failed to remove lesson.', 'error'); return; }
-  closeModal('lessonDetailModal');
-  toast('Lesson removed.');
-  await loadAdminLessons();
-}
-
-async function confirmDeleteLesson(id) {
-  if (!confirm('Remove this lesson?')) return;
-  const { error } = await sb.from('lessons').delete().eq('id', id);
-  if (error) { toast('Failed to remove lesson.', 'error'); return; }
-  toast('Lesson removed.');
-  await loadAdminLessons();
-}
-
-/* ══════════════════════════════════════════════════════
-   EDIT INSTRUCTOR MODAL
-══════════════════════════════════════════════════════ */
-function openEditForId(id) {
-  const instr = allInstructors.find(i => i.id === id);
-  if (!instr) return;
-  viewingId = id;
-  viewingData = instr;
+/* ── EDIT INSTRUCTOR ── */
+function openEditForId(id){
+  const instr=allInstrs.find(i=>i.id===id);
+  if(!instr)return;
+  viewingId=id;viewingData=instr;
   openEditModal();
 }
 
-function openEditModal() {
-  const instr = viewingData;
-  if (!instr) return;
-  document.getElementById('edit-id').value = instr.id;
-  document.getElementById('edit-name').value = instr.full_name || '';
-  document.getElementById('edit-badge').value = instr.badge_number || '';
-  document.getElementById('edit-type').value = instr.badge_type || 'ADI';
-  document.getElementById('edit-phone').value = instr.phone || '';
-  document.getElementById('edit-email').value = instr.email || '';
-  document.getElementById('edit-area').value = instr.area || '';
-  document.getElementById('edit-address').value = instr.address || '';
-  document.getElementById('edit-status').value = instr.status || 'approved';
-  document.getElementById('edit-show-lessons').checked = instr.show_lessons !== false;
-  document.getElementById('edit-new-pwd').value = '';
-  // Show password (stored as plain text in db)
-  const pwdEl = document.getElementById('edit-pwd-display');
-  pwdEl.textContent = instr.password || instr.password_plain || '(not stored)';
-  pwdEl.style.filter = 'blur(4px)';
-  pwdRevealed = false;
-  document.querySelector('.pwd-reveal-btn').textContent = '👁 Reveal';
-  document.getElementById('editModal').classList.add('open');
+function openEditModal(){
+  const instr=viewingData;if(!instr)return;
+  document.getElementById('edit-id').value=instr.id;
+  document.getElementById('edit-name').value=instr.full_name||'';
+  document.getElementById('edit-badge').value=instr.badge_number||'';
+  document.getElementById('edit-type').value=instr.badge_type||'ADI';
+  document.getElementById('edit-phone').value=instr.phone||'';
+  document.getElementById('edit-email').value=instr.email||'';
+  document.getElementById('edit-area').value=instr.area||'';
+  document.getElementById('edit-address').value=instr.address||'';
+  document.getElementById('edit-status').value=instr.status||'approved';
+  document.getElementById('edit-show-lessons').checked=instr.show_lessons!==false;
+  document.getElementById('edit-new-pwd').value='';
+  const pwdEl=document.getElementById('edit-pwd-txt');
+  pwdEl.textContent=instr.password||'(not stored)';
+  pwdEl.style.filter='blur(4px)';pwdRevealed=false;
+  document.querySelector('.pwd-reveal').innerHTML='<i class="bi bi-eye me-1"></i>Reveal';
+  openModal('editModal');
 }
 
-function togglePwdReveal() {
-  pwdRevealed = !pwdRevealed;
-  const el = document.getElementById('edit-pwd-display');
-  el.style.filter = pwdRevealed ? 'none' : 'blur(4px)';
-  document.querySelector('.pwd-reveal-btn').textContent = pwdRevealed ? '🙈 Hide' : '👁 Reveal';
+function togglePwd(){
+  pwdRevealed=!pwdRevealed;
+  const el=document.getElementById('edit-pwd-txt');
+  el.style.filter=pwdRevealed?'none':'blur(4px)';
+  document.querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
 }
 
-async function saveEdit() {
-  const id = document.getElementById('edit-id').value;
-  const updates = {
-    full_name: document.getElementById('edit-name').value.trim(),
-    badge_number: document.getElementById('edit-badge').value.trim(),
-    badge_type: document.getElementById('edit-type').value,
-    phone: document.getElementById('edit-phone').value.trim(),
-    email: document.getElementById('edit-email').value.trim(),
-    area: document.getElementById('edit-area').value.trim(),
-    address: document.getElementById('edit-address').value.trim(),
-    status: document.getElementById('edit-status').value,
-    show_lessons: document.getElementById('edit-show-lessons').checked,
+async function saveEdit(){
+  const id=document.getElementById('edit-id').value;
+  const updates={
+    full_name:document.getElementById('edit-name').value.trim(),
+    badge_number:document.getElementById('edit-badge').value.trim(),
+    badge_type:document.getElementById('edit-type').value,
+    phone:document.getElementById('edit-phone').value.trim(),
+    email:document.getElementById('edit-email').value.trim(),
+    area:document.getElementById('edit-area').value.trim(),
+    address:document.getElementById('edit-address').value.trim(),
+    status:document.getElementById('edit-status').value,
+    show_lessons:document.getElementById('edit-show-lessons').checked,
   };
-  const newPwd = document.getElementById('edit-new-pwd').value.trim();
-  if (newPwd) {
-    updates.password = newPwd;
-    updates.password_hash = btoa(newPwd);
-  }
-  const { error } = await sb.from('instructors').update(updates).eq('id', id);
-  if (error) { toast('Failed to save changes.', 'error'); return; }
-  toast('Changes saved! ✓', 'success');
+  const np=document.getElementById('edit-new-pwd').value.trim();
+  if(np){updates.password=np;updates.password_hash=btoa(np);}
+  const{error}=await sb.from('instructors').update(updates).eq('id',id);
+  if(error){showToast('Failed to save.','error');return;}
+  showToast('Changes saved ✓','success');
   closeModal('editModal');
-  await loadInstructors();
-  if (viewingId === id) {
-    viewingData = allInstructors.find(i => i.id === id);
+  await loadInstrs();
+  if(viewingId===id){
+    viewingData=allInstrs.find(i=>i.id===id);
     renderInstrDetail(viewingData);
-    // Update block button
-    const bb = document.getElementById('blockToggleBtn');
-    if (updates.status === 'suspended') {
-      bb.textContent = '✅ Unblock'; bb.className = 'abtn unblock';
-    } else {
-      bb.textContent = '⛔ Block'; bb.className = 'abtn block';
-    }
+    updateBlockBtn();
   }
 }
 
-/* ══════════════════════════════════════════════════════
-   BLOCK / UNBLOCK
-══════════════════════════════════════════════════════ */
-async function toggleBlock() {
-  const instr = allInstructors.find(i => i.id === viewingId);
-  if (!instr) return;
-  if (instr.status === 'suspended') {
-    await unblockInstructor(viewingId);
-  } else {
-    await blockInstructor(viewingId, instr.full_name);
-  }
+/* ── MESSAGES ── */
+function setMsgType(t,modal){
+  msgTypes[modal]=t;
+  document.querySelectorAll(`#${modal} .mtype-btn`).forEach(b=>{b.classList.toggle('active',b.dataset.t===t);});
 }
 
-async function blockInstructor(id, name) {
-  const showLessons = confirm(`Block ${name}?\n\nClick OK then choose:\n• OK = instructor can still view today's lessons\n• Cancel = block completely`);
-  // We interpret: OK = show lessons, but we need a real choice
-  // Simple approach: ask about show_lessons
-  const show = confirm(`Should ${name} still be able to see today's lessons while blocked?`);
-  const { error } = await sb.from('instructors').update({ status: 'suspended', show_lessons: show }).eq('id', id);
-  if (error) { toast('Failed to block instructor.', 'error'); return; }
-  toast(`⛔ ${name} blocked.`, 'warn');
-  await loadInstructors();
-  if (viewingId === id) {
-    viewingData = allInstructors.find(i => i.id === id);
-    if (viewingData) renderInstrDetail(viewingData);
-    const bb = document.getElementById('blockToggleBtn');
-    bb.textContent = '✅ Unblock'; bb.className = 'abtn unblock';
-  }
+function openMsgModal(instrId){
+  msgTypes.msgModal='general';
+  document.querySelectorAll('#msgModal .mtype-btn').forEach(b=>b.classList.toggle('active',b.dataset.t==='general'));
+  document.getElementById('msg-subject').value='';document.getElementById('msg-body').value='';
+  if(instrId)document.getElementById('msg-recipient').value=instrId;
+  document.getElementById('msgModalSub').textContent=instrId?'To individual instructor':'Select an instructor below';
+  openModal('msgModal');
 }
 
-async function unblockInstructor(id) {
-  const { error } = await sb.from('instructors').update({ status: 'approved', show_lessons: true }).eq('id', id);
-  if (error) { toast('Failed to unblock instructor.', 'error'); return; }
-  toast('✅ Instructor unblocked.', 'success');
-  await loadInstructors();
-  if (viewingId === id) {
-    viewingData = allInstructors.find(i => i.id === id);
-    if (viewingData) renderInstrDetail(viewingData);
-    const bb = document.getElementById('blockToggleBtn');
-    bb.textContent = '⛔ Block'; bb.className = 'abtn block';
-  }
+async function sendMsg(){
+  const instrId=document.getElementById('msg-recipient').value;
+  const subject=document.getElementById('msg-subject').value.trim();
+  const body=document.getElementById('msg-body').value.trim();
+  if(!instrId||!subject||!body){showToast('Fill all fields.','error');return;}
+  const{error}=await sb.from('admin_messages').insert([{instructor_id:instrId,subject,body,message_type:msgTypes.msgModal,is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+  if(error){showToast('Failed to send.','error');return;}
+  showToast('✉️ Message sent!','success');closeModal('msgModal');loadMessages();
 }
 
-/* ══════════════════════════════════════════════════════
-   MESSAGES
-══════════════════════════════════════════════════════ */
-function setMsgType(t) {
-  currentMsgType = t;
-  document.querySelectorAll('#msgModal .msg-type-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === t);
-  });
-}
-function setAllMsgType(t) {
-  currentAllMsgType = t;
-  document.querySelectorAll('#sendAllModal .msg-type-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === t);
-  });
+async function sendAll(){
+  const subject=document.getElementById('all-subject').value.trim();
+  const body=document.getElementById('all-body').value.trim();
+  if(!subject||!body){showToast('Fill subject and body.','error');return;}
+  const btn=document.getElementById('sendAllBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';btn.disabled=true;
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  const rows=approved.map(i=>({instructor_id:i.id,subject,body,message_type:msgTypes.sendAllModal,is_read:false,dismissed:false,created_at:new Date().toISOString()}));
+  const{error}=await sb.from('admin_messages').insert(rows);
+  btn.innerHTML='<i class="bi bi-megaphone me-1"></i>Send to All';btn.disabled=false;
+  if(error){showToast('Failed to send.','error');return;}
+  showToast(`📢 Sent to ${approved.length} instructors!`,'success');closeModal('sendAllModal');loadMessages();
 }
 
-function openMsgModal(instrId) {
-  currentMsgType = 'general';
-  document.querySelectorAll('#msgModal .msg-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'general'));
-  document.getElementById('msg-subject').value = '';
-  document.getElementById('msg-body').value = '';
-  if (instrId) document.getElementById('msg-recipient').value = instrId;
-  document.getElementById('msgModalSub').textContent = instrId ? 'To individual instructor' : 'Select an instructor below';
-  document.getElementById('msgModal').classList.add('open');
-}
-
-function openSendAllModal() {
-  currentAllMsgType = 'general';
-  document.querySelectorAll('#sendAllModal .msg-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'general'));
-  document.getElementById('all-msg-subject').value = '';
-  document.getElementById('all-msg-body').value = '';
-  document.getElementById('sendAllModal').classList.add('open');
-}
-
-async function sendMessage() {
-  const instrId = document.getElementById('msg-recipient').value;
-  const subject = document.getElementById('msg-subject').value.trim();
-  const body = document.getElementById('msg-body').value.trim();
-  if (!instrId || !subject || !body) { toast('Please fill all fields.', 'error'); return; }
-  const { error } = await sb.from('admin_messages').insert([{
-    instructor_id: instrId, subject, body, message_type: currentMsgType,
-    is_read: false, dismissed: false, created_at: new Date().toISOString()
-  }]);
-  if (error) { toast('Failed to send message.', 'error'); return; }
-  toast('✉️ Message sent!', 'success');
-  closeModal('msgModal');
-  loadMessages();
-}
-
-async function sendAllMessages() {
-  const subject = document.getElementById('all-msg-subject').value.trim();
-  const body = document.getElementById('all-msg-body').value.trim();
-  if (!subject || !body) { toast('Please fill subject and body.', 'error'); return; }
-  const btn = document.getElementById('sendAllBtn');
-  btn.textContent = 'Sending…'; btn.disabled = true;
-  const approved = allInstructors.filter(i => i.status === 'approved');
-  const rows = approved.map(i => ({
-    instructor_id: i.id, subject, body, message_type: currentAllMsgType,
-    is_read: false, dismissed: false, created_at: new Date().toISOString()
-  }));
-  const { error } = await sb.from('admin_messages').insert(rows);
-  btn.textContent = '📢 Send to All'; btn.disabled = false;
-  if (error) { toast('Failed to send messages.', 'error'); return; }
-  toast(`📢 Sent to ${approved.length} instructors!`, 'success');
-  closeModal('sendAllModal');
-  loadMessages();
-}
-
-async function loadMessages() {
-  const { data } = await sb.from('admin_messages')
-    .select('*, instructors(full_name)')
-    .order('created_at', { ascending: false })
-    .limit(100);
-  const list = data || [];
-  const container = document.getElementById('msgList');
-  if (!list.length) {
-    container.innerHTML = '<div style="padding:28px;text-align:center;font-size:.82rem;color:#222">No messages sent yet.</div>';
-    return;
-  }
-  const typeIcons = { general:'📢', warning:'⚠️', franchise_fee:'💰', badge_request:'🪪' };
-  container.innerHTML = list.map(m => `
-    <div class="msg-row">
-      <div class="msg-dot ${m.is_read ? 'read' : 'unread'}"></div>
-      <div class="msg-body">
-        <div class="msg-to">${typeIcons[m.message_type]||'📢'} ${esc(m.message_type?.replace('_',' ')?.toUpperCase())} → ${esc(m.instructors?.full_name || 'Unknown')}</div>
-        <div class="msg-subj">${esc(m.subject)}</div>
-        <div class="msg-preview">${esc(m.body)}</div>
-        <div class="msg-meta">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
-      </div>
-      <span class="msg-status ${m.is_read ? 'read' : 'unread'}">${m.is_read ? 'Read' : 'Unread'}</span>
+async function loadMessages(){
+  const{data}=await sb.from('admin_messages').select('*,instructors(full_name)').order('created_at',{ascending:false}).limit(100);
+  const list=data||[];
+  const container=document.getElementById('msgList');
+  if(!list.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:#222">No messages sent yet.</div>';return;}
+  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
+  container.innerHTML=list.map(m=>`<div class="msg-row">
+    <div class="msg-dot ${m.is_read?'read':'unread'}"></div>
+    <div style="flex:1;min-width:0">
+      <div class="msg-to">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace('_',' ').toUpperCase())} → ${esc(m.instructors?.full_name||'Unknown')}</div>
+      <div class="msg-subj">${esc(m.subject)}</div>
+      <div class="msg-prev">${esc(m.body)}</div>
+      <div class="msg-meta">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
     </div>
-  `).join('');
+    <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${m.is_read?'background:#181818;color:#2e2e2e':'background:rgba(209,10,17,.08);color:#f87171'}">${m.is_read?'Read':'Unread'}</span>
+  </div>`).join('');
 }
 
-/* ══════════════════════════════════════════════════════
-   REQUEST BADGE PHOTO
-══════════════════════════════════════════════════════ */
-async function requestBadgePhoto() {
-  if (!viewingId) return;
-  const { error } = await sb.from('admin_messages').insert([{
-    instructor_id: viewingId,
-    subject: 'Badge Photo Required',
-    body: 'DriveSQ admin has requested you upload your DVSA ADI/PDI badge photo. Please go to your profile settings to upload it.',
-    message_type: 'badge_request',
-    is_read: false, dismissed: false, created_at: new Date().toISOString()
+/* ── BADGE PHOTO REQUEST ── */
+async function requestBadgePhoto(){
+  if(!viewingId)return;
+  const{error}=await sb.from('admin_messages').insert([{instructor_id:viewingId,subject:'Badge Photo Required',body:'DriveSQ admin has requested you upload your DVSA ADI/PDI badge photo. Please go to your Profile tab to upload it.',message_type:'badge_request',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+  if(error){showToast('Failed to send request.','error');return;}
+  await sb.from('instructors').update({badge_photo_requested:true}).eq('id',viewingId);
+  showToast('🪪 Badge photo request sent!','success');
+}
+
+/* ── STUDENT REQUESTS ── */
+async function loadStudentRequests(){
+  const{data}=await sb.from('student_requests').select('*,instructors(full_name)').order('created_at',{ascending:false});
+  const list=document.getElementById('reqList');
+  const reqs=data||[];
+  if(!reqs.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No student requests yet.</div>';return;}
+  list.innerHTML=reqs.map(r=>`<div class="req-card ${r.status}">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.76rem;color:#555">${esc(r.pickup_address||'')}${r.postcode?' · <strong style="color:#60a5fa">'+esc(r.postcode)+'</strong>':''}</div>
+        <div style="font-size:.74rem;color:#444;margin-top:3px">Assigned to: <strong style="color:#ddd">${esc(r.instructors?.full_name||'Unknown')}</strong></div>
+        ${r.lesson_type?`<div style="font-size:.72rem;color:#444"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
+        ${r.notes?`<div style="font-size:.72rem;color:#444;font-style:italic;margin-top:2px">${esc(r.notes)}</div>`:''}
+        <div style="font-size:.62rem;color:#333;margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="d-flex flex-column align-items-end gap-1">
+        <span class="chip ${r.status}">${r.status}</span>
+        ${r.status==='declined'?`<button class="abtn reassign" onclick="openReassignModal('${r.id}','${esc(r.student_name)}')"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+function openReassignModal(reqId,studentName){
+  document.getElementById('reassign-req-id').value=reqId;
+  document.getElementById('reassignSub').textContent=`Reassign: ${studentName}`;
+  document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  openModal('reassignModal');
+}
+
+async function confirmReassign(){
+  const reqId=document.getElementById('reassign-req-id').value;
+  const instrId=document.getElementById('reassign-instr').value;
+  if(!instrId){showToast('Select an instructor.','error');return;}
+  const{error}=await sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId);
+  if(error){showToast('Failed to reassign.','error');return;}
+  showToast('Student reassigned ✓','success');closeModal('reassignModal');loadStudentRequests();
+}
+
+/* ── TRANSFER REQUESTS ── */
+async function loadTransferRequests(){
+  const{data}=await sb.from('transfer_requests').select('*,from_instructor:from_instructor_id(full_name),to_instructor:to_instructor_id(full_name)').order('created_at',{ascending:false});
+  const list=document.getElementById('transferList');
+  const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No transfer requests yet.</div>';return;}
+  list.innerHTML=items.map(r=>`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='approved'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.76rem;color:#555">${esc(r.pickup_address||'')}</div>
+        <div style="font-size:.74rem;color:#444;margin-top:3px">From: <strong style="color:#f87171">${esc(r.from_instructor?.full_name||'Unknown')}</strong> → To: <strong style="color:#4ade80">${esc(r.to_instructor?.full_name||'Admin to decide')}</strong></div>
+        <div style="font-size:.73rem;color:#555;font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>
+        <div style="font-size:.62rem;color:#333;margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="d-flex flex-column gap-1 align-items-end">
+        <span class="chip ${r.status}">${r.status}</span>
+        ${r.status==='pending'?`<button class="abtn approve" onclick="updateTransferStatus('${r.id}','approved')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+          <button class="abtn reject" onclick="updateTransferStatus('${r.id}','declined')"><i class="bi bi-x-lg me-1"></i>Decline</button>`:''}
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+async function updateTransferStatus(id,status){
+  const{error}=await sb.from('transfer_requests').update({status}).eq('id',id);
+  if(error){showToast('Failed to update.','error');return;}
+  showToast(status==='approved'?'Transfer approved ✓':'Transfer declined.','success');
+  loadTransferRequests();
+}
+
+/* ── ADD INSTRUCTOR ── */
+async function createInstructor(){
+  const name=document.getElementById('ai-name').value.trim();
+  const badge=document.getElementById('ai-badge').value.trim();
+  const email=document.getElementById('ai-email').value.trim();
+  const password=document.getElementById('ai-password').value.trim();
+  if(!name||!badge||!email||!password){showToast('Fill all required fields.','error');return;}
+  const btn=document.getElementById('createBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';btn.disabled=true;
+  const{error}=await sb.from('instructors').insert([{
+    full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
+    phone:document.getElementById('ai-phone').value.trim(),email,
+    area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+    status:document.getElementById('ai-status').value,
+    password,password_hash:btoa(password),
+    created_at:new Date().toISOString(),show_lessons:true
   }]);
-  if (error) { toast('Failed to send request.', 'error'); return; }
-  await sb.from('instructors').update({ badge_photo_requested: true }).eq('id', viewingId);
-  toast('🪪 Badge photo request sent!', 'success');
+  btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;
+  if(error){showToast('Failed. Email or badge may already exist.','error');return;}
+  showToast(`✅ Account created for ${name}!`,'success');
+  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
+  await loadInstrs();populateDropdowns();
 }
 
-/* ══════════════════════════════════════════════════════
-   ADD INSTRUCTOR
-══════════════════════════════════════════════════════ */
-async function createInstructor() {
-  const name = document.getElementById('ai-name').value.trim();
-  const badge = document.getElementById('ai-badge').value.trim();
-  const type = document.getElementById('ai-type').value;
-  const phone = document.getElementById('ai-phone').value.trim();
-  const email = document.getElementById('ai-email').value.trim();
-  const area = document.getElementById('ai-area').value.trim();
-  const address = document.getElementById('ai-address').value.trim();
-  const password = document.getElementById('ai-password').value.trim();
-  const status = document.getElementById('ai-status').value;
+/* ── FIND CLOSEST ── */
+async function findClosest(){
+  const studentName=document.getElementById('fc-name').value.trim();
+  const postcode=document.getElementById('fc-postcode').value.trim().toUpperCase().replace(/\s+/g,'');
+  const phone=document.getElementById('fc-phone').value.trim();
+  const type=document.getElementById('fc-type').value;
+  const notes=document.getElementById('fc-notes').value.trim();
+  if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
+  const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
+  const resultsEl=document.getElementById('findResults');
+  resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#555;font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
+  try{
+    // Look up student postcode
+    const res=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`);
+    const json=await res.json();
+    if(!json.result){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode not found. Please check and try again.</div>';return;}
+    const {latitude:sLat,longitude:sLon}=json.result;
+    // Get approved instructors with postcodes
+    const approved=allInstrs.filter(i=>i.status==='approved'&&i.area);
+    // Batch lookup instructor postcodes
+    const pcLookups=approved.map(async i=>{
+      // Extract postcode from area field (e.g. "M19, Didsbury" → try "M19")
+      const pcMatch=(i.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
+      if(!pcMatch)return{instr:i,dist:null};
+      try{
+        const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pcMatch[0].replace(/\s+/g,''))}`);
+        const j=await r.json();
+        if(!j.result)return{instr:i,dist:null};
+        const{latitude:iLat,longitude:iLon}=j.result;
+        const dist=haversine(sLat,sLon,iLat,iLon);
+        return{instr:i,dist,lat:iLat,lon:iLon};
+      }catch{return{instr:i,dist:null};}
+    });
+    const results=await Promise.all(pcLookups);
+    const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
+    const unknown=results.filter(r=>r.dist===null);
+    if(!ranked.length&&!unknown.length){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#555;font-size:.84rem">No approved instructors found.</div>';return;}
+    fcStudentData={name:studentName,postcode,phone,type,notes};
+    let html='';
+    if(ranked.length){
+      html+=ranked.map((r,idx)=>{
+        const distMiles=r.dist.toFixed(1);
+        const isClose=r.dist<3;
+        return`<div class="dist-card mb-2">
+          <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-3">
+              <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${idx===0?'var(--gold)':'#333'};line-height:1;min-width:30px">${idx+1}</div>
+              <div>
+                ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:7px;vertical-align:middle" alt=""/>`:``}
+                <span style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff">${esc(r.instr.full_name)}</span>
+                <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1">${esc(r.instr.badge_type||'ADI')}</span>
+                <div style="font-size:.74rem;color:#555;margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
+              </div>
+            </div>
+            <div class="d-flex flex-column align-items-end gap-2">
+              <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
+              <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${esc(r.instr.full_name)}','${esc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign Student</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    if(unknown.length){
+      html+=`<div style="font-size:.72rem;color:#333;margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>Could not calculate distance for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')} — no valid postcode in their area field.</div>`;
+    }
+    resultsEl.innerHTML=html||'<div style="text-align:center;padding:24px;color:#333">No results.</div>';
+  }catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes. Please try again.</div>';}
+  finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructors';btn.disabled=false;}
+}
 
-  if (!name || !badge || !email || !password) { toast('Please fill all required fields.', 'error'); return; }
-  const btn = document.getElementById('createBtn');
-  btn.textContent = 'Creating…'; btn.disabled = true;
+function haversine(lat1,lon1,lat2,lon2){
+  const R=3958.8;// miles
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
 
-  const { error } = await sb.from('instructors').insert([{
-    full_name: name, badge_number: badge, badge_type: type,
-    phone, email, area, address, status,
-    password, password_hash: btoa(password),
-    created_at: new Date().toISOString(),
-    show_lessons: true
+function openAssignModal(instrId,instrName,instrPhone){
+  document.getElementById('assign-instr-id').value=instrId;
+  document.getElementById('assign-instr-name').value=instrName;
+  document.getElementById('assignSub').textContent=`Assigning to: ${instrName}`;
+  const s=fcStudentData||{};
+  document.getElementById('assignDetails').innerHTML=`<strong style="color:#ccc">Student:</strong> ${esc(s.name||'—')}<br>
+    <strong style="color:#ccc">Postcode:</strong> ${esc(s.postcode||'—')}<br>
+    <strong style="color:#ccc">Phone:</strong> ${esc(s.phone||'Not provided')}<br>
+    <strong style="color:#ccc">Type:</strong> ${esc(s.type||'Manual')}<br>
+    ${s.notes?`<strong style="color:#ccc">Notes:</strong> ${esc(s.notes)}`:''}`; 
+  // Generate WA link
+  const portalUrl='https://drivesq.co.uk/portal/dashboard.html';
+  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on the DriveSQ Instructor Portal.\n\n🧑 Student: ${s.name}\n📍 Postcode: ${s.postcode}\n🚗 Lesson Type: ${s.type}\n${s.notes?'📝 Notes: '+s.notes+'\n':''}\nPlease check your portal to approve or decline:\n${portalUrl}\n\nDriveSQ Team`;
+  const waPhone=instrPhone.replace(/\D/g,'');
+  const waFull=waPhone.startsWith('0')?'44'+waPhone.slice(1):waPhone.startsWith('44')?waPhone:'44'+waPhone;
+  document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
+  openModal('assignModal');
+}
+
+async function confirmAssign(){
+  const instrId=document.getElementById('assign-instr-id').value;
+  const s=fcStudentData||{};
+  if(!instrId||!s.name){showToast('Missing data.','error');return;}
+  const{error}=await sb.from('student_requests').insert([{
+    instructor_id:instrId,
+    student_name:s.name,student_phone:s.phone||null,
+    pickup_address:s.postcode,postcode:s.postcode,
+    lesson_type:s.type||'Manual',notes:s.notes||null,
+    status:'pending',created_at:new Date().toISOString()
   }]);
-
-  btn.textContent = 'Create Account'; btn.disabled = false;
-  if (error) { toast('Failed to create instructor. Email or badge may already exist.', 'error'); return; }
-  toast(`✅ Account created for ${name}!`, 'success');
-  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-address','ai-password'].forEach(id => document.getElementById(id).value = '');
-  await loadInstructors();
-  populateInstructorDropdowns();
+  if(error){showToast('Failed to assign student.','error');return;}
+  closeModal('assignModal');showToast(`✅ ${s.name} assigned to ${document.getElementById('assign-instr-name').value}!`,'success');
+  // Clear form
+  ['fc-name','fc-postcode','fc-phone','fc-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:#333">Student assigned. Enter new details to find another instructor.</div>';
+  fcStudentData=null;
 }
 
-/* ══════════════════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════════════════ */
-function fmtDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function getMonday(offset = 0) {
-  const d = new Date(); const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff + (offset * 7));
-  d.setHours(0,0,0,0); return d;
-}
-function fmtDateShort(s) {
-  if (!s) return '—';
-  const d = new Date(s);
-  return `${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${d.getFullYear()}`;
-}
-function calcEnd(start, hrs) {
-  if (!start) return '';
-  const [h,m] = start.split(':').map(Number);
-  const t = h*60 + m + hrs*60;
-  return String(Math.floor(t/60)%24).padStart(2,'0') + ':' + String(Math.round(t%60)).padStart(2,'0');
-}
-function esc(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* ── OVERVIEW ── */
+async function loadLoginLog(){
+  const{data}=await sb.from('instructors').select('full_name,badge_number,last_login').not('last_login','is',null).order('last_login',{ascending:false}).limit(20);
+  const log=document.getElementById('loginLog');
+  if(!data||!data.length){log.innerHTML='<div style="text-align:center;color:#333;font-size:.8rem;padding:16px">No login activity yet.</div>';return;}
+  log.innerHTML=data.map(i=>`<div class="login-log-item">
+    <div>
+      <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:#ccc">${esc(i.full_name)}</div>
+      <div style="font-size:.68rem;color:#2e2e2e">${esc(i.badge_number||'—')}</div>
+    </div>
+    <div style="font-size:.7rem;color:#333;text-align:right">${fmtDT(i.last_login)}</div>
+  </div>`).join('');
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.addEventListener('click', e => {
-  document.querySelectorAll('.overlay.open').forEach(el => {
-    if (e.target === el) el.classList.remove('open');
-  });
-});
+async function loadOverviewChart(){
+  const mon=getMonday(0);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const{data}=await sb.from('lessons').select('instructor_id,instructors(full_name)').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
+  const el=document.getElementById('overviewChart');
+  const lessons=data||[];
+  if(!lessons.length){el.innerHTML='<div style="text-align:center;color:#333;font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
+  const counts={};
+  lessons.forEach(l=>{const n=l.instructors?.full_name||'Unknown';counts[n]=(counts[n]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([name,count])=>`<div class="d-flex align-items-center gap-2 mb-2">
+    <div style="font-size:.75rem;color:#666;min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+    <div style="flex:1;background:var(--dk);border-radius:4px;height:18px;overflow:hidden">
+      <div style="height:100%;width:${(count/max*100).toFixed(0)}%;background:linear-gradient(90deg,var(--red),#b50008);border-radius:4px;transition:width .6s ease"></div>
+    </div>
+    <div style="font-size:.75rem;font-weight:700;color:var(--red);min-width:20px;text-align:right">${count}</div>
+  </div>`).join('');
+}
 
-let _toastTimer;
-function toast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast' + (type ? ' ' + type : '');
-  clearTimeout(_toastTimer);
-  requestAnimationFrame(() => t.classList.add('show'));
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+/* ── MODALS ── */
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
+
+/* ── TOAST ── */
+let _tt;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');
+  clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));
+  _tt=setTimeout(()=>t.classList.remove('show'),3400);
 }
 </script>
 </body>
