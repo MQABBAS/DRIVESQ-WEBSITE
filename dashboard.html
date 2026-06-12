@@ -91,7 +91,8 @@ a{color:var(--red);text-decoration:none}
 .stat-num.red{color:var(--red)}.stat-num.gold{color:var(--gold)}.stat-num.green-c{color:var(--green)}.stat-num.blue{color:#60a5fa}.stat-num.purple{color:#a855f7}
 .stat-sub{font-size:.63rem;color:var(--txt4);margin-top:2px}
 .stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
-@media(min-width:576px){.stats-row{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:576px){.stats-row{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:992px){.stats-row{grid-template-columns:repeat(6,1fr)}}
 
 /* TABS */
 .dsq-tabs{display:flex;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:3px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2px}
@@ -397,6 +398,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div style="font-family:'Oswald',sans-serif;font-size:.8rem;color:var(--txt2);line-height:1;cursor:pointer" id="navName" onclick="switchTab('profile');setMobActive('profile')">—</div>
           <div style="font-size:.62rem;color:var(--txt4)" id="navBadge">—</div>
         </div>
+        <button class="nav-btn" onclick="openModal('forgotPwdModal')" title="Reset Password" style="font-size:.7rem"><i class="bi bi-lock me-1"></i><span class="d-none d-md-inline">Reset Pwd</span></button>
         <button class="nav-btn danger" onclick="logout()" title="Sign Out"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </div>
@@ -417,12 +419,13 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="reminderArea"></div>
   <div id="msgBanners"></div>
 
-  <div class="stats-row mb-3">
+  <div class="stats-row mb-3" style="grid-template-columns:repeat(2,1fr)">
     <div><div class="stat-card red"><div class="stat-lbl">Today</div><div class="stat-num red" id="sToday">—</div><div class="stat-sub" id="sTodayH"></div></div></div>
     <div><div class="stat-card gold"><div class="stat-lbl">Tomorrow</div><div class="stat-num gold" id="sTom">—</div><div class="stat-sub" id="sTomH"></div></div></div>
     <div><div class="stat-card green-c"><div class="stat-lbl">This Week</div><div class="stat-num green-c" id="sWeek">—</div><div class="stat-sub" id="sWeekH"></div></div></div>
     <div><div class="stat-card purple"><div class="stat-lbl">Weekly Hours</div><div class="stat-num purple" id="sHours">—</div><div class="stat-sub">hrs on road</div></div></div>
     <div><div class="stat-card blue"><div class="stat-lbl">Roster</div><div class="stat-num blue" id="sStudents">—</div><div class="stat-sub">saved students</div></div></div>
+    <div><div class="stat-card green-c"><div class="stat-lbl">Week Earnings</div><div class="stat-num green-c" id="sEarnings" style="font-size:1.5rem">£0</div><div class="stat-sub">received this week</div></div></div>
   </div>
 
   <div class="dsq-tabs mb-3">
@@ -445,10 +448,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="ck-i ms-2"><i class="bi bi-check-circle-fill" style="color:#4ade80;font-size:.65rem"></i><span style="font-size:.65rem;color:var(--txt4)">Confirmed</span></div>
       <div class="ck-i" style="margin-left:auto"><i class="bi bi-grip-vertical" style="font-size:.7rem;color:var(--txt4)"></i><span style="font-size:.65rem;color:var(--txt4)">Drag to move</span></div>
     </div>
+    <!-- Calendar title + nav -->
+    <div id="calTitle" style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:var(--txt);line-height:1;margin-bottom:8px"></div>
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-calendar-week me-2" style="color:var(--red)"></i>Planner</div>
         <div class="wk-hours-badge"><i class="bi bi-clock me-1"></i><span id="wkHoursLbl">0h</span> this week</div>
+        <div class="wk-hours-badge" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80" id="totalPayBadge" style="display:none"><i class="bi bi-currency-pound me-1"></i><span id="totalPayLbl">0.00</span> received</div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="cal-view-btns">
@@ -585,6 +590,22 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </div>
         </div>
       </div>
+      <div class="col-12">
+        <div style="background:var(--dk2);border:1px solid rgba(209,10,17,.15);border-radius:14px;padding:14px;margin-bottom:8px">
+          <div class="section-head" style="color:#f87171"><i class="bi bi-lock-fill me-2"></i>Change Password</div>
+          <div class="row g-2">
+            <div class="col-12 col-sm-6">
+              <label class="dsq-lbl">New Password</label>
+              <input class="dsq-inp" id="pNewPwd" type="password" placeholder="New password…"/>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="dsq-lbl">Confirm Password</label>
+              <input class="dsq-inp" id="pConfirmPwd" type="password" placeholder="Confirm new password…"/>
+            </div>
+          </div>
+          <div style="font-size:.67rem;color:var(--txt4);margin-top:6px">Leave blank to keep your current password</div>
+        </div>
+      </div>
       <div class="col-12"><button class="btn-p" id="saveProfileBtn" onclick="saveProfile()"><i class="bi bi-check-lg me-1"></i>Save All Changes</button></div>
     </div>
   </div>
@@ -657,6 +678,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </div>
         <textarea class="dsq-inp" id="lNotes" rows="2" placeholder="Optional…"></textarea>
       </div>
+      <div class="mb-2">
+        <label class="dsq-lbl"><i class="bi bi-currency-pound me-1"></i>Payment Received (£)</label>
+        <input class="dsq-inp" id="lPayment" type="number" min="0" step="0.01" placeholder="e.g. 70.00"/>
+        <div style="font-size:.63rem;color:var(--txt4);margin-top:3px">Leave blank if not yet paid</div>
+      </div>
       <button class="btn-p mb-2" type="submit" id="saveLsBtn"><i class="bi bi-check-lg me-1"></i>Save Lesson</button>
       <button class="btn-s" type="button" onclick="closeModal('addModal')">Cancel</button>
     </form>
@@ -710,7 +736,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
       </select>
     </div>
-    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="elNotes" rows="2"></textarea></div>
+    <div class="mb-2"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="elNotes" rows="2"></textarea></div>
+    <div class="mb-3">
+      <label class="dsq-lbl"><i class="bi bi-currency-pound me-1"></i>Payment Received (£)</label>
+      <input class="dsq-inp" id="elPayment" type="number" min="0" step="0.01" placeholder="e.g. 70.00"/>
+    </div>
     <button class="btn-p mb-2" onclick="saveEditedLesson()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
     <button class="btn-s" onclick="closeModal('editLessonModal')">Cancel</button>
   </div>
@@ -878,6 +908,27 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
+<!-- ═══ FORGOT PASSWORD MODAL ═══ -->
+<div class="dsq-overlay" id="forgotPwdModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('forgotPwdModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-lock me-2" style="color:var(--gold)"></i>Reset Password</h5>
+    <div class="modal-sub">Verify your badge number and phone number to reset your password</div>
+    <div id="fpStep1">
+      <div class="mb-2"><label class="dsq-lbl">Badge Number <span class="req-mark">*</span></label><input class="dsq-inp" id="fpBadge" placeholder="e.g. ADI-12345"/></div>
+      <div class="mb-2"><label class="dsq-lbl">Phone Number <span class="req-mark">*</span></label><input class="dsq-inp" id="fpPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
+      <button class="btn-p w-100 mb-2" onclick="verifyForgotPwd()"><i class="bi bi-arrow-right me-1"></i>Verify Identity</button>
+      <button class="btn-s w-100" onclick="closeModal('forgotPwdModal')">Cancel</button>
+    </div>
+    <div id="fpStep2" class="hidden">
+      <div class="success-box mb-3" style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:12px;font-size:.82rem;color:#4ade80">✅ Identity verified — set your new password below</div>
+      <div class="mb-2"><label class="dsq-lbl">New Password <span class="req-mark">*</span></label><input class="dsq-inp" id="fpNewPwd" type="password" placeholder="New password (min 6 characters)"/></div>
+      <div class="mb-3"><label class="dsq-lbl">Confirm Password <span class="req-mark">*</span></label><input class="dsq-inp" id="fpConfirmPwd" type="password" placeholder="Confirm new password"/></div>
+      <button class="btn-p w-100 mb-2" onclick="saveForgotPwd()"><i class="bi bi-check-lg me-1"></i>Save New Password</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ HOME SCREEN MODAL ═══ -->
 <div class="dsq-overlay" id="hsModal">
   <div class="dsq-modal">
@@ -1015,27 +1066,51 @@ function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.c
    LESSON CONFIRMATIONS
 ══════════════════════════════ */
 async function loadConfirmations(){
-  const days=weekDays(weekStart);
-  const from=dateKey(days[0]),to=dateKey(days[6]);
   const lessonIds=Object.values(weekLessons).flat().map(l=>l.id);
-  if(!lessonIds.length)return;
-  const{data}=await sb.from('lesson_confirmations').select('*').in('lesson_id',lessonIds);
-  confirmationMap={};
-  (data||[]).forEach(c=>{confirmationMap[c.lesson_id]=c;});
+  if(!lessonIds.length){confirmationMap={};return;}
+  try{
+    const{data,error}=await sb.from('lesson_confirmations').select('*').in('lesson_id',lessonIds);
+    if(error){console.warn('lesson_confirmations not available:',error.message);confirmationMap={};return;}
+    confirmationMap={};
+    (data||[]).forEach(c=>{confirmationMap[c.lesson_id]=c;});
+  }catch(e){console.warn('loadConfirmations error:',e);confirmationMap={};}
 }
 
 async function confirmLessonAsInstructor(lessonId){
-  const existing=confirmationMap[lessonId];
-  if(existing){
-    const newStatus=existing.student_confirmed?'both_confirmed':'instructor_confirmed';
-    await sb.from('lesson_confirmations').update({instructor_confirmed:true,instructor_confirmed_at:new Date().toISOString(),status:newStatus}).eq('id',existing.id);
-  } else {
-    await sb.from('lesson_confirmations').insert([{lesson_id:lessonId,instructor_id:instr.id,instructor_confirmed:true,instructor_confirmed_at:new Date().toISOString(),status:'instructor_confirmed',created_at:new Date().toISOString()}]);
+  try{
+    const existing=confirmationMap[lessonId];
+    if(existing){
+      const newStatus=existing.student_confirmed?'both_confirmed':'instructor_confirmed';
+      const{error}=await sb.from('lesson_confirmations').update({
+        instructor_confirmed:true,
+        instructor_confirmed_at:new Date().toISOString(),
+        status:newStatus
+      }).eq('id',existing.id);
+      if(error)throw error;
+    } else {
+      const{error}=await sb.from('lesson_confirmations').insert([{
+        lesson_id:lessonId,
+        instructor_id:instr.id,
+        instructor_confirmed:true,
+        student_confirmed:false,
+        instructor_confirmed_at:new Date().toISOString(),
+        status:'instructor_confirmed',
+        created_at:new Date().toISOString()
+      }]);
+      if(error)throw error;
+    }
+    await loadConfirmations();
+    if(calView==='week')renderCal();
+    else if(calView==='day')renderDayView();
+    showToast('Lesson confirmed ✓','success');
+  }catch(err){
+    console.error('confirmLessonAsInstructor error:',err);
+    if(err.message&&err.message.includes('does not exist')){
+      showToast('Run drivesq_migration_v2.sql in Supabase first.');
+    } else {
+      showToast('Error confirming: '+err.message);
+    }
   }
-  await loadConfirmations();
-  if(calView==='week')renderCal();
-  else if(calView==='day')renderDayView();
-  showToast('Lesson confirmed ✓','success');
 }
 
 /* ══════════════════════════════
@@ -1145,6 +1220,13 @@ function updateStats(){
   document.getElementById('sHours').textContent=totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1);
   document.getElementById('sStudents').textContent=Object.keys(rosterMap).length;
   document.getElementById('wkHoursLbl').textContent=totalHrs%1===0?totalHrs.toFixed(0)+'h':totalHrs.toFixed(1)+'h';
+  // Total payment received this week
+  const totalPay=allW.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
+  const payBadge=document.getElementById('totalPayBadge');
+  const payLbl=document.getElementById('totalPayLbl');
+  if(payBadge&&payLbl){payLbl.textContent='£'+totalPay.toFixed(2);payBadge.style.display=totalPay>0?'inline-flex':'none';}
+  const earningsEl=document.getElementById('sEarnings');
+  if(earningsEl)earningsEl.textContent='£'+totalPay.toFixed(2);
 }
 
 /* ── DRAG & DROP ── */
@@ -1155,17 +1237,39 @@ function onDragOver(e,toDate){if(dragId&&toDate!==dragFromDate){e.preventDefault
 function onDragLeave(e,toDate){document.getElementById('col-'+toDate)?.classList.remove('drag-over');}
 async function onDrop(e,toDate){
   e.preventDefault();document.getElementById('col-'+toDate)?.classList.remove('drag-over');
-  if(!dragId||toDate===dragFromDate)return;
-  await sb.from('lessons').update({lesson_date:toDate}).eq('id',dragId);
-  await loadWeek();showToast('Lesson moved ✓','success');
+  if(!dragId||toDate===dragFromDate){dragId=null;dragFromDate=null;return;}
+  const movingId=dragId;
   dragId=null;dragFromDate=null;
+  // Move the lesson date in DB
+  const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
+  if(error){showToast('Error moving lesson: '+error.message);return;}
+  await loadWeek();
+  showToast('Lesson moved — confirm new time below','success');
+  // Open edit modal so instructor can confirm/change time on new date
+  const{data:moved}=await sb.from('lessons').select('*').eq('id',movingId).single();
+  if(moved){
+    detailData=moved;detailId=movingId;
+    document.getElementById('editLsId').value=moved.id;
+    document.getElementById('editLsSubTitle').textContent=moved.student_name+' — moved to '+toDate;
+    document.getElementById('elStudent').value=moved.student_name||'';
+    document.getElementById('elDate').value=toDate;
+    document.getElementById('elTime').value=moved.start_time||'09:00';
+    document.getElementById('elDur').value=String(moved.duration_hours)||'2';
+    document.getElementById('elPhone').value=moved.student_phone||'';
+    document.getElementById('elAddr').value=moved.pickup_address||'';
+    document.getElementById('elType').value=moved.lesson_type||'Manual';
+    document.getElementById('elNotes').value=moved.notes||'';
+    openModal('editLessonModal');
+  }
 }
 
 /* ── WEEK RENDER ── */
 function renderCal(){
   const days=weekDays(weekStart);
   const tk=todayKey();
-  document.getElementById('weekLabel').textContent=fmtS(days[0])+' – '+fmtS(days[6])+' '+days[6].getFullYear();
+  const _wLabel=fmtS(days[0])+' – '+fmtS(days[6])+' '+days[6].getFullYear();
+  document.getElementById('weekLabel').textContent=_wLabel;
+  const _ct=document.getElementById('calTitle');if(_ct)_ct.textContent='Week of '+fmtS(days[0]);
   document.getElementById('calHdr').innerHTML=days.map((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
     return`<div class="cal-dh${isT?' today':isW?' wknd':''}"><div class="cal-dn">${DAYS[i].slice(0,3)}</div><div class="cal-dd${isT?' is-today':''}">${fmtS(d)}${isT?' · Today':''}</div></div>`;
@@ -1230,6 +1334,7 @@ function renderDayView(){
   currentDayName=DAYS[dow];currentDayIdx=dow;
   const isT=currentDayKey===todayKey();
   document.getElementById('weekLabel').textContent=fmtFull(d);
+  const _ctd=document.getElementById('calTitle');if(_ctd)_ctd.textContent=DAYS[dow]+' '+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear();
   document.getElementById('dayViewTitle').innerHTML=(isT?'<span style="color:var(--red)">TODAY — </span>':'')+DAYS[dow]+', '+fmtS(d)+' '+d.getFullYear();
   const lessons=weekLessons[currentDayKey]||[];
   const body=document.getElementById('dayViewBody');
@@ -1263,6 +1368,7 @@ function renderDayView(){
 function renderMonthView(map){
   const y=monthStart.getFullYear(),m=monthStart.getMonth();
   document.getElementById('weekLabel').textContent=MF[m]+' '+y;
+  const _ctm=document.getElementById('calTitle');if(_ctm)_ctm.textContent=MF[m]+' '+y;
   const firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0);
   const startDow=firstDay.getDay()===0?6:firstDay.getDay()-1;
   const tk=todayKey();
@@ -1477,55 +1583,88 @@ function setTopicRating(topicName,rating,btn){
 }
 
 async function saveStudentProgress(){
-  const progStudentId=document.getElementById('progressStudentId').value;
-  const studentName=document.getElementById('progressModalSub').textContent.replace(' — update progress','');
+  const studentName=document.getElementById('progressModalSub').textContent.replace(' — update progress','').trim();
   const btn=document.getElementById('saveProgressBtn');
   btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
 
   try{
-    // Get or create student account
-    let{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
-    if(!acc){
-      // Create account placeholder
-      const code=gen5Code();
-      const{data:newAcc}=await sb.from('student_accounts').insert([{
-        instructor_id:instr.id,full_name:studentName,phone:'',student_code:code,pin:'',
-        status:'pending',password_hash:'',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-      }]).select().single();
-      acc=newAcc;
-      // Seed topics
-      if(acc){await sb.rpc('seed_student_topics',{p_student_id:acc.id,p_instructor_id:instr.id}).catch(()=>{});}
+    // Step 1: get or create student account via SQL function (handles code + topic seeding)
+    const{data:accIdData,error:accErr}=await sb.rpc('get_or_create_student_account',{
+      p_instructor_id:instr.id,
+      p_full_name:studentName,
+      p_phone:''
+    });
+    if(accErr){
+      console.error('get_or_create_student_account error:',accErr);
+      // Fallback: try direct insert
+      let{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
+      if(!acc){
+        const{data:newAcc,error:insErr}=await sb.from('student_accounts').insert([{
+          instructor_id:instr.id,full_name:studentName,phone:'',
+          student_code:gen5Code(),pin:'',password_hash:'',status:'pending',
+          created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+        }]).select('id').single();
+        if(insErr){showToast('Error: '+insErr.message);return;}
+        acc=newAcc;
+      }
+      if(!acc){showToast('Could not create student record.');return;}
+      var accId=acc.id;
+    } else {
+      var accId=accIdData;
     }
-    if(!acc){showToast('Error creating student record.');return;}
 
-    const accId=acc.id;
+    if(!accId){showToast('Could not get student account ID.');return;}
+
     const hours=parseFloat(document.getElementById('progHours').value)||0;
     const target=parseFloat(document.getElementById('progTarget').value)||20;
     const readiness=document.getElementById('progReadiness').value;
     const notes=document.getElementById('progNotes').value.trim();
 
-    // Upsert progress
-    const{data:existProg}=await sb.from('student_progress').select('id').eq('student_account_id',accId).maybeSingle();
-    const progPayload={student_account_id:accId,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()};
-    if(existProg){await sb.from('student_progress').update(progPayload).eq('id',existProg.id);}
-    else{await sb.from('student_progress').insert([{...progPayload,created_at:new Date().toISOString()}]);}
+    // Step 2: upsert progress via SQL function
+    const{error:progErr}=await sb.rpc('upsert_student_progress',{
+      p_student_id:accId,
+      p_instructor_id:instr.id,
+      p_hours_done:hours,
+      p_target_hours:target,
+      p_readiness:readiness,
+      p_notes:notes
+    });
+    if(progErr){
+      // Fallback to direct upsert
+      console.warn('upsert_student_progress RPC error, using direct:',progErr);
+      const{data:existProg}=await sb.from('student_progress').select('id').eq('student_account_id',accId).maybeSingle();
+      const progPayload={student_account_id:accId,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()};
+      if(existProg){await sb.from('student_progress').update(progPayload).eq('id',existProg.id);}
+      else{await sb.from('student_progress').insert([{...progPayload,created_at:new Date().toISOString()}]);}
+    }
 
-    // Save topic ratings
+    // Step 3: save topic ratings via SQL function
     for(const[topicName,data] of Object.entries(topicRatingsForModal)){
       const group=Object.entries(TOPIC_GROUPS).find(([g,ts])=>ts.includes(topicName))?.[0]||'';
-      const existing=data.id?{id:data.id}:null;
-      const topicPayload={student_account_id:accId,instructor_id:instr.id,topic_group:group,topic_name:topicName,rating:data.rating,updated_at:new Date().toISOString()};
-      if(existing){await sb.from('student_topic_ratings').update(topicPayload).eq('id',existing.id);}
-      else{
+      const{error:topicErr}=await sb.rpc('upsert_topic_rating',{
+        p_student_id:accId,
+        p_instructor_id:instr.id,
+        p_group:group,
+        p_topic:topicName,
+        p_rating:data.rating
+      });
+      if(topicErr){
+        // Fallback to direct upsert
+        console.warn('upsert_topic_rating RPC error, using direct:',topicErr);
         const{data:ex}=await sb.from('student_topic_ratings').select('id').eq('student_account_id',accId).eq('topic_name',topicName).maybeSingle();
+        const topicPayload={student_account_id:accId,instructor_id:instr.id,topic_group:group,topic_name:topicName,rating:data.rating,updated_at:new Date().toISOString()};
         if(ex){await sb.from('student_topic_ratings').update(topicPayload).eq('id',ex.id);}
         else{await sb.from('student_topic_ratings').insert([{...topicPayload,created_at:new Date().toISOString()}]);}
       }
     }
 
+    await loadRoster(); // refresh student account map
     closeModal('progressModal');
-    showToast('Progress saved ✓ Student will be notified.','success');
-  }catch(err){console.error(err);showToast('Error saving progress.');}
+    showToast('Progress saved ✓','success');
+  }catch(err){
+    console.error('saveStudentProgress failed:',err);
+    showToast('Error saving progress: '+err.message);
+  }
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Progress Update';btn.disabled=false;}
 }
 
@@ -1535,7 +1674,7 @@ function openAddModal(dk,dayName,idx){
   const d=new Date(dk+'T12:00:00');
   document.getElementById('addSub').textContent=(dayName||DAYS[idx])+', '+fmtS(d)+' '+d.getFullYear();
   ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';
+  document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';document.getElementById('lPayment').value='';
   document.getElementById('rosterIndicator').classList.add('hidden');
   document.getElementById('suggestDrop').classList.add('hidden');
   document.getElementById('saveToRoster').checked=true;
@@ -1550,7 +1689,8 @@ async function saveLesson(e){
   if(!studentName){showToast('Please enter a student name.');return;}
   const btn=document.getElementById('saveLsBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
   try{
-    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:document.getElementById('lPhone').value.trim(),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),created_at:new Date().toISOString()};
+    const _pay=parseFloat(document.getElementById('lPayment').value)||0;
+    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:document.getElementById('lPhone').value.trim(),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay||null,created_at:new Date().toISOString()};
     const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
     if(lErr)throw lErr;
     if(document.getElementById('saveToRoster').checked){
@@ -1597,6 +1737,7 @@ async function openDetail(id){
     ['<i class="bi bi-telephone me-1"></i>Phone',data.student_phone?`<a href="tel:${esc(data.student_phone)}" style="color:var(--red)">${esc(data.student_phone)}</a>`:'Not provided'],
     ['<i class="bi bi-geo-alt me-1"></i>Pickup',esc(data.pickup_address)||'Not provided'],
     ['<i class="bi bi-check-circle me-1"></i>Confirmation',confStatus],
+    ['<i class="bi bi-currency-pound me-1"></i>Payment',data.payment_received?`<span style="color:#4ade80;font-weight:700">£${parseFloat(data.payment_received).toFixed(2)} received</span>`:'<span style="color:var(--txt4)">Not recorded</span>'],
     ['<i class="bi bi-sticky me-1"></i>Notes',esc(data.notes)||'None'],
   ].map(([l,v])=>`<div class="det-row"><div class="det-lbl">${l}</div><div class="det-val">${v}</div></div>`).join('');
 
@@ -1636,6 +1777,7 @@ function editLessonFromDetail(){
   document.getElementById('elAddr').value=detailData.pickup_address||'';
   document.getElementById('elType').value=detailData.lesson_type||'Manual';
   document.getElementById('elNotes').value=detailData.notes||'';
+  const _elp=document.getElementById('elPayment');if(_elp)_elp.value=detailData.payment_received||'';
   openModal('editLessonModal');
 }
 
@@ -1643,15 +1785,40 @@ async function saveEditedLesson(){
   const id=document.getElementById('editLsId').value;
   const studentName=document.getElementById('elStudent').value.trim();
   if(!studentName){showToast('Student name is required.');return;}
-  const updates={student_name:studentName,lesson_date:document.getElementById('elDate').value,start_time:document.getElementById('elTime').value,duration_hours:parseFloat(document.getElementById('elDur').value),student_phone:document.getElementById('elPhone').value.trim(),pickup_address:document.getElementById('elAddr').value.trim(),lesson_type:document.getElementById('elType').value,notes:document.getElementById('elNotes').value.trim()};
+  const newDate=document.getElementById('elDate').value;
+  const newTime=document.getElementById('elTime').value;
+  if(!newDate||!newTime){showToast('Date and time are required.');return;}
+  const _ePay=parseFloat(document.getElementById('elPayment')?.value)||null;
+  const updates={
+    student_name:studentName,
+    lesson_date:newDate,
+    start_time:newTime,
+    duration_hours:parseFloat(document.getElementById('elDur').value)||2,
+    student_phone:document.getElementById('elPhone').value.trim(),
+    pickup_address:document.getElementById('elAddr').value.trim(),
+    lesson_type:document.getElementById('elType').value,
+    notes:document.getElementById('elNotes').value.trim(),
+    payment_received:_ePay
+  };
   const{error}=await sb.from('lessons').update(updates).eq('id',id);
-  if(error){showToast('Error saving.');return;}
+  if(error){showToast('Error saving: '+error.message);console.error(error);return;}
+  // Update roster too
   await saveToRoster(studentName,updates.student_phone,updates.pickup_address,updates.lesson_type,updates.notes,null);
   await loadRoster();
   closeModal('editLessonModal');
-  if(calView==='week')await loadWeek();
-  else if(calView==='day')await loadDayView(updates.lesson_date);
-  else if(calView==='month')await loadMonthView();
+  // Always reload the view for the new date
+  if(calView==='week'){
+    weekStart=getMonday(new Date(newDate+'T12:00:00'));
+    await loadWeek();
+  } else if(calView==='day'){
+    currentDayKey=newDate;
+    const nd=new Date(newDate+'T12:00:00');
+    const dow=nd.getDay()===0?6:nd.getDay()-1;
+    currentDayName=DAYS[dow];currentDayIdx=dow;
+    await loadDayView(newDate);
+  } else if(calView==='month'){
+    await loadMonthView();
+  }
   showToast('Lesson updated ✓','success');
 }
 
@@ -1678,8 +1845,8 @@ async function loadStudents(){
   const{data:profiles}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
   const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type').eq('instructor_id',instr.id);
   const lessonMap={};
-  (lessons||[]).forEach(l=>{const k=l.student_name?.toLowerCase().trim();if(!k)return;if(!lessonMap[k])lessonMap[k]={count:0,last:'',types:new Set()};lessonMap[k].count++;lessonMap[k].types.add(l.lesson_type||'Manual');if(l.lesson_date>lessonMap[k].last)lessonMap[k].last=l.lesson_date;});
-  allStudentsArr=(profiles||[]).map(p=>{const k=p.name.toLowerCase().trim();const lInfo=lessonMap[k]||{count:0,last:'',types:new Set()};return{...p,count:lInfo.count,lastDate:lInfo.last,types:lInfo.types};}).sort((a,b)=>(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
+  (lessons||[]).forEach(l=>{const k=l.student_name?.toLowerCase().trim();if(!k)return;if(!lessonMap[k])lessonMap[k]={count:0,last:'',types:new Set(),totalHrs:0};lessonMap[k].count++;lessonMap[k].totalHrs+=(parseFloat(l.duration_hours)||1);lessonMap[k].types.add(l.lesson_type||'Manual');if(l.lesson_date>lessonMap[k].last)lessonMap[k].last=l.lesson_date;});
+  allStudentsArr=(profiles||[]).map(p=>{const k=p.name.toLowerCase().trim();const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0};return{...p,count:lInfo.count,lastDate:lInfo.last,types:lInfo.types,totalHrs:lInfo.totalHrs||0};}).sort((a,b)=>(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
   // Backfill
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k));
@@ -1717,6 +1884,8 @@ function renderStudents(students){
           ${s.notes?`<div style="font-size:.7rem;color:var(--txt4);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(s.notes)}</div>`:''}
           <div class="d-flex flex-wrap gap-1 mt-1">
             ${s.lesson_type?`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">${esc(s.lesson_type)}</span>`:''}
+            ${s.count?`<span style="font-size:.61rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.18)"><i class="bi bi-clock me-1"></i>${s.totalHrs.toFixed(1)}h total</span>`:''}
+            ${s.payment_total?`<span style="font-size:.61rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.18)"><i class="bi bi-currency-pound me-1"></i>${parseFloat(s.payment_total).toFixed(2)} received</span>`:''}
             ${s.lastDate?`<span style="font-size:.61rem;color:var(--txt5)">Last: ${s.lastDate}</span>`:''}
           </div>
         </div>
@@ -1981,7 +2150,15 @@ async function deleteProfilePhoto(){
 
 async function saveProfile(){
   const btn=document.getElementById('saveProfileBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
+  // Password change check
+  const newPwd=document.getElementById('pNewPwd')?.value.trim();
+  const confirmPwd=document.getElementById('pConfirmPwd')?.value.trim();
+  if(newPwd||confirmPwd){
+    if(newPwd!==confirmPwd){showToast('Passwords do not match.');return;}
+    if(newPwd.length<6){showToast('Password must be at least 6 characters.');return;}
+  }
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value};
+  if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
   try{
     const pFile=document.getElementById('profilePhotoInput').files[0];
     const bFile=document.getElementById('badgeInput').files[0];
@@ -1995,6 +2172,7 @@ async function saveProfile(){
     sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
     updateNav();document.getElementById('profileNameDisp').textContent=updates.full_name||'—';
     ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{document.getElementById(id).value='';});
+    const _pp=document.getElementById('pNewPwd');const _cp=document.getElementById('pConfirmPwd');if(_pp)_pp.value='';if(_cp)_cp.value='';
     showToast('Profile saved ✓','success');
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;}
@@ -2015,6 +2193,47 @@ function openHSModal(){
   else if(isAndroid){el.innerHTML=`<p style="font-size:.82rem;color:var(--txt3);margin-bottom:14px">Follow these steps on your Android:</p><div class="hs-step"><div class="hs-num">1</div><div class="hs-txt">Open this page in <strong>Chrome</strong></div></div><div class="hs-step"><div class="hs-num">2</div><div class="hs-txt">Tap the <strong>⋮ menu</strong> in the top right</div></div><div class="hs-step"><div class="hs-num">3</div><div class="hs-txt">Tap <strong>"Add to Home screen"</strong></div></div><div class="hs-step"><div class="hs-num">4</div><div class="hs-txt">Tap <strong>"Add"</strong> — done!</div></div>`;}
   else{el.innerHTML=`<div class="hs-step"><div class="hs-num">📱</div><div class="hs-txt"><strong>iPhone/iPad:</strong> Safari → Share → Add to Home Screen</div></div><div class="hs-step"><div class="hs-num">🤖</div><div class="hs-txt"><strong>Android:</strong> Chrome → Menu ⋮ → Add to Home screen</div></div>`;}
   openModal('hsModal');
+}
+
+/* ── FORGOT PASSWORD ── */
+let fpVerifiedBadge='',fpVerifiedPhone='';
+async function verifyForgotPwd(){
+  const badge=document.getElementById('fpBadge').value.trim();
+  const phone=document.getElementById('fpPhone').value.trim();
+  if(!badge||!phone){showToast('Enter badge number and phone.');return;}
+  // Check against instructors table
+  const{data,error}=await sb.from('instructors').select('id,badge_number,phone').ilike('badge_number',badge).maybeSingle();
+  if(error||!data){showToast('Badge number not found. Check and try again.');return;}
+  const strip=p=>p.replace(/\D/g,'');
+  if(strip(data.phone||'')!==strip(phone)){showToast('Phone number does not match our records.');return;}
+  fpVerifiedBadge=badge;fpVerifiedPhone=phone;
+  document.getElementById('fpStep1').classList.add('hidden');
+  document.getElementById('fpStep2').classList.remove('hidden');
+  showToast('Identity verified ✓','success');
+}
+async function saveForgotPwd(){
+  const newPwd=document.getElementById('fpNewPwd').value.trim();
+  const confirmPwd=document.getElementById('fpConfirmPwd').value.trim();
+  if(!newPwd||!confirmPwd){showToast('Fill both password fields.');return;}
+  if(newPwd!==confirmPwd){showToast('Passwords do not match.');return;}
+  if(newPwd.length<6){showToast('Password must be at least 6 characters.');return;}
+  // Try RPC first, fallback to direct update
+  const{data,error}=await sb.rpc('reset_instructor_password',{p_badge_number:fpVerifiedBadge,p_phone:fpVerifiedPhone,p_new_password:newPwd});
+  if(error||data==='not_found'){
+    // Fallback: direct update
+    const strip=p=>p.replace(/\D/g,'');
+    const{data:instr2}=await sb.from('instructors').select('id').ilike('badge_number',fpVerifiedBadge).maybeSingle();
+    if(instr2){
+      await sb.from('instructors').update({password:newPwd,password_hash:btoa(newPwd)}).eq('id',instr2.id);
+    } else {showToast('Error resetting password. Contact admin.');return;}
+  }
+  closeModal('forgotPwdModal');
+  showToast('Password updated ✓ You can now log in.','success');
+  // Reset modal state
+  fpVerifiedBadge='';fpVerifiedPhone='';
+  document.getElementById('fpStep1').classList.remove('hidden');
+  document.getElementById('fpStep2').classList.add('hidden');
+  ['fpBadge','fpPhone','fpNewPwd','fpConfirmPwd'].forEach(id=>document.getElementById(id).value='');
 }
 
 /* ── MODALS + TOAST ── */
