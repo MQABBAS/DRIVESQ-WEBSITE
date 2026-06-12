@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-title" content="DriveSQ Admin"/>
-<meta name="theme-color" content="#080808"/>
 <link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <title>DriveSQ — Admin Panel</title>
@@ -13,63 +12,79 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 <style>
-:root{--red:#D10A11;--gold:#F5C518;--blk:#080808;--dk:#0f0f0f;--dk2:#141414;--dk3:#1c1c1c;--bdr:#252525;--bdr2:#2e2e2e;--txt:#efefef;--green:#25D366;--blue:#3b82f6;--trans:.18s ease}
+/* ══ THEME VARS ══ */
+:root{
+  --red:#D10A11;--gold:#F5C518;--green:#25D366;--blue:#3b82f6;--purple:#a855f7;--trans:.2s ease;
+  --blk:#080808;--dk:#0f0f0f;--dk2:#141414;--dk3:#1c1c1c;--bdr:#252525;--bdr2:#2e2e2e;
+  --txt:#efefef;--txt2:#aaa;--txt3:#666;--txt4:#333;--txt5:#1e1e1e;
+  --card-bg:#131313;--nav-bg:rgba(8,8,8,.98);--input-bg:#181818;
+  --shadow:rgba(0,0,0,.8);--overlay:rgba(0,0,0,.88);
+}
+.day-mode{
+  --blk:#f0f0f2;--dk:#ffffff;--dk2:#fafafa;--dk3:#f4f4f6;--bdr:#e0e0e6;--bdr2:#d0d0d8;
+  --txt:#181820;--txt2:#444;--txt3:#666;--txt4:#999;--txt5:#ccc;
+  --card-bg:#ffffff;--nav-bg:rgba(255,255,255,.97);--input-bg:#f8f8fb;
+  --shadow:rgba(0,0,0,.12);--overlay:rgba(0,0,0,.6);
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom);transition:background .4s,color .3s}
 h1,h2,h3,h4,h5,h6{font-family:'Oswald',sans-serif;line-height:1.05}
 a{color:var(--red);text-decoration:none}
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:#0a0a0a}
-::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+::-webkit-scrollbar-track{background:var(--dk3)}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
 
 /* LOGIN */
 .login-screen{position:fixed;inset:0;z-index:9999;background:var(--blk);display:flex;align-items:center;justify-content:center;padding:20px}
-.login-card{background:linear-gradient(160deg,#131313,#0d0d0d);border:1px solid #1e1e1e;border-radius:20px;padding:36px 28px;width:100%;max-width:380px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.8)}
+.login-card{background:linear-gradient(160deg,var(--dk2),var(--dk));border:1px solid var(--bdr);border-radius:20px;padding:36px 28px;width:100%;max-width:380px;text-align:center;box-shadow:0 40px 80px var(--shadow)}
 .login-logo{width:60px;height:60px;border-radius:50%;border:2px solid var(--red);object-fit:cover;margin:0 auto 16px;display:block;box-shadow:0 0 20px rgba(209,10,17,.3)}
-.login-title{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:#fff;letter-spacing:1px;margin-bottom:3px}
+.login-title{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:var(--txt);letter-spacing:1px;margin-bottom:3px}
 .login-title span{color:var(--red)}
-.login-sub{font-size:.76rem;color:#2a2a2a;margin-bottom:22px;letter-spacing:.3px}
+.login-sub{font-size:.76rem;color:var(--txt4);margin-bottom:22px;letter-spacing:.3px}
 
 /* NAV */
-.dsq-nav{background:rgba(8,8,8,.98);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.dsq-nav{background:var(--nav-bg);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:background .4s}
 .nav-logo{width:34px;height:34px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0}
-.brand-n{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
+.brand-n{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);letter-spacing:1px;line-height:1}
 .brand-n span{color:var(--red)}
-.brand-s{font-size:.48rem;color:#2a2a2a;letter-spacing:2px;text-transform:uppercase}
+.brand-s{font-size:.48rem;color:var(--txt4);letter-spacing:2px;text-transform:uppercase}
 .admin-chip{background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.2);color:var(--gold);font-size:.6rem;font-weight:700;padding:3px 8px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:1px}
+.theme-toggle{background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:6px 10px;cursor:pointer;transition:all var(--trans);min-height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.theme-toggle:hover{border-color:var(--gold);color:var(--gold)}
 
 /* TABS */
-.dsq-tabs{display:flex;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:3px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2px;flex-wrap:nowrap}
+.dsq-tabs{display:flex;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:3px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2px;flex-wrap:nowrap;transition:background .4s,border-color .4s}
 .dsq-tabs::-webkit-scrollbar{display:none}
-.dsq-tab{background:transparent;border:none;color:#333;font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:600;padding:7px 12px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:4px;min-height:36px;flex-shrink:0}
+.dsq-tab{background:transparent;border:none;color:var(--txt3);font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;padding:7px 10px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:4px;min-height:36px;flex-shrink:0}
 .dsq-tab.active{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(209,10,17,.3)}
-.dsq-tab:not(.active):hover{color:#ccc;background:rgba(255,255,255,.04)}
+.dsq-tab:not(.active):hover{color:var(--txt);background:rgba(209,10,17,.06)}
 .tab-badge{background:rgba(245,197,24,.15);color:var(--gold);border-radius:8px;padding:1px 5px;font-size:.6rem;font-family:'Inter',sans-serif;font-weight:700}
 .dsq-tab.active .tab-badge{background:rgba(255,255,255,.25);color:#fff}
 
 /* STAT CARDS */
-.stat-card{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:13px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color var(--trans)}
+.stat-card{background:var(--card-bg);border:1px solid var(--bdr);border-radius:13px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color var(--trans),background .4s}
 .stat-card:hover{border-color:rgba(209,10,17,.2)}
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .stat-card.r::before{background:var(--red)}
 .stat-card.g::before{background:var(--gold)}
 .stat-card.gr::before{background:var(--green)}
 .stat-card.b::before{background:var(--blue)}
-.stat-lbl{font-size:.58rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:3px}
+.stat-card.p::before{background:var(--purple)}
+.stat-lbl{font-size:.58rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:3px}
 .stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.2rem;font-weight:900;line-height:1}
-.stat-num.r{color:var(--red)}.stat-num.g{color:var(--gold)}.stat-num.gr{color:var(--green)}.stat-num.b{color:var(--blue)}
-.stat-note{font-size:.62rem;color:#222;margin-top:2px}
+.stat-num.r{color:var(--red)}.stat-num.g{color:var(--gold)}.stat-num.gr{color:var(--green)}.stat-num.b{color:var(--blue)}.stat-num.p{color:var(--purple)}
+.stat-note{font-size:.62rem;color:var(--txt3);margin-top:2px}
 
-/* TABLE */
-.dsq-card{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+/* TABLES */
+.dsq-card{background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;transition:background .4s,border-color .4s}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;min-width:600px}
-thead tr{background:rgba(255,255,255,.015);border-bottom:1px solid var(--bdr)}
-th{padding:9px 13px;text-align:left;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:600;color:#2e2e2e;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
-td{padding:10px 13px;font-size:.78rem;color:#666;border-bottom:1px solid rgba(255,255,255,.022);vertical-align:middle}
+thead tr{background:rgba(209,10,17,.03);border-bottom:1px solid var(--bdr)}
+th{padding:9px 13px;text-align:left;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:600;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+td{padding:10px 13px;font-size:.78rem;color:var(--txt2);border-bottom:1px solid var(--bdr);vertical-align:middle;transition:color .2s}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.01);color:#aaa}
+tr:hover td{background:rgba(209,10,17,.02)}
 
 /* CHIPS */
 .chip{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.4px;white-space:nowrap}
@@ -80,6 +95,12 @@ tr:hover td{background:rgba(255,255,255,.01);color:#aaa}
 .chip.rejected{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
 .chip.suspended{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);color:#c084fc}
 .chip.declined{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
+.chip.Manual{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);color:#60a5fa}
+.chip.Automatic{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.18);color:#4ade80}
+.chip.Mock-Test,.chip.mock{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.18);color:#f87171}
+.chip.Intensive{background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.18);color:#fb923c}
+.chip.Pass-Plus{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);color:#c084fc}
+.chip.Refresher{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.18);color:#facc15}
 
 /* ACTION BTNS */
 .abtn{font-size:.65rem;padding:4px 8px;border-radius:5px;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.3px;transition:all var(--trans);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;min-height:30px}
@@ -89,6 +110,8 @@ tr:hover td{background:rgba(255,255,255,.01);color:#aaa}
 .abtn.edit:hover{background:rgba(245,197,24,.2)}
 .abtn.msg{background:rgba(96,165,250,.08);color:#93c5fd;border:1px solid rgba(96,165,250,.18)}
 .abtn.msg:hover{background:rgba(96,165,250,.2)}
+.abtn.wa{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.22)}
+.abtn.wa:hover{background:rgba(37,211,102,.25)}
 .abtn.block{background:rgba(168,85,247,.08);color:#c084fc;border:1px solid rgba(168,85,247,.18)}
 .abtn.block:hover{background:rgba(168,85,247,.2)}
 .abtn.unblock{background:rgba(37,211,102,.08);color:#4ade80;border:1px solid rgba(37,211,102,.18)}
@@ -101,57 +124,59 @@ tr:hover td{background:rgba(255,255,255,.01);color:#aaa}
 .abtn.reject:hover{background:rgba(209,10,17,.2)}
 .abtn.reassign{background:rgba(245,197,24,.08);color:var(--gold);border:1px solid rgba(245,197,24,.18)}
 .abtn.reassign:hover{background:rgba(245,197,24,.2)}
-.abtn.wa{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.22)}
-.abtn.wa:hover{background:rgba(37,211,102,.25)}
+.abtn.students{background:rgba(168,85,247,.08);color:#c084fc;border:1px solid rgba(168,85,247,.18)}
+.abtn.students:hover{background:rgba(168,85,247,.2)}
 
 /* BIG BTNS */
 .btn-p{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:.65rem 1.3rem;cursor:pointer;transition:all var(--trans);letter-spacing:.4px;min-height:40px}
 .btn-p:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
 .btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-s{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;border:1px solid var(--bdr2);color:#444;border-radius:8px;padding:.55rem 1.1rem;font-size:.83rem;cursor:pointer;transition:all var(--trans);min-height:38px}
-.btn-s:hover{border-color:#555;color:#bbb}
+.btn-s{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;border:1px solid var(--bdr2);color:var(--txt3);border-radius:8px;padding:.55rem 1.1rem;font-size:.83rem;cursor:pointer;transition:all var(--trans);min-height:38px;font-family:'Inter',sans-serif}
+.btn-s:hover{border-color:var(--txt3);color:var(--txt)}
 .btn-gold{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;padding:.6rem 1.2rem;cursor:pointer;transition:all var(--trans);letter-spacing:.3px;min-height:38px}
 .btn-gold:hover{background:rgba(245,197,24,.2)}
 .btn-green{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.22);color:#4ade80;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;padding:.6rem 1.2rem;cursor:pointer;transition:all var(--trans);min-height:38px}
 .btn-green:hover{background:rgba(37,211,102,.22)}
+.btn-purple{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.22);color:#c084fc;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;padding:.6rem 1.2rem;cursor:pointer;transition:all var(--trans);min-height:38px}
+.btn-purple:hover{background:rgba(168,85,247,.22)}
 
 /* MODALS */
-.dsq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.dsq-overlay{position:fixed;inset:0;background:var(--overlay);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .dsq-overlay.open{display:flex}
 @media(max-width:575px){.dsq-overlay{align-items:flex-end;padding:0}}
-.dsq-modal{background:#111;border:1px solid rgba(209,10,17,.18);border-radius:20px;padding:24px 22px;width:100%;max-width:520px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.8)}
-.dsq-modal.wide{max-width:680px}
+.dsq-modal{background:var(--dk);border:1px solid rgba(209,10,17,.18);border-radius:20px;padding:24px 22px;width:100%;max-width:520px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 30px 80px var(--shadow);transition:background .4s}
+.dsq-modal.wide{max-width:720px}
+.dsq-modal.ultrawide{max-width:900px}
 @media(max-width:575px){.dsq-modal{border-radius:20px 20px 0 0;max-width:100%;max-height:92vh}}
-.dsq-modal h5{font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fff;margin-bottom:2px}
-.modal-sub{font-size:.72rem;color:#333;margin-bottom:16px}
-.modal-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);color:#333;cursor:pointer;font-size:.85rem;padding:5px 7px;border-radius:7px;transition:all var(--trans);line-height:1;min-height:32px;min-width:32px;display:flex;align-items:center;justify-content:center}
-.modal-x:hover{color:#fff;background:rgba(255,255,255,.08)}
-.dsq-lbl{display:block;font-size:.68rem;color:#333;margin-bottom:3px;letter-spacing:.4px;text-transform:uppercase}
+.dsq-modal h5{font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--txt);margin-bottom:2px}
+.modal-sub{font-size:.72rem;color:var(--txt3);margin-bottom:16px}
+.modal-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);color:var(--txt3);cursor:pointer;font-size:.85rem;padding:5px 7px;border-radius:7px;transition:all var(--trans);line-height:1;min-height:32px;min-width:32px;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{color:var(--txt);background:rgba(255,255,255,.08)}
+.dsq-lbl{display:block;font-size:.68rem;color:var(--txt3);margin-bottom:3px;letter-spacing:.4px;text-transform:uppercase}
 .req-mark{color:var(--red)}
-.dsq-inp{width:100%;background:#181818;border:1px solid var(--bdr2);color:var(--txt);border-radius:8px;padding:9px 11px;font-size:.84rem;font-family:'Inter',sans-serif;transition:border-color var(--trans);outline:none}
+.dsq-inp{width:100%;background:var(--input-bg);border:1px solid var(--bdr2);color:var(--txt);border-radius:8px;padding:9px 11px;font-size:.84rem;font-family:'Inter',sans-serif;transition:border-color var(--trans),background .4s;outline:none}
 .dsq-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.08)}
-.dsq-inp::placeholder{color:#222}
-select.dsq-inp option{background:#181818}
+.dsq-inp::placeholder{color:var(--txt4)}
+select.dsq-inp option{background:var(--input-bg)}
 textarea.dsq-inp{resize:vertical;min-height:65px}
-.dsq-inp:disabled{color:#2a2a2a;cursor:not-allowed}
-.sec-div{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;color:#2a2a2a;letter-spacing:1.5px;text-transform:uppercase;padding:9px 0 5px;border-top:1px solid var(--bdr);margin-top:4px}
+.dsq-inp:disabled{color:var(--txt4);cursor:not-allowed}
+.sec-div{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;padding:9px 0 5px;border-top:1px solid var(--bdr);margin-top:4px}
 
-/* CALENDAR */
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));overflow-x:auto}
-.day-col{background:linear-gradient(150deg,#131313,#0f0f0f);border:1px solid var(--bdr);border-radius:11px;overflow:hidden;min-height:150px}
+/* CALENDAR SLOTS */
+.day-col{background:var(--card-bg);border:1px solid var(--bdr);border-radius:11px;overflow:hidden;min-height:150px;transition:background .4s,border-color .4s}
 .day-col.is-today{border-color:rgba(209,10,17,.35)}
 .day-col.wknd{border-color:rgba(245,197,24,.1)}
 .day-head{padding:8px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
 .day-head.is-today{background:rgba(209,10,17,.06)}
 .day-head.wknd{background:rgba(245,197,24,.025)}
-.d-name{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:#ccc}
-.d-date{font-size:.6rem;color:#2e2e2e;margin-top:1px}
+.d-name{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt2)}
+.d-date{font-size:.6rem;color:var(--txt3);margin-top:1px}
 .d-cnt{font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:3px;font-family:'Oswald',sans-serif}
-.d-cnt.none{background:#181818;color:#2a2a2a}
+.d-cnt.none{background:var(--dk3);color:var(--txt4)}
 .d-cnt.some{background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.15);color:#4ade80}
 .slots{padding:6px}
 .slot{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:7px;padding:8px 9px;margin-bottom:5px;cursor:pointer;transition:border-color var(--trans);border-left:3px solid transparent}
-.slot:hover{border-color:rgba(209,10,17,.3)}
+.slot:hover{border-color:rgba(209,10,17,.3)!important}
 .slot.Manual{border-left-color:#3b82f6}
 .slot.Automatic{border-left-color:#22c55e}
 .slot.Mock-Test{border-left-color:#ef4444}
@@ -159,27 +184,27 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .slot.Pass-Plus{border-left-color:#a855f7}
 .slot.Refresher{border-left-color:#eab308}
 .slot-time{font-size:.58rem;color:var(--gold);font-weight:700;letter-spacing:.3px;margin-bottom:1px}
-.slot-name{font-size:.78rem;font-weight:600;color:#ddd}
-.slot-info{font-size:.65rem;color:#333;margin-top:1px;line-height:1.4}
-.slot-del{float:right;background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.68rem;padding:1px 4px;border-radius:3px;transition:all var(--trans)}
+.slot-name{font-size:.78rem;font-weight:600;color:var(--txt2)}
+.slot-info{font-size:.65rem;color:var(--txt3);margin-top:1px;line-height:1.4}
+.slot-del{float:right;background:none;border:none;color:var(--bdr);cursor:pointer;font-size:.68rem;padding:1px 4px;border-radius:3px;transition:all var(--trans)}
 .slot-del:hover{color:#f87171;background:rgba(255,0,0,.08)}
-.add-slot{display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:#2a2a2a;font-size:.68rem;padding:6px;cursor:pointer;transition:all var(--trans);margin:6px}
-.add-slot:hover{border-color:rgba(209,10,17,.3);color:#666;background:rgba(209,10,17,.06)}
-.empty-day{padding:12px;text-align:center;font-size:.68rem;color:#1e1e1e}
+.add-slot{display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:var(--txt4);font-size:.68rem;padding:6px;cursor:pointer;transition:all var(--trans);margin:6px}
+.add-slot:hover{border-color:rgba(209,10,17,.3);color:var(--txt2);background:rgba(209,10,17,.06)}
+.empty-day{padding:12px;text-align:center;font-size:.68rem;color:var(--txt4)}
 
 /* INSTR DETAIL */
 .instr-hd{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .instr-avatar{width:58px;height:58px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0;background:var(--dk3)}
 .det-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:575px){.det-grid{grid-template-columns:1fr}}
-.det-item{background:#181818;border:1px solid var(--bdr);border-radius:8px;padding:10px 12px}
-.det-lbl{font-size:.58rem;color:#2e2e2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
-.det-val{font-size:.82rem;color:#ccc}
-.det-val.empty{color:#1e1e1e;font-style:italic}
+.det-item{background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;transition:background .4s}
+.det-lbl{font-size:.58rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.det-val{font-size:.82rem;color:var(--txt2)}
+.det-val.empty{color:var(--txt4);font-style:italic}
 
 /* MSG */
 .msg-type-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.mtype-btn{background:transparent;border:1px solid var(--bdr2);color:#333;border-radius:7px;padding:5px 10px;font-size:.72rem;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif;font-weight:600}
+.mtype-btn{background:transparent;border:1px solid var(--bdr2);color:var(--txt3);border-radius:7px;padding:5px 10px;font-size:.72rem;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif;font-weight:600}
 .mtype-btn[data-t="general"].active{border-color:#60a5fa;background:rgba(96,165,250,.12);color:#93c5fd}
 .mtype-btn[data-t="warning"].active{border-color:var(--gold);background:rgba(245,197,24,.1);color:var(--gold)}
 .mtype-btn[data-t="franchise_fee"].active{border-color:#f87171;background:rgba(209,10,17,.1);color:#f87171}
@@ -188,57 +213,91 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .msg-row:hover{background:rgba(255,255,255,.01)}
 .msg-row:last-child{border-bottom:none}
 .msg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.msg-dot.read{background:#1e1e1e}
+.msg-dot.read{background:var(--txt5)}
 .msg-dot.unread{background:var(--red);box-shadow:0 0 5px rgba(209,10,17,.5)}
-.msg-to{font-size:.63rem;color:#2e2e2e;margin-bottom:1px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
-.msg-subj{font-size:.8rem;font-weight:600;color:#ccc;margin-bottom:1px}
-.msg-prev{font-size:.7rem;color:#2e2e2e;line-height:1.4}
-.msg-meta{font-size:.6rem;color:#1e1e1e;margin-top:2px}
+.msg-to{font-size:.63rem;color:var(--txt4);margin-bottom:1px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
+.msg-subj{font-size:.8rem;font-weight:600;color:var(--txt2);margin-bottom:1px}
+.msg-prev{font-size:.7rem;color:var(--txt3);line-height:1.4}
+.msg-meta{font-size:.6rem;color:var(--txt4);margin-top:2px}
 
 /* PWD */
-.pwd-box{background:#181818;border:1px solid var(--bdr2);border-radius:8px;padding:9px 12px;font-family:'Courier New',monospace;font-size:.88rem;color:var(--gold);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pwd-box{background:var(--input-bg);border:1px solid var(--bdr2);border-radius:8px;padding:9px 12px;font-family:'Courier New',monospace;font-size:.88rem;color:var(--gold);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pwd-reveal{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);color:var(--gold);border-radius:5px;padding:3px 8px;font-size:.68rem;cursor:pointer;transition:all var(--trans)}
 .pwd-reveal:hover{background:rgba(245,197,24,.2)}
 
-/* FIND CLOSEST */
-.dist-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;transition:border-color var(--trans)}
+/* CHARTS */
+.chart-bar{background:var(--dk3);border-radius:4px;overflow:hidden;height:18px;flex:1}
+.chart-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.chart-fill.red{background:linear-gradient(90deg,var(--red),#b50008)}
+.chart-fill.gold{background:linear-gradient(90deg,var(--gold),#d4a800)}
+.chart-fill.green{background:linear-gradient(90deg,var(--green),#1da851)}
+.chart-fill.blue{background:linear-gradient(90deg,var(--blue),#2563eb)}
+.chart-fill.purple{background:linear-gradient(90deg,var(--purple),#7c3aed)}
+.chart-fill.orange{background:linear-gradient(90deg,#f97316,#ea580c)}
+.donut-wrap{position:relative;display:inline-block}
+
+/* DIST CARD */
+.dist-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;transition:border-color var(--trans),background .4s}
 .dist-card:hover{border-color:rgba(245,197,24,.2)}
 .dist-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold);border-radius:5px;padding:2px 8px;font-size:.7rem;font-weight:700;font-family:'Oswald',sans-serif}
 .dist-badge.close{background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.18);color:#4ade80}
 
-/* REQUEST CARD */
-.req-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+/* REQ CARDS */
+.req-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;transition:background .4s}
 .req-card.pending{border-color:rgba(245,197,24,.2)}
 .req-card.approved{border-color:rgba(37,211,102,.15)}
 .req-card.declined{border-color:rgba(209,10,17,.15);opacity:.75}
 
-/* OVERVIEW */
+/* STUDENT CARD */
+.student-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:11px 13px;transition:border-color var(--trans),background .4s}
+.student-card:hover{border-color:rgba(168,85,247,.25)}
+.s-init{width:34px;height:34px;border-radius:50%;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#c084fc;flex-shrink:0}
+
+/* ACTIVITY FEED */
+.act-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)}
+.act-item:last-child{border-bottom:none}
+.act-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.act-txt{font-size:.78rem;color:var(--txt2);line-height:1.5}
+.act-time{font-size:.62rem;color:var(--txt4);margin-top:2px}
+
+/* LOGIN LOG */
 .login-log-item{padding:9px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;gap:10px}
 .login-log-item:last-child{border-bottom:none}
 
+/* FORM */
+.form-inp{width:100%;background:var(--input-bg);border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:10px 13px;font-size:.86rem;outline:none;transition:border-color var(--trans),background .4s;font-family:'Inter',sans-serif;margin-bottom:11px}
+.form-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.1)}
+.form-inp::placeholder{color:var(--txt4)}
+.form-lbl{display:block;font-size:.68rem;color:var(--txt3);margin-bottom:3px;text-align:left;letter-spacing:.4px;text-transform:uppercase}
+.login-err{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:#f87171;border-radius:8px;padding:8px 12px;font-size:.79rem;margin-bottom:11px;text-align:left}
+.btn-login{width:100%;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:700;padding:.78rem;cursor:pointer;transition:all var(--trans);letter-spacing:.5px}
+.btn-login:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
+.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
 /* TOAST */
-.dsq-toast{position:fixed;bottom:22px;right:22px;z-index:9000;background:var(--dk3);border:1px solid var(--bdr2);border-radius:11px;padding:10px 16px;font-size:.8rem;color:#ccc;transform:translateY(60px);opacity:0;transition:all .28s ease;max-width:280px;box-shadow:0 10px 30px rgba(0,0,0,.6);pointer-events:none}
+.dsq-toast{position:fixed;bottom:22px;right:22px;z-index:9000;background:var(--dk2);border:1px solid var(--bdr2);border-radius:11px;padding:10px 16px;font-size:.8rem;color:var(--txt2);transform:translateY(60px);opacity:0;transition:all .28s ease;max-width:300px;box-shadow:0 10px 30px var(--shadow);pointer-events:none}
 .dsq-toast.show{transform:translateY(0);opacity:1}
 .dsq-toast.success{border-color:rgba(37,211,102,.3);color:#4ade80}
 .dsq-toast.error{border-color:rgba(209,10,17,.3);color:#f87171}
 .dsq-toast.warn{border-color:rgba(245,197,24,.3);color:var(--gold)}
 
-/* FORM */
-.form-inp{width:100%;background:#181818;border:1px solid #222;color:var(--txt);border-radius:8px;padding:10px 13px;font-size:.86rem;outline:none;transition:border-color var(--trans);font-family:'Inter',sans-serif;margin-bottom:11px}
-.form-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.1)}
-.form-inp::placeholder{color:#252525}
-.form-lbl{display:block;font-size:.68rem;color:#3a3a3a;margin-bottom:3px;text-align:left;letter-spacing:.4px;text-transform:uppercase}
-.login-err{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:#f87171;border-radius:8px;padding:8px 12px;font-size:.79rem;margin-bottom:11px;text-align:left}
-.btn-login{width:100%;background:linear-gradient(135deg,var(--red),#b50008);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:700;padding:.78rem;cursor:pointer;transition:all var(--trans);letter-spacing:.5px}
-.btn-login:hover{background:linear-gradient(135deg,#e01015,var(--red));transform:translateY(-1px)}
-.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* MISC */
+.section-label{font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);letter-spacing:.8px;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid var(--bdr);margin-bottom:12px}
+.info-box{background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.15);border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--txt2);line-height:1.7}
+.warn-box{background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.15);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#ccc;line-height:1.7}
+.success-box{background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:12px 14px;font-size:.8rem;color:#4ade80;line-height:1.7}
+.search-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.hr-sep{height:1px;background:var(--bdr);margin:12px 0}
+.page-title{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt);margin-bottom:14px}
+.progress-bar{height:6px;background:var(--dk3);border-radius:3px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s}
 
 @media(max-width:575px){.hide-xs{display:none!important}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- ════ LOGIN ════ -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <img class="login-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
@@ -249,60 +308,62 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <input class="form-inp" id="adminEmail" type="email" placeholder="admin@drivesq.co.uk" autocomplete="email"/>
     <label class="form-lbl">Password</label>
     <input class="form-inp" id="adminPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
-    <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In →</button>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In to Admin →</button>
   </div>
 </div>
 
-<!-- NAV -->
+<!-- ════ NAV ════ -->
 <nav class="dsq-nav hidden" id="mainNav">
   <div class="container-fluid px-3">
     <div class="d-flex align-items-center gap-2 py-2" style="min-height:54px">
       <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
       <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Admin Panel</div></div>
       <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
-      <div class="ms-auto">
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
       </div>
     </div>
   </div>
 </nav>
 
-<!-- PAGE -->
+<!-- ════ MAIN PAGE ════ -->
 <div class="container-fluid px-3 py-3 hidden" id="mainPage" style="max-width:1400px;margin:0 auto;padding-bottom:40px!important">
 
   <!-- TABS -->
   <div class="dsq-tabs mb-3">
     <button class="dsq-tab active" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
+    <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
-    <button class="dsq-tab" id="tab-overview" onclick="switchTab('overview')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Overview</span></button>
+    <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab hidden" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i></button>
   </div>
 
-  <!-- STATS -->
-  <div class="row g-2 mb-3">
-    <div class="col-6 col-md-3"><div class="stat-card r"><div class="stat-lbl">Total Instructors</div><div class="stat-num r" id="sTotal">0</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card g"><div class="stat-lbl">Pending</div><div class="stat-num g" id="sPend">0</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card gr"><div class="stat-lbl">Approved</div><div class="stat-num gr" id="sApproved">0</div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card b"><div class="stat-lbl">Lessons Today</div><div class="stat-num b" id="sToday">0</div></div></div>
+  <!-- GLOBAL STATS -->
+  <div class="row g-2 mb-3" id="globalStats">
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card r"><div class="stat-lbl">Instructors</div><div class="stat-num r" id="sTotal">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card g"><div class="stat-lbl">Pending</div><div class="stat-num g" id="sPend">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr"><div class="stat-lbl">Approved</div><div class="stat-num gr" id="sApproved">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b"><div class="stat-lbl">Lessons Today</div><div class="stat-num b" id="sToday">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card p"><div class="stat-lbl">This Week</div><div class="stat-num p" id="sWeek">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card g"><div class="stat-lbl">Hours This Week</div><div class="stat-num g" id="sHours">0</div></div></div>
   </div>
 
-  <!-- ── INSTRUCTORS ── -->
+  <!-- ══ INSTRUCTORS ══ -->
   <div id="panel-instructors">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>All Instructors</div>
+      <div class="page-title mb-0"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>All Instructors</div>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn-gold" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
-        <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" placeholder="Search name, badge, postcode…" oninput="filterInstrs(this.value)" id="instrSearch"/>
-        <select class="dsq-inp" style="max-width:140px;padding:6px 10px;font-size:.8rem" onchange="filterInstrs(document.getElementById('instrSearch').value)" id="statusFilter">
-          <option value="">All statuses</option>
-          <option value="approved">Approved</option>
-          <option value="pending">Pending</option>
-          <option value="suspended">Suspended</option>
+        <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.8rem" placeholder="Search…" oninput="filterInstrs(this.value)" id="instrSearch"/>
+        <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="filterInstrs(document.getElementById('instrSearch').value)" id="statusFilter">
+          <option value="">All statuses</option><option value="approved">Approved</option>
+          <option value="pending">Pending</option><option value="suspended">Suspended</option>
           <option value="rejected">Rejected</option>
         </select>
       </div>
@@ -311,7 +372,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="tbl-scroll">
         <table>
           <thead><tr>
-            <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th><th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Joined</th><th>Actions</th>
+            <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th>
+            <th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -319,9 +381,9 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     </div>
   </div>
 
-  <!-- ── PENDING ── -->
+  <!-- ══ PENDING ══ -->
   <div id="panel-pending" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-hourglass-split me-2" style="color:var(--gold)"></i>Pending Applications</div>
+    <div class="page-title mb-3"><i class="bi bi-hourglass-split me-2" style="color:var(--gold)"></i>Pending Applications</div>
     <div class="dsq-card">
       <div class="tbl-scroll">
         <table>
@@ -332,33 +394,59 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     </div>
   </div>
 
-  <!-- ── REQUESTS ── -->
+  <!-- ══ STUDENTS ══ -->
+  <div id="panel-students" class="hidden">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div class="page-title mb-0"><i class="bi bi-people me-2" style="color:#c084fc"></i>All Students</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" placeholder="Search students…" oninput="filterAllStudents(this.value)" id="studentSearch"/>
+        <select class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentInstrFilter">
+          <option value="">All instructors</option>
+        </select>
+        <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+      </div>
+    </div>
+    <div id="studentCount" class="mb-2" style="font-size:.75rem;color:var(--txt3)"></div>
+    <div class="dsq-card">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
+            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="studentsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REQUESTS ══ -->
   <div id="panel-requests" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
+    <div class="page-title mb-3"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
     <div id="reqList" class="d-flex flex-column gap-3"></div>
   </div>
 
-  <!-- ── TRANSFERS ── -->
+  <!-- ══ TRANSFERS ══ -->
   <div id="panel-transfers" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Transfer Requests</div>
+    <div class="page-title mb-3"><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Transfer Requests</div>
     <div id="transferList" class="d-flex flex-column gap-3"></div>
   </div>
 
-  <!-- ── MESSAGES ── -->
+  <!-- ══ MESSAGES ══ -->
   <div id="panel-messages" class="hidden">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
+      <div class="page-title mb-0"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn-p" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
-        <button class="btn-gold" onclick="openMsgModal(null)"><i class="bi bi-envelope me-1"></i>Message Individual</button>
+        <button class="btn-gold" onclick="openMsgModal(null)"><i class="bi bi-envelope me-1"></i>Individual</button>
       </div>
     </div>
-    <div class="dsq-card"><div id="msgList"><div style="padding:24px;text-align:center;font-size:.82rem;color:#222">Loading…</div></div></div>
+    <div class="dsq-card"><div id="msgList"><div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)">Loading…</div></div></div>
   </div>
 
-  <!-- ── ADD INSTRUCTOR ── -->
+  <!-- ══ ADD INSTRUCTOR ══ -->
   <div id="panel-add" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-plus me-2" style="color:var(--red)"></i>Create Instructor Account</div>
+    <div class="page-title mb-3"><i class="bi bi-person-plus me-2" style="color:var(--red)"></i>Create Instructor Account</div>
     <div class="dsq-card p-3" style="max-width:680px">
       <div class="row g-2">
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-name" placeholder="e.g. James Fletcher"/></div>
@@ -381,13 +469,13 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     </div>
   </div>
 
-  <!-- ── FIND CLOSEST ── -->
+  <!-- ══ FIND CLOSEST ══ -->
   <div id="panel-find" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-geo-alt-fill me-2" style="color:var(--gold)"></i>Find Closest Instructor</div>
+    <div class="page-title mb-3"><i class="bi bi-geo-alt-fill me-2" style="color:var(--gold)"></i>Find Closest Instructor</div>
     <div class="row g-3">
       <div class="col-12 col-md-4">
         <div class="dsq-card p-3">
-          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px">Student Details</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt2);margin-bottom:12px">Student Details</div>
           <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Student full name"/></div>
           <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
           <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
@@ -398,46 +486,86 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
             </select>
           </div>
           <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
-          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructors</button>
+          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest</button>
         </div>
       </div>
       <div class="col-12 col-md-8">
-        <div id="findResults"><div style="padding:32px;text-align:center;font-size:.84rem;color:#333">Enter student details and click Find to see nearby instructors ranked by distance.</div></div>
+        <div id="findResults"><div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Enter student details and click Find to see nearby instructors ranked by distance.</div></div>
       </div>
     </div>
   </div>
 
-  <!-- ── OVERVIEW ── -->
-  <div id="panel-overview" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Overview</div>
+  <!-- ══ ANALYTICS ══ -->
+  <div id="panel-analytics" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Analytics &amp; Reports</div>
     <div class="row g-3">
-      <div class="col-12 col-md-6">
+      <!-- Hours per instructor -->
+      <div class="col-12 col-lg-6">
         <div class="dsq-card p-3">
-          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px"><i class="bi bi-clock-history me-2" style="color:var(--red)"></i>Recent Login Activity</div>
-          <div id="loginLog"><div style="text-align:center;font-size:.8rem;color:#333;padding:16px">Loading…</div></div>
+          <div class="section-label"><i class="bi bi-clock me-2" style="color:var(--red)"></i>Weekly Hours per Instructor</div>
+          <div id="hoursChart"><div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">Loading…</div></div>
         </div>
       </div>
-      <div class="col-12 col-md-6">
+      <!-- Lesson types breakdown -->
+      <div class="col-12 col-lg-6">
         <div class="dsq-card p-3">
-          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#ccc;margin-bottom:12px"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Lessons This Week (by Instructor)</div>
-          <div id="overviewChart"></div>
+          <div class="section-label"><i class="bi bi-pie-chart me-2" style="color:var(--gold)"></i>Lesson Types This Week</div>
+          <div id="typeChart"></div>
+        </div>
+      </div>
+      <!-- Login activity -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-clock-history me-2" style="color:var(--red)"></i>Recent Login Activity</div>
+          <div id="loginLog"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <!-- Lessons per day this week -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-calendar-week me-2" style="color:var(--purple)"></i>Lessons Per Day This Week</div>
+          <div id="dailyChart"></div>
+        </div>
+      </div>
+      <!-- Top instructors -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-trophy me-2" style="color:var(--gold)"></i>Top Instructors by Lessons (This Week)</div>
+          <div id="topInstrsChart"></div>
+        </div>
+      </div>
+      <!-- Instructor hours table -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-table me-2" style="color:var(--green)"></i>Instructor Stats This Week</div>
+          <div class="tbl-scroll">
+            <table style="min-width:auto">
+              <thead><tr><th>Instructor</th><th>Lessons</th><th>Hours</th><th>Students</th></tr></thead>
+              <tbody id="instrStatsTable"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── CALENDAR (instructor view) ── -->
+  <!-- ══ CALENDAR (instructor view) ══ -->
   <div id="panel-calendar" class="hidden">
-    <!-- header injected by JS -->
     <div id="calInstrHd" class="mb-3"></div>
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
       <button class="btn-s" onclick="adminChangeWeek(-1)"><i class="bi bi-chevron-left"></i></button>
-      <div id="adminWeekLbl" style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#666;min-width:150px;text-align:center;padding:7px 10px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px">…</div>
+      <div id="adminWeekLbl" style="font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--txt3);min-width:150px;text-align:center;padding:7px 10px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px">…</div>
       <button class="btn-s" style="background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red);font-family:'Oswald',sans-serif;font-weight:600" onclick="adminGoToday()">Today</button>
       <button class="btn-s" onclick="adminChangeWeek(1)"><i class="bi bi-chevron-right"></i></button>
+      <div id="calWeekStats" class="ms-auto d-flex gap-2 flex-wrap"></div>
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:8px;min-width:770px" id="adminCalGrid"></div>
+    </div>
+    <!-- Students roster for this instructor -->
+    <div class="mt-3">
+      <div class="section-label"><i class="bi bi-person-lines-fill me-2" style="color:#c084fc"></i>Saved Students (Roster)</div>
+      <div id="instrRosterList" class="row g-2"></div>
     </div>
   </div>
 
@@ -445,7 +573,9 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
 <div class="dsq-toast" id="toast"></div>
 
-<!-- ════ EDIT MODAL ════ -->
+<!-- ════════════ MODALS ════════════ -->
+
+<!-- EDIT MODAL -->
 <div class="dsq-overlay" id="editModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('editModal')"><i class="bi bi-x-lg"></i></button>
@@ -467,10 +597,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </select>
       </div>
     </div>
-    <div class="sec-div">Show Lessons When Suspended</div>
+    <div class="sec-div">Suspension Settings</div>
     <div class="d-flex align-items-center gap-2 mb-2 py-1">
       <input type="checkbox" id="edit-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
-      <label style="font-size:.78rem;color:#555;cursor:pointer" for="edit-show-lessons">Allow instructor to view today's lessons while suspended</label>
+      <label style="font-size:.78rem;color:var(--txt3);cursor:pointer" for="edit-show-lessons">Allow instructor to view today's lessons while suspended</label>
     </div>
     <div class="sec-div">Password</div>
     <div class="mb-2">
@@ -483,7 +613,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ MSG MODAL ════ -->
+<!-- MSG MODAL -->
 <div class="dsq-overlay" id="msgModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('msgModal')"><i class="bi bi-x-lg"></i></button>
@@ -496,8 +626,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="msg-type-row">
         <button class="mtype-btn active" data-t="general" onclick="setMsgType('general','msgModal')">📢 General</button>
         <button class="mtype-btn" data-t="warning" onclick="setMsgType('warning','msgModal')">⚠️ Warning</button>
-        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','msgModal')">💰 Franchise Fee</button>
-        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','msgModal')">🪪 Badge Request</button>
+        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','msgModal')">💰 Fee</button>
+        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','msgModal')">🪪 Badge</button>
       </div>
     </div>
     <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="msg-subject" placeholder="Subject…"/></div>
@@ -507,7 +637,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ SEND ALL MODAL ════ -->
+<!-- SEND ALL MODAL -->
 <div class="dsq-overlay" id="sendAllModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('sendAllModal')"><i class="bi bi-x-lg"></i></button>
@@ -517,8 +647,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="msg-type-row">
         <button class="mtype-btn active" data-t="general" onclick="setMsgType('general','sendAllModal')">📢 General</button>
         <button class="mtype-btn" data-t="warning" onclick="setMsgType('warning','sendAllModal')">⚠️ Warning</button>
-        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','sendAllModal')">💰 Franchise Fee</button>
-        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','sendAllModal')">🪪 Badge Request</button>
+        <button class="mtype-btn" data-t="franchise_fee" onclick="setMsgType('franchise_fee','sendAllModal')">💰 Fee</button>
+        <button class="mtype-btn" data-t="badge_request" onclick="setMsgType('badge_request','sendAllModal')">🪪 Badge</button>
       </div>
     </div>
     <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="all-subject" placeholder="Subject…"/></div>
@@ -528,7 +658,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ ADD LESSON MODAL ════ -->
+<!-- ADD LESSON MODAL -->
 <div class="dsq-overlay" id="addLessonModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('addLessonModal')"><i class="bi bi-x-lg"></i></button>
@@ -561,7 +691,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ LESSON DETAIL MODAL ════ -->
+<!-- LESSON DETAIL MODAL -->
 <div class="dsq-overlay" id="lessonDetailModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('lessonDetailModal')"><i class="bi bi-x-lg"></i></button>
@@ -576,7 +706,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ ASSIGN STUDENT MODAL ════ -->
+<!-- ASSIGN STUDENT MODAL -->
 <div class="dsq-overlay" id="assignModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('assignModal')"><i class="bi bi-x-lg"></i></button>
@@ -584,11 +714,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="modal-sub" id="assignSub">Assigning to instructor</div>
     <input type="hidden" id="assign-instr-id"/>
     <input type="hidden" id="assign-instr-name"/>
-    <div id="assignDetails" class="mb-3" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;font-size:.8rem;color:#666;line-height:1.7"></div>
+    <div id="assignDetails" class="mb-3" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;font-size:.8rem;color:var(--txt3);line-height:1.7"></div>
     <div class="mb-3">
-      <label class="dsq-lbl">WhatsApp Notification (optional)</label>
+      <label class="dsq-lbl">WhatsApp Notification</label>
       <div style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:12px">
-        <div style="font-size:.76rem;color:#555;margin-bottom:8px">Click the button below to open WhatsApp and notify the instructor. They will receive a message with the student details and a link to check their portal.</div>
+        <div style="font-size:.76rem;color:var(--txt3);margin-bottom:8px">Notify the instructor via WhatsApp with student details and portal link.</div>
         <a id="waLink" href="#" target="_blank" class="abtn wa w-100" style="justify-content:center;padding:10px;font-size:.82rem;border-radius:8px;text-decoration:none">
           <i class="bi bi-whatsapp me-1"></i>Open WhatsApp to Notify Instructor
         </a>
@@ -599,26 +729,24 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ BLOCK MODAL ════ -->
+<!-- BLOCK MODAL -->
 <div class="dsq-overlay" id="blockModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('blockModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-slash-circle me-2" style="color:#c084fc"></i>Block Instructor</h5>
     <div class="modal-sub" id="blockModalSub">Block this instructor's access</div>
     <input type="hidden" id="block-id"/>
-    <div style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-size:.82rem;color:#888;line-height:1.7">When blocked, the instructor will see a suspension screen when they log in. You can optionally allow them to still view today's lessons.</div>
-    </div>
+    <div class="warn-box mb-3">When blocked, the instructor sees a suspension screen. They will not be able to use the portal until you unblock them.</div>
     <div class="d-flex align-items-center gap-2 mb-3">
       <input type="checkbox" id="block-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
-      <label style="font-size:.8rem;color:#555;cursor:pointer" for="block-show-lessons">Allow instructor to view today's lessons while blocked</label>
+      <label style="font-size:.8rem;color:var(--txt3);cursor:pointer" for="block-show-lessons">Allow instructor to still view today's lessons while blocked</label>
     </div>
     <button class="w-100 mb-2" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;padding:.7rem;cursor:pointer;min-height:44px" onclick="confirmBlock()"><i class="bi bi-slash-circle me-1"></i>Block Instructor</button>
     <button class="btn-s w-100" onclick="closeModal('blockModal')">Cancel</button>
   </div>
 </div>
 
-<!-- ════ REASSIGN MODAL ════ -->
+<!-- REASSIGN MODAL -->
 <div class="dsq-overlay" id="reassignModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('reassignModal')"><i class="bi bi-x-lg"></i></button>
@@ -633,14 +761,71 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
+<!-- STUDENT DETAIL MODAL -->
+<div class="dsq-overlay" id="studentDetailModal">
+  <div class="dsq-modal wide">
+    <button class="modal-x" onclick="closeModal('studentDetailModal')"><i class="bi bi-x-lg"></i></button>
+    <h5 id="sdTitle">Student Details</h5>
+    <div class="modal-sub" id="sdSub">—</div>
+    <div id="sdBody"></div>
+    <div class="mt-3 d-flex gap-2 flex-wrap" id="sdActions"></div>
+    <div class="mt-3">
+      <div class="section-label">Recent Lessons</div>
+      <div id="sdLessons"></div>
+    </div>
+    <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
+  </div>
+</div>
+
+<!-- SQL INFO MODAL -->
+<div class="dsq-overlay" id="sqlInfoModal">
+  <div class="dsq-modal wide">
+    <button class="modal-x" onclick="closeModal('sqlInfoModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-code-slash me-2" style="color:var(--gold)"></i>Required SQL — Run in Supabase SQL Editor</h5>
+    <div class="modal-sub">Run this SQL in your Supabase project to fix the delete cascade and enable all features</div>
+    <div style="background:#0a0a0a;border:1px solid var(--bdr);border-radius:10px;padding:14px;font-family:'Courier New',monospace;font-size:.75rem;color:#4ade80;line-height:1.8;overflow-x:auto;white-space:pre;max-height:60vh;overflow-y:auto" id="sqlContent"></div>
+    <button class="btn-gold w-100 mt-3" onclick="copySql()"><i class="bi bi-clipboard me-1"></i>Copy SQL to Clipboard</button>
+    <button class="btn-s w-100 mt-2" onclick="closeModal('sqlInfoModal')">Close</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
 const sb=supabase.createClient(SB_URL,SB_KEY);
+const PORTAL_URL='https://www.drivesq.co.uk/portal.html';
 
-/* ── AUTH ── */
+/* ══ THEME ══ */
+let manualTheme=localStorage.getItem('dsq_admin_theme')||'auto';
+function applyTheme(){
+  const h=new Date().getHours();const isDay=h>=7&&h<20;
+  let useDay;
+  if(manualTheme==='day')useDay=true;
+  else if(manualTheme==='night')useDay=false;
+  else useDay=isDay;
+  document.body.classList.toggle('day-mode',useDay);
+  const icon=document.getElementById('themeIcon');
+  if(icon)icon.className=useDay?'bi bi-moon-fill':'bi bi-sun-fill';
+  let meta=document.querySelector('meta[name="theme-color"]');
+  if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta);}
+  meta.content=useDay?'#ffffff':'#080808';
+}
+function toggleTheme(){
+  const h=new Date().getHours();const autoDay=h>=7&&h<20;
+  if(manualTheme==='auto')manualTheme=autoDay?'night':'day';
+  else if(manualTheme==='day')manualTheme='night';
+  else manualTheme='auto';
+  localStorage.setItem('dsq_admin_theme',manualTheme);
+  applyTheme();
+  const labels={auto:'Auto (time-based)',day:'Day mode',night:'Night mode'};
+  showToast('Theme: '+labels[manualTheme]);
+}
+applyTheme();
+setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
+
+/* ══ AUTH ══ */
 if(sessionStorage.getItem('dsq_admin')==='true')showApp();
 
 async function doLogin(){
@@ -656,8 +841,8 @@ async function doLogin(){
     if(error||!data){showLoginErr('Admin account not found.');return;}
     if(data.password_hash!==btoa(pass)){showLoginErr('Incorrect password.');return;}
     sessionStorage.setItem('dsq_admin','true');showApp();
-  }catch(e){showLoginErr('Connection error. Please try again.');}
-  finally{btn.textContent='Sign In →';btn.disabled=false;}
+  }catch(e){showLoginErr('Connection error.');}
+  finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
 }
 function showLoginErr(msg){const el=document.getElementById('loginErr');el.textContent=msg;el.classList.remove('hidden');}
 function showApp(){
@@ -668,7 +853,7 @@ function showApp(){
 }
 function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reload();}
 
-/* ── STATE ── */
+/* ══ STATE ══ */
 let allInstrs=[];
 let viewingId=null,viewingName='',viewingData=null;
 let adminWeekOffset=0,adminLessons=[];
@@ -676,36 +861,39 @@ let msgTypes={msgModal:'general',sendAllModal:'general'};
 let pwdRevealed=false;
 let activeLessonId=null;
 let fcStudentData=null;
+let allStudentsCache=[];
 
-/* ── UTILS ── */
+/* ══ UTILS ══ */
 function pad2(n){return String(n).padStart(2,'0');}
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function dateKey(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function getMonday(offset=0){const d=new Date();const day=d.getDay();const diff=day===0?-6:1-day;d.setDate(d.getDate()+diff+(offset*7));d.setHours(0,0,0,0);return d;}
 function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=h*60+m+parseFloat(hrs)*60;return pad2(Math.floor(t/60)%24)+':'+pad2(Math.round(t%60));}
-function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' at '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
+function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
 function fmtD(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
 
-/* ── TABS ── */
-const TABS=['instructors','pending','requests','transfers','messages','add','find','overview','calendar'];
+/* ══ TABS ══ */
+const TABS=['instructors','pending','students','requests','transfers','messages','add','find','analytics','calendar'];
 function switchTab(t){
   TABS.forEach(id=>{
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
   });
   if(t==='messages')loadMessages();
-  if(t==='overview'){loadLoginLog();loadOverviewChart();}
+  if(t==='analytics'){loadAnalytics();}
   if(t==='requests')loadStudentRequests();
   if(t==='transfers')loadTransferRequests();
+  if(t==='students')loadAllStudents();
 }
 
-/* ── LOAD ALL ── */
+/* ══ LOAD ALL ══ */
 async function loadAll(){
   await loadInstrs();
-  loadStats();
+  loadGlobalStats();
   populateDropdowns();
 }
 
@@ -722,43 +910,58 @@ async function loadInstrs(){
   document.getElementById('sApproved').textContent=allInstrs.filter(i=>i.status==='approved').length;
 }
 
-async function loadStats(){
+async function loadGlobalStats(){
   const tk=todayKey();
-  const{count}=await sb.from('lessons').select('id',{count:'exact'}).eq('lesson_date',tk);
-  document.getElementById('sToday').textContent=count||0;
+  const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const[todayR,weekR]=await Promise.all([
+    sb.from('lessons').select('id',{count:'exact',head:true}).eq('lesson_date',tk),
+    sb.from('lessons').select('duration_hours').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun))
+  ]);
+  document.getElementById('sToday').textContent=todayR.count||0;
+  const weekLessons=weekR.data||[];
+  document.getElementById('sWeek').textContent=weekLessons.length;
+  const hrs=weekLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
 }
 
 function populateDropdowns(){
-  const all=allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number)})</option>`).join('');
+  const all=allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number||'—')})</option>`).join('');
   document.getElementById('msg-recipient').innerHTML='<option value="">Select instructor…</option>'+all;
   document.getElementById('al-instr').innerHTML='<option value="">Select…</option>'+all;
   document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  // Student filter dropdown
+  const sf=document.getElementById('studentInstrFilter');
+  if(sf)sf.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
 }
 
-/* ── RENDER TABLES ── */
+/* ══ RENDER INSTRUCTORS ══ */
 function renderInstrsTable(list){
   const tb=document.getElementById('instrTbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#222;padding:24px">No instructors found.</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--txt4);padding:24px">No instructors found.</td></tr>';return;}
   tb.innerHTML=list.map(i=>{
     const isSusp=i.status==='suspended';
     const blockBtn=isSusp
       ?`<button class="abtn unblock" onclick="unblockInstr('${i.id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
       :`<button class="abtn block" onclick="openBlockModal('${i.id}','${esc(i.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
-    const loginTime=i.last_login?fmtDT(i.last_login):'Never';
+    const waNum=buildWaNum(i.phone||'');
+    const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:'';
+    const weekHrs=(i._weekHrs||0).toFixed(1);
     return`<tr>
-      <td style="color:#ddd;font-weight:600">
+      <td style="color:var(--txt);font-weight:600">
         ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>
       </td>
-      <td style="font-family:'Oswald',sans-serif;font-size:.75rem">${esc(i.badge_number||'—')}</td>
+      <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
       <td class="hide-xs">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}">${i.status}</span></td>
-      <td class="hide-xs" style="font-size:.72rem;color:#333">${loginTime}</td>
-      <td class="hide-xs" style="color:#2a2a2a">${fmtD(i.created_at)}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
+      <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
+        <button class="abtn students" onclick="viewInstrStudents('${i.id}','${esc(i.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
         <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
         <button class="abtn msg" onclick="openMsgModal('${i.id}')"><i class="bi bi-envelope"></i></button>
+        ${waBtn}
         ${blockBtn}
         <button class="abtn del" onclick="deleteInstr('${i.id}','${esc(i.full_name)}')"><i class="bi bi-trash"></i></button>
       </td>
@@ -768,9 +971,10 @@ function renderInstrsTable(list){
 
 function renderPendingTable(list){
   const tb=document.getElementById('pendingTbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#222;padding:24px">No pending applications.</td></tr>';return;}
-  tb.innerHTML=list.map(i=>`<tr>
-    <td style="color:#ddd;font-weight:600">${esc(i.full_name)}</td>
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--txt4);padding:24px">No pending applications.</td></tr>';return;}
+  tb.innerHTML=list.map(i=>{ const waNum=buildWaNum(i.phone||'');
+    return`<tr>
+    <td style="color:var(--txt);font-weight:600">${esc(i.full_name)}</td>
     <td style="font-family:'Oswald',sans-serif">${esc(i.badge_number||'—')}</td>
     <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
     <td class="hide-xs">${esc(i.email||'—')}</td>
@@ -779,16 +983,26 @@ function renderPendingTable(list){
     <td>
       <button class="abtn approve" onclick="updateStatus('${i.id}','approved')"><i class="bi bi-check-lg me-1"></i>Approve</button>
       <button class="abtn reject" onclick="updateStatus('${i.id}','rejected')"><i class="bi bi-x-lg me-1"></i>Reject</button>
+      ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! Your DriveSQ application has been reviewed. Please log into the portal: '+PORTAL_URL)}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
     </td>
-  </tr>`).join('');
+  </tr>`}).join('');
 }
 
 function filterInstrs(q){
   const status=document.getElementById('statusFilter').value;
   let list=allInstrs;
   if(status)list=list.filter(i=>i.status===status);
-  if(q){const lq=q.toLowerCase();list=list.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq));}
+  if(q){const lq=q.toLowerCase();list=list.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq)||(i.email||'').toLowerCase().includes(lq));}
   renderInstrsTable(list);
+}
+
+function buildWaNum(phone){
+  if(!phone)return'';
+  const d=phone.replace(/\D/g,'');
+  if(!d)return'';
+  if(d.startsWith('44'))return d;
+  if(d.startsWith('0'))return'44'+d.slice(1);
+  return'44'+d;
 }
 
 async function updateStatus(id,status){
@@ -798,130 +1012,226 @@ async function updateStatus(id,status){
   await loadInstrs();
 }
 
+/* ══ DELETE INSTRUCTOR — FIXED CASCADE ══ */
 async function deleteInstr(id,name){
-  if(!confirm(`Remove ${name}?\n\nThis will permanently delete their account, all their lessons, and all their messages.`))return;
+  if(!confirm(`⚠️ PERMANENTLY REMOVE "${name}"?\n\nThis will delete:\n• Their instructor account\n• ALL their lessons\n• ALL admin messages to them\n• All student requests & transfers\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
+  showToast('Deleting instructor…','warn');
   try{
-    await sb.from('lesson_reminders').delete().eq('instructor_id',id);
-    await sb.from('admin_messages').delete().eq('instructor_id',id);
-    await sb.from('lessons').delete().eq('instructor_id',id);
-    await sb.from('student_requests').delete().eq('instructor_id',id);
+    // Step by step — order matters for foreign key constraints
+    // 1. lesson_reminders (references lessons + instructors)
+    const{error:e1}=await sb.from('lesson_reminders').delete().eq('instructor_id',id);
+    if(e1)console.warn('lesson_reminders delete:',e1);
+    // 2. admin_messages
+    const{error:e2}=await sb.from('admin_messages').delete().eq('instructor_id',id);
+    if(e2)console.warn('admin_messages delete:',e2);
+    // 3. student profiles
+    const{error:e3}=await sb.from('student_profiles').delete().eq('instructor_id',id);
+    if(e3)console.warn('student_profiles delete:',e3);
+    // 4. student requests
+    const{error:e4}=await sb.from('student_requests').delete().eq('instructor_id',id);
+    if(e4)console.warn('student_requests delete:',e4);
+    // 5. transfer requests (both directions)
     await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
-    const{error}=await sb.from('instructors').delete().eq('id',id);
-    if(error)throw error;
-    showToast('🗑️ Instructor removed.','error');
+    await sb.from('transfer_requests').delete().eq('to_instructor_id',id);
+    // 6. lessons
+    const{error:e6}=await sb.from('lessons').delete().eq('instructor_id',id);
+    if(e6)console.warn('lessons delete:',e6);
+    // 7. instructor record itself
+    const{error:eMain}=await sb.from('instructors').delete().eq('id',id);
+    if(eMain){
+      console.error('Instructor delete error:',eMain);
+      // If still failing, it's likely a DB-level FK constraint — show SQL helper
+      showSqlHelper(id,name);
+      showToast('Delete blocked by database constraint. See SQL helper.','error');
+      return;
+    }
+    showToast('🗑️ Instructor "'+name+'" removed.','success');
     await loadInstrs();
     if(viewingId===id){viewingId=null;switchTab('instructors');}
-  }catch(e){showToast('Failed to remove instructor.','error');}
+  }catch(e){
+    console.error('Delete failed:',e);
+    showToast('Delete failed. See SQL helper for manual fix.','error');
+    showSqlHelper(id,name);
+  }
 }
 
-/* ── BLOCK / UNBLOCK ── */
+function showSqlHelper(id,name){
+  const sql=`-- ╔══════════════════════════════════════════════════════════╗
+-- ║  DRIVESQ — INSTRUCTOR DELETE SQL FIX                   ║
+-- ║  Run this in Supabase → SQL Editor to fix cascade      ║
+-- ╚══════════════════════════════════════════════════════════╝
+
+-- OPTION A: Manually delete "${name}" (ID: ${id})
+-- Run each line one at a time:
+
+DELETE FROM lesson_reminders WHERE instructor_id = '${id}';
+DELETE FROM admin_messages WHERE instructor_id = '${id}';
+DELETE FROM student_profiles WHERE instructor_id = '${id}';
+DELETE FROM student_requests WHERE instructor_id = '${id}';
+DELETE FROM transfer_requests WHERE from_instructor_id = '${id}';
+DELETE FROM transfer_requests WHERE to_instructor_id = '${id}';
+DELETE FROM lessons WHERE instructor_id = '${id}';
+DELETE FROM instructors WHERE id = '${id}';
+
+
+-- OPTION B: Fix cascade constraints so future deletes work automatically
+-- Run this ONCE to add ON DELETE CASCADE to all related tables:
+
+-- Fix lessons table
+ALTER TABLE lessons
+  DROP CONSTRAINT IF EXISTS lessons_instructor_id_fkey,
+  ADD CONSTRAINT lessons_instructor_id_fkey
+    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- Fix admin_messages table
+ALTER TABLE admin_messages
+  DROP CONSTRAINT IF EXISTS admin_messages_instructor_id_fkey,
+  ADD CONSTRAINT admin_messages_instructor_id_fkey
+    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- Fix student_requests table
+ALTER TABLE student_requests
+  DROP CONSTRAINT IF EXISTS student_requests_instructor_id_fkey,
+  ADD CONSTRAINT student_requests_instructor_id_fkey
+    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- Fix student_profiles table
+ALTER TABLE student_profiles
+  DROP CONSTRAINT IF EXISTS student_profiles_instructor_id_fkey,
+  ADD CONSTRAINT student_profiles_instructor_id_fkey
+    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- Fix transfer_requests table
+ALTER TABLE transfer_requests
+  DROP CONSTRAINT IF EXISTS transfer_requests_from_instructor_id_fkey,
+  ADD CONSTRAINT transfer_requests_from_instructor_id_fkey
+    FOREIGN KEY (from_instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- Fix lesson_reminders table (if it references instructor_id directly)
+ALTER TABLE lesson_reminders
+  DROP CONSTRAINT IF EXISTS lesson_reminders_instructor_id_fkey,
+  ADD CONSTRAINT lesson_reminders_instructor_id_fkey
+    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE;
+
+-- After running Option B, future deletes from the admin panel will work automatically.`;
+  document.getElementById('sqlContent').textContent=sql;
+  openModal('sqlInfoModal');
+}
+
+function copySql(){
+  const txt=document.getElementById('sqlContent').textContent;
+  navigator.clipboard.writeText(txt).then(()=>showToast('SQL copied to clipboard!','success'));
+}
+
+// Also expose a standalone SQL modal button
+function openSqlModal(){showSqlHelper('','YOUR_INSTRUCTOR_ID');}
+
+/* ══ BLOCK / UNBLOCK ══ */
 function openBlockModal(id,name){
   document.getElementById('block-id').value=id;
   document.getElementById('blockModalSub').textContent='Block '+name;
   document.getElementById('block-show-lessons').checked=false;
   openModal('blockModal');
 }
-
 async function confirmBlock(){
   const id=document.getElementById('block-id').value;
   const show=document.getElementById('block-show-lessons').checked;
   const{error}=await sb.from('instructors').update({status:'suspended',show_lessons:show}).eq('id',id);
-  if(error){showToast('Failed to block instructor.','error');return;}
-  showToast('⛔ Instructor blocked.','warn');
-  closeModal('blockModal');
-  await loadInstrs();
-  // Update block btn if viewing this instructor
-  if(viewingId===id){
-    viewingData=allInstrs.find(i=>i.id===id);
-    updateBlockBtn();
-    if(viewingData)renderInstrDetail(viewingData);
-  }
+  if(error){showToast('Failed to block.','error');return;}
+  showToast('⛔ Instructor blocked.','warn');closeModal('blockModal');await loadInstrs();
+  if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);updateBlockBtn();if(viewingData)renderInstrDetail(viewingData);}
 }
-
 async function unblockInstr(id){
   const{error}=await sb.from('instructors').update({status:'approved',show_lessons:true}).eq('id',id);
   if(error){showToast('Failed to unblock.','error');return;}
-  showToast('✅ Instructor unblocked.','success');
-  await loadInstrs();
+  showToast('✅ Instructor unblocked.','success');await loadInstrs();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);updateBlockBtn();if(viewingData)renderInstrDetail(viewingData);}
 }
-
 function updateBlockBtn(){
-  const bb=document.getElementById('blockToggleBtn');
-  if(!bb)return;
+  const bb=document.getElementById('blockToggleBtn');if(!bb)return;
   if(viewingData?.status==='suspended'){bb.innerHTML='<i class="bi bi-unlock me-1"></i>Unblock';bb.className='abtn unblock';}
   else{bb.innerHTML='<i class="bi bi-slash-circle me-1"></i>Block';bb.className='abtn block';}
 }
 
-/* ── VIEW INSTRUCTOR + CALENDAR ── */
+/* ══ VIEW INSTRUCTOR + CALENDAR ══ */
 async function viewInstr(id){
   const instr=allInstrs.find(i=>i.id===id);
   if(!instr)return;
   viewingId=id;viewingName=instr.full_name;viewingData=instr;
   adminWeekOffset=0;
-  // Build header
   const isSusp=instr.status==='suspended';
   const blockBtnHtml=isSusp
     ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
     :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${esc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
+  const waNum=buildWaNum(instr.phone||'');
+  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+instr.full_name+'! This is a message from DriveSQ admin. Please check your portal: '+PORTAL_URL)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>`:'';
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
       <img class="instr-avatar" src="${esc(instr.profile_photo_url||'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png')}" alt=""/>
       <div>
-        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:#fff;line-height:1">${esc(instr.full_name)}</div>
-        <div style="font-size:.72rem;color:#2e2e2e;margin-top:2px">${esc(instr.badge_number||'—')} · ${esc(instr.badge_type||'ADI')}</div>
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:var(--txt);line-height:1">${esc(instr.full_name)}</div>
+        <div style="font-size:.72rem;color:var(--txt3);margin-top:2px">${esc(instr.badge_number||'—')} · ${esc(instr.badge_type||'ADI')} · <span class="chip ${instr.status}" style="font-size:.6rem">${instr.status}</span></div>
       </div>
       <div class="ms-auto d-flex gap-2 flex-wrap">
+        <button class="abtn view" onclick="viewInstrStudents('${id}','${esc(instr.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
         <button class="abtn edit" onclick="openEditForId('${id}')"><i class="bi bi-pencil me-1"></i>Edit</button>
         <button class="abtn msg" onclick="openMsgModal('${id}')"><i class="bi bi-envelope me-1"></i>Message</button>
+        ${waBtn}
         ${blockBtnHtml}
         <button class="abtn del" onclick="deleteInstr('${id}','${esc(instr.full_name)}')"><i class="bi bi-trash me-1"></i>Remove</button>
       </div>
     </div>
-    <div class="det-grid mt-3 mb-3" id="instrDetailGrid"></div>
-    <div class="d-flex gap-2 flex-wrap mb-3">
+    <div class="det-grid mt-3 mb-2" id="instrDetailGrid"></div>
+    <div class="d-flex gap-2 flex-wrap mb-2">
       <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request Badge Photo</button>
       <button class="abtn approve" onclick="openAddLessonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
+      <button class="btn-s" style="font-size:.72rem;padding:4px 10px;min-height:30px" onclick="openSqlModal()"><i class="bi bi-code-slash me-1"></i>SQL Helper</button>
     </div>`;
   renderInstrDetail(instr);
   switchTab('calendar');
-  await loadAdminLessons();
+  await Promise.all([loadAdminLessons(),loadInstrRoster()]);
 }
 
 function renderInstrDetail(instr){
-  const grid=document.getElementById('instrDetailGrid');
-  if(!grid)return;
-  const carInfo=instr.car_model?`${instr.car_model}${instr.car_plate?' · '+instr.car_plate:''} (${instr.car_type||'Manual'})`:'Not provided';
+  const grid=document.getElementById('instrDetailGrid');if(!grid)return;
+  const carInfo=instr.car_model?`${instr.car_model}${instr.car_plate?' · '+instr.car_plate:''} (${instr.car_type||'Manual'})`:'—';
   const fields=[
-    ['Email',instr.email],['Phone',instr.phone],['Area',instr.area],
-    ['Address',instr.address],['Status',instr.status],
+    ['Email',instr.email],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
+    ['Area',instr.area],['Address',instr.address],
+    ['Status',`<span class="chip ${instr.status}">${instr.status}</span>`],
     ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
-    ['Joined',fmtD(instr.created_at)],['Badge Photo',instr.badge_photo_url?'✅ Uploaded':'❌ Not uploaded'],
+    ['Joined',fmtD(instr.created_at)],
+    ['Badge Photo',instr.badge_photo_url?'<span style="color:#4ade80">✅ Uploaded</span>':'<span style="color:#f87171">❌ Not uploaded</span>'],
     ['Vehicle',carInfo],
   ];
-  grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${esc(val||'—')}</div></div>`).join('');
+  grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${val||'—'}</div></div>`).join('');
 }
 
-/* ── ADMIN CALENDAR ── */
+/* ══ ADMIN CALENDAR ══ */
 async function loadAdminLessons(){
   if(!viewingId)return;
-  const mon=getMonday(adminWeekOffset);
-  const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const mon=getMonday(adminWeekOffset);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',viewingId).gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)).order('start_time',{ascending:true});
   adminLessons=data||[];
   renderAdminCal();
+  // Update week stats
+  const totalHrs=adminLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  const uniqStudents=new Set(adminLessons.map(l=>l.student_name)).size;
+  const statsEl=document.getElementById('calWeekStats');
+  if(statsEl)statsEl.innerHTML=`
+    <div style="background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--red)">${adminLessons.length} lessons</div>
+    <div style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#c084fc">${totalHrs.toFixed(1)}h on road</div>
+    <div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#4ade80">${uniqStudents} students</div>`;
 }
 
 function adminChangeWeek(d){adminWeekOffset+=d;loadAdminLessons();}
 function adminGoToday(){adminWeekOffset=0;loadAdminLessons();}
 
 function renderAdminCal(){
-  const mon=getMonday(adminWeekOffset);
-  const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const mon=getMonday(adminWeekOffset);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
   document.getElementById('adminWeekLbl').textContent=mon.getDate()+' '+MS[mon.getMonth()]+' – '+sun.getDate()+' '+MS[sun.getMonth()]+' '+sun.getFullYear();
-  const tk=todayKey();
-  const grid=document.getElementById('adminCalGrid');grid.innerHTML='';
+  const tk=todayKey();const grid=document.getElementById('adminCalGrid');grid.innerHTML='';
   for(let i=0;i<7;i++){
     const d=new Date(mon);d.setDate(d.getDate()+i);
     const dk=dateKey(d);const isT=dk===tk;const isW=i>=5;
@@ -931,8 +1241,7 @@ function renderAdminCal(){
     col.innerHTML=`<div class="day-head${isT?' is-today':isW?' wknd':''}">
       <div><div class="d-name">${DAYS[i].slice(0,3)}${isT?'<span style="color:var(--red);font-size:.5rem;margin-left:3px">TODAY</span>':''}</div><div class="d-date">${d.getDate()} ${MS[d.getMonth()]}</div></div>
       <div class="${dayLessons.length?'d-cnt some':'d-cnt none'}">${dayLessons.length}</div>
-    </div>
-    <div class="slots" id="adm-slots-${dk}"></div>
+    </div><div class="slots" id="adm-slots-${dk}"></div>
     <div class="add-slot" onclick="openAddLessonModal('${dk}')"><i class="bi bi-plus-lg me-1"></i>Add</div>`;
     grid.appendChild(col);
     const slotsEl=col.querySelector('.slots');
@@ -953,6 +1262,133 @@ function renderAdminCal(){
   }
 }
 
+/* ══ INSTRUCTOR ROSTER ══ */
+async function loadInstrRoster(){
+  if(!viewingId)return;
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',viewingId).order('name',{ascending:true});
+  const el=document.getElementById('instrRosterList');
+  if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
+  el.innerHTML=data.map(p=>`<div class="col-12 col-sm-6 col-md-4">
+    <div class="student-card">
+      <div class="d-flex align-items-start gap-2">
+        <div class="s-init">${(p.name||'?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}</div>
+          ${p.phone?`<div style="font-size:.7rem;color:var(--txt3)"><i class="bi bi-telephone me-1"></i>${esc(p.phone)}</div>`:''}
+          ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
+          <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
+          ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+/* ══ STUDENTS TAB ══ */
+async function loadAllStudents(){
+  const{data}=await sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false});
+  // Group by student+instructor
+  const map={};
+  (data||[]).forEach(l=>{
+    const key=l.student_name+'__'+l.instructor_id;
+    if(!map[key])map[key]={
+      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
+      instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
+      count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[]
+    };
+    const s=map[key];
+    s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
+    s.types.add(l.lesson_type||'Manual');
+    if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
+    s.lessons.push(l);
+  });
+  allStudentsCache=Object.values(map).sort((a,b)=>b.lastLesson.localeCompare(a.lastLesson));
+  renderStudentsTable(allStudentsCache);
+}
+
+function renderStudentsTable(students){
+  const tb=document.getElementById('studentsTbody');
+  document.getElementById('studentCount').textContent=`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
+  if(!students.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--txt4);padding:24px">No students found.</td></tr>';return;}
+  tb.innerHTML=students.map((s,idx)=>{
+    const waNum=buildWaNum(s.phone||'');
+    return`<tr>
+      <td style="color:var(--txt);font-weight:600">
+        <div style="width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:#c084fc;margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        ${esc(s.name)}
+      </td>
+      <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
+      <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
+      <td>${[...s.types].map(t=>`<span class="chip ${t.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(t)}</span>`).join(' ')}</td>
+      <td style="font-size:.77rem;color:var(--txt2)">${esc(s.instrName)}</td>
+      <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${s.count}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${fmtD(s.lastLesson)}</td>
+      <td style="white-space:nowrap">
+        <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
+        ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterAllStudents(q){
+  const instrId=document.getElementById('studentInstrFilter').value;
+  let list=allStudentsCache;
+  if(instrId)list=list.filter(s=>s.instrId===instrId);
+  if(q){const lq=q.toLowerCase();list=list.filter(s=>(s.name||'').toLowerCase().includes(lq)||(s.phone||'').includes(lq)||(s.address||'').toLowerCase().includes(lq)||(s.instrName||'').toLowerCase().includes(lq));}
+  renderStudentsTable(list);
+}
+
+function openStudentDetail(idx){
+  const s=allStudentsCache[idx];if(!s)return;
+  document.getElementById('sdTitle').textContent=s.name;
+  document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total`;
+  document.getElementById('sdBody').innerHTML=`
+    <div class="row g-2">
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Default Address</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName)}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Types</div><div class="det-val">${[...s.types].join(', ')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
+    </div>`;
+  const waNum=buildWaNum(s.phone||'');
+  document.getElementById('sdActions').innerHTML=`
+    ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
+    ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}`;
+  const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+  const recentLessons=s.lessons.slice(0,8);
+  document.getElementById('sdLessons').innerHTML=recentLessons.map(l=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px">
+      <div style="width:3px;height:36px;background:${tc[l.lesson_type]||'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.76rem;font-weight:600;color:var(--txt2)">${l.lesson_date} · ${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
+        <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
+      </div>
+      ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
+    </div>`).join('');
+  openModal('studentDetailModal');
+}
+
+function exportStudentsCSV(){
+  const list=allStudentsCache;
+  if(!list.length){showToast('No students to export.','error');return;}
+  const hdr='Student Name,Phone,Address,Lesson Type,Instructor,Lessons,Total Hours,Last Lesson';
+  const rows=list.map(s=>[s.name,s.phone||'',s.address||'',[...s.types].join('|'),s.instrName,s.count,s.hours.toFixed(1),s.lastLesson].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[hdr,...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='drivesq_students.csv';a.click();
+  showToast('Students exported ✓','success');
+}
+
+function viewInstrStudents(id,name){
+  switchTab('students');
+  const sf=document.getElementById('studentInstrFilter');
+  if(sf)sf.value=id;
+  if(allStudentsCache.length)filterAllStudents('');
+  else loadAllStudents().then(()=>{const sf2=document.getElementById('studentInstrFilter');if(sf2)sf2.value=id;filterAllStudents('');});
+}
+
+/* ══ LESSON ACTIONS ══ */
 function openAddLessonModal(dk){
   document.getElementById('al-date').value=dk||todayKey();
   if(viewingId)document.getElementById('al-instr').value=viewingId;
@@ -960,7 +1396,6 @@ function openAddLessonModal(dk){
   document.getElementById('addLessonSub').textContent=viewingName?`For ${viewingName}`:'Select instructor';
   openModal('addLessonModal');
 }
-
 async function saveAdminLesson(){
   const instrId=document.getElementById('al-instr').value;
   const date=document.getElementById('al-date').value;
@@ -980,36 +1415,31 @@ async function saveAdminLesson(){
   closeModal('addLessonModal');showToast('Lesson added ✓','success');
   if(viewingId===instrId)await loadAdminLessons();
 }
-
 function openLessonDetail(l){
   activeLessonId=l.id;
   const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
   const d=new Date(l.lesson_date+'T12:00:00');
   document.getElementById('ldTitle').textContent=l.student_name;
   document.getElementById('ldDate').textContent=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+l.start_time+'–'+end;
-  const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   document.getElementById('ldBody').innerHTML=[
     ['Time',`${l.start_time} – ${end} (${l.duration_hours}hr${l.duration_hours!=1?'s':''})`],
-    ['Type',`<span style="color:${tc[l.lesson_type]||'#60a5fa'};font-weight:700">${esc(l.lesson_type||'Manual')}</span>`],
+    ['Type',`<span style="color:${typeColors[l.lesson_type]||'#60a5fa'};font-weight:700">${esc(l.lesson_type||'Manual')}</span>`],
     ['Student',esc(l.student_name)],
     ['Phone',l.student_phone?`<a href="tel:${esc(l.student_phone)}" style="color:var(--red)">${esc(l.student_phone)}</a>`:'Not provided'],
     ['Pickup',esc(l.pickup_address)||'Not provided'],
     ['Notes',esc(l.notes)||'None'],
-  ].map(([lbl,val])=>`<div style="padding:7px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:.6rem;color:#2a2a2a;text-transform:uppercase;letter-spacing:1px">${lbl}</div><div style="font-size:.83rem;color:#ccc;margin-top:1px">${val}</div></div>`).join('');
+  ].map(([lbl,val])=>`<div style="padding:7px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px">${lbl}</div><div style="font-size:.83rem;color:var(--txt2);margin-top:1px">${val}</div></div>`).join('');
   const ms=document.getElementById('ldMaps');
   if(l.pickup_address){const q=encodeURIComponent(l.pickup_address);ms.innerHTML=`<a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.22);color:#93c5fd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;text-decoration:none;margin-top:6px"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>`;}
   else ms.innerHTML='';
   openModal('lessonDetailModal');
 }
-
 async function deleteAdminLesson(){
   if(!activeLessonId||!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',activeLessonId);
-  if(error){showToast('Failed to remove lesson.','error');return;}
-  closeModal('lessonDetailModal');showToast('Lesson removed.');
-  await loadAdminLessons();
+  if(error){showToast('Failed.','error');return;}
+  closeModal('lessonDetailModal');showToast('Lesson removed.');await loadAdminLessons();
 }
-
 async function confirmDelLesson(id){
   if(!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',id);
@@ -1017,14 +1447,11 @@ async function confirmDelLesson(id){
   showToast('Lesson removed.');await loadAdminLessons();
 }
 
-/* ── EDIT INSTRUCTOR ── */
+/* ══ EDIT INSTRUCTOR ══ */
 function openEditForId(id){
-  const instr=allInstrs.find(i=>i.id===id);
-  if(!instr)return;
-  viewingId=id;viewingData=instr;
-  openEditModal();
+  const instr=allInstrs.find(i=>i.id===id);if(!instr)return;
+  viewingId=id;viewingData=instr;openEditModal();
 }
-
 function openEditModal(){
   const instr=viewingData;if(!instr)return;
   document.getElementById('edit-id').value=instr.id;
@@ -1044,14 +1471,12 @@ function openEditModal(){
   document.querySelector('.pwd-reveal').innerHTML='<i class="bi bi-eye me-1"></i>Reveal';
   openModal('editModal');
 }
-
 function togglePwd(){
   pwdRevealed=!pwdRevealed;
   const el=document.getElementById('edit-pwd-txt');
   el.style.filter=pwdRevealed?'none':'blur(4px)';
   document.querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
 }
-
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
   const updates={
@@ -1069,22 +1494,16 @@ async function saveEdit(){
   if(np){updates.password=np;updates.password_hash=btoa(np);}
   const{error}=await sb.from('instructors').update(updates).eq('id',id);
   if(error){showToast('Failed to save.','error');return;}
-  showToast('Changes saved ✓','success');
-  closeModal('editModal');
+  showToast('Changes saved ✓','success');closeModal('editModal');
   await loadInstrs();
-  if(viewingId===id){
-    viewingData=allInstrs.find(i=>i.id===id);
-    renderInstrDetail(viewingData);
-    updateBlockBtn();
-  }
+  if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);renderInstrDetail(viewingData);updateBlockBtn();}
 }
 
-/* ── MESSAGES ── */
+/* ══ MESSAGES ══ */
 function setMsgType(t,modal){
   msgTypes[modal]=t;
   document.querySelectorAll(`#${modal} .mtype-btn`).forEach(b=>{b.classList.toggle('active',b.dataset.t===t);});
 }
-
 function openMsgModal(instrId){
   msgTypes.msgModal='general';
   document.querySelectorAll('#msgModal .mtype-btn').forEach(b=>b.classList.toggle('active',b.dataset.t==='general'));
@@ -1093,7 +1512,6 @@ function openMsgModal(instrId){
   document.getElementById('msgModalSub').textContent=instrId?'To individual instructor':'Select an instructor below';
   openModal('msgModal');
 }
-
 async function sendMsg(){
   const instrId=document.getElementById('msg-recipient').value;
   const subject=document.getElementById('msg-subject').value.trim();
@@ -1103,7 +1521,6 @@ async function sendMsg(){
   if(error){showToast('Failed to send.','error');return;}
   showToast('✉️ Message sent!','success');closeModal('msgModal');loadMessages();
 }
-
 async function sendAll(){
   const subject=document.getElementById('all-subject').value.trim();
   const body=document.getElementById('all-body').value.trim();
@@ -1113,15 +1530,13 @@ async function sendAll(){
   const rows=approved.map(i=>({instructor_id:i.id,subject,body,message_type:msgTypes.sendAllModal,is_read:false,dismissed:false,created_at:new Date().toISOString()}));
   const{error}=await sb.from('admin_messages').insert(rows);
   btn.innerHTML='<i class="bi bi-megaphone me-1"></i>Send to All';btn.disabled=false;
-  if(error){showToast('Failed to send.','error');return;}
+  if(error){showToast('Failed.','error');return;}
   showToast(`📢 Sent to ${approved.length} instructors!`,'success');closeModal('sendAllModal');loadMessages();
 }
-
 async function loadMessages(){
   const{data}=await sb.from('admin_messages').select('*,instructors(full_name)').order('created_at',{ascending:false}).limit(100);
-  const list=data||[];
-  const container=document.getElementById('msgList');
-  if(!list.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:#222">No messages sent yet.</div>';return;}
+  const list=data||[];const container=document.getElementById('msgList');
+  if(!list.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)">No messages sent yet.</div>';return;}
   const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
   container.innerHTML=list.map(m=>`<div class="msg-row">
     <div class="msg-dot ${m.is_read?'read':'unread'}"></div>
@@ -1131,34 +1546,32 @@ async function loadMessages(){
       <div class="msg-prev">${esc(m.body)}</div>
       <div class="msg-meta">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
     </div>
-    <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${m.is_read?'background:#181818;color:#2e2e2e':'background:rgba(209,10,17,.08);color:#f87171'}">${m.is_read?'Read':'Unread'}</span>
+    <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${m.is_read?'background:var(--dk3);color:var(--txt4)':'background:rgba(209,10,17,.08);color:#f87171'}">${m.is_read?'Read':'Unread'}</span>
   </div>`).join('');
 }
 
-/* ── BADGE PHOTO REQUEST ── */
+/* ══ BADGE REQUEST ══ */
 async function requestBadgePhoto(){
   if(!viewingId)return;
   const{error}=await sb.from('admin_messages').insert([{instructor_id:viewingId,subject:'Badge Photo Required',body:'DriveSQ admin has requested you upload your DVSA ADI/PDI badge photo. Please go to your Profile tab to upload it.',message_type:'badge_request',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
-  if(error){showToast('Failed to send request.','error');return;}
-  await sb.from('instructors').update({badge_photo_requested:true}).eq('id',viewingId);
+  if(error){showToast('Failed.','error');return;}
   showToast('🪪 Badge photo request sent!','success');
 }
 
-/* ── STUDENT REQUESTS ── */
+/* ══ STUDENT REQUESTS ══ */
 async function loadStudentRequests(){
   const{data}=await sb.from('student_requests').select('*,instructors(full_name)').order('created_at',{ascending:false});
-  const list=document.getElementById('reqList');
-  const reqs=data||[];
-  if(!reqs.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No student requests yet.</div>';return;}
+  const list=document.getElementById('reqList');const reqs=data||[];
+  if(!reqs.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No student requests yet.</div>';return;}
   list.innerHTML=reqs.map(r=>`<div class="req-card ${r.status}">
     <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
-        <div style="font-size:.76rem;color:#555">${esc(r.pickup_address||'')}${r.postcode?' · <strong style="color:#60a5fa">'+esc(r.postcode)+'</strong>':''}</div>
-        <div style="font-size:.74rem;color:#444;margin-top:3px">Assigned to: <strong style="color:#ddd">${esc(r.instructors?.full_name||'Unknown')}</strong></div>
-        ${r.lesson_type?`<div style="font-size:.72rem;color:#444"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
-        ${r.notes?`<div style="font-size:.72rem;color:#444;font-style:italic;margin-top:2px">${esc(r.notes)}</div>`:''}
-        <div style="font-size:.62rem;color:#333;margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.76rem;color:var(--txt3)">${esc(r.pickup_address||'')}${r.postcode?' · <strong style="color:#60a5fa">'+esc(r.postcode)+'</strong>':''}</div>
+        <div style="font-size:.74rem;color:var(--txt3);margin-top:3px">Instructor: <strong style="color:var(--txt)">${esc(r.instructors?.full_name||'Unknown')}</strong></div>
+        ${r.lesson_type?`<div style="font-size:.72rem;color:var(--txt3)"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
+        ${r.notes?`<div style="font-size:.72rem;color:var(--txt3);font-style:italic;margin-top:2px">${esc(r.notes)}</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <div class="d-flex flex-column align-items-end gap-1">
         <span class="chip ${r.status}">${r.status}</span>
@@ -1167,37 +1580,33 @@ async function loadStudentRequests(){
     </div>
   </div>`).join('');
 }
-
 function openReassignModal(reqId,studentName){
   document.getElementById('reassign-req-id').value=reqId;
   document.getElementById('reassignSub').textContent=`Reassign: ${studentName}`;
-  document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   openModal('reassignModal');
 }
-
 async function confirmReassign(){
   const reqId=document.getElementById('reassign-req-id').value;
   const instrId=document.getElementById('reassign-instr').value;
   if(!instrId){showToast('Select an instructor.','error');return;}
   const{error}=await sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId);
-  if(error){showToast('Failed to reassign.','error');return;}
-  showToast('Student reassigned ✓','success');closeModal('reassignModal');loadStudentRequests();
+  if(error){showToast('Failed.','error');return;}
+  showToast('Reassigned ✓','success');closeModal('reassignModal');loadStudentRequests();
 }
 
-/* ── TRANSFER REQUESTS ── */
+/* ══ TRANSFERS ══ */
 async function loadTransferRequests(){
   const{data}=await sb.from('transfer_requests').select('*,from_instructor:from_instructor_id(full_name),to_instructor:to_instructor_id(full_name)').order('created_at',{ascending:false});
-  const list=document.getElementById('transferList');
-  const items=data||[];
-  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No transfer requests yet.</div>';return;}
-  list.innerHTML=items.map(r=>`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='approved'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+  const list=document.getElementById('transferList');const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No transfer requests yet.</div>';return;}
+  list.innerHTML=items.map(r=>`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='approved'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px;transition:background .4s">
     <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
-        <div style="font-size:.76rem;color:#555">${esc(r.pickup_address||'')}</div>
-        <div style="font-size:.74rem;color:#444;margin-top:3px">From: <strong style="color:#f87171">${esc(r.from_instructor?.full_name||'Unknown')}</strong> → To: <strong style="color:#4ade80">${esc(r.to_instructor?.full_name||'Admin to decide')}</strong></div>
-        <div style="font-size:.73rem;color:#555;font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>
-        <div style="font-size:.62rem;color:#333;margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.76rem;color:var(--txt3)">${esc(r.pickup_address||'')}</div>
+        <div style="font-size:.74rem;color:var(--txt3);margin-top:3px">From: <strong style="color:#f87171">${esc(r.from_instructor?.full_name||'Unknown')}</strong> → To: <strong style="color:#4ade80">${esc(r.to_instructor?.full_name||'Admin decides')}</strong></div>
+        <div style="font-size:.73rem;color:var(--txt3);font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
       </div>
       <div class="d-flex flex-column gap-1 align-items-end">
         <span class="chip ${r.status}">${r.status}</span>
@@ -1207,15 +1616,13 @@ async function loadTransferRequests(){
     </div>
   </div>`).join('');
 }
-
 async function updateTransferStatus(id,status){
   const{error}=await sb.from('transfer_requests').update({status}).eq('id',id);
-  if(error){showToast('Failed to update.','error');return;}
-  showToast(status==='approved'?'Transfer approved ✓':'Transfer declined.','success');
-  loadTransferRequests();
+  if(error){showToast('Failed.','error');return;}
+  showToast(status==='approved'?'Transfer approved ✓':'Transfer declined.','success');loadTransferRequests();
 }
 
-/* ── ADD INSTRUCTOR ── */
+/* ══ CREATE INSTRUCTOR ══ */
 async function createInstructor(){
   const name=document.getElementById('ai-name').value.trim();
   const badge=document.getElementById('ai-badge').value.trim();
@@ -1238,7 +1645,7 @@ async function createInstructor(){
   await loadInstrs();populateDropdowns();
 }
 
-/* ── FIND CLOSEST ── */
+/* ══ FIND CLOSEST ══ */
 async function findClosest(){
   const studentName=document.getElementById('fc-name').value.trim();
   const postcode=document.getElementById('fc-postcode').value.trim().toUpperCase().replace(/\s+/g,'');
@@ -1248,152 +1655,216 @@ async function findClosest(){
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
   const resultsEl=document.getElementById('findResults');
-  resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#555;font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
+  resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
-    // Look up student postcode
     const res=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`);
     const json=await res.json();
-    if(!json.result){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode not found. Please check and try again.</div>';return;}
-    const {latitude:sLat,longitude:sLon}=json.result;
-    // Get approved instructors with postcodes
+    if(!json.result){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode not found.</div>';return;}
+    const{latitude:sLat,longitude:sLon}=json.result;
     const approved=allInstrs.filter(i=>i.status==='approved'&&i.area);
-    // Batch lookup instructor postcodes
     const pcLookups=approved.map(async i=>{
-      // Extract postcode from area field (e.g. "M19, Didsbury" → try "M19")
       const pcMatch=(i.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
       if(!pcMatch)return{instr:i,dist:null};
       try{
         const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pcMatch[0].replace(/\s+/g,''))}`);
         const j=await r.json();
         if(!j.result)return{instr:i,dist:null};
-        const{latitude:iLat,longitude:iLon}=j.result;
-        const dist=haversine(sLat,sLon,iLat,iLon);
-        return{instr:i,dist,lat:iLat,lon:iLon};
+        const dist=haversine(sLat,sLon,j.result.latitude,j.result.longitude);
+        return{instr:i,dist};
       }catch{return{instr:i,dist:null};}
     });
     const results=await Promise.all(pcLookups);
     const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
     const unknown=results.filter(r=>r.dist===null);
-    if(!ranked.length&&!unknown.length){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#555;font-size:.84rem">No approved instructors found.</div>';return;}
     fcStudentData={name:studentName,postcode,phone,type,notes};
     let html='';
     if(ranked.length){
       html+=ranked.map((r,idx)=>{
-        const distMiles=r.dist.toFixed(1);
-        const isClose=r.dist<3;
+        const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
         return`<div class="dist-card mb-2">
           <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
             <div class="d-flex align-items-center gap-3">
-              <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${idx===0?'var(--gold)':'#333'};line-height:1;min-width:30px">${idx+1}</div>
+              <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${idx===0?'var(--gold)':'var(--txt4)'};line-height:1;min-width:30px">${idx+1}</div>
               <div>
-                ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:7px;vertical-align:middle" alt=""/>`:``}
-                <span style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff">${esc(r.instr.full_name)}</span>
+                ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:``}
+                <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
                 <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1">${esc(r.instr.badge_type||'ADI')}</span>
-                <div style="font-size:.74rem;color:#555;margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
+                <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
               </div>
             </div>
             <div class="d-flex flex-column align-items-end gap-2">
               <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
-              <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${esc(r.instr.full_name)}','${esc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign Student</button>
+              <div class="d-flex gap-1">
+                ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
+                <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${esc(r.instr.full_name)}','${esc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign</button>
+              </div>
             </div>
           </div>
         </div>`;
       }).join('');
     }
-    if(unknown.length){
-      html+=`<div style="font-size:.72rem;color:#333;margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>Could not calculate distance for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')} — no valid postcode in their area field.</div>`;
-    }
-    resultsEl.innerHTML=html||'<div style="text-align:center;padding:24px;color:#333">No results.</div>';
-  }catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes. Please try again.</div>';}
-  finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructors';btn.disabled=false;}
+    if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode found for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
+    resultsEl.innerHTML=html||'<div style="text-align:center;padding:24px;color:var(--txt4)">No results.</div>';
+  }catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
+  finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest';btn.disabled=false;}
 }
-
 function haversine(lat1,lon1,lat2,lon2){
-  const R=3958.8;// miles
-  const dLat=(lat2-lat1)*Math.PI/180;
-  const dLon=(lon2-lon1)*Math.PI/180;
+  const R=3958.8;const dLat=(lat2-lat1)*Math.PI/180;const dLon=(lon2-lon1)*Math.PI/180;
   const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-
 function openAssignModal(instrId,instrName,instrPhone){
   document.getElementById('assign-instr-id').value=instrId;
   document.getElementById('assign-instr-name').value=instrName;
   document.getElementById('assignSub').textContent=`Assigning to: ${instrName}`;
   const s=fcStudentData||{};
-  document.getElementById('assignDetails').innerHTML=`<strong style="color:#ccc">Student:</strong> ${esc(s.name||'—')}<br>
-    <strong style="color:#ccc">Postcode:</strong> ${esc(s.postcode||'—')}<br>
-    <strong style="color:#ccc">Phone:</strong> ${esc(s.phone||'Not provided')}<br>
-    <strong style="color:#ccc">Type:</strong> ${esc(s.type||'Manual')}<br>
-    ${s.notes?`<strong style="color:#ccc">Notes:</strong> ${esc(s.notes)}`:''}`; 
-  // Generate WA link
-  const portalUrl='https://drivesq.co.uk/portal/dashboard.html';
-  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on the DriveSQ Instructor Portal.\n\n🧑 Student: ${s.name}\n📍 Postcode: ${s.postcode}\n🚗 Lesson Type: ${s.type}\n${s.notes?'📝 Notes: '+s.notes+'\n':''}\nPlease check your portal to approve or decline:\n${portalUrl}\n\nDriveSQ Team`;
-  const waPhone=instrPhone.replace(/\D/g,'');
-  const waFull=waPhone.startsWith('0')?'44'+waPhone.slice(1):waPhone.startsWith('44')?waPhone:'44'+waPhone;
+  document.getElementById('assignDetails').innerHTML=`<strong style="color:var(--txt)">Student:</strong> ${esc(s.name||'—')}<br>
+    <strong style="color:var(--txt)">Postcode:</strong> ${esc(s.postcode||'—')}<br>
+    <strong style="color:var(--txt)">Phone:</strong> ${esc(s.phone||'Not provided')}<br>
+    <strong style="color:var(--txt)">Type:</strong> ${esc(s.type||'Manual')}<br>
+    ${s.notes?`<strong style="color:var(--txt)">Notes:</strong> ${esc(s.notes)}`:''}`;
+  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on DriveSQ.\n\n🧑 Student: ${s.name}\n📍 Postcode: ${s.postcode}\n🚗 Type: ${s.type}\n${s.notes?'📝 Notes: '+s.notes+'\n':''}\nCheck your portal:\n${PORTAL_URL}\n\nDriveSQ Team`;
+  const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   openModal('assignModal');
 }
-
 async function confirmAssign(){
-  const instrId=document.getElementById('assign-instr-id').value;
-  const s=fcStudentData||{};
+  const instrId=document.getElementById('assign-instr-id').value;const s=fcStudentData||{};
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
   const{error}=await sb.from('student_requests').insert([{
-    instructor_id:instrId,
-    student_name:s.name,student_phone:s.phone||null,
-    pickup_address:s.postcode,postcode:s.postcode,
-    lesson_type:s.type||'Manual',notes:s.notes||null,
-    status:'pending',created_at:new Date().toISOString()
+    instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
+    pickup_address:s.postcode,postcode:s.postcode,lesson_type:s.type||'Manual',
+    notes:s.notes||null,status:'pending',created_at:new Date().toISOString()
   }]);
-  if(error){showToast('Failed to assign student.','error');return;}
+  if(error){showToast('Failed to assign.','error');return;}
   closeModal('assignModal');showToast(`✅ ${s.name} assigned to ${document.getElementById('assign-instr-name').value}!`,'success');
-  // Clear form
   ['fc-name','fc-postcode','fc-phone','fc-notes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:#333">Student assigned. Enter new details to find another instructor.</div>';
+  document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
   fcStudentData=null;
 }
 
-/* ── OVERVIEW ── */
-async function loadLoginLog(){
-  const{data}=await sb.from('instructors').select('full_name,badge_number,last_login').not('last_login','is',null).order('last_login',{ascending:false}).limit(20);
+/* ══ ANALYTICS ══ */
+async function loadAnalytics(){
+  const mon=getMonday(0);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const[weekR,loginR]=await Promise.all([
+    sb.from('lessons').select('*').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
+    sb.from('instructors').select('full_name,badge_number,last_login').not('last_login','is',null).order('last_login',{ascending:false}).limit(15)
+  ]);
+  const lessons=weekR.data||[];
+  renderHoursChart(lessons);
+  renderTypeChart(lessons);
+  renderDailyChart(lessons,mon);
+  renderTopInstrsChart(lessons);
+  renderInstrStatsTable(lessons);
+  renderLoginLog(loginR.data||[]);
+}
+
+function renderHoursChart(lessons){
+  const el=document.getElementById('hoursChart');
+  const byInstr={};lessons.forEach(l=>{
+    const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
+    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.duration_hours)||1);
+  });
+  const sorted=Object.entries(byInstr).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([name,hrs])=>`<div class="d-flex align-items-center gap-2 mb-2">
+    <div style="font-size:.74rem;color:var(--txt2);min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+    <div class="chart-bar"><div class="chart-fill red" style="width:${(hrs/max*100).toFixed(0)}%"></div></div>
+    <div style="font-size:.74rem;font-weight:700;color:var(--red);min-width:36px;text-align:right">${hrs.toFixed(1)}h</div>
+  </div>`).join('');
+}
+
+function renderTypeChart(lessons){
+  const el=document.getElementById('typeChart');
+  const byType={};lessons.forEach(l=>{const t=l.lesson_type||'Manual';byType[t]=(byType[t]||0)+1;});
+  const sorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
+  const total=sorted.reduce((a,[,v])=>a+v,0);
+  const colors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+  const max=sorted[0][1];
+  // Horizontal bar chart with % label
+  el.innerHTML=`<div class="mb-3">${sorted.map(([type,count])=>`<div class="d-flex align-items-center gap-2 mb-2">
+    <div style="width:10px;height:10px;border-radius:2px;background:${colors[type]||'#60a5fa'};flex-shrink:0"></div>
+    <div style="font-size:.74rem;color:var(--txt2);min-width:90px;white-space:nowrap">${esc(type)}</div>
+    <div class="chart-bar"><div class="chart-fill" style="width:${(count/max*100).toFixed(0)}%;background:${colors[type]||'#60a5fa'}"></div></div>
+    <div style="font-size:.72rem;color:var(--txt2);min-width:55px;text-align:right">${count} (${(count/total*100).toFixed(0)}%)</div>
+  </div>`).join('')}</div>
+  <div style="font-size:.68rem;color:var(--txt4);text-align:center">${total} total lessons · ${(lessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0)).toFixed(1)}h total on-road time</div>`;
+}
+
+function renderDailyChart(lessons,mon){
+  const el=document.getElementById('dailyChart');
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const counts=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return lessons.filter(l=>l.lesson_date===dateKey(d)).length;});
+  const max=Math.max(...counts,1);
+  el.innerHTML=`<div class="d-flex align-items-end gap-1 justify-content-between" style="height:80px;padding:0 4px">
+    ${counts.map((c,i)=>`<div class="d-flex flex-column align-items-center gap-1" style="flex:1">
+      <div style="font-size:.7rem;font-weight:700;color:${c?'var(--purple)':'var(--txt4)'}">${c||''}</div>
+      <div style="flex:1;width:100%;max-width:36px;display:flex;align-items:flex-end">
+        <div style="width:100%;background:${c?'rgba(168,85,247,.4)':'var(--dk3)'};border:1px solid ${c?'rgba(168,85,247,.4)':'var(--bdr)'};border-radius:4px 4px 0 0;height:${c?Math.max(8,(c/max*60)):4}px;transition:height .5s ease"></div>
+      </div>
+      <div style="font-size:.6rem;color:var(--txt3)">${days[i]}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderTopInstrsChart(lessons){
+  const el=document.getElementById('topInstrsChart');
+  const byInstr={};lessons.forEach(l=>{
+    const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
+    if(!byInstr[n])byInstr[n]=0;byInstr[n]++;
+  });
+  const sorted=Object.entries(byInstr).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([name,count],idx)=>`<div class="d-flex align-items-center gap-2 mb-2">
+    <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1rem;font-weight:900;color:${idx===0?'var(--gold)':idx===1?'var(--txt2)':'var(--txt4)'};min-width:18px">${idx+1}</div>
+    <div style="font-size:.74rem;color:var(--txt2);min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+    <div class="chart-bar"><div class="chart-fill gold" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+    <div style="font-size:.74rem;font-weight:700;color:var(--gold);min-width:20px;text-align:right">${count}</div>
+  </div>`).join('');
+}
+
+function renderInstrStatsTable(lessons){
+  const tb=document.getElementById('instrStatsTable');
+  const byInstr={};lessons.forEach(l=>{
+    const instr=allInstrs.find(i=>i.id===l.instructor_id);
+    const n=instr?.full_name||'Unknown';
+    if(!byInstr[l.instructor_id])byInstr[l.instructor_id]={name:n,count:0,hours:0,students:new Set()};
+    byInstr[l.instructor_id].count++;
+    byInstr[l.instructor_id].hours+=(parseFloat(l.duration_hours)||1);
+    byInstr[l.instructor_id].students.add(l.student_name);
+  });
+  const sorted=Object.values(byInstr).sort((a,b)=>b.hours-a.hours);
+  if(!sorted.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">No lessons this week.</td></tr>';return;}
+  tb.innerHTML=sorted.map(s=>`<tr>
+    <td style="font-size:.77rem;color:var(--txt)">${esc(s.name)}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--blue)">${s.count}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--red)">${s.hours.toFixed(1)}h</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--green)">${s.students.size}</td>
+  </tr>`).join('');
+}
+
+function renderLoginLog(data){
   const log=document.getElementById('loginLog');
-  if(!data||!data.length){log.innerHTML='<div style="text-align:center;color:#333;font-size:.8rem;padding:16px">No login activity yet.</div>';return;}
+  if(!data.length){log.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No login activity yet.</div>';return;}
   log.innerHTML=data.map(i=>`<div class="login-log-item">
     <div>
-      <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:#ccc">${esc(i.full_name)}</div>
-      <div style="font-size:.68rem;color:#2e2e2e">${esc(i.badge_number||'—')}</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:var(--txt2)">${esc(i.full_name)}</div>
+      <div style="font-size:.68rem;color:var(--txt4)">${esc(i.badge_number||'—')}</div>
     </div>
-    <div style="font-size:.7rem;color:#333;text-align:right">${fmtDT(i.last_login)}</div>
+    <div style="font-size:.7rem;color:var(--txt3);text-align:right">${fmtDT(i.last_login)}</div>
   </div>`).join('');
 }
 
-async function loadOverviewChart(){
-  const mon=getMonday(0);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const{data}=await sb.from('lessons').select('instructor_id,instructors(full_name)').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
-  const el=document.getElementById('overviewChart');
-  const lessons=data||[];
-  if(!lessons.length){el.innerHTML='<div style="text-align:center;color:#333;font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
-  const counts={};
-  lessons.forEach(l=>{const n=l.instructors?.full_name||'Unknown';counts[n]=(counts[n]||0)+1;});
-  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const max=sorted[0][1];
-  el.innerHTML=sorted.map(([name,count])=>`<div class="d-flex align-items-center gap-2 mb-2">
-    <div style="font-size:.75rem;color:#666;min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
-    <div style="flex:1;background:var(--dk);border-radius:4px;height:18px;overflow:hidden">
-      <div style="height:100%;width:${(count/max*100).toFixed(0)}%;background:linear-gradient(90deg,var(--red),#b50008);border-radius:4px;transition:width .6s ease"></div>
-    </div>
-    <div style="font-size:.75rem;font-weight:700;color:var(--red);min-width:20px;text-align:right">${count}</div>
-  </div>`).join('');
-}
-
-/* ── MODALS ── */
+/* ══ MODALS ══ */
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 
-/* ── TOAST ── */
+/* ══ TOAST ══ */
 let _tt;
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
