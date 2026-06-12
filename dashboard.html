@@ -6,7 +6,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="DriveSQ"/>
-<meta name="theme-color" content="#080808"/>
 <link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <title>DriveSQ — My Dashboard</title>
@@ -14,86 +13,88 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 <style>
-:root{--red:#D10A11;--red2:#a80008;--gold:#F5C518;--blk:#080808;--dk:#0f0f0f;--dk2:#161616;--dk3:#1e1e1e;--bdr:#2a2a2a;--txt:#f0f0f0;--green:#25D366;--trans:.2s ease}
+/* ── DAY / NIGHT THEME ── */
+:root{
+  --red:#D10A11;--red2:#a80008;--gold:#F5C518;--green:#25D366;--trans:.2s ease;
+  --blk:#080808;--dk:#0f0f0f;--dk2:#161616;--dk3:#1e1e1e;--bdr:#2a2a2a;
+  --txt:#f0f0f0;--txt2:#aaa;--txt3:#555;--txt4:#333;--txt5:#222;
+  --card-bg:#161616;--nav-bg:rgba(8,8,8,.98);--input-bg:#181818;
+  --shadow:rgba(0,0,0,.8);--overlay:rgba(0,0,0,.85);
+}
+.day-mode{
+  --blk:#f4f4f5;--dk:#ffffff;--dk2:#ffffff;--dk3:#f1f1f3;--bdr:#e2e2e6;
+  --txt:#18181b;--txt2:#52525b;--txt3:#71717a;--txt4:#a1a1aa;--txt5:#d4d4d8;
+  --card-bg:#ffffff;--nav-bg:rgba(255,255,255,.97);--input-bg:#f9f9fb;
+  --shadow:rgba(0,0,0,.12);--overlay:rgba(0,0,0,.6);
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+body{background:var(--blk);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;padding-bottom:calc(72px + env(safe-area-inset-bottom));transition:background .4s ease,color .3s ease}
 h1,h2,h3,h4,h5,h6{font-family:'Oswald',sans-serif;line-height:1.05}
 a{color:var(--red);text-decoration:none}
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:#0a0a0a}
-::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
-
-/* NAV */
-.dsq-nav{background:rgba(8,8,8,.98);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:1050;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+::-webkit-scrollbar-track{background:var(--dk3)}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+.theme-toggle{background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:6px 10px;cursor:pointer;transition:all var(--trans);line-height:1;min-height:38px;min-width:38px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.theme-toggle:hover{border-color:var(--gold);color:var(--gold)}
+.dsq-nav{background:var(--nav-bg);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:1050;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:background .4s ease}
 .nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--red);object-fit:cover;flex-shrink:0}
-.brand-n{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1}
+.brand-n{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt);letter-spacing:1px;line-height:1}
 .brand-n span{color:var(--red)}
-.brand-s{font-size:.5rem;color:#333;letter-spacing:2px;text-transform:uppercase}
+.brand-s{font-size:.5rem;color:var(--txt4);letter-spacing:2px;text-transform:uppercase}
 .nav-avatar{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(209,10,17,.4);object-fit:cover;cursor:pointer;flex-shrink:0}
-.nav-btn{background:transparent;border:1px solid var(--bdr);color:#555;border-radius:8px;padding:6px 10px;cursor:pointer;transition:all var(--trans);line-height:1;min-height:38px;min-width:38px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
-.nav-btn:hover{border-color:#666;color:#ccc}
+.nav-btn{background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:6px 10px;cursor:pointer;transition:all var(--trans);line-height:1;min-height:38px;min-width:38px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.nav-btn:hover{border-color:#666;color:var(--txt)}
 .nav-btn.danger:hover{border-color:#f87171;color:#f87171}
 .notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--blk)}
-
-/* NOTIF PANEL */
-.notif-panel{position:fixed;top:62px;right:12px;z-index:1060;width:min(340px,calc(100vw - 24px));max-height:70vh;overflow-y:auto;background:#141414;border:1px solid #2a2a2a;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.8);display:none}
+.notif-panel{position:fixed;top:62px;right:12px;z-index:1060;width:min(340px,calc(100vw - 24px));max-height:70vh;overflow-y:auto;background:var(--dk);border:1px solid var(--bdr);border-radius:14px;box-shadow:0 20px 60px var(--shadow);display:none}
 .notif-panel.open{display:block}
-.notif-head{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#141414}
+.notif-head{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--dk)}
 .notif-item{padding:11px 14px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background var(--trans)}
 .notif-item:hover{background:rgba(255,255,255,.02)}
 .notif-item.unread{border-left:3px solid var(--red)}
 .notif-item.warning{border-left-color:var(--gold)}
 .notif-item.badge_request,.notif-item.general{border-left-color:#60a5fa}
 .ni-type{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:1px}
-.ni-subj{font-size:.82rem;font-weight:600;color:#ddd;margin-bottom:1px}
-.ni-body{font-size:.72rem;color:#555;line-height:1.45}
-.ni-time{font-size:.62rem;color:#333;margin-top:2px}
-
-/* REMINDER BANNER */
+.ni-subj{font-size:.82rem;font-weight:600;color:var(--txt2);margin-bottom:1px}
+.ni-body{font-size:.72rem;color:var(--txt3);line-height:1.45}
+.ni-time{font-size:.62rem;color:var(--txt4);margin-top:2px}
 .reminder-banner{background:linear-gradient(135deg,rgba(209,10,17,.1),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px}
 @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-
-/* MSG BANNERS */
 .msg-banner{border-radius:10px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:.82rem}
 .msg-banner.general{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2)}
 .msg-banner.warning{background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2)}
 .msg-banner.franchise_fee{background:rgba(209,10,17,.07);border:1px solid rgba(209,10,17,.2)}
 .msg-banner.badge_request{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2)}
-.mb-dismiss{background:none;border:none;color:#444;cursor:pointer;font-size:.85rem;padding:2px 5px;border-radius:4px;transition:color var(--trans);flex-shrink:0}
-.mb-dismiss:hover{color:#ccc}
-
-/* STAT CARDS */
-.stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px;position:relative;overflow:hidden;transition:transform var(--trans);height:100%}
+.mb-dismiss{background:none;border:none;color:var(--txt4);cursor:pointer;font-size:.85rem;padding:2px 5px;border-radius:4px;transition:color var(--trans);flex-shrink:0}
+.mb-dismiss:hover{color:var(--txt)}
+.stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px;position:relative;overflow:hidden;transition:transform var(--trans),background .4s ease,border-color .4s ease;height:100%}
 .stat-card:hover{transform:translateY(-2px)}
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .stat-card.red::before{background:var(--red)}
 .stat-card.gold::before{background:var(--gold)}
 .stat-card.green-c::before{background:var(--green)}
 .stat-card.blue::before{background:#60a5fa}
-.stat-lbl{font-size:.6rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.stat-card.purple::before{background:#a855f7}
+.stat-lbl{font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
 .stat-num{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:800;line-height:1}
-.stat-num.red{color:var(--red)}.stat-num.gold{color:var(--gold)}.stat-num.green-c{color:var(--green)}.stat-num.blue{color:#60a5fa}
-.stat-sub{font-size:.63rem;color:#333;margin-top:2px}
-
-/* TABS */
+.stat-num.red{color:var(--red)}.stat-num.gold{color:var(--gold)}.stat-num.green-c{color:var(--green)}.stat-num.blue{color:#60a5fa}.stat-num.purple{color:#a855f7}
+.stat-sub{font-size:.63rem;color:var(--txt4);margin-top:2px}
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+@media(min-width:576px){.stats-row{grid-template-columns:repeat(5,1fr)}}
 .dsq-tabs{display:flex;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:3px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2px}
 .dsq-tabs::-webkit-scrollbar{display:none}
-.dsq-tab{background:transparent;border:none;color:#444;font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;padding:8px 12px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:5px;min-height:38px;flex-shrink:0}
+.dsq-tab{background:transparent;border:none;color:var(--txt3);font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;padding:8px 12px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:5px;min-height:38px;flex-shrink:0}
 .dsq-tab.active{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(209,10,17,.3)}
-.dsq-tab:not(.active):hover{color:#ccc;background:rgba(255,255,255,.04)}
+.dsq-tab:not(.active):hover{color:var(--txt);background:rgba(209,10,17,.06)}
 .tab-badge{background:rgba(209,10,17,.2);color:#f87171;border-radius:8px;padding:1px 5px;font-size:.62rem;font-family:'Inter',sans-serif;font-weight:700}
 .dsq-tab.active .tab-badge{background:rgba(255,255,255,.25);color:#fff}
-
-/* WEEK NAV */
-.wk-btn{background:var(--dk2);border:1px solid var(--bdr);color:#555;border-radius:7px;padding:7px 12px;font-size:.8rem;cursor:pointer;transition:all var(--trans);min-height:36px;font-family:'Inter',sans-serif}
-.wk-btn:hover{border-color:var(--red);color:#fff}
+.wk-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:7px;padding:7px 12px;font-size:.8rem;cursor:pointer;transition:all var(--trans);min-height:36px;font-family:'Inter',sans-serif}
+.wk-btn:hover{border-color:var(--red);color:var(--txt)}
 .wk-btn.today{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red);font-family:'Oswald',sans-serif;font-weight:600}
-.wk-btn.view-active{background:rgba(209,10,17,.15);border-color:var(--red);color:var(--red)}
-.wk-lbl{font-family:'Oswald',sans-serif;font-size:.85rem;color:#666;min-width:150px;text-align:center;padding:7px 8px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px}
-
-/* CALENDAR */
-.cal-outer{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+.wk-lbl{font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--txt3);min-width:150px;text-align:center;padding:7px 8px;background:var(--dk2);border:1px solid var(--bdr);border-radius:7px}
+.wk-hours-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);color:#c084fc;border-radius:8px;padding:5px 10px;font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700}
+.cal-outer{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;transition:background .4s ease}
 .cal-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .cal-header-grid{display:grid;grid-template-columns:repeat(7,minmax(100px,1fr));border-bottom:1px solid var(--bdr);background:var(--dk)}
 .cal-body-grid{display:grid;grid-template-columns:repeat(7,minmax(100px,1fr))}
@@ -101,53 +102,18 @@ a{color:var(--red);text-decoration:none}
 .cal-dh:last-child{border-right:none}
 .cal-dh.today{background:rgba(209,10,17,.06)}
 .cal-dh.wknd{background:rgba(245,197,24,.025)}
-.cal-dn{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.3px}
-.cal-dd{font-size:.65rem;color:#333;margin-top:1px}
+.cal-dn{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;color:var(--txt4);text-transform:uppercase;letter-spacing:.3px}
+.cal-dd{font-size:.65rem;color:var(--txt4);margin-top:1px}
 .cal-dd.is-today{color:var(--red);font-weight:700}
-.cal-col{border-right:1px solid var(--bdr);min-height:280px;padding:5px 4px;display:flex;flex-direction:column;gap:4px}
+.cal-col{border-right:1px solid var(--bdr);min-height:280px;padding:5px 4px;display:flex;flex-direction:column;gap:4px;transition:background .15s ease}
 .cal-col:last-child{border-right:none}
 .cal-col.today{background:rgba(209,10,17,.02)}
 .cal-col.wknd{background:rgba(245,197,24,.01)}
-
-/* DAY VIEW */
-.day-view-outer{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
-.day-view-hdr{background:var(--dk);padding:14px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
-.day-view-slot{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:14px;align-items:stretch;cursor:pointer;transition:background var(--trans)}
-.day-view-slot:hover{background:rgba(255,255,255,.02)}
-.day-time-col{width:52px;flex-shrink:0;font-size:.7rem;color:#333;padding-top:2px;font-weight:600}
-.day-slot-card{flex:1;border-radius:9px;padding:10px 12px;border-left:3px solid transparent}
-.day-slot-card.Manual{background:rgba(59,130,246,.1);border-color:#3b82f6}
-.day-slot-card.Automatic{background:rgba(34,197,94,.1);border-color:#22c55e}
-.day-slot-card.Mock-Test{background:rgba(239,68,68,.1);border-color:#ef4444}
-.day-slot-card.Intensive{background:rgba(249,115,22,.1);border-color:#f97316}
-.day-slot-card.Pass-Plus{background:rgba(168,85,247,.1);border-color:#a855f7}
-.day-slot-card.Refresher{background:rgba(234,179,8,.1);border-color:#eab308}
-.day-empty{padding:40px;text-align:center;color:#2a2a2a;font-size:.84rem}
-
-/* MONTH VIEW */
-.month-outer{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
-.month-hdr-grid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--dk);border-bottom:1px solid var(--bdr)}
-.month-dh{padding:8px 4px;text-align:center;font-family:'Oswald',sans-serif;font-size:.68rem;color:#444;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
-.month-body-grid{display:grid;grid-template-columns:repeat(7,1fr)}
-.month-cell{border-right:1px solid rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.04);min-height:80px;padding:5px 4px;cursor:pointer;transition:background var(--trans)}
-.month-cell:nth-child(7n){border-right:none}
-.month-cell:hover{background:rgba(255,255,255,.02)}
-.month-cell.other-month{opacity:.3}
-.month-cell.today-cell{background:rgba(209,10,17,.05)}
-.month-cn{font-size:.68rem;font-weight:700;color:#444;margin-bottom:3px;padding:1px 4px;border-radius:4px;display:inline-block}
-.month-cn.is-today{background:var(--red);color:#fff}
-.month-pip{font-size:.58rem;border-radius:3px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.month-pip.Manual{background:rgba(59,130,246,.2);color:#93c5fd}
-.month-pip.Automatic{background:rgba(34,197,94,.2);color:#86efac}
-.month-pip.Mock-Test{background:rgba(239,68,68,.2);color:#fca5a5}
-.month-pip.Intensive{background:rgba(249,115,22,.2);color:#fdba74}
-.month-pip.Pass-Plus{background:rgba(168,85,247,.2);color:#d8b4fe}
-.month-pip.Refresher{background:rgba(234,179,8,.2);color:#fde68a}
-.month-more{font-size:.58rem;color:#555;padding:1px 3px}
-
-/* LESSON SLOTS (week) */
-.ls{border-radius:7px;padding:6px 7px;position:relative;cursor:pointer;transition:all var(--trans);border-left:3px solid transparent;margin-bottom:2px}
+.cal-col.drag-over{background:rgba(209,10,17,.08);border:1px dashed rgba(209,10,17,.4)}
+.ls{border-radius:7px;padding:6px 7px;position:relative;cursor:grab;transition:all var(--trans);border-left:3px solid transparent;margin-bottom:2px;user-select:none}
+.ls:active{cursor:grabbing}
 .ls:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.ls.dragging{opacity:.4;transform:scale(.97)}
 .ls.Manual{background:rgba(59,130,246,.1);border-color:#3b82f6}
 .ls.Automatic{background:rgba(34,197,94,.1);border-color:#22c55e}
 .ls.Mock-Test{background:rgba(239,68,68,.1);border-color:#ef4444}
@@ -155,26 +121,19 @@ a{color:var(--red);text-decoration:none}
 .ls.Pass-Plus{background:rgba(168,85,247,.1);border-color:#a855f7}
 .ls.Refresher{background:rgba(234,179,8,.1);border-color:#eab308}
 .ls-time{font-size:.58rem;font-weight:700;opacity:.8;margin-bottom:1px}
-.ls-name{font-size:.74rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ls-addr{font-size:.6rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ls-del{position:absolute;top:3px;right:3px;background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.62rem;padding:2px 4px;border-radius:3px;transition:all var(--trans);line-height:1}
+.ls-name{font-size:.74rem;font-weight:700;color:var(--txt2);font-family:'Oswald',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls-addr{font-size:.6rem;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls-del{position:absolute;top:3px;right:3px;background:none;border:none;color:var(--bdr);cursor:pointer;font-size:.62rem;padding:2px 4px;border-radius:3px;transition:all var(--trans);line-height:1}
 .ls-del:hover{color:#f87171;background:rgba(255,0,0,.1)}
-.add-ls-btn{display:flex;align-items:center;justify-content:center;gap:3px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:#2a2a2a;font-size:.68rem;padding:6px 3px;cursor:pointer;transition:all var(--trans);min-height:32px}
-.add-ls-btn:hover{border-color:rgba(209,10,17,.3);color:#888;background:rgba(209,10,17,.06)}
-.day-count-lbl{font-size:.56rem;color:#1e1e1e;text-align:center;margin-top:2px}
-
-/* COLOUR KEY */
-.ck{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.ck-i{display:flex;align-items:center;gap:4px;font-size:.67rem;color:#555}
-.ck-d{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-
-/* MOBILE CAL */
+.add-ls-btn{display:flex;align-items:center;justify-content:center;gap:3px;background:rgba(209,10,17,.03);border:1px dashed rgba(209,10,17,.12);border-radius:7px;color:var(--txt5);font-size:.68rem;padding:6px 3px;cursor:pointer;transition:all var(--trans);min-height:32px}
+.add-ls-btn:hover{border-color:rgba(209,10,17,.3);color:var(--txt3);background:rgba(209,10,17,.06)}
+.day-count-lbl{font-size:.56rem;color:var(--txt5);text-align:center;margin-top:2px}
 .mob-day{background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
 .mob-dh{background:var(--dk);padding:9px 12px;display:flex;align-items:center;justify-content:space-between}
 .mob-dh.today{border-left:3px solid var(--red)}
 .mob-dh.wknd{border-left:3px solid var(--gold)}
-.mob-dn{font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:#fff}
-.mob-dc{font-size:.63rem;color:#444;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:2px 7px}
+.mob-dn{font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:var(--txt)}
+.mob-dc{font-size:.63rem;color:var(--txt4);background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:2px 7px}
 .mob-slot{border-radius:8px;padding:8px 9px;border-left:3px solid transparent;cursor:pointer;transition:all var(--trans)}
 .mob-slot:hover{opacity:.85}
 .mob-slot.Manual{background:rgba(59,130,246,.1);border-color:#3b82f6}
@@ -183,15 +142,32 @@ a{color:var(--red);text-decoration:none}
 .mob-slot.Intensive{background:rgba(249,115,22,.1);border-color:#f97316}
 .mob-slot.Pass-Plus{background:rgba(168,85,247,.1);border-color:#a855f7}
 .mob-slot.Refresher{background:rgba(234,179,8,.1);border-color:#eab308}
-
-/* STUDENT CARD */
+.ck{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.ck-i{display:flex;align-items:center;gap:4px;font-size:.67rem;color:var(--txt3)}
+.ck-d{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 .student-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;transition:border-color var(--trans)}
 .student-card:hover{border-color:rgba(209,10,17,.25)}
 .s-init{width:38px;height:38px;border-radius:50%;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--red);flex-shrink:0}
-.btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:4px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:.72rem;font-weight:700;cursor:pointer;transition:all var(--trans);text-decoration:none;font-family:'Oswald',sans-serif;letter-spacing:.3px;white-space:nowrap}
-.btn-wa:hover{background:#1ea952;color:#fff;transform:scale(1.04)}
-
-/* REQUEST CARD */
+.roster-pill{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.3px}
+.roster-pill.saved{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.25)}
+.roster-pill.unsaved{background:rgba(255,255,255,.04);color:var(--txt4);border:1px solid var(--bdr)}
+.suggest-wrap{position:relative}
+.suggest-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--dk);border:1px solid var(--bdr);border-radius:10px;z-index:1200;max-height:220px;overflow-y:auto;box-shadow:0 12px 40px var(--shadow)}
+.suggest-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);transition:background var(--trans)}
+.suggest-item:last-child{border-bottom:none}
+.suggest-item:hover,.suggest-item.active{background:rgba(209,10,17,.08)}
+.suggest-name{font-size:.82rem;font-weight:700;color:var(--txt2);font-family:'Oswald',sans-serif}
+.suggest-meta{font-size:.65rem;color:var(--txt3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.suggest-empty{padding:11px 12px;font-size:.74rem;color:var(--txt4);text-align:center}
+.existing-students-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;max-height:200px;overflow-y:auto;padding:4px 0}
+.existing-student-btn{background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;cursor:pointer;transition:all var(--trans);text-align:left}
+.existing-student-btn:hover{border-color:var(--red);background:rgba(209,10,17,.06)}
+.existing-student-btn.selected{border-color:var(--red);background:rgba(209,10,17,.1)}
+.esb-name{font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.esb-meta{font-size:.63rem;color:var(--txt4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.picker-tabs{display:flex;gap:4px;margin-bottom:8px}
+.picker-tab{background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);border-radius:7px;padding:6px 12px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;transition:all var(--trans)}
+.picker-tab.active{background:rgba(209,10,17,.1);border-color:rgba(209,10,17,.3);color:var(--red)}
 .req-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px}
 .req-card.pending{border-color:rgba(245,197,24,.25)}
 .req-card.approved{border-color:rgba(37,211,102,.2)}
@@ -200,11 +176,7 @@ a{color:var(--red);text-decoration:none}
 .status-pill.pending{background:rgba(245,197,24,.1);color:var(--gold);border:1px solid rgba(245,197,24,.2)}
 .status-pill.approved{background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.2)}
 .status-pill.declined{background:rgba(209,10,17,.1);color:#f87171;border:1px solid rgba(209,10,17,.2)}
-
-/* TRANSFER CARD */
 .tr-card{background:var(--dk2);border:1px solid rgba(96,165,250,.18);border-radius:12px;padding:14px}
-
-/* PROFILE */
 .avatar-wrap{position:relative;display:inline-block}
 .avatar-lg{width:76px;height:76px;border-radius:50%;border:2px solid rgba(209,10,17,.35);object-fit:cover;background:var(--dk3)}
 .avatar-edit-btn{position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.6rem;color:#fff;border:2px solid var(--blk)}
@@ -213,89 +185,66 @@ a{color:var(--red);text-decoration:none}
 .car-photo-area{width:100%;height:120px;background:var(--dk3);border:1px dashed var(--bdr);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:all var(--trans)}
 .car-photo-area:hover{border-color:var(--red)}
 .section-head{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid var(--bdr);margin-bottom:12px}
-
-/* MODALS */
-.dsq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1070;display:none;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.dsq-overlay{position:fixed;inset:0;background:var(--overlay);z-index:1070;display:none;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .dsq-overlay.open{display:flex}
 @media(min-width:576px){.dsq-overlay{align-items:center;padding:16px}}
-.dsq-modal{background:#111;border:1px solid rgba(209,10,17,.2);border-radius:20px 20px 0 0;padding:22px 20px;width:100%;max-width:500px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 -20px 60px rgba(0,0,0,.8)}
+.dsq-modal{background:var(--dk);border:1px solid rgba(209,10,17,.2);border-radius:20px 20px 0 0;padding:22px 20px;width:100%;max-width:500px;max-height:93vh;overflow-y:auto;position:relative;box-shadow:0 -20px 60px var(--shadow)}
 @media(min-width:576px){.dsq-modal{border-radius:20px}}
-.dsq-modal h5{font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fff;margin-bottom:2px}
-.modal-sub{font-size:.72rem;color:#444;margin-bottom:16px}
-.modal-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.05);border:1px solid var(--bdr);color:#555;cursor:pointer;font-size:.9rem;padding:5px 7px;border-radius:7px;transition:all var(--trans);line-height:1;min-height:32px;min-width:32px;display:flex;align-items:center;justify-content:center}
-.modal-x:hover{color:#fff;background:rgba(255,255,255,.1)}
-.dsq-lbl{display:block;font-size:.7rem;color:#444;margin-bottom:3px;letter-spacing:.3px;text-transform:uppercase}
+.dsq-modal h5{font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--txt);margin-bottom:2px}
+.modal-sub{font-size:.72rem;color:var(--txt4);margin-bottom:16px}
+.modal-x{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.05);border:1px solid var(--bdr);color:var(--txt3);cursor:pointer;font-size:.9rem;padding:5px 7px;border-radius:7px;transition:all var(--trans);line-height:1;min-height:32px;min-width:32px;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{color:var(--txt);background:rgba(255,255,255,.1)}
+.dsq-lbl{display:block;font-size:.7rem;color:var(--txt3);margin-bottom:3px;letter-spacing:.3px;text-transform:uppercase}
 .req-mark{color:var(--red)}
-.dsq-inp{width:100%;background:#181818;border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:9px 11px;font-size:.85rem;font-family:'Inter',sans-serif;transition:border-color var(--trans);outline:none}
+.dsq-inp{width:100%;background:var(--input-bg);border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:9px 11px;font-size:.85rem;font-family:'Inter',sans-serif;transition:border-color var(--trans),background .4s ease;outline:none}
 .dsq-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(209,10,17,.08)}
-.dsq-inp::placeholder{color:#222}
-select.dsq-inp option{background:#181818}
+.dsq-inp::placeholder{color:var(--txt4)}
+select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 textarea.dsq-inp{resize:vertical;min-height:65px}
 .btn-p{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:600;padding:.7rem;letter-spacing:.4px;cursor:pointer;transition:all var(--trans);min-height:44px}
 .btn-p:hover{background:linear-gradient(135deg,#e01015,var(--red))}
 .btn-p:disabled{opacity:.55;cursor:not-allowed}
-.btn-s{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:transparent;border:1px solid #2a2a2a;color:#555;border-radius:8px;padding:.6rem;font-size:.83rem;cursor:pointer;transition:all var(--trans);font-family:'Inter',sans-serif;min-height:44px}
-.btn-s:hover{border-color:#666;color:#bbb}
+.btn-s{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:.6rem;font-size:.83rem;cursor:pointer;transition:all var(--trans);font-family:'Inter',sans-serif;min-height:44px}
+.btn-s:hover{border-color:#666;color:var(--txt)}
 .btn-g{background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.22);color:#4ade80;border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:.86rem;cursor:pointer;transition:all var(--trans);min-height:40px}
 .btn-g:hover{background:rgba(37,211,102,.22)}
 .btn-r-sm{background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.22);color:#f87171;border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:.86rem;cursor:pointer;transition:all var(--trans);min-height:40px}
 .btn-r-sm:hover{background:rgba(209,10,17,.22)}
-
-/* DETAIL */
+.btn-blue{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.22);color:#93c5fd;border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:.86rem;cursor:pointer;transition:all var(--trans);min-height:40px}
+.btn-blue:hover{background:rgba(96,165,250,.22)}
 .det-row{padding:8px 0;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:2px}
 .det-row:last-child{border-bottom:none}
-.det-lbl{font-size:.6rem;color:#333;text-transform:uppercase;letter-spacing:.7px}
-.det-val{font-size:.85rem;color:#ccc}
+.det-lbl{font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px}
+.det-val{font-size:.85rem;color:var(--txt2)}
+.det-val.empty{color:var(--txt5);font-style:italic}
 .maps-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.2);color:#93c5fd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;text-decoration:none;transition:all var(--trans);margin-top:10px}
 .maps-btn:hover{background:rgba(66,133,244,.2);color:#fff}
-
-/* HS MODAL */
+.move-day-btn{background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);border-radius:7px;padding:6px 9px;font-size:.72rem;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif;font-weight:600}
+.move-day-btn:hover{border-color:var(--red);color:var(--red)}
+.move-day-btn.today-day{border-color:rgba(209,10,17,.3);color:var(--red)}
 .hs-step{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)}
 .hs-step:last-child{border-bottom:none}
 .hs-num{width:26px;height:26px;border-radius:50%;background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.25);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;color:var(--red);font-size:.82rem;flex-shrink:0}
-.hs-txt{font-size:.8rem;color:#888;line-height:1.6}
-
-/* MOBILE BOTTOM NAV */
-.mob-bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1040;background:rgba(8,8,8,.97);border-top:1px solid var(--bdr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));backdrop-filter:blur(16px)}
+.hs-txt{font-size:.8rem;color:var(--txt3);line-height:1.6}
+.mob-bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1040;background:var(--nav-bg);border-top:1px solid var(--bdr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));backdrop-filter:blur(16px)}
 @media(max-width:767px){.mob-bot-nav{display:flex}}
-.mob-nb{flex:1;background:transparent;border:none;color:#444;font-size:.58rem;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:color var(--trans);padding:4px 2px;min-height:48px;justify-content:center;position:relative}
+.mob-nb{flex:1;background:transparent;border:none;color:var(--txt4);font-size:.58rem;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:color var(--trans);padding:4px 2px;min-height:48px;justify-content:center;position:relative}
 .mob-nb i{font-size:1.15rem;display:block}
 .mob-nb.active{color:var(--red)}
 .mob-nb-badge{position:absolute;top:2px;right:calc(50% - 14px);background:var(--red);color:#fff;border-radius:8px;padding:0 4px;font-size:.54rem;line-height:1.5;font-weight:700;min-width:14px;text-align:center}
-
-/* TOAST */
-.dsq-toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);z-index:9999;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:10px 16px;font-size:.8rem;color:#ccc;opacity:0;transition:all .28s ease;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
+.dsq-toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);z-index:9999;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:10px 16px;font-size:.8rem;color:var(--txt2);opacity:0;transition:all .28s ease;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
 .dsq-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .dsq-toast.success{border-left-color:var(--green)}
 @media(min-width:768px){.dsq-toast{bottom:24px}}
-
-/* WA FLOAT */
 .wa-float{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:14px;z-index:1039;width:46px;height:46px;border-radius:50%;background:#25D366;box-shadow:0 4px 16px rgba(37,211,102,.35);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;text-decoration:none;transition:transform var(--trans)}
 .wa-float:hover{transform:scale(1.08);color:#fff}
 @media(min-width:768px){.wa-float{bottom:22px}}
-
-/* ADD TO HS BTN */
 .hs-nav-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.18);color:var(--gold);border-radius:7px;padding:5px 10px;font-size:.7rem;font-weight:600;cursor:pointer;transition:all var(--trans);font-family:'Oswald',sans-serif}
 .hs-nav-btn:hover{background:rgba(245,197,24,.14)}
-
-/* SUSPENDED */
 .susp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
 .susp-card{background:#111;border:1px solid rgba(209,10,17,.35);border-radius:18px;padding:32px 24px;max-width:380px;width:100%;text-align:center}
-
-/* AUTO-SAVE BADGE TOGGLE */
-.toggle-row{display:flex;align-items:center;justify-content:space-between;background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:9px;padding:10px 14px;margin-bottom:12px;cursor:pointer}
-.toggle-lbl{font-size:.8rem;color:#888;font-family:'Inter',sans-serif}
-.toggle-lbl strong{color:#ccc;display:block;font-size:.85rem}
-.toggle-sw{width:38px;height:20px;background:#1e1e1e;border-radius:10px;position:relative;transition:background var(--trans);flex-shrink:0;border:1px solid var(--bdr)}
-.toggle-sw.on{background:var(--green)}
-.toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform var(--trans)}
-.toggle-sw.on::after{transform:translateX(18px)}
-
-/* UPLOAD PROGRESS */
-.upload-prog{height:3px;background:var(--bdr);border-radius:2px;overflow:hidden;margin-top:6px;display:none}
-.upload-prog-bar{height:100%;background:var(--red);border-radius:2px;width:0;transition:width .3s ease}
-.upload-prog.show{display:block}
-
+.modal-divider{font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px;margin:10px 0}
+.modal-divider::before,.modal-divider::after{content:'';flex:1;height:1px;background:var(--bdr)}
 @media(max-width:767px){.main-pad{padding:12px 12px 0}}
 @media(min-width:768px){.desktop-cal-wrap{display:block}.mobile-cal-wrap{display:none}}
 @media(max-width:767px){.desktop-cal-wrap{display:none}.mobile-cal-wrap{display:block}}
@@ -309,16 +258,17 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="d-flex align-items-center gap-2 py-2" style="min-height:56px">
       <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
       <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Portal</div></div>
-      <div class="flex-grow-1 d-none d-lg-block text-center"><span id="typeNav" style="font-size:.75rem;color:#555;font-style:italic"></span></div>
+      <div class="flex-grow-1 d-none d-lg-block text-center"><span id="typeNav" style="font-size:.75rem;color:var(--txt4);font-style:italic"></span></div>
       <div class="d-flex align-items-center gap-2 ms-auto">
         <button class="hs-nav-btn d-none d-sm-flex" onclick="openHSModal()"><i class="bi bi-plus-square me-1"></i>Home Screen</button>
+        <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <div style="position:relative">
           <button class="nav-btn" id="notifBtn" onclick="toggleNotif()"><i class="bi bi-bell-fill"></i><span class="notif-dot hidden" id="notifDot"></span></button>
         </div>
         <img class="nav-avatar" id="navAvatar" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="" onclick="switchTab('profile');setMobActive('profile')" title="Profile"/>
         <div class="d-none d-md-block">
-          <div style="font-family:'Oswald',sans-serif;font-size:.8rem;color:#ccc;line-height:1;cursor:pointer" id="navName" onclick="switchTab('profile');setMobActive('profile')">—</div>
-          <div style="font-size:.62rem;color:#444" id="navBadge">—</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.8rem;color:var(--txt2);line-height:1;cursor:pointer" id="navName" onclick="switchTab('profile');setMobActive('profile')">—</div>
+          <div style="font-size:.62rem;color:var(--txt4)" id="navBadge">—</div>
         </div>
         <button class="nav-btn danger" onclick="logout()" title="Sign Out"><i class="bi bi-box-arrow-right"></i></button>
       </div>
@@ -329,10 +279,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <!-- NOTIF PANEL -->
 <div class="notif-panel" id="notifPanel">
   <div class="notif-head">
-    <span style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#fff"><i class="bi bi-bell-fill me-2" style="color:var(--red)"></i>Notifications</span>
-    <button onclick="toggleNotif()" style="background:none;border:none;color:#444;cursor:pointer"><i class="bi bi-x-lg"></i></button>
+    <span style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt)"><i class="bi bi-bell-fill me-2" style="color:var(--red)"></i>Notifications</span>
+    <button onclick="toggleNotif()" style="background:none;border:none;color:var(--txt3);cursor:pointer"><i class="bi bi-x-lg"></i></button>
   </div>
-  <div id="notifList"><div style="padding:22px;text-align:center;font-size:.8rem;color:#333">No notifications</div></div>
+  <div id="notifList"><div style="padding:22px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div></div>
 </div>
 
 <!-- MAIN -->
@@ -340,15 +290,14 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="reminderArea"></div>
   <div id="msgBanners"></div>
 
-  <!-- STATS -->
-  <div class="row g-2 mb-3">
-    <div class="col-6 col-md-3"><div class="stat-card red"><div class="stat-lbl">Today</div><div class="stat-num red" id="sToday">—</div><div class="stat-sub" id="sTodayH"></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card gold"><div class="stat-lbl">Tomorrow</div><div class="stat-num gold" id="sTom">—</div><div class="stat-sub" id="sTomH"></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card green-c"><div class="stat-lbl">This Week</div><div class="stat-num green-c" id="sWeek">—</div><div class="stat-sub" id="sWeekH"></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card blue"><div class="stat-lbl">Students</div><div class="stat-num blue" id="sStudents">—</div><div class="stat-sub">on roster</div></div></div>
+  <div class="stats-row mb-3">
+    <div><div class="stat-card red"><div class="stat-lbl">Today</div><div class="stat-num red" id="sToday">—</div><div class="stat-sub" id="sTodayH"></div></div></div>
+    <div><div class="stat-card gold"><div class="stat-lbl">Tomorrow</div><div class="stat-num gold" id="sTom">—</div><div class="stat-sub" id="sTomH"></div></div></div>
+    <div><div class="stat-card green-c"><div class="stat-lbl">This Week</div><div class="stat-num green-c" id="sWeek">—</div><div class="stat-sub" id="sWeekH"></div></div></div>
+    <div><div class="stat-card purple"><div class="stat-lbl">Weekly Hours</div><div class="stat-num purple" id="sHours">—</div><div class="stat-sub">hrs on road</div></div></div>
+    <div><div class="stat-card blue"><div class="stat-lbl">Students</div><div class="stat-num blue" id="sStudents">—</div><div class="stat-sub">unique this week</div></div></div>
   </div>
 
-  <!-- TABS -->
   <div class="dsq-tabs mb-3">
     <button class="dsq-tab active" id="tab-cal" onclick="switchTab('cal');setMobActive('cal')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students');setMobActive('students')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
@@ -357,7 +306,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <button class="dsq-tab" id="tab-profile" onclick="switchTab('profile');setMobActive('profile')"><i class="bi bi-person-circle"></i><span class="d-none d-sm-inline ms-1">Profile</span></button>
   </div>
 
-  <!-- ── CALENDAR ── -->
+  <!-- CALENDAR -->
   <div id="panel-cal">
     <div class="ck">
       <div class="ck-i"><div class="ck-d" style="background:#3b82f6"></div>Manual</div>
@@ -366,91 +315,59 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="ck-i"><div class="ck-d" style="background:#f97316"></div>Intensive</div>
       <div class="ck-i"><div class="ck-d" style="background:#a855f7"></div>Pass Plus</div>
       <div class="ck-i"><div class="ck-d" style="background:#eab308"></div>Refresher</div>
+      <div class="ck-i" style="margin-left:auto"><i class="bi bi-grip-vertical" style="font-size:.7rem;color:var(--txt4)"></i><span style="font-size:.65rem;color:var(--txt4)">Drag to move</span></div>
     </div>
-    <!-- Calendar toolbar -->
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-calendar-week me-2" style="color:var(--red)"></i><span id="calViewLabel">Weekly Planner</span></div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <!-- View switcher -->
-        <div class="d-flex gap-1">
-          <button class="wk-btn view-active" id="vbWeek" onclick="setCalView('week')" title="Week view"><i class="bi bi-calendar-week"></i></button>
-          <button class="wk-btn" id="vbDay" onclick="setCalView('day')" title="Day view"><i class="bi bi-calendar-day"></i></button>
-          <button class="wk-btn" id="vbMonth" onclick="setCalView('month')" title="Month view"><i class="bi bi-calendar-month"></i></button>
-        </div>
-        <!-- Nav -->
-        <button class="wk-btn" onclick="calPrev()"><i class="bi bi-chevron-left"></i></button>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-calendar-week me-2" style="color:var(--red)"></i>Weekly Planner</div>
+        <div class="wk-hours-badge" id="wkHoursBadge"><i class="bi bi-clock me-1"></i><span id="wkHoursLbl">0h</span> this week</div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="wk-btn" onclick="changeWeek(-1)"><i class="bi bi-chevron-left"></i></button>
         <div class="wk-lbl" id="weekLabel">…</div>
-        <button class="wk-btn today" onclick="calToday()">Today</button>
-        <button class="wk-btn" onclick="calNext()"><i class="bi bi-chevron-right"></i></button>
+        <button class="wk-btn today" onclick="goToday()">Today</button>
+        <button class="wk-btn" onclick="changeWeek(1)"><i class="bi bi-chevron-right"></i></button>
       </div>
     </div>
-
-    <!-- WEEK VIEW -->
-    <div id="viewWeek">
-      <div class="desktop-cal-wrap">
-        <div class="cal-outer"><div class="cal-scroll">
-          <div class="cal-header-grid" id="calHdr" style="min-width:700px"></div>
-          <div class="cal-body-grid" id="calBody" style="min-width:700px"></div>
-        </div></div>
-      </div>
-      <div class="mobile-cal-wrap d-flex flex-column gap-2" id="mobCal"></div>
+    <div class="desktop-cal-wrap">
+      <div class="cal-outer"><div class="cal-scroll">
+        <div class="cal-header-grid" id="calHdr" style="min-width:700px"></div>
+        <div class="cal-body-grid" id="calBody" style="min-width:700px"></div>
+      </div></div>
     </div>
-
-    <!-- DAY VIEW -->
-    <div id="viewDay" class="hidden">
-      <div class="day-view-outer">
-        <div class="day-view-hdr">
-          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#fff" id="dayViewTitle">—</div>
-          <button class="btn-p" style="width:auto;padding:7px 14px;font-size:.84rem" id="dayAddBtn"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
-        </div>
-        <div id="dayViewBody"></div>
-      </div>
-    </div>
-
-    <!-- MONTH VIEW -->
-    <div id="viewMonth" class="hidden">
-      <div class="month-outer">
-        <div class="month-hdr-grid">
-          <div class="month-dh">Mon</div><div class="month-dh">Tue</div><div class="month-dh">Wed</div>
-          <div class="month-dh">Thu</div><div class="month-dh">Fri</div>
-          <div class="month-dh" style="color:rgba(245,197,24,.5)">Sat</div>
-          <div class="month-dh" style="color:rgba(245,197,24,.5)">Sun</div>
-        </div>
-        <div class="month-body-grid" id="monthGrid"></div>
-      </div>
-    </div>
+    <div class="mobile-cal-wrap d-flex flex-column gap-2" id="mobCal"></div>
   </div>
 
-  <!-- ── STUDENTS ── -->
+  <!-- STUDENTS -->
   <div id="panel-students" class="hidden">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>My Students <span style="font-size:.7rem;color:#333;font-family:'Inter',sans-serif;font-weight:400" id="studentCountLbl"></span></div>
-      <div class="d-flex gap-2">
-        <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)"/>
-        <button class="btn-p" style="width:auto;padding:7px 14px;font-size:.84rem;white-space:nowrap" onclick="openAddStudentModal()"><i class="bi bi-person-plus me-1"></i>Add</button>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>My Students</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">Saved students auto-fill when adding lessons</div>
       </div>
+      <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)"/>
     </div>
     <div id="studentList" class="d-flex flex-column gap-2"></div>
   </div>
 
-  <!-- ── REQUESTS ── -->
+  <!-- REQUESTS -->
   <div id="panel-requests" class="hidden">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
     <div id="requestList" class="d-flex flex-column gap-3"></div>
   </div>
 
-  <!-- ── TRANSFER ── -->
+  <!-- TRANSFER -->
   <div id="panel-transfer" class="hidden">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-arrow-left-right me-2" style="color:var(--red)"></i>Transfer Requests</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-arrow-left-right me-2" style="color:var(--red)"></i>Transfer Requests</div>
       <button class="btn-p" style="width:auto;padding:8px 16px;font-size:.88rem" onclick="openModal('transferModal')"><i class="bi bi-plus-lg me-1"></i>New Request</button>
     </div>
     <div id="transferList" class="d-flex flex-column gap-3"></div>
   </div>
 
-  <!-- ── PROFILE ── -->
+  <!-- PROFILE -->
   <div id="panel-profile" class="hidden pb-3">
-    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff"><i class="bi bi-person-circle me-2" style="color:var(--red)"></i>My Profile</div>
+    <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-person-circle me-2" style="color:var(--red)"></i>My Profile</div>
     <div class="row g-3">
       <div class="col-12">
         <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:18px">
@@ -458,42 +375,37 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
             <div class="avatar-wrap">
               <img class="avatar-lg" id="profileAvatar" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/>
               <label for="profilePhotoInput" class="avatar-edit-btn" title="Change photo"><i class="bi bi-camera-fill"></i></label>
-              <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="handleProfilePhoto(event)"/>
+              <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(event)"/>
             </div>
             <div>
-              <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;color:#fff" id="profileNameDisp">—</div>
-              <div style="font-size:.74rem;color:#444" id="profileBadgeDisp">—</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;color:var(--txt)" id="profileNameDisp">—</div>
+              <div style="font-size:.74rem;color:var(--txt4)" id="profileBadgeDisp">—</div>
               <button class="btn-r-sm mt-2" style="padding:4px 10px;font-size:.7rem" onclick="deleteProfilePhoto()"><i class="bi bi-trash me-1"></i>Remove Photo</button>
             </div>
           </div>
-          <div id="profileUploadProgress" class="upload-prog mb-2"><div class="upload-prog-bar" id="profileUploadBar"></div></div>
           <div class="row g-2">
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name</label><input class="dsq-inp" id="pName" placeholder="Full name"/></div>
-            <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge <span style="color:#333;font-size:.6rem">(fixed)</span></label><input class="dsq-inp" id="pBadge" disabled style="color:#333;cursor:not-allowed"/></div>
+            <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge <span style="color:var(--txt4);font-size:.6rem">(fixed)</span></label><input class="dsq-inp" id="pBadge" disabled style="color:var(--txt4);cursor:not-allowed"/></div>
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="pPhone" placeholder="07xxx xxx xxx"/></div>
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="pEmail" type="email" placeholder="you@email.com"/></div>
             <div class="col-12"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="pArea" placeholder="e.g. M19, Didsbury"/></div>
           </div>
         </div>
       </div>
-      <!-- Badge photo -->
       <div class="col-12 col-md-6">
         <div style="background:var(--dk2);border:1px solid rgba(96,165,250,.18);border-radius:14px;padding:14px;height:100%">
           <div class="section-head" style="color:#93c5fd"><i class="bi bi-card-image me-2"></i>DVSA Badge Photo</div>
           <img id="badgePreview" src="" alt="" style="width:100%;border-radius:8px;margin-bottom:10px;display:none;max-height:120px;object-fit:cover"/>
-          <div id="badgeUploadProgress" class="upload-prog mb-2"><div class="upload-prog-bar" id="badgeUploadBar"></div></div>
           <label for="badgeInput" class="upload-area d-flex flex-column align-items-center" style="gap:6px">
-            <i class="bi bi-upload" style="font-size:1.4rem;color:#333"></i>
-            <span style="font-size:.74rem;color:#444">Upload Badge Photo</span>
-            <span style="font-size:.64rem;color:#2a2a2a">JPG, PNG, WEBP · Max 5MB</span>
+            <i class="bi bi-upload" style="font-size:1.4rem;color:var(--txt4)"></i>
+            <span style="font-size:.74rem;color:var(--txt3)">Upload Badge Photo</span>
           </label>
-          <input type="file" id="badgeInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="handleBadgePhoto(event)"/>
+          <input type="file" id="badgeInput" accept="image/*" style="display:none" onchange="handleBadgePhoto(event)"/>
         </div>
       </div>
-      <!-- Vehicle -->
       <div class="col-12 col-md-6">
         <div style="background:var(--dk2);border:1px solid rgba(245,197,24,.14);border-radius:14px;padding:14px;height:100%">
-          <div class="section-head" style="color:var(--gold)"><i class="bi bi-car-front-fill me-2"></i>My Vehicle <span style="font-size:.62rem;color:#333">(optional)</span></div>
+          <div class="section-head" style="color:var(--gold)"><i class="bi bi-car-front-fill me-2"></i>My Vehicle <span style="font-size:.62rem;color:var(--txt4)">(optional)</span></div>
           <div class="row g-2">
             <div class="col-12"><label class="dsq-lbl">Make &amp; Model</label><input class="dsq-inp" id="pCarModel" placeholder="e.g. Ford Focus"/></div>
             <div class="col-6"><label class="dsq-lbl">Plate</label><input class="dsq-inp" id="pCarPlate" placeholder="AB12 CDE" style="text-transform:uppercase"/></div>
@@ -503,12 +415,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </div>
           <div class="mt-2">
             <label class="dsq-lbl">Car Photo</label>
-            <div id="carUploadProgress" class="upload-prog mb-1"><div class="upload-prog-bar" id="carUploadBar"></div></div>
             <div class="car-photo-area" onclick="document.getElementById('carPhotoInput').click()">
               <img id="carPhotoImg" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none"/>
-              <div id="carPhotoPlch" class="text-center p-2"><i class="bi bi-camera" style="font-size:1.6rem;color:#333;display:block;margin-bottom:4px"></i><span style="font-size:.72rem;color:#444">Tap to upload</span></div>
+              <div id="carPhotoPlch" class="text-center p-2"><i class="bi bi-camera" style="font-size:1.6rem;color:var(--txt4);display:block;margin-bottom:4px"></i><span style="font-size:.72rem;color:var(--txt3)">Tap to upload</span></div>
             </div>
-            <input type="file" id="carPhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="handleCarPhoto(event)"/>
+            <input type="file" id="carPhotoInput" accept="image/*" style="display:none" onchange="handleCarPhoto(event)"/>
           </div>
         </div>
       </div>
@@ -517,7 +428,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
     </div>
   </div>
-</div><!-- /main -->
+</div>
 
 <!-- MOBILE BOTTOM NAV -->
 <div class="mob-bot-nav">
@@ -531,28 +442,35 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <a class="wa-float" href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20help." target="_blank"><i class="bi bi-whatsapp"></i></a>
 <div class="dsq-toast" id="toast"></div>
 
-<!-- ════ ADD LESSON MODAL ════ -->
+<!-- ADD LESSON MODAL -->
 <div class="dsq-overlay" id="addModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('addModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-plus-circle-fill me-2" style="color:var(--red)"></i>Add Lesson</h5>
     <div class="modal-sub" id="addSub">—</div>
-
-    <!-- Auto-save toggle -->
-    <div class="toggle-row" onclick="toggleAutoSave()" id="autoSaveRow">
-      <div class="toggle-lbl"><strong>Auto-save to Student Roster</strong>Add this student to your saved roster automatically</div>
-      <div class="toggle-sw on" id="autoSaveSw"></div>
+    <div class="picker-tabs mb-2">
+      <button class="picker-tab active" id="ptExisting" onclick="setPickerMode('existing')"><i class="bi bi-bookmark-fill me-1"></i>Saved Student</button>
+      <button class="picker-tab" id="ptNew" onclick="setPickerMode('new')"><i class="bi bi-person-plus me-1"></i>New / Manual</button>
     </div>
-
-    <!-- Student quick-select from roster -->
-    <div class="mb-2" id="rosterPickWrap">
-      <label class="dsq-lbl">Pick from Roster <span style="color:#333;font-size:.6rem">(optional)</span></label>
-      <select class="dsq-inp" id="rosterPick" onchange="fillFromRoster(this.value)">
-        <option value="">— type name below or pick saved student —</option>
-      </select>
+    <div id="existingStudentPicker" class="mb-2">
+      <input type="text" class="dsq-inp mb-2" id="existingSearch" placeholder="Search saved students…" oninput="filterExistingPicker(this.value)" style="font-size:.82rem;padding:7px 10px"/>
+      <div class="existing-students-grid" id="existingGrid"></div>
+      <div id="noSavedMsg" class="hidden" style="font-size:.77rem;color:var(--txt4);text-align:center;padding:12px 0">No saved students yet. Use "New / Manual" to add one.</div>
     </div>
-
-    <form onsubmit="saveLesson(event)">
+    <div id="manualStudentEntry">
+      <div class="mb-2">
+        <label class="dsq-lbl">Student Name <span class="req-mark">*</span></label>
+        <div class="suggest-wrap">
+          <input class="dsq-inp" id="lStudent" placeholder="Type student name…" required autocomplete="off"
+            oninput="onStudentInput(this.value)" onkeydown="onStudentKeydown(event)" onfocus="onStudentInput(this.value)"/>
+          <div class="suggest-drop hidden" id="suggestDrop"></div>
+        </div>
+        <div id="rosterIndicator" class="hidden mt-1" style="font-size:.67rem;color:#4ade80;display:flex;align-items:center;gap:5px">
+          <i class="bi bi-bookmark-check-fill"></i><span>Filled from saved student — edit freely</span>
+        </div>
+      </div>
+    </div>
+    <form onsubmit="saveLesson(event)" id="addLessonForm">
       <div class="row g-2 mb-2">
         <div class="col-6"><label class="dsq-lbl">Start Time <span class="req-mark">*</span></label><input class="dsq-inp" id="lTime" type="time" required value="09:00"/></div>
         <div class="col-6"><label class="dsq-lbl">Duration <span class="req-mark">*</span></label>
@@ -562,7 +480,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </select>
         </div>
       </div>
-      <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="lStudent" placeholder="Full name" required/></div>
       <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="lPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
       <div class="mb-2"><label class="dsq-lbl">Pickup Address <span class="req-mark">*</span></label><input class="dsq-inp" id="lAddr" placeholder="14 Oak Street, M20" required/></div>
       <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
@@ -572,40 +489,22 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
         </select>
       </div>
-      <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="lNotes" rows="2" placeholder="Optional…"></textarea></div>
+      <div class="mb-2">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <label class="dsq-lbl mb-0">Notes</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.7rem;color:var(--txt3)">
+            <input type="checkbox" id="saveToRoster" style="accent-color:var(--red)"/> Save student to roster
+          </label>
+        </div>
+        <textarea class="dsq-inp" id="lNotes" rows="2" placeholder="Optional…"></textarea>
+      </div>
       <button class="btn-p mb-2" type="submit" id="saveLsBtn"><i class="bi bi-check-lg me-1"></i>Save Lesson</button>
       <button class="btn-s" type="button" onclick="closeModal('addModal')">Cancel</button>
     </form>
   </div>
 </div>
 
-<!-- ════ ADD/EDIT STUDENT MODAL ════ -->
-<div class="dsq-overlay" id="studentModal">
-  <div class="dsq-modal">
-    <button class="modal-x" onclick="closeModal('studentModal')"><i class="bi bi-x-lg"></i></button>
-    <h5 id="studentModalTitle"><i class="bi bi-person-fill me-2" style="color:var(--red)"></i>Student Profile</h5>
-    <div class="modal-sub" id="studentModalSub">Edit student details</div>
-    <input type="hidden" id="editStudentId"/>
-    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="esName" placeholder="Full name" required/></div>
-    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="esPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
-    <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="esAddr" placeholder="14 Oak Street, M20"/></div>
-    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
-      <select class="dsq-inp" id="esType">
-        <option value="Manual">Manual</option><option value="Automatic">Automatic</option>
-        <option value="Mock Test">Mock Test</option><option value="Intensive">Intensive</option>
-        <option value="Pass Plus">Pass Plus</option><option value="Refresher">Refresher</option>
-      </select>
-    </div>
-    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="esNotes" rows="2" placeholder="Optional…"></textarea></div>
-    <div style="background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.12);border-radius:8px;padding:9px 12px;font-size:.75rem;color:#555;margin-bottom:14px;line-height:1.6">
-      ⚠️ Saving will update this student's details on <strong style="color:var(--gold)">ALL lessons</strong> (past &amp; future).
-    </div>
-    <button class="btn-p mb-2" onclick="saveStudentEdit()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
-    <button class="btn-s" onclick="closeModal('studentModal')">Cancel</button>
-  </div>
-</div>
-
-<!-- ════ DETAIL MODAL ════ -->
+<!-- DETAIL MODAL -->
 <div class="dsq-overlay" id="detailModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('detailModal')"><i class="bi bi-x-lg"></i></button>
@@ -613,14 +512,78 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="modal-sub" id="detSub">—</div>
     <div id="detBody"></div>
     <div id="detMaps" class="mt-2"></div>
+    <div class="mt-3">
+      <div class="modal-divider">Move to another day</div>
+      <div class="d-flex flex-wrap gap-2" id="moveDayBtns"></div>
+    </div>
     <div class="d-flex gap-2 mt-3">
       <button class="btn-s flex-fill" onclick="closeModal('detailModal')">Close</button>
+      <button class="btn-blue flex-fill" onclick="editLessonFromDetail()"><i class="bi bi-pencil me-1"></i>Edit</button>
       <button class="btn-r-sm flex-fill" onclick="deleteFromDetail()"><i class="bi bi-trash me-1"></i>Remove</button>
     </div>
   </div>
 </div>
 
-<!-- ════ APPROVE MODAL ════ -->
+<!-- EDIT LESSON MODAL -->
+<div class="dsq-overlay" id="editLessonModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('editLessonModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-pencil me-2" style="color:#60a5fa"></i>Edit Lesson</h5>
+    <div class="modal-sub" id="editLsSubTitle">—</div>
+    <input type="hidden" id="editLsId"/>
+    <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="elStudent" required/></div>
+    <div class="row g-2 mb-2">
+      <div class="col-6"><label class="dsq-lbl">Date</label><input class="dsq-inp" id="elDate" type="date" required/></div>
+      <div class="col-6"><label class="dsq-lbl">Start Time</label><input class="dsq-inp" id="elTime" type="time" required/></div>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Duration</label>
+      <select class="dsq-inp" id="elDur">
+        <option value="1">1 hr</option><option value="1.5">1.5 hrs</option><option value="2">2 hrs</option>
+        <option value="2.5">2.5 hrs</option><option value="3">3 hrs</option><option value="4">4 hrs</option>
+      </select>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="elPhone" type="tel"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="elAddr"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+      <select class="dsq-inp" id="elType">
+        <option value="Manual">🔵 Manual</option><option value="Automatic">🟢 Automatic</option>
+        <option value="Mock Test">🔴 Mock Test</option><option value="Intensive">🟠 Intensive</option>
+        <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
+      </select>
+    </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="elNotes" rows="2"></textarea></div>
+    <button class="btn-p mb-2" onclick="saveEditedLesson()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+    <button class="btn-s" onclick="closeModal('editLessonModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- EDIT STUDENT MODAL -->
+<div class="dsq-overlay" id="editStudentModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('editStudentModal')"><i class="bi bi-x-lg"></i></button>
+    <h5 id="editStudentTitle"><i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student</h5>
+    <div class="modal-sub" id="editStudentSubTitle">Changes save to this student's profile and will auto-fill next time</div>
+    <input type="hidden" id="editStudentId"/>
+    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="esSName" placeholder="Student full name" required/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="esSPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Default Pickup Address</label><input class="dsq-inp" id="esSAddr" placeholder="14 Oak Street, M20"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Default Lesson Type</label>
+      <select class="dsq-inp" id="eSType">
+        <option value="Manual">🔵 Manual</option><option value="Automatic">🟢 Automatic</option>
+        <option value="Mock Test">🔴 Mock Test</option><option value="Intensive">🟠 Intensive</option>
+        <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
+      </select>
+    </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes / Remarks</label><textarea class="dsq-inp" id="eSNotes" rows="3" placeholder="e.g. nervous driver, test booked for May…"></textarea></div>
+    <div class="d-flex gap-2">
+      <button class="btn-p flex-fill" onclick="saveStudentProfile()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+      <button class="btn-r-sm hidden" id="removeRosterBtn" onclick="removeStudentFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
+    </div>
+    <button class="btn-s mt-2" onclick="closeModal('editStudentModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- APPROVE MODAL -->
 <div class="dsq-overlay" id="approveModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('approveModal')"><i class="bi bi-x-lg"></i></button>
@@ -643,21 +606,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ TRANSFER MODAL ════ -->
+<!-- TRANSFER MODAL -->
 <div class="dsq-overlay" id="transferModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('transferModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Request Transfer</h5>
     <div class="modal-sub">Transfer a student to another DriveSQ instructor</div>
-
-    <!-- Pick from saved students -->
-    <div class="mb-2">
-      <label class="dsq-lbl">Pick Saved Student <span style="color:#333;font-size:.6rem">(optional)</span></label>
-      <select class="dsq-inp" id="trRosterPick" onchange="fillTransferFromRoster(this.value)">
-        <option value="">— or fill in manually below —</option>
-      </select>
-    </div>
-
     <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="trStudent" placeholder="Student full name" required/></div>
     <div class="mb-2"><label class="dsq-lbl">Student Phone</label><input class="dsq-inp" id="trPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
     <div class="mb-2"><label class="dsq-lbl">Pickup Address <span class="req-mark">*</span></label><input class="dsq-inp" id="trAddr" placeholder="Address / Postcode" required/></div>
@@ -673,7 +627,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
-<!-- ════ HOME SCREEN MODAL ════ -->
+<!-- HOME SCREEN MODAL -->
 <div class="dsq-overlay" id="hsModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('hsModal')"><i class="bi bi-x-lg"></i></button>
@@ -695,6 +649,36 @@ let instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
 if(!instr)window.location.href='portal.html';
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
+/* ── THEME ── */
+let manualTheme=localStorage.getItem('dsq_theme')||'auto';
+function applyTheme(){
+  const h=new Date().getHours();
+  const isDay=(h>=7&&h<20);
+  let useDay;
+  if(manualTheme==='day')useDay=true;
+  else if(manualTheme==='night')useDay=false;
+  else useDay=isDay;
+  document.body.classList.toggle('day-mode',useDay);
+  const icon=document.getElementById('themeIcon');
+  if(icon)icon.className=useDay?'bi bi-moon-fill':'bi bi-sun-fill';
+  let meta=document.querySelector('meta[name="theme-color"]');
+  if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta);}
+  meta.content=useDay?'#ffffff':'#080808';
+}
+function toggleTheme(){
+  const h=new Date().getHours();
+  const autoDay=(h>=7&&h<20);
+  if(manualTheme==='auto'){manualTheme=autoDay?'night':'day';}
+  else if(manualTheme==='day'){manualTheme='night';}
+  else{manualTheme='auto';}
+  localStorage.setItem('dsq_theme',manualTheme);
+  applyTheme();
+  const labels={auto:'Auto (follows time)',day:'Day mode',night:'Night mode'};
+  showToast('Theme: '+labels[manualTheme]);
+}
+applyTheme();
+setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
+
 /* ── DATE UTILS ── */
 function todayKey(){const d=new Date();return pad4(d.getFullYear())+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function tomorrowKey(){const d=new Date();d.setDate(d.getDate()+1);return pad4(d.getFullYear())+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
@@ -712,25 +696,22 @@ function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);co
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 
-/* ── STATE ── */
-let calView='week'; // 'week' | 'day' | 'month'
+/* STATE */
 let weekStart=getMonday(new Date());
-let dayStart=new Date(); dayStart.setHours(0,0,0,0);
-let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let weekLessons={};
-let allLessonsForMonth={};
-let activeDate=null, detailId=null;
-let autoSaveOn=true;
+let activeDate=null,detailId=null,detailData=null;
 let shownReminders=new Set();
-let pPhotoFile=null, bPhotoFile=null, cPhotoFile=null;
+let pPhotoFile=null,bPhotoFile=null,cPhotoFile=null;
 let allStudentsArr=[];
-let rosterStudents=[];
+let rosterMap={};
+let suggestIdx=-1;
+let pickerMode='existing';
 
-/* ── INIT ── */
+/* INIT */
 (async()=>{
   await checkSuspended();
   updateNav();
-  await Promise.all([loadCalData(),loadNotifications(),loadRequests(),loadTransfers(),loadRoster(),loadProfileData()]);
+  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadProfileData(),loadRoster()]);
   populateInstrDropdowns();
   sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
   if(window.innerWidth>=992){
@@ -747,7 +728,7 @@ async function checkSuspended(){
   if(data&&data.status==='suspended'){
     document.body.innerHTML=`<div class="susp-overlay"><div class="susp-card">
       <h2 style="color:var(--red);font-family:'Oswald',sans-serif;font-size:1.5rem;margin-bottom:12px">⛔ Account Suspended</h2>
-      <p style="font-size:.84rem;color:#666;line-height:1.7;margin-bottom:20px">Your account has been temporarily suspended by DriveSQ admin.<br><br>Please contact DriveSQ for more information.</p>
+      <p style="font-size:.84rem;color:#666;line-height:1.7;margin-bottom:20px">Your account has been temporarily suspended by DriveSQ admin.<br>${data.show_lessons?'You can still view today\'s lessons.':''}<br><br>Please contact DriveSQ for more information.</p>
       <a href="https://wa.me/447352932003" target="_blank" style="display:inline-block;background:#25D366;color:#fff;border-radius:8px;padding:10px 20px;font-family:Oswald,sans-serif;font-weight:600;font-size:.9rem;text-decoration:none;margin-bottom:12px"><i class="bi bi-whatsapp me-1"></i>WhatsApp DriveSQ</a><br>
       <button onclick="sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html'" style="background:transparent;border:1px solid #333;color:#555;border-radius:7px;padding:7px 16px;font-size:.74rem;cursor:pointer;margin-top:8px">Sign Out</button>
     </div></div>`;
@@ -760,483 +741,502 @@ function updateNav(){
   if(instr?.profile_photo_url)document.getElementById('navAvatar').src=instr.profile_photo_url;
 }
 
-/* ── TABS ── */
+/* TABS */
 const TABS=['cal','students','requests','transfer','profile'];
-function switchTab(t){
-  TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});
-  if(t==='students')loadRoster();
-}
+function switchTab(t){TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});}
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
 
-/* ══════════════════════════════════
-   CALENDAR — VIEW SWITCHING
-══════════════════════════════════ */
-function setCalView(v){
-  calView=v;
-  ['Week','Day','Month'].forEach(n=>{
-    document.getElementById('view'+n).classList.toggle('hidden',n.toLowerCase()!==v);
-    document.getElementById('vb'+n).classList.toggle('view-active',n.toLowerCase()===v);
-  });
-  const labels={week:'Weekly Planner',day:'Day View',month:'Month View'};
-  document.getElementById('calViewLabel').textContent=labels[v];
-  renderCurrentView();
+/* WEEK */
+function changeWeek(d){weekStart=new Date(weekStart);weekStart.setDate(weekStart.getDate()+d*7);loadWeek();}
+function goToday(){weekStart=getMonday(new Date());loadWeek();}
+
+async function loadWeek(){
+  const days=weekDays(weekStart);
+  const from=dateKey(days[0]),to=dateKey(days[6]);
+  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
+  weekLessons={};
+  (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
+  renderCal();updateStats();
 }
 
-function calPrev(){
-  if(calView==='week'){weekStart=new Date(weekStart);weekStart.setDate(weekStart.getDate()-7);}
-  else if(calView==='day'){dayStart=new Date(dayStart);dayStart.setDate(dayStart.getDate()-1);}
-  else{monthStart=new Date(monthStart.getFullYear(),monthStart.getMonth()-1,1);}
-  loadCalData();
-}
-function calNext(){
-  if(calView==='week'){weekStart=new Date(weekStart);weekStart.setDate(weekStart.getDate()+7);}
-  else if(calView==='day'){dayStart=new Date(dayStart);dayStart.setDate(dayStart.getDate()+1);}
-  else{monthStart=new Date(monthStart.getFullYear(),monthStart.getMonth()+1,1);}
-  loadCalData();
-}
-function calToday(){
-  const now=new Date();now.setHours(0,0,0,0);
-  weekStart=getMonday(now);dayStart=new Date(now);monthStart=new Date(now.getFullYear(),now.getMonth(),1);
-  loadCalData();
-}
-
-async function loadCalData(){
-  if(calView==='week'){
-    const days=weekDays(weekStart);
-    const from=dateKey(days[0]),to=dateKey(days[6]);
-    const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-    weekLessons={};
-    (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
-  } else if(calView==='day'){
-    const dk=dateKey(dayStart);
-    const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
-    weekLessons={};weekLessons[dk]=data||[];
-  } else {
-    // Month — load the full month
-    const y=monthStart.getFullYear(),m=monthStart.getMonth();
-    const from=pad4(y)+'-'+pad2(m+1)+'-01';
-    const lastDay=new Date(y,m+1,0).getDate();
-    const to=pad4(y)+'-'+pad2(m+1)+'-'+pad2(lastDay);
-    const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-    weekLessons={};allLessonsForMonth={};
-    (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);allLessonsForMonth=weekLessons;});
-  }
-  renderCurrentView();
-  updateStats();
+function updateStats(){
+  const tk=todayKey(),tomk=tomorrowKey();
+  const tL=weekLessons[tk]||[],tomL=weekLessons[tomk]||[];
+  const allW=Object.values(weekLessons).flat();
+  const sum=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  const totalHrs=sum(allW);
+  document.getElementById('sToday').textContent=tL.length;
+  document.getElementById('sTodayH').textContent=sum(tL).toFixed(1)+' hrs today';
+  document.getElementById('sTom').textContent=tomL.length;
+  document.getElementById('sTomH').textContent=sum(tomL).toFixed(1)+' hrs tomorrow';
+  document.getElementById('sWeek').textContent=allW.length;
+  document.getElementById('sWeekH').textContent=totalHrs.toFixed(1)+' hrs total';
+  document.getElementById('sHours').textContent=totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1);
+  document.getElementById('sStudents').textContent=new Set(allW.map(l=>l.student_name)).size;
+  document.getElementById('wkHoursLbl').textContent=totalHrs%1===0?totalHrs.toFixed(0)+'h':totalHrs.toFixed(1)+'h';
 }
 
-function renderCurrentView(){
-  if(calView==='week')renderWeek();
-  else if(calView==='day')renderDay();
-  else renderMonth();
-}
+/* CALENDAR */
+let dragId=null,dragFromDate=null;
 
-/* ── WEEK VIEW ── */
-function renderWeek(){
+function renderCal(){
   const days=weekDays(weekStart);
   const tk=todayKey();
   document.getElementById('weekLabel').textContent=fmtS(days[0])+' – '+fmtS(days[6])+' '+days[6].getFullYear();
   document.getElementById('calHdr').innerHTML=days.map((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
-    return`<div class="cal-dh${isT?' today':isW?' wknd':''}"><div class="cal-dn">${DAYS[i].slice(0,3)}</div><div class="cal-dd${isT?' is-today':''}">${fmtS(d)}${isT?' · Today':''}</div></div>`;
+    return`<div class="cal-dh${isT?' today':isW?' wknd':''}">
+      <div class="cal-dn">${DAYS[i].slice(0,3)}</div>
+      <div class="cal-dd${isT?' is-today':''}">${fmtS(d)}${isT?' · Today':''}</div>
+    </div>`;
   }).join('');
-  document.getElementById('calBody').innerHTML=days.map((d,i)=>{
+  const bodyEl=document.getElementById('calBody');
+  bodyEl.innerHTML=days.map((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
     const ls=weekLessons[dk]||[];
-    let h=ls.map(l=>`<div class="ls ${lClass(l.lesson_type)}" onclick="openDetail('${l.id}')">
-      <button class="ls-del" onclick="event.stopPropagation();quickDel('${l.id}')">✕</button>
-      <div class="ls-time">${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
-      <div class="ls-name">${esc(l.student_name)}</div>
-      <div class="ls-addr">${esc(l.pickup_address||'')}</div>
-    </div>`).join('');
+    let h=ls.map(l=>`
+      <div class="ls ${lClass(l.lesson_type)}" id="ls-${l.id}" draggable="true"
+        ondragstart="onDragStart(event,'${l.id}','${dk}')"
+        ondragend="onDragEnd(event)"
+        onclick="openDetail('${l.id}')">
+        <button class="ls-del" onclick="event.stopPropagation();quickDel('${l.id}')">✕</button>
+        <div class="ls-time">${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
+        <div class="ls-name">${esc(l.student_name)}</div>
+        <div class="ls-addr">${esc(l.pickup_address||'')}</div>
+      </div>`).join('');
     h+=`<div class="add-ls-btn" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><i class="bi bi-plus-lg"></i></div>`;
     h+=`<div class="day-count-lbl">${ls.length} lesson${ls.length!==1?'s':''}</div>`;
-    return`<div class="cal-col${isT?' today':isW?' wknd':''}">${h}</div>`;
+    return`<div class="cal-col${isT?' today':isW?' wknd':''}" id="col-${dk}"
+      ondragover="onDragOver(event,'${dk}')"
+      ondragleave="onDragLeave(event,'${dk}')"
+      ondrop="onDrop(event,'${dk}')">${h}</div>`;
   }).join('');
 
-  // Mobile week
   const mob=document.getElementById('mobCal');mob.innerHTML='';
   days.forEach((d,i)=>{
     const dk=dateKey(d),isT=dk===tk,isW=i>=5;
     const ls=weekLessons[dk]||[];
     const card=document.createElement('div');card.className='mob-day';
     const hc=isT?'today':isW?'wknd':'';
-    let inner=ls.map(l=>`<div class="mob-slot ${lClass(l.lesson_type)} mb-2" onclick="openDetail('${l.id}')">
+    let inner=ls.map(l=>`<div class="mob-slot ${lClass(l.lesson_type)} mb-2" onclick="openDetail('${l.id}')" style="cursor:pointer">
       <div class="d-flex justify-content-between align-items-start">
         <div style="flex:1;min-width:0">
           <div style="font-size:.6rem;font-weight:700;opacity:.8">${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
-          <div style="font-size:.8rem;font-weight:700;color:#ddd;font-family:'Oswald',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.student_name)}</div>
-          <div style="font-size:.66rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.pickup_address||'')}</div>
+          <div style="font-size:.8rem;font-weight:700;color:var(--txt);font-family:'Oswald',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.student_name)}</div>
+          <div style="font-size:.66rem;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.pickup_address||'')}</div>
         </div>
-        <button onclick="event.stopPropagation();quickDel('${l.id}')" style="background:none;border:none;color:#333;cursor:pointer;font-size:.75rem;padding:2px 5px;flex-shrink:0">✕</button>
+        <button onclick="event.stopPropagation();quickDel('${l.id}')" style="background:none;border:none;color:var(--txt4);cursor:pointer;font-size:.75rem;padding:2px 5px;flex-shrink:0">✕</button>
       </div>
     </div>`).join('');
     inner+=`<div class="add-ls-btn" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><i class="bi bi-plus-lg me-1"></i>Add Lesson</div>`;
     card.innerHTML=`<div class="mob-dh ${hc}">
       <div class="mob-dn" style="${isT?'color:var(--red)':isW?'color:var(--gold)':''}">${DAYS[i]}${isT?' · Today':''}</div>
-      <div class="d-flex align-items-center gap-2"><span style="font-size:.66rem;color:#444">${fmtS(d)}</span><span class="mob-dc">${ls.length}</span></div>
+      <div class="d-flex align-items-center gap-2"><span style="font-size:.66rem;color:var(--txt4)">${fmtS(d)}</span><span class="mob-dc">${ls.length}</span></div>
     </div><div class="p-2 d-flex flex-column gap-1">${inner}</div>`;
     mob.appendChild(card);
   });
 }
 
-/* ── DAY VIEW ── */
-function renderDay(){
-  const dk=dateKey(dayStart);
-  const dayOfWeek=dayStart.getDay();
-  const dayName=dayOfWeek===0?'Sunday':DAYS[dayOfWeek-1];
-  document.getElementById('weekLabel').textContent=dayName+', '+fmtS(dayStart)+' '+dayStart.getFullYear();
-  document.getElementById('dayViewTitle').textContent=dayName+' — '+fmtS(dayStart)+' '+dayStart.getFullYear();
-  const ls=weekLessons[dk]||[];
-  const addBtn=document.getElementById('dayAddBtn');
-  addBtn.onclick=()=>openAddModal(dk,dayName,Math.max(0,(dayStart.getDay()+6)%7));
-  const body=document.getElementById('dayViewBody');
-  if(!ls.length){body.innerHTML=`<div class="day-empty"><i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:8px;color:#1e1e1e"></i>No lessons scheduled<br><span style="font-size:.75rem;color:#1e1e1e">Tap + Add Lesson above</span></div>`;return;}
-  body.innerHTML=ls.map(l=>`<div class="day-view-slot" onclick="openDetail('${l.id}')">
-    <div class="day-time-col">${l.start_time}<div style="color:#1e1e1e;font-weight:400">${calcEnd(l.start_time,l.duration_hours)}</div></div>
-    <div class="day-slot-card ${lClass(l.lesson_type)} flex-grow-1">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(l.student_name)}</div>
-          <div style="font-size:.74rem;color:#555;margin-bottom:2px">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}hr${l.duration_hours!=1?'s':''}</div>
-          ${l.pickup_address?`<div style="font-size:.72rem;color:#444"><i class="bi bi-geo-alt me-1"></i>${esc(l.pickup_address)}</div>`:''}
-          ${l.student_phone?`<div style="font-size:.72rem;color:#444;margin-top:2px"><i class="bi bi-telephone me-1"></i>${esc(l.student_phone)}</div>`:''}
-        </div>
-        <button onclick="event.stopPropagation();quickDel('${l.id}')" style="background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:.75rem;padding:3px 6px;flex-shrink:0">✕</button>
-      </div>
-      ${l.notes?`<div style="font-size:.7rem;color:#555;font-style:italic;margin-top:6px;border-top:1px solid rgba(255,255,255,.06);padding-top:5px">${esc(l.notes)}</div>`:''}
-    </div>
-  </div>`).join('');
+function onDragStart(e,id,fromDate){
+  dragId=id;dragFromDate=fromDate;
+  setTimeout(()=>{const el=document.getElementById('ls-'+id);if(el)el.classList.add('dragging');},0);
+  e.dataTransfer.effectAllowed='move';
+}
+function onDragEnd(e){
+  if(dragId){const el=document.getElementById('ls-'+dragId);if(el)el.classList.remove('dragging');}
+  document.querySelectorAll('.cal-col').forEach(c=>c.classList.remove('drag-over'));
+}
+function onDragOver(e,toDate){
+  if(dragId&&toDate!==dragFromDate){e.preventDefault();document.getElementById('col-'+toDate)?.classList.add('drag-over');}
+}
+function onDragLeave(e,toDate){document.getElementById('col-'+toDate)?.classList.remove('drag-over');}
+async function onDrop(e,toDate){
+  e.preventDefault();
+  document.getElementById('col-'+toDate)?.classList.remove('drag-over');
+  if(!dragId||toDate===dragFromDate)return;
+  await sb.from('lessons').update({lesson_date:toDate}).eq('id',dragId);
+  await loadWeek();
+  showToast('Lesson moved ✓','success');
+  dragId=null;dragFromDate=null;
 }
 
-/* ── MONTH VIEW ── */
-function renderMonth(){
-  const y=monthStart.getFullYear(),m=monthStart.getMonth();
-  document.getElementById('weekLabel').textContent=MF[m]+' '+y;
-  const tk=todayKey();
-  const firstDay=new Date(y,m,1);
-  const lastDay=new Date(y,m+1,0);
-  // Monday-start offset
-  let startOffset=(firstDay.getDay()+6)%7;
-  const grid=document.getElementById('monthGrid');
-  let html='';
-  // Pad start
-  for(let i=0;i<startOffset;i++){
-    const d=new Date(y,m,1-startOffset+i);
-    html+=`<div class="month-cell other-month"><div class="month-cn">${d.getDate()}</div></div>`;
+/* ════════════════════════════════════
+   ROSTER — fixed: no more upsert with
+   composite constraint, use check-then-
+   insert/update pattern instead
+   ════════════════════════════════════ */
+async function loadRoster(){
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+  rosterMap={};
+  (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
+}
+
+/* Helper: save or update a student profile safely (no upsert) */
+async function upsertStudentProfile(name, phone, address, lesson_type, notes, existingId){
+  const payload={
+    instructor_id: instr.id,
+    name,
+    phone:        phone||'',
+    address:      address||'',
+    lesson_type:  lesson_type||'Manual',
+    notes:        notes||'',
+    updated_at:   new Date().toISOString()
+  };
+
+  if(existingId){
+    // Update existing record by its primary key — always safe
+    const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);
+    return error;
   }
-  for(let day=1;day<=lastDay.getDate();day++){
-    const d=new Date(y,m,day);
-    const dk=dateKey(d);
-    const ls=weekLessons[dk]||[];
-    const isT=dk===tk;
-    const maxShow=3;
-    let pips=ls.slice(0,maxShow).map(l=>`<span class="month-pip ${lClass(l.lesson_type)}">${l.start_time} ${esc(l.student_name)}</span>`).join('');
-    if(ls.length>maxShow)pips+=`<span class="month-more">+${ls.length-maxShow} more</span>`;
-    html+=`<div class="month-cell${isT?' today-cell':''}" onclick="jumpToDay('${dk}')">
-      <div class="month-cn${isT?' is-today':''}">${day}</div>
-      ${pips}
-    </div>`;
+
+  // No ID supplied — check if a record already exists for this instructor+name
+  const{data:existing,error:fetchErr}=await sb
+    .from('student_profiles')
+    .select('id')
+    .eq('instructor_id',instr.id)
+    .ilike('name',name.trim())
+    .maybeSingle();
+
+  if(fetchErr)return fetchErr;
+
+  if(existing){
+    // Already exists — update it
+    const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);
+    return error;
+  } else {
+    // Brand new — insert
+    payload.created_at=new Date().toISOString();
+    const{error}=await sb.from('student_profiles').insert([payload]);
+    return error;
   }
-  // Pad end
-  const total=startOffset+lastDay.getDate();
-  const rem=(7-total%7)%7;
-  for(let i=1;i<=rem;i++){
-    html+=`<div class="month-cell other-month"><div class="month-cn">${i}</div></div>`;
-  }
-  grid.innerHTML=html;
 }
 
-function jumpToDay(dk){
-  dayStart=new Date(dk+'T12:00:00');dayStart.setHours(0,0,0,0);
-  setCalView('day');
+/* PICKER MODES */
+function setPickerMode(mode){
+  pickerMode=mode;
+  document.getElementById('ptExisting').classList.toggle('active',mode==='existing');
+  document.getElementById('ptNew').classList.toggle('active',mode==='new');
+  document.getElementById('existingStudentPicker').classList.toggle('hidden',mode==='new');
+  document.getElementById('manualStudentEntry').classList.toggle('hidden',mode==='existing');
+  if(mode==='existing')renderExistingGrid(Object.values(rosterMap));
+  else setTimeout(()=>document.getElementById('lStudent').focus(),100);
 }
 
-/* ── STATS ── */
-function updateStats(){
-  const tk=todayKey(),tomk=tomorrowKey();
-  const tL=weekLessons[tk]||[],tomL=weekLessons[tomk]||[];
-  const allW=Object.values(weekLessons).flat();
-  const sum=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
-  document.getElementById('sToday').textContent=tL.length;
-  document.getElementById('sTodayH').textContent=sum(tL).toFixed(1)+' hrs today';
-  document.getElementById('sTom').textContent=tomL.length;
-  document.getElementById('sTomH').textContent=sum(tomL).toFixed(1)+' hrs tomorrow';
-  document.getElementById('sWeek').textContent=allW.length;
-  document.getElementById('sWeekH').textContent=sum(allW).toFixed(1)+' hrs shown';
-  document.getElementById('sStudents').textContent=rosterStudents.length;
+function renderExistingGrid(students){
+  const grid=document.getElementById('existingGrid');
+  const noMsg=document.getElementById('noSavedMsg');
+  if(!students.length){grid.innerHTML='';noMsg.classList.remove('hidden');return;}
+  noMsg.classList.add('hidden');
+  grid.innerHTML=students.map(p=>`
+    <button class="existing-student-btn" onclick="pickExistingStudent('${p.name.toLowerCase().trim().replace(/'/g,"\\'")}')">
+      <div class="esb-name">${esc(p.name)}</div>
+      <div class="esb-meta">${[p.lesson_type,p.address?p.address.slice(0,20)+'…':''].filter(Boolean).join(' · ')}</div>
+    </button>`).join('');
 }
 
-/* ════════════════════════════════
-   ADD LESSON
-════════════════════════════════ */
+function filterExistingPicker(q){
+  const all=Object.values(rosterMap);
+  const filtered=q?all.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):all;
+  renderExistingGrid(filtered);
+}
+
+function pickExistingStudent(keyName){
+  const p=rosterMap[keyName];
+  if(!p)return;
+  setPickerMode('new');
+  document.getElementById('lStudent').value=p.name;
+  document.getElementById('lPhone').value=p.phone||'';
+  document.getElementById('lAddr').value=p.address||'';
+  document.getElementById('lType').value=p.lesson_type||'Manual';
+  document.getElementById('lNotes').value=p.notes||'';
+  document.getElementById('rosterIndicator').classList.remove('hidden');
+}
+
+/* AUTOCOMPLETE */
+let suggestOpen=false;
+
+function getRosterSuggestions(q){
+  if(!q||q.length<1)return[];
+  const qLow=q.toLowerCase().trim();
+  return Object.values(rosterMap).filter(p=>p.name.toLowerCase().includes(qLow)).slice(0,6);
+}
+
+function onStudentInput(val){
+  const suggestions=getRosterSuggestions(val);
+  const drop=document.getElementById('suggestDrop');
+  suggestIdx=-1;
+  if(!suggestions.length){drop.classList.add('hidden');suggestOpen=false;return;}
+  drop.innerHTML=suggestions.map((p,i)=>`
+    <div class="suggest-item" data-idx="${i}" onmousedown="pickSuggestion('${p.name.toLowerCase().trim().replace(/'/g,"\\'")}')">
+      <div class="suggest-name">${esc(p.name)}<span class="roster-pill saved ms-2"><i class="bi bi-bookmark-fill me-1"></i>Saved</span></div>
+      <div class="suggest-meta">${[p.phone,p.address,p.lesson_type].filter(Boolean).join(' · ')}</div>
+    </div>`).join('');
+  drop.classList.remove('hidden');
+  suggestOpen=true;
+}
+
+function onStudentKeydown(e){
+  const drop=document.getElementById('suggestDrop');
+  const items=drop.querySelectorAll('.suggest-item');
+  if(!suggestOpen||!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();suggestIdx=Math.min(suggestIdx+1,items.length-1);highlightSuggest(items);}
+  else if(e.key==='ArrowUp'){e.preventDefault();suggestIdx=Math.max(suggestIdx-1,-1);highlightSuggest(items);}
+  else if(e.key==='Enter'&&suggestIdx>=0){e.preventDefault();const k=items[suggestIdx].getAttribute('onmousedown').match(/'([^']+)'/)?.[1];if(k)pickSuggestion(k);}
+  else if(e.key==='Escape'){drop.classList.add('hidden');suggestOpen=false;}
+}
+
+function highlightSuggest(items){
+  items.forEach((el,i)=>el.classList.toggle('active',i===suggestIdx));
+  if(suggestIdx>=0)items[suggestIdx].scrollIntoView({block:'nearest'});
+}
+
+function pickSuggestion(keyName){
+  const p=rosterMap[keyName];
+  if(!p)return;
+  document.getElementById('lStudent').value=p.name;
+  document.getElementById('lPhone').value=p.phone||'';
+  document.getElementById('lAddr').value=p.address||'';
+  document.getElementById('lType').value=p.lesson_type||'Manual';
+  document.getElementById('lNotes').value=p.notes||'';
+  document.getElementById('suggestDrop').classList.add('hidden');
+  document.getElementById('rosterIndicator').classList.remove('hidden');
+  suggestOpen=false;
+}
+
+document.addEventListener('click',e=>{
+  const drop=document.getElementById('suggestDrop');
+  const inp=document.getElementById('lStudent');
+  if(drop&&inp&&!drop.contains(e.target)&&e.target!==inp){drop.classList.add('hidden');suggestOpen=false;}
+});
+
+/* ADD LESSON */
 function openAddModal(dk,dayName,idx){
   activeDate=dk;
-  const d=new Date(dk+'T12:00:00');
-  document.getElementById('addSub').textContent=dayName+', '+fmtS(d)+' '+d.getFullYear();
-  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';
-  document.getElementById('rosterPick').value='';
-  populateRosterPick();
+  const days=weekDays(weekStart);
+  document.getElementById('addSub').textContent=dayName+', '+fmtS(days[idx])+' '+days[idx].getFullYear();
+  document.getElementById('lStudent').value='';
+  ['lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('lTime').value='09:00';
+  document.getElementById('lDur').value='2';
+  document.getElementById('lType').value='Manual';
+  document.getElementById('rosterIndicator').classList.add('hidden');
+  document.getElementById('suggestDrop').classList.add('hidden');
+  document.getElementById('saveToRoster').checked=false;
+  document.getElementById('existingSearch').value='';
+  const hasRoster=Object.keys(rosterMap).length>0;
+  setPickerMode(hasRoster?'existing':'new');
   openModal('addModal');
-  setTimeout(()=>document.getElementById('lStudent').focus(),300);
-}
-
-function populateRosterPick(){
-  const sel=document.getElementById('rosterPick');
-  sel.innerHTML='<option value="">— type name below or pick saved student —</option>';
-  rosterStudents.forEach(s=>{
-    const o=document.createElement('option');
-    o.value=s.id;
-    o.textContent=s.full_name+(s.pickup_address?' · '+s.pickup_address.slice(0,25):'');
-    sel.appendChild(o);
-  });
-}
-
-function fillFromRoster(id){
-  if(!id)return;
-  const s=rosterStudents.find(x=>x.id===id);
-  if(!s)return;
-  document.getElementById('lStudent').value=s.full_name||'';
-  document.getElementById('lPhone').value=s.phone||'';
-  document.getElementById('lAddr').value=s.pickup_address||'';
-  document.getElementById('lType').value=s.lesson_type||'Manual';
-  document.getElementById('lNotes').value=s.notes||'';
-}
-
-function toggleAutoSave(){
-  autoSaveOn=!autoSaveOn;
-  document.getElementById('autoSaveSw').classList.toggle('on',autoSaveOn);
 }
 
 async function saveLesson(e){
   e.preventDefault();
+  const studentName=document.getElementById('lStudent').value.trim();
+  if(!studentName){showToast('Please enter a student name.');return;}
   const btn=document.getElementById('saveLsBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
   try{
-    const studentName=document.getElementById('lStudent').value.trim();
-    const studentPhone=document.getElementById('lPhone').value.trim();
-    const pickupAddr=document.getElementById('lAddr').value.trim();
-    const lessonType=document.getElementById('lType').value;
-    const{error}=await sb.from('lessons').insert([{
+    const lessonPayload={
       instructor_id:instr.id,lesson_date:activeDate,
       start_time:document.getElementById('lTime').value,
       duration_hours:parseFloat(document.getElementById('lDur').value),
-      student_name:studentName,student_phone:studentPhone,
-      pickup_address:pickupAddr,lesson_type:lessonType,
+      student_name:studentName,
+      student_phone:document.getElementById('lPhone').value.trim(),
+      pickup_address:document.getElementById('lAddr').value.trim(),
+      lesson_type:document.getElementById('lType').value,
       notes:document.getElementById('lNotes').value.trim(),
       created_at:new Date().toISOString()
-    }]);
+    };
+    const{error}=await sb.from('lessons').insert([lessonPayload]);
     if(error)throw error;
 
-    // Auto-save to roster
-    if(autoSaveOn){
-      await upsertStudentToRoster(studentName,studentPhone,pickupAddr,lessonType);
+    // ── FIXED: safe roster save (no upsert with composite constraint) ──
+    if(document.getElementById('saveToRoster').checked){
+      const err=await upsertStudentProfile(
+        studentName,
+        lessonPayload.student_phone,
+        lessonPayload.pickup_address,
+        lessonPayload.lesson_type,
+        lessonPayload.notes,
+        null // no existing ID — let the helper check
+      );
+      if(err){console.error('Roster save error:',err);showToast('Lesson saved but roster update failed.');}
+      else{await loadRoster();await loadStudents();}
     }
 
-    closeModal('addModal');await loadCalData();showToast('Lesson saved ✓','success');
-    await loadRoster();
+    closeModal('addModal');await loadWeek();showToast('Lesson saved ✓','success');
   }catch(err){console.error(err);showToast('Error saving lesson.');}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
-}
-
-/* Upsert student into roster */
-async function upsertStudentToRoster(name,phone,addr,type,notes=''){
-  if(!name)return;
-  // Check if exists
-  const{data:existing}=await sb.from('students').select('id,total_lessons').eq('instructor_id',instr.id).eq('full_name',name).maybeSingle();
-  if(existing){
-    await sb.from('students').update({
-      phone:phone||existing.phone,
-      pickup_address:addr||existing.pickup_address,
-      lesson_type:type||existing.lesson_type,
-      total_lessons:(existing.total_lessons||0)+1,
-      last_lesson:activeDate||new Date().toISOString().slice(0,10),
-      updated_at:new Date().toISOString()
-    }).eq('id',existing.id);
-  } else {
-    await sb.from('students').insert([{
-      instructor_id:instr.id,full_name:name,phone:phone,
-      pickup_address:addr,lesson_type:type,notes:notes,
-      total_lessons:1,last_lesson:activeDate||new Date().toISOString().slice(0,10),
-      created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-    }]);
-  }
 }
 
 async function quickDel(id){
   if(!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',id);
   if(error){showToast('Error removing.');return;}
-  await loadCalData();showToast('Lesson removed.');
+  await loadWeek();showToast('Lesson removed.');
 }
 
-/* ════════════════════════════════
-   DETAIL MODAL
-════════════════════════════════ */
+/* DETAIL MODAL */
 async function openDetail(id){
   const{data}=await sb.from('lessons').select('*').eq('id',id).single();
   if(!data)return;
-  detailId=id;
+  detailId=id;detailData=data;
   const d=new Date(data.lesson_date+'T12:00:00');
   const end=calcEnd(data.start_time,data.duration_hours);
   document.getElementById('detTitle').textContent=data.student_name;
   document.getElementById('detSub').textContent=fmtFull(d)+' · '+data.start_time+'–'+end;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  const waLink=data.student_phone?`<a class="btn-wa ms-2" href="https://wa.me/44${data.student_phone.replace(/^0/,'').replace(/\s/,'')}" target="_blank"><i class="bi bi-whatsapp"></i> WhatsApp</a>`:'';
+  const inRoster=!!rosterMap[data.student_name.toLowerCase().trim()];
   document.getElementById('detBody').innerHTML=[
     ['<i class="bi bi-clock me-1"></i>Time',`${data.start_time} – ${end} (${data.duration_hours}hr${data.duration_hours!=1?'s':''})`],
     ['<i class="bi bi-tag me-1"></i>Type',`<span style="color:${tc[data.lesson_type]||'#60a5fa'};font-weight:700">${esc(data.lesson_type||'Manual')}</span>`],
-    ['<i class="bi bi-person me-1"></i>Student',`${esc(data.student_name)}${waLink}`],
+    ['<i class="bi bi-person me-1"></i>Student',esc(data.student_name)],
     ['<i class="bi bi-telephone me-1"></i>Phone',data.student_phone?`<a href="tel:${esc(data.student_phone)}" style="color:var(--red)">${esc(data.student_phone)}</a>`:'Not provided'],
     ['<i class="bi bi-geo-alt me-1"></i>Pickup',esc(data.pickup_address)||'Not provided'],
     ['<i class="bi bi-sticky me-1"></i>Notes',esc(data.notes)||'None'],
   ].map(([l,v])=>`<div class="det-row"><div class="det-lbl">${l}</div><div class="det-val">${v}</div></div>`).join('');
+
+  const days=weekDays(weekStart);
+  const tk=todayKey();
+  const moveBtns=document.getElementById('moveDayBtns');
+  moveBtns.innerHTML=days.map((d2,i)=>{
+    const dk=dateKey(d2);
+    if(dk===data.lesson_date)return'';
+    const isT=dk===tk;
+    return`<button class="move-day-btn${isT?' today-day':''}" onclick="moveLesson('${id}','${dk}','${DAYS[i]}')">${DAYS[i].slice(0,3)} ${fmtS(d2)}</button>`;
+  }).join('');
+
   const ms=document.getElementById('detMaps');
-  if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>`;}
-  else ms.innerHTML='';
+  let extra='';
+  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${data.student_name.replace(/'/g,"\\'")}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Student Profile</button>`;}
+  else{extra+=`<button class="btn-g mt-2 w-100" onclick="saveStudentToRosterFromLesson('${data.student_name.replace(/'/g,"\\'")}','${(data.student_phone||'').replace(/'/g,"\\'")}','${(data.pickup_address||'').replace(/'/g,"\\'")}','${(data.lesson_type||'Manual').replace(/'/g,"\\'")}')"><i class="bi bi-bookmark-plus me-1"></i>Save Student to Roster</button>`;}
+  if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>${extra}`;}
+  else ms.innerHTML=extra;
   openModal('detailModal');
+}
+
+async function moveLesson(id,toDate,dayName){
+  const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
+  if(error){showToast('Error moving lesson.');return;}
+  closeModal('detailModal');await loadWeek();
+  showToast('Moved to '+dayName+' ✓','success');
+}
+
+function editLessonFromDetail(){
+  if(!detailData)return;
+  closeModal('detailModal');
+  document.getElementById('editLsId').value=detailData.id;
+  document.getElementById('editLsSubTitle').textContent=detailData.student_name+' · '+detailData.lesson_date;
+  document.getElementById('elStudent').value=detailData.student_name||'';
+  document.getElementById('elDate').value=detailData.lesson_date||'';
+  document.getElementById('elTime').value=detailData.start_time||'09:00';
+  document.getElementById('elDur').value=String(detailData.duration_hours)||'2';
+  document.getElementById('elPhone').value=detailData.student_phone||'';
+  document.getElementById('elAddr').value=detailData.pickup_address||'';
+  document.getElementById('elType').value=detailData.lesson_type||'Manual';
+  document.getElementById('elNotes').value=detailData.notes||'';
+  openModal('editLessonModal');
+}
+
+async function saveEditedLesson(){
+  const id=document.getElementById('editLsId').value;
+  const studentName=document.getElementById('elStudent').value.trim();
+  if(!studentName){showToast('Student name is required.');return;}
+  const updates={
+    student_name:studentName,
+    lesson_date:document.getElementById('elDate').value,
+    start_time:document.getElementById('elTime').value,
+    duration_hours:parseFloat(document.getElementById('elDur').value),
+    student_phone:document.getElementById('elPhone').value.trim(),
+    pickup_address:document.getElementById('elAddr').value.trim(),
+    lesson_type:document.getElementById('elType').value,
+    notes:document.getElementById('elNotes').value.trim(),
+  };
+  const{error}=await sb.from('lessons').update(updates).eq('id',id);
+  if(error){showToast('Error saving.');return;}
+  closeModal('editLessonModal');await loadWeek();showToast('Lesson updated ✓','success');
 }
 
 async function deleteFromDetail(){
   if(!detailId||!confirm('Remove this lesson?'))return;
   const{error}=await sb.from('lessons').delete().eq('id',detailId);
   if(error){showToast('Error.');return;}
-  closeModal('detailModal');await loadCalData();showToast('Lesson removed.');
+  closeModal('detailModal');await loadWeek();showToast('Lesson removed.');
 }
 
-/* ════════════════════════════════
-   ROSTER / STUDENTS
-════════════════════════════════ */
-async function loadRoster(){
-  const{data,error}=await sb.from('students').select('*').eq('instructor_id',instr.id).order('last_lesson',{ascending:false,nullsFirst:false});
-  if(error){console.error('Roster error:',error);return;}
-  rosterStudents=data||[];
-  allStudentsArr=[...rosterStudents];
-  renderStudents(allStudentsArr);
-  updateStats();
-  // Populate transfer dropdown
-  const trSel=document.getElementById('trRosterPick');
-  if(trSel){
-    trSel.innerHTML='<option value="">— or fill in manually below —</option>';
-    rosterStudents.forEach(s=>{
-      const o=document.createElement('option');o.value=s.id;o.textContent=s.full_name+(s.pickup_address?' · '+s.pickup_address.slice(0,25):'');
-      trSel.appendChild(o);
-    });
-  }
-}
-
-function renderStudents(students){
-  const list=document.getElementById('studentList');
-  const lbl=document.getElementById('studentCountLbl');
-  if(lbl)lbl.textContent='('+students.length+')';
-  if(!students.length){list.innerHTML=`<div style="text-align:center;padding:36px 16px;color:#333;font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:#1e1e1e"></i>No students on roster yet.<br><span style="font-size:.76rem;color:#1e1e1e">They'll appear here when you add lessons with auto-save on.</span></div>`;return;}
-  const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  list.innerHTML=students.map(s=>{
-    const waBtn=s.phone?`<a class="btn-wa" href="https://wa.me/44${s.phone.replace(/^0/,'').replace(/\s/,'')}" target="_blank" onclick="event.stopPropagation()"><i class="bi bi-whatsapp"></i></a>`:'';
-    return`<div class="student-card">
-      <div class="d-flex align-items-center gap-3">
-        <div class="s-init">${(s.full_name||'?').charAt(0).toUpperCase()}</div>
-        <div style="flex:1;min-width:0">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div style="font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:700;color:#fff">${esc(s.full_name)}</div>
-            ${waBtn}
-          </div>
-          ${s.phone?`<div style="font-size:.74rem;color:#555"><a href="tel:${esc(s.phone)}" style="color:var(--red)"><i class="bi bi-telephone me-1"></i>${esc(s.phone)}</a></div>`:''}
-          ${s.pickup_address?`<div style="font-size:.72rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(s.pickup_address)}</div>`:''}
-          <div class="d-flex flex-wrap gap-1 mt-1">
-            <span style="font-size:.66rem;color:#444;background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px">${s.total_lessons||0} lesson${(s.total_lessons||0)!==1?'s':''}</span>
-            ${s.lesson_type?`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:${tc[s.lesson_type]||'#60a5fa'};border:1px solid rgba(59,130,246,.18)">${esc(s.lesson_type)}</span>`:''}
-            ${s.last_lesson?`<span style="font-size:.63rem;color:#333;background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 5px">Last: ${s.last_lesson}</span>`:''}
-          </div>
-          ${s.notes?`<div style="font-size:.7rem;color:#333;font-style:italic;margin-top:3px">${esc(s.notes)}</div>`:''}
-        </div>
-        <button class="nav-btn" style="flex-shrink:0" onclick="openEditStudent('${s.id}')" title="Edit student"><i class="bi bi-pencil-fill"></i></button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function filterStudents(q){
-  if(!q)return renderStudents(allStudentsArr);
-  const ql=q.toLowerCase();
-  renderStudents(allStudentsArr.filter(s=>(s.full_name||'').toLowerCase().includes(ql)||(s.pickup_address||'').toLowerCase().includes(ql)||(s.phone||'').includes(ql)));
-}
-
-function openAddStudentModal(){
+/* ════════════════════════════════════
+   STUDENT ROSTER CRUD — FIXED
+   Uses upsertStudentProfile() helper
+   instead of raw upsert with composite
+   constraint that may not exist in DB
+   ════════════════════════════════════ */
+async function saveStudentToRosterFromLesson(name,phone,addr,type){
+  closeModal('detailModal');
   document.getElementById('editStudentId').value='';
-  document.getElementById('studentModalTitle').innerHTML='<i class="bi bi-person-plus-fill me-2" style="color:var(--green)"></i>Add Student';
-  document.getElementById('studentModalSub').textContent='Manually add a student to your roster';
-  ['esName','esPhone','esAddr','esNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('esType').value='Manual';
-  openModal('studentModal');
-  setTimeout(()=>document.getElementById('esName').focus(),300);
+  document.getElementById('esSName').value=name;
+  document.getElementById('esSPhone').value=phone;
+  document.getElementById('esSAddr').value=addr;
+  document.getElementById('eSType').value=type||'Manual';
+  document.getElementById('eSNotes').value='';
+  document.getElementById('editStudentTitle').innerHTML='<i class="bi bi-bookmark-plus me-2" style="color:#4ade80"></i>Save to Student Roster';
+  document.getElementById('editStudentSubTitle').textContent='This student will auto-fill next time you add a lesson';
+  document.getElementById('removeRosterBtn').classList.add('hidden');
+  openModal('editStudentModal');
 }
 
-function openEditStudent(id){
-  const s=rosterStudents.find(x=>x.id===id);if(!s)return;
-  document.getElementById('editStudentId').value=id;
-  document.getElementById('studentModalTitle').innerHTML='<i class="bi bi-pencil-fill me-2" style="color:var(--red)"></i>Edit Student';
-  document.getElementById('studentModalSub').textContent='Changes will update all lessons for this student';
-  document.getElementById('esName').value=s.full_name||'';
-  document.getElementById('esPhone').value=s.phone||'';
-  document.getElementById('esAddr').value=s.pickup_address||'';
-  document.getElementById('esType').value=s.lesson_type||'Manual';
-  document.getElementById('esNotes').value=s.notes||'';
-  openModal('studentModal');
+function openEditStudentFromDetail(name){
+  closeModal('detailModal');
+  const p=rosterMap[name.toLowerCase().trim()];
+  if(!p)return;
+  openEditStudentModal(p);
 }
 
-async function saveStudentEdit(){
-  const id=document.getElementById('editStudentId').value;
-  const name=document.getElementById('esName').value.trim();
+function openEditStudentModal(p){
+  document.getElementById('editStudentTitle').innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student';
+  document.getElementById('editStudentSubTitle').textContent='Changes will auto-fill next time you add a lesson for this student';
+  document.getElementById('editStudentId').value=p.id||'';
+  document.getElementById('esSName').value=p.name||'';
+  document.getElementById('esSPhone').value=p.phone||'';
+  document.getElementById('esSAddr').value=p.address||'';
+  document.getElementById('eSType').value=p.lesson_type||'Manual';
+  document.getElementById('eSNotes').value=p.notes||'';
+  document.getElementById('removeRosterBtn').classList.remove('hidden');
+  openModal('editStudentModal');
+}
+
+/* ── FIXED saveStudentProfile ── */
+async function saveStudentProfile(){
+  const name=document.getElementById('esSName').value.trim();
   if(!name){showToast('Student name is required.');return;}
-  const updates={
-    full_name:name,phone:document.getElementById('esPhone').value.trim(),
-    pickup_address:document.getElementById('esAddr').value.trim(),
-    lesson_type:document.getElementById('esType').value,
-    notes:document.getElementById('esNotes').value.trim(),
-    updated_at:new Date().toISOString()
-  };
 
-  let oldName=name;
-  if(id){
-    // Get old name for lesson update
-    const s=rosterStudents.find(x=>x.id===id);
-    if(s)oldName=s.full_name;
-    const{error}=await sb.from('students').update(updates).eq('id',id);
-    if(error){showToast('Error saving student.');return;}
-  } else {
-    // New student
-    const{error}=await sb.from('students').insert([{...updates,instructor_id:instr.id,total_lessons:0,created_at:new Date().toISOString()}]);
-    if(error){showToast('Error adding student.');return;}
-  }
+  const id=document.getElementById('editStudentId').value;
 
-  // Update ALL lessons with old name → new details
-  if(oldName){
-    await sb.from('lessons').update({
-      student_name:name,
-      student_phone:updates.phone||undefined,
-      pickup_address:updates.pickup_address||undefined,
-    }).eq('instructor_id',instr.id).eq('student_name',oldName);
-  }
+  const error=await upsertStudentProfile(
+    name,
+    document.getElementById('esSPhone').value.trim(),
+    document.getElementById('esSAddr').value.trim(),
+    document.getElementById('eSType').value,
+    document.getElementById('eSNotes').value.trim(),
+    id||null  // pass existing ID if editing, null if new
+  );
 
-  closeModal('studentModal');
-  await loadRoster();
-  await loadCalData();
+  if(error){showToast('Error saving student.');console.error(error);return;}
+  closeModal('editStudentModal');
+  await Promise.all([loadRoster(),loadStudents()]);
   showToast('Student saved ✓','success');
 }
 
-function fillTransferFromRoster(id){
-  if(!id)return;
-  const s=rosterStudents.find(x=>x.id===id);if(!s)return;
-  document.getElementById('trStudent').value=s.full_name||'';
-  document.getElementById('trPhone').value=s.phone||'';
-  document.getElementById('trAddr').value=s.pickup_address||'';
-  document.getElementById('trType').value=s.lesson_type||'Manual';
+async function removeStudentFromRoster(){
+  const id=document.getElementById('editStudentId').value;
+  const name=document.getElementById('esSName').value.trim();
+  if(!id){showToast('No saved profile to remove.');return;}
+  if(!confirm(`Remove ${name} from your saved roster?`))return;
+  const{error}=await sb.from('student_profiles').delete().eq('id',id);
+  if(error){showToast('Error removing.');return;}
+  closeModal('editStudentModal');
+  await Promise.all([loadRoster(),loadStudents()]);
+  showToast('Removed from roster.');
 }
 
-/* ════════════════════════════════
-   REMINDERS
-════════════════════════════════ */
+/* REMINDERS */
 async function checkReminders(){
   const now=new Date();
   const tk=todayKey();
@@ -1253,23 +1253,22 @@ async function checkReminders(){
       await sb.from('lesson_reminders').insert([{lesson_id:l.id,instructor_id:instr.id,reminder_type:'1hour',sent_at:new Date().toISOString()}]);
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
-      banner.className='reminder-banner';banner.id='rem-'+l.id;banner.style.animation='slideDown .4s ease';
+      banner.className='reminder-banner';banner.id='rem-'+l.id;
+      banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
         <div class="flex-grow-1">
-          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:#fff;margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
-          <div style="font-size:.78rem;color:#888"><strong style="color:#fff">${esc(l.student_name)}</strong> · ${l.start_time} · ${esc(l.lesson_type||'Manual')}<br>📍 ${esc(l.pickup_address||'No address')}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt);margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
+          <div style="font-size:.78rem;color:var(--txt3)"><strong style="color:var(--txt)">${esc(l.student_name)}</strong> · ${l.start_time} · ${esc(l.lesson_type||'Manual')}<br>📍 ${esc(l.pickup_address||'No address')}</div>
           ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="maps-btn mt-2" style="display:inline-flex;font-size:.72rem;padding:5px 10px"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
         </div>
-        <button onclick="document.getElementById('rem-${l.id}').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:.9rem;flex-shrink:0">✕</button>`;
+        <button onclick="document.getElementById('rem-${l.id}').remove()" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:.9rem;flex-shrink:0">✕</button>`;
       ra.appendChild(banner);
     }
   }
 }
 
-/* ════════════════════════════════
-   NOTIFICATIONS
-════════════════════════════════ */
+/* NOTIFICATIONS */
 async function loadNotifications(){
   const{data}=await sb.from('admin_messages').select('*').eq('instructor_id',instr.id).eq('dismissed',false).order('created_at',{ascending:false});
   const msgs=data||[];
@@ -1280,12 +1279,12 @@ async function loadNotifications(){
   unread.forEach(m=>{
     const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;
     div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span>
-      <div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#ddd;margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:#666;line-height:1.45">${esc(m.body)}</div></div>
+      <div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div>
       <button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;
     bc.appendChild(div);
   });
   const list=document.getElementById('notifList');
-  if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:#333">No notifications</div>';return;}
+  if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div>';return;}
   const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa'};
   list.innerHTML=msgs.map(m=>`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')">
     <div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${(m.message_type||'').replace('_',' ')}</div>
@@ -1300,31 +1299,29 @@ async function markRead(id){await sb.from('admin_messages').update({is_read:true
 function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');}
 document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');if(p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
 
-/* ════════════════════════════════
-   REQUESTS
-════════════════════════════════ */
+/* REQUESTS */
 async function loadRequests(){
   const{data}=await sb.from('student_requests').select('*').eq('instructor_id',instr.id).order('created_at',{ascending:false});
   const reqs=data||[];
   const pending=reqs.filter(r=>r.status==='pending').length;
   ['reqBadge','mobReqBadge'].forEach(id=>{const el=document.getElementById(id);el.textContent=pending;el.classList.toggle('hidden',pending===0);});
   const list=document.getElementById('requestList');
-  if(!reqs.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No student requests from admin yet.</div>';return;}
+  if(!reqs.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No student requests from admin yet.</div>';return;}
   list.innerHTML=reqs.map(r=>`<div class="req-card ${r.status}">
     <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
-        <div style="font-size:.76rem;color:#555;margin-bottom:4px">${esc(r.pickup_address||'')}${r.postcode?' · '+esc(r.postcode):''}</div>
-        ${r.student_phone?`<div style="font-size:.73rem;color:#444"><i class="bi bi-telephone me-1"></i>${esc(r.student_phone)}</div>`:''}
-        ${r.lesson_type?`<div style="font-size:.73rem;color:#444"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
-        ${r.notes?`<div style="font-size:.72rem;color:#444;font-style:italic;margin-top:3px">${esc(r.notes)}</div>`:''}
-        <div style="font-size:.63rem;color:#333;margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.76rem;color:var(--txt3);margin-bottom:4px">${esc(r.pickup_address||'')}${r.postcode?' · '+esc(r.postcode):''}</div>
+        ${r.student_phone?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-telephone me-1"></i>${esc(r.student_phone)}</div>`:''}
+        ${r.lesson_type?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
+        ${r.notes?`<div style="font-size:.72rem;color:var(--txt4);font-style:italic;margin-top:3px">${esc(r.notes)}</div>`:''}
+        <div style="font-size:.63rem;color:var(--txt5);margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
     ${r.status==='pending'?`<div class="d-flex gap-2 mt-3">
-      <button class="btn-g flex-fill" style="border-radius:8px" onclick="openApprove('${r.id}','${esc(r.student_name)}','${esc(r.pickup_address||'')}','${esc(r.lesson_type||'Manual')}','${esc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
-      <button class="btn-r-sm flex-fill" style="border-radius:8px" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
+      <button class="btn-g flex-fill" style="border-radius:8px;font-family:'Oswald',sans-serif;font-size:.86rem;font-weight:600" onclick="openApprove('${r.id}','${esc(r.student_name)}','${esc(r.pickup_address||'')}','${esc(r.lesson_type||'Manual')}','${esc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="btn-r-sm flex-fill" style="border-radius:8px;font-family:'Oswald',sans-serif;font-size:.86rem;font-weight:600" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
     </div>`:''}
   </div>`).join('');
 }
@@ -1354,36 +1351,30 @@ async function confirmApprove(){
   }]).select().single();
   if(error){showToast('Error adding lesson.');return;}
   await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
-  // Auto-save to roster
-  activeDate=date;
-  await upsertStudentToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual');
   closeModal('approveModal');
-  await Promise.all([loadCalData(),loadRequests(),loadRoster()]);
+  await Promise.all([loadWeek(),loadRequests()]);
   showToast('✅ Student approved & added to calendar!','success');
 }
 
 async function declineRequest(id){
   if(!confirm('Decline this request?'))return;
-  const{data:req}=await sb.from('student_requests').select('*').eq('id',id).single();
   await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
   await loadRequests();showToast('Request declined.');
 }
 
-/* ════════════════════════════════
-   TRANSFERS
-════════════════════════════════ */
+/* TRANSFERS */
 async function loadTransfers(){
   const{data}=await sb.from('transfer_requests').select('*').eq('from_instructor_id',instr.id).order('created_at',{ascending:false});
   const list=document.getElementById('transferList');
   const items=data||[];
-  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:#333;font-size:.84rem">No transfer requests yet.</div>';return;}
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No transfer requests yet.</div>';return;}
   list.innerHTML=items.map(r=>`<div class="tr-card">
     <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px">${esc(r.student_name)}</div>
-        <div style="font-size:.75rem;color:#555">${esc(r.pickup_address||'')}</div>
-        <div style="font-size:.73rem;color:#444;font-style:italic;margin-top:4px">"${esc(r.reason)}"</div>
-        <div style="font-size:.63rem;color:#333;margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
+        <div style="font-size:.75rem;color:var(--txt3)">${esc(r.pickup_address||'')}</div>
+        <div style="font-size:.73rem;color:var(--txt4);font-style:italic;margin-top:4px">"${esc(r.reason)}"</div>
+        <div style="font-size:.63rem;color:var(--txt5);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
       </div>
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
@@ -1395,8 +1386,9 @@ async function submitTransfer(){
   const reason=document.getElementById('trReason').value.trim();
   const addr=document.getElementById('trAddr').value.trim();
   if(!student||!reason||!addr){showToast('Please fill all required fields.');return;}
+  const toId=document.getElementById('trToInstr').value||null;
   const{error}=await sb.from('transfer_requests').insert([{
-    from_instructor_id:instr.id,to_instructor_id:document.getElementById('trToInstr').value||null,
+    from_instructor_id:instr.id,to_instructor_id:toId,
     student_name:student,student_phone:document.getElementById('trPhone').value.trim(),
     pickup_address:addr,lesson_type:document.getElementById('trType').value,
     reason,status:'pending',created_at:new Date().toISOString()
@@ -1405,9 +1397,62 @@ async function submitTransfer(){
   closeModal('transferModal');await loadTransfers();showToast('Transfer request submitted ✓','success');
 }
 
-/* ════════════════════════════════
-   PROFILE — FIXED UPLOADS
-════════════════════════════════ */
+/* STUDENTS TAB */
+async function loadStudents(){
+  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).order('created_at',{ascending:false});
+  const map={};
+  (data||[]).forEach(l=>{
+    if(!map[l.student_name])map[l.student_name]={name:l.student_name,phone:l.student_phone,address:l.pickup_address,count:0,last:l.lesson_date,types:new Set()};
+    map[l.student_name].count++;map[l.student_name].types.add(l.lesson_type||'Manual');
+    if(l.lesson_date>map[l.student_name].last)map[l.student_name].last=l.lesson_date;
+  });
+  allStudentsArr=Object.values(map).sort((a,b)=>b.last.localeCompare(a.last));
+  renderStudents(allStudentsArr);
+}
+
+function renderStudents(students){
+  const list=document.getElementById('studentList');
+  if(!students.length){
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">
+      <i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>
+      No students yet. Add lessons to see them here.
+    </div>`;return;
+  }
+  list.innerHTML=students.map(s=>{
+    const saved=!!rosterMap[s.name.toLowerCase().trim()];
+    return`<div class="student-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="s-init">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <div style="font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:700;color:var(--txt)">${esc(s.name)}</div>
+            <span class="roster-pill ${saved?'saved':'unsaved'}">${saved?'<i class="bi bi-bookmark-fill me-1"></i>Saved':'<i class="bi bi-bookmark me-1"></i>Not saved'}</span>
+          </div>
+          ${s.phone?`<div style="font-size:.74rem;color:var(--txt3)"><a href="tel:${esc(s.phone)}" style="color:var(--red)"><i class="bi bi-telephone me-1"></i>${esc(s.phone)}</a></div>`:''}
+          ${s.address?`<div style="font-size:.72rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</div>`:''}
+          ${saved&&rosterMap[s.name.toLowerCase().trim()].notes?`<div style="font-size:.7rem;color:var(--txt4);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(rosterMap[s.name.toLowerCase().trim()].notes)}</div>`:''}
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            <span style="font-size:.66rem;color:var(--txt4);background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px">${s.count} lesson${s.count!==1?'s':''}</span>
+            ${[...s.types].map(t=>`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">${esc(t)}</span>`).join('')}
+          </div>
+        </div>
+        <div class="d-flex flex-column gap-1 flex-shrink-0">
+          ${saved
+            ?`<button class="btn-blue" style="padding:5px 10px;font-size:.72rem;min-height:32px" onclick="openEditStudentModal(rosterMap['${s.name.toLowerCase().trim().replace(/'/g,"\\'")}'])"><i class="bi bi-pencil me-1"></i>Edit</button>`
+            :`<button class="btn-g" style="padding:5px 10px;font-size:.72rem;min-height:32px" onclick="saveStudentToRosterFromLesson('${s.name.replace(/'/g,"\\'")}','${(s.phone||'').replace(/'/g,"\\'")}','${(s.address||'').replace(/'/g,"\\'")}','${([...s.types][0]||'Manual').replace(/'/g,"\\'")}')"><i class="bi bi-bookmark-plus me-1"></i>Save</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterStudents(q){
+  if(!q)return renderStudents(allStudentsArr);
+  renderStudents(allStudentsArr.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||(s.address||'').toLowerCase().includes(q.toLowerCase())));
+}
+
+/* PROFILE */
 async function loadProfileData(){
   const{data}=await sb.from('instructors').select('*').eq('id',instr.id).single();
   if(!data)return;
@@ -1429,50 +1474,14 @@ async function loadProfileData(){
   if(data.car_photo_url){const img=document.getElementById('carPhotoImg');img.src=data.car_photo_url;img.style.display='block';document.getElementById('carPhotoPlch').style.display='none';}
 }
 
-function handleProfilePhoto(e){
-  const f=e.target.files[0];if(!f)return;
-  if(f.size>5*1024*1024){showToast('Photo too large — max 5MB.');return;}
-  pPhotoFile=f;document.getElementById('profileAvatar').src=URL.createObjectURL(f);
-  showToast('Photo selected — tap Save to upload.','success');
-}
-function handleBadgePhoto(e){
-  const f=e.target.files[0];if(!f)return;
-  if(f.size>5*1024*1024){showToast('File too large — max 5MB.');return;}
-  bPhotoFile=f;const p=document.getElementById('badgePreview');p.src=URL.createObjectURL(f);p.style.display='block';
-  showToast('Badge photo selected — tap Save to upload.','success');
-}
-function handleCarPhoto(e){
-  const f=e.target.files[0];if(!f)return;
-  if(f.size>5*1024*1024){showToast('Photo too large — max 5MB.');return;}
-  cPhotoFile=f;const img=document.getElementById('carPhotoImg');img.src=URL.createObjectURL(f);img.style.display='block';document.getElementById('carPhotoPlch').style.display='none';
-  showToast('Car photo selected — tap Save to upload.','success');
-}
+function handleProfilePhoto(e){const f=e.target.files[0];if(!f)return;pPhotoFile=f;document.getElementById('profileAvatar').src=URL.createObjectURL(f);}
+function handleBadgePhoto(e){const f=e.target.files[0];if(!f)return;bPhotoFile=f;const p=document.getElementById('badgePreview');p.src=URL.createObjectURL(f);p.style.display='block';}
+function handleCarPhoto(e){const f=e.target.files[0];if(!f)return;cPhotoFile=f;const img=document.getElementById('carPhotoImg');img.src=URL.createObjectURL(f);img.style.display='block';document.getElementById('carPhotoPlch').style.display='none';}
 
-function showProgress(barId,progId,pct){
-  const bar=document.getElementById(barId),prog=document.getElementById(progId);
-  if(!bar||!prog)return;
-  prog.classList.add('show');bar.style.width=pct+'%';
-}
-function hideProgress(barId,progId){
-  const bar=document.getElementById(barId),prog=document.getElementById(progId);
-  if(!bar||!prog)return;
-  bar.style.width='100%';setTimeout(()=>{prog.classList.remove('show');bar.style.width='0';},600);
-}
-
-async function uploadFile(file,path,barId,progId){
-  showProgress(barId,progId,30);
-  // Delete old file first (upsert)
-  try{await sb.storage.from('instructor-photos').remove([path]);}catch(e){}
-  showProgress(barId,progId,60);
-  const{error}=await sb.storage.from('instructor-photos').upload(path,file,{
-    cacheControl:'3600',upsert:true,contentType:file.type
-  });
-  showProgress(barId,progId,90);
-  if(error){hideProgress(barId,progId);throw error;}
-  const{data}=sb.storage.from('instructor-photos').getPublicUrl(path);
-  hideProgress(barId,progId);
-  // Cache-bust
-  return data.publicUrl+'?t='+Date.now();
+async function uploadFile(file,path){
+  const{error}=await sb.storage.from('instructor-photos').upload(path,file,{upsert:true});
+  if(error)throw error;
+  return sb.storage.from('instructor-photos').getPublicUrl(path).data.publicUrl;
 }
 
 async function deleteProfilePhoto(){
@@ -1498,68 +1507,58 @@ async function saveProfile(){
     car_type:document.getElementById('pCarType').value,
   };
   try{
-    if(pPhotoFile){
-      const ext=pPhotoFile.name.split('.').pop().toLowerCase();
-      updates.profile_photo_url=await uploadFile(pPhotoFile,`profiles/${instr.id}/profile.${ext}`,'profileUploadBar','profileUploadProgress');
-    }
-    if(bPhotoFile){
-      const ext=bPhotoFile.name.split('.').pop().toLowerCase();
-      updates.badge_photo_url=await uploadFile(bPhotoFile,`badges/${instr.id}/badge.${ext}`,'badgeUploadBar','badgeUploadProgress');
-    }
-    if(cPhotoFile){
-      const ext=cPhotoFile.name.split('.').pop().toLowerCase();
-      updates.car_photo_url=await uploadFile(cPhotoFile,`cars/${instr.id}/car.${ext}`,'carUploadBar','carUploadProgress');
-    }
+    if(pPhotoFile){const ext=pPhotoFile.name.split('.').pop();updates.profile_photo_url=await uploadFile(pPhotoFile,`profiles/${instr.id}/profile.${ext}`);}
+    if(bPhotoFile){const ext=bPhotoFile.name.split('.').pop();updates.badge_photo_url=await uploadFile(bPhotoFile,`badges/${instr.id}/badge.${ext}`);}
+    if(cPhotoFile){const ext=cPhotoFile.name.split('.').pop();updates.car_photo_url=await uploadFile(cPhotoFile,`cars/${instr.id}/car.${ext}`);}
     const{error}=await sb.from('instructors').update(updates).eq('id',instr.id);
     if(error)throw error;
     Object.assign(instr,{name:updates.full_name,phone:updates.phone,email:updates.email,area:updates.area});
-    if(updates.profile_photo_url){instr.profile_photo_url=updates.profile_photo_url;document.getElementById('navAvatar').src=updates.profile_photo_url;}
+    if(updates.profile_photo_url)instr.profile_photo_url=updates.profile_photo_url;
     sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
     updateNav();pPhotoFile=null;bPhotoFile=null;cPhotoFile=null;
     document.getElementById('profileNameDisp').textContent=updates.full_name||'—';
     showToast('Profile saved ✓','success');
-  }catch(err){console.error('Profile save error:',err);showToast('Error: '+( err.message||'Upload failed. Check storage settings.')  );}
+  }catch(err){showToast('Error saving profile.');}
 }
 
-/* ════════════════════════════════
-   DROPDOWNS
-════════════════════════════════ */
+/* DROPDOWNS */
 async function populateInstrDropdowns(){
   const{data}=await sb.from('instructors').select('id,full_name').eq('status','approved').neq('id',instr.id);
   const opts=(data||[]).map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   document.getElementById('trToInstr').innerHTML='<option value="">Let admin decide</option>'+opts;
 }
 
-/* ════════════════════════════════
-   HOME SCREEN MODAL
-════════════════════════════════ */
+/* HOME SCREEN */
 function openHSModal(){
   const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
   const isAndroid=/Android/.test(navigator.userAgent);
   const el=document.getElementById('hsContent');
-  if(isIOS){el.innerHTML=`<p style="font-size:.82rem;color:#666;margin-bottom:14px">Follow these steps on your iPhone or iPad:</p>
-    <div class="hs-step"><div class="hs-num">1</div><div class="hs-txt">Open this page in <strong>Safari</strong> (not Chrome)</div></div>
-    <div class="hs-step"><div class="hs-num">2</div><div class="hs-txt">Tap the <strong>Share</strong> <i class="bi bi-box-arrow-up ms-1"></i> button at the bottom</div></div>
-    <div class="hs-step"><div class="hs-num">3</div><div class="hs-txt">Scroll down and tap <strong>"Add to Home Screen"</strong></div></div>
-    <div class="hs-step"><div class="hs-num">4</div><div class="hs-txt">Tap <strong>"Add"</strong> — the DriveSQ icon appears on your home screen</div></div>`;}
-  else if(isAndroid){el.innerHTML=`<p style="font-size:.82rem;color:#666;margin-bottom:14px">Follow these steps on your Android:</p>
-    <div class="hs-step"><div class="hs-num">1</div><div class="hs-txt">Open this page in <strong>Chrome</strong></div></div>
-    <div class="hs-step"><div class="hs-num">2</div><div class="hs-txt">Tap the <strong>⋮ menu</strong> in the top right</div></div>
-    <div class="hs-step"><div class="hs-num">3</div><div class="hs-txt">Tap <strong>"Add to Home screen"</strong></div></div>
-    <div class="hs-step"><div class="hs-num">4</div><div class="hs-txt">Tap <strong>"Add"</strong> — done!</div></div>`;}
-  else{el.innerHTML=`<div class="hs-step"><div class="hs-num">📱</div><div class="hs-txt"><strong>iPhone/iPad:</strong> Safari → Share → Add to Home Screen</div></div>
-    <div class="hs-step"><div class="hs-num">🤖</div><div class="hs-txt"><strong>Android:</strong> Chrome → Menu ⋮ → Add to Home screen</div></div>`;}
+  if(isIOS){
+    el.innerHTML=`<p style="font-size:.82rem;color:var(--txt3);margin-bottom:14px">Follow these steps on your iPhone or iPad:</p>
+      <div class="hs-step"><div class="hs-num">1</div><div class="hs-txt">Open this page in <strong>Safari</strong> (not Chrome)</div></div>
+      <div class="hs-step"><div class="hs-num">2</div><div class="hs-txt">Tap the <strong>Share</strong> <i class="bi bi-box-arrow-up ms-1"></i> button at the bottom</div></div>
+      <div class="hs-step"><div class="hs-num">3</div><div class="hs-txt">Scroll down and tap <strong>"Add to Home Screen"</strong></div></div>
+      <div class="hs-step"><div class="hs-num">4</div><div class="hs-txt">Tap <strong>"Add"</strong> — the DriveSQ icon appears on your home screen</div></div>`;
+  }else if(isAndroid){
+    el.innerHTML=`<p style="font-size:.82rem;color:var(--txt3);margin-bottom:14px">Follow these steps on your Android:</p>
+      <div class="hs-step"><div class="hs-num">1</div><div class="hs-txt">Open this page in <strong>Chrome</strong></div></div>
+      <div class="hs-step"><div class="hs-num">2</div><div class="hs-txt">Tap the <strong>⋮ menu</strong> in the top right</div></div>
+      <div class="hs-step"><div class="hs-num">3</div><div class="hs-txt">Tap <strong>"Add to Home screen"</strong></div></div>
+      <div class="hs-step"><div class="hs-num">4</div><div class="hs-txt">Tap <strong>"Add"</strong> — done!</div></div>`;
+  }else{
+    el.innerHTML=`<div class="hs-step"><div class="hs-num">📱</div><div class="hs-txt"><strong>iPhone/iPad:</strong> Safari → Share <i class="bi bi-box-arrow-up"></i> → Add to Home Screen</div></div>
+      <div class="hs-step"><div class="hs-num">🤖</div><div class="hs-txt"><strong>Android:</strong> Chrome → Menu ⋮ → Add to Home screen</div></div>`;
+  }
   openModal('hsModal');
 }
 
-/* ════════════════════════════════
-   MODALS + TOAST
-════════════════════════════════ */
+/* MODALS */
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 
+/* TOAST */
 let _tt;
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
