@@ -362,6 +362,43 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .susp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
 .susp-card{background:#111;border:1px solid rgba(209,10,17,.35);border-radius:18px;padding:32px 24px;max-width:380px;width:100%;text-align:center}
 
+/* STUDENT CARD V2 */
+.student-card-v2{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:0;overflow:hidden;transition:border-color var(--trans),transform var(--trans),background .4s}
+.student-card-v2:hover{border-color:rgba(209,10,17,.3);transform:translateY(-1px)}
+.student-card-v2.registered{border-color:rgba(37,211,102,.2)}
+.student-card-v2.has-unread{border-color:rgba(96,165,250,.3)}
+.sc-top{padding:12px 14px;display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.sc-init{width:42px;height:42px;border-radius:50%;background:rgba(209,10,17,.1);border:2px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--red);flex-shrink:0;position:relative}
+.sc-init.registered-init{background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80}
+.sc-reg-dot{position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-radius:50%;background:#4ade80;border:2px solid var(--dk2)}
+.sc-name{font-family:'Oswald',sans-serif;font-size:.96rem;font-weight:700;color:var(--txt);line-height:1.1}
+.sc-meta{font-size:.72rem;color:var(--txt3);margin-top:2px}
+.sc-actions{display:flex;gap:6px;padding:0 14px 12px;flex-wrap:wrap;border-top:1px solid var(--bdr);padding-top:10px}
+.sc-stat{display:flex;flex-direction:column;align-items:center;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:5px 10px;min-width:52px}
+.sc-stat-val{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.1rem;font-weight:900;line-height:1}
+.sc-stat-lbl{font-size:.52rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+/* CHAT BUBBLES */
+.chat-bubble{max-width:75%;padding:8px 11px;border-radius:12px;font-size:.8rem;line-height:1.5;word-break:break-word}
+.chat-bubble.from-me{background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.2);color:var(--txt2);align-self:flex-end;border-bottom-right-radius:3px}
+.chat-bubble.from-student{background:var(--dk3);border:1px solid var(--bdr);color:var(--txt2);align-self:flex-start;border-bottom-left-radius:3px}
+.chat-time{font-size:.58rem;color:var(--txt4);margin-top:3px}
+/* TOPIC ROWS */
+.topic-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)}
+.topic-row:last-child{border-bottom:none}
+.topic-name{font-size:.78rem;color:var(--txt2);flex:1;min-width:0}
+.r-btn{border:1.5px solid transparent;border-radius:6px;padding:3px 9px;font-size:.65rem;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Oswald',sans-serif;min-width:26px;text-align:center}
+.r-btn.r0{background:rgba(100,100,100,.1);border-color:rgba(100,100,100,.2);color:#666}
+.r-btn.r1{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.2);color:#f87171}
+.r-btn.r2{background:rgba(245,197,24,.1);border-color:rgba(245,197,24,.2);color:var(--gold)}
+.r-btn.r3{background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.2);color:#4ade80}
+.r-btn.active{transform:scale(1.1);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.r-btn.r0.active{background:rgba(100,100,100,.3);border-color:#888}
+.r-btn.r1.active{background:rgba(239,68,68,.3);border-color:#f87171}
+.r-btn.r2.active{background:rgba(245,197,24,.3);border-color:var(--gold)}
+.r-btn.r3.active{background:rgba(37,211,102,.3);border-color:#4ade80}
+/* STUDENT STATS STRIP */
+.ss-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;font-size:.72rem;font-weight:700;font-family:'Oswald',sans-serif;border:1px solid}
+
 /* RESPONSIVE */
 @media(max-width:767px){.main-pad{padding:12px 12px 0}}
 @media(min-width:768px){.desktop-cal-wrap{display:block}.mobile-cal-wrap{display:none}}
@@ -502,16 +539,23 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
   <!-- STUDENTS TAB -->
   <div id="panel-students" class="hidden">
-    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
       <div>
         <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>My Students</div>
-        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">Auto-saved from lessons · Generate codes to share student app</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">Click any student to manage their profile, progress and messaging</div>
       </div>
-      <div class="d-flex gap-2 align-items-center">
-        <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)" id="studentSearch"/>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div style="display:flex;gap:4px;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;padding:3px">
+          <button class="cal-view-btn active" id="sview-all" onclick="setStudentFilter('all')">All</button>
+          <button class="cal-view-btn" id="sview-connected" onclick="setStudentFilter('connected')"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Connected</button>
+          <button class="cal-view-btn" id="sview-unread" onclick="setStudentFilter('unread')"><i class="bi bi-chat-fill me-1" style="color:#60a5fa"></i>Messages</button>
+        </div>
+        <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)" id="studentSearch"/>
         <button class="btn-p" style="width:auto;padding:8px 14px;font-size:.82rem;min-height:38px" onclick="openAddStudentDirect()"><i class="bi bi-person-plus me-1"></i>Add</button>
       </div>
     </div>
+    <!-- Student stats strip -->
+    <div class="d-flex gap-2 mb-3 flex-wrap" id="studentStatsStrip"></div>
     <div id="studentList" class="d-flex flex-column gap-2"></div>
   </div>
 
@@ -775,6 +819,159 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="btn-r-sm hidden" id="removeRosterBtn" onclick="removeStudentFromRoster()"><i class="bi bi-trash"></i></button>
     </div>
     <button class="btn-s mt-2" onclick="closeModal('editStudentModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- ═══ STUDENT MANAGEMENT MODAL ═══ -->
+<div class="dsq-overlay" id="studentMgmtModal">
+  <div class="dsq-modal" style="max-width:600px">
+    <button class="modal-x" onclick="closeModal('studentMgmtModal')"><i class="bi bi-x-lg"></i></button>
+    <!-- Student header -->
+    <div class="d-flex align-items-center gap-3 mb-3" id="smHeader">
+      <div id="smAvatar" style="width:52px;height:52px;border-radius:50%;background:rgba(209,10,17,.1);border:2px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:var(--red);flex-shrink:0">?</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt)" id="smName">—</div>
+        <div class="d-flex gap-2 align-items-center flex-wrap mt-1" id="smBadges"></div>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div class="d-flex gap-1 mb-3" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:3px">
+      <button class="dsq-tab active" id="smt-profile" onclick="smTab('profile')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-person-fill me-1"></i>Profile</button>
+      <button class="dsq-tab" id="smt-progress" onclick="smTab('progress')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-graph-up me-1"></i>Progress</button>
+      <button class="dsq-tab" id="smt-topics" onclick="smTab('topics')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-list-check me-1"></i>Topics</button>
+      <button class="dsq-tab" id="smt-messages" onclick="smTab('messages')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-chat-dots-fill me-1"></i>Chat<span id="smUnreadBadge" class="tab-badge ms-1 hidden">0</span></button>
+      <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-key-fill me-1"></i>Access</button>
+    </div>
+    <input type="hidden" id="smStudentName"/>
+    <input type="hidden" id="smStudentAccId"/>
+
+    <!-- PROFILE TAB -->
+    <div id="smPanel-profile">
+      <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:10px" id="smRegisteredInfo">
+        <div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Student-Provided Details (from app registration)</div>
+        <div id="smRegDetails" style="font-size:.82rem;color:var(--txt2);line-height:1.8">Not registered in app yet</div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-12"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="smEditName" placeholder="Student full name"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label>
+          <div class="d-flex gap-2">
+            <input class="dsq-inp flex-grow-1" id="smEditPhone" placeholder="07xxx xxx xxx" type="tel"/>
+            <button class="btn-wa-sm" onclick="smWhatsApp()" title="WhatsApp"><i class="bi bi-whatsapp"></i></button>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="smEditEmail" placeholder="student@email.com" type="email"/></div>
+        <div class="col-12"><label class="dsq-lbl">Default Pickup Address</label><input class="dsq-inp" id="smEditAddr" placeholder="14 Oak Street, M20"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Default Lesson Type</label>
+          <select class="dsq-inp" id="smEditType">
+            <option value="Manual">🔵 Manual</option><option value="Automatic">🟢 Automatic</option>
+            <option value="Mock Test">🔴 Mock Test</option><option value="Intensive">🟠 Intensive</option>
+            <option value="Pass Plus">🟣 Pass Plus</option><option value="Refresher">🟡 Refresher</option>
+          </select>
+        </div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Emergency Contact</label><input class="dsq-inp" id="smEditEmergency" placeholder="Name · Phone"/></div>
+        <div class="col-12"><label class="dsq-lbl">Instructor Notes</label><textarea class="dsq-inp" id="smEditNotes" rows="2" placeholder="Private notes about this student…"></textarea></div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
+        <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+
+    <!-- PROGRESS TAB -->
+    <div id="smPanel-progress" class="hidden">
+      <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Overall Progress</div>
+        <div class="row g-2">
+          <div class="col-6">
+            <div style="font-size:.68rem;color:var(--txt4);margin-bottom:3px">Hours Done</div>
+            <input class="dsq-inp" id="smProgHours" type="number" min="0" max="200" step="0.5" placeholder="0"/>
+          </div>
+          <div class="col-6">
+            <div style="font-size:.68rem;color:var(--txt4);margin-bottom:3px">Target Hours</div>
+            <input class="dsq-inp" id="smProgTarget" type="number" min="1" max="200" step="1" placeholder="20"/>
+          </div>
+          <div class="col-12">
+            <div style="font-size:.68rem;color:var(--txt4);margin-bottom:3px">Test Readiness</div>
+            <select class="dsq-inp" id="smProgReadiness">
+              <option value="not_ready">🔴 Not Ready</option>
+              <option value="nearly_there">🟡 Nearly There</option>
+              <option value="ready">🟢 Ready for Test</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <div style="font-size:.68rem;color:var(--txt4);margin-bottom:3px">Feedback for Student</div>
+            <textarea class="dsq-inp" id="smProgNotes" rows="3" placeholder="Progress notes — student will see this in their app…"></textarea>
+          </div>
+        </div>
+        <!-- Hours progress bar -->
+        <div style="margin-top:10px">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.68rem;color:var(--txt4)">
+            <span>Progress to target</span><span id="smProgPct">0%</span>
+          </div>
+          <div style="height:8px;background:var(--dk2);border-radius:4px;overflow:hidden">
+            <div id="smProgBar" style="height:100%;background:linear-gradient(90deg,var(--red),#f97316);border-radius:4px;transition:width .5s ease;width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-p w-100" onclick="saveSmProgress()"><i class="bi bi-check-lg me-1"></i>Save Progress & Notify Student</button>
+    </div>
+
+    <!-- TOPICS TAB -->
+    <div id="smPanel-topics" class="hidden">
+      <div style="font-size:.72rem;color:var(--txt3);margin-bottom:10px">
+        <span style="background:rgba(100,100,100,.15);color:#666;border-radius:4px;padding:1px 6px;margin-right:4px;font-size:.63rem">0 — Not Started</span>
+        <span style="background:rgba(239,68,68,.15);color:#f87171;border-radius:4px;padding:1px 6px;margin-right:4px;font-size:.63rem">1 — Introduced</span>
+        <span style="background:rgba(245,197,24,.15);color:var(--gold);border-radius:4px;padding:1px 6px;margin-right:4px;font-size:.63rem">2 — Developing</span>
+        <span style="background:rgba(37,211,102,.15);color:#4ade80;border-radius:4px;padding:1px 6px;font-size:.63rem">3 — Independent</span>
+      </div>
+      <div id="smTopicGroups" style="max-height:380px;overflow-y:auto"></div>
+      <button class="btn-p w-100 mt-3" onclick="saveSmTopics()"><i class="bi bi-check-lg me-1"></i>Save Topic Ratings</button>
+    </div>
+
+    <!-- MESSAGES TAB -->
+    <div id="smPanel-messages" class="hidden">
+      <div id="smChatBox" style="height:280px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+        <div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px 0">Loading messages…</div>
+      </div>
+      <div class="d-flex gap-2">
+        <input class="dsq-inp flex-grow-1" id="smMsgInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();smSendMessage();}"/>
+        <button class="btn-p" style="width:auto;padding:9px 14px;min-height:42px" onclick="smSendMessage()"><i class="bi bi-send-fill"></i></button>
+      </div>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn-wa w-100" onclick="smWhatsApp()"><i class="bi bi-whatsapp me-1"></i>Also send via WhatsApp</button>
+      </div>
+    </div>
+
+    <!-- ACCESS TAB -->
+    <div id="smPanel-access" class="hidden">
+      <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Student App Access</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <div style="font-size:.6rem;color:var(--txt4);margin-bottom:3px">Student Code</div>
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;letter-spacing:6px;color:var(--txt)" id="smCodeDisplay">—</div>
+          </div>
+          <div>
+            <div style="font-size:.6rem;color:var(--txt4);margin-bottom:3px">PIN</div>
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;letter-spacing:4px;color:var(--gold)" id="smPinDisplay">—</div>
+          </div>
+        </div>
+        <div style="font-size:.62rem;color:var(--txt4);margin-bottom:8px">App Status</div>
+        <div id="smAccessStatus" style="font-size:.84rem;margin-bottom:8px">—</div>
+        <div style="font-size:.62rem;color:var(--txt4)">Last active: <span id="smLastLogin">Never</span></div>
+      </div>
+      <div class="mb-3">
+        <label class="dsq-lbl">Set / Change PIN (4 digits)</label>
+        <div class="d-flex gap-2">
+          <input class="dsq-inp flex-grow-1" id="smPinInput" type="text" placeholder="e.g. 1234" maxlength="4" pattern="[0-9]{4}" style="letter-spacing:4px;font-size:1.1rem;text-align:center"/>
+          <button class="btn-gold-sm" onclick="smSavePin()" style="min-height:42px;padding:0 14px"><i class="bi bi-check-lg me-1"></i>Save PIN</button>
+        </div>
+      </div>
+      <div class="d-flex gap-2 mb-2">
+        <button class="btn-s flex-fill" onclick="smRegenCode()"><i class="bi bi-arrow-repeat me-1"></i>New Code</button>
+        <button class="btn-wa flex-fill" onclick="smShareLink()"><i class="bi bi-whatsapp me-1"></i>Share Link via WA</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1057,7 +1254,7 @@ function updateNav(){
 const TABS=['cal','students','requests','transfer','profile'];
 function switchTab(t){
   TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});
-  if(t==='students')renderStudents(allStudentsArr);
+  if(t==='students'){loadStudents();} // reload to get latest unread + progress
   if(t==='transfer')populateTransferRosterDropdown();
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
@@ -1843,64 +2040,132 @@ function saveDetailStudentToRoster(){
 ══════════════════════════════ */
 async function loadStudents(){
   const{data:profiles}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
-  const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type').eq('instructor_id',instr.id);
+  const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours').eq('instructor_id',instr.id);
   const lessonMap={};
   (lessons||[]).forEach(l=>{const k=l.student_name?.toLowerCase().trim();if(!k)return;if(!lessonMap[k])lessonMap[k]={count:0,last:'',types:new Set(),totalHrs:0};lessonMap[k].count++;lessonMap[k].totalHrs+=(parseFloat(l.duration_hours)||1);lessonMap[k].types.add(l.lesson_type||'Manual');if(l.lesson_date>lessonMap[k].last)lessonMap[k].last=l.lesson_date;});
-  allStudentsArr=(profiles||[]).map(p=>{const k=p.name.toLowerCase().trim();const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0};return{...p,count:lInfo.count,lastDate:lInfo.last,types:lInfo.types,totalHrs:lInfo.totalHrs||0};}).sort((a,b)=>(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
-  // Backfill
+
+  // Load progress data for all student accounts under this instructor
+  const{data:progData}=await sb.from('student_progress').select('student_account_id,total_hours_done,test_readiness').eq('instructor_id',instr.id);
+  const progByAccId={};(progData||[]).forEach(p=>{progByAccId[p.student_account_id]=p;});
+
+  // Load unread message counts
+  const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false).catch(()=>({data:[]}));
+  const unreadByAcc={};(unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+
+  // Map account data
+  const accs=Object.values(studentAccountMap);
+
+  allStudentsArr=(profiles||[]).map(p=>{
+    const k=p.name.toLowerCase().trim();
+    const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0};
+    const acc=accs.find(a=>a.full_name?.toLowerCase()===k);
+    const prog=acc?progByAccId[acc.id]:null;
+    const unread=acc?unreadByAcc[acc.id]||0:0;
+    return{...p,count:lInfo.count,lastDate:lInfo.last,types:lInfo.types,totalHrs:lInfo.totalHrs||0,
+      progHours:prog?.total_hours_done,test_readiness:prog?.test_readiness,unreadMsgs:unread};
+  }).sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
+
+  // Backfill any lesson students not yet in profiles
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k));
   if(newFromLessons.length){for(const[k]of newFromLessons)await saveToRoster(k,'','','Manual','',null);await loadRoster();return loadStudents();}
   renderStudents(allStudentsArr);updateStats();
 }
 
+// Student filter state
+let studentFilterMode='all';
+function setStudentFilter(mode){
+  studentFilterMode=mode;
+  ['all','connected','unread'].forEach(m=>{document.getElementById('sview-'+m)?.classList.toggle('active',m===mode);});
+  filterStudents(document.getElementById('studentSearch')?.value||'');
+}
+
+function renderStudentStatsStrip(students){
+  const strip=document.getElementById('studentStatsStrip');if(!strip)return;
+  const total=students.length;
+  const connected=students.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;}).length;
+  const withUnread=students.filter(s=>s.unreadMsgs>0).length;
+  const totalHrsAll=students.reduce((a,s)=>a+(s.totalHrs||0),0);
+  strip.innerHTML=`
+    <span class="ss-pill" style="background:rgba(209,10,17,.08);border-color:rgba(209,10,17,.2);color:var(--red)"><i class="bi bi-people-fill me-1"></i>${total} students</span>
+    <span class="ss-pill" style="background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.2);color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>${connected} on app</span>
+    <span class="ss-pill" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.2);color:#c084fc"><i class="bi bi-clock me-1"></i>${totalHrsAll.toFixed(1)}h total</span>
+    ${withUnread?`<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>${withUnread} unread</span>`:''}`;
+}
+
 function renderStudents(students){
   const list=document.getElementById('studentList');
-  if(!students.length){list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students yet.</div>`;return;}
-  list.innerHTML=students.map(s=>{
+  renderStudentStatsStrip(students);
+  let filtered=students;
+  if(studentFilterMode==='connected')filtered=students.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
+  else if(studentFilterMode==='unread')filtered=students.filter(s=>(s.unreadMsgs||0)>0);
+  if(!filtered.length){
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':'No students yet.'}</div>`;
+    return;
+  }
+  list.innerHTML=filtered.map(s=>{
     const phone=s.phone||'';
-    const waUrl=phone?waLink(phone,'Hi '+s.name+', this is your DriveSQ instructor. '):'';
-    // App status badge
     const acc=Object.values(studentAccountMap).find(a=>a.full_name?.toLowerCase()===s.name.toLowerCase());
     const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
-    const hasLogin=acc?.last_login;
-    let appBadge='';
-    if(hasLogin)appBadge='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>App Connected</span>';
-    else if(lastEvent==='pin_entered')appBadge='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
-    else if(lastEvent==='link_opened')appBadge='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
-    // Unread messages
-    const unreadMsgs=0; // placeholder — would query student_messages table
-    return`<div class="student-card">
-      <div class="d-flex align-items-start gap-3">
-        <div class="s-init">${(s.name||'?').charAt(0).toUpperCase()}</div>
+    const hasLogin=!!(acc?.last_login);
+    const unread=s.unreadMsgs||0;
+    let statusHtml='',statusClass='';
+    if(hasLogin){
+      statusHtml='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>';
+      statusClass='registered';
+    } else if(lastEvent==='pin_entered'){
+      statusHtml='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
+    } else if(lastEvent==='link_opened'){
+      statusHtml='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
+    } else {
+      statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App</span>';
+    }
+    const readiness=s.test_readiness||'';
+    const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
+      readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
+    const sn=s.name.replace(/'/g,"\\'");
+    return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
+      <div class="sc-top" onclick="openStudentMgmt('${sn}')">
+        <div class="sc-init ${hasLogin?'registered-init':''}">
+          ${(s.name||'?').charAt(0).toUpperCase()}
+          ${hasLogin?'<div class="sc-reg-dot"></div>':''}
+        </div>
         <div style="flex:1;min-width:0">
-          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-            <div style="font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:700;color:var(--txt)">${esc(s.name)}</div>
-            ${s.count?`<span style="font-size:.64rem;color:var(--txt4);background:var(--dk3);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px">${s.count} lesson${s.count!==1?'s':''}</span>`:''}
-            ${appBadge}
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="sc-name">${esc(s.name)}</div>
+            ${statusHtml}
+            ${unread>0?`<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>${unread} new</span>`:''}
+            ${readinessHtml}
           </div>
-          ${phone?`<div style="font-size:.74rem;color:var(--txt3);margin-bottom:2px"><a href="tel:${esc(phone)}" style="color:var(--red)"><i class="bi bi-telephone me-1"></i>${esc(phone)}</a></div>`:''}
-          ${s.address?`<div style="font-size:.72rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</div>`:''}
-          ${s.notes?`<div style="font-size:.7rem;color:var(--txt4);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(s.notes)}</div>`:''}
-          <div class="d-flex flex-wrap gap-1 mt-1">
-            ${s.lesson_type?`<span style="font-size:.63rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">${esc(s.lesson_type)}</span>`:''}
-            ${s.count?`<span style="font-size:.61rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.18)"><i class="bi bi-clock me-1"></i>${s.totalHrs.toFixed(1)}h total</span>`:''}
-            ${s.payment_total?`<span style="font-size:.61rem;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.18)"><i class="bi bi-currency-pound me-1"></i>${parseFloat(s.payment_total).toFixed(2)} received</span>`:''}
-            ${s.lastDate?`<span style="font-size:.61rem;color:var(--txt5)">Last: ${s.lastDate}</span>`:''}
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            ${phone?`<span class="sc-meta"><i class="bi bi-telephone me-1"></i>${esc(phone)}</span>`:''}
+            ${s.address?`<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</span>`:''}
+            ${acc?.email?`<span class="sc-meta"><i class="bi bi-envelope me-1"></i>${esc(acc.email)}</span>`:''}
+          </div>
+          <div class="d-flex gap-1 mt-2 flex-wrap">
+            <div class="sc-stat"><span class="sc-stat-val" style="color:var(--blue)">${s.count||0}</span><span class="sc-stat-lbl">lessons</span></div>
+            <div class="sc-stat"><span class="sc-stat-val" style="color:#c084fc">${(s.totalHrs||0).toFixed(1)}h</span><span class="sc-stat-lbl">road time</span></div>
+            ${s.lastDate?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">${s.lastDate.slice(5)}</span><span class="sc-stat-lbl">last lesson</span></div>`:''}
           </div>
         </div>
-        <div class="d-flex flex-column gap-1 flex-shrink-0 align-items-end">
-          <button class="btn-blue" style="padding:5px 9px;font-size:.7rem;min-height:28px" onclick="openEditStudentModal(rosterMap['${s.name.toLowerCase().trim().replace(/'/g,"\\'")}'])"><i class="bi bi-pencil me-1"></i>Edit</button>
-          <button class="btn-gold-sm" onclick="openProgressModal('${s.name.replace(/'/g,"\\'")}')"><i class="bi bi-graph-up me-1"></i>Progress</button>
-          <button class="btn-gold-sm" style="background:rgba(245,197,24,.08)" onclick="openStudentCodeModal('${s.name.replace(/'/g,"\\'")}')"><i class="bi bi-key me-1"></i>Code & PIN</button>
-          ${waUrl?`<a href="${waUrl}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i>WA</a>`:''}
-        </div>
+        <div style="color:var(--txt4);font-size:.9rem;flex-shrink:0;margin-left:4px"><i class="bi bi-chevron-right"></i></div>
+      </div>
+      <div class="sc-actions">
+        <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
+        <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
+        <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
+        <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-key-fill me-1"></i>Access</button>
+        ${phone?`<a href="${waLink(phone,'Hi '+s.name+', this is your DriveSQ instructor. ')}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
       </div>
     </div>`;
   }).join('');
 }
 
-function filterStudents(q){if(!q)return renderStudents(allStudentsArr);renderStudents(allStudentsArr.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||(s.phone||'').includes(q)||(s.address||'').toLowerCase().includes(q.toLowerCase())));}
+function filterStudents(q){
+  let list=allStudentsArr;
+  if(q){const lq=q.toLowerCase();list=list.filter(s=>s.name.toLowerCase().includes(lq)||(s.phone||'').includes(lq)||(s.address||'').toLowerCase().includes(lq));}
+  renderStudents(list);
+}
 
 /* PICKER MODES */
 function setPickerMode(mode){
@@ -2238,7 +2503,7 @@ async function saveForgotPwd(){
 
 /* ── MODALS + TOAST ── */
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 let _tt;
@@ -2246,3 +2511,369 @@ function showToast(msg,type=''){const t=document.getElementById('toast');t.textC
 </script>
 </body>
 </html>
+<!-- INJECTED: Student Management Functions -->
+<script>
+/* ══════════════════════════════════════════════════════
+   STUDENT MANAGEMENT MODAL — openStudentMgmt
+══════════════════════════════════════════════════════ */
+let smCurrentName='',smCurrentAccId='',smCurrentAcc=null,smTopicState={},smMsgInterval=null;
+
+async function openStudentMgmt(studentName, tab='profile'){
+  smCurrentName=studentName;
+  const p=rosterMap[studentName.toLowerCase().trim()];
+  if(!p){showToast('Student not found.');return;}
+
+  // Set header
+  document.getElementById('smStudentName').value=studentName;
+  document.getElementById('smName').textContent=studentName;
+  document.getElementById('smAvatar').textContent=(studentName||'?').charAt(0).toUpperCase();
+
+  // Load student account
+  const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
+  smCurrentAcc=acc;
+  smCurrentAccId=acc?.id||'';
+  document.getElementById('smStudentAccId').value=smCurrentAccId;
+
+  // Status badges
+  const hasLogin=!!(acc?.last_login);
+  const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
+  let badges='';
+  if(hasLogin)badges+='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Registered on App</span>';
+  else if(lastEvent==='pin_entered')badges+='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
+  else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
+  else badges+='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App Yet</span>';
+  document.getElementById('smBadges').innerHTML=badges;
+
+  // Populate profile
+  document.getElementById('smEditName').value=p.name||'';
+  document.getElementById('smEditPhone').value=p.phone||'';
+  document.getElementById('smEditAddr').value=p.address||'';
+  document.getElementById('smEditType').value=p.lesson_type||'Manual';
+  document.getElementById('smEditNotes').value=p.notes||'';
+  document.getElementById('smEditEmail').value=acc?.email||'';
+  document.getElementById('smEditEmergency').value=acc?.emergency_contact||'';
+
+  // Registered info from student account
+  if(acc&&acc.last_login){
+    document.getElementById('smRegDetails').innerHTML=`
+      <div class="d-flex flex-wrap gap-2">
+        ${acc.full_name?`<div><strong style="color:var(--txt4);font-size:.6rem">NAME</strong><br>${esc(acc.full_name)}</div>`:''}
+        ${acc.phone?`<div><strong style="color:var(--txt4);font-size:.6rem">PHONE</strong><br>${esc(acc.phone)}</div>`:''}
+        ${acc.email?`<div><strong style="color:var(--txt4);font-size:.6rem">EMAIL</strong><br>${esc(acc.email)}</div>`:''}
+        ${acc.address?`<div style="flex:1;min-width:120px"><strong style="color:var(--txt4);font-size:.6rem">ADDRESS</strong><br>${esc(acc.address)}</div>`:''}
+        ${acc.emergency_contact?`<div style="flex:1;min-width:120px"><strong style="color:var(--txt4);font-size:.6rem">EMERGENCY</strong><br>${esc(acc.emergency_contact)}</div>`:''}
+      </div>
+      <div style="font-size:.62rem;color:#4ade80;margin-top:6px"><i class="bi bi-check-circle-fill me-1"></i>Registered ${new Date(acc.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})} · Last active ${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>`;
+  } else {
+    document.getElementById('smRegDetails').innerHTML='<span style="color:var(--txt4);font-style:italic">Student has not registered in the app yet. Use the Access tab to share their link.</span>';
+  }
+
+  // Populate access tab
+  document.getElementById('smCodeDisplay').textContent=acc?.student_code||'—';
+  document.getElementById('smPinDisplay').textContent=acc?.pin||'Not set';
+  document.getElementById('smPinInput').value=acc?.pin||'';
+  document.getElementById('smLastLogin').textContent=acc?.last_login?new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Never';
+  let accStatus='';
+  if(hasLogin)accStatus='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Fully Registered</span>';
+  else if(lastEvent==='pin_entered')accStatus='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>Has entered PIN — not registered yet</span>';
+  else if(lastEvent==='link_opened')accStatus='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Opened link — not registered yet</span>';
+  else accStatus='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not Connected</span>';
+  document.getElementById('smAccessStatus').innerHTML=accStatus;
+
+  // Load progress if acc exists
+  if(smCurrentAccId){
+    const{data:prog}=await sb.from('student_progress').select('*').eq('student_account_id',smCurrentAccId).maybeSingle();
+    if(prog){
+      document.getElementById('smProgHours').value=prog.total_hours_done||0;
+      document.getElementById('smProgTarget').value=prog.target_hours||20;
+      document.getElementById('smProgReadiness').value=prog.test_readiness||'not_ready';
+      document.getElementById('smProgNotes').value=prog.overall_notes||'';
+      smUpdateProgBar();
+    }
+  }
+
+  // Unread count
+  let unread=0;
+  if(smCurrentAccId){
+    const{count}=await sb.from('student_messages').select('id',{count:'exact',head:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false);
+    unread=count||0;
+  }
+  const ubadge=document.getElementById('smUnreadBadge');
+  if(ubadge){ubadge.textContent=unread;ubadge.classList.toggle('hidden',unread===0);}
+
+  openModal('studentMgmtModal');
+  smTab(tab);
+}
+
+function smTab(tab){
+  ['profile','progress','topics','messages','access'].forEach(t=>{
+    document.getElementById('smPanel-'+t)?.classList.toggle('hidden',t!==tab);
+    document.getElementById('smt-'+t)?.classList.toggle('active',t===tab);
+  });
+  if(tab==='topics')smLoadTopics();
+  if(tab==='messages')smLoadMessages();
+  if(tab!=='messages'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}
+}
+
+function smUpdateProgBar(){
+  const done=parseFloat(document.getElementById('smProgHours').value)||0;
+  const target=parseFloat(document.getElementById('smProgTarget').value)||20;
+  const pct=Math.min(100,(done/target*100)).toFixed(0);
+  document.getElementById('smProgBar').style.width=pct+'%';
+  document.getElementById('smProgPct').textContent=pct+'%';
+}
+document.getElementById('smProgHours')?.addEventListener('input',smUpdateProgBar);
+document.getElementById('smProgTarget')?.addEventListener('input',smUpdateProgBar);
+
+async function saveSmProfile(){
+  const name=document.getElementById('smEditName').value.trim();
+  if(!name){showToast('Name is required.');return;}
+  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  const error=await saveToRoster(name,document.getElementById('smEditPhone').value.trim(),document.getElementById('smEditAddr').value.trim(),document.getElementById('smEditType').value,document.getElementById('smEditNotes').value.trim(),p?.id||null);
+  if(error){showToast('Error: '+error.message);return;}
+  // Also update student_accounts if registered
+  if(smCurrentAccId){
+    await sb.from('student_accounts').update({
+      full_name:name,
+      phone:document.getElementById('smEditPhone').value.trim(),
+      email:document.getElementById('smEditEmail').value.trim(),
+      emergency_contact:document.getElementById('smEditEmergency').value.trim(),
+      updated_at:new Date().toISOString()
+    }).eq('id',smCurrentAccId);
+  }
+  await Promise.all([loadRoster(),loadStudents()]);
+  showToast('Profile saved ✓','success');
+  smCurrentName=name;
+}
+
+async function smRemoveFromRoster(){
+  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  if(!p?.id){showToast('No profile to remove.');return;}
+  if(!confirm('Remove '+smCurrentName+' from roster? Lesson history is kept.'))return;
+  await sb.from('student_profiles').delete().eq('id',p.id);
+  closeModal('studentMgmtModal');
+  await Promise.all([loadRoster(),loadStudents()]);
+  showToast('Removed from roster.');
+}
+
+function smWhatsApp(){
+  const phone=document.getElementById('smEditPhone').value.trim()||rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
+  const url=waLink(phone,'Hi '+smCurrentName+', this is your DriveSQ instructor. ');
+  if(url)window.open(url,'_blank');
+  else showToast('No phone number saved.');
+}
+
+/* ── Progress ── */
+async function saveSmProgress(){
+  const btn=event.target;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
+  try{
+    const{data:accId}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:rosterMap[smCurrentName.toLowerCase().trim()]?.phone||''});
+    const aid=accId||smCurrentAccId;
+    if(!aid){showToast('Cannot create student record.');return;}
+    smCurrentAccId=aid;
+    const hours=parseFloat(document.getElementById('smProgHours').value)||0;
+    const target=parseFloat(document.getElementById('smProgTarget').value)||20;
+    const readiness=document.getElementById('smProgReadiness').value;
+    const notes=document.getElementById('smProgNotes').value.trim();
+    await sb.rpc('upsert_student_progress',{p_student_id:aid,p_instructor_id:instr.id,p_hours_done:hours,p_target_hours:target,p_readiness:readiness,p_notes:notes});
+    // Send in-app notification to student
+    if(smCurrentAccId){
+      await sb.from('student_messages').insert([{
+        student_account_id:smCurrentAccId,instructor_id:instr.id,
+        sender:'instructor',
+        message:`📊 Progress Update: ${readiness==='ready'?'You are ready for your test! 🎉':readiness==='nearly_there'?'You are nearly ready — keep it up!':'Keep working hard on your skills.'} Hours logged: ${hours}/${target}h.${notes?' Notes: '+notes:''}`,
+        is_read:false,sent_at:new Date().toISOString()
+      }]);
+    }
+    // Update local student data
+    const s=allStudentsArr.find(x=>x.name.toLowerCase()===smCurrentName.toLowerCase());
+    if(s){s.progHours=hours;s.test_readiness=readiness;}
+    showToast('Progress saved ✓ Student notified.','success');
+  }catch(err){console.error(err);showToast('Error: '+err.message);}
+  finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Progress & Notify Student';btn.disabled=false;}
+}
+
+/* ── Topics ── */
+const TOPIC_GROUPS_SM={
+  'Routines & Procedures':['Cockpit drill','POM routine','MSPSL routine','Meeting and passing traffic'],
+  'Junctions & Positioning':['Road positioning','Turning left and right','Emerging from junctions','Crossroads','Roundabouts','Dual carriageway'],
+  'Manoeuvres':['Parallel parking','Forward bay parking','Reverse bay parking','Pull up on the right','Emergency stop'],
+  'Independent Driving':['Following road signs','Following sat-nav','Motorway awareness','Night driving'],
+  'Theory & Awareness':['Highway Code','Hazard perception','Show Me Tell Me checks']
+};
+
+async function smLoadTopics(){
+  const container=document.getElementById('smTopicGroups');
+  container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading topics…</div>';
+  smTopicState={};
+  // Get existing ratings
+  if(smCurrentAccId){
+    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId);
+    (topics||[]).forEach(t=>{smTopicState[t.topic_name]={rating:t.rating,id:t.id};});
+  }
+  container.innerHTML=Object.entries(TOPIC_GROUPS_SM).map(([group,topics])=>`
+    <div style="margin-bottom:14px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt);padding:5px 0;border-bottom:1px solid var(--bdr);margin-bottom:6px">${esc(group)}</div>
+      ${topics.map(t=>{
+        const cur=(smTopicState[t]?.rating||0);
+        return`<div class="topic-row">
+          <div class="topic-name">${esc(t)}</div>
+          <div class="d-flex gap-1">
+            ${[0,1,2,3].map(r=>`<button class="r-btn r${r}${cur===r?' active':''}" onclick="smSetTopic('${t.replace(/'/g,"\\'")}',${r},this)">${r}</button>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function smSetTopic(name,rating,btn){
+  if(!smTopicState[name])smTopicState[name]={rating:0};
+  smTopicState[name].rating=rating;
+  const row=btn.closest('.topic-row');
+  row.querySelectorAll('.r-btn').forEach((b,i)=>b.classList.toggle('active',i===rating));
+}
+
+async function saveSmTopics(){
+  const btn=event.target;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;
+  try{
+    let aid=smCurrentAccId;
+    if(!aid){
+      const{data}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:''});
+      aid=data;smCurrentAccId=aid||'';
+    }
+    if(!aid){showToast('Cannot create student record.');return;}
+    for(const[topic,data] of Object.entries(smTopicState)){
+      const group=Object.entries(TOPIC_GROUPS_SM).find(([g,ts])=>ts.includes(topic))?.[0]||'';
+      await sb.rpc('upsert_topic_rating',{p_student_id:aid,p_instructor_id:instr.id,p_group:group,p_topic:topic,p_rating:data.rating});
+    }
+    showToast('Topics saved ✓','success');
+  }catch(err){console.error(err);showToast('Error: '+err.message);}
+  finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Topic Ratings';btn.disabled=false;}
+}
+
+/* ── Messages ── */
+async function smLoadMessages(){
+  if(!smCurrentAccId){
+    document.getElementById('smChatBox').innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px">Share the student app link first so they can register and message you.</div>';
+    return;
+  }
+  const box=document.getElementById('smChatBox');
+  const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',smCurrentAccId).order('sent_at',{ascending:true}).limit(50);
+  // Mark instructor messages as read
+  await sb.from('student_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false);
+  if(!msgs||!msgs.length){
+    box.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px">No messages yet. Send the first one!</div>';
+  } else {
+    box.innerHTML=msgs.map(m=>{
+      const isMe=m.sender==='instructor';
+      const time=new Date(m.sent_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' '+new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+      return`<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
+        <div class="chat-bubble ${isMe?'from-me':'from-student'}">${esc(m.message)}</div>
+        <div class="chat-time">${isMe?'You':'Student'} · ${time}</div>
+      </div>`;
+    }).join('');
+    box.scrollTop=box.scrollHeight;
+  }
+  // Update unread badge
+  const ubadge=document.getElementById('smUnreadBadge');
+  if(ubadge){ubadge.textContent='0';ubadge.classList.add('hidden');}
+  // Also update student card
+  const s=allStudentsArr.find(x=>x.name.toLowerCase()===smCurrentName.toLowerCase());
+  if(s){s.unreadMsgs=0;}
+  // Poll for new messages every 10s
+  if(!smMsgInterval)smMsgInterval=setInterval(smLoadMessages,10000);
+}
+
+async function smSendMessage(){
+  const inp=document.getElementById('smMsgInput');
+  const msg=inp.value.trim();
+  if(!msg)return;
+  // Ensure account exists
+  if(!smCurrentAccId){
+    const{data}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:''});
+    smCurrentAccId=data||'';
+  }
+  if(!smCurrentAccId){showToast('Cannot send — no student account.');return;}
+  const{error}=await sb.from('student_messages').insert([{
+    student_account_id:smCurrentAccId,instructor_id:instr.id,
+    sender:'instructor',message:msg,is_read:false,sent_at:new Date().toISOString()
+  }]);
+  if(error){showToast('Error sending: '+error.message);return;}
+  inp.value='';
+  smLoadMessages();
+}
+
+/* ── Access tab ── */
+async function smSavePin(){
+  const pin=document.getElementById('smPinInput').value.trim();
+  if(!pin||pin.length!==4||!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits.');return;}
+  if(!smCurrentAccId){
+    const{data}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:''});
+    smCurrentAccId=data||'';
+  }
+  if(!smCurrentAccId){showToast('Error creating account.');return;}
+  const{error}=await sb.from('student_accounts').update({pin,updated_at:new Date().toISOString()}).eq('id',smCurrentAccId);
+  if(error){showToast('Error: '+error.message);return;}
+  document.getElementById('smPinDisplay').textContent=pin;
+  // Notify student
+  await sb.from('student_messages').insert([{
+    student_account_id:smCurrentAccId,instructor_id:instr.id,
+    sender:'instructor',message:'🔑 Your PIN has been updated to: '+pin+'. Use it to log into the student app.',
+    is_read:false,sent_at:new Date().toISOString()
+  }]).catch(()=>{});
+  await loadRoster();
+  showToast('PIN saved ✓','success');
+}
+
+async function smRegenCode(){
+  if(!confirm('Generate a new code? The old link will stop working.'))return;
+  const newCode=gen5Code();
+  if(!smCurrentAccId){showToast('Create a student account first by saving the PIN.');return;}
+  const{error}=await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('id',smCurrentAccId);
+  if(error){showToast('Error: '+error.message);return;}
+  document.getElementById('smCodeDisplay').textContent=newCode;
+  await loadRoster();
+  showToast('New code: '+newCode,'success');
+}
+
+function smShareLink(){
+  const code=document.getElementById('smCodeDisplay').textContent;
+  const pin=document.getElementById('smPinDisplay').textContent;
+  if(code==='—'){showToast('Generate a code first.');return;}
+  const phone=rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
+  const studentUrl=window.location.origin+'/student.html?code='+code;
+  const msg=`Hi ${smCurrentName}! 👋\n\nYour DriveSQ Student App is ready!\n\n📱 Open this link:\n${studentUrl}\n\n🔑 Your Code: ${code}\n🔒 Your PIN: ${pin}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
+  const waPhone=phone?'44'+phone.replace(/^\+44|^0/,''):'';
+  const url=waPhone?`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`:`https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url,'_blank');
+}
+
+/* ── Poll for new messages & registrations ── */
+async function pollStudentUpdates(){
+  // Check for newly registered students
+  const{data:newRegs}=await sb.from('student_accounts').select('full_name,last_login,created_at').eq('instructor_id',instr.id).not('last_login','is',null).order('last_login',{ascending:false}).limit(5);
+  // Update studentAccountMap
+  await loadRoster();
+  // Reload student list if on that tab
+  if(document.getElementById('panel-students')&&!document.getElementById('panel-students').classList.contains('hidden')){
+    renderStudents(allStudentsArr);
+  }
+  // Check unread messages
+  if(smCurrentAccId&&document.getElementById('smPanel-messages')&&!document.getElementById('smPanel-messages').classList.contains('hidden')){
+    // Already handled by smMsgInterval
+  }
+  // Update unread counts on all students
+  const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false);
+  const unreadByAcc={};
+  (unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+  allStudentsArr.forEach(s=>{
+    const acc=Object.values(studentAccountMap).find(a=>a.full_name?.toLowerCase()===s.name.toLowerCase());
+    s.unreadMsgs=acc?unreadByAcc[acc.id]||0:0;
+  });
+}
+// Poll every 30s
+setInterval(pollStudentUpdates,30000);
+
+// Also trigger once loadStudents is enhanced to include progress + unread
+const _origLoadStudents=loadStudents;
+</script>
