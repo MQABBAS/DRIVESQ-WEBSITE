@@ -1326,7 +1326,7 @@ async function confirmLessonAsInstructor(lessonId){
           message:msgText,
           is_read:false,
           sent_at:new Date().toISOString()
-        }]).catch(()=>{});
+        }]).then(()=>{}).then(()=>{},()=>{});
       }
     } else {
       // No record yet — get lesson details to find student account
@@ -1357,7 +1357,7 @@ async function confirmLessonAsInstructor(lessonId){
           message:msgText,
           is_read:false,
           sent_at:new Date().toISOString()
-        }]).catch(()=>{});
+        }]).then(()=>{},()=>{});
       }
     }
     await loadConfirmations();
@@ -1732,14 +1732,17 @@ async function loadRoster(){
     const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email').eq('instructor_id',instr.id);
     studentAccountMap={};
     (accounts||[]).forEach(a=>{
-      // Index by both student_code AND by lowercase name for easy lookup
       if(a.student_code)studentAccountMap[a.student_code]=a;
-      studentAccountMap['name_'+a.full_name?.toLowerCase().trim()]=a;
+      if(a.full_name){studentAccountMap['name_'+a.full_name.toLowerCase().trim()]=a;}
     });
     // Load link events
     const codes=(accounts||[]).filter(a=>a.student_code).map(a=>a.student_code);
     if(codes.length){
-      const{data:events}=await sb.from('student_link_events').select('student_code,event_type,created_at').in('student_code',codes).order('created_at',{ascending:false}).catch(()=>({data:[]}));
+      let events=[];
+      try{
+        const{data:evData}=await sb.from('student_link_events').select('student_code,event_type,created_at').in('student_code',codes).order('created_at',{ascending:false});
+        events=evData||[];
+      }catch(e){console.warn('student_link_events not available');}
       linkEventMap={};
       (events||[]).forEach(e=>{if(!linkEventMap[e.student_code])linkEventMap[e.student_code]=e.event_type;});
     }
@@ -2022,10 +2025,10 @@ async function saveLesson(e){
   try{
     const _pay=parseFloat(document.getElementById('lPayment').value)||0;
     const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:document.getElementById('lPhone').value.trim(),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay||null,created_at:new Date().toISOString()};
-    let{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
+    const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
     if(lErr){
-      // If payment_received column doesn't exist, retry without it
-      if(lErr.message&&lErr.message.includes('payment_received')){
+      if(lErr.message&&(lErr.message.includes('payment_received')||lErr.message.includes('column'))){
+        // payment_received column not yet added — insert without it
         const fallback={...lessonPayload};delete fallback.payment_received;
         const{error:lErr2}=await sb.from('lessons').insert([fallback]);
         if(lErr2)throw lErr2;
@@ -2200,17 +2203,19 @@ async function saveEditedLesson(){
     notes:notes,
     payment_received:pay
   };
-  // Save to DB
-  const{data:saved,error}=await sb.from('lessons').update(updates).eq('id',id).select().single();
-  if(error){
-    // If error is about unknown column, try without payment_received
-    if(error.message&&error.message.includes('payment_received')){
-      delete updates.payment_received;
-      const{data:saved2,error:err2}=await sb.from('lessons').update(updates).eq('id',id).select().single();
-      if(err2){showToast('Error saving: '+err2.message);console.error(err2);return;}
+  // Save to DB - try with payment_received first, then without if column missing
+  let saveError=null;
+  const{error:e1}=await sb.from('lessons').update(updates).eq('id',id);
+  if(e1){
+    if(e1.message&&(e1.message.includes('payment_received')||e1.message.includes('column'))){
+      // Retry without payment_received
+      const safeUpdates={...updates};
+      delete safeUpdates.payment_received;
+      const{error:e2}=await sb.from('lessons').update(safeUpdates).eq('id',id);
+      if(e2){showToast('Error saving: '+e2.message);console.error('saveEditedLesson:',e2);return;}
     } else {
-      showToast('Error saving: '+error.message);
-      console.error('saveEditedLesson error:',error);
+      showToast('Error saving: '+e1.message);
+      console.error('saveEditedLesson:',e1);
       return;
     }
   }
@@ -2218,11 +2223,10 @@ async function saveEditedLesson(){
   await saveToRoster(studentName,phone,addr,ltype,notes,null);
   await loadRoster();
   closeModal('editLessonModal');
-  // Reload the correct view — DON'T reset weekStart, just reload
+  // Navigate to the week/day/month containing the updated lesson
   if(calView==='week'){
-    // Navigate to the week containing the new date
-    const newWeekStart=getMonday(new Date(newDate+'T12:00:00'));
-    weekStart=newWeekStart;
+    const newMon=getMonday(new Date(newDate+'T12:00:00'));
+    weekStart=newMon;
     await loadWeek();
   } else if(calView==='day'){
     currentDayKey=newDate;
@@ -2230,13 +2234,14 @@ async function saveEditedLesson(){
     const dow=nd.getDay()===0?6:nd.getDay()-1;
     currentDayName=DAYS[dow];currentDayIdx=dow;
     await loadDayView(newDate);
-    renderDayView();
   } else if(calView==='month'){
-    monthStart=new Date(new Date(newDate+'T12:00:00').getFullYear(),new Date(newDate+'T12:00:00').getMonth(),1);
+    const nd2=new Date(newDate+'T12:00:00');
+    monthStart=new Date(nd2.getFullYear(),nd2.getMonth(),1);
     await loadMonthView();
   }
-  await loadStudents();renderStudents(allStudentsArr);
-  showToast('✓ Lesson updated — '+newDate+' at '+newTime,'success');
+  await loadStudents();
+  renderStudents(allStudentsArr);
+  showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
 }
 
 async function deleteFromDetail(){
@@ -2265,7 +2270,18 @@ async function loadStudents(){
   const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
   if(profErr){console.error('loadStudents profiles error:',profErr);renderStudents([]);return;}
 
-  const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours,payment_received').eq('instructor_id',instr.id).catch(()=>({data:[]}));
+  // Query lessons — handle payment_received column not existing gracefully
+  let lessons=[];
+  try{
+    const{data:lessonData,error:lessonErr}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours,payment_received').eq('instructor_id',instr.id);
+    if(lessonErr&&lessonErr.message&&lessonErr.message.includes('payment_received')){
+      // payment_received column doesn't exist yet — query without it
+      const{data:lessonData2}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours').eq('instructor_id',instr.id);
+      lessons=lessonData2||[];
+    } else {
+      lessons=lessonData||[];
+    }
+  }catch(e){console.warn('lessons query error:',e.message);}
   const lessonMap={};
   (lessons||[]).forEach(l=>{
     const k=l.student_name?.toLowerCase().trim();if(!k)return;
@@ -2295,7 +2311,7 @@ async function loadStudents(){
   allStudentsArr=(profiles||[]).map(p=>{
     const k=p.name.toLowerCase().trim();
     const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0,totalPaid:0};
-    const acc=accs.find(a=>a.full_name?.toLowerCase()===k);
+    const acc=accs.find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===k);
     const prog=acc?progByAccId[acc.id]:null;
     const unread=acc?unreadByAcc[acc.id]||0:0;
     return{...p,
@@ -2306,17 +2322,26 @@ async function loadStudents(){
     };
   }).sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
 
-  // Backfill lesson students not in profiles (only do this once, avoid infinite loop)
+  // Backfill lesson students not yet in profiles
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k));
   if(newFromLessons.length){
-    for(const[k]of newFromLessons)await saveToRoster(k,'','','Manual','',null);
+    // Save each new student to roster silently
+    for(const[k]of newFromLessons){
+      try{await saveToRoster(k,'','','Manual','',null);}catch(e){}
+    }
     await loadRoster();
-    // Re-fetch profiles only, don't recurse fully
-    const{data:newProfiles}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
-    allStudentsArr=[...(allStudentsArr||[])];
-    const existingNames=new Set(allStudentsArr.map(s=>s.name.toLowerCase().trim()));
-    (newProfiles||[]).forEach(p=>{if(!existingNames.has(p.name.toLowerCase().trim()))allStudentsArr.push({...p,count:0,lastDate:'',types:new Set(),totalHrs:0,unreadMsgs:0});});
+    // Add them directly to allStudentsArr without recursing
+    newFromLessons.forEach(([k,info])=>{
+      if(!allStudentsArr.find(s=>s.name.toLowerCase().trim()===k)){
+        allStudentsArr.push({
+          id:null,name:k,phone:'',address:'',lesson_type:'Manual',notes:'',
+          count:info.count,lastDate:info.last,types:info.types,
+          totalHrs:info.totalHrs||0,totalPaid:0,unreadMsgs:0
+        });
+      }
+    });
+    allStudentsArr.sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
   }
 
   renderStudents(allStudentsArr);
@@ -2334,7 +2359,7 @@ function setStudentFilter(mode){
 function renderStudentStatsStrip(students){
   const strip=document.getElementById('studentStatsStrip');if(!strip)return;
   const total=students.length;
-  const connected=students.filter(s=>{const a=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(x=>x?.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;}).length;
+  const connected=students.filter(s=>{const _k='name_'+s.name.toLowerCase().trim();const a=(studentAccountMap[_k]?.full_name?studentAccountMap[_k]:null)||Object.values(studentAccountMap).find(x=>x?.full_name?.toLowerCase().trim()===s.name.toLowerCase().trim());return !!(a?.last_login);}).length;
   const withUnread=students.filter(s=>s.unreadMsgs>0).length;
   const totalHrsAll=students.reduce((a,s)=>a+(s.totalHrs||0),0);
   strip.innerHTML=`
@@ -2356,7 +2381,7 @@ function renderStudents(students){
   }
   list.innerHTML=filtered.map(s=>{
     const phone=s.phone||'';
-    const acc=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(a=>a?.full_name?.toLowerCase()===s.name.toLowerCase());
+    const _nameKey='name_'+s.name.toLowerCase().trim();const acc=(studentAccountMap[_nameKey]&&studentAccountMap[_nameKey].full_name)?studentAccountMap[_nameKey]:Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
     const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
     const hasLogin=!!(acc?.last_login);
     const unread=s.unreadMsgs||0;
@@ -2819,7 +2844,12 @@ async function openStudentMgmt(studentName, tab='profile'){
   // Load student account
   // Try name index first (fast), fallback to DB query
   let acc=studentAccountMap['name_'+studentName.toLowerCase().trim()]||null;
-  if(!acc){const{data:dbAcc}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle().catch(()=>({data:null}));acc=dbAcc;}
+  if(!acc){
+    try{
+      const{data:dbAcc}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
+      acc=dbAcc;
+    }catch(e){acc=null;}
+  }
   smCurrentAcc=acc;
   smCurrentAccId=acc?.id||'';
   document.getElementById('smStudentAccId').value=smCurrentAccId;
@@ -3047,7 +3077,7 @@ async function saveSmProgress(){
       student_account_id:aid,instructor_id:instr.id,sender:'instructor',
       message:'📊 Progress Update: '+(readiness==='ready'?'You are ready for your test! 🎉':readiness==='nearly_there'?'You are nearly ready — keep it up!':'Keep working hard on your skills.')+' Hours logged: '+hours+'/'+target+'h.'+(notes?' Notes: '+notes:''),
       is_read:false,sent_at:new Date().toISOString()
-    }]).catch(()=>{});
+    }]).then(()=>{},()=>{});
     // Update local data
     const s=allStudentsArr.find(x=>x.name.toLowerCase()===smCurrentName.toLowerCase());
     if(s){s.progHours=hours;s.test_readiness=readiness;}
@@ -3152,7 +3182,7 @@ async function smLoadMessages(){
     }
     msgs=data||[];
     // Mark student messages as read
-    await sb.from('student_messages').update({is_read:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false).catch(()=>{});
+    await sb.from('student_messages').update({is_read:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false).then(()=>{},()=>{});
   }catch(e){
     box.innerHTML='<div style="text-align:center;color:#f87171;font-size:.78rem;padding:20px">Error loading messages: '+esc(e.message)+'</div>';
     return;
@@ -3243,7 +3273,7 @@ async function smSavePin(){
     student_account_id:smCurrentAccId,instructor_id:instr.id,
     sender:'instructor',message:'🔑 Your PIN has been updated to: '+pin+'. Use it to log into the student app.',
     is_read:false,sent_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]).then(()=>{},()=>{});
   await loadRoster();
   showToast('PIN saved ✓','success');
 }
@@ -3273,7 +3303,8 @@ function smShareLink(){
 
 /* ── Poll for new messages & registrations ── */
 // Track which students we've already notified about registration
-let _notifiedRegistrations=new Set(JSON.parse(localStorage.getItem('dsq_notified_regs')||'[]'));
+let _notifiedRegistrations=new Set();
+try{_notifiedRegistrations=new Set(JSON.parse(localStorage.getItem('dsq_notified_regs')||'[]'));}catch(e){localStorage.removeItem('dsq_notified_regs');}
 
 async function pollStudentUpdates(){
   // Load fresh roster data
@@ -3318,7 +3349,7 @@ async function pollStudentUpdates(){
   }catch(e){/* student_messages not yet available */}
   let totalUnread=0;
   allStudentsArr.forEach(s=>{
-    const acc=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(a=>a?.full_name?.toLowerCase()===s.name.toLowerCase());
+    const _nameKey='name_'+s.name.toLowerCase().trim();const acc=(studentAccountMap[_nameKey]&&studentAccountMap[_nameKey].full_name)?studentAccountMap[_nameKey]:Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
     s.unreadMsgs=acc?unreadByAcc[acc.id]||0:0;
     totalUnread+=s.unreadMsgs;
   }););
@@ -3363,5 +3394,5 @@ async function pollStudentUpdates(){
 // Poll every 20s
 setInterval(pollStudentUpdates,20000);
 
-const _origLoadStudents=loadStudents;
+// loadStudents is initialized
 </script>
