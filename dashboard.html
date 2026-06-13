@@ -2821,20 +2821,23 @@ document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 let _tt;
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),3200);}
-</script>
-</body>
-</html>
-<!-- INJECTED: Student Management Functions -->
-<script>
+
+
 /* ══════════════════════════════════════════════════════
    STUDENT MANAGEMENT MODAL — openStudentMgmt
 ══════════════════════════════════════════════════════ */
 let smCurrentName='',smCurrentAccId='',smCurrentAcc=null,smTopicState={},smMsgInterval=null;
 
 async function openStudentMgmt(studentName, tab='profile'){
+  try{
   smCurrentName=studentName;
-  const p=rosterMap[studentName.toLowerCase().trim()];
-  if(!p){showToast('Student not found.');return;}
+  let p=rosterMap[studentName.toLowerCase().trim()];
+  if(!p){
+    // If not in rosterMap yet, try loading roster first
+    await loadRoster();
+    p=rosterMap[studentName.toLowerCase().trim()];
+    if(!p){showToast('Student not found in roster. Save the student first.');return;}
+  }
 
   // Set header
   document.getElementById('smStudentName').value=studentName;
@@ -2908,29 +2911,37 @@ async function openStudentMgmt(studentName, tab='profile'){
   else accStatus='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not Connected</span>';
   document.getElementById('smAccessStatus').innerHTML=accStatus;
 
-  // Load progress if acc exists
+  // Load progress if acc exists — wrapped so missing table doesn't crash modal open
   if(smCurrentAccId){
-    const{data:prog}=await sb.from('student_progress').select('*').eq('student_account_id',smCurrentAccId).maybeSingle();
-    if(prog){
-      document.getElementById('smProgHours').value=prog.total_hours_done||0;
-      document.getElementById('smProgTarget').value=prog.target_hours||20;
-      document.getElementById('smProgReadiness').value=prog.test_readiness||'not_ready';
-      document.getElementById('smProgNotes').value=prog.overall_notes||'';
-      smUpdateProgBar();
-    }
+    try{
+      const{data:prog}=await sb.from('student_progress').select('*').eq('student_account_id',smCurrentAccId).maybeSingle();
+      if(prog){
+        document.getElementById('smProgHours').value=prog.total_hours_done||0;
+        document.getElementById('smProgTarget').value=prog.target_hours||20;
+        document.getElementById('smProgReadiness').value=prog.test_readiness||'not_ready';
+        document.getElementById('smProgNotes').value=prog.overall_notes||'';
+        smUpdateProgBar();
+      }
+    }catch(e){console.warn('student_progress not available:',e.message);}
   }
 
-  // Unread count
+  // Unread count — wrapped so missing table doesn't crash modal open
   let unread=0;
   if(smCurrentAccId){
-    const{count}=await sb.from('student_messages').select('id',{count:'exact',head:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false);
-    unread=count||0;
+    try{
+      const{count}=await sb.from('student_messages').select('id',{count:'exact',head:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false);
+      unread=count||0;
+    }catch(e){console.warn('student_messages not available:',e.message);}
   }
   const ubadge=document.getElementById('smUnreadBadge');
   if(ubadge){ubadge.textContent=unread;ubadge.classList.toggle('hidden',unread===0);}
 
   openModal('studentMgmtModal');
   smTab(tab);
+  }catch(err){
+    console.error('openStudentMgmt error:',err);
+    showToast('Error opening student: '+err.message);
+  }
 }
 
 function smTab(tab){
@@ -2944,8 +2955,8 @@ function smTab(tab){
 }
 
 function smUpdateProgBar(){
-  const done=parseFloat(document.getElementById('smProgHours').value)||0;
-  const target=parseFloat(document.getElementById('smProgTarget').value)||20;
+  const done=parseFloat(document.getElementById('smProgHours')?.value)||0;
+  const target=parseFloat(document.getElementById('smProgTarget')?.value)||20;
   const pct=Math.min(100,(done/target*100)).toFixed(0);
   document.getElementById('smProgBar').style.width=pct+'%';
   document.getElementById('smProgPct').textContent=pct+'%';
@@ -3100,14 +3111,16 @@ async function smLoadTopics(){
   const container=document.getElementById('smTopicGroups');
   container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading topics…</div>';
 
-  // BUG 14: Initialise ALL topics to 0 first — so save covers every topic even untouched ones
+  // Initialise ALL 22 topics to 0 so save always covers everything
   smTopicState={};
   Object.values(TOPIC_GROUPS_SM).flat().forEach(t=>{smTopicState[t]={rating:0,id:null};});
 
-  // Then overlay with existing ratings from DB
+  // Load existing ratings from DB
   if(smCurrentAccId){
-    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId);
-    (topics||[]).forEach(t=>{smTopicState[t.topic_name]={rating:t.rating,id:t.id};});
+    try{
+      const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId);
+      (topics||[]).forEach(t=>{if(t.topic_name)smTopicState[t.topic_name]={rating:t.rating||0,id:t.id};});
+    }catch(e){console.warn('student_topic_ratings not available:',e.message);}
   }
   container.innerHTML=Object.entries(TOPIC_GROUPS_SM).map(([group,topics])=>`
     <div style="margin-bottom:14px">
@@ -3396,3 +3409,5 @@ setInterval(pollStudentUpdates,20000);
 
 // loadStudents is initialized
 </script>
+</body>
+</html>
