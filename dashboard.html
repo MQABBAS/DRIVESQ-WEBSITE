@@ -1278,8 +1278,12 @@ function updateNav(){
 const TABS=['cal','students','requests','transfer','profile'];
 function switchTab(t){
   TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});
-  if(t==='students'){loadStudents();} // reload to get latest unread + progress
+  if(t==='students')loadStudents();
   if(t==='transfer')populateTransferRosterDropdown();
+}
+// Helper — reload students if that tab is currently visible
+function reloadStudentsIfVisible(){
+  if(!document.getElementById('panel-students')?.classList.contains('hidden'))loadStudents();
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
 
@@ -1719,19 +1723,29 @@ function jumpToDayView(dk,dowIdx){
 ══════════════════════════════ */
 async function loadRoster(){
   const{data,error}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
-  if(error){console.warn('Roster load:',error);rosterMap={};return;}
+  if(error){console.warn('Roster load:',error);rosterMap={};updateStats();return;}
   rosterMap={};
   (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
-  // Load student accounts linked to this instructor (for app status)
-  const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login').eq('instructor_id',instr.id);
-  studentAccountMap={};
-  (accounts||[]).forEach(a=>{if(a.student_code)studentAccountMap[a.student_code]=a;});
-  // Load link events
-  const codes=Object.keys(studentAccountMap);
-  if(codes.length){
-    const{data:events}=await sb.from('student_link_events').select('student_code,event_type,created_at').in('student_code',codes).order('created_at',{ascending:false});
-    linkEventMap={};
-    (events||[]).forEach(e=>{if(!linkEventMap[e.student_code])linkEventMap[e.student_code]=e.event_type;});
+
+  // Load student accounts — wrapped in try/catch so missing table doesn't break roster
+  try{
+    const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email').eq('instructor_id',instr.id);
+    studentAccountMap={};
+    (accounts||[]).forEach(a=>{
+      // Index by both student_code AND by lowercase name for easy lookup
+      if(a.student_code)studentAccountMap[a.student_code]=a;
+      studentAccountMap['name_'+a.full_name?.toLowerCase().trim()]=a;
+    });
+    // Load link events
+    const codes=(accounts||[]).filter(a=>a.student_code).map(a=>a.student_code);
+    if(codes.length){
+      const{data:events}=await sb.from('student_link_events').select('student_code,event_type,created_at').in('student_code',codes).order('created_at',{ascending:false}).catch(()=>({data:[]}));
+      linkEventMap={};
+      (events||[]).forEach(e=>{if(!linkEventMap[e.student_code])linkEventMap[e.student_code]=e.event_type;});
+    }
+  }catch(e){
+    console.warn('student_accounts not available — run migration v2:',e.message);
+    studentAccountMap={};linkEventMap={};
   }
   updateStats();
   populateTransferRosterDropdown();
@@ -1739,7 +1753,7 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  const payload={instructor_id:instr.id,name:name.trim(),phone:(phone||'').trim(),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim(),updated_at:new Date().toISOString()};
+  const payload={instructor_id:instr.id,name:name.trim(),phone:(phone||'').trim(),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
   if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
   const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
   if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
@@ -2008,8 +2022,17 @@ async function saveLesson(e){
   try{
     const _pay=parseFloat(document.getElementById('lPayment').value)||0;
     const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:document.getElementById('lPhone').value.trim(),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay||null,created_at:new Date().toISOString()};
-    const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
-    if(lErr)throw lErr;
+    let{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
+    if(lErr){
+      // If payment_received column doesn't exist, retry without it
+      if(lErr.message&&lErr.message.includes('payment_received')){
+        const fallback={...lessonPayload};delete fallback.payment_received;
+        const{error:lErr2}=await sb.from('lessons').insert([fallback]);
+        if(lErr2)throw lErr2;
+      } else {
+        throw lErr;
+      }
+    }
     if(document.getElementById('saveToRoster').checked){
       const rErr=await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
       if(rErr)console.warn('Roster:',rErr);
@@ -2020,6 +2043,7 @@ async function saveLesson(e){
     else if(calView==='day')await loadDayView(activeDate);
     else if(calView==='month')await loadMonthView();
     await loadStudents();
+    renderStudents(allStudentsArr); // ensure list refreshes if on students tab
     showToast('Lesson saved ✓','success');
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
@@ -2027,10 +2051,12 @@ async function saveLesson(e){
 
 async function quickDel(id){
   if(!confirm('Remove this lesson?'))return;
-  await sb.from('lessons').delete().eq('id',id);
+  const{error}=await sb.from('lessons').delete().eq('id',id);
+  if(error){showToast('Error removing: '+error.message);return;}
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
   else if(calView==='month')await loadMonthView();
+  await loadStudents();renderStudents(allStudentsArr);
   showToast('Lesson removed.');
 }
 
@@ -2118,19 +2144,31 @@ async function moveLesson(id,toDate,dayName){
 }
 
 function editLessonFromDetail(){
-  if(!detailData)return;
+  if(!detailData){showToast('No lesson selected.');return;}
+  // Snapshot detailData before closing modal (closing doesn't clear it but be safe)
+  const snap={...detailData};
   closeModal('detailModal');
-  document.getElementById('editLsId').value=detailData.id;
-  document.getElementById('editLsSubTitle').textContent=detailData.student_name+' · '+detailData.lesson_date;
-  document.getElementById('elStudent').value=detailData.student_name||'';
-  document.getElementById('elDate').value=detailData.lesson_date||'';
-  document.getElementById('elTime').value=detailData.start_time||'09:00';
-  document.getElementById('elDur').value=String(detailData.duration_hours)||'2';
-  document.getElementById('elPhone').value=detailData.student_phone||'';
-  document.getElementById('elAddr').value=detailData.pickup_address||'';
-  document.getElementById('elType').value=detailData.lesson_type||'Manual';
-  document.getElementById('elNotes').value=detailData.notes||'';
-  const _elp=document.getElementById('elPayment');if(_elp)_elp.value=detailData.payment_received||'';
+  // Populate edit modal fields
+  document.getElementById('editLsId').value=snap.id||'';
+  if(!snap.id){showToast('Lesson ID missing — cannot edit.');return;}
+  document.getElementById('editLsSubTitle').textContent=snap.student_name+' — '+snap.lesson_date+' at '+snap.start_time;
+  document.getElementById('elStudent').value=snap.student_name||'';
+  document.getElementById('elDate').value=snap.lesson_date||'';
+  document.getElementById('elTime').value=snap.start_time||'09:00';
+  // Duration — handle both integer and decimal
+  const durVal=String(parseFloat(snap.duration_hours)||2);
+  const durSel=document.getElementById('elDur');
+  if(durSel){
+    // Find matching option, fallback to '2'
+    const opt=[...durSel.options].find(o=>o.value===durVal);
+    durSel.value=opt?durVal:'2';
+  }
+  document.getElementById('elPhone').value=snap.student_phone||'';
+  document.getElementById('elAddr').value=snap.pickup_address||'';
+  document.getElementById('elType').value=snap.lesson_type||'Manual';
+  document.getElementById('elNotes').value=snap.notes||'';
+  const _elp=document.getElementById('elPayment');
+  if(_elp)_elp.value=snap.payment_received!=null?snap.payment_received:'';
   openModal('editLessonModal');
 }
 
@@ -2150,6 +2188,7 @@ async function saveEditedLesson(){
   const notes=document.getElementById('elNotes').value.trim();
   const payVal=document.getElementById('elPayment')?.value;
   const pay=payVal&&payVal!==''?parseFloat(payVal):null;
+  // Build update payload — no updated_at as lessons table may not have it
   const updates={
     student_name:studentName,
     lesson_date:newDate,
@@ -2159,16 +2198,21 @@ async function saveEditedLesson(){
     pickup_address:addr,
     lesson_type:ltype,
     notes:notes,
-    payment_received:pay,
-    updated_at:new Date().toISOString()
+    payment_received:pay
   };
-  // Save to DB — verify it worked
+  // Save to DB
   const{data:saved,error}=await sb.from('lessons').update(updates).eq('id',id).select().single();
-  if(error){showToast('Error saving: '+error.message);console.error('saveEditedLesson error:',error);return;}
-  if(!saved){showToast('Save returned no data — check Supabase.');return;}
-  // Verify the saved values match what we sent
-  if(saved.start_time!==newTime||saved.lesson_date!==newDate){
-    console.warn('Mismatch — sent:',newDate,newTime,'got:',saved.lesson_date,saved.start_time);
+  if(error){
+    // If error is about unknown column, try without payment_received
+    if(error.message&&error.message.includes('payment_received')){
+      delete updates.payment_received;
+      const{data:saved2,error:err2}=await sb.from('lessons').update(updates).eq('id',id).select().single();
+      if(err2){showToast('Error saving: '+err2.message);console.error(err2);return;}
+    } else {
+      showToast('Error saving: '+error.message);
+      console.error('saveEditedLesson error:',error);
+      return;
+    }
   }
   // Update roster
   await saveToRoster(studentName,phone,addr,ltype,notes,null);
@@ -2191,16 +2235,19 @@ async function saveEditedLesson(){
     monthStart=new Date(new Date(newDate+'T12:00:00').getFullYear(),new Date(newDate+'T12:00:00').getMonth(),1);
     await loadMonthView();
   }
+  await loadStudents();renderStudents(allStudentsArr);
   showToast('✓ Lesson updated — '+newDate+' at '+newTime,'success');
 }
 
 async function deleteFromDetail(){
   if(!detailId||!confirm('Remove this lesson?'))return;
-  await sb.from('lessons').delete().eq('id',detailId);
+  const{error}=await sb.from('lessons').delete().eq('id',detailId);
+  if(error){showToast('Error removing: '+error.message);return;}
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
   else if(calView==='month')await loadMonthView();
+  await loadStudents();renderStudents(allStudentsArr);
   showToast('Lesson removed.');
 }
 
@@ -2214,37 +2261,66 @@ function saveDetailStudentToRoster(){
    STUDENTS TAB
 ══════════════════════════════ */
 async function loadStudents(){
-  const{data:profiles}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
-  const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours').eq('instructor_id',instr.id);
+  // Core data — these MUST work
+  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+  if(profErr){console.error('loadStudents profiles error:',profErr);renderStudents([]);return;}
+
+  const{data:lessons}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours,payment_received').eq('instructor_id',instr.id).catch(()=>({data:[]}));
   const lessonMap={};
-  (lessons||[]).forEach(l=>{const k=l.student_name?.toLowerCase().trim();if(!k)return;if(!lessonMap[k])lessonMap[k]={count:0,last:'',types:new Set(),totalHrs:0};lessonMap[k].count++;lessonMap[k].totalHrs+=(parseFloat(l.duration_hours)||1);lessonMap[k].types.add(l.lesson_type||'Manual');if(l.lesson_date>lessonMap[k].last)lessonMap[k].last=l.lesson_date;});
+  (lessons||[]).forEach(l=>{
+    const k=l.student_name?.toLowerCase().trim();if(!k)return;
+    if(!lessonMap[k])lessonMap[k]={count:0,last:'',types:new Set(),totalHrs:0,totalPaid:0};
+    lessonMap[k].count++;
+    lessonMap[k].totalHrs+=(parseFloat(l.duration_hours)||1);
+    lessonMap[k].totalPaid+=(parseFloat(l.payment_received)||0);
+    lessonMap[k].types.add(l.lesson_type||'Manual');
+    if(l.lesson_date>lessonMap[k].last)lessonMap[k].last=l.lesson_date;
+  });
 
-  // Load progress data for all student accounts under this instructor
-  const{data:progData}=await sb.from('student_progress').select('student_account_id,total_hours_done,test_readiness').eq('instructor_id',instr.id);
-  const progByAccId={};(progData||[]).forEach(p=>{progByAccId[p.student_account_id]=p;});
+  // Optional data — wrap each in try/catch so failures don't break student list
+  let progByAccId={};
+  try{
+    const{data:progData}=await sb.from('student_progress').select('student_account_id,total_hours_done,test_readiness').eq('instructor_id',instr.id);
+    (progData||[]).forEach(p=>{progByAccId[p.student_account_id]=p;});
+  }catch(e){console.warn('student_progress not available:',e.message);}
 
-  // Load unread message counts
-  const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false).catch(()=>({data:[]}));
-  const unreadByAcc={};(unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+  let unreadByAcc={};
+  try{
+    const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false);
+    (unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+  }catch(e){console.warn('student_messages not available:',e.message);}
 
-  // Map account data
   const accs=Object.values(studentAccountMap);
 
   allStudentsArr=(profiles||[]).map(p=>{
     const k=p.name.toLowerCase().trim();
-    const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0};
+    const lInfo=lessonMap[k]||{count:0,last:'',types:new Set(),totalHrs:0,totalPaid:0};
     const acc=accs.find(a=>a.full_name?.toLowerCase()===k);
     const prog=acc?progByAccId[acc.id]:null;
     const unread=acc?unreadByAcc[acc.id]||0:0;
-    return{...p,count:lInfo.count,lastDate:lInfo.last,types:lInfo.types,totalHrs:lInfo.totalHrs||0,
-      progHours:prog?.total_hours_done,test_readiness:prog?.test_readiness,unreadMsgs:unread};
+    return{...p,
+      count:lInfo.count,lastDate:lInfo.last,types:lInfo.types,
+      totalHrs:lInfo.totalHrs||0,totalPaid:lInfo.totalPaid||0,
+      progHours:prog?.total_hours_done,test_readiness:prog?.test_readiness,
+      unreadMsgs:unread
+    };
   }).sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
 
-  // Backfill any lesson students not yet in profiles
+  // Backfill lesson students not in profiles (only do this once, avoid infinite loop)
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k));
-  if(newFromLessons.length){for(const[k]of newFromLessons)await saveToRoster(k,'','','Manual','',null);await loadRoster();return loadStudents();}
-  renderStudents(allStudentsArr);updateStats();
+  if(newFromLessons.length){
+    for(const[k]of newFromLessons)await saveToRoster(k,'','','Manual','',null);
+    await loadRoster();
+    // Re-fetch profiles only, don't recurse fully
+    const{data:newProfiles}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+    allStudentsArr=[...(allStudentsArr||[])];
+    const existingNames=new Set(allStudentsArr.map(s=>s.name.toLowerCase().trim()));
+    (newProfiles||[]).forEach(p=>{if(!existingNames.has(p.name.toLowerCase().trim()))allStudentsArr.push({...p,count:0,lastDate:'',types:new Set(),totalHrs:0,unreadMsgs:0});});
+  }
+
+  renderStudents(allStudentsArr);
+  updateStats();
 }
 
 // Student filter state
@@ -2258,7 +2334,7 @@ function setStudentFilter(mode){
 function renderStudentStatsStrip(students){
   const strip=document.getElementById('studentStatsStrip');if(!strip)return;
   const total=students.length;
-  const connected=students.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;}).length;
+  const connected=students.filter(s=>{const a=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(x=>x?.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;}).length;
   const withUnread=students.filter(s=>s.unreadMsgs>0).length;
   const totalHrsAll=students.reduce((a,s)=>a+(s.totalHrs||0),0);
   strip.innerHTML=`
@@ -2280,7 +2356,7 @@ function renderStudents(students){
   }
   list.innerHTML=filtered.map(s=>{
     const phone=s.phone||'';
-    const acc=Object.values(studentAccountMap).find(a=>a.full_name?.toLowerCase()===s.name.toLowerCase());
+    const acc=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(a=>a?.full_name?.toLowerCase()===s.name.toLowerCase());
     const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
     const hasLogin=!!(acc?.last_login);
     const unread=s.unreadMsgs||0;
@@ -2422,8 +2498,11 @@ async function saveStudentProfile(){
     if(oldName){const upd={student_phone:phone,pickup_address:address};if(oldName.toLowerCase()!==name.toLowerCase())upd.student_name=name;await sb.from('lessons').update(upd).eq('instructor_id',instr.id).ilike('student_name',oldName);}
   }
   closeModal('editStudentModal');
-  await Promise.all([loadRoster(),loadStudents()]);
-  if(calView==='week')await loadWeek();else if(calView==='day')await loadDayView(currentDayKey);
+  await loadRoster();
+  await loadStudents();
+  renderStudents(allStudentsArr);
+  if(calView==='week')await loadWeek();
+  else if(calView==='day')await loadDayView(currentDayKey);
   showToast('Student saved ✓','success');
 }
 async function removeStudentFromRoster(){
@@ -2431,7 +2510,11 @@ async function removeStudentFromRoster(){
   if(!id){showToast('No saved profile to remove.');return;}
   if(!confirm(`Remove ${name} from your roster? Lesson history preserved.`))return;
   await sb.from('student_profiles').delete().eq('id',id);
-  closeModal('editStudentModal');await Promise.all([loadRoster(),loadStudents()]);showToast('Removed from roster.');
+  closeModal('editStudentModal');
+  await loadRoster();
+  await loadStudents();
+  renderStudents(allStudentsArr);
+  showToast('Removed from roster.');
 }
 
 function populateTransferRosterDropdown(){
@@ -2526,7 +2609,10 @@ async function confirmApprove(){
   await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
   await saveToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual','',null);
   await loadRoster();
-  closeModal('approveModal');await Promise.all([loadWeek(),loadRequests(),loadStudents()]);showToast('✅ Student approved & added to calendar!','success');
+  closeModal('approveModal');
+  await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
+  renderStudents(allStudentsArr);
+  showToast('✅ Student approved & added to calendar!','success');
 }
 async function declineRequest(id){if(!confirm('Decline this request?'))return;await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);await loadRequests();showToast('Request declined.');}
 
@@ -2731,7 +2817,9 @@ async function openStudentMgmt(studentName, tab='profile'){
   document.getElementById('smAvatar').textContent=(studentName||'?').charAt(0).toUpperCase();
 
   // Load student account
-  const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
+  // Try name index first (fast), fallback to DB query
+  let acc=studentAccountMap['name_'+studentName.toLowerCase().trim()]||null;
+  if(!acc){const{data:dbAcc}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle().catch(()=>({data:null}));acc=dbAcc;}
   smCurrentAcc=acc;
   smCurrentAccId=acc?.id||'';
   document.getElementById('smStudentAccId').value=smCurrentAccId;
@@ -2869,12 +2957,14 @@ async function saveSmProfile(){
   }
 
   smCurrentName=name; // update tracking name
-  // BUG 15: Refresh smCurrentAcc with latest data from DB
+  // Refresh smCurrentAcc with latest data from DB
   if(smCurrentAccId){
     const{data:freshAcc}=await sb.from('student_accounts').select('*').eq('id',smCurrentAccId).maybeSingle();
     if(freshAcc)smCurrentAcc=freshAcc;
   }
-  await Promise.all([loadRoster(),loadStudents()]);
+  await loadRoster();
+  await loadStudents();
+  renderStudents(allStudentsArr); // force re-render
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
   showToast('Profile saved ✓ Lessons updated.','success');
@@ -3045,14 +3135,28 @@ async function saveSmTopics(){
 
 /* ── Messages ── */
 async function smLoadMessages(){
+  const box=document.getElementById('smChatBox');
   if(!smCurrentAccId){
-    document.getElementById('smChatBox').innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px">Share the student app link first so they can register and message you.</div>';
+    box.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px 10px"><i class="bi bi-key me-1"></i>Go to the Access tab to generate a code and share it with the student. Once they register, you can message them here.</div>';
     return;
   }
-  const box=document.getElementById('smChatBox');
-  const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',smCurrentAccId).order('sent_at',{ascending:true}).limit(50);
-  // Mark instructor messages as read
-  await sb.from('student_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false);
+  let msgs=[];
+  try{
+    const{data,error}=await sb.from('student_messages').select('*').eq('student_account_id',smCurrentAccId).order('sent_at',{ascending:true}).limit(80);
+    if(error){
+      if(error.message.includes('does not exist')){
+        box.innerHTML='<div style="text-align:center;color:#f87171;font-size:.78rem;padding:20px">student_messages table not found.<br>Run drivesq_migration_v2.sql in Supabase.</div>';
+        return;
+      }
+      throw error;
+    }
+    msgs=data||[];
+    // Mark student messages as read
+    await sb.from('student_messages').update({is_read:true}).eq('student_account_id',smCurrentAccId).eq('sender','student').eq('is_read',false).catch(()=>{});
+  }catch(e){
+    box.innerHTML='<div style="text-align:center;color:#f87171;font-size:.78rem;padding:20px">Error loading messages: '+esc(e.message)+'</div>';
+    return;
+  }
   if(!msgs||!msgs.length){
     box.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px">No messages yet. Send the first one!</div>';
   } else {
@@ -3078,19 +3182,46 @@ async function smLoadMessages(){
 
 async function smSendMessage(){
   const inp=document.getElementById('smMsgInput');
-  const msg=inp.value.trim();
+  const msg=(inp.value||'').trim();
   if(!msg)return;
-  // Ensure account exists
+
+  // Ensure we have a student account ID
   if(!smCurrentAccId){
-    const{data}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:''});
-    smCurrentAccId=data||'';
+    try{
+      const{data:newId,error:rpcErr}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:rosterMap[smCurrentName.toLowerCase().trim()]?.phone||''});
+      if(rpcErr)throw rpcErr;
+      smCurrentAccId=newId||'';
+    }catch(e){
+      // Fallback — direct insert
+      try{
+        const code=gen5Code();
+        const{data:newAcc}=await sb.from('student_accounts').insert([{
+          instructor_id:instr.id,full_name:smCurrentName,phone:'',
+          student_code:code,pin:'',password_hash:'',status:'pending',
+          created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+        }]).select('id').single();
+        smCurrentAccId=newAcc?.id||'';
+      }catch(e2){showToast('Cannot create student account to send message.');return;}
+    }
   }
-  if(!smCurrentAccId){showToast('Cannot send — no student account.');return;}
+  if(!smCurrentAccId){showToast('No student account — go to Access tab to generate a code first.');return;}
+
+  const btn=document.querySelector('#smPanel-messages .btn-p');
+  if(btn){btn.innerHTML='<i class="bi bi-hourglass-split"></i>';btn.disabled=true;}
   const{error}=await sb.from('student_messages').insert([{
-    student_account_id:smCurrentAccId,instructor_id:instr.id,
-    sender:'instructor',message:msg,is_read:false,sent_at:new Date().toISOString()
+    student_account_id:smCurrentAccId,
+    instructor_id:instr.id,
+    sender:'instructor',
+    message:msg,
+    is_read:false,
+    sent_at:new Date().toISOString()
   }]);
-  if(error){showToast('Error sending: '+error.message);return;}
+  if(btn){btn.innerHTML='<i class="bi bi-send-fill"></i>';btn.disabled=false;}
+  if(error){
+    if(error.message.includes('does not exist')){showToast('Run drivesq_migration_v2.sql first — student_messages table missing.');}
+    else{showToast('Error sending: '+error.message);}
+    console.error('smSendMessage:',error);return;
+  }
   inp.value='';
   smLoadMessages();
 }
@@ -3180,15 +3311,17 @@ async function pollStudentUpdates(){
   });
 
   // Update unread message counts on all students
-  const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false).catch(()=>({data:[]}));
-  const unreadByAcc={};
-  (unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+  let unreadByAcc={};
+  try{
+    const{data:unreadData}=await sb.from('student_messages').select('student_account_id').eq('instructor_id',instr.id).eq('sender','student').eq('is_read',false);
+    (unreadData||[]).forEach(m=>{unreadByAcc[m.student_account_id]=(unreadByAcc[m.student_account_id]||0)+1;});
+  }catch(e){/* student_messages not yet available */}
   let totalUnread=0;
   allStudentsArr.forEach(s=>{
-    const acc=Object.values(studentAccountMap).find(a=>a.full_name?.toLowerCase()===s.name.toLowerCase());
+    const acc=studentAccountMap['name_'+s.name.toLowerCase().trim()]||Object.values(studentAccountMap).find(a=>a?.full_name?.toLowerCase()===s.name.toLowerCase());
     s.unreadMsgs=acc?unreadByAcc[acc.id]||0:0;
     totalUnread+=s.unreadMsgs;
-  });
+  }););
 
   // Update students tab badge if there are unread messages
   const studTab=document.getElementById('tab-students');
