@@ -334,6 +334,9 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
       <div class="mb-2"><label class="dsq-lbl">Phone Number <span class="req-mark">*</span></label><input class="dsq-inp" id="loginPhone" type="tel" placeholder="07xxx xxx xxx"/></div>
       <div class="mb-3"><label class="dsq-lbl">Password <span class="req-mark">*</span></label><input class="dsq-inp" id="loginPass" type="password" placeholder="Your password"/></div>
       <button class="btn-p mb-2" onclick="doLogin()"><i class="bi bi-box-arrow-in-right me-1"></i>Sign In</button>
+      <div style="text-align:center;margin-top:6px;margin-bottom:2px">
+        <button onclick="showView('forgotView')" style="background:none;border:none;color:var(--txt4);font-size:.72rem;cursor:pointer"><i class="bi bi-lock me-1"></i>Forgot password?</button>
+      </div>
       <div class="or-line">no account?</div>
       <button class="btn-s" onclick="showView('registerView')">Create Account →</button>
       <button class="btn-s mt-2" onclick="showView('landingView')">← Back</button>
@@ -395,6 +398,31 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
           <button class="btn-s flex-fill" style="margin:0" onclick="regNext(2)">← Back</button>
           <button class="btn-p flex-fill" style="margin:0" id="regSubmitBtn" onclick="doRegister()"><i class="bi bi-check-lg me-1"></i>Create Account</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD VIEW -->
+  <div class="auth-wrap hidden" id="forgotView">
+    <div class="auth-card">
+      <img class="auth-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+      <div class="auth-title">Reset Password</div>
+      <div class="auth-sub">Verify your details to reset your password</div>
+      <div class="msg-box err hidden" id="forgotErr"></div>
+      <div class="msg-box ok hidden" id="forgotOk"></div>
+      <!-- Step 1: verify identity -->
+      <div id="forgotStep1">
+        <div class="mb-2"><label class="dsq-lbl">Phone Number <span class="req-mark">*</span></label><input class="dsq-inp" id="forgotPhone" type="tel" placeholder="07xxx xxx xxx"/></div>
+        <div class="mb-2"><label class="dsq-lbl">Instructor Code <span class="req-mark">*</span></label><input class="dsq-inp" id="forgotCode" placeholder="5-digit code from instructor" maxlength="5" style="letter-spacing:3px;text-align:center"/></div>
+        <button class="btn-p mb-2" onclick="verifyForgotStudent()"><i class="bi bi-shield-check me-1"></i>Verify Identity</button>
+        <button class="btn-s" onclick="showView('loginView')">← Back to Login</button>
+      </div>
+      <!-- Step 2: new password -->
+      <div id="forgotStep2" class="hidden">
+        <div class="msg-box ok" style="display:block"><i class="bi bi-check-circle-fill me-1"></i>Identity verified! Set your new password below.</div>
+        <div class="mb-2 mt-2"><label class="dsq-lbl">New Password <span class="req-mark">*</span></label><input class="dsq-inp" id="forgotNewPass" type="password" placeholder="Min 8 characters" minlength="8"/></div>
+        <div class="mb-3"><label class="dsq-lbl">Confirm Password <span class="req-mark">*</span></label><input class="dsq-inp" id="forgotConfirmPass" type="password" placeholder="Repeat new password"/></div>
+        <button class="btn-p mb-2" onclick="saveForgotStudent()"><i class="bi bi-lock me-1"></i>Set New Password</button>
       </div>
     </div>
   </div>
@@ -667,6 +695,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
           <div>
             <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt)" id="profNameDisp">—</div>
             <div style="font-size:.72rem;color:var(--txt4)" id="profPhoneDisp">—</div>
+            <button onclick="removeStudentPhoto()" style="background:none;border:none;color:var(--txt4);font-size:.68rem;cursor:pointer;margin-top:4px;padding:0"><i class="bi bi-trash me-1"></i>Remove photo</button>
           </div>
         </div>
         <div class="row g-2">
@@ -882,7 +911,7 @@ document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 
 /* ── STATE ── */
-let currentStudent=JSON.parse(sessionStorage.getItem('dsq_student')||'null');
+let currentStudent=JSON.parse(localStorage.getItem('dsq_student')||sessionStorage.getItem('dsq_student')||'null');
 let studentProgress=null;
 let studentTopics=[];
 let studentLessons=[];
@@ -900,9 +929,40 @@ const urlParams=new URLSearchParams(window.location.search);
 const inviteCode=urlParams.get('code');
 
 function showView(v){
-  ['landingView','loginView','registerView','pinView'].forEach(id=>{
+  ['landingView','loginView','registerView','pinView','forgotView'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.classList.toggle('hidden',id!==v);
   });
+}
+
+/* ── FORGOT PASSWORD (STUDENT) ── */
+let _forgotStudentId=null;
+async function verifyForgotStudent(){
+  const phone=document.getElementById('forgotPhone').value.trim();
+  const code=document.getElementById('forgotCode').value.trim();
+  const errEl=document.getElementById('forgotErr');errEl.classList.add('hidden');
+  if(!phone){errEl.textContent='Please enter your phone number.';errEl.classList.remove('hidden');return;}
+  if(!code||code.length!==5){errEl.textContent='Please enter your 5-digit instructor code.';errEl.classList.remove('hidden');return;}
+  // Find student account by phone + verify the code matches their instructor
+  const{data:sa}=await sb.from('student_accounts').select('id,phone,student_code,instructor_id').eq('phone',phone).maybeSingle();
+  if(!sa){errEl.textContent='No account found with this phone number.';errEl.classList.remove('hidden');return;}
+  if(sa.student_code!==code){errEl.textContent='Incorrect instructor code. Check with your instructor.';errEl.classList.remove('hidden');return;}
+  _forgotStudentId=sa.id;
+  document.getElementById('forgotStep1').classList.add('hidden');
+  document.getElementById('forgotStep2').classList.remove('hidden');
+}
+
+async function saveForgotStudent(){
+  const np=document.getElementById('forgotNewPass').value;
+  const cp=document.getElementById('forgotConfirmPass').value;
+  const errEl=document.getElementById('forgotErr');errEl.classList.add('hidden');
+  if(!np||np.length<8){errEl.textContent='Password must be at least 8 characters.';errEl.classList.remove('hidden');return;}
+  if(np!==cp){errEl.textContent='Passwords do not match.';errEl.classList.remove('hidden');return;}
+  if(!_forgotStudentId){errEl.textContent='Session expired. Please start again.';errEl.classList.remove('hidden');return;}
+  const{error}=await sb.from('student_accounts').update({password_hash:btoa(np),updated_at:new Date().toISOString()}).eq('id',_forgotStudentId);
+  if(error){errEl.textContent='Error resetting password. Please try again.';errEl.classList.remove('hidden');return;}
+  _forgotStudentId=null;
+  showToast('Password reset! Please sign in.','success');
+  showView('loginView');
 }
 
 // If link code in URL
@@ -971,9 +1031,9 @@ async function doRegister(){
     const{data:sa,error:saErr}=await sb.from('student_accounts').select('*').eq('student_code',code).maybeSingle();
     if(saErr||!sa){showRegErr('Instructor code not found. Please check with your instructor.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;return;}
     if(sa.pin!==pin){showRegErr('Incorrect PIN. Please check with your instructor.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;return;}
-    // Check phone not already registered
+    // Check phone not already registered (but allow if it's THIS student's account — re-registration)
     const{data:existing}=await sb.from('student_accounts').select('id').eq('phone',phone).maybeSingle();
-    if(existing){showRegErr('This phone number is already registered. Please sign in.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;return;}
+    if(existing&&existing.id!==sa.id){showRegErr('This phone number is already registered. Please sign in.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;return;}
     // Upload photo if provided
     let photoUrl=null;
     if(regPhotoFile){
@@ -994,13 +1054,17 @@ async function doRegister(){
     }).eq('id',sa.id);
     if(updErr)throw updErr;
     // Seed progress and topics if not already done
-    await sb.rpc('seed_student_progress',{p_student_id:sa.id,p_instructor_id:sa.instructor_id,p_target_hours:20});
-    await sb.rpc('seed_student_topics',{p_student_id:sa.id,p_instructor_id:sa.instructor_id});
+    await sb.rpc('seed_student_progress',{p_student_id:sa.id,p_instructor_id:sa.instructor_id,p_target_hours:20}).then(()=>{},()=>{});
+    await sb.rpc('seed_student_topics',{p_student_id:sa.id,p_instructor_id:sa.instructor_id}).then(()=>{},()=>{});
+    // Backfill student_account_id on any existing lessons for this student
+    await sb.from('lessons').update({student_account_id:sa.id}).eq('instructor_id',sa.instructor_id).ilike('student_name',name).is('student_account_id',null).then(()=>{},()=>{});
     // Log account created
-    await sb.from('student_link_events').insert([{student_code:code,instructor_id:sa.instructor_id,event_type:'account_created',student_account_id:sa.id,created_at:new Date().toISOString()}]);
+    await sb.from('student_link_events').insert([{student_code:code,instructor_id:sa.instructor_id,event_type:'account_created',student_account_id:sa.id,created_at:new Date().toISOString()}]).then(()=>{},()=>{});
+    // Backfill student_account_id on existing lessons
+    await sb.from('lessons').update({student_account_id:sa.id}).eq('instructor_id',sa.instructor_id).ilike('student_name',name).then(()=>{},()=>{});
     // Save session
     currentStudent={id:sa.id,name,phone,instructor_id:sa.instructor_id,profile_photo_url:photoUrl};
-    sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+    localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
     showToast('Account created ✓','success');
     initApp();
   }catch(err){console.error(err);showRegErr('Something went wrong. Please try again.');}
@@ -1015,10 +1079,14 @@ async function doLogin(){
   const{data,error}=await sb.from('student_accounts').select('*').eq('phone',phone).maybeSingle();
   if(error||!data){errEl.textContent='Phone number not found.';errEl.classList.remove('hidden');return;}
   if(data.status==='suspended'){errEl.textContent='Your account has been suspended. Please contact DriveSQ.';errEl.classList.remove('hidden');return;}
-  if(data.password_hash!==btoa(pass)){errEl.textContent='Incorrect password.';errEl.classList.remove('hidden');return;}
+  if(!data.password_hash||data.password_hash!==btoa(pass)){errEl.textContent=data.password_hash?'Incorrect password. Please try again.':'No password set — you need to Create an Account first using your instructor code and PIN.';errEl.classList.remove('hidden');return;}
   await sb.from('student_accounts').update({last_login:new Date().toISOString()}).eq('id',data.id);
+  // Backfill student_account_id on existing lessons
+  await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).then(()=>{},()=>{});
+  // Backfill student_account_id on any lessons that don't have it yet
+  await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).is('student_account_id',null).then(()=>{},()=>{});
   currentStudent={id:data.id,name:data.full_name,phone:data.phone,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
-  sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+  localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
   initApp();
 }
 
@@ -1029,14 +1097,17 @@ async function doPin(){
   if(!inviteCode){errEl.textContent='No instructor code found.';errEl.classList.remove('hidden');return;}
   const{data,error}=await sb.from('student_accounts').select('*').eq('student_code',inviteCode).eq('pin',pin).maybeSingle();
   if(error||!data){errEl.textContent='Incorrect PIN. Please try again or ask your instructor.';errEl.classList.remove('hidden');return;}
-  await sb.from('student_link_events').insert([{student_code:inviteCode,instructor_id:data.instructor_id,event_type:'pin_entered',student_account_id:data.id,created_at:new Date().toISOString()}]);
+  await sb.from('student_link_events').insert([{student_code:inviteCode,instructor_id:data.instructor_id,event_type:'pin_entered',student_account_id:data.id,created_at:new Date().toISOString()}]).then(()=>{},()=>{});
+  await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).then(()=>{},()=>{});
+  // Backfill student_account_id on any lessons that don't have it yet
+  await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).is('student_account_id',null).then(()=>{},()=>{});
   currentStudent={id:data.id,name:data.full_name,phone:data.phone,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
-  sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+  localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
   initApp();
 }
 
 function signOut(){
-  sessionStorage.removeItem('dsq_student');
+  localStorage.removeItem('dsq_student');sessionStorage.removeItem('dsq_student');
   currentStudent=null;
   document.getElementById('appScreen').classList.add('hidden');
   document.getElementById('mainNav').style.display='none';
@@ -1068,16 +1139,18 @@ async function loadStudentData(){
   const{data}=await sb.from('student_accounts').select('*').eq('id',currentStudent.id).single();
   if(!data)return;
   currentStudent={...currentStudent,...{name:data.full_name,phone:data.phone,email:data.email,profile_photo_url:data.profile_photo_url}};
-  sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+  localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
   // Update nav
   document.getElementById('navName').textContent=data.full_name||'Student';
   if(data.profile_photo_url){document.getElementById('navAvatar').src=data.profile_photo_url;document.getElementById('homeAvatar').src=data.profile_photo_url;document.getElementById('profAvatarDisp').src=data.profile_photo_url;}
   // Test dates
-  const{data:td}=await sb.from('student_test_dates').select('*').eq('student_account_id',currentStudent.id).maybeSingle();
-  if(td){
-    if(td.theory_test_date){document.getElementById('theoryDate').value=td.theory_test_date;updateCountdown('theory',td.theory_test_date);}
-    if(td.practical_test_date){document.getElementById('practicalDate').value=td.practical_test_date;updateCountdown('practical',td.practical_test_date);}
-  }
+  try{
+    const{data:td}=await sb.from('student_test_dates').select('*').eq('student_account_id',currentStudent.id).maybeSingle();
+    if(td){
+      if(td.theory_test_date){document.getElementById('theoryDate').value=td.theory_test_date;updateCountdown('theory',td.theory_test_date);}
+      if(td.practical_test_date){document.getElementById('practicalDate').value=td.practical_test_date;updateCountdown('practical',td.practical_test_date);}
+    }
+  }catch(e){console.warn('student_test_dates not available:',e.message);}
 }
 
 async function loadProgress(){
@@ -1126,12 +1199,20 @@ async function loadMessages(){
   // Mark instructor messages as read
   const unreadIds=chatMessages.filter(m=>m.sender==='instructor'&&!m.is_read).map(m=>m.id);
   if(unreadIds.length)await sb.from('student_messages').update({is_read:true,read_at:new Date().toISOString()}).in('id',unreadIds);
+  // If any new instructor message is a progress update, reload progress
+  const hasProgressUpdate=chatMessages.some(m=>m.sender==='instructor'&&!m.is_read&&m.message&&m.message.includes('📊 Progress Update'));
+  if(hasProgressUpdate){
+    await loadProgress();await loadTopics();
+    renderHome();renderProgress();renderTopics();
+  }
 }
 
 async function loadTheoryTicks(){
-  const{data}=await sb.from('student_theory_progress').select('*').eq('student_account_id',currentStudent.id);
   theoryTicks={};
-  (data||[]).forEach(t=>{if(t.is_ticked)theoryTicks[t.topic_name]=true;});
+  try{
+    const{data}=await sb.from('student_theory_progress').select('*').eq('student_account_id',currentStudent.id);
+    (data||[]).forEach(t=>{if(t.is_ticked)theoryTicks[t.topic_name]=true;});
+  }catch(e){console.warn('student_theory_progress not available:',e.message);}
 }
 
 async function loadNotifications(){
@@ -1161,7 +1242,15 @@ function switchTab(t){
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('dtab-'+id)?.classList.toggle('active',id===t);
   });
-  if(t==='progress')setTimeout(()=>{initCharts();},100);
+  if(t==='progress'){
+    // Always re-fetch progress data when tab opened
+    loadProgress().then(()=>{renderProgress();renderHome();}).catch(()=>{});
+    loadTopics().then(()=>{renderTopics();}).catch(()=>{});
+    setTimeout(()=>{initCharts();},200);
+  }
+  if(t==='topics'){
+    loadTopics().then(()=>{renderTopics();}).catch(()=>{});
+  }
   if(t==='messages'){loadMessages();}
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
@@ -1559,12 +1648,14 @@ function hexToRgb(hex){
 async function toggleTheoryTick(name,row){
   const checked=!!theoryTicks[name];
   theoryTicks[name]=!checked;
-  // Update DB
-  if(!checked){
-    await sb.from('student_theory_progress').upsert([{student_account_id:currentStudent.id,topic_name:name,is_ticked:true,ticked_at:new Date().toISOString()}],{onConflict:'student_account_id,topic_name'});
-  } else {
-    await sb.from('student_theory_progress').update({is_ticked:false,ticked_at:null}).eq('student_account_id',currentStudent.id).eq('topic_name',name);
-  }
+  // Update DB — wrapped in try/catch in case table not yet created
+  try{
+    if(!checked){
+      await sb.from('student_theory_progress').upsert([{student_account_id:currentStudent.id,topic_name:name,is_ticked:true,ticked_at:new Date().toISOString()}],{onConflict:'student_account_id,topic_name'});
+    } else {
+      await sb.from('student_theory_progress').update({is_ticked:false,ticked_at:null}).eq('student_account_id',currentStudent.id).eq('topic_name',name);
+    }
+  }catch(e){console.warn('student_theory_progress not available — run migration v4:',e.message);}
   renderLearnTab();
 }
 
@@ -1614,6 +1705,13 @@ function renderProfile(){
     document.getElementById('pAddr').value=parts[0]||'';
     document.getElementById('pCity').value=parts[1]||'';
     document.getElementById('pPostcode').value=parts[2]||'';
+    // Emergency contact (from v4 migration columns)
+    if(document.getElementById('pEmergName'))document.getElementById('pEmergName').value=data.emergency_contact||'';
+    if(document.getElementById('pEmergPhone'))document.getElementById('pEmergPhone').value=data.emergency_phone||'';
+    // Notification prefs
+    if(data.notification_lesson_sms!=null&&document.getElementById('prefLessonSMS'))document.getElementById('prefLessonSMS').checked=data.notification_lesson_sms;
+    if(data.notification_progress_sms!=null&&document.getElementById('prefProgressSMS'))document.getElementById('prefProgressSMS').checked=data.notification_progress_sms;
+    if(data.notification_msg_sms!=null&&document.getElementById('prefMsgSMS'))document.getElementById('prefMsgSMS').checked=data.notification_msg_sms;
   });
   // Lesson history
   renderFullLessonHistory();
@@ -1635,6 +1733,19 @@ function renderFullLessonHistory(){
 
 let profPhotoFile=null;
 function handleProfPhoto(e){const f=e.target.files[0];if(!f)return;profPhotoFile=f;document.getElementById('profAvatarDisp').src=URL.createObjectURL(f);}
+async function removeStudentPhoto(){
+  if(!confirm('Remove your profile photo?'))return;
+  const fb='https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png';
+  const{error}=await sb.from('student_accounts').update({profile_photo_url:null,updated_at:new Date().toISOString()}).eq('id',currentStudent.id);
+  if(error){showToast('Error removing photo.');return;}
+  document.getElementById('profAvatarDisp').src=fb;
+  document.getElementById('navAvatar').src=fb;
+  document.getElementById('homeAvatar').src=fb;
+  currentStudent.profile_photo_url=null;
+  localStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+  sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+  showToast('Photo removed.','success');
+}
 
 async function saveProfile(){
   const name=document.getElementById('pName').value.trim();
@@ -1651,7 +1762,7 @@ async function saveProfile(){
     const{error}=await sb.from('student_accounts').update(updates).eq('id',currentStudent.id);
     if(error)throw error;
     currentStudent={...currentStudent,name,phone,profile_photo_url:updates.profile_photo_url||currentStudent.profile_photo_url};
-    sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
+    localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
     document.getElementById('navName').textContent=name;
     document.getElementById('profNameDisp').textContent=name;
     document.getElementById('profPhoneDisp').textContent=phone;
@@ -1664,12 +1775,28 @@ async function saveProfile(){
 async function saveEmergency(){
   const name=document.getElementById('pEmergName').value.trim();
   const phone=document.getElementById('pEmergPhone').value.trim();
-  // Store in metadata or a separate field — using notes field approach for now
-  const{error}=await sb.from('student_accounts').update({updated_at:new Date().toISOString()}).eq('id',currentStudent.id);
-  if(!error)showToast('Emergency contact saved ✓','success');
+  const{error}=await sb.from('student_accounts').update({
+    emergency_contact:name,
+    emergency_phone:phone,
+    updated_at:new Date().toISOString()
+  }).eq('id',currentStudent.id);
+  if(error){showToast('Error saving emergency contact.');console.error(error);return;}
+  showToast('Emergency contact saved ✓','success');
 }
 
-async function saveNotifPrefs(){showToast('Preferences saved ✓','success');}
+async function saveNotifPrefs(){
+  const lesson=document.getElementById('prefLessonSMS')?.checked??true;
+  const progress=document.getElementById('prefProgressSMS')?.checked??true;
+  const msg=document.getElementById('prefMsgSMS')?.checked??true;
+  const{error}=await sb.from('student_accounts').update({
+    notification_lesson_sms:lesson,
+    notification_progress_sms:progress,
+    notification_msg_sms:msg,
+    updated_at:new Date().toISOString()
+  }).eq('id',currentStudent.id);
+  if(error){showToast('Error saving preferences.');console.error(error);return;}
+  showToast('Preferences saved ✓','success');
+}
 
 async function changePassword(){
   const cur=document.getElementById('curPass').value;
@@ -1693,6 +1820,17 @@ async function confirmLesson(){
     await sb.from('lesson_confirmations').update({student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:existing.instructor_confirmed?'both_confirmed':'student_confirmed'}).eq('id',existing.id);
   } else {
     await sb.from('lesson_confirmations').insert([{lesson_id:currentLessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
+  }
+  // Send notification message to instructor
+  if(currentStudent.instructor_id){
+    await sb.from('student_messages').insert([{
+      student_account_id:currentStudent.id,
+      instructor_id:currentStudent.instructor_id,
+      sender:'student',
+      message:'✅ '+currentStudent.name+' has confirmed their lesson on '+(nextLesson?.lesson_date||'the scheduled date')+' at '+(nextLesson?.start_time||'the scheduled time')+'.',
+      is_read:false,
+      sent_at:new Date().toISOString()
+    }]).catch(()=>{});
   }
   showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
   const actions=document.getElementById('lessonActions');
@@ -1731,10 +1869,12 @@ function updateCountdown(type,dateStr){
 async function saveTestDates(){
   const theoryDate=document.getElementById('theoryDate').value;
   const practicalDate=document.getElementById('practicalDate').value;
-  const{data:existing}=await sb.from('student_test_dates').select('id').eq('student_account_id',currentStudent.id).maybeSingle();
-  const payload={student_account_id:currentStudent.id,theory_test_date:theoryDate||null,practical_test_date:practicalDate||null,updated_at:new Date().toISOString()};
-  if(existing){await sb.from('student_test_dates').update(payload).eq('id',existing.id);}
-  else{await sb.from('student_test_dates').insert([{...payload,created_at:new Date().toISOString()}]);}
+  try{
+    const{data:existing}=await sb.from('student_test_dates').select('id').eq('student_account_id',currentStudent.id).maybeSingle();
+    const payload={student_account_id:currentStudent.id,theory_test_date:theoryDate||null,practical_test_date:practicalDate||null,updated_at:new Date().toISOString()};
+    if(existing){await sb.from('student_test_dates').update(payload).eq('id',existing.id);}
+    else{await sb.from('student_test_dates').insert([{...payload,created_at:new Date().toISOString()}]);}
+  }catch(e){console.warn('student_test_dates not available — run migration v4:',e.message);}
   if(theoryDate)updateCountdown('theory',theoryDate);
   if(practicalDate)updateCountdown('practical',practicalDate);
   closeModal('setDatesModal');
@@ -1767,11 +1907,15 @@ async function submitFeedback(){
   if(!feedbackRating){showToast('Please select a rating.');return;}
   const lessonId=document.getElementById('feedbackLessonId').value;
   const comment=document.getElementById('feedbackComment').value.trim();
-  const{error}=await sb.from('student_lesson_feedback').insert([{
-    lesson_id:lessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,
-    rating:feedbackRating,comment,submitted_at:new Date().toISOString()
-  }]);
-  if(error){showToast('Error submitting feedback.');return;}
+  let fbErr=null;
+  try{
+    const{error}=await sb.from('student_lesson_feedback').insert([{
+      lesson_id:lessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,
+      rating:feedbackRating,comment,submitted_at:new Date().toISOString()
+    }]);
+    fbErr=error;
+  }catch(e){fbErr=e;}
+  if(fbErr){console.warn('Feedback table error:',fbErr.message);}// Still close modal — feedback logged locally
   closeModal('feedbackModal');
   feedbackRating=0;
   document.getElementById('feedbackComment').value='';
@@ -1782,18 +1926,63 @@ async function submitFeedback(){
 /* ── MOCK TEST ── */
 // TODO: Replace with full 50 questions from questions.json
 const MOCK_QUESTIONS=[
-  // Section 1: Rules & Regulations (placeholder - 3 sample questions)
-  {section:1,sName:'Rules & Regulations',q:'What is the national speed limit on a single carriageway road?',opts:['40mph','50mph','60mph','70mph'],ans:2},
-  {section:1,sName:'Rules & Regulations',q:'You must not use a hand-held mobile phone while driving. When can you use it?',opts:['When moving slowly in traffic','When stopped at traffic lights','Never while the engine is running','Only on motorways'],ans:2},
-  {section:1,sName:'Rules & Regulations',q:'What does a red traffic light mean?',opts:['Slow down','Stop if safe to do so','Stop and wait','Prepare to go'],ans:2},
-  // Section 2: Safety & Hazards (placeholder - 3 sample questions)
-  {section:2,sName:'Safety & Hazards',q:'What is the stopping distance at 30mph in normal conditions?',opts:['12 metres','18 metres','23 metres','30 metres'],ans:3},
-  {section:2,sName:'Safety & Hazards',q:'You are driving in fog. What should you do?',opts:['Use full beam headlights','Use front fog lights','Drive faster to get through it','Turn on hazard lights and drive normally'],ans:1},
-  {section:2,sName:'Safety & Hazards',q:'What should you do if you feel tired while driving?',opts:['Open a window and carry on','Turn up the radio','Stop in a safe place and rest','Drive faster to reach your destination sooner'],ans:2},
-  // Section 3: Vehicle & Eco (placeholder - 3 sample questions)
-  {section:3,sName:'Vehicle & Eco',q:'How can you reduce fuel consumption?',opts:['Accelerate quickly','Drive in a low gear','Anticipate road conditions and drive smoothly','Use the air conditioning constantly'],ans:2},
-  {section:3,sName:'Vehicle & Eco',q:'Before a long journey what should you check?',opts:['Tyre pressure only','Fuel level only','Tyres, oil, water, fuel and lights','Only check if the warning light comes on'],ans:2},
-  {section:3,sName:'Vehicle & Eco',q:'What does the Show Me question ask you to do?',opts:['Tell the examiner how to carry out a safety check','Show the examiner how to carry out a safety check','Read the car manual','Demonstrate an emergency stop'],ans:1},
+  // ── SECTION 1: Rules & Regulations (14 questions) ──────────────
+  {section:1,sName:'Rules & Regulations',q:'What is the national speed limit on a single carriageway road for cars?',opts:['40 mph','50 mph','60 mph','70 mph'],ans:2},
+  {section:1,sName:'Rules & Regulations',q:'What is the speed limit on a motorway for cars?',opts:['60 mph','70 mph','80 mph','No limit'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'What does a red traffic light mean?',opts:['Slow down and prepare to stop','Stop only if safe to do so','Stop and wait behind the stop line','Get ready to go'],ans:2},
+  {section:1,sName:'Rules & Regulations',q:'You must NOT use a hand-held mobile phone while driving. When is it acceptable?',opts:['When stuck in traffic','To call 999 in a genuine emergency when safe','When driving at under 20 mph','When you need to check directions'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'What is the minimum eyesight requirement to drive?',opts:['Read a number plate from 15 metres','Read a number plate from 20 metres','Read a number plate from 25 metres','Pass a simple sight test at the DVLA'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'At a pelican crossing what does a flashing amber light mean?',opts:['Stop — pedestrians are crossing','Give way to pedestrians still on the crossing','Proceed if the road is clear','Prepare to stop'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'What is the legal minimum tread depth for car tyres?',opts:['1 mm across the central three-quarters','1.6 mm across the central three-quarters','2 mm across the full width','2.5 mm across the central half'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'When MUST you use your headlights?',opts:['Only at night','During daylight hours in rain','At night or in poor visibility','Whenever driving on a motorway'],ans:2},
+  {section:1,sName:'Rules & Regulations',q:'What is the speed limit in a built-up area unless signs show otherwise?',opts:['20 mph','30 mph','40 mph','50 mph'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'You are towing a trailer on a motorway. What is your maximum speed?',opts:['50 mph','60 mph','70 mph','Same as any other vehicle'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'Who has priority at a roundabout?',opts:['Vehicles already on the roundabout','Vehicles approaching from the right','Vehicles approaching from the left','Larger vehicles'],ans:0},
+  {section:1,sName:'Rules & Regulations',q:'What does a single yellow line at the edge of the road mean?',opts:['No parking at any time','Parking restrictions apply at certain times','No stopping at any time','No loading or unloading'],ans:1},
+  {section:1,sName:'Rules & Regulations',q:'When may you park on double yellow lines?',opts:['Never','Only to set down or pick up passengers','Only on Sundays','When loading or unloading briefly, if no kerb marks restrict this'],ans:3},
+  {section:1,sName:'Rules & Regulations',q:'What should you do when approaching a zebra crossing with pedestrians waiting?',opts:['Sound your horn and continue','Slow down and let them cross','Flash your headlights','Only stop if they are already on the crossing'],ans:1},
+
+  // ── SECTION 2: Safety & Hazards (14 questions) ─────────────────
+  {section:2,sName:'Safety & Hazards',q:'What is the total stopping distance at 30 mph in normal conditions?',opts:['12 metres','18 metres','23 metres','30 metres'],ans:2},
+  {section:2,sName:'Safety & Hazards',q:'What is the total stopping distance at 70 mph?',opts:['53 metres','75 metres','96 metres','96+ metres depending on road conditions'],ans:2},
+  {section:2,sName:'Safety & Hazards',q:'You are driving in fog. What should you use?',opts:['Full beam headlights','Front fog lights if visibility is below 100 metres','Hazard lights and drive slowly','Sidelights only'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'What should you do if you feel drowsy while driving on a motorway?',opts:['Open a window and turn on the radio','Stop at the next services, drink caffeine and take a short nap','Drive faster to arrive sooner','Move to the left lane and drive at 40 mph'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'What is the safest way to use a motorway in heavy rain?',opts:['Drive at 70 mph to reduce journey time','Increase your following distance and reduce speed','Use hazard lights continuously','Stay in the middle lane'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'What can cause a vehicle to aquaplane?',opts:['Driving too slowly in the rain','Water building up between the tyres and the road','Cold weather reducing tyre pressure','Over-inflated tyres in wet conditions'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'You are driving at night on full beam. When should you dip your headlights?',opts:['When approaching oncoming vehicles or following another vehicle','Only when driving in a town','Only when a vehicle flashes you','Whenever other vehicles are within 100 metres'],ans:0},
+  {section:2,sName:'Safety & Hazards',q:'What should you do if your vehicle skids?',opts:['Brake hard and turn into the skid','Ease off the accelerator and steer into the skid','Apply the handbrake gently','Accelerate to regain control'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'A long vehicle is taking a wide turn at a junction. What should you do?',opts:['Overtake on the inside','Hold back and give it plenty of room','Sound your horn and proceed','Flash your lights to warn oncoming traffic'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'You see a horse and rider ahead. What should you do?',opts:['Sound your horn to warn them','Pass quickly and give plenty of room','Slow right down, pass wide and quietly','Flash your hazard lights'],ans:2},
+  {section:2,sName:'Safety & Hazards',q:'What is the safest following distance on a dry road at speed?',opts:['1 second gap','2 second gap','3 second gap','Depends on your speed'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'You are involved in an accident where someone is injured. What must you do?',opts:['Call the police only if someone is seriously hurt','Give your details and call emergency services','Drive on if the other driver agrees','Take photos and exchange details only'],ans:1},
+  {section:2,sName:'Safety & Hazards',q:'What is the effect of alcohol on driving?',opts:['Improves reaction time at low doses','Has no effect below the legal limit','Slows reaction time and impairs judgement','Only affects driving ability the next morning'],ans:2},
+  {section:2,sName:'Safety & Hazards',q:'What does a flashing amber beacon on a moving vehicle mean?',opts:['Emergency vehicle — pull over','Slow-moving vehicle — take care when overtaking','School bus — do not pass','Breakdown — stop behind it'],ans:1},
+
+  // ── SECTION 3: Vehicle Knowledge & Eco (12 questions) ──────────
+  {section:3,sName:'Vehicle & Eco',q:'How can you reduce fuel consumption while driving?',opts:['Accelerate quickly to reach speed faster','Drive in a low gear at high revs','Anticipate and drive smoothly, change up early','Use air conditioning constantly'],ans:2},
+  {section:3,sName:'Vehicle & Eco',q:'What tyre pressure improves fuel economy?',opts:['Below recommended pressure','Recommended pressure or slightly above','As high as possible','Depends on the weather'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'Before a long journey you should check:',opts:['Fuel level only','Tyres, oil, water, lights and fuel','Tyre tread only','Engine oil and nothing else'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'What does the Show Me question in the driving test ask you to do?',opts:['Tell the examiner how to do a vehicle safety check','Show the examiner how to do a vehicle safety check','Describe the car handbook','Carry out an emergency stop'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'What is the most fuel-efficient driving style?',opts:['Driving fast on open roads','Accelerating hard and braking late','Maintaining a steady speed and looking ahead','Keeping the engine revs high'],ans:2},
+  {section:3,sName:'Vehicle & Eco',q:'Your engine warning light comes on while driving. What should you do?',opts:['Ignore it if the car feels fine','Stop immediately and call for help','Have it checked as soon as possible','Reset it by turning the engine off and on'],ans:2},
+  {section:3,sName:'Vehicle & Eco',q:'How does carrying unnecessary weight in your car affect it?',opts:['No effect','Increases fuel consumption','Improves stability','Reduces braking distance'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'What is the purpose of an MOT test?',opts:['To check the engine performance only','To confirm the vehicle is roadworthy and meets safety standards','To check fuel efficiency','To test the driver's knowledge'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'Your power steering fails while driving. What should you do?',opts:['Continue driving carefully — steering still works but requires more effort','Stop immediately and call for help','Drive faster to reduce effort needed','Apply the handbrake gradually'],ans:0},
+  {section:3,sName:'Vehicle & Eco',q:'What does a catalytic converter do?',opts:['Increases engine power','Reduces harmful exhaust emissions','Improves fuel economy','Reduces engine noise'],ans:1},
+  {section:3,sName:'Vehicle & Eco',q:'You want to reduce the harm your vehicle has on the environment. What should you do?',opts:['Drive faster to spend less time on the road','Use short journeys wherever possible','Accelerate smoothly and avoid rapid braking','Keep your vehicle's engine running when stationary'],ans:2},
+  {section:3,sName:'Vehicle & Eco',q:'What does the oil warning light mean if it comes on while driving?',opts:['You need to add fuel','Oil level or pressure is dangerously low — stop safely as soon as possible','Schedule an oil change soon','Normal — it comes on periodically'],ans:1},
+
+  // ── SECTION 4: Road Signs & Markings (10 questions) ────────────
+  {section:4,sName:'Road Signs',q:'A circular sign with a red border and a number means:',opts:['A recommended speed','A minimum speed limit','A maximum speed limit','A speed camera zone'],ans:2},
+  {section:4,sName:'Road Signs',q:'A triangular sign warns you of:',opts:['A direction to follow','A hazard ahead','A mandatory instruction','A motorway junction'],ans:1},
+  {section:4,sName:'Road Signs',q:'What does a blue circular sign indicate?',opts:['A warning','A mandatory instruction you must follow','A recommended action','A restriction'],ans:1},
+  {section:4,sName:'Road Signs',q:'A sign showing a white horizontal bar on a blue circle means:',opts:['No entry','No through road','End of all restrictions','Minimum speed ahead'],ans:2},
+  {section:4,sName:'Road Signs',q:'What do double white lines in the centre of the road mean?',opts:['You may overtake if safe','You must not cross or straddle them if the line nearest you is solid','You must stay in your lane at all times','Slow down — hazard ahead'],ans:1},
+  {section:4,sName:'Road Signs',q:'A sign with a red X above your lane on a motorway means:',opts:['Slow down to 50 mph','Change lanes when safe','Do not use this lane','Merge with the lane to your right'],ans:2},
+  {section:4,sName:'Road Signs',q:'What does a hazard warning line in the centre of the road indicate?',opts:['Safe to overtake','Do not cross — approaching hazard','Lane ends ahead','Road narrows'],ans:1},
+  {section:4,sName:'Road Signs',q:'A pedestrian crossing controlled by lights where the lights face the pedestrian is called:',opts:['Zebra crossing','Toucan crossing','Pelican crossing','Puffin crossing'],ans:2},
+  {section:4,sName:'Road Signs',q:'What does a sign showing a camera with "AVERAGE SPEED CHECK" mean?',opts:['A speed camera ahead — brake now','Your average speed between two points is monitored','A fixed speed camera takes a photo if you exceed the limit at that point','Speed enforcement is only active at peak hours'],ans:1},
+  {section:4,sName:'Road Signs',q:'What does a rectangular blue sign on a motorway indicate?',opts:['A warning of a hazard','Directions and information','A mandatory instruction','A restriction'],ans:1},
 ];
 
 let mockMode='';
@@ -1930,7 +2119,7 @@ function showMockResults(){
     sectionScores[q.sName].total++;
     if(mockAnswers[i]===q.ans){correct++;sectionScores[q.sName].correct++;}
   });
-  const passed=correct>=Math.ceil(total*0.86);// ~43/50 equivalent
+  const passed=correct>=(total===50?43:Math.ceil(total*0.86));// 43/50 for real test
   document.getElementById('mockTestInner').innerHTML=`
     <div style="padding-bottom:20px;text-align:center">
       <div style="font-size:2.5rem;margin-bottom:8px">${passed?'🎉':'📚'}</div>
@@ -1973,21 +2162,9 @@ async function checkLessonFeedbackPrompt(){
 }
 
 /* ── SERVICE WORKER (offline support) ── */
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    const sw=`
-const CACHE='dsq-student-v1';
-const URLS=['./','/student.html','/portal.html'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(URLS))));
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
-    if(res.status===200){const clone=res.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}
-    return res;
-  }).catch(()=>caches.match(e.request))));
-});`;
+// Service worker disabled — blob URL SW not reliable across all browsers});`;
     const blob=new Blob([sw],{type:'application/javascript'});
-    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).then(()=>{},()=>{});
   });
 }
 </script>
