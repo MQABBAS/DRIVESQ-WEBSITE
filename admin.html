@@ -501,18 +501,39 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="panel-analytics" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-bar-chart-fill me-2" style="color:var(--blue)"></i>Analytics &amp; Reports</div>
     <div class="row g-3">
-      <!-- Hours per instructor -->
+      <!-- Hours per instructor (bar chart) -->
       <div class="col-12 col-lg-6">
         <div class="dsq-card p-3">
           <div class="section-label"><i class="bi bi-clock me-2" style="color:var(--red)"></i>Weekly Hours per Instructor</div>
-          <div id="hoursChart"><div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">Loading…</div></div>
+          <div style="position:relative;height:280px"><canvas id="hoursCanvas"></canvas></div>
         </div>
       </div>
-      <!-- Lesson types breakdown -->
+      <!-- Lesson types breakdown (doughnut) -->
       <div class="col-12 col-lg-6">
         <div class="dsq-card p-3">
           <div class="section-label"><i class="bi bi-pie-chart me-2" style="color:var(--gold)"></i>Lesson Types This Week</div>
-          <div id="typeChart"></div>
+          <div style="position:relative;height:280px"><canvas id="typeCanvas"></canvas></div>
+        </div>
+      </div>
+      <!-- Lessons per day (bar chart) -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-calendar-week me-2" style="color:var(--purple)"></i>Lessons Per Day This Week</div>
+          <div style="position:relative;height:280px"><canvas id="dailyCanvas"></canvas></div>
+        </div>
+      </div>
+      <!-- Earnings per instructor (bar chart) -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-currency-pound me-2" style="color:var(--green)"></i>Earnings per Instructor (This Week)</div>
+          <div style="position:relative;height:280px"><canvas id="earningsCanvas"></canvas></div>
+        </div>
+      </div>
+      <!-- Top instructors (horizontal bar) -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-trophy me-2" style="color:var(--gold)"></i>Top Instructors by Lessons (This Week)</div>
+          <div style="position:relative;height:280px"><canvas id="topInstrsCanvas"></canvas></div>
         </div>
       </div>
       <!-- Login activity -->
@@ -522,28 +543,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div id="loginLog"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
         </div>
       </div>
-      <!-- Lessons per day this week -->
-      <div class="col-12 col-lg-6">
-        <div class="dsq-card p-3">
-          <div class="section-label"><i class="bi bi-calendar-week me-2" style="color:var(--purple)"></i>Lessons Per Day This Week</div>
-          <div id="dailyChart"></div>
-        </div>
-      </div>
-      <!-- Top instructors -->
-      <div class="col-12 col-lg-6">
-        <div class="dsq-card p-3">
-          <div class="section-label"><i class="bi bi-trophy me-2" style="color:var(--gold)"></i>Top Instructors by Lessons (This Week)</div>
-          <div id="topInstrsChart"></div>
-        </div>
-      </div>
-      <!-- Earnings per instructor -->
-      <div class="col-12 col-lg-6">
-        <div class="dsq-card p-3">
-          <div class="section-label"><i class="bi bi-currency-pound me-2" style="color:var(--green)"></i>Earnings per Instructor (This Week)</div>
-          <div id="earningsChart"><div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">Loading…</div></div>
-        </div>
-      </div>
-      <!-- Instructor hours table -->
+      <!-- Instructor stats table -->
       <div class="col-12">
         <div class="dsq-card p-3">
           <div class="section-label"><i class="bi bi-table me-2" style="color:var(--green)"></i>Instructor Stats This Week</div>
@@ -813,6 +813,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
@@ -1866,88 +1867,84 @@ async function loadAnalytics(){
   renderLoginLog(loginR.data||[]);
 }
 
+const _charts={};
+function _getChartColors(){
+  const isDark=!document.body.classList.contains('day-mode');
+  return{grid:isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)',text:isDark?'#aaa':'#555',text2:isDark?'#666':'#999'};
+}
+function _destroyChart(key){if(_charts[key]){_charts[key].destroy();delete _charts[key];}}
+const _cjsDefaults={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},animation:{duration:600}};
+
 function renderHoursChart(lessons){
-  const el=document.getElementById('hoursChart');
+  _destroyChart('hours');
   const byInstr={};lessons.forEach(l=>{
     const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
-    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.duration_hours)||1);
+    byInstr[n]=(byInstr[n]||0)+(parseFloat(l.duration_hours)||1);
   });
-  const sorted=Object.entries(byInstr).sort((a,b)=>b[1]-a[1]);
-  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
-  const max=sorted[0][1];
-  el.innerHTML=sorted.map(([name,hrs])=>`<div class="d-flex align-items-center gap-2 mb-2">
-    <div style="font-size:.74rem;color:var(--txt2);min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
-    <div class="chart-bar"><div class="chart-fill red" style="width:${(hrs/max*100).toFixed(0)}%"></div></div>
-    <div style="font-size:.74rem;font-weight:700;color:var(--red);min-width:36px;text-align:right">${hrs.toFixed(1)}h</div>
-  </div>`).join('');
+  const sorted=Object.entries(byInstr).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const c=_getChartColors();
+  _charts.hours=new Chart(document.getElementById('hoursCanvas'),{
+    type:'bar',
+    data:{labels:sorted.map(([n])=>n),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:'rgba(209,10,17,.7)',borderColor:'#D10A11',borderWidth:1,borderRadius:4}]},
+    options:{..._cjsDefaults,indexAxis:'y',scales:{x:{grid:{color:c.grid},ticks:{color:c.text,callback:v=>v+'h'}},y:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}}}
+  });
 }
 
 function renderTypeChart(lessons){
-  const el=document.getElementById('typeChart');
+  _destroyChart('type');
   const byType={};lessons.forEach(l=>{const t=l.lesson_type||'Manual';byType[t]=(byType[t]||0)+1;});
   const sorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
-  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
-  const total=sorted.reduce((a,[,v])=>a+v,0);
   const colors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  const max=sorted[0][1];
-  // Horizontal bar chart with % label
-  el.innerHTML=`<div class="mb-3">${sorted.map(([type,count])=>`<div class="d-flex align-items-center gap-2 mb-2">
-    <div style="width:10px;height:10px;border-radius:2px;background:${colors[type]||'#60a5fa'};flex-shrink:0"></div>
-    <div style="font-size:.74rem;color:var(--txt2);min-width:90px;white-space:nowrap">${esc(type)}</div>
-    <div class="chart-bar"><div class="chart-fill" style="width:${(count/max*100).toFixed(0)}%;background:${colors[type]||'#60a5fa'}"></div></div>
-    <div style="font-size:.72rem;color:var(--txt2);min-width:55px;text-align:right">${count} (${(count/total*100).toFixed(0)}%)</div>
-  </div>`).join('')}</div>
-  <div style="font-size:.68rem;color:var(--txt4);text-align:center">${total} total lessons · ${(lessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0)).toFixed(1)}h total on-road time</div>`;
+  const total=sorted.reduce((a,[,v])=>a+v,0);
+  _charts.type=new Chart(document.getElementById('typeCanvas'),{
+    type:'doughnut',
+    data:{labels:sorted.map(([t])=>t),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map(([t])=>colors[t]||'#60a5fa'),borderWidth:0,hoverOffset:6}]},
+    options:{..._cjsDefaults,cutout:'60%',plugins:{legend:{display:true,position:'bottom',labels:{color:_getChartColors().text,font:{family:'Inter',size:11},padding:12,usePointStyle:true,pointStyle:'circle'}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${(ctx.raw/total*100).toFixed(0)}%)`}}}}
+  });
 }
 
 function renderDailyChart(lessons,mon){
-  const el=document.getElementById('dailyChart');
+  _destroyChart('daily');
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const counts=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return lessons.filter(l=>l.lesson_date===dateKey(d)).length;});
-  const max=Math.max(...counts,1);
-  el.innerHTML=`<div class="d-flex align-items-end gap-1 justify-content-between" style="height:80px;padding:0 4px">
-    ${counts.map((c,i)=>`<div class="d-flex flex-column align-items-center gap-1" style="flex:1">
-      <div style="font-size:.7rem;font-weight:700;color:${c?'var(--purple)':'var(--txt4)'}">${c||''}</div>
-      <div style="flex:1;width:100%;max-width:36px;display:flex;align-items:flex-end">
-        <div style="width:100%;background:${c?'rgba(168,85,247,.4)':'var(--dk3)'};border:1px solid ${c?'rgba(168,85,247,.4)':'var(--bdr)'};border-radius:4px 4px 0 0;height:${c?Math.max(8,(c/max*60)):4}px;transition:height .5s ease"></div>
-      </div>
-      <div style="font-size:.6rem;color:var(--txt3)">${days[i]}</div>
-    </div>`).join('')}
-  </div>`;
+  const tk=todayKey();const todayIdx=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(d.getDate()+i);return dateKey(d);}).indexOf(tk);
+  const c=_getChartColors();
+  _charts.daily=new Chart(document.getElementById('dailyCanvas'),{
+    type:'bar',
+    data:{labels:days,datasets:[{data:counts,backgroundColor:counts.map((_v,i)=>i===todayIdx?'rgba(209,10,17,.8)':'rgba(168,85,247,.5)'),borderColor:counts.map((_v,i)=>i===todayIdx?'#D10A11':'rgba(168,85,247,.7)'),borderWidth:1,borderRadius:6}]},
+    options:{..._cjsDefaults,scales:{y:{beginAtZero:true,grid:{color:c.grid},ticks:{color:c.text,stepSize:1}},x:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}}}
+  });
 }
 
 function renderTopInstrsChart(lessons){
-  const el=document.getElementById('topInstrsChart');
+  _destroyChart('topInstrs');
   const byInstr={};lessons.forEach(l=>{
     const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
-    if(!byInstr[n])byInstr[n]=0;byInstr[n]++;
+    byInstr[n]=(byInstr[n]||0)+1;
   });
   const sorted=Object.entries(byInstr).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No lessons this week.</div>';return;}
-  const max=sorted[0][1];
-  el.innerHTML=sorted.map(([name,count],idx)=>`<div class="d-flex align-items-center gap-2 mb-2">
-    <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1rem;font-weight:900;color:${idx===0?'var(--gold)':idx===1?'var(--txt2)':'var(--txt4)'};min-width:18px">${idx+1}</div>
-    <div style="font-size:.74rem;color:var(--txt2);min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
-    <div class="chart-bar"><div class="chart-fill gold" style="width:${(count/max*100).toFixed(0)}%"></div></div>
-    <div style="font-size:.74rem;font-weight:700;color:var(--gold);min-width:20px;text-align:right">${count}</div>
-  </div>`).join('');
+  const c=_getChartColors();
+  const golds=sorted.map((_,i)=>i===0?'rgba(245,197,24,.8)':i===1?'rgba(192,132,252,.5)':'rgba(96,165,250,.4)');
+  _charts.topInstrs=new Chart(document.getElementById('topInstrsCanvas'),{
+    type:'bar',
+    data:{labels:sorted.map(([n])=>n),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:golds,borderColor:golds.map(g=>g.replace(/[\d.]+\)$/,'1)')),borderWidth:1,borderRadius:4}]},
+    options:{..._cjsDefaults,indexAxis:'y',scales:{x:{beginAtZero:true,grid:{color:c.grid},ticks:{color:c.text,stepSize:1}},y:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}}}
+  });
 }
 
 function renderEarningsChart(lessons){
-  const el=document.getElementById('earningsChart');
+  _destroyChart('earnings');
   const byInstr={};lessons.forEach(l=>{
     const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
-    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.payment_received)||0);
+    byInstr[n]=(byInstr[n]||0)+(parseFloat(l.payment_received)||0);
   });
   const sorted=Object.entries(byInstr).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const total=sorted.reduce((a,[,v])=>a+v,0);
-  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No payment data this week.</div>';return;}
-  const max=sorted[0][1];
-  el.innerHTML=sorted.map(([name,amt])=>`<div class="d-flex align-items-center gap-2 mb-2">
-    <div style="font-size:.74rem;color:var(--txt2);min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
-    <div class="chart-bar"><div class="chart-fill" style="width:${(amt/max*100).toFixed(0)}%;background:var(--green)"></div></div>
-    <div style="font-size:.74rem;font-weight:700;color:var(--green);min-width:50px;text-align:right">£${amt.toFixed(0)}</div>
-  </div>`).join('')+`<div style="font-size:.72rem;color:var(--txt4);text-align:center;margin-top:8px">Total earnings: <span style="color:var(--green);font-weight:700">£${total.toFixed(0)}</span></div>`;
+  const c=_getChartColors();
+  _charts.earnings=new Chart(document.getElementById('earningsCanvas'),{
+    type:'bar',
+    data:{labels:sorted.map(([n])=>n),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:'rgba(37,211,102,.6)',borderColor:'#25D366',borderWidth:1,borderRadius:4}]},
+    options:{..._cjsDefaults,indexAxis:'y',scales:{x:{grid:{color:c.grid},ticks:{color:c.text,callback:v=>'£'+v}},y:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'£'+ctx.raw.toFixed(0)}}}}
+  });
 }
 
 function renderInstrStatsTable(lessons){
