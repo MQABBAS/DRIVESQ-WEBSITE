@@ -994,21 +994,44 @@ async function doLogin(){
   if(!phone){errEl.textContent='Please enter your phone number.';errEl.classList.remove('hidden');return;}
   const normPhone=phone.replace(/[\s\-\(\)]/g,'');
   let data=null,error=null;
-  // Try multiple phone formats
   const attempts=[phone,normPhone];
   if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
   if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
-  for(const p of[...new Set(attempts)]){
+  const phones=[...new Set(attempts)];
+  for(const p of phones){
     ({data,error}=await sb.from('student_accounts').select('*').eq('phone',p).maybeSingle());
     if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
     if(data)break;
   }
-  if(!data){errEl.textContent='No account found with this phone number. Tap "Link My Account" below to connect using your instructor code.';errEl.classList.remove('hidden');return;}
+  if(!data){
+    for(const p of phones){
+      const{data:lesson}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1).maybeSingle();
+      if(lesson){
+        const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',lesson.instructor_id).ilike('full_name',lesson.student_name).maybeSingle();
+        if(acc){
+          await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
+          acc.phone=p;data=acc;break;
+        }
+      }
+    }
+  }
+  if(!data){
+    for(const p of phones){
+      const{data:profile}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1).maybeSingle();
+      if(profile){
+        const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',profile.instructor_id).ilike('full_name',profile.name).maybeSingle();
+        if(acc){
+          await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
+          acc.phone=p;data=acc;break;
+        }
+      }
+    }
+  }
+  if(!data){errEl.textContent='No account found with this phone number. Ask your instructor to add you, or tap "Link My Account" below.';errEl.classList.remove('hidden');return;}
   if(data.status==='suspended'){errEl.textContent='Your account has been suspended. Please contact DriveSQ.';errEl.classList.remove('hidden');return;}
   await sb.from('student_accounts').update({last_login:new Date().toISOString()}).eq('id',data.id);
-  // Backfill student_account_id on any lessons that don't have it yet
   await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).is('student_account_id',null).then(()=>{},()=>{});
-  currentStudent={id:data.id,name:data.full_name,phone:data.phone,email:data.email,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
+  currentStudent={id:data.id,name:data.full_name,phone:data.phone||phone,email:data.email,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
   localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
   initApp();
 }

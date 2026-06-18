@@ -2039,6 +2039,9 @@ async function saveLesson(e){
         throw lErr;
       }
     }
+    if(lessonPayload.student_phone&&_sAccId){
+      sb.from('student_accounts').update({phone:lessonPayload.student_phone}).eq('id',_sAccId).then(()=>{},()=>{});
+    }
     if(document.getElementById('saveToRoster').checked){
       const rErr=await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
       if(rErr)console.warn('Roster:',rErr);
