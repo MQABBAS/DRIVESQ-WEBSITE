@@ -414,7 +414,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <table>
           <thead><tr>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
-            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
+            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
           </tr></thead>
           <tbody id="studentsTbody"></tbody>
         </table>
@@ -1333,10 +1333,23 @@ async function loadInstrRoster(){
 
 /* ══ STUDENTS TAB ══ */
 async function loadAllStudents(){
-  const{data}=await sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false});
-  // Group by student+instructor
+  const[lessonsR,accountsR,progressR]=await Promise.all([
+    sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
+    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at'),
+    sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score')
+  ]);
+  const acctMap={};
+  (accountsR.data||[]).forEach(a=>{
+    if(a.phone)acctMap[a.phone.replace(/[\s\-\(\)]/g,'')]=a;
+    if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()]=a;
+  });
+  const progMap={};
+  (progressR.data||[]).forEach(p=>{
+    if(p.student_id)progMap[p.student_id]=p;
+    if(p.student_account_id)progMap[p.student_account_id]=p;
+  });
   const map={};
-  (data||[]).forEach(l=>{
+  (lessonsR.data||[]).forEach(l=>{
     const key=l.student_name+'__'+l.instructor_id;
     if(!map[key])map[key]={
       name:l.student_name,phone:l.student_phone,address:l.pickup_address,
@@ -1349,6 +1362,17 @@ async function loadAllStudents(){
     if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
     s.lessons.push(l);
   });
+  Object.values(map).forEach(s=>{
+    const normPhone=(s.phone||'').replace(/[\s\-\(\)]/g,'');
+    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()]||null;
+    s.lastLogin=acc?.last_login||null;
+    s.acctId=acc?.id||null;
+    s.onApp=!!acc?.last_login;
+    const prog=acc?progMap[acc.id]:null;
+    s.targetHours=prog?.target_hours||null;
+    s.testReadiness=prog?.test_readiness||null;
+    s.mockScore=prog?.mock_test_score!=null?prog.mock_test_score:null;
+  });
   allStudentsCache=Object.values(map).sort((a,b)=>(b.lastLesson||'').localeCompare(a.lastLesson||''));
   renderStudentsTable(allStudentsCache);
 }
@@ -1357,12 +1381,14 @@ function renderStudentsTable(students){
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
   document.getElementById('studentCount').textContent=`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
-  if(!students.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--txt4);padding:24px">No students found.</td></tr>';return;}
+  if(!students.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--txt4);padding:24px">No students found.</td></tr>';return;}
   tb.innerHTML=students.map((s,idx)=>{
     const waNum=buildWaNum(s.phone||'');
+    const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):null;
+    const readyChip=s.testReadiness==='ready'?'<span class="chip approved" style="font-size:.52rem">Test Ready</span>':s.testReadiness==='nearly_there'?'<span class="chip pending" style="font-size:.52rem">Nearly</span>':'';
     return`<tr>
       <td style="color:var(--txt);font-weight:600">
-        <div style="width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:#c084fc;margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        <div style="width:24px;height:24px;border-radius:50%;background:${s.onApp?'rgba(37,211,102,.1)':'rgba(168,85,247,.1)'};border:1px solid ${s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
         ${esc(s.name)}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
@@ -1370,6 +1396,9 @@ function renderStudentsTable(students){
       <td>${[...s.types].map(t=>`<span class="chip ${t.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(t)}</span>`).join(' ')}</td>
       <td style="font-size:.77rem;color:var(--txt2)">${esc(s.instrName)}</td>
       <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${s.count}</td>
+      <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--gold)">${s.hours.toFixed(1)}h</td>
+      <td class="hide-xs">${pct!=null?`<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:6px;overflow:hidden;min-width:40px"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-size:.65rem;color:var(--txt3)">${pct}%</span></div>${readyChip}`:'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
+      <td class="hide-xs" style="font-size:.7rem;color:${s.onApp?'var(--green)':'var(--txt4)'}">${s.lastLogin?fmtDT(s.lastLogin):'<span style="font-size:.65rem">Never</span>'}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${fmtD(s.lastLesson)}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
@@ -1393,15 +1422,23 @@ async function openStudentDetail(idx){
   document.getElementById('sdTitle').textContent=s.name;
   const totalPaid=s.lessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total${totalPaid?' · £'+totalPaid.toFixed(0)+' paid':''}`;
+  const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):null;
   document.getElementById('sdBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      ${s.onApp?'<span class="chip approved" style="font-size:.6rem"><i class="bi bi-check-circle-fill me-1"></i>On App</span>':'<span class="chip pending" style="font-size:.6rem"><i class="bi bi-dash-circle me-1"></i>Not on App</span>'}
+      ${s.testReadiness==='ready'?'<span class="chip approved" style="font-size:.6rem">Test Ready</span>':s.testReadiness==='nearly_there'?'<span class="chip pending" style="font-size:.6rem">Nearly Ready</span>':''}
+      ${s.mockScore!=null?`<span class="chip mock" style="font-size:.6rem">Mock: ${s.mockScore}/50</span>`:''}
+      ${s.lastLogin?`<span style="font-size:.62rem;color:var(--txt3)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</span>`:''}
+    </div>
     <div class="row g-2">
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Default Address</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName)}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Types</div><div class="det-val">${[...s.types].join(', ')}</div></div></div>
-      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
-      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
-      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Paid</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">£${totalPaid.toFixed(0)}</div></div></div>
+      <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
+      <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
+      <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Paid</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">£${totalPaid.toFixed(0)}</div></div></div>
+      <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Progress</div><div class="det-val">${pct!=null?`<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:8px;overflow:hidden"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900;color:var(--txt2)">${pct}%</span></div>`:'<span style="color:var(--txt4)">—</span>'}</div></div></div>
     </div>`;
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
@@ -1480,8 +1517,8 @@ async function loadStudentProgress(s){
 function exportStudentsCSV(){
   const list=allStudentsCache;
   if(!list.length){showToast('No students to export.','error');return;}
-  const hdr='Student Name,Phone,Address,Lesson Type,Instructor,Lessons,Total Hours,Last Lesson';
-  const rows=list.map(s=>[s.name,s.phone||'',s.address||'',[...s.types].join('|'),s.instrName,s.count,s.hours.toFixed(1),s.lastLesson].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const hdr='Student Name,Phone,Address,Lesson Type,Instructor,Lessons,Total Hours,Progress %,Test Readiness,Last Login,Last Lesson';
+  const rows=list.map(s=>{const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):'';return[s.name,s.phone||'',s.address||'',[...s.types].join('|'),s.instrName,s.count,s.hours.toFixed(1),pct,s.testReadiness||'',s.lastLogin||'',s.lastLesson].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');});
   const csv=[hdr,...rows].join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='drivesq_students.csv';a.click();
   showToast('Students exported ✓','success');
