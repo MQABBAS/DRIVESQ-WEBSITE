@@ -490,7 +490,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="wk-hours-badge"><i class="bi bi-clock me-1"></i><span id="wkHoursLbl">0h</span> this week</div>
-        <div class="wk-hours-badge" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80" id="totalPayBadge" style="display:none"><i class="bi bi-currency-pound me-1"></i><span id="totalPayLbl">0.00</span> received</div>
+        <div class="wk-hours-badge" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80;display:none" id="totalPayBadge"><i class="bi bi-currency-pound me-1"></i><span id="totalPayLbl">0.00</span> received</div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="cal-view-btns">
@@ -1215,8 +1215,9 @@ const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 const MF=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function fmtS(d){return d.getDate()+' '+MS[d.getMonth()];}
 function fmtFull(d){const n=d.getDay();return(n===0?'Sunday':DAYS[n-1])+', '+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear();}
-function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=h*60+m+parseFloat(hrs)*60;return pad2(Math.floor(t/60)%24)+':'+pad2(Math.round(t%60));}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=Math.round(h*60+m+parseFloat(hrs)*60);return pad2(Math.floor(t/60)%24)+':'+pad2(t%60);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function cleanPhone(p){return(p||'').replace(/\D/g,'');}
 function waLink(phone,msg){const p=cleanPhone(phone);if(!p)return null;return'https://wa.me/44'+p.replace(/^0/,'')+(msg?'?text='+encodeURIComponent(msg):'');}
@@ -1228,6 +1229,7 @@ let calView='week';
 let currentDayKey=todayKey(),currentDayName='Monday',currentDayIdx=0;
 let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let weekLessons={};
+let dayLessonsCache={};
 let confirmationMap={};  // lesson_id -> confirmation status
 let reschedulePending=[];
 let activeDate=null,detailId=null,detailData=null;
@@ -1441,7 +1443,7 @@ async function loadWeek(){
   const days=weekDays(weekStart);
   const from=dateKey(days[0]),to=dateKey(days[6]);
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-  weekLessons={};
+  weekLessons={};dayLessonsCache={};
   (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
   await loadConfirmations();
   if(calView==='week')renderCal();
@@ -1451,7 +1453,7 @@ async function loadWeek(){
 
 async function loadDayView(dk){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
-  weekLessons[dk]=data||[];
+  dayLessonsCache[dk]=data||[];
   await loadConfirmations();
   renderDayView();updateStats();
 }
@@ -1462,9 +1464,7 @@ async function loadMonthView(){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
-  Object.assign(weekLessons,map);
   renderMonthView(map);
-  // BUG 12: updateStats uses weekLessons which now has month data — update month stats bar separately
   const allM=data||[];
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalPayM=allM.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
@@ -1500,9 +1500,6 @@ function updateStats(){
   if(payBadge&&payLbl){payLbl.textContent='£'+totalPay.toFixed(2);payBadge.style.display=totalPay>0?'inline-flex':'none';}
   const earningsEl=document.getElementById('sEarnings');
   if(earningsEl)earningsEl.textContent='£'+totalPay.toFixed(2);
-  // Month stats bar
-  const msb=document.getElementById('monthStatsBar');
-  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1"></i>${allW.length} lessons</span><span><i class="bi bi-clock me-1"></i>${totalHrs.toFixed(1)}h</span><span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPay.toFixed(2)}</span>`;}
 }
 
 /* ── DRAG & DROP ── */
@@ -1645,15 +1642,15 @@ function renderDayView(){
   if(_dtt)_dtt.innerHTML=(isT?'<span style="color:var(--red)">Today</span> &mdash; ':'')+DAYS[dow]+' <span style="color:var(--txt3)">'+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear()+'</span>';
   const _dst=document.getElementById('daySubText');
   if(_dst){
-    // BUG 13: Use lessons already loaded for this day — don't use potentially empty weekLessons
-    const ls=weekLessons[currentDayKey]||[];
+    // BUG 13: Use lessons already loaded for this day — prefer dayLessonsCache over weekLessons
+    const ls=dayLessonsCache[currentDayKey]||weekLessons[currentDayKey]||[];
     const hrs=ls.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
     const totalPay=ls.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
     const payVis=localStorage.getItem('dsq_show_payment')!=='false';
     _dst.textContent=ls.length+' lesson'+(ls.length!==1?'s':'')+' · '+hrs.toFixed(1)+'h'+(payVis&&totalPay>0?' · £'+totalPay.toFixed(2)+' received':'')+(isT?' · Today':'');
   }
   document.getElementById('dayViewTitle').innerHTML=(isT?'<span style="color:var(--red)">TODAY — </span>':'')+DAYS[dow]+', '+fmtS(d)+' '+d.getFullYear();
-  const lessons=weekLessons[currentDayKey]||[];
+  const lessons=dayLessonsCache[currentDayKey]||weekLessons[currentDayKey]||[];
   const body=document.getElementById('dayViewBody');
   if(!lessons.length){body.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No lessons today.</div>`;return;}
   body.innerHTML=lessons.map(l=>{
@@ -1702,7 +1699,7 @@ function renderMonthView(map){
     const visible=ls.slice(0,2),extra=ls.length-2;
     return`<div class="month-cell${other?' other-month':''}${isT?' today-cell':''}${isW?' wknd-cell':''}" onclick="jumpToDayView('${dk}',${d.getDay()===0?6:d.getDay()-1})">
       <div class="month-day-num${isT?' is-today':''}">${d.getDate()}${isT?'<span style="color:var(--red);font-size:.5rem;margin-left:3px">●</span>':''}</div>
-      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return`<div class="month-ls-dot ${lClass(l.lesson_type)}" onclick="event.stopPropagation();openDetail('${l.id}')">${isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':''} ${l.start_time} ${esc(l.student_name.split(' ')[0])}</div>`;}).join('')}
+      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return`<div class="month-ls-dot ${lClass(l.lesson_type)}" onclick="event.stopPropagation();openDetail('${l.id}')">${isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':''} ${l.start_time} ${esc((l.student_name||'').split(' ')[0])}</div>`;}).join('')}
       ${extra>0?`<div class="month-more">+${extra} more</div>`:''}
     </div>`;
   }).join('');
@@ -1814,14 +1811,9 @@ async function openStudentCodeModal(studentName){
 
 async function regenerateCode(){
   if(!confirm('Generate a new code? The old code will stop working.'))return;
-  const id=document.getElementById('codeStudentId').value;
+  const name=document.getElementById('codeModalSub').textContent.replace('Student: ','').trim();
   const newCode=gen5Code();
-  if(id){
-    // Find the student account
-    const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).filter('id','neq','x').limit(1).maybeSingle();
-    // Update by instructor_id + matching profile
-    await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',document.getElementById('codeModalSub').textContent.replace('Student: ','').trim());
-  }
+  await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',name);
   document.getElementById('codeDisplay').textContent=newCode;
   showToast('New code generated: '+newCode,'success');
 }
@@ -2047,6 +2039,9 @@ async function saveLesson(e){
         throw lErr;
       }
     }
+    if(lessonPayload.student_phone&&_sAccId){
+      sb.from('student_accounts').update({phone:lessonPayload.student_phone}).eq('id',_sAccId).then(()=>{},()=>{});
+    }
     if(document.getElementById('saveToRoster').checked){
       const rErr=await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
       if(rErr)console.warn('Roster:',rErr);
@@ -2133,7 +2128,7 @@ async function openDetail(id){
   const ms=document.getElementById('detMaps');
   let extra='';
   const waUrl=data.student_phone?waLink(data.student_phone,'Hi '+data.student_name+', this is your DriveSQ instructor. '):null;
-  if(waUrl)extra+=`<a href="${waUrl}" target="_blank" class="btn-wa" style="margin-top:8px;width:100%;justify-content:center;border-radius:8px"><i class="bi bi-whatsapp"></i>WhatsApp ${esc(data.student_name.split(' ')[0])}</a>`;
+  if(waUrl)extra+=`<a href="${waUrl}" target="_blank" class="btn-wa" style="margin-top:8px;width:100%;justify-content:center;border-radius:8px"><i class="bi bi-whatsapp"></i>WhatsApp ${esc((data.student_name||'').split(' ')[0])}</a>`;
 
   // BUG 3+11: Only show confirm button if instructor hasn't confirmed yet
   if(!instrConfirmed){
@@ -2142,7 +2137,7 @@ async function openDetail(id){
     extra+=`<div class="mt-2 w-100 text-center" style="font-size:.78rem;color:#4ade80;padding:8px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:8px"><i class="bi bi-check-circle-fill me-1"></i>Both confirmed ✓</div>`;
   }
 
-  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${data.student_name.replace(/'/g,"\'")}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Student Profile</button>`;}
+  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${jsEsc(data.student_name)}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Student Profile</button>`;}
   else{extra+=`<button class="btn-g mt-2 w-100" onclick="saveDetailStudentToRoster()"><i class="bi bi-bookmark-plus me-1"></i>Save Student to Roster</button>`;}
   if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>${extra}`;}
   else ms.innerHTML=extra;
@@ -2414,7 +2409,7 @@ function renderStudents(students){
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
-    const sn=s.name.replace(/'/g,"\\'");
+    const sn=jsEsc(s.name);
     return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
       <div class="sc-top" onclick="openStudentMgmt('${sn}')">
         <div class="sc-init ${hasLogin?'registered-init':''}">
@@ -2472,7 +2467,7 @@ function renderExistingGrid(students){
   const grid=document.getElementById('existingGrid'),noMsg=document.getElementById('noSavedMsg');
   if(!students.length){grid.innerHTML='';noMsg.classList.remove('hidden');return;}
   noMsg.classList.add('hidden');
-  grid.innerHTML=students.map(p=>`<button class="existing-student-btn" onclick="pickExistingStudent('${p.name.toLowerCase().trim().replace(/'/g,"\\'")}')"><div class="esb-name">${esc(p.name)}</div><div class="esb-meta">${[p.lesson_type,p.address?p.address.slice(0,22)+'…':''].filter(Boolean).join(' · ')}</div></button>`).join('');
+  grid.innerHTML=students.map(p=>`<button class="existing-student-btn" onclick="pickExistingStudent('${jsEsc(p.name.toLowerCase().trim())}')"><div class="esb-name">${esc(p.name)}</div><div class="esb-meta">${[p.lesson_type,p.address?p.address.slice(0,22)+'…':''].filter(Boolean).join(' · ')}</div></button>`).join('');
 }
 function filterExistingPicker(q){const all=Object.values(rosterMap);renderExistingGrid(q?all.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):all);}
 function pickExistingStudent(keyName){
@@ -2635,7 +2630,7 @@ async function loadRequests(){
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
     ${r.status==='pending'?`<div class="d-flex gap-2 mt-3">
-      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${esc(r.student_name)}','${esc(r.pickup_address||'')}','${esc(r.lesson_type||'Manual')}','${esc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.pickup_address||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
       <button class="btn-r-sm flex-fill" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
     </div>`:''}
   </div>`).join('');
@@ -2723,8 +2718,8 @@ async function saveProfile(){
   const newPwd=document.getElementById('pNewPwd')?.value.trim();
   const confirmPwd=document.getElementById('pConfirmPwd')?.value.trim();
   if(newPwd||confirmPwd){
-    if(newPwd!==confirmPwd){showToast('Passwords do not match.');return;}
-    if(newPwd.length<6){showToast('Password must be at least 6 characters.');return;}
+    if(newPwd!==confirmPwd){showToast('Passwords do not match.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
+    if(newPwd.length<6){showToast('Password must be at least 6 characters.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
   }
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value};
   if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
@@ -2835,8 +2830,8 @@ setTimeout(applyPaymentVisibility,500);
 /* ── MODALS + TOAST ── */
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}
-document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
+document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),3200);}
 
@@ -3064,7 +3059,7 @@ function smOverrideToApp(){
 
 /* ── Progress ── */
 async function saveSmProgress(){
-  const btn=document.getElementById('smSaveProgressBtn')||event?.target;
+  const btn=document.getElementById('smSaveProgressBtn');
   if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
   try{
     // Always get fresh account ID
@@ -3164,7 +3159,7 @@ function smSetTopic(name,rating,btn){
 }
 
 async function saveSmTopics(){
-  const btn=event?.target;if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
+  const btn=document.querySelector('#smPanel-topics .btn-p');if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
   try{
     let aid=smCurrentAccId;
     if(!aid){
@@ -3425,7 +3420,7 @@ async function pollStudentUpdates(){
   // Always update tab badge with unread count
   const totalUnread2=allStudentsArr.reduce((a,s)=>a+(s.unreadMsgs||0),0);
   const studTab2=document.getElementById('tab-students');
-  if(studTab22){
+  if(studTab2){
     let b=studTab2.querySelector('.tab-badge');
     if(totalUnread2>0){
       if(!b){b=document.createElement('span');b.className='tab-badge ms-1';studTab2.appendChild(b);}
