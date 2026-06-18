@@ -993,21 +993,23 @@ async function doLogin(){
   const errEl=document.getElementById('loginErr');errEl.classList.add('hidden');
   if(!phone){errEl.textContent='Please enter your phone number.';errEl.classList.remove('hidden');return;}
   const normPhone=phone.replace(/[\s\-\(\)]/g,'');
-  let data=null,error=null;
+  let data=null;
   const attempts=[phone,normPhone];
   if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
   if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
   const phones=[...new Set(attempts)];
   for(const p of phones){
-    ({data,error}=await sb.from('student_accounts').select('*').eq('phone',p).maybeSingle());
+    const{data:rows,error}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
     if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
-    if(data)break;
+    if(rows&&rows.length){data=rows[0];break;}
   }
   if(!data){
     for(const p of phones){
-      const{data:lesson}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1).maybeSingle();
+      const{data:lessons}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1);
+      const lesson=lessons&&lessons[0];
       if(lesson){
-        const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',lesson.instructor_id).ilike('full_name',lesson.student_name).maybeSingle();
+        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',lesson.instructor_id).ilike('full_name',lesson.student_name).limit(1);
+        const acc=accs&&accs[0];
         if(acc){
           await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
           acc.phone=p;data=acc;break;
@@ -1017,9 +1019,11 @@ async function doLogin(){
   }
   if(!data){
     for(const p of phones){
-      const{data:profile}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1).maybeSingle();
+      const{data:profiles}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1);
+      const profile=profiles&&profiles[0];
       if(profile){
-        const{data:acc}=await sb.from('student_accounts').select('*').eq('instructor_id',profile.instructor_id).ilike('full_name',profile.name).maybeSingle();
+        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',profile.instructor_id).ilike('full_name',profile.name).limit(1);
+        const acc=accs&&accs[0];
         if(acc){
           await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
           acc.phone=p;data=acc;break;
