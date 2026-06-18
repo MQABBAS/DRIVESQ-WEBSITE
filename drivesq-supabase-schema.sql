@@ -276,8 +276,15 @@ CREATE TABLE IF NOT EXISTS admin_messages (
 );
 
 -- ══════════════════════════════════════════════════════
--- RPC FUNCTIONS
+-- RPC FUNCTIONS (drop existing to avoid return-type conflicts)
 -- ══════════════════════════════════════════════════════
+
+DROP FUNCTION IF EXISTS seed_student_progress(UUID, UUID, NUMERIC);
+DROP FUNCTION IF EXISTS seed_student_topics(UUID, UUID);
+DROP FUNCTION IF EXISTS get_or_create_student_account(UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS upsert_student_progress(UUID, UUID, NUMERIC, NUMERIC, TEXT, TEXT);
+DROP FUNCTION IF EXISTS upsert_topic_rating(UUID, UUID, TEXT, TEXT, INTEGER);
+DROP FUNCTION IF EXISTS reset_instructor_password(TEXT, TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION seed_student_progress(p_student_id UUID, p_instructor_id UUID, p_target_hours NUMERIC DEFAULT 20)
 RETURNS VOID AS $$
