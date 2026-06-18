@@ -1077,8 +1077,28 @@ async function doLogin(){
   const pass=document.getElementById('loginPass').value;
   const errEl=document.getElementById('loginErr');errEl.classList.add('hidden');
   if(!phone||!pass){errEl.textContent='Please enter your phone and password.';errEl.classList.remove('hidden');return;}
-  const{data,error}=await sb.from('student_accounts').select('*').eq('phone',phone).maybeSingle();
-  if(error||!data){errEl.textContent='Phone number not found.';errEl.classList.remove('hidden');return;}
+  // Normalize phone: strip spaces, dashes, parentheses
+  const normPhone=phone.replace(/[\s\-\(\)]/g,'');
+  // Try exact match first, then normalized
+  let{data,error}=await sb.from('student_accounts').select('*').eq('phone',phone).maybeSingle();
+  if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
+  if(!data&&normPhone!==phone){
+    ({data,error}=await sb.from('student_accounts').select('*').eq('phone',normPhone).maybeSingle());
+    if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
+  }
+  // Also try without leading 0 with +44
+  if(!data&&normPhone.startsWith('0')){
+    const ukPhone='+44'+normPhone.slice(1);
+    ({data,error}=await sb.from('student_accounts').select('*').eq('phone',ukPhone).maybeSingle());
+    if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
+  }
+  // Try with leading 0 if they entered +44
+  if(!data&&normPhone.startsWith('+44')){
+    const localPhone='0'+normPhone.slice(3);
+    ({data,error}=await sb.from('student_accounts').select('*').eq('phone',localPhone).maybeSingle());
+    if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
+  }
+  if(!data){errEl.textContent='No account found with this phone number. If you haven\'t registered yet, tap "Create Account" and use your instructor code and PIN.';errEl.classList.remove('hidden');return;}
   if(data.status==='suspended'){errEl.textContent='Your account has been suspended. Please contact DriveSQ.';errEl.classList.remove('hidden');return;}
   if(!data.password_hash||data.password_hash!==btoa(pass)){errEl.textContent=data.password_hash?'Incorrect password. Please try again.':'No password set — you need to Create an Account first using your instructor code and PIN.';errEl.classList.remove('hidden');return;}
   await sb.from('student_accounts').update({last_login:new Date().toISOString()}).eq('id',data.id);
@@ -1117,6 +1137,17 @@ function signOut(){
 
 /* ── INIT APP ── */
 async function initApp(){
+  // Validate session is still valid
+  if(currentStudent&&currentStudent.id){
+    const{data:check,error:checkErr}=await sb.from('student_accounts').select('id,status').eq('id',currentStudent.id).maybeSingle();
+    if(checkErr||!check){
+      console.warn('Session invalid — account not found in DB');
+      signOut();showToast('Session expired. Please sign in again.');return;
+    }
+    if(check.status==='suspended'){
+      signOut();showToast('Your account has been suspended.');return;
+    }
+  }
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
   document.getElementById('mainNav').style.display='block';
