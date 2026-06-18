@@ -934,9 +934,9 @@ async function loadInstrs(){
   allInstrs=data||[];
   // Compute weekly hours per instructor
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours,payment_amount').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
+  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
   const hrsMap={},earnMap={};
-  (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_amount)||0);});
+  (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
   allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;});
   renderInstrsTable(allInstrs);
   renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
@@ -953,7 +953,7 @@ async function loadGlobalStats(){
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
   const[todayR,weekR,studR]=await Promise.all([
     sb.from('lessons').select('id',{count:'exact',head:true}).eq('lesson_date',tk),
-    sb.from('lessons').select('duration_hours,payment_amount,payment_status').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
+    sb.from('lessons').select('duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
     sb.from('student_accounts').select('id',{count:'exact',head:true})
   ]);
   document.getElementById('sToday').textContent=todayR.count||0;
@@ -961,7 +961,7 @@ async function loadGlobalStats(){
   document.getElementById('sWeek').textContent=weekLessons.length;
   const hrs=weekLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
-  const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
+  const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
   document.getElementById('sTotalStudents').textContent=studR.count||0;
 }
@@ -1261,7 +1261,7 @@ async function loadAdminLessons(){
   renderAdminCal();
   // Update week stats
   const totalHrs=adminLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
-  const totalEarn=adminLessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
+  const totalEarn=adminLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const uniqStudents=new Set(adminLessons.map(l=>l.student_name)).size;
   const statsEl=document.getElementById('calWeekStats');
   if(statsEl)statsEl.innerHTML=`
@@ -1390,7 +1390,7 @@ let _renderedStudents=[];
 async function openStudentDetail(idx){
   const s=_renderedStudents[idx];if(!s)return;
   document.getElementById('sdTitle').textContent=s.name;
-  const totalPaid=s.lessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
+  const totalPaid=s.lessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total${totalPaid?' · £'+totalPaid.toFixed(0)+' paid':''}`;
   document.getElementById('sdBody').innerHTML=`
     <div class="row g-2">
@@ -1413,7 +1413,7 @@ async function openStudentDetail(idx){
       <div style="width:3px;height:36px;background:${tc[l.lesson_type]||'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:.76rem;font-weight:600;color:var(--txt2)">${l.lesson_date} · ${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
-        <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.payment_amount?' · £'+l.payment_amount:''}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
+        <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.payment_received?' · £'+l.payment_received:''}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
     </div>`).join('');
@@ -1937,7 +1937,7 @@ function renderEarningsChart(lessons){
   const el=document.getElementById('earningsChart');
   const byInstr={};lessons.forEach(l=>{
     const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
-    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.payment_amount)||0);
+    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.payment_received)||0);
   });
   const sorted=Object.entries(byInstr).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   const total=sorted.reduce((a,[,v])=>a+v,0);
@@ -1958,7 +1958,7 @@ function renderInstrStatsTable(lessons){
     if(!byInstr[l.instructor_id])byInstr[l.instructor_id]={name:n,count:0,hours:0,students:new Set(),earnings:0};
     byInstr[l.instructor_id].count++;
     byInstr[l.instructor_id].hours+=(parseFloat(l.duration_hours)||1);
-    byInstr[l.instructor_id].earnings+=(parseFloat(l.payment_amount)||0);
+    byInstr[l.instructor_id].earnings+=(parseFloat(l.payment_received)||0);
     byInstr[l.instructor_id].students.add(l.student_name);
   });
   const sorted=Object.values(byInstr).sort((a,b)=>b.hours-a.hours);
