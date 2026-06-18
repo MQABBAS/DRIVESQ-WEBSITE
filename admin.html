@@ -341,7 +341,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
-    <button class="dsq-tab hidden" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i></button>
+    <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
   </div>
 
   <!-- GLOBAL STATS -->
@@ -352,6 +352,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b"><div class="stat-lbl">Lessons Today</div><div class="stat-num b" id="sToday">0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card p"><div class="stat-lbl">This Week</div><div class="stat-num p" id="sWeek">0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card g"><div class="stat-lbl">Hours This Week</div><div class="stat-num g" id="sHours">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr"><div class="stat-lbl">Earnings This Week</div><div class="stat-num gr" id="sEarnings">£0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b"><div class="stat-lbl">Total Students</div><div class="stat-num b" id="sTotalStudents">0</div></div></div>
   </div>
 
   <!-- ══ INSTRUCTORS ══ -->
@@ -373,7 +375,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <table>
           <thead><tr>
             <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th>
-            <th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th>Actions</th>
+            <th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -534,13 +536,20 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div id="topInstrsChart"></div>
         </div>
       </div>
-      <!-- Instructor hours table -->
+      <!-- Earnings per instructor -->
       <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-currency-pound me-2" style="color:var(--green)"></i>Earnings per Instructor (This Week)</div>
+          <div id="earningsChart"><div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <!-- Instructor hours table -->
+      <div class="col-12">
         <div class="dsq-card p-3">
           <div class="section-label"><i class="bi bi-table me-2" style="color:var(--green)"></i>Instructor Stats This Week</div>
           <div class="tbl-scroll">
             <table style="min-width:auto">
-              <thead><tr><th>Instructor</th><th>Lessons</th><th>Hours</th><th>Students</th></tr></thead>
+              <thead><tr><th>Instructor</th><th>Lessons</th><th>Hours</th><th>Students</th><th>Earnings</th><th>Avg/Lesson</th></tr></thead>
               <tbody id="instrStatsTable"></tbody>
             </table>
           </div>
@@ -551,6 +560,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
   <!-- ══ CALENDAR (instructor view) ══ -->
   <div id="panel-calendar" class="hidden">
+    <div class="mb-3" id="calInstrPicker" style="display:none">
+      <div class="section-label"><i class="bi bi-calendar-week me-2" style="color:var(--purple)"></i>Select an Instructor to View Calendar</div>
+      <select class="dsq-inp" id="calInstrSelect" onchange="if(this.value)viewInstr(this.value)" style="max-width:320px">
+        <option value="">Choose instructor…</option>
+      </select>
+    </div>
     <div id="calInstrHd" class="mb-3"></div>
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
       <button class="btn-s" onclick="adminChangeWeek(-1)"><i class="bi bi-chevron-left"></i></button>
@@ -769,6 +784,14 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="modal-sub" id="sdSub">—</div>
     <div id="sdBody"></div>
     <div class="mt-3 d-flex gap-2 flex-wrap" id="sdActions"></div>
+    <div class="mt-3" id="sdProgressSection" style="display:none">
+      <div class="section-label"><i class="bi bi-graph-up me-2" style="color:var(--green)"></i>Progress &amp; Performance</div>
+      <div id="sdProgress"></div>
+    </div>
+    <div class="mt-3" id="sdTopicsSection" style="display:none">
+      <div class="section-label"><i class="bi bi-list-check me-2" style="color:var(--blue)"></i>Topic Ratings</div>
+      <div id="sdTopics"></div>
+    </div>
     <div class="mt-3">
       <div class="section-label">Recent Lessons</div>
       <div id="sdLessons"></div>
@@ -888,6 +911,14 @@ function switchTab(t){
   if(t==='requests')loadStudentRequests();
   if(t==='transfers')loadTransferRequests();
   if(t==='students')loadAllStudents();
+  if(t==='calendar'){
+    const picker=document.getElementById('calInstrPicker');
+    if(!viewingId&&picker){
+      picker.style.display='';
+      const sel=document.getElementById('calInstrSelect');
+      sel.innerHTML='<option value="">Choose instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+    } else if(picker){picker.style.display='none';}
+  }
 }
 
 /* ══ LOAD ALL ══ */
@@ -902,10 +933,10 @@ async function loadInstrs(){
   allInstrs=data||[];
   // Compute weekly hours per instructor
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
-  const hrsMap={};
-  (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);});
-  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;});
+  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours,payment_amount').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
+  const hrsMap={},earnMap={};
+  (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_amount)||0);});
+  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;});
   renderInstrsTable(allInstrs);
   renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
   const pc=allInstrs.filter(i=>i.status==='pending').length;
@@ -919,15 +950,19 @@ async function loadInstrs(){
 async function loadGlobalStats(){
   const tk=todayKey();
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const[todayR,weekR]=await Promise.all([
+  const[todayR,weekR,studR]=await Promise.all([
     sb.from('lessons').select('id',{count:'exact',head:true}).eq('lesson_date',tk),
-    sb.from('lessons').select('duration_hours').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun))
+    sb.from('lessons').select('duration_hours,payment_amount,payment_status').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
+    sb.from('student_accounts').select('id',{count:'exact',head:true})
   ]);
   document.getElementById('sToday').textContent=todayR.count||0;
   const weekLessons=weekR.data||[];
   document.getElementById('sWeek').textContent=weekLessons.length;
   const hrs=weekLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
+  const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
+  document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
+  document.getElementById('sTotalStudents').textContent=studR.count||0;
 }
 
 function populateDropdowns(){
@@ -943,7 +978,7 @@ function populateDropdowns(){
 /* ══ RENDER INSTRUCTORS ══ */
 function renderInstrsTable(list){
   const tb=document.getElementById('instrTbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--txt4);padding:24px">No instructors found.</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--txt4);padding:24px">No instructors found.</td></tr>';return;}
   tb.innerHTML=list.map(i=>{
     const isSusp=i.status==='suspended';
     const blockBtn=isSusp
@@ -952,6 +987,7 @@ function renderInstrsTable(list){
     const waNum=buildWaNum(i.phone||'');
     const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:'';
     const weekHrs=(i._weekHrs||0).toFixed(1);
+    const weekEarn=(i._weekEarn||0).toFixed(0);
     return`<tr>
       <td style="color:var(--txt);font-weight:600">
         ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>
@@ -962,6 +998,7 @@ function renderInstrsTable(list){
       <td><span class="chip ${i.status}">${i.status}</span></td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
+      <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${esc(i.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
@@ -1223,12 +1260,14 @@ async function loadAdminLessons(){
   renderAdminCal();
   // Update week stats
   const totalHrs=adminLessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  const totalEarn=adminLessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
   const uniqStudents=new Set(adminLessons.map(l=>l.student_name)).size;
   const statsEl=document.getElementById('calWeekStats');
   if(statsEl)statsEl.innerHTML=`
     <div style="background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--red)">${adminLessons.length} lessons</div>
     <div style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#c084fc">${totalHrs.toFixed(1)}h on road</div>
-    <div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#4ade80">${uniqStudents} students</div>`;
+    <div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#4ade80">£${totalEarn.toFixed(0)} earned</div>
+    <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:7px;padding:5px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;color:#60a5fa">${uniqStudents} students</div>`;
 }
 
 function adminChangeWeek(d){adminWeekOffset+=d;loadAdminLessons();}
@@ -1347,18 +1386,20 @@ function filterAllStudents(q){
 }
 
 let _renderedStudents=[];
-function openStudentDetail(idx){
+async function openStudentDetail(idx){
   const s=_renderedStudents[idx];if(!s)return;
   document.getElementById('sdTitle').textContent=s.name;
-  document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total`;
+  const totalPaid=s.lessons.reduce((a,l)=>a+(parseFloat(l.payment_amount)||0),0);
+  document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total${totalPaid?' · £'+totalPaid.toFixed(0)+' paid':''}`;
   document.getElementById('sdBody').innerHTML=`
     <div class="row g-2">
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Default Address</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName)}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Types</div><div class="det-val">${[...s.types].join(', ')}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
+      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
+      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
+      <div class="col-12 col-sm-4"><div class="det-item"><div class="det-lbl">Total Paid</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">£${totalPaid.toFixed(0)}</div></div></div>
     </div>`;
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
@@ -1371,11 +1412,67 @@ function openStudentDetail(idx){
       <div style="width:3px;height:36px;background:${tc[l.lesson_type]||'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:.76rem;font-weight:600;color:var(--txt2)">${l.lesson_date} · ${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
-        <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
+        <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.payment_amount?' · £'+l.payment_amount:''}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
     </div>`).join('');
   openModal('studentDetailModal');
+  loadStudentProgress(s);
+}
+
+async function loadStudentProgress(s){
+  const progSec=document.getElementById('sdProgressSection');
+  const topicsSec=document.getElementById('sdTopicsSection');
+  progSec.style.display='none';topicsSec.style.display='none';
+  const normPhone=(s.phone||'').replace(/[\s\-\(\)]/g,'');
+  if(!normPhone)return;
+  const attempts=[s.phone,normPhone];
+  if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
+  if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
+  const phones=[...new Set(attempts.filter(Boolean))];
+  let acct=null;
+  for(const p of phones){
+    const{data}=await sb.from('student_accounts').select('id').eq('phone',p).maybeSingle();
+    if(data){acct=data;break;}
+  }
+  if(!acct)return;
+  const[progR,topicsR]=await Promise.all([
+    sb.from('student_progress').select('*').eq('student_id',acct.id).maybeSingle(),
+    sb.from('student_topic_ratings').select('*').eq('student_id',acct.id).order('topic_name',{ascending:true})
+  ]);
+  if(progR.data){
+    const p=progR.data;
+    const targetHrs=parseFloat(p.target_hours)||45;
+    const doneHrs=s.hours;
+    const pct=Math.min(100,(doneHrs/targetHrs*100)).toFixed(0);
+    progSec.style.display='';
+    document.getElementById('sdProgress').innerHTML=`
+      <div class="row g-2">
+        <div class="col-6 col-sm-3"><div class="det-item"><div class="det-lbl">Target Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900">${targetHrs}h</div></div></div>
+        <div class="col-6 col-sm-3"><div class="det-item"><div class="det-lbl">Completed</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900">${doneHrs.toFixed(1)}h (${pct}%)</div></div></div>
+        <div class="col-6 col-sm-3"><div class="det-item"><div class="det-lbl">Test Ready</div><div class="det-val">${p.test_ready?'<span style="color:#4ade80">✅ Yes</span>':'<span style="color:#f87171">❌ Not yet</span>'}</div></div></div>
+        <div class="col-6 col-sm-3"><div class="det-item"><div class="det-lbl">Mock Score</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900;color:var(--blue)">${p.mock_test_score!=null?p.mock_test_score+'/50':'—'}</div></div></div>
+      </div>
+      <div style="background:var(--dk3);border-radius:6px;height:10px;margin-top:10px;overflow:hidden">
+        <div style="height:100%;background:linear-gradient(90deg,var(--red),var(--green));border-radius:6px;width:${pct}%;transition:width .5s ease"></div>
+      </div>
+      <div style="font-size:.65rem;color:var(--txt4);margin-top:4px;text-align:center">${pct}% towards ${targetHrs}h target</div>
+      ${p.notes?`<div style="font-size:.74rem;color:var(--txt3);margin-top:8px;padding:8px;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}`;
+  }
+  const topics=topicsR.data||[];
+  if(topics.length){
+    topicsSec.style.display='';
+    const rColors={1:'#ef4444',2:'#f97316',3:'#eab308',4:'#22c55e',5:'#4ade80'};
+    const rLabels={1:'Introduced',2:'Needs Work',3:'Developing',4:'Confident',5:'Independent'};
+    document.getElementById('sdTopics').innerHTML=`<div class="row g-1">${topics.map(t=>{
+      const r=t.rating||0;
+      return`<div class="col-12 col-sm-6"><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
+        <div style="font-size:.74rem;color:var(--txt2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.topic_name)}</div>
+        <div style="display:flex;gap:2px">${[1,2,3,4,5].map(n=>`<div style="width:10px;height:10px;border-radius:2px;background:${n<=r?rColors[r]:'var(--dk3)'};border:1px solid ${n<=r?rColors[r]:'var(--bdr)'}"></div>`).join('')}</div>
+        <div style="font-size:.6rem;color:${rColors[r]||'var(--txt4)'};min-width:60px;text-align:right">${rLabels[r]||'—'}</div>
+      </div></div>`;
+    }).join('')}</div>`;
+  }
 }
 
 function exportStudentsCSV(){
@@ -1763,6 +1860,7 @@ async function loadAnalytics(){
   renderTypeChart(lessons);
   renderDailyChart(lessons,mon);
   renderTopInstrsChart(lessons);
+  renderEarningsChart(lessons);
   renderInstrStatsTable(lessons);
   renderLoginLog(loginR.data||[]);
 }
@@ -1834,24 +1932,46 @@ function renderTopInstrsChart(lessons){
   </div>`).join('');
 }
 
+function renderEarningsChart(lessons){
+  const el=document.getElementById('earningsChart');
+  const byInstr={};lessons.forEach(l=>{
+    const n=allInstrs.find(i=>i.id===l.instructor_id)?.full_name||'Unknown';
+    if(!byInstr[n])byInstr[n]=0;byInstr[n]+=(parseFloat(l.payment_amount)||0);
+  });
+  const sorted=Object.entries(byInstr).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const total=sorted.reduce((a,[,v])=>a+v,0);
+  if(!sorted.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:16px">No payment data this week.</div>';return;}
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([name,amt])=>`<div class="d-flex align-items-center gap-2 mb-2">
+    <div style="font-size:.74rem;color:var(--txt2);min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+    <div class="chart-bar"><div class="chart-fill" style="width:${(amt/max*100).toFixed(0)}%;background:var(--green)"></div></div>
+    <div style="font-size:.74rem;font-weight:700;color:var(--green);min-width:50px;text-align:right">£${amt.toFixed(0)}</div>
+  </div>`).join('')+`<div style="font-size:.72rem;color:var(--txt4);text-align:center;margin-top:8px">Total earnings: <span style="color:var(--green);font-weight:700">£${total.toFixed(0)}</span></div>`;
+}
+
 function renderInstrStatsTable(lessons){
   const tb=document.getElementById('instrStatsTable');
   const byInstr={};lessons.forEach(l=>{
     const instr=allInstrs.find(i=>i.id===l.instructor_id);
     const n=instr?.full_name||'Unknown';
-    if(!byInstr[l.instructor_id])byInstr[l.instructor_id]={name:n,count:0,hours:0,students:new Set()};
+    if(!byInstr[l.instructor_id])byInstr[l.instructor_id]={name:n,count:0,hours:0,students:new Set(),earnings:0};
     byInstr[l.instructor_id].count++;
     byInstr[l.instructor_id].hours+=(parseFloat(l.duration_hours)||1);
+    byInstr[l.instructor_id].earnings+=(parseFloat(l.payment_amount)||0);
     byInstr[l.instructor_id].students.add(l.student_name);
   });
   const sorted=Object.values(byInstr).sort((a,b)=>b.hours-a.hours);
-  if(!sorted.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">No lessons this week.</td></tr>';return;}
-  tb.innerHTML=sorted.map(s=>`<tr>
+  if(!sorted.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">No lessons this week.</td></tr>';return;}
+  tb.innerHTML=sorted.map(s=>{
+    const avg=s.count?s.earnings/s.count:0;
+    return`<tr>
     <td style="font-size:.77rem;color:var(--txt)">${esc(s.name)}</td>
     <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--blue)">${s.count}</td>
     <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--red)">${s.hours.toFixed(1)}h</td>
     <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--green)">${s.students.size}</td>
-  </tr>`).join('');
+    <td style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--green)">£${s.earnings.toFixed(0)}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3)">£${avg.toFixed(0)}</td>
+  </tr>`;}).join('');
 }
 
 function renderLoginLog(data){
