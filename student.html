@@ -852,6 +852,7 @@ applyTheme();setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
 
 /* ── UTILS ── */
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
 function pad2(n){return String(n).padStart(2,'0');}
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function fmtDate(s){if(!s)return'';const d=new Date(s+'T12:00:00');const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return days[d.getDay()]+', '+d.getDate()+' '+ms[d.getMonth()]+' '+d.getFullYear();}
@@ -1028,6 +1029,7 @@ async function doPin(){
 }
 
 function signOut(){
+  clearInterval(window._msgPoll);clearInterval(window._notifPoll);window._pollsStarted=false;
   localStorage.removeItem('dsq_student');sessionStorage.removeItem('dsq_student');
   currentStudent=null;
   document.getElementById('appScreen').classList.add('hidden');
@@ -1064,8 +1066,8 @@ async function initApp(){
   loadNotifications();
   if(!window._pollsStarted){
     window._pollsStarted=true;
-    setInterval(loadMessages,30000);
-    setInterval(loadNotifications,60000);
+    window._msgPoll=setInterval(loadMessages,30000);
+    window._notifPoll=setInterval(loadNotifications,60000);
   }
   setTimeout(()=>checkLessonFeedbackPrompt(),3000);
 }
@@ -1104,7 +1106,7 @@ async function loadLessons(){
   studentLessons=data||[];
   // Find next upcoming lesson
   const today=todayKey();
-  const upcoming=studentLessons.filter(l=>l.lesson_date>=today).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||a.start_time.localeCompare(b.start_time));
+  const upcoming=studentLessons.filter(l=>l.lesson_date>=today).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||(a.start_time||'').localeCompare(b.start_time||''));
   nextLesson=upcoming[0]||null;
 }
 
@@ -1116,7 +1118,7 @@ async function loadInstructor(){
   const phone=data.phone||'';
   const wa='https://wa.me/44'+phone.replace(/^0/,'').replace(/\s/g,'');
   document.getElementById('instrName').textContent=data.full_name||'—';
-  document.getElementById('instrBadge').textContent=(data.badge_type||'ADI')+' · '+data.badge_number;
+  document.getElementById('instrBadge').textContent=(data.badge_type||'ADI')+' · '+(data.badge_number||'—');
   document.getElementById('instrPhone').textContent=phone;
   if(data.profile_photo_url){document.getElementById('instrAvatar').src=data.profile_photo_url;document.getElementById('chatInstrAvatar').src=data.profile_photo_url;}
   document.getElementById('chatInstrName').textContent=data.full_name||'—';
@@ -1152,22 +1154,20 @@ async function loadTheoryTicks(){
 }
 
 async function loadNotifications(){
-  const{data}=await sb.from('admin_messages').select('*').eq('instructor_id',currentStudent.id).eq('dismissed',false).order('created_at',{ascending:false}).limit(20);
-  // Note: reusing admin_messages table for student notifications if instructor_id matches student account
-  // In production you'd have a separate student_notifications table
+  const{data}=await sb.from('student_messages').select('*').eq('student_id',currentStudent.id).eq('is_read',false).order('created_at',{ascending:false}).limit(10);
   const msgs=data||[];
-  const unread=msgs.filter(m=>!m.is_read).length;
+  const unread=msgs.length;
   const dot=document.getElementById('notifDot');
   if(dot)dot.classList.toggle('hidden',unread===0);
   const list=document.getElementById('notifList');
   if(!msgs.length){list.innerHTML='<div style="padding:18px;text-align:center;font-size:.76rem;color:var(--txt4)">No notifications</div>';return;}
   list.innerHTML=msgs.map(m=>`<div style="padding:10px 13px;border-bottom:1px solid var(--bdr);cursor:pointer" onclick="markNotifRead('${m.id}')">
-    <div style="font-size:.78rem;font-weight:600;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div>
-    <div style="font-size:.7rem;color:var(--txt3);line-height:1.4">${esc(m.body)}</div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--txt2);margin-bottom:1px">${esc(m.subject||'Notification')}</div>
+    <div style="font-size:.7rem;color:var(--txt3);line-height:1.4">${esc(m.message||'')}</div>
     <div style="font-size:.6rem;color:var(--txt5);margin-top:3px">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
   </div>`).join('');
 }
-async function markNotifRead(id){await sb.from('admin_messages').update({is_read:true}).eq('id',id);loadNotifications();}
+async function markNotifRead(id){await sb.from('student_messages').update({is_read:true}).eq('id',id);loadNotifications();}
 function toggleNotifPanel(){const p=document.getElementById('notifPanel');p.style.display=p.style.display==='none'?'block':'none';}
 document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBell');if(p&&b&&p.style.display!=='none'&&!p.contains(e.target)&&!b.contains(e.target))p.style.display='none';});
 
@@ -1563,7 +1563,7 @@ function renderLearnTab(){
         total++;
         const checked=!!theoryTicks[t.name];
         if(checked)ticked++;
-        return`<div class="theory-row" onclick="toggleTheoryTick('${t.name.replace(/'/g,"\\'")}',this)">
+        return`<div class="theory-row" onclick="toggleTheoryTick('${jsEsc(t.name)}',this)">
           <div class="theory-check ${checked?'checked':''}" id="tc-${t.name.replace(/\s/g,'-').replace(/[^a-zA-Z0-9-]/g,'')}">
             ${checked?'<i class="bi bi-check-lg"></i>':''}
           </div>
