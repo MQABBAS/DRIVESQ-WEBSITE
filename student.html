@@ -450,6 +450,12 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
         </div>
       </div>
 
+      <!-- Upcoming Lessons -->
+      <div class="mb-3 hidden" id="upcomingLessonsSection">
+        <div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px"><i class="bi bi-calendar-check me-1" style="color:var(--blue)"></i>Upcoming Lessons</div>
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:4px 12px" id="upcomingLessonsList"></div>
+      </div>
+
       <!-- Stats -->
       <div class="row g-2 mb-3">
         <div class="col-4"><div class="stat-card red"><div class="stat-lbl">Hours Done</div><div class="stat-num red" id="statHoursDone">0</div><div class="stat-sub">lessons completed</div></div></div>
@@ -1259,6 +1265,7 @@ function renderHome(){
   document.getElementById('statTopics').textContent=mastered;
   // Lesson banner
   renderLessonBanner();
+  renderUpcomingLessons();
   // Feedback
   if(studentProgress?.overall_notes){
     document.getElementById('latestFeedback').textContent=studentProgress.overall_notes;
@@ -1286,16 +1293,47 @@ function renderLessonBanner(){
   document.getElementById('lessonTimeLbl').textContent=l.start_time+(l.duration_hours?' · '+l.duration_hours+' hr'+(l.duration_hours!=1?'s':''):'')+(l.lesson_type?' · '+l.lesson_type:'');
   document.getElementById('lessonAddrLbl').textContent=l.pickup_address||'';
   currentLessonId=l.id;
-  // Check confirmation status
   const today=new Date();today.setHours(0,0,0,0);
   const lessonDate=new Date(l.lesson_date+'T12:00:00');
   const diff=(lessonDate-today)/(1000*60*60*24);
-  if(diff<=1&&diff>=0){
+  if(diff>=0&&diff<=7){
     actions.classList.remove('hidden');
     banner.className='lesson-banner mb-3';
+    checkConfirmationStatus(l.id);
   } else {
     actions.classList.add('hidden');
   }
+}
+
+function renderUpcomingLessons(){
+  const section=document.getElementById('upcomingLessonsSection');
+  const list=document.getElementById('upcomingLessonsList');
+  const today=new Date().toISOString().slice(0,10);
+  const upcoming=studentLessons.filter(l=>l.lesson_date>=today).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||(a.start_time||'').localeCompare(b.start_time||''));
+  if(upcoming.length<=1){section.classList.add('hidden');return;}
+  section.classList.remove('hidden');
+  const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+  list.innerHTML=upcoming.slice(0,5).map(l=>`<div class="hist-row">
+    <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
+      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||''} · ${l.duration_hours||1}hr${(l.duration_hours||1)!=1?'s':''} · ${esc(l.lesson_type||'Manual')}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
+    </div>
+  </div>`).join('');
+}
+
+async function checkConfirmationStatus(lessonId){
+  const actions=document.getElementById('lessonActions');
+  const badge=document.getElementById('lessonStatusBadge');
+  try{
+    const{data}=await sb.from('lesson_confirmations').select('*').eq('lesson_id',lessonId).maybeSingle();
+    if(data?.student_confirmed){
+      actions.innerHTML=`<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center;width:100%"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance${data.instructor_confirmed?' · Instructor also confirmed':''}</div>`;
+      if(badge)badge.innerHTML=data.instructor_confirmed?'<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">Both Confirmed</span>':'<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">Confirmed</span>';
+    } else if(data?.instructor_confirmed){
+      if(badge)badge.innerHTML='<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">Instructor Confirmed</span>';
+    }
+  }catch(e){}
 }
 
 function renderRecentLessons(){
