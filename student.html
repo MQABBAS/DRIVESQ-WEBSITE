@@ -835,6 +835,18 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
+async function sendSMS(to,type,data){
+  try{
+    const resp=await fetch(SB_URL+'/functions/v1/send-sms',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({to,type,data})
+    });
+    const result=await resp.json();
+    if(result.results?.[0]?.success)console.log('SMS sent to',to);
+    else console.warn('SMS failed:',result.results?.[0]?.error||result.error);
+  }catch(e){console.warn('SMS error:',e.message);}
+}
+
 /* ── THEME ── */
 let manualTheme=localStorage.getItem('dsq_theme')||'auto';
 const themeIcons={night:'bi-moon-stars-fill',day:'bi-sun-fill',auto:'bi-circle-half'};
@@ -1857,6 +1869,17 @@ async function confirmLesson(){
       sent_at:new Date().toISOString()
     }]).catch(()=>{});
   }
+  if(currentStudent.instructor_id){
+    try{
+      const{data:instrData}=await sb.from('instructors').select('phone').eq('id',currentStudent.instructor_id).maybeSingle();
+      if(instrData?.phone){
+        sendSMS(instrData.phone,'student_confirmed',{
+          student_name:currentStudent.name||'Student',
+          date:nextLesson?.lesson_date||'',time:nextLesson?.start_time||''
+        });
+      }
+    }catch(e){}
+  }
   showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
   const actions=document.getElementById('lessonActions');
   if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
@@ -1876,6 +1899,17 @@ async function submitReschedule(){
     created_at:new Date().toISOString()
   }]);
   if(error){showToast('Error submitting request.');return;}
+  if(currentStudent.instructor_id){
+    try{
+      const{data:instrData}=await sb.from('instructors').select('phone').eq('id',currentStudent.instructor_id).maybeSingle();
+      if(instrData?.phone){
+        sendSMS(instrData.phone,'student_declined',{
+          student_name:currentStudent.name||'Student',
+          date:nextLesson.lesson_date,time:nextLesson.start_time,reason
+        });
+      }
+    }catch(e){}
+  }
   closeModal('rescheduleModal');
   showToast('Reschedule request sent ✓ Your instructor will be in touch.','success');
 }
