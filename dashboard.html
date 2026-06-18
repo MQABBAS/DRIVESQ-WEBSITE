@@ -1166,6 +1166,20 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
+/* ── SMS via Supabase Edge Function ── */
+async function sendSMS(to,type,data){
+  try{
+    const resp=await fetch(SB_URL+'/functions/v1/send-sms',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({to,type,data})
+    });
+    const result=await resp.json();
+    if(result.results?.[0]?.success)console.log('SMS sent to',to);
+    else console.warn('SMS failed:',result.results?.[0]?.error||result.error);
+    return result;
+  }catch(e){console.warn('SMS error:',e.message);return null;}
+}
+
 /* ── AUTH ── */
 let instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
 if(!instr)window.location.href='portal.html';
@@ -1365,6 +1379,12 @@ async function confirmLessonAsInstructor(lessonId){
     await loadConfirmations();
     if(calView==='week')renderCal();
     else if(calView==='day')renderDayView();
+    const _cLesson=Object.values(weekLessons).flat().find(l=>l.id===lessonId);
+    if(_cLesson?.student_phone){
+      sendSMS(_cLesson.student_phone,'confirm_request',{
+        date:_cLesson.lesson_date,time:_cLesson.start_time
+      });
+    }
     showToast('Lesson confirmed ✓ Student notified.','success');
   }catch(err){
     console.error('confirmLessonAsInstructor error:',err);
@@ -2054,6 +2074,13 @@ async function saveLesson(e){
     await loadStudents();
     renderStudents(allStudentsArr); // ensure list refreshes if on students tab
     showToast('Lesson saved ✓','success');
+    if(lessonPayload.student_phone){
+      sendSMS(lessonPayload.student_phone,'lesson_booked',{
+        date:lessonPayload.lesson_date,time:lessonPayload.start_time,
+        duration:String(lessonPayload.duration_hours),type:lessonPayload.lesson_type,
+        address:lessonPayload.pickup_address||'TBC'
+      });
+    }
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
 }
