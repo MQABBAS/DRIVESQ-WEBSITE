@@ -1215,8 +1215,8 @@ const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 const MF=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function fmtS(d){return d.getDate()+' '+MS[d.getMonth()];}
 function fmtFull(d){const n=d.getDay();return(n===0?'Sunday':DAYS[n-1])+', '+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear();}
-function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=h*60+m+parseFloat(hrs)*60;return pad2(Math.floor(t/60)%24)+':'+pad2(Math.round(t%60));}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=Math.round(h*60+m+parseFloat(hrs)*60);return pad2(Math.floor(t/60)%24)+':'+pad2(t%60);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function cleanPhone(p){return(p||'').replace(/\D/g,'');}
 function waLink(phone,msg){const p=cleanPhone(phone);if(!p)return null;return'https://wa.me/44'+p.replace(/^0/,'')+(msg?'?text='+encodeURIComponent(msg):'');}
@@ -1462,9 +1462,7 @@ async function loadMonthView(){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
-  Object.assign(weekLessons,map);
   renderMonthView(map);
-  // BUG 12: updateStats uses weekLessons which now has month data — update month stats bar separately
   const allM=data||[];
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalPayM=allM.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
@@ -1500,9 +1498,6 @@ function updateStats(){
   if(payBadge&&payLbl){payLbl.textContent='£'+totalPay.toFixed(2);payBadge.style.display=totalPay>0?'inline-flex':'none';}
   const earningsEl=document.getElementById('sEarnings');
   if(earningsEl)earningsEl.textContent='£'+totalPay.toFixed(2);
-  // Month stats bar
-  const msb=document.getElementById('monthStatsBar');
-  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1"></i>${allW.length} lessons</span><span><i class="bi bi-clock me-1"></i>${totalHrs.toFixed(1)}h</span><span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPay.toFixed(2)}</span>`;}
 }
 
 /* ── DRAG & DROP ── */
@@ -1814,14 +1809,9 @@ async function openStudentCodeModal(studentName){
 
 async function regenerateCode(){
   if(!confirm('Generate a new code? The old code will stop working.'))return;
-  const id=document.getElementById('codeStudentId').value;
+  const name=document.getElementById('codeModalSub').textContent.replace('Student: ','').trim();
   const newCode=gen5Code();
-  if(id){
-    // Find the student account
-    const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).filter('id','neq','x').limit(1).maybeSingle();
-    // Update by instructor_id + matching profile
-    await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',document.getElementById('codeModalSub').textContent.replace('Student: ','').trim());
-  }
+  await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',name);
   document.getElementById('codeDisplay').textContent=newCode;
   showToast('New code generated: '+newCode,'success');
 }
@@ -2142,7 +2132,7 @@ async function openDetail(id){
     extra+=`<div class="mt-2 w-100 text-center" style="font-size:.78rem;color:#4ade80;padding:8px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:8px"><i class="bi bi-check-circle-fill me-1"></i>Both confirmed ✓</div>`;
   }
 
-  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${data.student_name.replace(/'/g,"\'")}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Student Profile</button>`;}
+  if(inRoster){extra+=`<button class="btn-blue mt-2 w-100" onclick="openEditStudentFromDetail('${esc(data.student_name)}')"><i class="bi bi-person-lines-fill me-1"></i>Edit Student Profile</button>`;}
   else{extra+=`<button class="btn-g mt-2 w-100" onclick="saveDetailStudentToRoster()"><i class="bi bi-bookmark-plus me-1"></i>Save Student to Roster</button>`;}
   if(data.pickup_address){const q=encodeURIComponent(data.pickup_address);ms.innerHTML=`<a class="maps-btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank"><i class="bi bi-map-fill me-1"></i>Open in Google Maps</a>${extra}`;}
   else ms.innerHTML=extra;
@@ -2723,8 +2713,8 @@ async function saveProfile(){
   const newPwd=document.getElementById('pNewPwd')?.value.trim();
   const confirmPwd=document.getElementById('pConfirmPwd')?.value.trim();
   if(newPwd||confirmPwd){
-    if(newPwd!==confirmPwd){showToast('Passwords do not match.');return;}
-    if(newPwd.length<6){showToast('Password must be at least 6 characters.');return;}
+    if(newPwd!==confirmPwd){showToast('Passwords do not match.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
+    if(newPwd.length<6){showToast('Password must be at least 6 characters.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
   }
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value};
   if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
@@ -2835,8 +2825,8 @@ setTimeout(applyPaymentVisibility,500);
 /* ── MODALS + TOAST ── */
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}
-document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
+document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),3200);}
 
@@ -3064,7 +3054,7 @@ function smOverrideToApp(){
 
 /* ── Progress ── */
 async function saveSmProgress(){
-  const btn=document.getElementById('smSaveProgressBtn')||event?.target;
+  const btn=document.getElementById('smSaveProgressBtn');
   if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
   try{
     // Always get fresh account ID
@@ -3164,7 +3154,7 @@ function smSetTopic(name,rating,btn){
 }
 
 async function saveSmTopics(){
-  const btn=event?.target;if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
+  const btn=document.querySelector('#smPanel-topics .btn-p');if(btn){btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';btn.disabled=true;}
   try{
     let aid=smCurrentAccId;
     if(!aid){
@@ -3425,7 +3415,7 @@ async function pollStudentUpdates(){
   // Always update tab badge with unread count
   const totalUnread2=allStudentsArr.reduce((a,s)=>a+(s.unreadMsgs||0),0);
   const studTab2=document.getElementById('tab-students');
-  if(studTab22){
+  if(studTab2){
     let b=studTab2.querySelector('.tab-badge');
     if(totalUnread2>0){
       if(!b){b=document.createElement('span');b.className='tab-badge ms-1';studTab2.appendChild(b);}

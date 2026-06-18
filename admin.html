@@ -868,10 +868,10 @@ function pad2(n){return String(n).padStart(2,'0');}
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function dateKey(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function getMonday(offset=0){const d=new Date();const day=d.getDay();const diff=day===0?-6:1-day;d.setDate(d.getDate()+diff+(offset*7));d.setHours(0,0,0,0);return d;}
-function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=h*60+m+parseFloat(hrs)*60;return pad2(Math.floor(t/60)%24)+':'+pad2(Math.round(t%60));}
+function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=Math.round(h*60+m+parseFloat(hrs)*60);return pad2(Math.floor(t/60)%24)+':'+pad2(t%60);}
 function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
 function fmtD(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
@@ -900,6 +900,12 @@ async function loadAll(){
 async function loadInstrs(){
   const{data}=await sb.from('instructors').select('*').order('created_at',{ascending:false});
   allInstrs=data||[];
+  // Compute weekly hours per instructor
+  const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
+  const hrsMap={};
+  (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);});
+  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;});
   renderInstrsTable(allInstrs);
   renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
   const pc=allInstrs.filter(i=>i.status==='pending').length;
@@ -1302,11 +1308,12 @@ async function loadAllStudents(){
     if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
     s.lessons.push(l);
   });
-  allStudentsCache=Object.values(map).sort((a,b)=>b.lastLesson.localeCompare(a.lastLesson));
+  allStudentsCache=Object.values(map).sort((a,b)=>(b.lastLesson||'').localeCompare(a.lastLesson||''));
   renderStudentsTable(allStudentsCache);
 }
 
 function renderStudentsTable(students){
+  _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
   document.getElementById('studentCount').textContent=`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
   if(!students.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--txt4);padding:24px">No students found.</td></tr>';return;}
@@ -1339,8 +1346,9 @@ function filterAllStudents(q){
   renderStudentsTable(list);
 }
 
+let _renderedStudents=[];
 function openStudentDetail(idx){
-  const s=allStudentsCache[idx];if(!s)return;
+  const s=_renderedStudents[idx];if(!s)return;
   document.getElementById('sdTitle').textContent=s.name;
   document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total`;
   document.getElementById('sdBody').innerHTML=`
