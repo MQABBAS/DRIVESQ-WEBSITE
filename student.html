@@ -1000,7 +1000,7 @@ async function doLogin(){
   const phones=[...new Set(attempts)];
   for(const p of phones){
     const{data:rows,error}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
-    if(error){console.error('Login query error:',error);errEl.textContent='Connection error. Please try again.';errEl.classList.remove('hidden');return;}
+    if(error){console.error('Login query error:',error);errEl.textContent='Error: '+(error.message||error.code||JSON.stringify(error));errEl.classList.remove('hidden');return;}
     if(rows&&rows.length){data=rows[0];break;}
   }
   if(!data){
