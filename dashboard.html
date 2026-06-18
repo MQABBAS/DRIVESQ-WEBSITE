@@ -1166,7 +1166,36 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-
+/* ── SMS via Twilio ── */
+const TWILIO_SID='AC2e5c573d7571ec12cf694499fc1d0e42';
+const TWILIO_TOKEN='4eeb31e8f4d0b1b97dc272352c9d8351';
+const TWILIO_FROM='+19516354707';
+function normUKPhone(p){p=p.replace(/[\s\-\(\)]/g,'');if(p.startsWith('07'))p='+44'+p.slice(1);if(p.startsWith('44')&&!p.startsWith('+'))p='+'+p;return p;}
+function smsBody(type,d={}){
+  switch(type){
+    case'lesson_booked':return`DriveSQ: Your driving lesson has been booked for ${d.date||'TBC'} at ${d.time||'TBC'}. ${d.duration||'1'}hr ${d.type||'Manual'} lesson. Pickup: ${d.address||'TBC'}. Confirm at: https://www.drivesq.co.uk/student.html`;
+    case'confirm_request':return`DriveSQ: Please confirm your lesson on ${d.date||'TBC'} at ${d.time||'TBC'}. Confirm at: https://www.drivesq.co.uk/student.html`;
+    case'student_confirmed':return`DriveSQ: ${d.student_name||'Your student'} has confirmed their lesson on ${d.date||'TBC'} at ${d.time||'TBC'}.`;
+    case'student_declined':return`DriveSQ: ${d.student_name||'Your student'} wants to reschedule their lesson on ${d.date||'TBC'} at ${d.time||'TBC'}. Reason: ${d.reason||'Not specified'}.`;
+    case'custom':return d.message||'';
+    default:return`DriveSQ: You have a new update. Check your portal for details.`;
+  }
+}
+async function sendSMS(to,type,data){
+  try{
+    const phone=normUKPhone(to);
+    const body=data?.message||smsBody(type,data);
+    if(!phone||!body)return;
+    const resp=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,{
+      method:'POST',
+      headers:{'Authorization':'Basic '+btoa(TWILIO_SID+':'+TWILIO_TOKEN),'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({To:phone,From:TWILIO_FROM,Body:body})
+    });
+    const result=await resp.json();
+    if(resp.ok)console.log('SMS sent to',phone,'SID:',result.sid);
+    else console.warn('SMS failed:',result.message);
+  }catch(e){console.warn('SMS error:',e.message);}
+}
 
 /* ── AUTH ── */
 let instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
