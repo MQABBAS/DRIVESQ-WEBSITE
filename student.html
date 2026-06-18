@@ -998,42 +998,66 @@ async function doLogin(){
   if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
   if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
   const phones=[...new Set(attempts)];
-  for(const p of phones){
-    const{data:rows,error}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
-    if(error){console.error('Login query error:',error);errEl.textContent='Error: '+(error.message||error.code||JSON.stringify(error));errEl.classList.remove('hidden');return;}
-    if(rows&&rows.length){data=rows[0];break;}
-  }
-  if(!data){
+  try{
+    // 1. Check student_accounts by phone
     for(const p of phones){
-      const{data:lessons}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1);
-      const lesson=lessons&&lessons[0];
-      if(lesson){
-        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',lesson.instructor_id).ilike('full_name',lesson.student_name).limit(1);
-        const acc=accs&&accs[0];
-        if(acc){
-          await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
-          acc.phone=p;data=acc;break;
+      const{data:rows}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
+      if(rows&&rows.length){data=rows[0];break;}
+    }
+    // 2. Check lessons table — the phone the instructor typed when adding lessons
+    if(!data){
+      for(const p of phones){
+        const{data:lessons}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1);
+        if(lessons&&lessons[0]){
+          const l=lessons[0];
+          // Find or create the student account
+          const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',l.instructor_id).ilike('full_name',l.student_name).limit(1);
+          if(accs&&accs[0]){
+            await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
+            accs[0].phone=p;data=accs[0];break;
+          } else {
+            // No account exists yet — create one automatically
+            const code=Math.random().toString(36).substring(2,7).toUpperCase();
+            const{data:newAcc}=await sb.from('student_accounts').insert([{
+              instructor_id:l.instructor_id,full_name:l.student_name,phone:p,
+              student_code:code,pin:'',password_hash:'',status:'active',
+              created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+            }]).select('*').single();
+            if(newAcc){data=newAcc;break;}
+          }
         }
       }
     }
-  }
-  if(!data){
-    for(const p of phones){
-      const{data:profiles}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1);
-      const profile=profiles&&profiles[0];
-      if(profile){
-        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',profile.instructor_id).ilike('full_name',profile.name).limit(1);
-        const acc=accs&&accs[0];
-        if(acc){
-          await sb.from('student_accounts').update({phone:p}).eq('id',acc.id);
-          acc.phone=p;data=acc;break;
+    // 3. Check student_profiles (instructor roster) by phone
+    if(!data){
+      for(const p of phones){
+        const{data:profiles}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1);
+        if(profiles&&profiles[0]){
+          const pr=profiles[0];
+          const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',pr.instructor_id).ilike('full_name',pr.name).limit(1);
+          if(accs&&accs[0]){
+            await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
+            accs[0].phone=p;data=accs[0];break;
+          } else {
+            const code=Math.random().toString(36).substring(2,7).toUpperCase();
+            const{data:newAcc}=await sb.from('student_accounts').insert([{
+              instructor_id:pr.instructor_id,full_name:pr.name,phone:p,
+              student_code:code,pin:'',password_hash:'',status:'active',
+              created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+            }]).select('*').single();
+            if(newAcc){data=newAcc;break;}
+          }
         }
       }
     }
+  }catch(err){
+    console.error('Login error:',err);
+    errEl.textContent='Error: '+(err.message||'Something went wrong. Please try again.');
+    errEl.classList.remove('hidden');return;
   }
-  if(!data){errEl.textContent='No account found with this phone number. Ask your instructor to add you, or tap "Link My Account" below.';errEl.classList.remove('hidden');return;}
+  if(!data){errEl.textContent='No account found with this phone number. Ask your instructor to add you first.';errEl.classList.remove('hidden');return;}
   if(data.status==='suspended'){errEl.textContent='Your account has been suspended. Please contact DriveSQ.';errEl.classList.remove('hidden');return;}
-  await sb.from('student_accounts').update({last_login:new Date().toISOString()}).eq('id',data.id);
+  await sb.from('student_accounts').update({last_login:new Date().toISOString()}).eq('id',data.id).then(()=>{},()=>{});
   await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).is('student_account_id',null).then(()=>{},()=>{});
   currentStudent={id:data.id,name:data.full_name,phone:data.phone||phone,email:data.email,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
   localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
