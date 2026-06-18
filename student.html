@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="DriveSQ Student"/>
 <meta name="theme-color" content="#080808"/>
+<meta name="robots" content="noindex, nofollow"/>
 <link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <title>DriveSQ — Student Portal</title>
@@ -1841,27 +1842,35 @@ async function changePassword(){
 /* ── LESSON CONFIRMATION ── */
 async function confirmLesson(){
   if(!currentLessonId)return;
-  // Check/create confirmation record
-  const{data:existing}=await sb.from('lesson_confirmations').select('*').eq('lesson_id',currentLessonId).maybeSingle();
-  if(existing){
-    await sb.from('lesson_confirmations').update({student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:existing.instructor_confirmed?'both_confirmed':'student_confirmed'}).eq('id',existing.id);
-  } else {
-    await sb.from('lesson_confirmations').insert([{lesson_id:currentLessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
-  }
-  // Send notification message to instructor
-  if(currentStudent.instructor_id){
-    await sb.from('student_messages').insert([{
-      student_account_id:currentStudent.id,
-      instructor_id:currentStudent.instructor_id,
-      sender:'student',
-      message:'✅ '+currentStudent.name+' has confirmed their lesson on '+(nextLesson?.lesson_date||'the scheduled date')+' at '+(nextLesson?.start_time||'the scheduled time')+'.',
-      is_read:false,
-      sent_at:new Date().toISOString()
-    }]).catch(()=>{});
-  }
-  showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
   const actions=document.getElementById('lessonActions');
-  if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
+  try{
+    const{data:existing,error:selErr}=await sb.from('lesson_confirmations').select('*').eq('lesson_id',currentLessonId).maybeSingle();
+    if(selErr)throw selErr;
+    if(existing){
+      const{error:updErr}=await sb.from('lesson_confirmations').update({student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:existing.instructor_confirmed?'both_confirmed':'student_confirmed'}).eq('id',existing.id);
+      if(updErr)throw updErr;
+    } else {
+      const{error:insErr}=await sb.from('lesson_confirmations').insert([{lesson_id:currentLessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
+      if(insErr)throw insErr;
+    }
+    if(currentStudent.instructor_id){
+      sb.from('student_messages').insert([{
+        student_account_id:currentStudent.id,
+        instructor_id:currentStudent.instructor_id,
+        sender:'student',
+        message:'✅ '+currentStudent.name+' has confirmed their lesson on '+(nextLesson?.lesson_date||'the scheduled date')+' at '+(nextLesson?.start_time||'the scheduled time')+'.',
+        is_read:false,
+        sent_at:new Date().toISOString()
+      }]).then(()=>{},()=>{});
+    }
+    showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
+    if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
+    const badge=document.getElementById('lessonStatusBadge');
+    if(badge)badge.innerHTML='<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">Confirmed</span>';
+  }catch(e){
+    console.error('confirmLesson error:',e);
+    showToast('Could not confirm — please try again.','error');
+  }
 }
 
 /* ── RESCHEDULE ── */
