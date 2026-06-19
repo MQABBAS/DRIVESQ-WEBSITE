@@ -599,7 +599,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 
       <!-- Practical learn -->
       <div id="learnPractical">
-        <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Topics introduced by your instructor are unlocked for learning.</div>
+        <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Tap any topic to learn more. All topics are available for self-study.</div>
         <div id="learnPracticalCards"></div>
       </div>
 
@@ -1525,7 +1525,7 @@ function renderTopics(){
             <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${esc(t.topic_name)}</div>
             ${t.instructor_notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:1px">${esc(t.instructor_notes)}</div>`:''}
           </div>
-          ${t.rating>=1?`<a href="${esc(t.learn_url||'https://www.drivesq.co.uk/learn-to-drive-manchester-guide.html')}" target="_blank" style="font-size:.65rem;color:var(--red);white-space:nowrap;flex-shrink:0">Learn →</a>`:''}
+          <a href="${esc(t.learn_url||'https://www.drivesq.co.uk/learn-to-drive-manchester-guide.html')}" target="_blank" style="font-size:.65rem;color:var(--red);white-space:nowrap;flex-shrink:0">Learn →</a>
         </div>`).join('')}
       </div>
     </div>`;
@@ -1632,14 +1632,13 @@ function renderLearnTab(){
   };
   document.getElementById('learnPracticalCards').innerHTML=Object.entries(grouped).map(([g,topics])=>
     topics.map(t=>{
-      const unlocked=introedNames.has(t.name);
-      return`<a href="${unlocked?t.url:'#'}" target="${unlocked?'_blank':'_self'}" class="learn-card ${unlocked?'':'locked'}" style="text-decoration:none">
+      return`<a href="${t.url}" target="_blank" class="learn-card" style="text-decoration:none">
         <div class="learn-icon" style="background:rgba(${hexToRgb(groupColors[g]||'#D10A11')},.1)"><i class="bi ${groupIcons[g]||'bi-book'}" style="color:${groupColors[g]||'var(--red)'}"></i></div>
         <div style="flex:1;min-width:0">
           <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(t.name)}</div>
-          <div style="font-size:.65rem;color:var(--txt4)">${esc(g)}${unlocked?'':' · Locked until instructor introduces this topic'}</div>
+          <div style="font-size:.65rem;color:var(--txt4)">${esc(g)}</div>
         </div>
-        ${unlocked?'<i class="bi bi-arrow-right-circle" style="color:var(--red);font-size:.9rem;flex-shrink:0"></i>':'<i class="bi bi-lock" style="color:var(--txt5);font-size:.8rem;flex-shrink:0"></i>'}
+        <i class="bi bi-arrow-right-circle" style="color:var(--red);font-size:.9rem;flex-shrink:0"></i>
       </a>`;
     }).join('')
   ).join('');
