@@ -198,7 +198,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 .learn-group-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
 .learn-group-body.open{max-height:2000px}
 .rating-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px}
-.checklist-item{background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:10px 13px;display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:.82rem;color:var(--txt2)}
+.td-checklist-item{background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:10px 13px;display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:.82rem;color:var(--txt2)}
 .checklist-icon{width:22px;height:22px;border-radius:50%;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:.7rem;flex-shrink:0}
 .test-centre-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:11px;padding:13px;margin-bottom:8px}
 .speed-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
@@ -603,9 +603,9 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
         <div class="theory-prog-bar mb-3"><div class="theory-prog-fill" id="theoryProgFill" style="width:0%"></div></div>
         <div id="theoryTopics"></div>
         <div style="background:linear-gradient(135deg,rgba(209,10,17,.1),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:16px;margin-top:16px">
-          <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Mock Theory Test</div>
-          <div style="font-size:.76rem;color:var(--txt3);margin-bottom:12px">50 questions · 57 minutes · Pass mark 43/50</div>
-          <button class="btn-p" onclick="openMockTest()"><i class="bi bi-play-fill me-1"></i>Start Mock Test</button>
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Theory Test Centre</div>
+          <div style="font-size:.76rem;color:var(--txt3);margin-bottom:12px">700+ questions · 14 mock tests · Practice mode with instant feedback</div>
+          <button class="btn-p" onclick="openMockTest()"><i class="bi bi-play-fill me-1"></i>Open Theory Test Centre</button>
         </div>
       </div>
 
@@ -825,6 +825,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="theory-questions.js"></script>
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
@@ -1179,7 +1180,7 @@ async function loadTheoryTicks(){
 }
 
 async function loadNotifications(){
-  const{data}=await sb.from('student_messages').select('*').eq('student_id',currentStudent.id).eq('is_read',false).order('created_at',{ascending:false}).limit(10);
+  const{data}=await sb.from('student_messages').select('*').eq('student_account_id',currentStudent.id).eq('is_read',false).order('created_at',{ascending:false}).limit(10);
   const msgs=data||[];
   const unread=msgs.length;
   const dot=document.getElementById('notifDot');
@@ -1727,7 +1728,7 @@ function renderTestDay(){
   const el=document.getElementById('testDayContent');
   if(!el||el.dataset.done)return;el.dataset.done='1';
   var h='<div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-bag-check me-2" style="color:var(--green)"></i>What to Bring</div>';
-  ['Provisional driving licence (photocard)','Theory test pass certificate (valid 2 years)','Your glasses or contact lenses (if needed)','Your instructor\'s car (insured, with L plates)'].forEach(function(c){h+='<div class="checklist-item"><div class="checklist-icon"><i class="bi bi-check-lg"></i></div>'+esc(c)+'</div>';});
+  ['Provisional driving licence (photocard)','Theory test pass certificate (valid 2 years)','Your glasses or contact lenses (if needed)','Your instructor\'s car (insured, with L plates)'].forEach(function(c){h+='<div class="td-checklist-item"><div class="checklist-icon"><i class="bi bi-check-lg"></i></div>'+esc(c)+'</div>';});
   h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin:18px 0 10px"><i class="bi bi-list-ol me-2" style="color:var(--red)"></i>Test Structure</div>';
   var steps=[{t:'Eyesight Check',d:'Read a number plate from 20 metres'},{t:'Show Me / Tell Me',d:'2 vehicle safety questions'},{t:'General Driving',d:'About 20 minutes of varied road driving'},{t:'Independent Driving',d:'About 20 minutes following sat-nav or signs'},{t:'Reversing Manoeuvre',d:'1 of 3: parallel park, bay park, or pull up on right'},{t:'Possible Emergency Stop',d:'1 in 3 chance of being asked'}];
   steps.forEach(function(s,i){h+='<div class="fault-card"><div class="fault-num">'+(i+1)+'</div><div style="flex:1"><div style="font-size:.82rem;color:var(--txt);font-weight:600">'+esc(s.t)+'</div><div style="font-size:.7rem;color:var(--txt4)">'+esc(s.d)+'</div></div></div>';});
@@ -2083,151 +2084,181 @@ async function submitFeedback(){
   showToast('Feedback submitted ✓ Thank you!','success');
 }
 
-/* ── MOCK TEST ── */
-// TODO: Replace with full 50 questions from questions.json
-const MOCK_QUESTIONS=[
-  {section:1,sName:"Rules & Regulations",q:"What is the national speed limit on a single carriageway road for cars?",opts:["40 mph","50 mph","60 mph","70 mph"],ans:2},
-  {section:1,sName:"Rules & Regulations",q:"What is the speed limit on a motorway for cars?",opts:["60 mph","70 mph","80 mph","No limit"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"What does a red traffic light mean?",opts:["Slow down and prepare to stop","Stop only if safe to do so","Stop and wait behind the stop line","Get ready to go"],ans:2},
-  {section:1,sName:"Rules & Regulations",q:"When may you use a hand-held mobile phone while driving?",opts:["When stuck in traffic","To call 999 in a genuine emergency when safe to do so","When driving at under 20 mph","When you need to check directions"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"What is the minimum eyesight requirement to drive?",opts:["Read a number plate from 15 metres","Read a number plate from 20 metres","Read a number plate from 25 metres","Pass a simple sight test at the DVLA"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"At a pelican crossing what does a flashing amber light mean?",opts:["Stop - pedestrians are crossing","Give way to pedestrians still on the crossing","Proceed if the road is clear","Prepare to stop"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"What is the legal minimum tread depth for car tyres?",opts:["1 mm across the central three-quarters","1.6 mm across the central three-quarters","2 mm across the full width","2.5 mm across the central half"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"When must you use your headlights?",opts:["Only at night","During daylight hours in rain","At night or in poor visibility","Whenever driving on a motorway"],ans:2},
-  {section:1,sName:"Rules & Regulations",q:"What is the speed limit in a built-up area unless signs show otherwise?",opts:["20 mph","30 mph","40 mph","50 mph"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"You are towing a trailer on a motorway. What is your maximum speed?",opts:["50 mph","60 mph","70 mph","Same as any other vehicle"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"Who has priority at a roundabout?",opts:["Vehicles already on the roundabout","Vehicles approaching from the right","Vehicles approaching from the left","Larger vehicles"],ans:0},
-  {section:1,sName:"Rules & Regulations",q:"What does a single yellow line at the edge of the road mean?",opts:["No parking at any time","Parking restrictions apply at certain times","No stopping at any time","No loading or unloading"],ans:1},
-  {section:1,sName:"Rules & Regulations",q:"When may you park on double yellow lines?",opts:["Never","Only to set down or pick up passengers","Only on Sundays","When loading briefly if no kerb marks restrict this"],ans:3},
-  {section:1,sName:"Rules & Regulations",q:"What should you do when approaching a zebra crossing with pedestrians waiting?",opts:["Sound your horn and continue","Slow down and let them cross","Flash your headlights","Only stop if they are already on the crossing"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"What is the total stopping distance at 30 mph in normal conditions?",opts:["12 metres","18 metres","23 metres","30 metres"],ans:2},
-  {section:2,sName:"Safety & Hazards",q:"What is the total stopping distance at 70 mph?",opts:["53 metres","75 metres","96 metres","115 metres"],ans:2},
-  {section:2,sName:"Safety & Hazards",q:"You are driving in fog. What should you use?",opts:["Full beam headlights","Front fog lights if visibility is below 100 metres","Hazard lights and drive slowly","Sidelights only"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"What should you do if you feel drowsy while driving on a motorway?",opts:["Open a window and turn on the radio","Stop at the next services, drink caffeine and take a short nap","Drive faster to arrive sooner","Move to the left lane and drive at 40 mph"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"What is the safest way to drive in heavy rain?",opts:["Drive at 70 mph to reduce journey time","Increase your following distance and reduce speed","Use hazard lights continuously","Stay in the middle lane"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"What can cause a vehicle to aquaplane?",opts:["Driving too slowly in the rain","Water building up between the tyres and the road","Cold weather reducing tyre pressure","Over-inflated tyres in wet conditions"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"You are driving at night on full beam. When should you dip your headlights?",opts:["When approaching oncoming vehicles or following another vehicle","Only when driving in a town","Only when a vehicle flashes you","Whenever other vehicles are within 200 metres"],ans:0},
-  {section:2,sName:"Safety & Hazards",q:"What should you do if your vehicle skids?",opts:["Brake hard and turn into the skid","Ease off the accelerator and steer into the skid","Apply the handbrake gently","Accelerate to regain control"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"A long vehicle is taking a wide turn at a junction. What should you do?",opts:["Overtake on the inside","Hold back and give it plenty of room","Sound your horn and proceed","Flash your lights to warn oncoming traffic"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"You see a horse and rider ahead. What should you do?",opts:["Sound your horn to warn them","Pass quickly","Slow right down, pass wide and quietly","Flash your hazard lights"],ans:2},
-  {section:2,sName:"Safety & Hazards",q:"What is the minimum safe following distance on a dry road?",opts:["1 second gap","2 second gap","3 second gap","5 second gap"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"You are involved in an accident where someone is injured. What must you do?",opts:["Call the police only if someone is seriously hurt","Give your details and call emergency services","Drive on if the other driver agrees","Take photos and exchange details only"],ans:1},
-  {section:2,sName:"Safety & Hazards",q:"What is the effect of alcohol on driving?",opts:["Improves reaction time at low doses","Has no effect below the legal limit","Slows reaction time and impairs judgement","Only affects driving the next morning"],ans:2},
-  {section:2,sName:"Safety & Hazards",q:"What does a flashing amber beacon on a moving vehicle mean?",opts:["Emergency vehicle - pull over","Slow-moving vehicle - take care when overtaking","School bus - do not pass","Breakdown - stop behind it"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"How can you reduce fuel consumption while driving?",opts:["Accelerate quickly to reach speed faster","Drive in a low gear at high revs","Anticipate and drive smoothly, change up early","Use air conditioning constantly"],ans:2},
-  {section:3,sName:"Vehicle & Eco",q:"What tyre pressure improves fuel economy?",opts:["Below recommended pressure","Recommended pressure or slightly above","As high as possible","Depends on the weather"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"Before a long journey you should check which of the following?",opts:["Fuel level only","Tyres, oil, water, lights and fuel","Tyre tread only","Engine oil and nothing else"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"What does the Show Me question in the driving test ask you to do?",opts:["Tell the examiner how to do a vehicle safety check","Show the examiner how to do a vehicle safety check","Describe the car handbook","Carry out an emergency stop"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"What is the most fuel-efficient driving style?",opts:["Driving fast on open roads","Accelerating hard and braking late","Maintaining a steady speed and looking ahead","Keeping the engine revs high"],ans:2},
-  {section:3,sName:"Vehicle & Eco",q:"Your engine warning light comes on while driving. What should you do?",opts:["Ignore it if the car feels fine","Stop immediately","Have it checked as soon as possible","Reset it by turning the engine off and on"],ans:2},
-  {section:3,sName:"Vehicle & Eco",q:"How does carrying unnecessary weight in your car affect it?",opts:["No effect","Increases fuel consumption","Improves stability","Reduces braking distance"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"What is the purpose of an MOT test?",opts:["To check engine performance only","To confirm the vehicle is roadworthy and meets safety standards","To check fuel efficiency","To issue road tax"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"Your power steering fails while driving. What should you do?",opts:["Continue driving - steering still works but needs more effort","Stop immediately","Drive faster to reduce effort needed","Apply the handbrake gradually"],ans:0},
-  {section:3,sName:"Vehicle & Eco",q:"What does a catalytic converter do?",opts:["Increases engine power","Reduces harmful exhaust emissions","Improves fuel economy","Reduces engine noise"],ans:1},
-  {section:3,sName:"Vehicle & Eco",q:"How can you reduce your environmental impact while driving?",opts:["Drive faster to spend less time on the road","Combine short journeys where possible","Accelerate smoothly and avoid rapid braking","Keep the engine running when stationary"],ans:2},
-  {section:3,sName:"Vehicle & Eco",q:"What does the oil warning light mean if it comes on while driving?",opts:["You need to add fuel","Oil level or pressure is dangerously low - stop safely as soon as possible","Schedule an oil change soon","Normal - it comes on periodically"],ans:1},
-  {section:4,sName:"Road Signs",q:"A circular sign with a red border and a number means what?",opts:["A recommended speed","A minimum speed limit","A maximum speed limit","A speed camera zone"],ans:2},
-  {section:4,sName:"Road Signs",q:"A triangular sign warns you of what?",opts:["A direction to follow","A hazard ahead","A mandatory instruction","A motorway junction"],ans:1},
-  {section:4,sName:"Road Signs",q:"What does a blue circular sign indicate?",opts:["A warning","A mandatory instruction you must follow","A recommended action","A restriction"],ans:1},
-  {section:4,sName:"Road Signs",q:"A sign showing a white horizontal bar on a blue circle means what?",opts:["No entry","No through road","End of all restrictions","Minimum speed ahead"],ans:2},
-  {section:4,sName:"Road Signs",q:"What do double white lines in the centre of the road mean?",opts:["You may overtake if safe","You must not cross them if the line nearest you is solid","You must stay in your lane at all times","Slow down - hazard ahead"],ans:1},
-  {section:4,sName:"Road Signs",q:"A red X above your lane on a motorway means what?",opts:["Slow down to 50 mph","Change lanes when safe","Do not use this lane","Merge with the lane to your right"],ans:2},
-  {section:4,sName:"Road Signs",q:"What does a hazard warning line in the centre of the road indicate?",opts:["Safe to overtake","Do not cross - approaching hazard","Lane ends ahead","Road narrows"],ans:1},
-  {section:4,sName:"Road Signs",q:"A pedestrian crossing where lights face the pedestrian is called what?",opts:["Zebra crossing","Toucan crossing","Pelican crossing","Puffin crossing"],ans:2},
-  {section:4,sName:"Road Signs",q:"What does an AVERAGE SPEED CHECK sign mean?",opts:["A speed camera - brake now","Your average speed between two points is monitored","A fixed camera takes a photo only at that exact point","Speed enforcement is only active at peak hours"],ans:1},
-  {section:4,sName:"Road Signs",q:"What does a rectangular blue sign on a motorway indicate?",opts:["A warning of a hazard","Directions and information","A mandatory instruction","A restriction"],ans:1},
-];
+/* ── MOCK TEST — 700 Question Bank ── */
+var CAT_NAMES={rules:'Rules & Regulations',safety:'Safety & Hazards',vehicle:'Vehicle & Maintenance',signs:'Road Signs & Markings',hazards:'Hazard Awareness',vulnerable:'Vulnerable Road Users',motorway:'Motorway Driving',documents:'Documents & Penalties'};
+var CAT_COLORS={rules:'#3b82f6',safety:'#f59e0b',vehicle:'#a855f7',signs:'#22c55e',hazards:'#ef4444',vulnerable:'#14b8a6',motorway:'#6366f1',documents:'#f43f5e'};
+var QUESTIONS_PER_TEST=50;
+var PASS_MARK=43;
+var TEST_TIME=57*60;
+var TOTAL_MOCK_TESTS=14;
 
-let mockMode='';
-let mockAnswers=[];
-let mockTimer=null;
-let mockTimeLeft=57*60;
-let mockCurrent=0;
-let practiceShowingAnswer=false;
+function getTestQuestions(testNum){
+  var bank=window.THEORY_BANK||[];
+  if(!bank.length)return[];
+  var start=(testNum-1)*QUESTIONS_PER_TEST;
+  return bank.slice(start,start+QUESTIONS_PER_TEST);
+}
+
+function getPracticeQuestions(cat){
+  var bank=window.THEORY_BANK||[];
+  if(cat==='all')return shuffleArr(bank.slice());
+  return shuffleArr(bank.filter(function(q){return q.cat===cat;}));
+}
+
+function shuffleArr(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+
+var mockMode='';
+var mockQuestions=[];
+var mockAnswers=[];
+var mockTimer=null;
+var mockTimeLeft=TEST_TIME;
+var mockCurrent=0;
+var practiceShowingAnswer=false;
+var practiceStats={correct:0,wrong:0};
 
 function openMockTest(){
-  mockMode='';mockAnswers=[];mockTimer=null;mockTimeLeft=57*60;mockCurrent=0;
-  document.getElementById('mockTestInner').innerHTML=renderMockModeSelect();
+  mockMode='';mockQuestions=[];mockAnswers=[];mockTimer=null;mockTimeLeft=TEST_TIME;mockCurrent=0;practiceStats={correct:0,wrong:0};
+  document.getElementById('mockTestInner').innerHTML=renderMockHome();
   openModal('mockTestModal');
 }
 
-function renderMockModeSelect(){
-  return`<div style="padding:8px 0 20px">
-    <button onclick="closeModal('mockTestModal')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:.82rem;margin-bottom:14px"><i class="bi bi-arrow-left me-1"></i>Back</button>
-    <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Mock Theory Test</div>
-    <div style="font-size:.74rem;color:var(--txt4);margin-bottom:20px">${MOCK_QUESTIONS.length} questions · Choose your mode</div>
-    <div class="row g-3">
-      <div class="col-6"><div class="mock-mode-card" onclick="startMock('practice')">
-        <span class="mock-mode-icon">🎯</span>
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:6px">Practice</div>
-        <div style="font-size:.72rem;color:var(--txt4);line-height:1.5">Instant feedback · No timer · Learn as you go</div>
-      </div></div>
-      <div class="col-6"><div class="mock-mode-card" onclick="startMock('test')">
-        <span class="mock-mode-icon">📝</span>
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:6px">Test Mode</div>
-        <div style="font-size:.72rem;color:var(--txt4);line-height:1.5">57 min timer · Pass mark 43 · Exam simulation</div>
-      </div></div>
-    </div>
-  </div>`;
+function renderMockHome(){
+  var bank=window.THEORY_BANK||[];
+  var totalQ=bank.length;
+  var h='<div style="padding:8px 0 20px">';
+  h+='<button onclick="closeModal(\'mockTestModal\')" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:.82rem;margin-bottom:14px"><i class="bi bi-arrow-left me-1"></i>Back</button>';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1.3rem;font-weight:700;color:var(--txt);margin-bottom:2px"><i class="bi bi-journal-check me-2" style="color:var(--red)"></i>Theory Test Centre</div>';
+  h+='<div style="font-size:.74rem;color:var(--txt4);margin-bottom:6px">'+totalQ+' unique questions · 100% original DriveSQ content</div>';
+  h+='<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">';
+  h+='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;flex:1;min-width:100px;text-align:center"><div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.5rem;color:var(--txt)">'+totalQ+'</div><div style="font-size:.65rem;color:var(--txt4)">Questions</div></div>';
+  h+='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;flex:1;min-width:100px;text-align:center"><div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.5rem;color:var(--txt)">'+TOTAL_MOCK_TESTS+'</div><div style="font-size:.65rem;color:var(--txt4)">Mock Tests</div></div>';
+  h+='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;flex:1;min-width:100px;text-align:center"><div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.5rem;color:var(--gold)">'+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</div><div style="font-size:.65rem;color:var(--txt4)">Pass Mark</div></div>';
+  h+='</div>';
+
+  // Mock Tests
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Mock Tests</div>';
+  h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:12px">'+QUESTIONS_PER_TEST+' questions · '+Math.floor(TEST_TIME/60)+' minutes · Pass mark '+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:24px">';
+  for(var t=1;t<=TOTAL_MOCK_TESTS;t++){
+    h+='<div class="mock-mode-card" onclick="startMockTest('+t+')" style="padding:14px;text-align:center;cursor:pointer">';
+    h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.4rem;color:var(--txt)">Test '+t+'</div>';
+    h+='<div style="font-size:.65rem;color:var(--txt4)">Q'+(((t-1)*50)+1)+'–Q'+(t*50)+'</div>';
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // Practice Mode
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-mortarboard-fill me-2" style="color:var(--gold)"></i>Practice Mode</div>';
+  h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:12px">Instant feedback · Learn at your pace · See explanations</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:8px">';
+  h+='<div class="mock-mode-card" onclick="startPractice(\'all\')" style="padding:14px;text-align:center;cursor:pointer;border-color:rgba(209,10,17,.3)">';
+  h+='<div style="font-size:1.3rem;margin-bottom:4px">🎯</div>';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt)">All Topics</div>';
+  h+='<div style="font-size:.63rem;color:var(--txt4)">'+totalQ+' questions</div>';
+  h+='</div>';
+  Object.keys(CAT_NAMES).forEach(function(cat){
+    var count=bank.filter(function(q){return q.cat===cat;}).length;
+    h+='<div class="mock-mode-card" onclick="startPractice(\''+cat+'\')" style="padding:14px;text-align:center;cursor:pointer">';
+    h+='<div style="width:8px;height:8px;border-radius:50%;background:'+CAT_COLORS[cat]+';margin:0 auto 6px"></div>';
+    h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.8rem;font-weight:700;color:var(--txt)">'+CAT_NAMES[cat]+'</div>';
+    h+='<div style="font-size:.63rem;color:var(--txt4)">'+count+' questions</div>';
+    h+='</div>';
+  });
+  h+='</div></div>';
+  return h;
 }
 
-function startMock(mode){
-  mockMode=mode;mockAnswers=new Array(MOCK_QUESTIONS.length).fill(-1);mockCurrent=0;
-  if(mode==='test'){mockTimeLeft=57*60;startMockTimer();}
+function startMockTest(testNum){
+  mockMode='test';
+  mockQuestions=getTestQuestions(testNum);
+  if(!mockQuestions.length){showToast('Questions not loaded yet. Please refresh.');return;}
+  mockAnswers=new Array(mockQuestions.length).fill(-1);
+  mockCurrent=0;mockTimeLeft=TEST_TIME;
+  startMockTimer();
+  renderMockQuestion();
+}
+
+function startPractice(cat){
+  mockMode='practice';
+  mockQuestions=getPracticeQuestions(cat);
+  if(!mockQuestions.length){showToast('Questions not loaded yet. Please refresh.');return;}
+  mockAnswers=new Array(mockQuestions.length).fill(-1);
+  mockCurrent=0;practiceStats={correct:0,wrong:0};
   renderMockQuestion();
 }
 
 function startMockTimer(){
   clearInterval(mockTimer);
-  mockTimer=setInterval(()=>{
+  mockTimer=setInterval(function(){
     mockTimeLeft--;
-    const el=document.getElementById('mockTimerDisp');
-    if(el){const m=Math.floor(mockTimeLeft/60),s=mockTimeLeft%60;el.textContent=pad2(m)+':'+pad2(s);}
-    const fill=document.getElementById('mockTimerFill');
-    if(fill)fill.style.width=(mockTimeLeft/(57*60)*100)+'%';
+    var el=document.getElementById('mockTimerDisp');
+    if(el){var m=Math.floor(mockTimeLeft/60),s=mockTimeLeft%60;el.textContent=pad2(m)+':'+pad2(s);}
+    var fill=document.getElementById('mockTimerFill');
+    if(fill)fill.style.width=(mockTimeLeft/TEST_TIME*100)+'%';
     if(mockTimeLeft<=0){clearInterval(mockTimer);showMockResults();}
   },1000);
 }
 
 function renderMockQuestion(){
-  const q=MOCK_QUESTIONS[mockCurrent];
+  var q=mockQuestions[mockCurrent];
   if(!q){showMockResults();return;}
-  const sectionQs=MOCK_QUESTIONS.filter(x=>x.section===q.section);
-  const sIdx=sectionQs.indexOf(q)+1;
-  document.getElementById('mockTestInner').innerHTML=`
-    <div style="padding-bottom:20px">
-      ${mockMode==='test'?`<div style="margin-bottom:12px">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span style="font-size:.68rem;color:var(--txt4)">Time remaining</span>
-          <span style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt)" id="mockTimerDisp">${pad2(Math.floor(mockTimeLeft/60))}:${pad2(mockTimeLeft%60)}</span>
-        </div>
-        <div class="timer-bar"><div class="timer-fill" id="mockTimerFill" style="width:${mockTimeLeft/(57*60)*100}%"></div></div>
-      </div>`:''}
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <span class="section-pill">${q.sName}</span>
-        <span style="font-size:.7rem;color:var(--txt4)">${mockCurrent+1} of ${MOCK_QUESTIONS.length}</span>
-      </div>
-      <div class="q-card mb-3">
-        <div style="font-size:.88rem;font-weight:600;color:var(--txt);line-height:1.5;margin-bottom:14px">${esc(q.q)}</div>
-        ${q.opts.map((o,i)=>`<div class="q-opt" id="qopt${i}" onclick="selectAnswer(${i})">
-          <div class="q-letter">${['A','B','C','D'][i]}</div>
-          <span>${esc(o)}</span>
-        </div>`).join('')}
-      </div>
-      <div id="answerFeedback" class="hidden mb-3" style="border-radius:9px;padding:11px 13px;font-size:.8rem;line-height:1.5"></div>
-      <div class="d-flex gap-2">
-        ${mockMode==='practice'?`<button class="btn-p flex-fill" id="submitAnsBtn" onclick="submitPracticeAnswer()" style="display:none"><i class="bi bi-check-lg me-1"></i>Submit</button>`:''}
-        <button class="btn-p flex-fill" id="nextQBtn" onclick="nextQuestion()" ${mockMode==='practice'?'style="display:none"':''}>${mockCurrent<MOCK_QUESTIONS.length-1?'Next Question →':'Finish Test'}</button>
-      </div>
-      ${mockMode==='practice'?'':`<div style="text-align:center;margin-top:10px"><button onclick="showMockResults()" style="background:none;border:none;color:var(--txt4);font-size:.72rem;cursor:pointer">End test early</button></div>`}
-    </div>`;
+  var catName=CAT_NAMES[q.cat]||q.cat;
+  var catColor=CAT_COLORS[q.cat]||'#888';
+  var inner=document.getElementById('mockTestInner');
+  var h='<div style="padding-bottom:20px">';
+  if(mockMode==='test'){
+    h+='<div style="margin-bottom:12px">';
+    h+='<div class="d-flex justify-content-between align-items-center mb-1">';
+    h+='<span style="font-size:.68rem;color:var(--txt4)">Time remaining</span>';
+    h+='<span style="font-family:\'Oswald\',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt)" id="mockTimerDisp">'+pad2(Math.floor(mockTimeLeft/60))+':'+pad2(mockTimeLeft%60)+'</span>';
+    h+='</div>';
+    h+='<div class="timer-bar"><div class="timer-fill" id="mockTimerFill" style="width:'+(mockTimeLeft/TEST_TIME*100)+'%"></div></div>';
+    h+='</div>';
+  } else {
+    h+='<div style="display:flex;gap:12px;margin-bottom:12px">';
+    h+='<div style="font-size:.72rem;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>'+practiceStats.correct+' correct</div>';
+    h+='<div style="font-size:.72rem;color:#f87171"><i class="bi bi-x-circle-fill me-1"></i>'+practiceStats.wrong+' wrong</div>';
+    if(practiceStats.correct+practiceStats.wrong>0){
+      var pct=Math.round(practiceStats.correct/(practiceStats.correct+practiceStats.wrong)*100);
+      h+='<div style="font-size:.72rem;color:var(--txt4)">'+pct+'% accuracy</div>';
+    }
+    h+='</div>';
+  }
+  h+='<div class="d-flex align-items-center gap-2 mb-3">';
+  h+='<span class="section-pill" style="background:'+catColor+'22;color:'+catColor+';border-color:'+catColor+'44">'+esc(catName)+'</span>';
+  h+='<span style="font-size:.7rem;color:var(--txt4)">'+(mockCurrent+1)+' of '+mockQuestions.length+'</span>';
+  h+='</div>';
+  h+='<div class="q-card mb-3">';
+  h+='<div style="font-size:.88rem;font-weight:600;color:var(--txt);line-height:1.5;margin-bottom:14px">'+esc(q.q)+'</div>';
+  q.opts.forEach(function(o,i){
+    h+='<div class="q-opt" id="qopt'+i+'" onclick="selectAnswer('+i+')">';
+    h+='<div class="q-letter">'+['A','B','C','D'][i]+'</div>';
+    h+='<span>'+esc(o)+'</span>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div id="answerFeedback" class="hidden mb-3" style="border-radius:9px;padding:11px 13px;font-size:.8rem;line-height:1.5"></div>';
+  h+='<div class="d-flex gap-2">';
+  if(mockMode==='practice'){
+    h+='<button class="btn-p flex-fill" id="submitAnsBtn" onclick="submitPracticeAnswer()" style="display:none"><i class="bi bi-check-lg me-1"></i>Check Answer</button>';
+  }
+  var btnLabel=mockCurrent<mockQuestions.length-1?'Next Question →':'Finish';
+  h+='<button class="btn-p flex-fill" id="nextQBtn" onclick="nextQuestion()" '+(mockMode==='practice'?'style="display:none"':'')+'>'+btnLabel+'</button>';
+  h+='</div>';
+  if(mockMode==='test'){
+    h+='<div style="text-align:center;margin-top:10px"><button onclick="showMockResults()" style="background:none;border:none;color:var(--txt4);font-size:.72rem;cursor:pointer">End test early</button></div>';
+  } else {
+    h+='<div style="text-align:center;margin-top:10px"><button onclick="openMockTest()" style="background:none;border:none;color:var(--txt4);font-size:.72rem;cursor:pointer"><i class="bi bi-arrow-left me-1"></i>Back to menu</button></div>';
+  }
+  h+='</div>';
+  inner.innerHTML=h;
   practiceShowingAnswer=false;
 }
 
 function selectAnswer(i){
   if(practiceShowingAnswer)return;
   mockAnswers[mockCurrent]=i;
-  document.querySelectorAll('.q-opt').forEach((el,idx)=>el.classList.toggle('selected',idx===i));
+  document.querySelectorAll('.q-opt').forEach(function(el,idx){el.classList.toggle('selected',idx===i);});
   if(mockMode==='practice'){
     document.getElementById('submitAnsBtn').style.display='flex';
   } else {
@@ -2236,67 +2267,87 @@ function selectAnswer(i){
 }
 
 function submitPracticeAnswer(){
-  const q=MOCK_QUESTIONS[mockCurrent];
-  const ans=mockAnswers[mockCurrent];
+  var q=mockQuestions[mockCurrent];
+  var ans=mockAnswers[mockCurrent];
   if(ans===-1){showToast('Please select an answer.');return;}
   practiceShowingAnswer=true;
-  const correct=ans===q.ans;
-  document.querySelectorAll('.q-opt').forEach((el,i)=>{
+  var correct=ans===q.ans;
+  if(correct)practiceStats.correct++;else practiceStats.wrong++;
+  document.querySelectorAll('.q-opt').forEach(function(el,i){
     if(i===q.ans)el.classList.add('correct');
     else if(i===ans&&!correct)el.classList.add('wrong');
   });
-  const fb=document.getElementById('answerFeedback');
-  fb.className=correct?'mb-3':'mb-3';
+  var fb=document.getElementById('answerFeedback');
   fb.style.background=correct?'rgba(34,197,94,.1)':'rgba(239,68,68,.1)';
   fb.style.border=correct?'1px solid rgba(34,197,94,.2)':'1px solid rgba(239,68,68,.2)';
   fb.style.color=correct?'#4ade80':'#f87171';
-  fb.textContent=correct?'✅ Correct!':'❌ Incorrect. The correct answer was: '+q.opts[q.ans];
+  var fbText=correct?'Correct!':'Incorrect — the answer is: '+q.opts[q.ans];
+  if(q.exp)fbText+=' — '+q.exp;
+  fb.textContent=fbText;
   fb.classList.remove('hidden');
   document.getElementById('submitAnsBtn').style.display='none';
   document.getElementById('nextQBtn').style.display='flex';
 }
 
 function nextQuestion(){
-  if(mockMode==='test'&&mockAnswers[mockCurrent]===-1&&mockCurrent<MOCK_QUESTIONS.length-1){mockCurrent++;renderMockQuestion();return;}
+  if(mockMode==='test'&&mockAnswers[mockCurrent]===-1&&mockCurrent<mockQuestions.length-1){mockCurrent++;renderMockQuestion();return;}
   mockCurrent++;
-  if(mockCurrent>=MOCK_QUESTIONS.length){showMockResults();}else{renderMockQuestion();}
+  if(mockCurrent>=mockQuestions.length){showMockResults();}else{renderMockQuestion();}
 }
 
 function showMockResults(){
   clearInterval(mockTimer);
-  const total=MOCK_QUESTIONS.length;
-  let correct=0;
-  const sectionScores={};
-  MOCK_QUESTIONS.forEach((q,i)=>{
-    if(!sectionScores[q.sName])sectionScores[q.sName]={correct:0,total:0};
-    sectionScores[q.sName].total++;
-    if(mockAnswers[i]===q.ans){correct++;sectionScores[q.sName].correct++;}
+  var total=mockQuestions.length;
+  var correct=0;
+  var sectionScores={};
+  mockQuestions.forEach(function(q,i){
+    var sName=CAT_NAMES[q.cat]||q.cat;
+    if(!sectionScores[sName])sectionScores[sName]={correct:0,total:0};
+    sectionScores[sName].total++;
+    if(mockAnswers[i]===q.ans){correct++;sectionScores[sName].correct++;}
   });
-  const passed=correct>=(total===50?43:Math.ceil(total*0.86));// 43/50 for real test
-  document.getElementById('mockTestInner').innerHTML=`
-    <div style="padding-bottom:20px;text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:8px">${passed?'🎉':'📚'}</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:${passed?'#4ade80':'#f87171'};margin-bottom:4px">${passed?'PASS':'FAIL'}</div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:3rem;font-weight:800;color:var(--txt);line-height:1">${correct}/${total}</div>
-      <div style="font-size:.78rem;color:var(--txt4);margin-bottom:20px">${passed?'Well done! You passed the mock test.':'Keep studying — you need '+Math.ceil(total*0.86)+'/'+total+' to pass.'}</div>
-      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px">
-        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:10px">Score by section</div>
-        ${Object.entries(sectionScores).map(([s,sc])=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bdr)">
-          <span style="font-size:.8rem;color:var(--txt2)">${esc(s)}</span>
-          <span style="font-family:'Oswald',sans-serif;font-weight:700;color:${sc.correct/sc.total>=0.7?'#4ade80':'#f87171'}">${sc.correct}/${sc.total}</span>
-        </div>`).join('')}
-      </div>
-      ${mockMode==='test'?`<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px">
-        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:10px">Questions you got wrong</div>
-        ${MOCK_QUESTIONS.map((q,i)=>mockAnswers[i]!==q.ans?`<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
-          <div style="font-size:.78rem;color:var(--txt2);margin-bottom:3px">${esc(q.q)}</div>
-          <div style="font-size:.7rem;color:#f87171"><i class="bi bi-x me-1"></i>Your answer: ${esc(q.opts[mockAnswers[i]]||'Not answered')}</div>
-          <div style="font-size:.7rem;color:#4ade80"><i class="bi bi-check me-1"></i>Correct: ${esc(q.opts[q.ans])}</div>
-        </div>`:''  ).join('')}
-      </div>`:''}
-      <button class="btn-p mb-2" onclick="openMockTest()"><i class="bi bi-arrow-repeat me-1"></i>Retake Test</button>
-      <button class="btn-s" onclick="closeModal('mockTestModal')">Close</button>
-    </div>`;
+  var passed=correct>=PASS_MARK;
+  var h='<div style="padding-bottom:20px;text-align:center">';
+  h+='<div style="font-size:2.5rem;margin-bottom:8px">'+(passed?'🎉':'📚')+'</div>';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1.3rem;font-weight:700;color:'+(passed?'#4ade80':'#f87171')+';margin-bottom:4px">'+(mockMode==='test'?(passed?'PASS':'FAIL'):'Practice Complete')+'</div>';
+  h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:3rem;font-weight:800;color:var(--txt);line-height:1">'+correct+'/'+total+'</div>';
+  if(mockMode==='test'){
+    h+='<div style="font-size:.78rem;color:var(--txt4);margin-bottom:20px">'+(passed?'Well done! You passed the mock test.':'Keep studying — you need '+PASS_MARK+'/'+QUESTIONS_PER_TEST+' to pass.')+'</div>';
+  } else {
+    var pct=total>0?Math.round(correct/total*100):0;
+    h+='<div style="font-size:.78rem;color:var(--txt4);margin-bottom:20px">'+pct+'% accuracy across '+total+' questions</div>';
+  }
+  h+='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px">';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:10px">Score by category</div>';
+  Object.keys(sectionScores).forEach(function(s){
+    var sc=sectionScores[s];
+    var pct2=sc.total>0?Math.round(sc.correct/sc.total*100):0;
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bdr)">';
+    h+='<span style="font-size:.8rem;color:var(--txt2)">'+esc(s)+'</span>';
+    h+='<span style="font-family:\'Oswald\',sans-serif;font-weight:700;color:'+(pct2>=70?'#4ade80':'#f87171')+'">'+sc.correct+'/'+sc.total+'</span>';
+    h+='</div>';
+  });
+  h+='</div>';
+  // Wrong answers review
+  var wrongOnes=[];
+  mockQuestions.forEach(function(q,i){if(mockAnswers[i]!==q.ans)wrongOnes.push({q:q,userAns:mockAnswers[i]});});
+  if(wrongOnes.length>0){
+    h+='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px;text-align:left;margin-bottom:16px">';
+    h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:10px">Review wrong answers ('+wrongOnes.length+')</div>';
+    wrongOnes.forEach(function(w){
+      h+='<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">';
+      h+='<div style="font-size:.78rem;color:var(--txt2);margin-bottom:3px">'+esc(w.q.q)+'</div>';
+      h+='<div style="font-size:.7rem;color:#f87171"><i class="bi bi-x me-1"></i>'+esc(w.q.opts[w.userAns]||'Not answered')+'</div>';
+      h+='<div style="font-size:.7rem;color:#4ade80"><i class="bi bi-check me-1"></i>'+esc(w.q.opts[w.q.ans])+'</div>';
+      if(w.q.exp){h+='<div style="font-size:.68rem;color:var(--txt4);margin-top:2px;font-style:italic">'+esc(w.q.exp)+'</div>';}
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+  h+='<button class="btn-p mb-2" onclick="openMockTest()"><i class="bi bi-arrow-repeat me-1"></i>Try Another Test</button>';
+  h+='<button class="btn-s" onclick="closeModal(\'mockTestModal\')">Close</button>';
+  h+='</div>';
+  document.getElementById('mockTestInner').innerHTML=h;
 }
 
 /* ── LESSON CONFIRM CHECK ── */
