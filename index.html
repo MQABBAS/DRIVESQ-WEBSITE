@@ -62,6 +62,23 @@
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 html { scroll-behavior:smooth; overflow-x:hidden; scroll-padding-top:72px; }
 body { background:#fff; color:#111; font-family:'Inter',sans-serif; line-height:1.65; overflow-x:hidden; }
+body.loading { overflow:hidden; }
+
+/* ═══ PAGE LOADER — STEERING WHEEL ═══ */
+#page-loader {
+  position:fixed; inset:0; z-index:99999;
+  background:var(--blk);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:opacity .5s ease, visibility .5s ease;
+}
+#page-loader.hide { opacity:0; visibility:hidden; pointer-events:none; }
+.wheel-wrap { position:relative; width:120px; height:120px; }
+.wheel-svg { width:100%; height:100%; animation:wheelSpin 1.8s cubic-bezier(.4,0,.2,1) infinite; }
+.wheel-dot { position:absolute; top:50%; left:50%; width:14px; height:14px; background:var(--red); border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 18px rgba(209,10,17,.7), 0 0 40px rgba(209,10,17,.3); animation:dotPulse 1.8s ease-in-out infinite; }
+.loader-text { margin-top:18px; font-family:'Oswald',sans-serif; font-size:.9rem; color:#555; letter-spacing:3px; text-transform:uppercase; animation:fadeInOut 1.8s ease-in-out infinite; }
+@keyframes wheelSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+@keyframes dotPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);box-shadow:0 0 18px rgba(209,10,17,.7)} 50%{transform:translate(-50%,-50%) scale(1.3);box-shadow:0 0 28px rgba(209,10,17,.9),0 0 50px rgba(209,10,17,.4)} }
+@keyframes fadeInOut { 0%,100%{opacity:.4} 50%{opacity:1} }
 h1,h2,h3,h4,h5 { font-family:'Oswald',sans-serif; line-height:1.05; letter-spacing:.3px; }
 a { color:var(--red); text-decoration:none; transition:color var(--trans); }
 a:hover { color:var(--red2); }
@@ -106,8 +123,15 @@ section { overflow:hidden; }
 .ti-stars { color:var(--gold); letter-spacing:-1px; font-size:.88rem; }
 
 /* ═══ NAVBAR ═══ */
-.navbar { background:rgba(8,8,8,.85); backdrop-filter:blur(16px) saturate(1.2); -webkit-backdrop-filter:blur(16px) saturate(1.2); border-bottom:1px solid rgba(255,255,255,.06); padding:0; box-shadow:0 1px 20px rgba(0,0,0,.3); }
-.navbar.scrolled { background:rgba(8,8,8,.92); backdrop-filter:blur(20px) saturate(1.3); -webkit-backdrop-filter:blur(20px) saturate(1.3); }
+.navbar { background:rgba(8,8,8,.92); backdrop-filter:blur(20px) saturate(1.3); -webkit-backdrop-filter:blur(20px) saturate(1.3); border-bottom:1px solid rgba(255,255,255,.06); padding:0; box-shadow:0 1px 20px rgba(0,0,0,.3); transition:background .4s ease, border-color .4s ease, box-shadow .4s ease; }
+.navbar.nav-light { background:rgba(255,255,255,.95); backdrop-filter:blur(20px) saturate(1.3); -webkit-backdrop-filter:blur(20px) saturate(1.3); border-bottom:1px solid rgba(0,0,0,.08); box-shadow:0 1px 20px rgba(0,0,0,.06); }
+.navbar.nav-light .nav-link { color:#555 !important; }
+.navbar.nav-light .nav-link:hover { color:var(--red) !important; }
+.navbar.nav-light .nav-link::after { background:var(--red); }
+.navbar.nav-light .nbrand { color:#111; }
+.navbar.nav-light .ntag { color:#999; }
+.navbar.nav-light .nlogo { border-color:var(--red); }
+.navbar.nav-light .navbar-toggler-icon { filter:invert(1) grayscale(1) brightness(.4); }
 .nav-inner { padding:7px 0; }
 .nlogo { width:44px; height:44px; border-radius:50%; border:2px solid var(--red); box-shadow:0 0 14px var(--red-glow); flex-shrink:0; transition:box-shadow var(--trans); }
 .nlogo:hover { box-shadow:0 0 26px rgba(209,10,17,.6); }
@@ -416,12 +440,16 @@ section { overflow:hidden; }
 
 /* ═══ PASSES / CAROUSEL ═══ */
 .passes { background:#f5f5f5; padding:80px 0; }
-.car-frame { border-radius:var(--r); overflow:hidden; box-shadow:var(--sh); }
-.car-h { height:clamp(320px,60vh,680px); }
-.car-item { height:100%; }
-.car-item img { width:100%; height:100%; object-fit:cover; object-position:center center; }
-.carousel-control-prev,.carousel-control-next { width:40px; background:rgba(0,0,0,.4); border-radius:50%; margin:auto 8px; height:40px; top:50%; transform:translateY(-50%); bottom:auto; }
+.car-frame { border-radius:var(--r); overflow:hidden; box-shadow:var(--sh); background:#f0f0f0; }
+.car-h { height:auto; min-height:300px; }
+.car-item { display:flex; align-items:center; justify-content:center; }
+.car-item img { width:100%; height:auto; max-height:75vh; object-fit:contain; }
+.carousel-control-prev,.carousel-control-next { width:44px; background:rgba(0,0,0,.5); border-radius:50%; margin:auto 10px; height:44px; top:50%; transform:translateY(-50%); bottom:auto; transition:background var(--trans),transform var(--trans); }
+.carousel-control-prev:hover,.carousel-control-next:hover { background:rgba(209,10,17,.8); transform:translateY(-50%) scale(1.1); }
 .carousel-control-prev-icon,.carousel-control-next-icon { width:18px; height:18px; }
+.carousel-item { transition:transform .6s ease-in-out; }
+.carousel-indicators [data-bs-target] { width:10px; height:10px; border-radius:50%; border:none; opacity:.5; transition:opacity .3s, transform .3s; }
+.carousel-indicators .active { opacity:1; transform:scale(1.3); background:var(--red); }
 
 /* ═══ REVIEWS ═══ */
 .reviews { padding:80px 0; background:#fff; }
@@ -777,7 +805,7 @@ footer a:hover { color:#fff; }
   .ig-grid { grid-template-columns:repeat(3,1fr); }
   .int-grid { grid-template-columns:1fr 1fr; }
   .hero-h1 { font-size:clamp(2.4rem,12vw,4rem); }
-  .car-h { height:260px !important; }
+  .car-h { min-height:200px; }
   .book-card { padding:18px 14px; border-radius:14px; }
   .hero-video-card video { max-height:220px; }
   .ann { font-size:.7rem; padding:6px 4px; }
@@ -785,7 +813,35 @@ footer a:hover { color:#fff; }
 }
 </style>
 </head>
-<body>
+<body class="loading">
+
+<!-- PAGE LOADER — STEERING WHEEL -->
+<div id="page-loader" aria-label="Loading DriveSQ">
+  <div class="wheel-wrap">
+    <svg class="wheel-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="60" r="54" stroke="#333" stroke-width="5" fill="none"/>
+      <circle cx="60" cy="60" r="54" stroke="url(#wheelGrad)" stroke-width="5" fill="none" stroke-dasharray="85 254" stroke-linecap="round"/>
+      <circle cx="60" cy="60" r="42" stroke="#222" stroke-width="2.5" fill="none"/>
+      <circle cx="60" cy="60" r="28" stroke="#333" stroke-width="2" fill="none"/>
+      <!-- Spokes -->
+      <line x1="60" y1="18" x2="60" y2="32" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <line x1="60" y1="88" x2="60" y2="102" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <line x1="23.6" y1="39" x2="35.8" y2="46" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <line x1="96.4" y1="81" x2="84.2" y2="74" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <line x1="23.6" y1="81" x2="35.8" y2="74" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <line x1="96.4" y1="39" x2="84.2" y2="46" stroke="#444" stroke-width="3" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="wheelGrad" x1="0" y1="0" x2="120" y2="120">
+          <stop offset="0%" stop-color="#D10A11"/>
+          <stop offset="100%" stop-color="#ff4444"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="wheel-dot"></div>
+  </div>
+  <div class="loader-text">DriveSQ</div>
+</div>
+
 <a class="skip-link" href="#main">Skip to main content</a>
 
 <!-- ANNOUNCE BAR -->
@@ -1069,7 +1125,7 @@ footer a:hover { color:#fff; }
       <a href="https://wa.me/447352932003" target="_blank" rel="nofollow noopener" class="btn btn-wa px-4 py-2 reveal"><i class="bi bi-whatsapp"></i>WhatsApp to Book</a>
     </div>
     <div class="car-frame reveal">
-      <div id="passCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-touch="true" data-bs-interval="4000" aria-label="Student pass photos">
+      <div id="passCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-touch="true" data-bs-interval="4000" aria-label="Student pass photos">
         <div class="carousel-indicators">
           <button type="button" data-bs-target="#passCarousel" data-bs-slide-to="0" class="active" aria-label="Photo 1"></button>
           <button type="button" data-bs-target="#passCarousel" data-bs-slide-to="1" aria-label="Photo 2"></button>
@@ -2023,6 +2079,45 @@ function openLocalVideo(src) {
   snd.addEventListener('click', () => { go(); inp.blur(); });
   inp.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); go(); inp.blur(); } });
   if (window.innerWidth > 1024) setTimeout(openChat, 3000);
+})();
+
+/* ── PAGE LOADER DISMISS ── */
+(function(){
+  const loader = document.getElementById('page-loader');
+  function dismiss() {
+    loader.classList.add('hide');
+    document.body.classList.remove('loading');
+    document.querySelector('.hero')?.classList.add('loaded');
+  }
+  window.addEventListener('load', () => setTimeout(dismiss, 400));
+  setTimeout(dismiss, 3500);
+})();
+
+/* ── NAVBAR SECTION-AWARE COLOUR ── */
+(function(){
+  const nav = document.getElementById('mainNav');
+  if (!nav) return;
+  const lightSections = [];
+  document.querySelectorAll('.passes, .reviews, .services, .areas, .faq, .join, .pc-strip, .instagram-section, .why').forEach(s => lightSections.push(s));
+
+  let ticking = false;
+  function updateNav() {
+    const navBottom = nav.getBoundingClientRect().bottom;
+    let isLight = false;
+    for (const sec of lightSections) {
+      const r = sec.getBoundingClientRect();
+      if (r.top < navBottom && r.bottom > navBottom) { isLight = true; break; }
+    }
+    nav.classList.toggle('nav-light', isLight);
+    ticking = false;
+  }
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(updateNav); } }, { passive: true });
+  updateNav();
+})();
+
+/* ── SMOOTH REVEAL PERFORMANCE ── */
+(function(){
+  document.querySelectorAll('.reveal').forEach(el => { el.style.willChange = 'opacity, transform'; });
 })();
 </script>
 </body>
