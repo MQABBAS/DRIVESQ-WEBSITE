@@ -1262,16 +1262,9 @@ function renderLessonBanner(){
   document.getElementById('lessonTimeLbl').textContent=l.start_time+(l.duration_hours?' · '+l.duration_hours+' hr'+(l.duration_hours!=1?'s':''):'')+(l.lesson_type?' · '+l.lesson_type:'');
   document.getElementById('lessonAddrLbl').textContent=l.pickup_address||'';
   currentLessonId=l.id;
-  const today=new Date();today.setHours(0,0,0,0);
-  const lessonDate=new Date(l.lesson_date+'T12:00:00');
-  const diff=(lessonDate-today)/(1000*60*60*24);
-  if(diff>=0&&diff<=7){
-    actions.classList.remove('hidden');
-    banner.className='lesson-banner mb-3';
-    checkConfirmationStatus(l.id);
-  } else {
-    actions.classList.add('hidden');
-  }
+  actions.classList.remove('hidden');
+  banner.className='lesson-banner mb-3';
+  checkConfirmationStatus(l.id);
 }
 
 function renderUpcomingLessons(){
@@ -1282,13 +1275,26 @@ function renderUpcomingLessons(){
   if(upcoming.length<=1){section.classList.add('hidden');return;}
   section.classList.remove('hidden');
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  list.innerHTML=upcoming.slice(0,5).map(l=>`<div class="hist-row">
-    <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
-      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||''} · ${l.duration_hours||1}hr${(l.duration_hours||1)!=1?'s':''} · ${esc(l.lesson_type||'Manual')}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
-    </div>
-  </div>`).join('');
+  var confirmStatuses={};
+  var lessonIds=upcoming.slice(0,5).map(function(l){return l.id;});
+  list.innerHTML=upcoming.slice(0,5).map(function(l){
+    return '<div class="hist-row" style="align-items:center">'
+      +'<div class="hist-type-dot" style="background:'+(tc[l.lesson_type]||'#60a5fa')+'"></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:.8rem;color:var(--txt2);font-weight:600">'+fmtDate(l.lesson_date)+'</div>'
+      +'<div style="font-size:.68rem;color:var(--txt4)">'+(l.start_time||'')+' · '+(l.duration_hours||1)+'hr'+((l.duration_hours||1)!=1?'s':'')+' · '+esc(l.lesson_type||'Manual')+(l.pickup_address?' · '+esc(l.pickup_address):'')+'</div>'
+      +'</div>'
+      +'<div id="confirmBtn_'+l.id+'"><button style="font-size:.65rem;padding:4px 10px;border-radius:6px;border:1px solid rgba(37,211,102,.3);background:rgba(37,211,102,.08);color:#4ade80;cursor:pointer;white-space:nowrap" onclick="confirmLesson(\''+l.id+'\',{date:\''+l.lesson_date+'\',time:\''+(l.start_time||'')+'\'})" title="Confirm attendance"><i class="bi bi-check-lg"></i> Confirm</button></div>'
+      +'</div>';
+  }).join('');
+  lessonIds.forEach(function(lid){
+    sb.from('lesson_confirmations').select('student_confirmed').eq('lesson_id',lid).maybeSingle().then(function(r){
+      if(r.data&&r.data.student_confirmed){
+        var el=document.getElementById('confirmBtn_'+lid);
+        if(el)el.innerHTML='<span style="font-size:.65rem;color:#4ade80;white-space:nowrap"><i class="bi bi-check-circle-fill me-1"></i>Confirmed</span>';
+      }
+    });
+  });
 }
 
 async function checkConfirmationStatus(lessonId){
@@ -1965,33 +1971,43 @@ async function saveNotifPrefs(){
 }
 
 /* ── LESSON CONFIRMATION ── */
-async function confirmLesson(){
-  if(!currentLessonId)return;
-  const actions=document.getElementById('lessonActions');
+async function confirmLesson(lessonId,lessonInfo){
+  var lid=lessonId||currentLessonId;
+  if(!lid)return;
+  var actions=document.getElementById('lessonActions');
+  var btn=lessonId?document.getElementById('confirmBtn_'+lessonId):null;
   try{
-    const{data:existing,error:selErr}=await sb.from('lesson_confirmations').select('*').eq('lesson_id',currentLessonId).maybeSingle();
-    if(selErr)throw selErr;
+    var res=await sb.from('lesson_confirmations').select('*').eq('lesson_id',lid).maybeSingle();
+    if(res.error)throw res.error;
+    var existing=res.data;
     if(existing){
-      const{error:updErr}=await sb.from('lesson_confirmations').update({student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:existing.instructor_confirmed?'both_confirmed':'student_confirmed'}).eq('id',existing.id);
-      if(updErr)throw updErr;
+      var r2=await sb.from('lesson_confirmations').update({student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:existing.instructor_confirmed?'both_confirmed':'student_confirmed'}).eq('id',existing.id);
+      if(r2.error)throw r2.error;
     } else {
-      const{error:insErr}=await sb.from('lesson_confirmations').insert([{lesson_id:currentLessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
-      if(insErr)throw insErr;
+      var r3=await sb.from('lesson_confirmations').insert([{lesson_id:lid,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
+      if(r3.error)throw r3.error;
     }
+    var lDate=lessonInfo?lessonInfo.date:(nextLesson?nextLesson.lesson_date:'the scheduled date');
+    var lTime=lessonInfo?lessonInfo.time:(nextLesson?nextLesson.start_time:'the scheduled time');
     if(currentStudent.instructor_id){
       sb.from('student_messages').insert([{
         student_account_id:currentStudent.id,
         instructor_id:currentStudent.instructor_id,
         sender:'student',
-        message:'✅ '+currentStudent.name+' has confirmed their lesson on '+(nextLesson?.lesson_date||'the scheduled date')+' at '+(nextLesson?.start_time||'the scheduled time')+'.',
+        message:'✅ '+currentStudent.name+' has confirmed their lesson on '+lDate+' at '+lTime+'.',
         is_read:false,
         sent_at:new Date().toISOString()
-      }]).then(()=>{},()=>{});
+      }]).then(function(){},function(){});
     }
     showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
-    if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
-    const badge=document.getElementById('lessonStatusBadge');
-    if(badge)badge.innerHTML='<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">Confirmed</span>';
+    var confirmedHtml='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
+    if(!lessonId&&actions)actions.innerHTML=confirmedHtml;
+    if(btn)btn.outerHTML='<span style="font-size:.65rem;color:#4ade80;white-space:nowrap"><i class="bi bi-check-circle-fill me-1"></i>Confirmed</span>';
+    if(!lessonId||lid===currentLessonId){
+      var badge=document.getElementById('lessonStatusBadge');
+      if(badge)badge.innerHTML='<span style="font-size:.55rem;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">Confirmed</span>';
+      if(actions&&!lessonId)actions.innerHTML=confirmedHtml;
+    }
   }catch(e){
     console.error('confirmLesson error:',e);
     showToast('Could not confirm — please try again.','error');
