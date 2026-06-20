@@ -984,8 +984,8 @@ footer a:hover { color:#fff; }
 <!-- TRUST STRIP -->
 <div class="trust d-none d-lg-block">
   <div class="container">
-    <div class="trust-inner">
-      <div class="ti"><i class="bi bi-patch-check-fill tr"></i><span><strong style="color:#fff">DVSA-Approved</strong> Instructors</span></div>
+    <div class="trust-inner" role="list" aria-label="Trust badges">
+      <div class="ti" role="listitem"><i class="bi bi-patch-check-fill tr"></i><span><strong style="color:#fff">DVSA-Approved</strong> Instructors</span></div>
       <div class="ti"><span class="ti-stars">★★★★★</span><span><strong style="color:#fff">5/5</strong> · 100+ Google Reviews</span></div>
       <div class="ti"><i class="bi bi-trophy-fill tg"></i><span>90%+ First-Time Pass Rate</span></div>
       <div class="ti"><i class="bi bi-currency-pound" style="color:#4ade80"></i><span>Manual &amp; Auto Same Price £35/hr</span></div>
@@ -1083,7 +1083,7 @@ footer a:hover { color:#fff; }
             <i class="bi bi-whatsapp" style="font-size:1.1rem"></i>WhatsApp Us — Instant Reply
           </a>
           <div class="or-line">or fill in the booking form</div>
-          <form action="https://formspree.io/f/xvgjdapp" method="POST" class="row g-2" novalidate aria-label="Lesson booking form">
+          <form action="https://formspree.io/f/xvgjdapp" method="POST" class="row g-2" aria-label="Lesson booking form" id="bookingForm">
             <input type="hidden" name="_subject" value="New Lesson Booking — DriveSQ"/>
             <input type="text" name="_gotcha" class="d-none" tabindex="-1" autocomplete="off"/>
             <div class="col-12"><label class="req-star" for="b_n">Full Name</label><input id="b_n" name="name" class="form-control" placeholder="Jane Doe" autocomplete="name" required/></div>
@@ -2275,6 +2275,27 @@ function openLocalVideo(src) {
 /* ── SMOOTH REVEAL PERFORMANCE ── */
 (function(){
   document.querySelectorAll('.reveal').forEach(el => { el.style.willChange = 'opacity, transform'; });
+})();
+
+/* ── BOOKING FORM VALIDATION + LOADING STATE ── */
+(function(){
+  var form = document.getElementById('bookingForm');
+  if (!form) return;
+  form.addEventListener('submit', function(e) {
+    var valid = true;
+    form.querySelectorAll('[required]').forEach(function(inp) {
+      if (!inp.value.trim()) { inp.style.borderColor = '#D10A11'; valid = false; }
+      else { inp.style.borderColor = ''; }
+    });
+    if (!valid) { e.preventDefault(); return; }
+    var btn = form.querySelector('.btn-submit');
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending…';
+    btn.disabled = true;
+    btn.style.opacity = '.7';
+  });
+  form.querySelectorAll('[required]').forEach(function(inp) {
+    inp.addEventListener('input', function() { if (inp.value.trim()) inp.style.borderColor = ''; });
+  });
 })();
 </script>
 </body>
