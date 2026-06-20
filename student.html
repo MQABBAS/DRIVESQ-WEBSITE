@@ -2387,13 +2387,16 @@ window.addEventListener('beforeinstallprompt',function(e){
 
 function showInstallBanner(){
   if(!deferredInstall)return;
+  if(document.getElementById('notifPrompt')){setTimeout(showInstallBanner,5000);return;}
   var b=document.createElement('div');
   b.id='pwaInstallBanner';
-  b.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:16px;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,.6)';
-  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:36px;height:36px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Install DriveSQ</div><div style="font-size:.7rem;color:var(--txt3)">Add to your home screen for the best experience</div></div></div>'
-    +'<div style="display:flex;gap:8px"><button onclick="installPWA()" class="btn-p" style="flex:1;font-size:.78rem"><i class="bi bi-download me-1"></i>Install App</button>'
-    +'<button onclick="document.getElementById(\'pwaInstallBanner\').remove()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:8px;border-radius:8px;cursor:pointer">Maybe later</button></div>';
+  b.style.cssText='position:fixed;top:70px;right:12px;width:280px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:14px;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ</div><div style="font-size:.68rem;color:var(--txt3)">Add to your home screen</div></div></div>'
+    +'<div style="display:flex;gap:8px"><button id="pwaInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer"><i class="bi bi-download me-1"></i>Install</button>'
+    +'<button id="pwaInstallNo" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;border-radius:9px;cursor:pointer">Later</button></div>';
   document.body.appendChild(b);
+  document.getElementById('pwaInstallYes').addEventListener('click',function(){installPWA();});
+  document.getElementById('pwaInstallNo').addEventListener('click',function(){b.remove();});
 }
 
 async function installPWA(){

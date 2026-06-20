@@ -9,6 +9,7 @@
 <meta name="robots" content="noindex, nofollow"/>
 <link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
+<link rel="manifest" href="/dashboard-manifest.json"/>
 <title>DriveSQ — My Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -1358,12 +1359,16 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
+  var _rReq=null;try{var{data:_rr}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq=_rr;}catch(e){}
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
+  if(_rReq&&_rReq.student_account_id){notifyStudent(_rReq.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will update the lesson time.');}
   document.getElementById('resch-banner-'+id)?.remove();
   showToast('Reschedule accepted — update the lesson date manually.','success');
 }
 async function declineReschedule(id){
+  var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
   await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
+  if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
   document.getElementById('resch-banner-'+id)?.remove();
   showToast('Reschedule declined.');
 }
@@ -1493,6 +1498,7 @@ async function onDrop(e,toDate){
   // Save new date to DB immediately
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Check your app for the updated time.');}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -1878,6 +1884,8 @@ async function saveStudentProgress(){
     await loadRoster(); // refresh student account map
     closeModal('progressModal');
     showToast('Progress saved ✓','success');
+    var _readinessMsg=readiness==='ready'?'You are test ready! 🎉':readiness==='nearly_there'?'Nearly there — keep going!':'Keep practising, you\'re making progress!';
+    notifyStudent(accId,'Progress updated',_readinessMsg+' Hours: '+hours+'/'+target+'h.');
   }catch(err){
     console.error('saveStudentProgress failed:',err);
     showToast('Error saving progress: '+err.message);
@@ -1953,8 +1961,10 @@ async function saveLesson(e){
 
 async function quickDel(id){
   if(!confirm('Remove this lesson?'))return;
+  var _delLesson=null;try{var{data:_dl}=await sb.from('lessons').select('student_name,lesson_date,start_time,student_account_id').eq('id',id).single();_delLesson=_dl;}catch(e){}
   const{error}=await sb.from('lessons').delete().eq('id',id);
   if(error){showToast('Error removing: '+error.message);return;}
+  if(_delLesson&&_delLesson.student_account_id){notifyStudent(_delLesson.student_account_id,'Lesson cancelled','Your lesson on '+(_delLesson.lesson_date||'')+' at '+(_delLesson.start_time||'')+' has been cancelled by your instructor.');}
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
   else if(calView==='month')await loadMonthView();
@@ -2039,6 +2049,7 @@ async function openDetail(id){
 
 async function moveLesson(id,toDate,dayName){
   await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Check your app for details.');}
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
@@ -2145,10 +2156,12 @@ async function saveEditedLesson(){
   await loadStudents();
   renderStudents(allStudentsArr);
   showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
+  if(_updAccId){notifyStudent(_updAccId,'Lesson updated','Your lesson has been updated to '+newDate+' at '+newTime+'. Check your app for details.');}
 }
 
 async function deleteFromDetail(){
   if(!detailId||!confirm('Remove this lesson?'))return;
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson cancelled','Your lesson on '+(detailData.lesson_date||'')+' at '+(detailData.start_time||'')+' has been cancelled by your instructor.');}
   const{error}=await sb.from('lessons').delete().eq('id',detailId);
   if(error){showToast('Error removing: '+error.message);return;}
   closeModal('detailModal');
@@ -2545,8 +2558,9 @@ async function confirmApprove(){
   await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
   renderStudents(allStudentsArr);
   showToast('✅ Student approved & added to calendar!','success');
+  if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
 }
-async function declineRequest(id){if(!confirm('Decline this request?'))return;await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);await loadRequests();showToast('Request declined.');}
+async function declineRequest(id){if(!confirm('Decline this request?'))return;var _decReq=null;try{var{data:_dr}=await sb.from('student_requests').select('student_name').eq('id',id).single();_decReq=_dr;}catch(e){}await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);if(_decReq){try{var{data:_da}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',_decReq.student_name).maybeSingle();if(_da)notifyStudent(_da.id,'Request declined','Your lesson request has been declined. Please contact your instructor for more details.');}catch(e){}}await loadRequests();showToast('Request declined.');}
 
 /* ── TRANSFERS ── */
 async function loadTransfers(){
@@ -3000,6 +3014,8 @@ async function saveSmProgress(){
     if(s){s.progHours=hours;s.test_readiness=readiness;}
     smUpdateProgBar();
     showToast('Progress saved ✓ Student notified.','success');
+    var _smReadMsg=readiness==='ready'?'You are test ready! 🎉':readiness==='nearly_there'?'Nearly there — keep going!':'Keep practising, you\'re making progress!';
+    notifyStudent(aid,'Progress updated',_smReadMsg+' Hours: '+hours+'/'+target+'h.');
   }catch(err){console.error('saveSmProgress error:',err);showToast('Error: '+err.message);}
   finally{if(btn){btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Progress & Notify Student';btn.disabled=false;}}
 }
@@ -3318,6 +3334,38 @@ async function pollStudentUpdates(){
 setInterval(pollStudentUpdates,20000);
 
 // loadStudents is initialized
+
+/* ── PWA SERVICE WORKER & INSTALL ── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/dashboard-sw.js').then(function(reg){
+    console.log('Dashboard SW registered, scope:',reg.scope);
+  }).catch(function(e){console.warn('Dashboard SW registration failed:',e);});
+}
+
+var deferredInstall=null;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  deferredInstall=e;
+  setTimeout(showDashInstallBanner,8000);
+});
+
+function showDashInstallBanner(){
+  if(!deferredInstall||document.getElementById('dashInstallBanner'))return;
+  var b=document.createElement('div');
+  b.id='dashInstallBanner';
+  b.style.cssText='position:fixed;top:70px;right:12px;width:280px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:14px;z-index:1050;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ Pro</div><div style="font-size:.68rem;color:var(--txt3)">Add dashboard to your home screen</div></div></div>'
+    +'<div style="display:flex;gap:8px"><button id="dashInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer"><i class="bi bi-download me-1"></i>Install</button>'
+    +'<button id="dashInstallNo" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;border-radius:9px;cursor:pointer">Later</button></div>';
+  document.body.appendChild(b);
+  document.getElementById('dashInstallYes').addEventListener('click',function(){
+    b.remove();
+    if(!deferredInstall)return;
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(function(r){if(r.outcome==='accepted')showToast('App installed!','success');deferredInstall=null;});
+  });
+  document.getElementById('dashInstallNo').addEventListener('click',function(){b.remove();});
+}
 </script>
 </body>
 </html>
