@@ -1,6 +1,7 @@
-var CACHE_NAME='drivesq-student-v1';
+var CACHE_NAME='drivesq-student-v2';
 var PRECACHE=[
   '/student.html',
+  '/theory-questions.js',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css',
