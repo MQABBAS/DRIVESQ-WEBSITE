@@ -2314,66 +2314,64 @@ async function checkLessonFeedbackPrompt(){
   }
 }
 
-/* ── PWA + PUSH NOTIFICATIONS ── */
+/* ── PWA + NOTIFICATIONS ── */
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/student-sw.js').then(function(reg){
     console.log('SW registered, scope:',reg.scope);
     if('Notification' in window && Notification.permission==='default'){
       setTimeout(function(){showPushPrompt(reg);},15000);
     }
-    if('Notification' in window && Notification.permission==='granted'){
-      subscribePush(reg);
-    }
   }).catch(function(e){console.warn('SW registration failed:',e);});
 }
 
 var pushPromptShown=false;
-function showPushPrompt(reg){
+function showPushPrompt(){
   if(pushPromptShown||!currentStudent)return;
   pushPromptShown=true;
   var d=document.createElement('div');
   d.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.6)';
   d.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><i class="bi bi-bell-fill" style="color:var(--gold);font-size:1.2rem"></i><div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Enable Notifications?</div></div>'
     +'<div style="font-size:.78rem;color:var(--txt2);margin-bottom:12px;line-height:1.5">Get notified when your instructor sends you a message, adds a lesson, or updates your progress.</div>'
-    +'<div style="display:flex;gap:8px"><button onclick="acceptPush()" class="btn-p" style="flex:1;font-size:.78rem"><i class="bi bi-bell me-1"></i>Yes, notify me</button>'
+    +'<div style="display:flex;gap:8px"><button onclick="acceptNotifs()" class="btn-p" style="flex:1;font-size:.78rem"><i class="bi bi-bell me-1"></i>Yes, notify me</button>'
     +'<button onclick="this.parentElement.parentElement.remove()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:8px;border-radius:8px;cursor:pointer">Not now</button></div>';
   document.body.appendChild(d);
 }
 
-async function acceptPush(){
-  document.querySelector('[onclick="acceptPush()"]').closest('div[style*="position:fixed"]').remove();
-  var perm=await Notification.requestPermission();
-  if(perm==='granted'){
-    var reg=await navigator.serviceWorker.ready;
-    subscribePush(reg);
-    showToast('Notifications enabled!');
+async function acceptNotifs(){
+  document.querySelector('[onclick="acceptNotifs()"]').closest('div[style*="position:fixed"]').remove();
+  if('Notification' in window){
+    var perm=await Notification.requestPermission();
+    if(perm==='granted')showToast('Notifications enabled!');
   }
+  startNotifPolling();
 }
 
-async function subscribePush(reg){
+var notifInterval=null;
+function startNotifPolling(){
+  if(notifInterval||!currentStudent)return;
+  checkPendingNotifs();
+  notifInterval=setInterval(checkPendingNotifs,30000);
+}
+
+async function checkPendingNotifs(){
+  if(!currentStudent||!currentStudent.id)return;
   try{
-    var sub=await reg.pushManager.getSubscription();
-    if(!sub){
-      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array('BImUHUO2z_Qk-7X_57bNY7YgIazbzp2DelfO9yH5EQ2bASguRNbA4o9wD-A4GCruJfYvEPYvxhvXMbQQIHaghN0')});
-    }
-    if(currentStudent&&currentStudent.id){
-      await sb.from('push_subscriptions').upsert([{
-        student_account_id:currentStudent.id,
-        endpoint:sub.endpoint,
-        keys_json:JSON.stringify(sub.toJSON().keys),
-        created_at:new Date().toISOString()
-      }],{onConflict:'student_account_id'}).then(function(){}).catch(function(){});
-    }
-  }catch(e){console.warn('Push subscription failed:',e);}
+    var{data}=await sb.from('pending_notifications').select('*').eq('student_account_id',currentStudent.id).eq('is_read',false).order('created_at',{ascending:false}).limit(5);
+    if(!data||!data.length)return;
+    data.forEach(function(n){
+      if('Notification' in window && Notification.permission==='granted'){
+        new Notification(n.title||'DriveSQ',{body:n.body||'',icon:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',badge:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',vibrate:[200,100,200]});
+      }else{
+        showToast(n.title+': '+n.body);
+      }
+      sb.from('pending_notifications').update({is_read:true}).eq('id',n.id).then(function(){});
+    });
+  }catch(e){}
 }
 
-function urlBase64ToUint8Array(base64String){
-  var padding='='.repeat((4-base64String.length%4)%4);
-  var base64=(base64String+padding).replace(/\-/g,'+').replace(/_/g,'/');
-  var raw=window.atob(base64);
-  var arr=new Uint8Array(raw.length);
-  for(var i=0;i<raw.length;++i)arr[i]=raw.charCodeAt(i);
-  return arr;
+// Start polling after login
+if(currentStudent&&currentStudent.id){
+  setTimeout(startNotifPolling,3000);
 }
 
 /* ── PWA INSTALL PROMPT ── */
