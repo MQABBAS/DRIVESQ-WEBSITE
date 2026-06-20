@@ -9,6 +9,7 @@
 <meta name="robots" content="noindex, nofollow"/>
 <link rel="apple-touch-icon" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png"/>
+<link rel="manifest" href="/dashboard-manifest.json"/>
 <title>DriveSQ — My Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -724,7 +725,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           </select>
         </div>
       </div>
-      <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="lPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
+      <div class="mb-2"><label class="dsq-lbl">Phone <span style="font-size:.55rem;color:var(--green);font-weight:400">(student login)</span></label><input class="dsq-inp" id="lPhone" placeholder="07xxx xxx xxx" type="tel"/></div>
       <div class="mb-2"><label class="dsq-lbl">Pickup Address <span class="req-mark">*</span></label><input class="dsq-inp" id="lAddr" placeholder="14 Oak Street, M20" required/></div>
       <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
         <select class="dsq-inp" id="lType">
@@ -794,7 +795,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <option value="2.5">2.5 hrs</option><option value="3">3 hrs</option><option value="4">4 hrs</option>
       </select>
     </div>
-    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="elPhone" type="tel"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone <span style="font-size:.55rem;color:var(--green);font-weight:400">(student login)</span></label><input class="dsq-inp" id="elPhone" type="tel" placeholder="07xxx xxx xxx"/></div>
     <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="elAddr"/></div>
     <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="elType">
@@ -823,7 +824,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="modal-sub" id="editStudentSubTitle">Changes update this student's profile and all their lessons</div>
     <input type="hidden" id="editStudentId"/>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="esSName" placeholder="Student full name" required/></div>
-    <div class="mb-2"><label class="dsq-lbl">Phone</label>
+    <div class="mb-2"><label class="dsq-lbl">Phone <span style="font-size:.55rem;color:var(--green);font-weight:400">(student login)</span></label>
       <div class="d-flex gap-2">
         <input class="dsq-inp flex-grow-1" id="esSPhone" placeholder="07xxx xxx xxx" type="tel" oninput="updateWABtn(this.value)"/>
         <button type="button" class="btn-wa-sm" id="waStudentBtn" onclick="openStudentWA()"><i class="bi bi-whatsapp"></i> WA</button>
@@ -865,7 +866,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="dsq-tab" id="smt-progress" onclick="smTab('progress')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-graph-up me-1"></i>Progress</button>
       <button class="dsq-tab" id="smt-topics" onclick="smTab('topics')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-list-check me-1"></i>Topics</button>
       <button class="dsq-tab" id="smt-messages" onclick="smTab('messages')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-chat-dots-fill me-1"></i>Chat<span id="smUnreadBadge" class="tab-badge ms-1 hidden">0</span></button>
-      <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-key-fill me-1"></i>Access</button>
+      <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-phone me-1"></i>App Login</button>
     </div>
     <input type="hidden" id="smStudentName"/>
     <input type="hidden" id="smStudentAccId"/>
@@ -878,7 +879,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div class="row g-2 mb-2">
         <div class="col-12"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="smEditName" placeholder="Student full name"/></div>
-        <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone <span style="font-size:.55rem;color:var(--green);font-weight:400">(student login)</span></label>
           <div class="d-flex gap-2">
             <input class="dsq-inp flex-grow-1" id="smEditPhone" placeholder="07xxx xxx xxx" type="tel"/>
             <button class="btn-wa-sm" onclick="smWhatsApp()" title="WhatsApp"><i class="bi bi-whatsapp"></i></button>
@@ -967,78 +968,28 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
     </div>
 
-    <!-- ACCESS TAB -->
+    <!-- APP LOGIN TAB -->
     <div id="smPanel-access" class="hidden">
-      <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px">
-        <div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Student App Access</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div>
-            <div style="font-size:.6rem;color:var(--txt4);margin-bottom:3px">Student Code</div>
-            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;letter-spacing:6px;color:var(--txt)" id="smCodeDisplay">—</div>
-          </div>
-          <div>
-            <div style="font-size:.6rem;color:var(--txt4);margin-bottom:3px">PIN</div>
-            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;letter-spacing:4px;color:var(--gold)" id="smPinDisplay">—</div>
-          </div>
+      <div style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Student App Login</div>
+        <div style="font-size:.82rem;color:var(--txt2);line-height:1.8;margin-bottom:8px">
+          <i class="bi bi-info-circle me-1" style="color:var(--green)"></i>
+          Your student logs into the app using their <strong style="color:var(--green)">phone number</strong> below. Make sure it's correct — this is how they access their portal.
         </div>
-        <div style="font-size:.62rem;color:var(--txt4);margin-bottom:8px">App Status</div>
-        <div id="smAccessStatus" style="font-size:.84rem;margin-bottom:8px">—</div>
-        <div style="font-size:.62rem;color:var(--txt4)">Last active: <span id="smLastLogin">Never</span></div>
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.8rem;font-weight:900;letter-spacing:2px;color:var(--txt);text-align:center;padding:10px 0" id="smPhoneLogin">—</div>
+        <div style="font-size:.62rem;color:var(--txt4);text-align:center;margin-top:4px">Student visits <strong>drivesq.co.uk/student</strong> and enters this number</div>
       </div>
-      <div class="mb-3">
-        <label class="dsq-lbl">Set / Change PIN (4 digits)</label>
-        <div class="d-flex gap-2">
-          <input class="dsq-inp flex-grow-1" id="smPinInput" type="text" placeholder="e.g. 1234" maxlength="4" pattern="[0-9]{4}" style="letter-spacing:4px;font-size:1.1rem;text-align:center"/>
-          <button class="btn-gold-sm" onclick="smSavePin()" style="min-height:42px;padding:0 14px"><i class="bi bi-check-lg me-1"></i>Save PIN</button>
-        </div>
-      </div>
-      <div class="d-flex gap-2 mb-2">
-        <button class="btn-s flex-fill" onclick="smRegenCode()"><i class="bi bi-arrow-repeat me-1"></i>New Code</button>
-        <button class="btn-wa flex-fill" onclick="smShareLink()"><i class="bi bi-whatsapp me-1"></i>Share Link via WA</button>
+      <div style="font-size:.62rem;color:var(--txt4);margin-bottom:8px">App Status</div>
+      <div id="smAccessStatus" style="font-size:.84rem;margin-bottom:8px">—</div>
+      <div style="font-size:.62rem;color:var(--txt4)">Last active: <span id="smLastLogin">Never</span></div>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn-wa flex-fill" onclick="smShareLink()"><i class="bi bi-whatsapp me-1"></i>Send Portal Link via WA</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══ STUDENT CODE & PIN MODAL ═══ -->
-<div class="dsq-overlay" id="studentCodeModal">
-  <div class="dsq-modal">
-    <button class="modal-x" onclick="closeModal('studentCodeModal')"><i class="bi bi-x-lg"></i></button>
-    <h5><i class="bi bi-key-fill me-2" style="color:var(--gold)"></i>Student App Access</h5>
-    <div class="modal-sub" id="codeModalSub">Share this code and PIN with your student</div>
-    <input type="hidden" id="codeStudentId"/>
-
-    <!-- Current code/PIN display -->
-    <div class="code-card mb-3">
-      <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;text-align:center">Student Code</div>
-      <div class="code-display" id="codeDisplay">—</div>
-      <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-top:6px;margin-bottom:4px;text-align:center">PIN</div>
-      <div class="pin-display" id="pinDisplay">—</div>
-    </div>
-
-    <!-- App status -->
-    <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:10px 13px;margin-bottom:14px">
-      <div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Student App Status</div>
-      <div id="codeAppStatus" style="font-size:.84rem;color:var(--txt2)">—</div>
-    </div>
-
-    <!-- Set PIN -->
-    <div class="mb-3">
-      <label class="dsq-lbl">Set / Change PIN <span class="req-mark">*</span></label>
-      <input class="dsq-inp" id="newPinInput" type="text" placeholder="Enter 4-digit PIN" maxlength="4" pattern="[0-9]{4}" style="letter-spacing:4px;font-size:1.1rem;text-align:center"/>
-      <div style="font-size:.65rem;color:var(--txt4);margin-top:4px">Share this PIN with your student so they can access their progress</div>
-    </div>
-
-    <div class="d-flex gap-2 mb-2">
-      <button class="btn-gold-sm flex-fill" onclick="regenerateCode()"><i class="bi bi-arrow-repeat me-1"></i>New Code</button>
-      <button class="btn-p flex-fill" style="min-height:38px;font-size:.86rem" onclick="saveCodeAndPin()"><i class="bi bi-check-lg me-1"></i>Save PIN</button>
-    </div>
-
-    <!-- Share via WhatsApp -->
-    <button class="btn-wa w-100 mb-2" onclick="shareStudentLink()"><i class="bi bi-whatsapp me-1"></i>Share Link + Code via WhatsApp</button>
-    <button class="btn-s" onclick="closeModal('studentCodeModal')">Close</button>
-  </div>
-</div>
+<!-- Student Code Modal removed — students now log in with phone number -->
 
 <!-- ═══ STUDENT PROGRESS MODAL ═══ -->
 <div class="dsq-overlay" id="progressModal">
@@ -1222,7 +1173,8 @@ function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);co
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
-function cleanPhone(p){return(p||'').replace(/\D/g,'');}
+function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
+function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
 function waLink(phone,msg){const p=cleanPhone(phone);if(!p)return null;return'https://wa.me/44'+p.replace(/^0/,'')+(msg?'?text='+encodeURIComponent(msg):'');}
 function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
 
@@ -1407,12 +1359,16 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
+  var _rReq=null;try{var{data:_rr}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq=_rr;}catch(e){}
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
+  if(_rReq&&_rReq.student_account_id){notifyStudent(_rReq.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will update the lesson time.');}
   document.getElementById('resch-banner-'+id)?.remove();
   showToast('Reschedule accepted — update the lesson date manually.','success');
 }
 async function declineReschedule(id){
+  var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
   await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
+  if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
   document.getElementById('resch-banner-'+id)?.remove();
   showToast('Reschedule declined.');
 }
@@ -1542,6 +1498,7 @@ async function onDrop(e,toDate){
   // Save new date to DB immediately
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Check your app for the updated time.');}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -1756,7 +1713,7 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  const payload={instructor_id:instr.id,name:name.trim(),phone:(phone||'').trim(),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
+  const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
   if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
   const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
   if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
@@ -1769,77 +1726,15 @@ async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
 /* ══════════════════════════════
    STUDENT CODE & PIN
 ══════════════════════════════ */
-async function openStudentCodeModal(studentName){
-  const p=rosterMap[studentName.toLowerCase().trim()];
-  if(!p){showToast('Student not found in roster.');return;}
-  document.getElementById('codeStudentId').value=p.id||'';
-  document.getElementById('codeModalSub').textContent='Student: '+studentName;
-
-  // Find linked student account by instructor_id + matching name
-  const{data:account}=await sb.from('student_accounts').select('*').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();
-
-  let code=account?.student_code||'';
-  let pin=account?.pin||'';
-
-  // If no account exists yet, create a placeholder record with a code
-  if(!account){
-    code=gen5Code();
-    // Insert a placeholder student account (student will complete registration)
-    const{data:newAcc,error}=await sb.from('student_accounts').insert([{
-      instructor_id:instr.id,full_name:studentName,
-      phone:p.phone||'',student_code:code,pin:'',
-      status:'pending',password_hash:'',
-      created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-    }]).select().single();
-    if(error){console.error(error);showToast('Error creating student record.');return;}
-    pin=newAcc.pin||'';
-  }
-
-  document.getElementById('codeDisplay').textContent=code||'—';
-  document.getElementById('pinDisplay').textContent=pin||'Not set';
-  document.getElementById('newPinInput').value=pin||'';
-
-  // App status
-  const hasAccount=!!account?.last_login;
-  const lastEvent=account?.student_code?linkEventMap[account.student_code]:'';
-  let statusHtml='';
-  if(hasAccount){statusHtml='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>App Connected</span>';}
-  else if(lastEvent==='pin_entered'){statusHtml='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered (not registered)</span>';}
-  else if(lastEvent==='link_opened'){statusHtml='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';}
-  else{statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not Connected</span>';}
-  document.getElementById('codeAppStatus').innerHTML=statusHtml;
-
-  openModal('studentCodeModal');
-}
-
-async function regenerateCode(){
-  if(!confirm('Generate a new code? The old code will stop working.'))return;
-  const name=document.getElementById('codeModalSub').textContent.replace('Student: ','').trim();
-  const newCode=gen5Code();
-  await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',name);
-  document.getElementById('codeDisplay').textContent=newCode;
-  showToast('New code generated: '+newCode,'success');
-}
-
-async function saveCodeAndPin(){
-  const pin=document.getElementById('newPinInput').value.trim();
-  if(!pin||pin.length!==4||!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits.');return;}
-  const name=document.getElementById('codeModalSub').textContent.replace('Student: ','').trim();
-  const{error}=await sb.from('student_accounts').update({pin,updated_at:new Date().toISOString()}).eq('instructor_id',instr.id).ilike('full_name',name);
-  if(error){showToast('Error saving PIN.');return;}
-  document.getElementById('pinDisplay').textContent=pin;
-  showToast('PIN saved ✓','success');
-}
-
+/* Student Code Modal functions removed — login is now phone-based */
 function shareStudentLink(){
-  const code=document.getElementById('codeDisplay').textContent;
-  const pin=document.getElementById('pinDisplay').textContent;
-  const name=document.getElementById('codeModalSub').textContent.replace('Student: ','').trim();
+  const phone=rosterMap[smCurrentName?.toLowerCase().trim()]?.phone||'';
   const _base=window.location.hostname==='localhost'||window.location.protocol==='file:'?'https://www.drivesq.co.uk':window.location.origin;
-  const studentUrl=_base+'/student.html?code='+code;
-  const msg=`Hi ${name}! 👋\n\nYour DriveSQ Student App is ready!\n\n📱 Open this link:\n${studentUrl}\n\n🔑 Your Code: ${code}\n🔒 Your PIN: ${pin}\n\nYou can track your progress, confirm lessons and message me directly through the app. See you on the road! 🚗\n\n— DriveSQ`;
-  const waUrl='https://wa.me/?text='+encodeURIComponent(msg);
-  window.open(waUrl,'_blank');
+  const studentUrl=_base+'/student.html';
+  const msg=`Hi ${smCurrentName||''}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 Open this link:\n${studentUrl}\n\n📞 Log in with your phone number: ${phone}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
+  const waPhone=phone?'44'+normalizePhone(phone).replace(/^\+44|^0/,''):'';
+  const url=waPhone?`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`:`https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url,'_blank');
 }
 
 /* ══════════════════════════════
@@ -1989,6 +1884,8 @@ async function saveStudentProgress(){
     await loadRoster(); // refresh student account map
     closeModal('progressModal');
     showToast('Progress saved ✓','success');
+    var _readinessMsg=readiness==='ready'?'You are test ready! 🎉':readiness==='nearly_there'?'Nearly there — keep going!':'Keep practising, you\'re making progress!';
+    notifyStudent(accId,'Progress updated',_readinessMsg+' Hours: '+hours+'/'+target+'h.');
   }catch(err){
     console.error('saveStudentProgress failed:',err);
     showToast('Error saving progress: '+err.message);
@@ -2023,7 +1920,7 @@ async function saveLesson(e){
     // Look up student_account_id so student can find this lesson in their app
     let _sAccId=null;
     try{const{data:_sa}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();_sAccId=_sa?.id||null;}catch(e){}
-    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:document.getElementById('lPhone').value.trim(),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
+    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
     const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
     if(lErr){
       if(lErr.message&&(lErr.message.includes('payment_received')||lErr.message.includes('student_account_id')||lErr.message.includes('column'))){
@@ -2057,14 +1954,17 @@ async function saveLesson(e){
     await loadStudents();
     renderStudents(allStudentsArr); // ensure list refreshes if on students tab
     showToast('Lesson saved ✓','success');
+    if(_sAccId){notifyStudent(_sAccId,'New lesson booked','You have a lesson on '+activeDate+' at '+document.getElementById('lTime').value);}
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
 }
 
 async function quickDel(id){
   if(!confirm('Remove this lesson?'))return;
+  var _delLesson=null;try{var{data:_dl}=await sb.from('lessons').select('student_name,lesson_date,start_time,student_account_id').eq('id',id).single();_delLesson=_dl;}catch(e){}
   const{error}=await sb.from('lessons').delete().eq('id',id);
   if(error){showToast('Error removing: '+error.message);return;}
+  if(_delLesson&&_delLesson.student_account_id){notifyStudent(_delLesson.student_account_id,'Lesson cancelled','Your lesson on '+(_delLesson.lesson_date||'')+' at '+(_delLesson.start_time||'')+' has been cancelled by your instructor.');}
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
   else if(calView==='month')await loadMonthView();
@@ -2149,6 +2049,7 @@ async function openDetail(id){
 
 async function moveLesson(id,toDate,dayName){
   await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Check your app for details.');}
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
@@ -2194,7 +2095,7 @@ async function saveEditedLesson(){
   if(!newDate){showToast('Date is required.');return;}
   if(!newTime){showToast('Time is required.');return;}
   const dur=parseFloat(document.getElementById('elDur').value)||2;
-  const phone=document.getElementById('elPhone').value.trim();
+  const phone=normalizePhone(document.getElementById('elPhone').value.trim());
   const addr=document.getElementById('elAddr').value.trim();
   const ltype=document.getElementById('elType').value;
   const notes=document.getElementById('elNotes').value.trim();
@@ -2255,10 +2156,12 @@ async function saveEditedLesson(){
   await loadStudents();
   renderStudents(allStudentsArr);
   showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
+  if(_updAccId){notifyStudent(_updAccId,'Lesson updated','Your lesson has been updated to '+newDate+' at '+newTime+'. Check your app for details.');}
 }
 
 async function deleteFromDetail(){
   if(!detailId||!confirm('Remove this lesson?'))return;
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson cancelled','Your lesson on '+(detailData.lesson_date||'')+' at '+(detailData.start_time||'')+' has been cancelled by your instructor.');}
   const{error}=await sb.from('lessons').delete().eq('id',detailId);
   if(error){showToast('Error removing: '+error.message);return;}
   closeModal('detailModal');
@@ -2427,7 +2330,7 @@ function renderStudents(students){
             ${readinessHtml}
           </div>
           <div class="d-flex gap-2 mt-1 flex-wrap">
-            ${phone?`<span class="sc-meta"><i class="bi bi-telephone me-1"></i>${esc(phone)}</span>`:''}
+            ${phone?`<span class="sc-meta"><i class="bi bi-telephone me-1"></i>${esc(phone)} <span style="font-size:.55rem;color:var(--green);font-weight:600">(login)</span></span>`:''}
             ${s.address?`<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</span>`:''}
             ${acc?.email?`<span class="sc-meta"><i class="bi bi-envelope me-1"></i>${esc(acc.email)}</span>`:''}
           </div>
@@ -2444,7 +2347,7 @@ function renderStudents(students){
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
         <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
-        <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-key-fill me-1"></i>Access</button>
+        <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
         ${phone?`<a href="${waLink(phone,'Hi '+s.name+', this is your DriveSQ instructor. ')}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
       </div>
     </div>`;
@@ -2526,7 +2429,7 @@ function openStudentWA(){const phone=document.getElementById('esSPhone').value.t
 async function saveStudentProfile(){
   const name=document.getElementById('esSName').value.trim();if(!name){showToast('Student name is required.');return;}
   const id=document.getElementById('editStudentId').value;
-  const phone=document.getElementById('esSPhone').value.trim();
+  const phone=normalizePhone(document.getElementById('esSPhone').value.trim());
   const address=document.getElementById('esSAddr').value.trim();
   const lesson_type=document.getElementById('eSType').value;
   const notes=document.getElementById('eSNotes').value.trim();
@@ -2655,8 +2558,9 @@ async function confirmApprove(){
   await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
   renderStudents(allStudentsArr);
   showToast('✅ Student approved & added to calendar!','success');
+  if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
 }
-async function declineRequest(id){if(!confirm('Decline this request?'))return;await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);await loadRequests();showToast('Request declined.');}
+async function declineRequest(id){if(!confirm('Decline this request?'))return;var _decReq=null;try{var{data:_dr}=await sb.from('student_requests').select('student_name').eq('id',id).single();_decReq=_dr;}catch(e){}await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);if(_decReq){try{var{data:_da}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',_decReq.student_name).maybeSingle();if(_da)notifyStudent(_da.id,'Request declined','Your lesson request has been declined. Please contact your instructor for more details.');}catch(e){}}await loadRequests();showToast('Request declined.');}
 
 /* ── TRANSFERS ── */
 async function loadTransfers(){
@@ -2917,9 +2821,7 @@ async function openStudentMgmt(studentName, tab='profile'){
   }
 
   // Populate access tab
-  document.getElementById('smCodeDisplay').textContent=acc?.student_code||'—';
-  document.getElementById('smPinDisplay').textContent=acc?.pin||'Not set';
-  document.getElementById('smPinInput').value=acc?.pin||'';
+  document.getElementById('smPhoneLogin').textContent=p.phone||'No phone number set';
   document.getElementById('smLastLogin').textContent=acc?.last_login?new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Never';
   let accStatus='';
   if(hasLogin)accStatus='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Fully Registered</span>';
@@ -3112,6 +3014,8 @@ async function saveSmProgress(){
     if(s){s.progHours=hours;s.test_readiness=readiness;}
     smUpdateProgBar();
     showToast('Progress saved ✓ Student notified.','success');
+    var _smReadMsg=readiness==='ready'?'You are test ready! 🎉':readiness==='nearly_there'?'Nearly there — keep going!':'Keep practising, you\'re making progress!';
+    notifyStudent(aid,'Progress updated',_smReadMsg+' Hours: '+hours+'/'+target+'h.');
   }catch(err){console.error('saveSmProgress error:',err);showToast('Error: '+err.message);}
   finally{if(btn){btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Progress & Notify Student';btn.disabled=false;}}
 }
@@ -3285,51 +3189,34 @@ async function smSendMessage(){
   }
   inp.value='';
   smLoadMessages();
+  notifyStudent(smCurrentAccId,'New message from your instructor',msg);
+}
+
+/* ── PUSH NOTIFICATIONS ── */
+async function notifyStudent(studentAccId,title,body){
+  if(!studentAccId)return;
+  try{
+    await sb.from('pending_notifications').insert([{
+      student_account_id:studentAccId,
+      title:title,
+      body:body,
+      is_read:false,
+      created_at:new Date().toISOString()
+    }]);
+  }catch(e){console.log('Notification skipped:',e.message);}
 }
 
 /* ── Access tab ── */
-async function smSavePin(){
-  const pin=document.getElementById('smPinInput').value.trim();
-  if(!pin||pin.length!==4||!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits.');return;}
-  if(!smCurrentAccId){
-    const{data}=await sb.rpc('get_or_create_student_account',{p_instructor_id:instr.id,p_full_name:smCurrentName,p_phone:''});
-    smCurrentAccId=data||'';
-  }
-  if(!smCurrentAccId){showToast('Error creating account.');return;}
-  const{error}=await sb.from('student_accounts').update({pin,updated_at:new Date().toISOString()}).eq('id',smCurrentAccId);
-  if(error){showToast('Error: '+error.message);return;}
-  document.getElementById('smPinDisplay').textContent=pin;
-  // Notify student
-  await sb.from('student_messages').insert([{
-    student_account_id:smCurrentAccId,instructor_id:instr.id,
-    sender:'instructor',message:'🔑 Your PIN has been updated to: '+pin+'. Use it to log into the student app.',
-    is_read:false,sent_at:new Date().toISOString()
-  }]).then(()=>{},()=>{});
-  await loadRoster();
-  showToast('PIN saved ✓','success');
-}
-
-async function smRegenCode(){
-  if(!confirm('Generate a new code? The old link will stop working.'))return;
-  const newCode=gen5Code();
-  if(!smCurrentAccId){showToast('Create a student account first by saving the PIN.');return;}
-  const{error}=await sb.from('student_accounts').update({student_code:newCode,updated_at:new Date().toISOString()}).eq('id',smCurrentAccId);
-  if(error){showToast('Error: '+error.message);return;}
-  document.getElementById('smCodeDisplay').textContent=newCode;
-  await loadRoster();
-  showToast('New code: '+newCode,'success');
-}
+/* smSavePin and smRegenCode removed — login is now phone-based */
 
 function smShareLink(){
-  const code=document.getElementById('smCodeDisplay').textContent;
-  const pin=document.getElementById('smPinDisplay').textContent;
-  if(code==='—'){showToast('Generate a code first.');return;}
   const phone=rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
+  if(!phone){showToast('Add a phone number to this student first.');return;}
   const _base=window.location.hostname==='localhost'||window.location.protocol==='file:'?'https://www.drivesq.co.uk':window.location.origin;
-  const studentUrl=_base+'/student.html?code='+code;
-  const msg=`Hi ${smCurrentName}! 👋\n\nYour DriveSQ Student App is ready!\n\n📱 Open this link:\n${studentUrl}\n\n🔑 Your Code: ${code}\n🔒 Your PIN: ${pin}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
-  const waPhone=phone?'44'+phone.replace(/^\+44|^0/,''):'';
-  const url=waPhone?`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`:`https://wa.me/?text=${encodeURIComponent(msg)}`;
+  const studentUrl=_base+'/student.html';
+  const msg=`Hi ${smCurrentName}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 Open this link:\n${studentUrl}\n\n📞 Log in with your phone number: ${phone}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
+  const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
+  const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
 }
 
@@ -3447,6 +3334,38 @@ async function pollStudentUpdates(){
 setInterval(pollStudentUpdates,20000);
 
 // loadStudents is initialized
+
+/* ── PWA SERVICE WORKER & INSTALL ── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/dashboard-sw.js').then(function(reg){
+    console.log('Dashboard SW registered, scope:',reg.scope);
+  }).catch(function(e){console.warn('Dashboard SW registration failed:',e);});
+}
+
+var deferredInstall=null;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  deferredInstall=e;
+  setTimeout(showDashInstallBanner,8000);
+});
+
+function showDashInstallBanner(){
+  if(!deferredInstall||document.getElementById('dashInstallBanner'))return;
+  var b=document.createElement('div');
+  b.id='dashInstallBanner';
+  b.style.cssText='position:fixed;top:70px;right:12px;width:280px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:14px;z-index:1050;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ Pro</div><div style="font-size:.68rem;color:var(--txt3)">Add dashboard to your home screen</div></div></div>'
+    +'<div style="display:flex;gap:8px"><button id="dashInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer"><i class="bi bi-download me-1"></i>Install</button>'
+    +'<button id="dashInstallNo" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;border-radius:9px;cursor:pointer">Later</button></div>';
+  document.body.appendChild(b);
+  document.getElementById('dashInstallYes').addEventListener('click',function(){
+    b.remove();
+    if(!deferredInstall)return;
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(function(r){if(r.outcome==='accepted')showToast('App installed!','success');deferredInstall=null;});
+  });
+  document.getElementById('dashInstallNo').addEventListener('click',function(){b.remove();});
+}
 </script>
 </body>
 </html>
