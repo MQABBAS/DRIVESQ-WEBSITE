@@ -1060,6 +1060,7 @@ async function loadAll(){
   await loadInstrs();
   loadGlobalStats();
   populateDropdowns();
+  loadDashboard();
 }
 
 async function loadInstrs(){
@@ -2150,6 +2151,194 @@ function renderLoginLog(data){
     </div>
     <div style="font-size:.7rem;color:var(--txt3);text-align:right">${fmtDT(i.last_login)}</div>
   </div>`).join('');
+}
+
+/* == DASHBOARD == */
+async function loadDashboard(){
+  // Active instructors summary
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  const dashI=document.getElementById('dashInstructors');
+  dashI.innerHTML=approved.slice(0,6).map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+    ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr)"/>`:`<div style="width:28px;height:28px;border-radius:50%;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--red)">${(i.full_name||'?').charAt(0)}</div>`}
+    <div style="flex:1;min-width:0"><div style="font-size:.8rem;font-weight:600;color:var(--txt)">${esc(i.full_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${esc(i.area||'—')} · ${i._weekHrs.toFixed(1)}h this week</div></div>
+    <div style="font-size:.75rem;color:var(--green);font-weight:700;font-family:'Oswald',sans-serif">£${(i._weekEarn||0).toFixed(0)}</div>
+  </div>`).join('')+(approved.length>6?`<div style="font-size:.72rem;color:var(--txt4);padding:8px 0;text-align:center">+${approved.length-6} more instructors</div>`:'');
+
+  // Today's lessons
+  const tk=todayKey();
+  const{data:todayL}=await sb.from('lessons').select('*,instructors(full_name)').eq('lesson_date',tk).order('start_time',{ascending:true});
+  const dashT=document.getElementById('dashTodayLessons');
+  if(!todayL||!todayL.length){dashT.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">No lessons scheduled today.</div>';}
+  else{dashT.innerHTML=todayL.slice(0,8).map(l=>{const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+    <div style="width:3px;height:28px;background:${typeColors[l.lesson_type]||'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:.78rem;font-weight:600;color:var(--txt)">${esc(l.student_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${l.start_time}-${end} · ${esc(l.instructors?.full_name||'—')}</div></div>
+    <span class="chip ${(l.lesson_type||'Manual').replace(/\s/g,'-')}" style="font-size:.55rem">${esc(l.lesson_type||'Manual')}</span>
+  </div>`;}).join('')+(todayL.length>8?`<div style="font-size:.72rem;color:var(--txt4);padding:6px 0;text-align:center">+${todayL.length-8} more</div>`:'');}
+
+  // Revenue this week
+  const mon=getMonday(0);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  const{data:wkL}=await sb.from('lessons').select('payment_received,duration_hours').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
+  const wkRev=(wkL||[]).reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
+  const wkHrs=(wkL||[]).reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  document.getElementById('dashRevenue').innerHTML=`<div class="row g-2">
+    <div class="col-6"><div class="det-item"><div class="det-lbl">Total Revenue</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--green)">£${wkRev.toFixed(0)}</div></div></div>
+    <div class="col-6"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--gold)">${wkHrs.toFixed(1)}h</div></div></div>
+    <div class="col-6"><div class="det-item"><div class="det-lbl">Lessons This Week</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--blue)">${(wkL||[]).length}</div></div></div>
+    <div class="col-6"><div class="det-item"><div class="det-lbl">Avg per Lesson</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--txt2)">£${(wkL||[]).length?((wkRev/(wkL||[]).length).toFixed(0)):'0'}</div></div></div>
+  </div>`;
+
+  // Recent activity
+  const{data:recentL}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,instructors(full_name)').order('created_at',{ascending:false}).limit(8);
+  const dashA=document.getElementById('dashActivity');
+  if(!recentL||!recentL.length){dashA.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">No recent activity.</div>';}
+  else{dashA.innerHTML=recentL.map(l=>`<div class="act-item"><div class="act-dot" style="background:${typeColors[l.lesson_type]||'#60a5fa'}"></div><div><div class="act-txt"><strong>${esc(l.student_name)}</strong> — ${esc(l.lesson_type||'Manual')} with ${esc(l.instructors?.full_name||'—')}</div><div class="act-time">${fmtD(l.lesson_date)}</div></div></div>`).join('');}
+}
+
+/* == ALL LESSONS == */
+let allLessonsCache=[];
+async function loadAllLessons(){
+  const{data}=await sb.from('lessons').select('*,instructors(full_name)').order('lesson_date',{ascending:false}).order('start_time',{ascending:false}).limit(500);
+  allLessonsCache=data||[];
+  // Populate instructor filter
+  const lif=document.getElementById('lessonInstrFilter');
+  if(lif)lif.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  renderLessonsTable(allLessonsCache);
+}
+function filterLessons(){
+  const q=(document.getElementById('lessonSearch').value||'').toLowerCase();
+  const instrId=document.getElementById('lessonInstrFilter').value;
+  const type=document.getElementById('lessonTypeFilter').value;
+  const from=document.getElementById('lessonDateFrom').value;
+  const to=document.getElementById('lessonDateTo').value;
+  let list=allLessonsCache;
+  if(instrId)list=list.filter(l=>l.instructor_id===instrId);
+  if(type)list=list.filter(l=>l.lesson_type===type);
+  if(from)list=list.filter(l=>l.lesson_date>=from);
+  if(to)list=list.filter(l=>l.lesson_date<=to);
+  if(q)list=list.filter(l=>(l.student_name||'').toLowerCase().includes(q)||(l.student_phone||'').includes(q)||(l.pickup_address||'').toLowerCase().includes(q));
+  renderLessonsTable(list);
+}
+function renderLessonsTable(lessons){
+  const tb=document.getElementById('lessonsTbody');
+  document.getElementById('lessonCount').textContent=`Showing ${lessons.length} lesson${lessons.length!==1?'s':''}`;
+  if(!lessons.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
+  tb.innerHTML=lessons.map(l=>{
+    const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
+    const waNum=buildWaNum(l.student_phone||'');
+    return`<tr>
+      <td style="font-size:.78rem;color:var(--txt)">${fmtD(l.lesson_date)}</td>
+      <td style="font-size:.78rem;color:var(--gold);font-weight:600">${l.start_time||'—'}${l.start_time?'–'+end:''}</td>
+      <td style="color:var(--txt);font-weight:600;font-size:.8rem">${esc(l.student_name)}</td>
+      <td style="font-size:.78rem;color:var(--txt2)">${esc(l.instructors?.full_name||'—')}</td>
+      <td><span class="chip ${(l.lesson_type||'Manual').replace(/\s/g,'-')}" style="font-size:.56rem">${esc(l.lesson_type||'Manual')}</span></td>
+      <td style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${l.duration_hours||1}h</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.pickup_address||'—')}</td>
+      <td class="hide-xs" style="font-size:.78rem;color:var(--green);font-weight:600">${l.payment_received?'£'+l.payment_received:'—'}</td>
+      <td style="white-space:nowrap">
+        <button class="abtn view" onclick="openLessonDetail(allLessonsCache.find(x=>x.id==='${l.id}'))"><i class="bi bi-eye"></i></button>
+        ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* == REVENUE == */
+async function loadRevenue(){
+  const period=document.getElementById('revPeriod').value;
+  let dateFilter;
+  const mon=getMonday(0);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  if(period==='week')dateFilter={gte:dateKey(mon),lte:dateKey(sun)};
+  else if(period==='month'){const now=new Date();const firstDay=new Date(now.getFullYear(),now.getMonth(),1);const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0);dateFilter={gte:dateKey(firstDay),lte:dateKey(lastDay)};}
+  let query=sb.from('lessons').select('*,instructors(full_name)');
+  if(dateFilter)query=query.gte('lesson_date',dateFilter.gte).lte('lesson_date',dateFilter.lte);
+  const{data}=await query.order('lesson_date',{ascending:false});
+  const lessons=data||[];
+  const totalRev=lessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
+  const totalHrs=lessons.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
+  document.getElementById('revStats').innerHTML=`
+    <div class="col-6 col-sm-3"><div class="stat-card gr"><div class="stat-lbl">Total Revenue</div><div class="stat-num gr">£${totalRev.toFixed(0)}</div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">Total Lessons</div><div class="stat-num b">${lessons.length}</div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card g"><div class="stat-lbl">Total Hours</div><div class="stat-num g">${totalHrs.toFixed(1)}h</div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card r"><div class="stat-lbl">Avg per Lesson</div><div class="stat-num r">£${lessons.length?(totalRev/lessons.length).toFixed(0):'0'}</div></div></div>`;
+  // Revenue by instructor chart
+  _destroyChart('revByInstr');
+  const byInstr={};lessons.forEach(l=>{const n=l.instructors?.full_name||'Unknown';byInstr[n]=(byInstr[n]||0)+(parseFloat(l.payment_received)||0);});
+  const sorted=Object.entries(byInstr).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const c=_getChartColors();
+  _charts.revByInstr=new Chart(document.getElementById('revByInstrCanvas'),{
+    type:'bar',data:{labels:sorted.map(([n])=>n),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:'rgba(37,211,102,.6)',borderColor:'#25D366',borderWidth:1,borderRadius:4}]},
+    options:{..._cjsDefaults,indexAxis:'y',scales:{x:{grid:{color:c.grid},ticks:{color:c.text,callback:v=>'£'+v}},y:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'£'+ctx.raw.toFixed(0)}}}}
+  });
+  // Daily revenue chart
+  _destroyChart('revDaily');
+  const byDay={};lessons.forEach(l=>{byDay[l.lesson_date]=(byDay[l.lesson_date]||0)+(parseFloat(l.payment_received)||0);});
+  const daysSorted=Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).slice(-14);
+  _charts.revDaily=new Chart(document.getElementById('revDailyCanvas'),{
+    type:'line',data:{labels:daysSorted.map(([d])=>{const dt=new Date(d+'T12:00:00');return dt.getDate()+' '+MS[dt.getMonth()];}),datasets:[{data:daysSorted.map(([,v])=>v),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#3b82f6'}]},
+    options:{..._cjsDefaults,scales:{y:{beginAtZero:true,grid:{color:c.grid},ticks:{color:c.text,callback:v=>'£'+v}},x:{grid:{display:false},ticks:{color:c.text,font:{size:10}}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'£'+ctx.raw.toFixed(0)}}}}
+  });
+  // Revenue table
+  const tbl=document.getElementById('revTable');
+  const byInstr2={};lessons.forEach(l=>{
+    const id=l.instructor_id;if(!byInstr2[id])byInstr2[id]={name:l.instructors?.full_name||'Unknown',count:0,hours:0,rev:0};
+    byInstr2[id].count++;byInstr2[id].hours+=(parseFloat(l.duration_hours)||1);byInstr2[id].rev+=(parseFloat(l.payment_received)||0);
+  });
+  const tblSorted=Object.values(byInstr2).sort((a,b)=>b.rev-a.rev);
+  if(!tblSorted.length){tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--txt4);padding:16px">No revenue data.</td></tr>';return;}
+  tbl.innerHTML=tblSorted.map(s=>`<tr>
+    <td style="font-size:.78rem;color:var(--txt)">${esc(s.name)}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--blue)">${s.count}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--gold)">${s.hours.toFixed(1)}h</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--green)">£${s.rev.toFixed(0)}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--txt3)">£${s.count?(s.rev/s.count).toFixed(0):'0'}</td>
+    <td style="font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--txt3)">£${s.hours?(s.rev/s.hours).toFixed(0):'0'}/h</td>
+  </tr>`).join('');
+}
+
+/* == FEEDBACK == */
+async function loadFeedback(){
+  const instrId=(document.getElementById('fbInstrFilter')||{}).value||'';
+  const ratingFilter=(document.getElementById('fbRatingFilter')||{}).value||'';
+  // Populate instructor filter if not done
+  const fbIF=document.getElementById('fbInstrFilter');
+  if(fbIF&&fbIF.options.length<=1)fbIF.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  // Try multiple possible feedback table names
+  let feedbackData=[];
+  for(const tbl of ['student_feedback','feedback','reviews','student_reviews']){
+    const{data,error}=await sb.from(tbl).select('*').order('created_at',{ascending:false}).limit(200);
+    if(!error&&data){feedbackData=data;break;}
+  }
+  const fbList=document.getElementById('fbList');
+  if(!feedbackData.length){
+    fbList.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4)"><i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt4)"></i><div style="font-size:.88rem">No feedback found</div><div style="font-size:.74rem;margin-top:4px">Student feedback will appear here once submitted. The system checks for tables: student_feedback, feedback, reviews, student_reviews.</div></div>';
+    document.getElementById('fbStats').innerHTML='';
+    return;
+  }
+  let list=feedbackData;
+  if(instrId)list=list.filter(f=>f.instructor_id===instrId);
+  if(ratingFilter)list=list.filter(f=>String(f.rating)===ratingFilter);
+  const avgRating=list.length?list.reduce((a,f)=>a+(f.rating||0),0)/list.length:0;
+  const fiveStars=list.filter(f=>f.rating===5).length;
+  document.getElementById('fbStats').innerHTML=`
+    <div class="col-6 col-sm-3"><div class="stat-card g"><div class="stat-lbl">Total Reviews</div><div class="stat-num g">${list.length}</div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card r"><div class="stat-lbl">Avg Rating</div><div class="stat-num r">${avgRating.toFixed(1)} <span style="font-size:.7rem">/ 5</span></div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card gr"><div class="stat-lbl">5-Star Reviews</div><div class="stat-num gr">${fiveStars}</div></div></div>
+    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">This Month</div><div class="stat-num b">${list.filter(f=>{const d=new Date(f.created_at);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div></div></div>`;
+  fbList.innerHTML=list.map(f=>{
+    const stars='★'.repeat(f.rating||0)+'☆'.repeat(5-(f.rating||0));
+    const instrName=allInstrs.find(i=>i.id===f.instructor_id)?.full_name||'Unknown';
+    return`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;margin-bottom:8px">
+      <div class="d-flex align-items-start justify-content-between gap-2">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(f.student_name||f.name||'Anonymous')}</div>
+          <div style="font-size:.85rem;color:var(--gold);letter-spacing:2px;margin:2px 0">${stars}</div>
+          <div style="font-size:.78rem;color:var(--txt2);line-height:1.6;margin-top:4px">${esc(f.comment||f.review||f.message||'No comment')}</div>
+          <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Instructor: <strong style="color:var(--txt3)">${esc(instrName)}</strong> · ${fmtD(f.created_at)}</div>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:${(f.rating||0)>=4?'var(--green)':(f.rating||0)>=3?'var(--gold)':'var(--red)'};flex-shrink:0">${f.rating||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 /* ══ MODALS ══ */
