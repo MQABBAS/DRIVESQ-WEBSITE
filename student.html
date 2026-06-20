@@ -2329,16 +2329,19 @@ function showPushPrompt(){
   if(pushPromptShown||!currentStudent)return;
   pushPromptShown=true;
   var d=document.createElement('div');
-  d.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+  d.id='notifPrompt';
+  d.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.6)';
   d.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><i class="bi bi-bell-fill" style="color:var(--gold);font-size:1.2rem"></i><div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Enable Notifications?</div></div>'
     +'<div style="font-size:.78rem;color:var(--txt2);margin-bottom:12px;line-height:1.5">Get notified when your instructor sends you a message, adds a lesson, or updates your progress.</div>'
-    +'<div style="display:flex;gap:8px"><button onclick="acceptNotifs()" class="btn-p" style="flex:1;font-size:.78rem"><i class="bi bi-bell me-1"></i>Yes, notify me</button>'
-    +'<button onclick="this.parentElement.parentElement.remove()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:8px;border-radius:8px;cursor:pointer">Not now</button></div>';
+    +'<div style="display:flex;gap:8px"><button id="notifYesBtn" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:10px;cursor:pointer"><i class="bi bi-bell me-1"></i>Yes, notify me</button>'
+    +'<button id="notifNoBtn" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:10px;border-radius:9px;cursor:pointer">Not now</button></div>';
   document.body.appendChild(d);
+  document.getElementById('notifYesBtn').addEventListener('click',function(){acceptNotifs();});
+  document.getElementById('notifNoBtn').addEventListener('click',function(){d.remove();});
 }
 
 async function acceptNotifs(){
-  document.querySelector('[onclick="acceptNotifs()"]').closest('div[style*="position:fixed"]').remove();
+  var el=document.getElementById('notifPrompt');if(el)el.remove();
   if('Notification' in window){
     var perm=await Notification.requestPermission();
     if(perm==='granted')showToast('Notifications enabled!');
