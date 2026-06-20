@@ -333,9 +333,13 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
   <!-- TABS -->
   <div class="dsq-tabs mb-3">
-    <button class="dsq-tab active" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
+    <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
+    <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
+    <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
+    <button class="dsq-tab" id="tab-revenue" onclick="switchTab('revenue')"><i class="bi bi-currency-pound"></i><span class="d-none d-sm-inline ms-1">Revenue</span></button>
+    <button class="dsq-tab" id="tab-feedback" onclick="switchTab('feedback')"><i class="bi bi-star-fill"></i><span class="d-none d-sm-inline ms-1">Feedback</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
@@ -357,8 +361,39 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b"><div class="stat-lbl">Total Students</div><div class="stat-num b" id="sTotalStudents">0</div></div></div>
   </div>
 
+  <!-- == DASHBOARD == -->
+  <div id="panel-dashboard">
+    <div class="page-title mb-3"><i class="bi bi-speedometer2 me-2" style="color:var(--red)"></i>Dashboard Overview</div>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>Active Instructors</div>
+          <div id="dashInstructors"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-clock-history me-2" style="color:var(--gold)"></i>Recent Activity</div>
+          <div id="dashActivity"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-calendar-check me-2" style="color:var(--green)"></i>Today's Lessons</div>
+          <div id="dashTodayLessons"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-currency-pound me-2" style="color:var(--green)"></i>Revenue This Week</div>
+          <div id="dashRevenue"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ INSTRUCTORS ══ -->
-  <div id="panel-instructors">
+  <div id="panel-instructors" class="hidden">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="page-title mb-0"><i class="bi bi-people-fill me-2" style="color:var(--red)"></i>All Instructors</div>
       <div class="d-flex gap-2 flex-wrap">
@@ -421,6 +456,92 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </table>
       </div>
     </div>
+  </div>
+
+  <!-- == ALL LESSONS == -->
+  <div id="panel-lessons" class="hidden">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div class="page-title mb-0"><i class="bi bi-journal-text me-2" style="color:var(--blue)"></i>All Lessons</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.8rem" placeholder="Search lessons..." oninput="filterLessons()" id="lessonSearch"/>
+        <select class="dsq-inp" style="max-width:160px;padding:6px 10px;font-size:.8rem" onchange="filterLessons()" id="lessonInstrFilter">
+          <option value="">All instructors</option>
+        </select>
+        <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="filterLessons()" id="lessonTypeFilter">
+          <option value="">All types</option>
+          <option value="Manual">Manual</option><option value="Automatic">Automatic</option>
+          <option value="Mock Test">Mock Test</option><option value="Intensive">Intensive</option>
+          <option value="Pass Plus">Pass Plus</option><option value="Refresher">Refresher</option>
+        </select>
+        <input type="date" class="dsq-inp" style="max-width:150px;padding:6px 10px;font-size:.8rem" onchange="filterLessons()" id="lessonDateFrom"/>
+        <input type="date" class="dsq-inp" style="max-width:150px;padding:6px 10px;font-size:.8rem" onchange="filterLessons()" id="lessonDateTo"/>
+      </div>
+    </div>
+    <div id="lessonCount" class="mb-2" style="font-size:.75rem;color:var(--txt3)"></div>
+    <div class="dsq-card">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Time</th><th>Student</th><th>Instructor</th>
+            <th>Type</th><th>Duration</th><th class="hide-xs">Pickup</th><th class="hide-xs">Payment</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="lessonsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- == REVENUE == -->
+  <div id="panel-revenue" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-currency-pound me-2" style="color:var(--green)"></i>Revenue Overview</div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <select class="dsq-inp" style="max-width:160px;padding:6px 10px;font-size:.8rem" onchange="loadRevenue()" id="revPeriod">
+        <option value="week">This Week</option><option value="month">This Month</option><option value="all">All Time</option>
+      </select>
+    </div>
+    <div class="row g-2 mb-3" id="revStats"></div>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-bar-chart me-2" style="color:var(--green)"></i>Revenue by Instructor</div>
+          <div style="position:relative;height:300px"><canvas id="revByInstrCanvas"></canvas></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-graph-up me-2" style="color:var(--blue)"></i>Daily Revenue</div>
+          <div style="position:relative;height:300px"><canvas id="revDailyCanvas"></canvas></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-table me-2" style="color:var(--gold)"></i>Revenue Breakdown</div>
+          <div class="tbl-scroll">
+            <table style="min-width:auto">
+              <thead><tr><th>Instructor</th><th>Lessons</th><th>Hours</th><th>Revenue</th><th>Avg/Lesson</th><th>Avg/Hour</th></tr></thead>
+              <tbody id="revTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- == FEEDBACK == -->
+  <div id="panel-feedback" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-star-fill me-2" style="color:var(--gold)"></i>Student Feedback &amp; Reviews</div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <select class="dsq-inp" style="max-width:160px;padding:6px 10px;font-size:.8rem" onchange="loadFeedback()" id="fbInstrFilter">
+        <option value="">All instructors</option>
+      </select>
+      <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="loadFeedback()" id="fbRatingFilter">
+        <option value="">All ratings</option>
+        <option value="5">5 Stars</option><option value="4">4 Stars</option>
+        <option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option>
+      </select>
+    </div>
+    <div id="fbStats" class="row g-2 mb-3"></div>
+    <div id="fbList"><div style="text-align:center;font-size:.82rem;color:var(--txt4);padding:24px">Loading feedback...</div></div>
   </div>
 
   <!-- ══ REQUESTS ══ -->
@@ -901,17 +1022,27 @@ function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replac
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+function normalizePhone(raw){
+  let p = (raw||'').replace(/[\s\-\(\)\.]/g,'');
+  if(p.startsWith('+44')) p = '0' + p.slice(3);
+  if(p.startsWith('0044')) p = '0' + p.slice(4);
+  return p;
+}
 
 /* ══ TABS ══ */
-const TABS=['instructors','pending','students','requests','transfers','messages','add','find','analytics','calendar'];
+const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar'];
 function switchTab(t){
   TABS.forEach(id=>{
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
   });
+  if(t==='dashboard')loadDashboard();
   if(t==='messages')loadMessages();
   if(t==='analytics'){loadAnalytics();}
   if(t==='requests')loadStudentRequests();
+  if(t==='lessons')loadAllLessons();
+  if(t==='revenue')loadRevenue();
+  if(t==='feedback')loadFeedback();
   if(t==='transfers')loadTransferRequests();
   if(t==='students')loadAllStudents();
   if(t==='calendar'){
@@ -1043,8 +1174,7 @@ function filterInstrs(q){
 }
 
 function buildWaNum(phone){
-  if(!phone)return'';
-  const d=phone.replace(/\D/g,'');
+  const d=normalizePhone(phone).replace(/\D/g,'');
   if(!d)return'';
   if(d.startsWith('44'))return d;
   if(d.startsWith('0'))return'44'+d.slice(1);
@@ -1341,7 +1471,7 @@ async function loadAllStudents(){
   ]);
   const acctMap={};
   (accountsR.data||[]).forEach(a=>{
-    if(a.phone)acctMap[a.phone.replace(/[\s\-\(\)]/g,'')]=a;
+    if(a.phone)acctMap[normalizePhone(a.phone)]=a;
     if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()]=a;
   });
   const progMap={};
@@ -1364,7 +1494,7 @@ async function loadAllStudents(){
     s.lessons.push(l);
   });
   Object.values(map).forEach(s=>{
-    const normPhone=(s.phone||'').replace(/[\s\-\(\)]/g,'');
+    const normPhone=normalizePhone(s.phone);
     const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()]||null;
     s.lastLogin=acc?.last_login||null;
     s.acctId=acc?.id||null;
@@ -1464,7 +1594,7 @@ async function loadStudentProgress(s){
   const progSec=document.getElementById('sdProgressSection');
   const topicsSec=document.getElementById('sdTopicsSection');
   progSec.style.display='none';topicsSec.style.display='none';
-  const normPhone=(s.phone||'').replace(/[\s\-\(\)]/g,'');
+  const normPhone=normalizePhone(s.phone);
   if(!normPhone)return;
   const attempts=[s.phone,normPhone];
   if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
