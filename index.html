@@ -400,7 +400,56 @@ section { overflow:hidden; }
   line-height:1.6;
 }
 
-/* Countdown */
+/* ═══ OFFER COUNTDOWN ═══ */
+.offer-countdown-wrap { margin:0 auto 44px; max-width:680px; }
+.offer-countdown-inner {
+  background:linear-gradient(135deg,rgba(209,10,17,.13),rgba(245,197,24,.05));
+  border:1.5px solid rgba(209,10,17,.45);
+  border-radius:20px; padding:28px 20px; text-align:center;
+  position:relative; overflow:hidden;
+  box-shadow:0 0 60px rgba(209,10,17,.18), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.offer-countdown-inner::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(209,10,17,.07),transparent);
+  pointer-events:none;
+}
+.cd-fire { font-size:1.9rem; margin-bottom:6px; display:block; animation:firePulse 1.5s ease-in-out infinite; }
+@keyframes firePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.22)} }
+.cd-label-top { font-size:.65rem; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--red); margin-bottom:18px; }
+.offer-countdown { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; position:relative; z-index:1; }
+.cd-box {
+  display:flex; flex-direction:column; align-items:center;
+  background:rgba(0,0,0,.45); border:1px solid rgba(209,10,17,.4);
+  border-radius:14px; padding:14px 18px; min-width:76px;
+}
+.cd-big {
+  font-family:'Barlow Condensed','Oswald',sans-serif;
+  font-size:2.8rem; font-weight:800; color:#fff; line-height:1; display:block;
+  transition:transform .15s ease;
+}
+.cd-big.tick { transform:scale(1.12); }
+.cd-sub { font-size:.58rem; color:#555; text-transform:uppercase; letter-spacing:1.5px; margin-top:4px; display:block; }
+.cd-colon { font-family:'Barlow Condensed',sans-serif; font-size:2.4rem; font-weight:800; color:var(--red); line-height:1; margin-bottom:18px; animation:colonBlink 1s step-end infinite; }
+@keyframes colonBlink { 0%,100%{opacity:1} 50%{opacity:.15} }
+.cd-label-bottom { margin-top:18px; font-size:.74rem; color:#555; font-style:italic; position:relative; z-index:1; }
+.cd-expired { color:var(--red); font-family:'Oswald',sans-serif; font-size:1.4rem; font-weight:700; }
+
+/* Offer extras */
+.offer-label.intensive { background:linear-gradient(90deg,#e65c00,#f9a825); color:#111; }
+.offer-label.gift { background:linear-gradient(90deg,#6a0dad,#9c27b0); color:#fff; }
+.offer-savings {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(37,211,102,.12); border:1px solid rgba(37,211,102,.3);
+  border-radius:6px; padding:3px 10px; font-size:.72rem; font-weight:700;
+  color:var(--green); margin-bottom:10px;
+}
+.offer-was { font-size:.78rem; color:#555; text-decoration:line-through; margin-left:4px; }
+.offer-card.intense { border-color:rgba(230,92,0,.45); background:rgba(230,92,0,.04); }
+.offer-card.intense:hover { border-color:rgba(249,162,37,.65); }
+.offer-card.intense::before { background:linear-gradient(90deg,#e65c00,#f9a825); }
+
+/* Legacy countdown (keep for compatibility) */
 .countdown { display:flex; gap:10px; margin:14px 0; }
 .cd-unit { background:rgba(255,255,255,.04); border:1px solid rgba(209,10,17,.2); border-radius:10px; padding:8px 14px; text-align:center; min-width:62px; }
 .cd-num { font-family:'Oswald',sans-serif; font-size:1.8rem; font-weight:700; color:var(--red); line-height:1; }
@@ -1256,100 +1305,219 @@ footer a:hover { color:#fff; }
 <!-- SUMMER OFFER -->
 <section id="summer-offer" class="summer-offer" aria-labelledby="offer-title">
   <div class="container">
-    <div class="text-center mb-5 reveal">
-      <span class="eye" style="color:var(--gold)">Limited Summer 2026 Offers</span>
+
+    <!-- Header -->
+    <div class="text-center mb-4 reveal">
+      <span class="eye" style="color:var(--gold)">Limited Summer 2026 — All Offers Expire 22 August</span>
       <h2 id="offer-title" class="offer-headline">Our <span class="red">Best</span> Offers <span class="gold">Ever</span></h2>
-      <p style="color:#666;max-width:520px;margin:10px auto 0;font-size:.9rem">Remove the fear, pressure, and risk of learning to drive. We believe in our teaching. Do you?</p>
+      <p style="color:#777;max-width:560px;margin:10px auto 0;font-size:.91rem">Remove the fear, the pressure, and the risk of learning to drive.<br>Every price below expires at midnight on <strong style="color:#fff">22 August</strong> — no exceptions.</p>
     </div>
+
+    <!-- ══ COUNTDOWN ══ -->
+    <div class="offer-countdown-wrap reveal">
+      <div class="offer-countdown-inner">
+        <span class="cd-fire">🔥</span>
+        <div class="cd-label-top">Summer offers expire in</div>
+        <div class="offer-countdown" id="mainCountdown">
+          <div class="cd-box"><span class="cd-big" id="cd-days">00</span><span class="cd-sub">Days</span></div>
+          <div class="cd-colon">:</div>
+          <div class="cd-box"><span class="cd-big" id="cd-hours">00</span><span class="cd-sub">Hours</span></div>
+          <div class="cd-colon">:</div>
+          <div class="cd-box"><span class="cd-big" id="cd-mins">00</span><span class="cd-sub">Mins</span></div>
+          <div class="cd-colon">:</div>
+          <div class="cd-box"><span class="cd-big" id="cd-secs">00</span><span class="cd-sub">Secs</span></div>
+        </div>
+        <div class="cd-label-bottom">After 22 August, all prices return to standard rates. No extensions, no exceptions.</div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 1: PassFirst + Intensive ══ -->
     <div class="row g-4">
-      <!-- ⚡ DriveSQ PassFirst MAIN CARD -->
-      <div class="col-lg-6 reveal">
+
+      <!-- ⚡ PassFirst HERO -->
+      <div class="col-lg-7 reveal">
         <div class="offer-card featured h-100">
-          <div class="passfirst-badge">
-            <span>⚡</span> DriveSQ PassFirst
-          </div>
-          <div class="passfirst-name"><span class="lightning">⚡</span> DriveSQ PassFirst</div>
-          <div style="font-size:.82rem;color:#777;margin-bottom:12px;font-style:italic">We don't stop until you pass.</div>
+          <div class="passfirst-badge"><span>⚡</span> DriveSQ PassFirst — Summer 2026</div>
+          <div class="passfirst-name"><span class="lightning">⚡</span> PassFirst Package</div>
+          <div style="font-size:.82rem;color:#888;margin-bottom:14px;font-style:italic">We don't stop until you pass. Simple as that.</div>
 
           <div class="passfirst-guarantee">
-            <div class="passfirst-guarantee-title">
-              <i class="bi bi-shield-fill-check"></i> The PassFirst Guarantee
-            </div>
+            <div class="passfirst-guarantee-title"><i class="bi bi-shield-fill-check"></i> The PassFirst Guarantee</div>
             <div class="passfirst-guarantee-text">
-              Book our <strong style="color:#fff">PassFirst package</strong> and learn with complete confidence. If you don't pass your practical test first time, we will continue providing you with <strong style="color:var(--gold)">FREE support lessons</strong> until your next test attempt — at no extra cost to you. We're not just a driving school. We're your partner until you hold that licence.
+              Book our <strong style="color:#fff">PassFirst package</strong> and learn with complete confidence. If you don't pass your practical test first time, we will keep giving you <strong style="color:var(--gold)">FREE support lessons</strong> until your next test attempt — at zero extra cost. We're not just a driving school. We're your partner until you hold that licence.
             </div>
           </div>
 
-          <div class="offer-price-big"><span class="gold">£1,100</span> <span style="font-size:1rem;color:#555;font-weight:400">/ PassFirst Package</span></div>
-          <div style="font-size:.78rem;color:#888;margin-bottom:14px">Includes FREE support lessons if you don't pass first time</div>
+          <div class="d-flex align-items-baseline gap-3 mb-1 flex-wrap">
+            <div class="offer-price-big"><span class="gold">£1,100</span></div>
+            <div style="font-size:.88rem;color:#666">/ complete PassFirst package</div>
+          </div>
+          <div class="offer-savings mb-3"><i class="bi bi-gift-fill"></i> Includes FREE support lessons if you fail — worth up to £350</div>
 
           <div class="mb-3">
-            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manual or automatic — same price, always</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manual <em>or</em> automatic — same price, always</div>
             <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>DVSA-approved instructors throughout</div>
-            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Structured learning plan — mock tests included</div>
-            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i><strong style="color:var(--gold)">FREE support lessons</strong> if you don't pass first time*</div>
-            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manchester-based instructors, local route experts</div>
-            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Total beginners to near-test — all welcome</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Structured lesson plan + 2 mock tests included</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i><strong style="color:var(--gold)">FREE support lessons</strong> until you pass — guaranteed*</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manchester-based local route experts</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Complete beginners to near-test — all welcome</div>
           </div>
-          <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20claim%20the%20DriveSQ%20PassFirst%20package%20%E2%9A%A1%F0%9F%9A%97" target="_blank" rel="nofollow noopener" class="btn btn-wa w-100 py-2 mb-2 d-flex align-items-center justify-content-center gap-2" style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1rem;letter-spacing:.4px">
+
+          <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20claim%20the%20DriveSQ%20PassFirst%20package%20%E2%9A%A1%F0%9F%9A%97" target="_blank" rel="nofollow noopener"
+            class="btn btn-wa w-100 py-2 mb-2 d-flex align-items-center justify-content-center gap-2"
+            style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.05rem;letter-spacing:.5px">
             <i class="bi bi-whatsapp"></i>Claim ⚡ PassFirst on WhatsApp
           </a>
-         <div class="text-center mt-2">
-  <a href="terms.html" target="_blank" style="font-size:.8rem;color:#aaa;display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:6px 14px;text-decoration:none;transition:all .22s ease;font-weight:600;letter-spacing:.3px;" onmouseover="this.style.borderColor='rgba(245,197,24,.5)';this.style.color='#F5C518'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='#aaa'">
-    <i class="bi bi-file-text"></i>Read Full Terms &amp; Conditions →
-  </a>
-</div>
-          <div class="offer-terms">*Terms &amp; conditions apply. Must follow instructor guidance and take all recommended mock tests. PassFirst guarantee applies to 1 additional test attempt only. Free lessons are limited to test preparation and subject to availability. Summer promotion only — limited slots remaining.</div>
+          <div class="text-center mt-2">
+            <a href="terms.html" target="_blank"
+              style="font-size:.78rem;color:#aaa;display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:5px 13px;text-decoration:none;transition:all .22s ease;font-weight:600;letter-spacing:.3px"
+              onmouseover="this.style.borderColor='rgba(245,197,24,.5)';this.style.color='#F5C518'"
+              onmouseout="this.style.borderColor='rgba(255,255,255,.12)';this.style.color='#aaa'">
+              <i class="bi bi-file-text"></i>Read Full Terms &amp; Conditions →
+            </a>
+          </div>
+          <div class="offer-terms mt-2">*Terms apply. Must follow all instructor guidance and complete recommended mock tests. Free support applies to 1 additional test attempt. Summer 2026 only. Limited availability.</div>
         </div>
       </div>
-      <div class="col-lg-6">
-        <div class="row g-3">
-          <div class="col-12 reveal">
-            <div class="offer-card h-100">
-              <span class="offer-label referral">Referral Reward</span>
-              <div class="offer-title">Refer a Friend — Get 1 FREE Lesson Hour</div>
-              <div class="offer-desc">Know someone learning to drive in Manchester? Refer them to DriveSQ and earn a FREE lesson hour when they book.</div>
-              <div class="row g-2 mb-3">
-                <div class="col-4 text-center" style="background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:8px;padding:10px 5px">
-                  <div style="font-family:'Oswald',sans-serif;font-size:1.6rem;color:var(--green);font-weight:700">1</div>
-                  <div style="font-size:.65rem;color:#777">referral = 1 free hour</div>
-                </div>
-                <div class="col-4 text-center" style="background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:8px;padding:10px 5px">
-                  <div style="font-family:'Oswald',sans-serif;font-size:1.6rem;color:var(--green);font-weight:700">3</div>
-                  <div style="font-size:.65rem;color:#777">referrals = free mock test</div>
-                </div>
-                <div class="col-4 text-center" style="background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:8px;padding:10px 5px">
-                  <div style="font-family:'Oswald',sans-serif;font-size:1.6rem;color:var(--green);font-weight:700">5</div>
-                  <div style="font-size:.65rem;color:#777">referrals = bonus hour</div>
-                </div>
-              </div>
-              <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20refer%20a%20friend%20to%20DriveSQ" target="_blank" rel="nofollow noopener" class="btn btn-wa px-4 py-2 d-inline-flex align-items-center gap-2" style="font-size:.9rem"><i class="bi bi-whatsapp"></i>Refer on WhatsApp</a>
-              <div class="offer-terms mt-2">*Friend must book and complete minimum package. Non-transferable.</div>
-            </div>
+
+      <!-- 🔥 Intensive 2-Week Course -->
+      <div class="col-lg-5 reveal">
+        <div class="offer-card intense h-100">
+          <span class="offer-label intensive">🔥 New — Intensive Course</span>
+          <div class="offer-title" style="font-size:1.55rem">Pass in 2 Weeks</div>
+          <div style="font-size:.83rem;color:#888;margin-bottom:14px">Need your licence fast? Our structured intensive gets you test-ready in as little as 14 days.</div>
+
+          <div class="d-flex align-items-baseline gap-3 mb-1 flex-wrap">
+            <div class="offer-price-big" style="color:var(--gold)">£990</div>
+            <div style="font-size:.88rem;color:#666">/ 30 hours</div>
           </div>
-          <div class="col-sm-6 reveal">
-            <div class="offer-card h-100">
-              <span class="offer-label local">Local Offer</span>
-              <div class="offer-title" style="font-size:1.1rem">Didsbury &amp; M19 Block Deal</div>
-              <div class="offer-price-big" style="font-size:2.2rem">£330 <span style="font-size:1rem;color:#555;font-weight:400">/10hrs</span></div>
-              <div class="offer-desc" style="font-size:.8rem">Exclusive 10-hour block for Didsbury &amp; M19 learners. Must begin within 30 days.</div>
-              <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20the%20M19%20Didsbury%20block%20deal" target="_blank" rel="nofollow noopener" class="btn btn-wa px-3 py-2 w-100 d-flex align-items-center justify-content-center gap-2" style="font-size:.85rem"><i class="bi bi-whatsapp"></i>Claim This Deal</a>
-            </div>
+          <div class="offer-savings mb-3"><i class="bi bi-lightning-charge-fill"></i> Save £60 vs standard rate &nbsp;<span class="offer-was">£1,050</span></div>
+
+          <div class="mb-3">
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>30 structured hours — daily sessions, no gaps</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Full test-route coverage from day one</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>2 dedicated mock test drives included</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Theory mock prep materials provided</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Test booking support &amp; slot guidance</div>
+            <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manual or automatic — you choose</div>
           </div>
-          <div class="col-sm-6 reveal">
-            <div class="offer-card h-100">
-              <span class="offer-label summer">Summer Special</span>
-              <div class="offer-title" style="font-size:1.1rem">First Lesson Only £30</div>
-              <div class="offer-price-big" style="font-size:2.2rem">£30 <span style="font-size:1rem;color:#555;font-weight:400">1st lesson</span></div>
-              <div class="offer-desc" style="font-size:.8rem">New students only. Try DriveSQ at a discounted rate. No obligation to continue.</div>
-              <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20the%20first%20lesson%20summer%20offer%20%F0%9F%9A%97" target="_blank" rel="nofollow noopener" class="btn btn-wa px-3 py-2 w-100 d-flex align-items-center justify-content-center gap-2" style="font-size:.85rem"><i class="bi bi-whatsapp"></i>Claim on WhatsApp</a>
-            </div>
+
+          <div style="background:rgba(230,92,0,.1);border:1px solid rgba(249,162,37,.25);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.8rem;color:#ccc">
+            <i class="bi bi-exclamation-circle" style="color:#f9a825"></i>&nbsp;
+            <strong style="color:#f9a825">Limited slots.</strong> Ideal if you've just got a job offer, need to drive for work, or want to pass before summer ends.
+          </div>
+
+          <a href="https://wa.me/447352932003?text=Hi!%20I'm%20interested%20in%20the%20DriveSQ%20intensive%202-week%20course%20%F0%9F%94%A5" target="_blank" rel="nofollow noopener"
+            class="btn btn-wa w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+            style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1rem;letter-spacing:.4px">
+            <i class="bi bi-whatsapp"></i>Book Intensive Course
+          </a>
+          <div class="offer-terms mt-2">*Must have passed theory test or be booked in within 2 weeks. Slots subject to instructor availability. Book by 22 August to lock this price.</div>
+        </div>
+      </div>
+
+      <!-- ══ ROW 2: 3 smaller cards ══ -->
+
+      <!-- 📦 Block Book & Save -->
+      <div class="col-md-4 reveal">
+        <div class="offer-card h-100">
+          <span class="offer-label local">📦 Best Value</span>
+          <div class="offer-title">10-Hour Block — Lock Today's Rate</div>
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <div class="offer-price-big" style="font-size:2.4rem">£330</div>
+            <div style="font-size:.9rem;color:#666">/10 hrs</div>
+          </div>
+          <div class="offer-savings mb-2"><i class="bi bi-piggy-bank-fill"></i> Save £20 &nbsp;<span class="offer-was">£350</span></div>
+          <div class="offer-desc">Lock in £33/hr now — standard rate is £35/hr. Price rises after 22 August. Pay today, start any time within 60 days.</div>
+          <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Any area across Greater Manchester</div>
+          <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>Manual or automatic — same price</div>
+          <div class="offer-tick mb-3"><i class="bi bi-check-circle-fill"></i>Lessons never expire once booked</div>
+          <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20the%2010-hour%20block%20deal%20for%20%C2%A3330%20%F0%9F%9A%97" target="_blank" rel="nofollow noopener"
+            class="btn btn-wa w-100 py-2 d-flex align-items-center justify-content-center gap-2" style="font-size:.88rem">
+            <i class="bi bi-whatsapp"></i>Claim Block Deal
+          </a>
+          <div class="offer-terms mt-2">*Must book and pay by 22 August. Start within 60 days of booking.</div>
+        </div>
+      </div>
+
+      <!-- 🎯 First Lesson £29 -->
+      <div class="col-md-4 reveal">
+        <div class="offer-card h-100">
+          <span class="offer-label summer">🎯 Summer Special</span>
+          <div class="offer-title">First Lesson — Only £29</div>
+          <div class="d-flex align-items-baseline gap-2 mb-1">
+            <div class="offer-price-big" style="font-size:2.4rem">£29</div>
+            <div style="font-size:.9rem;color:#666">1st lesson</div>
+          </div>
+          <div class="offer-savings mb-2"><i class="bi bi-tag-fill"></i> Save £6 &nbsp;<span class="offer-was">£35</span></div>
+          <div class="offer-desc">Never driven before? Try DriveSQ at a reduced rate with zero pressure and zero obligation. If you don't love it, you don't continue.</div>
+          <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>New students only</div>
+          <div class="offer-tick"><i class="bi bi-check-circle-fill"></i>1 hour with a DVSA-approved instructor</div>
+          <div class="offer-tick mb-3"><i class="bi bi-check-circle-fill"></i>No commitment to continue</div>
+          <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20claim%20the%20first%20lesson%20for%20%C2%A329%20%F0%9F%9A%97" target="_blank" rel="nofollow noopener"
+            class="btn btn-wa w-100 py-2 d-flex align-items-center justify-content-center gap-2" style="font-size:.88rem">
+            <i class="bi bi-whatsapp"></i>Book My First Lesson
+          </a>
+          <div class="offer-terms mt-2">*New students only. One per person. Must book by 22 August.</div>
+        </div>
+      </div>
+
+      <!-- 🎁 Gift a Licence + Refer & Earn -->
+      <div class="col-md-4 reveal">
+        <div class="offer-card h-100 d-flex flex-column gap-0">
+          <!-- Gift Vouchers -->
+          <div>
+            <span class="offer-label gift">🎁 Gift Vouchers</span>
+            <div class="offer-title" style="font-size:1.15rem">Give the Gift of a Licence</div>
+            <div class="offer-desc" style="font-size:.8rem">Perfect for 17th birthdays, Christmas or "you've passed your theory" celebrations. Vouchers from £29 — any amount, any area.</div>
+            <div class="offer-tick" style="font-size:.8rem"><i class="bi bi-check-circle-fill"></i>Any denomination from £29</div>
+            <div class="offer-tick" style="font-size:.8rem"><i class="bi bi-check-circle-fill"></i>Redeemable by anyone in Manchester</div>
+            <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20buy%20a%20DriveSQ%20gift%20voucher%20%F0%9F%8E%81" target="_blank" rel="nofollow noopener"
+              class="btn btn-wa w-100 py-2 d-flex align-items-center justify-content-center gap-2 mt-2 mb-3" style="font-size:.85rem">
+              <i class="bi bi-whatsapp"></i>Buy a Gift Voucher
+            </a>
+          </div>
+          <!-- Divider -->
+          <hr style="border:0;border-top:1px solid rgba(255,255,255,.07);margin:0 0 16px">
+          <!-- Refer & Earn -->
+          <div>
+            <span class="offer-label referral">👥 Refer &amp; Earn</span>
+            <div class="offer-title" style="font-size:1.1rem">Refer a Friend — Free Hour</div>
+            <div class="offer-desc" style="font-size:.8rem">Know someone wanting to learn? Refer them to DriveSQ and earn 1 free lesson hour when they book. 3 referrals = free mock test.</div>
+            <a href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20refer%20a%20friend%20to%20DriveSQ%20%F0%9F%91%A5" target="_blank" rel="nofollow noopener"
+              class="btn btn-wa w-100 py-2 d-flex align-items-center justify-content-center gap-2 mt-2" style="font-size:.85rem">
+              <i class="bi bi-whatsapp"></i>Refer on WhatsApp
+            </a>
           </div>
         </div>
       </div>
-    </div>
-  </div>
+
+    </div><!-- /row -->
+  </div><!-- /container -->
 </section>
+
+<script>
+(function(){
+  var deadline = new Date('2026-08-22T23:59:59').getTime();
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function tick(){
+    var diff = Math.max(0, deadline - Date.now());
+    document.getElementById('cd-days').textContent  = pad(Math.floor(diff/86400000));
+    document.getElementById('cd-hours').textContent = pad(Math.floor((diff%86400000)/3600000));
+    document.getElementById('cd-mins').textContent  = pad(Math.floor((diff%3600000)/60000));
+    var sEl = document.getElementById('cd-secs');
+    sEl.textContent = pad(Math.floor((diff%60000)/1000));
+    sEl.classList.remove('tick');
+    void sEl.offsetWidth;
+    sEl.classList.add('tick');
+    if(diff > 0){ setTimeout(tick,1000); }
+    else{
+      document.getElementById('mainCountdown').innerHTML='<div class="cd-expired">⚠️ This offer has now expired.</div>';
+    }
+  }
+  tick();
+})();
+</script>
 
 
 <!-- SERVICES / PRICING -->
