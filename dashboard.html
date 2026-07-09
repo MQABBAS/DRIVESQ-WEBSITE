@@ -1258,6 +1258,19 @@ async function loadConfirmations(){
   }catch(e){console.warn('loadConfirmations error:',e);confirmationMap={};}
 }
 
+// Rescheduling a lesson (drag-drop, move buttons, or the edit form) reuses the same
+// lesson row/id — without this, a stale confirmation from the old date/time silently
+// carries over and shows the lesson as already confirmed on its new slot.
+async function resetConfirmationOnReschedule(lessonId){
+  try{
+    const{data:existing}=await sb.from('lesson_confirmations').select('id').eq('lesson_id',lessonId).maybeSingle();
+    if(existing){
+      await sb.from('lesson_confirmations').delete().eq('id',existing.id);
+      delete confirmationMap[lessonId];
+    }
+  }catch(e){console.warn('resetConfirmationOnReschedule error:',e);}
+}
+
 async function confirmLessonAsInstructor(lessonId){
   try{
     // Always get fresh confirmation record
@@ -1498,7 +1511,8 @@ async function onDrop(e,toDate){
   // Save new date to DB immediately
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
-  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Check your app for the updated time.');}}catch(e){}
+  await resetConfirmationOnReschedule(movingId);
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Please reconfirm your attendance in the app.');}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -2049,7 +2063,8 @@ async function openDetail(id){
 
 async function moveLesson(id,toDate,dayName){
   await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
-  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Check your app for details.');}
+  await resetConfirmationOnReschedule(id);
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Please reconfirm your attendance in the app.');}
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
@@ -2117,6 +2132,9 @@ async function saveEditedLesson(){
     payment_received:pay,
     student_account_id:_updAccId
   };
+  // Reschedule detection — compare against the lesson as it was before this edit opened
+  const wasRescheduled=detailData&&detailData.id===id&&(detailData.lesson_date!==newDate||detailData.start_time!==newTime);
+
   // Save to DB - try with payment_received first, then without if column missing
   let saveError=null;
   const{error:e1}=await sb.from('lessons').update(updates).eq('id',id);
@@ -2136,6 +2154,7 @@ async function saveEditedLesson(){
   // Update roster
   await saveToRoster(studentName,phone,addr,ltype,notes,null);
   await loadRoster();
+  if(wasRescheduled)await resetConfirmationOnReschedule(id);
   closeModal('editLessonModal');
   // Navigate to the week/day/month containing the updated lesson
   if(calView==='week'){
@@ -2156,7 +2175,7 @@ async function saveEditedLesson(){
   await loadStudents();
   renderStudents(allStudentsArr);
   showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
-  if(_updAccId){notifyStudent(_updAccId,'Lesson updated','Your lesson has been updated to '+newDate+' at '+newTime+'. Check your app for details.');}
+  if(_updAccId){notifyStudent(_updAccId,'Lesson updated',wasRescheduled?'Your lesson has been moved to '+newDate+' at '+newTime+'. Please reconfirm your attendance in the app.':'Your lesson details have been updated. Check your app for the latest info.');}
 }
 
 async function deleteFromDetail(){
