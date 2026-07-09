@@ -436,7 +436,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
         </div>
         <div class="d-flex gap-2 mt-3 hidden" id="lessonActions">
           <button class="btn-g flex-fill" id="confirmLessonBtn" style="font-size:.8rem;min-height:38px" onclick="confirmLesson()"><i class="bi bi-check-lg me-1"></i>Confirm Attendance</button>
-          <button class="btn-s flex-fill" style="font-size:.8rem;min-height:38px;border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openModal('rescheduleModal')"><i class="bi bi-calendar-x me-1"></i>Reschedule</button>
+          <button class="btn-s flex-fill" style="font-size:.8rem;min-height:38px;border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openRescheduleModal()"><i class="bi bi-calendar-x me-1"></i>Reschedule</button>
         </div>
       </div>
 
@@ -1172,9 +1172,15 @@ async function loadMessages(){
   const unread=chatMessages.filter(m=>m.sender==='instructor'&&!m.is_read).length;
   ['msgBadge','mobMsgBadge'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=unread;el.classList.toggle('hidden',unread===0);}});
   renderChatMessages();
-  // Mark instructor messages as read
-  const unreadIds=chatMessages.filter(m=>m.sender==='instructor'&&!m.is_read).map(m=>m.id);
-  if(unreadIds.length)await sb.from('student_messages').update({is_read:true,read_at:new Date().toISOString()}).in('id',unreadIds);
+  // Only mark instructor messages as read while the Messages tab is actually the one on screen —
+  // this also runs from a 30s background poll regardless of which tab is open, so without this
+  // check a message could get silently flagged "read" (and its badge cleared) before the student
+  // ever saw it.
+  const messagesTabVisible=!document.getElementById('panel-messages')?.classList.contains('hidden');
+  if(messagesTabVisible){
+    const unreadIds=chatMessages.filter(m=>m.sender==='instructor'&&!m.is_read).map(m=>m.id);
+    if(unreadIds.length)await sb.from('student_messages').update({is_read:true,read_at:new Date().toISOString()}).in('id',unreadIds);
+  }
   // If any new instructor message is a progress update, reload progress
   const hasProgressUpdate=chatMessages.some(m=>m.sender==='instructor'&&!m.is_read&&m.message&&m.message.includes('📊 Progress Update'));
   if(hasProgressUpdate){
@@ -1326,7 +1332,7 @@ function renderRecentLessons(){
     <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
     <div style="flex:1;min-width:0">
       <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
-      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time} · ${l.duration_hours}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
+      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||'—'} · ${l.duration_hours||1}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
     </div>
   </div>`).join('');
 }
@@ -1404,13 +1410,13 @@ const GROUPS=Object.keys(GROUP_COLORS);
 function getGroupScore(group){
   const topics=studentTopics.filter(t=>t.topic_group===group);
   if(!topics.length)return 0;
-  const sum=topics.reduce((a,t)=>a+t.rating,0);
+  const sum=topics.reduce((a,t)=>a+(t.rating||0),0);
   return Math.round((sum/(topics.length*3))*100);
 }
 
 function getOverallScore(){
   if(!studentTopics.length)return 0;
-  const sum=studentTopics.reduce((a,t)=>a+t.rating,0);
+  const sum=studentTopics.reduce((a,t)=>a+(t.rating||0),0);
   return Math.round((sum/(studentTopics.length*3))*100);
 }
 
@@ -1858,12 +1864,12 @@ async function sendMessage(){
   const input=document.getElementById('chatInput');
   const msg=input.value.trim();
   if(!msg||!currentStudent.instructor_id)return;
-  input.value='';
   const{error}=await sb.from('student_messages').insert([{
     student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,
     sender:'student',message:msg,is_read:false,sent_at:new Date().toISOString()
   }]);
-  if(error){showToast('Error sending message.');return;}
+  if(error){showToast('Error sending message — please try again.','error');return;}
+  input.value=''; // only clear once the send is actually confirmed
   await loadMessages();
 }
 
@@ -2035,6 +2041,12 @@ async function confirmLesson(){
 }
 
 /* ── RESCHEDULE ── */
+function openRescheduleModal(){
+  const el=document.getElementById('reschCurrentLesson');
+  if(el)el.textContent=nextLesson?fmtDate(nextLesson.lesson_date)+' at '+(nextLesson.start_time||'—'):'No upcoming lesson found.';
+  openModal('rescheduleModal');
+}
+
 async function submitReschedule(){
   if(!currentLessonId||!nextLesson)return;
   const reason=document.getElementById('reschReason').value.trim();
@@ -2397,7 +2409,17 @@ async function checkLessonFeedbackPrompt(){
   // Check if there's a recent completed lesson without feedback
   const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
   const yhKey=yesterday.getFullYear()+'-'+pad2(yesterday.getMonth()+1)+'-'+pad2(yesterday.getDate());
-  const recentLesson=studentLessons.find(l=>l.lesson_date===yhKey||l.lesson_date===todayKey());
+  const tk=todayKey();
+  const recentLesson=studentLessons.find(l=>{
+    if(l.lesson_date===yhKey)return true;
+    if(l.lesson_date!==tk)return false;
+    // Today's lesson only counts as "completed" once its start time has actually passed —
+    // otherwise a 6pm lesson could get prompted for feedback at 9am the same day.
+    if(!l.start_time)return false;
+    const[h,m]=l.start_time.split(':').map(Number);
+    const start=new Date();start.setHours(h,m,0,0);
+    return new Date()>=start;
+  });
   if(!recentLesson)return;
   const{data:existing}=await sb.from('student_lesson_feedback').select('id').eq('lesson_id',recentLesson.id).eq('student_account_id',currentStudent.id).maybeSingle();
   if(!existing){

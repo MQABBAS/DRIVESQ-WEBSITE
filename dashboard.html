@@ -1407,10 +1407,31 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
-  var _rReq=null;try{var{data:_rr}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq=_rr;}catch(e){}
+  const{data:req}=await sb.from('reschedule_requests').select('*').eq('id',id).maybeSingle();
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
-  if(_rReq&&_rReq.student_account_id){notifyStudent(_rReq.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will update the lesson time.');}
   document.getElementById('resch-banner-'+id)?.remove();
+  if(!req){showToast('Reschedule accepted.','success');return;}
+  // If the student gave a specific preferred date & time, apply it to the lesson directly —
+  // previously "Accept" only flipped the request's status and told the student it was done
+  // while leaving the actual lesson untouched, relying on the instructor to remember to go
+  // edit it separately.
+  if(req.lesson_id&&req.preferred_date&&req.preferred_time){
+    await sb.from('lessons').update({lesson_date:req.preferred_date,start_time:req.preferred_time}).eq('id',req.lesson_id);
+    await resetConfirmationOnReschedule(req.lesson_id);
+    if(req.student_account_id)notifyStudent(req.student_account_id,'Reschedule accepted','Your lesson has been moved to '+req.preferred_date+' at '+req.preferred_time+'. Please reconfirm your attendance in the app.');
+    if(calView==='week')await loadWeek();
+    else if(calView==='day')await loadDayView(currentDayKey);
+    else if(calView==='month')await loadMonthView();
+    showToast('Reschedule accepted — lesson moved to '+req.preferred_date+' at '+req.preferred_time+'.','success');
+    return;
+  }
+  // No specific preferred time (student said "Flexible") — open the edit form pre-filled with
+  // the lesson so the instructor can pick a time in one step instead of hunting for it manually.
+  if(req.student_account_id)notifyStudent(req.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will confirm a new time shortly.');
+  if(req.lesson_id){
+    const{data:lesson}=await sb.from('lessons').select('*').eq('id',req.lesson_id).maybeSingle();
+    if(lesson){detailData=lesson;detailId=lesson.id;editLessonFromDetail();showToast('Pick a new time for this lesson.','success');return;}
+  }
   showToast('Reschedule accepted — update the lesson date manually.','success');
 }
 async function declineReschedule(id){
