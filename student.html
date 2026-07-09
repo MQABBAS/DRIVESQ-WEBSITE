@@ -435,7 +435,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
           <div id="lessonStatusBadge"></div>
         </div>
         <div class="d-flex gap-2 mt-3 hidden" id="lessonActions">
-          <button class="btn-g flex-fill" style="font-size:.8rem;min-height:38px" onclick="confirmLesson()"><i class="bi bi-check-lg me-1"></i>Confirm Attendance</button>
+          <button class="btn-g flex-fill" id="confirmLessonBtn" style="font-size:.8rem;min-height:38px" onclick="confirmLesson()"><i class="bi bi-check-lg me-1"></i>Confirm Attendance</button>
           <button class="btn-s flex-fill" style="font-size:.8rem;min-height:38px;border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openModal('rescheduleModal')"><i class="bi bi-calendar-x me-1"></i>Reschedule</button>
         </div>
       </div>
@@ -1999,6 +1999,9 @@ async function saveNotifPrefs(){
 /* ── LESSON CONFIRMATION ── */
 async function confirmLesson(){
   if(!currentLessonId)return;
+  const btn=document.getElementById('confirmLessonBtn');
+  if(btn&&btn.disabled)return; // already in flight — a fast double-tap must not race two writes
+  if(btn)btn.disabled=true;
   const actions=document.getElementById('lessonActions');
   try{
     const{data:existing,error:selErr}=await sb.from('lesson_confirmations').select('*').eq('lesson_id',currentLessonId).maybeSingle();
@@ -2027,6 +2030,7 @@ async function confirmLesson(){
   }catch(e){
     console.error('confirmLesson error:',e);
     showToast('Could not confirm — please try again.','error');
+    if(btn)btn.disabled=false;
   }
 }
 

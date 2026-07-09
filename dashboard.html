@@ -1059,7 +1059,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
     </div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="approveNotes" rows="2"></textarea></div>
-    <button class="btn-g w-100 mb-2" style="min-height:44px;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:600" onclick="confirmApprove()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar</button>
+    <button class="btn-g w-100 mb-2" id="confirmApproveBtn" style="min-height:44px;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:600" onclick="confirmApprove()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar</button>
     <button class="btn-s" onclick="closeModal('approveModal')">Cancel</button>
   </div>
 </div>
@@ -1210,7 +1210,10 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 (async()=>{
   await checkSuspended();
   updateNav();
-  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadConfirmations(),loadRescheduleRequests()]);
+  // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
+  // weekLessons is actually populated. Running it concurrently here raced weekLessons while
+  // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
+  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
   populateInstrDropdowns();
   sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
   if(window.innerWidth>=992){
@@ -1257,8 +1260,12 @@ function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.c
 /* ══════════════════════════════
    LESSON CONFIRMATIONS
 ══════════════════════════════ */
-async function loadConfirmations(){
-  const lessonIds=Object.values(weekLessons).flat().map(l=>l.id);
+// Pass the exact lessons currently on screen (day/week/month view all have their own
+// fetch). Falls back to weekLessons for callers that don't have a more specific set.
+// Without this, Month view never loaded confirmations at all (always showed "unconfirmed"),
+// and Day view opened without Week view first would scan an empty weekLessons and find none.
+async function loadConfirmations(lessons){
+  const lessonIds=(lessons||Object.values(weekLessons).flat()).map(l=>l.id);
   if(!lessonIds.length){confirmationMap={};return;}
   try{
     const{data,error}=await sb.from('lesson_confirmations').select('*').in('lesson_id',lessonIds);
@@ -1436,7 +1443,7 @@ async function loadWeek(){
 async function loadDayView(dk){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
   dayLessonsCache[dk]=data||[];
-  await loadConfirmations();
+  await loadConfirmations(data||[]);
   renderDayView();updateStats();
 }
 
@@ -1446,6 +1453,7 @@ async function loadMonthView(){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
+  await loadConfirmations(data||[]);
   renderMonthView(map);
   const allM=data||[];
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
@@ -1641,9 +1649,14 @@ function renderDayView(){
     const conf=confirmationMap[l.id];
     const isConf=conf&&conf.status==='both_confirmed';
     const isStudConf=conf&&conf.student_confirmed;
+    const isInstrConf=conf&&conf.instructor_confirmed;
+    // Four real states, matching the Detail modal: both confirmed and instructor-only-confirmed
+    // are badges (no button — re-clicking would re-notify the student for nothing); student-only
+    // is still a button since the instructor needs to act; neither confirmed is the plain button.
+    const confBtn=`<button onclick="event.stopPropagation();confirmLessonAsInstructor('${l.id}')" class="btn-g" style="padding:3px 8px;font-size:.65rem;min-height:24px"><i class="bi bi-check-lg me-1"></i>${isStudConf?'Confirm — waiting!':'Confirm'}</button>`;
     const confBadge=isConf?`<span style="font-size:.65rem;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>Both confirmed</span>`:
-                    isStudConf?`<span style="font-size:.65rem;color:var(--gold)"><i class="bi bi-check-circle me-1"></i>Student confirmed</span>`:
-                    `<button onclick="event.stopPropagation();confirmLessonAsInstructor('${l.id}')" class="btn-g" style="padding:3px 8px;font-size:.65rem;min-height:24px"><i class="bi bi-check-lg me-1"></i>Confirm</button>`;
+                    isInstrConf?`<span style="font-size:.65rem;color:#93c5fd"><i class="bi bi-check-circle me-1"></i>You confirmed — awaiting student</span>`:
+                    confBtn;
     const waUrl=l.student_phone?waLink(l.student_phone,'Hi '+l.student_name+', this is your DriveSQ instructor. '):'';
     return`<div class="day-lesson-row ${lClass(l.lesson_type)}" onclick="if(!_wasDragging)openDetail('${l.id}')">
       <div class="d-flex align-items-start justify-content-between">
@@ -2443,16 +2456,12 @@ function openAddStudentModal(p,fromLesson){
   document.getElementById('removeRosterBtn').classList.add('hidden');
   updateWABtn(p.phone);openModal('editStudentModal');
 }
-function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openEditStudentModal(p);}
-function openEditStudentModal(p){
-  document.getElementById('editStudentTitle').innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student';
-  document.getElementById('editStudentSubTitle').textContent='Changes update profile and all their lessons';
-  document.getElementById('editStudentId').value=p.id||'';
-  document.getElementById('esSName').value=p.name||'';document.getElementById('esSPhone').value=p.phone||'';document.getElementById('esSAddr').value=p.address||'';document.getElementById('eSType').value=p.lesson_type||'Manual';document.getElementById('eSNotes').value=p.notes||'';
-  document.getElementById('removeRosterBtn').classList.remove('hidden');
-  document.getElementById('updateAllLessons').checked=true;
-  updateWABtn(p.phone);openModal('editStudentModal');
-}
+// Editing an EXISTING roster student goes through studentMgmtModal (openStudentMgmt), not the
+// plain editStudentModal below — that modal only updates student_profiles/lessons and has no
+// idea a student_accounts row (the student's real app login) might need the same rename, which
+// used to silently orphan their app account. studentMgmtModal's saveSmProfile() already does
+// this correctly. editStudentModal is kept only for adding a student who isn't in the roster yet.
+function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openStudentMgmt(name,'profile');}
 function updateWABtn(phone){const btn=document.getElementById('waStudentBtn');if(btn)btn.disabled=!phone||!cleanPhone(phone);}
 function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const url=waLink(phone,'Hi '+name+', this is your DriveSQ instructor. ');if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
 async function saveStudentProfile(){
@@ -2575,19 +2584,24 @@ function openApprove(id,name,addr,type,notes){document.getElementById('approveRe
 async function confirmApprove(){
   const id=document.getElementById('approveReqId').value;const date=document.getElementById('approveDate').value;const time=document.getElementById('approveTime').value;const dur=parseFloat(document.getElementById('approveDur').value);
   if(!date||!time){showToast('Please pick date and time.');return;}
-  const{data:req}=await sb.from('student_requests').select('*').eq('id',id).single();if(!req)return;
-  let _caAccId2=null;
-  try{const{data:_ca2}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',req.student_name).maybeSingle();_caAccId2=_ca2?.id||null;}catch(e){}
-  const{data:lesson,error}=await sb.from('lessons').insert([{instructor_id:instr.id,lesson_date:date,start_time:time,duration_hours:dur,student_name:req.student_name,student_phone:req.student_phone,pickup_address:req.pickup_address,lesson_type:req.lesson_type||'Manual',notes:document.getElementById('approveNotes').value.trim(),student_account_id:_caAccId2,created_at:new Date().toISOString()}]).select().single();
-  if(error){showToast('Error adding lesson.');return;}
-  await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
-  await saveToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual','',null);
-  await loadRoster();
-  closeModal('approveModal');
-  await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
-  renderStudents(allStudentsArr);
-  showToast('✅ Student approved & added to calendar!','success');
-  if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
+  const btn=document.getElementById('confirmApproveBtn');
+  if(btn.disabled)return; // already in flight — a fast double-tap must not insert the lesson twice
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Approving…';
+  try{
+    const{data:req}=await sb.from('student_requests').select('*').eq('id',id).single();if(!req)return;
+    let _caAccId2=null;
+    try{const{data:_ca2}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',req.student_name).maybeSingle();_caAccId2=_ca2?.id||null;}catch(e){}
+    const{data:lesson,error}=await sb.from('lessons').insert([{instructor_id:instr.id,lesson_date:date,start_time:time,duration_hours:dur,student_name:req.student_name,student_phone:req.student_phone,pickup_address:req.pickup_address,lesson_type:req.lesson_type||'Manual',notes:document.getElementById('approveNotes').value.trim(),student_account_id:_caAccId2,created_at:new Date().toISOString()}]).select().single();
+    if(error){showToast('Error adding lesson.');return;}
+    await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
+    await saveToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual','',null);
+    await loadRoster();
+    closeModal('approveModal');
+    await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
+    renderStudents(allStudentsArr);
+    showToast('✅ Student approved & added to calendar!','success');
+    if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
+  }finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar';}
 }
 async function declineRequest(id){if(!confirm('Decline this request?'))return;var _decReq=null;try{var{data:_dr}=await sb.from('student_requests').select('student_name').eq('id',id).single();_decReq=_dr;}catch(e){}await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);if(_decReq){try{var{data:_da}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',_decReq.student_name).maybeSingle();if(_da)notifyStudent(_da.id,'Request declined','Your lesson request has been declined. Please contact your instructor for more details.');}catch(e){}}await loadRequests();showToast('Request declined.');}
 
