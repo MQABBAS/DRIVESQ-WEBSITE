@@ -1195,6 +1195,10 @@ let currentDayKey=todayKey(),currentDayName='Monday',currentDayIdx=0;
 let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let weekLessons={};
 let dayLessonsCache={};
+// Independent of weekLessons/calView — the "Today"/"Tomorrow" stat cards and the 1-hour lesson
+// reminder must reflect the real calendar today regardless of which week/month the instructor
+// has navigated to. Without this they silently went blank/stale the moment you clicked "next week".
+let todayLessons=[],tomorrowLessons=[];
 let confirmationMap={};  // lesson_id -> confirmation status
 let reschedulePending=[];
 let activeDate=null,detailId=null,detailData=null;
@@ -1213,7 +1217,11 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
   // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
   // weekLessons is actually populated. Running it concurrently here raced weekLessons while
   // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
-  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
+  await Promise.all([loadWeek(),loadTodayTomorrow(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
+  // loadWeek() and loadTodayTomorrow() ran concurrently above, so whichever's internal
+  // updateStats() call fired first may have rendered before the other's data landed — one
+  // more call here, now that both are guaranteed settled, ensures the first paint is correct.
+  updateStats();
   populateInstrDropdowns();
   sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
   if(window.innerWidth>=992){
@@ -1222,9 +1230,19 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
   }
   setInterval(checkReminders,60000);
   setInterval(loadNotifications,30000);
-  setInterval(loadConfirmations,10000); // poll every 10s for near-instant student confirmation updates
+  setInterval(pollConfirmations,10000); // poll every 10s for near-instant student confirmation updates
   checkReminders();
 })();
+
+// Re-runs whichever view's own loader is on screen — each one already fetches its own lessons,
+// loads confirmations scoped to exactly those lessons, and re-renders. Calling loadConfirmations()
+// alone here would (a) always score against weekLessons regardless of the active view, incorrectly
+// wiping Day/Month view's confirmation data, and (b) never repaint the calendar with new results.
+function pollConfirmations(){
+  if(calView==='week')loadWeek();
+  else if(calView==='day')loadDayView(currentDayKey);
+  else if(calView==='month')loadMonthView();
+}
 
 async function checkSuspended(){
   const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instr.id).single();
@@ -1428,6 +1446,15 @@ function calToday(){
   else if(calView==='month'){monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);loadMonthView();}
 }
 
+async function loadTodayTomorrow(){
+  const tk=todayKey(),tomk=tomorrowKey();
+  try{
+    const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).in('lesson_date',[tk,tomk]);
+    todayLessons=(data||[]).filter(l=>l.lesson_date===tk);
+    tomorrowLessons=(data||[]).filter(l=>l.lesson_date===tomk);
+  }catch(e){console.warn('loadTodayTomorrow error:',e);}
+}
+
 async function loadWeek(){
   const days=weekDays(weekStart);
   const from=dateKey(days[0]),to=dateKey(days[6]);
@@ -1464,8 +1491,11 @@ async function loadMonthView(){
 }
 
 function updateStats(){
-  const tk=todayKey(),tomk=tomorrowKey();
-  const tL=weekLessons[tk]||[],tomL=weekLessons[tomk]||[];
+  const tk=todayKey();
+  // Today/Tomorrow come from their own independently-fetched cache, not weekLessons — weekLessons
+  // reflects whichever week the instructor has navigated to, which silently zeroed these cards out
+  // the moment you clicked "next week" even though today's lessons hadn't changed.
+  const tL=todayLessons,tomL=tomorrowLessons;
   const allW=Object.values(weekLessons).flat();
   const sum=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalHrs=sum(allW);
@@ -2506,7 +2536,11 @@ function fillTransferFromRoster(id){if(!id)return;const p=Object.values(rosterMa
 
 /* ── REMINDERS ── */
 async function checkReminders(){
-  const now=new Date();const tk=todayKey();const tLessons=weekLessons[tk]||[];
+  // Refresh independently of whatever week/day/month is on screen, and independently of
+  // weekLessons — otherwise browsing to a future week silently stopped all reminders for
+  // lessons happening today, with no indication anything was wrong.
+  await loadTodayTomorrow();
+  const now=new Date();const tLessons=todayLessons;
   for(const l of tLessons){
     if(shownReminders.has(l.id))continue;
     const[h,m]=l.start_time.split(':').map(Number);const lt=new Date();lt.setHours(h,m,0,0);const diff=(lt-now)/60000;
@@ -3287,21 +3321,28 @@ function smShareLink(){
 }
 
 /* ── Poll for new messages & registrations ── */
-// Track which students we've already notified about registration
+// Same-session dedup only, to stop pollStudentUpdates (every 20s) re-appending the same banner
+// repeatedly while a fresh registration is still inside the notification window below. This is
+// NOT what makes the notification safe from reappearing — that's the created_at time window,
+// because localStorage-based dedup alone doesn't survive a different device/browser or the
+// instructor clearing site data, which was previously reshowing "X has registered" indefinitely.
 let _notifiedRegistrations=new Set();
-try{_notifiedRegistrations=new Set(JSON.parse(localStorage.getItem('dsq_notified_regs')||'[]'));}catch(e){localStorage.removeItem('dsq_notified_regs');}
 
 async function pollStudentUpdates(){
   // Load fresh roster data
   await loadRoster();
 
-  // Check for newly registered students (have last_login set)
-  const{data:regAccounts}=await sb.from('student_accounts').select('id,full_name,last_login,email,phone,created_at').eq('instructor_id',instr.id).not('last_login','is',null).order('last_login',{ascending:false}).limit(20);
-  
+  // Check for newly registered students: last_login set (they've actually completed
+  // registration, not just an auto-created stub) AND created within the last 48h. Bounding by
+  // created_at — not just "not yet locally dismissed" — means the banner naturally stops being
+  // eligible at all once a registration is no longer recent, regardless of which device/browser
+  // the instructor is using or whether they've cleared site data.
+  const cutoff=new Date(Date.now()-48*3600*1000).toISOString();
+  const{data:regAccounts}=await sb.from('student_accounts').select('id,full_name,last_login,email,phone,created_at').eq('instructor_id',instr.id).not('last_login','is',null).gte('created_at',cutoff).order('last_login',{ascending:false}).limit(20);
+
   (regAccounts||[]).forEach(acc=>{
     if(!_notifiedRegistrations.has(acc.id)){
       _notifiedRegistrations.add(acc.id);
-      localStorage.setItem('dsq_notified_regs',JSON.stringify([..._notifiedRegistrations]));
       // Show registration notification banner
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
