@@ -389,6 +389,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div id="dashRevenue"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
         </div>
       </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-exclamation-triangle-fill me-2" style="color:var(--gold)"></i>Unconfirmed — Next 48h</div>
+          <div id="dashUnconfirmed"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -483,7 +489,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <table>
           <thead><tr>
             <th>Date</th><th>Time</th><th>Student</th><th>Instructor</th>
-            <th>Type</th><th>Duration</th><th class="hide-xs">Pickup</th><th class="hide-xs">Payment</th><th>Actions</th>
+            <th>Type</th><th>Duration</th><th class="hide-xs">Pickup</th><th class="hide-xs">Payment</th><th>Confirmed</th><th>Actions</th>
           </tr></thead>
           <tbody id="lessonsTbody"></tbody>
         </table>
@@ -2337,6 +2343,28 @@ async function loadDashboard(){
     <div class="col-6"><div class="det-item"><div class="det-lbl">Avg per Lesson</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--txt2)">£${(wkL||[]).length?((wkRev/(wkL||[]).length).toFixed(0)):'0'}</div></div></div>
   </div>`;
 
+  // Unconfirmed lessons in the next 48h — admin previously had no visibility into confirmation
+  // status at all, so a lesson stuck unconfirmed by either side could go unnoticed until a no-show.
+  const in48h=new Date(Date.now()+48*3600*1000);
+  const{data:soonL}=await sb.from('lessons').select('*,instructors(full_name)').gte('lesson_date',tk).lte('lesson_date',dateKey(in48h)).order('lesson_date',{ascending:true}).order('start_time',{ascending:true});
+  const dashUc=document.getElementById('dashUnconfirmed');
+  if(!soonL||!soonL.length){dashUc.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">No lessons in the next 48 hours.</div>';}
+  else{
+    let unconf=[];
+    try{
+      const{data:confs}=await sb.from('lesson_confirmations').select('lesson_id,status').in('lesson_id',soonL.map(l=>l.id));
+      const confSet=new Set((confs||[]).filter(c=>c.status==='both_confirmed').map(c=>c.lesson_id));
+      unconf=soonL.filter(l=>!confSet.has(l.id));
+    }catch(e){unconf=soonL;}
+    if(!unconf.length){dashUc.innerHTML='<div style="text-align:center;font-size:.8rem;color:#4ade80;padding:16px"><i class="bi bi-check-circle-fill me-1"></i>All lessons in the next 48h are fully confirmed.</div>';}
+    else{
+      dashUc.innerHTML=unconf.slice(0,8).map(l=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+        <div style="width:3px;height:28px;background:var(--gold);border-radius:2px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0"><div style="font-size:.78rem;font-weight:600;color:var(--txt)">${esc(l.student_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${fmtD(l.lesson_date)} · ${l.start_time||'—'} · ${esc(l.instructors?.full_name||'—')}</div></div>
+      </div>`).join('')+(unconf.length>8?`<div style="font-size:.72rem;color:var(--txt4);padding:6px 0;text-align:center">+${unconf.length-8} more</div>`:'');
+    }
+  }
+
   // Recent activity
   const{data:recentL}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,instructors(full_name)').order('created_at',{ascending:false}).limit(8);
   const dashA=document.getElementById('dashActivity');
@@ -2346,12 +2374,21 @@ async function loadDashboard(){
 
 /* == ALL LESSONS == */
 let allLessonsCache=[];
+let adminConfirmMap={}; // lesson_id -> confirmation row — admin previously had no visibility at all
 async function loadAllLessons(){
   const{data}=await sb.from('lessons').select('*,instructors(full_name)').order('lesson_date',{ascending:false}).order('start_time',{ascending:false}).limit(500);
   allLessonsCache=data||[];
   // Populate instructor filter
   const lif=document.getElementById('lessonInstrFilter');
   if(lif)lif.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  adminConfirmMap={};
+  const ids=allLessonsCache.map(l=>l.id);
+  if(ids.length){
+    try{
+      const{data:confs}=await sb.from('lesson_confirmations').select('*').in('lesson_id',ids);
+      (confs||[]).forEach(c=>{adminConfirmMap[c.lesson_id]=c;});
+    }catch(e){console.warn('lesson_confirmations not available:',e.message);}
+  }
   renderLessonsTable(allLessonsCache);
 }
 function filterLessons(){
@@ -2371,10 +2408,15 @@ function filterLessons(){
 function renderLessonsTable(lessons){
   const tb=document.getElementById('lessonsTbody');
   document.getElementById('lessonCount').textContent=`Showing ${lessons.length} lesson${lessons.length!==1?'s':''}`;
-  if(!lessons.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
+  if(!lessons.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
   tb.innerHTML=lessons.map(l=>{
     const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
     const waNum=buildWaNum(l.student_phone||'');
+    const conf=adminConfirmMap[l.id];
+    const confHtml=conf?.status==='both_confirmed'?'<span style="color:#4ade80;font-size:.72rem"><i class="bi bi-check-circle-fill me-1"></i>Both</span>'
+      :conf?.instructor_confirmed?'<span style="color:#93c5fd;font-size:.72rem">Instructor</span>'
+      :conf?.student_confirmed?'<span style="color:var(--gold);font-size:.72rem">Student</span>'
+      :'<span style="color:var(--txt4);font-size:.72rem">—</span>';
     return`<tr>
       <td style="font-size:.78rem;color:var(--txt)">${fmtD(l.lesson_date)}</td>
       <td style="font-size:.78rem;color:var(--gold);font-weight:600">${l.start_time||'—'}${l.start_time?'–'+end:''}</td>
@@ -2384,6 +2426,7 @@ function renderLessonsTable(lessons){
       <td style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${l.duration_hours||1}h</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.pickup_address||'—')}</td>
       <td class="hide-xs" style="font-size:.78rem;color:var(--green);font-weight:600">${l.payment_received?'£'+l.payment_received:'—'}</td>
+      <td>${confHtml}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openLessonDetail(allLessonsCache.find(x=>x.id==='${l.id}'))"><i class="bi bi-eye"></i></button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
