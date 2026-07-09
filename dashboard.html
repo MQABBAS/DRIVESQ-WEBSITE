@@ -867,6 +867,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="dsq-tab" id="smt-topics" onclick="smTab('topics')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-list-check me-1"></i>Topics</button>
       <button class="dsq-tab" id="smt-messages" onclick="smTab('messages')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-chat-dots-fill me-1"></i>Chat<span id="smUnreadBadge" class="tab-badge ms-1 hidden">0</span></button>
       <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-phone me-1"></i>App Login</button>
+      <button class="dsq-tab" id="smt-feedback" onclick="smTab('feedback')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-star-fill me-1"></i>Feedback</button>
     </div>
     <input type="hidden" id="smStudentName"/>
     <input type="hidden" id="smStudentAccId"/>
@@ -985,6 +986,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="d-flex gap-2 mt-3">
         <button class="btn-wa flex-fill" onclick="smShareLink()"><i class="bi bi-whatsapp me-1"></i>Send Portal Link via WA</button>
       </div>
+    </div>
+
+    <!-- FEEDBACK TAB -->
+    <div id="smPanel-feedback" class="hidden">
+      <div id="smFeedbackList"><div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading feedback…</div></div>
     </div>
   </div>
 </div>
@@ -1171,7 +1177,11 @@ function fmtS(d){return d.getDate()+' '+MS[d.getMonth()];}
 function fmtFull(d){const n=d.getDay();return(n===0?'Sunday':DAYS[n-1])+', '+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear();}
 function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=Math.round(h*60+m+parseFloat(hrs)*60);return pad2(Math.floor(t/60)%24)+':'+pad2(t%60);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
+// jsEsc() is always interpolated into an HTML attribute like onclick="fn('${jsEsc(x)}')" — escaping
+// only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
+// request text) still breaks out of the surrounding HTML attribute before the browser hands the value
+// to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -2883,13 +2893,36 @@ async function openStudentMgmt(studentName, tab='profile'){
 }
 
 function smTab(tab){
-  ['profile','progress','topics','messages','access'].forEach(t=>{
+  ['profile','progress','topics','messages','access','feedback'].forEach(t=>{
     document.getElementById('smPanel-'+t)?.classList.toggle('hidden',t!==tab);
     document.getElementById('smt-'+t)?.classList.toggle('active',t===tab);
   });
   if(tab==='topics')smLoadTopics();
   if(tab==='messages')smLoadMessages();
+  if(tab==='feedback')smLoadFeedback();
   if(tab!=='messages'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}
+}
+
+async function smLoadFeedback(){
+  const container=document.getElementById('smFeedbackList');
+  if(!smCurrentAccId){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">This student hasn\'t registered in the app yet.</div>';return;}
+  container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading feedback…</div>';
+  try{
+    const{data,error}=await sb.from('student_lesson_feedback').select('*').eq('student_account_id',smCurrentAccId).order('submitted_at',{ascending:false});
+    if(error)throw error;
+    if(!data||!data.length){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">No feedback submitted yet.</div>';return;}
+    container.innerHTML=data.map(f=>{
+      const stars='★'.repeat(f.rating||0)+'☆'.repeat(5-(f.rating||0));
+      return`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:.85rem;color:var(--gold);letter-spacing:2px">${stars}</div>
+        ${f.comment?`<div style="font-size:.8rem;color:var(--txt2);margin-top:6px;line-height:1.6">${esc(f.comment)}</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:6px">${new Date(f.submitted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.warn('smLoadFeedback error:',e.message);
+    container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Couldn\'t load feedback.</div>';
+  }
 }
 
 function smUpdateProgBar(){

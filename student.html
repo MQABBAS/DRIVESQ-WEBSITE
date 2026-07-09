@@ -281,6 +281,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 .dsq-toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);z-index:9999;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:10px 16px;font-size:.78rem;color:var(--txt2);opacity:0;transition:all .28s ease;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
 .dsq-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .dsq-toast.success{border-left-color:var(--green)}
+.dsq-toast.error{border-left-color:var(--red);background:#2a1214}
 @media(min-width:768px){.dsq-toast{bottom:24px}}
 
 /* WA FLOAT */
@@ -856,7 +857,9 @@ applyTheme();setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
 
 /* ── UTILS ── */
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
+// jsEsc() is interpolated into an HTML attribute like onclick="fn('${jsEsc(x)}')" — escape for the
+// JS string literal first, then HTML-escape that result so a literal " can't break out of the attribute.
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function pad2(n){return String(n).padStart(2,'0');}
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function fmtDate(s){if(!s)return'';const d=new Date(s+'T12:00:00');const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return days[d.getDay()]+', '+d.getDate()+' '+ms[d.getMonth()]+' '+d.getFullYear();}
@@ -879,6 +882,7 @@ let currentStudent=JSON.parse(localStorage.getItem('dsq_student')||sessionStorag
 let studentProgress=null;
 let studentTopics=[];
 let studentLessons=[];
+let studentFeedback=[];
 let nextLesson=null;
 let instrData=null;
 let currentLessonId=null;
@@ -1086,7 +1090,7 @@ async function initApp(){
   document.getElementById('waFloat').classList.remove('hidden');
   await Promise.all([
     loadStudentData(),loadProgress(),loadTopics(),loadLessons(),
-    loadInstructor(),loadMessages(),loadTheoryTicks()
+    loadInstructor(),loadMessages(),loadTheoryTicks(),loadFeedback()
   ]);
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
@@ -1134,6 +1138,14 @@ async function loadLessons(){
   const today=todayKey();
   const upcoming=studentLessons.filter(l=>l.lesson_date>=today).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||(a.start_time||'').localeCompare(b.start_time||''));
   nextLesson=upcoming[0]||null;
+}
+
+async function loadFeedback(){
+  try{
+    const{data,error}=await sb.from('student_lesson_feedback').select('*').eq('student_account_id',currentStudent.id).order('submitted_at',{ascending:false});
+    if(error){console.warn('loadFeedback error:',error.message);studentFeedback=[];return;}
+    studentFeedback=data||[];
+  }catch(e){console.warn('loadFeedback error:',e);studentFeedback=[];}
 }
 
 async function loadInstructor(){
@@ -1881,6 +1893,7 @@ function renderProfile(){
   });
   // Lesson history
   renderFullLessonHistory();
+  renderFeedbackHistory();
 }
 
 function renderFullLessonHistory(){
@@ -1891,10 +1904,29 @@ function renderFullLessonHistory(){
     <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
     <div style="flex:1;min-width:0">
       <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
-      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time} · ${l.duration_hours}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
+      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||'—'} · ${l.duration_hours||1}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
       ${l.notes?`<div style="font-size:.66rem;color:var(--txt4);font-style:italic;margin-top:1px">${esc(l.notes)}</div>`:''}
     </div>
   </div>`).join('');
+}
+
+function renderFeedbackHistory(){
+  const container=document.getElementById('feedbackHistory');
+  if(!container)return;
+  if(!studentFeedback.length){container.innerHTML='<div style="text-align:center;padding:16px;font-size:.78rem;color:var(--txt4)">No feedback given yet</div>';return;}
+  container.innerHTML=studentFeedback.map(f=>{
+    const lesson=studentLessons.find(l=>l.id===f.lesson_id);
+    const stars=[1,2,3,4,5].map(n=>`<span style="color:${n<=(f.rating||0)?'var(--gold)':'var(--bdr2)'};font-size:.85rem">★</span>`).join('');
+    return`<div class="hist-row">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>${stars}</span>
+        <span style="font-size:.72rem;color:var(--txt4)">${lesson?fmtDate(lesson.lesson_date):fmtDate(f.submitted_at)}</span>
+      </div>
+      ${f.comment?`<div style="font-size:.76rem;color:var(--txt2);margin-top:4px">${esc(f.comment)}</div>`:''}
+    </div>
+  </div>`;
+  }).join('');
 }
 
 let profPhotoFile=null;
@@ -2076,12 +2108,18 @@ async function submitFeedback(){
     }]);
     fbErr=error;
   }catch(e){fbErr=e;}
-  if(fbErr){console.warn('Feedback table error:',fbErr.message);}// Still close modal — feedback logged locally
+  if(fbErr){
+    console.warn('Feedback table error:',fbErr.message);
+    showToast('Could not submit feedback — please try again.','error');
+    return;
+  }
   closeModal('feedbackModal');
   feedbackRating=0;
   document.getElementById('feedbackComment').value='';
   for(let i=1;i<=5;i++)document.getElementById('star'+i).classList.remove('active');
   showToast('Feedback submitted ✓ Thank you!','success');
+  await loadFeedback();
+  renderFeedbackHistory();
 }
 
 /* ── MOCK TEST — 700 Question Bank ── */

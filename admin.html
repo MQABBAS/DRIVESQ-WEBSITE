@@ -1001,7 +1001,11 @@ function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reloa
 
 /* ══ STATE ══ */
 let allInstrs=[];
+// viewingId/viewingName/viewingData track which instructor's calendar drill-down is open —
+// only viewInstr() may set these. Never reuse them for unrelated state (e.g. the edit modal
+// has its own editingInstr below) or a stale drill-down can leak into another screen.
 let viewingId=null,viewingName='',viewingData=null;
+let editingInstr=null;
 let adminWeekOffset=0,adminLessons=[];
 let msgTypes={msgModal:'general',sendAllModal:'general'};
 let pwdRevealed=false;
@@ -1018,7 +1022,11 @@ function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);co
 function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
 function fmtD(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
+// jsEsc() is always interpolated into an HTML attribute like onclick="fn('${jsEsc(x)}')" — escaping
+// only for the JS string literal isn't enough, since a literal " from the input still breaks out of
+// the surrounding HTML attribute before the browser ever hands the value to the JS parser. Escape for
+// the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
@@ -1032,6 +1040,11 @@ function normalizePhone(raw){
 /* ══ TABS ══ */
 const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar'];
 function switchTab(t){
+  // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
+  // "which instructor am I viewing" state — otherwise it silently survives into unrelated
+  // screens (e.g. re-entering Calendar skips the instructor picker and shows stale data,
+  // or a lesson gets added against whichever instructor was last viewed).
+  if(t!=='calendar'){viewingId=null;viewingName='';viewingData=null;}
   TABS.forEach(id=>{
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
@@ -1388,8 +1401,13 @@ function renderInstrDetail(instr){
 /* ══ ADMIN CALENDAR ══ */
 async function loadAdminLessons(){
   if(!viewingId)return;
+  // Capture which instructor/week this request is for — if the admin clicks a different
+  // instructor or a different week before this resolves, a slower response must not be
+  // allowed to overwrite what's now on screen.
+  const reqInstr=viewingId,reqOffset=adminWeekOffset;
   const mon=getMonday(adminWeekOffset);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',viewingId).gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)).order('start_time',{ascending:true});
+  if(reqInstr!==viewingId||reqOffset!==adminWeekOffset)return;
   adminLessons=data||[];
   renderAdminCal();
   // Update week stats
@@ -1444,7 +1462,9 @@ function renderAdminCal(){
 /* ══ INSTRUCTOR ROSTER ══ */
 async function loadInstrRoster(){
   if(!viewingId)return;
+  const reqInstr=viewingId;
   const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',viewingId).order('name',{ascending:true});
+  if(reqInstr!==viewingId)return;
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
   el.innerHTML=data.map(p=>`<div class="col-12 col-sm-6 col-md-4">
@@ -1726,10 +1746,10 @@ async function confirmDelLesson(id){
 /* ══ EDIT INSTRUCTOR ══ */
 function openEditForId(id){
   const instr=allInstrs.find(i=>i.id===id);if(!instr)return;
-  viewingId=id;viewingData=instr;openEditModal();
+  editingInstr=instr;openEditModal();
 }
 function openEditModal(){
-  const instr=viewingData;if(!instr)return;
+  const instr=editingInstr;if(!instr)return;
   document.getElementById('edit-id').value=instr.id;
   document.getElementById('edit-name').value=instr.full_name||'';
   document.getElementById('edit-badge').value=instr.badge_number||'';
@@ -2302,17 +2322,21 @@ async function loadFeedback(){
   // Populate instructor filter if not done
   const fbIF=document.getElementById('fbInstrFilter');
   if(fbIF&&fbIF.options.length<=1)fbIF.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
-  // Try multiple possible feedback table names
-  let feedbackData=[];
-  for(const tbl of ['student_feedback','feedback','reviews','student_reviews']){
-    const{data,error}=await sb.from(tbl).select('*').order('created_at',{ascending:false}).limit(200);
-    if(!error&&data){feedbackData=data;break;}
-  }
+  const{data,error}=await sb.from('student_lesson_feedback').select('*').order('submitted_at',{ascending:false}).limit(200);
+  const feedbackData=error?[]:(data||[]);
   const fbList=document.getElementById('fbList');
+  if(error)console.warn('loadFeedback error:',error.message);
   if(!feedbackData.length){
-    fbList.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4)"><i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt4)"></i><div style="font-size:.88rem">No feedback found</div><div style="font-size:.74rem;margin-top:4px">Student feedback will appear here once submitted. The system checks for tables: student_feedback, feedback, reviews, student_reviews.</div></div>';
+    fbList.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4)"><i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt4)"></i><div style="font-size:.88rem">No feedback found</div><div style="font-size:.74rem;margin-top:4px">Student feedback will appear here once submitted after a lesson.</div></div>';
     document.getElementById('fbStats').innerHTML='';
     return;
+  }
+  // Resolve student names for whichever accounts left feedback
+  const acctIds=[...new Set(feedbackData.map(f=>f.student_account_id).filter(Boolean))];
+  let acctMap={};
+  if(acctIds.length){
+    const{data:accts}=await sb.from('student_accounts').select('id,full_name').in('id',acctIds);
+    (accts||[]).forEach(a=>{acctMap[a.id]=a.full_name;});
   }
   let list=feedbackData;
   if(instrId)list=list.filter(f=>f.instructor_id===instrId);
@@ -2323,17 +2347,18 @@ async function loadFeedback(){
     <div class="col-6 col-sm-3"><div class="stat-card g"><div class="stat-lbl">Total Reviews</div><div class="stat-num g">${list.length}</div></div></div>
     <div class="col-6 col-sm-3"><div class="stat-card r"><div class="stat-lbl">Avg Rating</div><div class="stat-num r">${avgRating.toFixed(1)} <span style="font-size:.7rem">/ 5</span></div></div></div>
     <div class="col-6 col-sm-3"><div class="stat-card gr"><div class="stat-lbl">5-Star Reviews</div><div class="stat-num gr">${fiveStars}</div></div></div>
-    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">This Month</div><div class="stat-num b">${list.filter(f=>{const d=new Date(f.created_at);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div></div></div>`;
+    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">This Month</div><div class="stat-num b">${list.filter(f=>{const d=new Date(f.submitted_at);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div></div></div>`;
   fbList.innerHTML=list.map(f=>{
     const stars='★'.repeat(f.rating||0)+'☆'.repeat(5-(f.rating||0));
     const instrName=allInstrs.find(i=>i.id===f.instructor_id)?.full_name||'Unknown';
+    const studName=acctMap[f.student_account_id]||'Unknown student';
     return`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;margin-bottom:8px">
       <div class="d-flex align-items-start justify-content-between gap-2">
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(f.student_name||f.name||'Anonymous')}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(studName)}</div>
           <div style="font-size:.85rem;color:var(--gold);letter-spacing:2px;margin:2px 0">${stars}</div>
-          <div style="font-size:.78rem;color:var(--txt2);line-height:1.6;margin-top:4px">${esc(f.comment||f.review||f.message||'No comment')}</div>
-          <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Instructor: <strong style="color:var(--txt3)">${esc(instrName)}</strong> · ${fmtD(f.created_at)}</div>
+          <div style="font-size:.78rem;color:var(--txt2);line-height:1.6;margin-top:4px">${esc(f.comment||'No comment')}</div>
+          <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Instructor: <strong style="color:var(--txt3)">${esc(instrName)}</strong> · ${fmtD(f.submitted_at)}</div>
         </div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:${(f.rating||0)>=4?'var(--green)':(f.rating||0)>=3?'var(--gold)':'var(--red)'};flex-shrink:0">${f.rating||'—'}</div>
       </div>
