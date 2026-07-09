@@ -1207,26 +1207,32 @@ async function deleteInstr(id,name){
   if(!confirm(`⚠️ PERMANENTLY REMOVE "${name}"?\n\nThis will delete:\n• Their instructor account\n• ALL their lessons\n• ALL admin messages to them\n• All student requests & transfers\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
   showToast('Deleting instructor…','warn');
   try{
-    // Step by step — order matters for foreign key constraints
-    // 1. lesson_reminders (references lessons + instructors)
-    const{error:e1}=await sb.from('lesson_reminders').delete().eq('instructor_id',id);
-    if(e1)console.warn('lesson_reminders delete:',e1);
-    // 2. admin_messages
-    const{error:e2}=await sb.from('admin_messages').delete().eq('instructor_id',id);
-    if(e2)console.warn('admin_messages delete:',e2);
-    // 3. student profiles
-    const{error:e3}=await sb.from('student_profiles').delete().eq('instructor_id',id);
-    if(e3)console.warn('student_profiles delete:',e3);
-    // 4. student requests
-    const{error:e4}=await sb.from('student_requests').delete().eq('instructor_id',id);
-    if(e4)console.warn('student_requests delete:',e4);
-    // 5. transfer requests (both directions)
-    await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
-    await sb.from('transfer_requests').delete().eq('to_instructor_id',id);
-    // 6. lessons
+    // Step by step — order matters for foreign key constraints. Track failures instead of only
+    // logging them: a sub-delete failing here previously still showed "success", leaving rows
+    // (old chat history, confirmations, reschedule/change requests) permanently orphaned with a
+    // dangling instructor_id that nothing else could ever clean up or surface again.
+    const failed=[];
+    const steps=[
+      ['lesson_reminders','instructor_id'],
+      ['admin_messages','instructor_id'],
+      ['student_profiles','instructor_id'],
+      ['student_requests','instructor_id'],
+      ['lesson_confirmations','instructor_id'],
+      ['reschedule_requests','instructor_id'],
+      ['student_messages','instructor_id'],
+      ['instructor_change_requests','current_instructor_id'],
+    ];
+    for(const[table,col]of steps){
+      const{error}=await sb.from(table).delete().eq(col,id);
+      if(error){console.warn(table+' delete:',error.message);failed.push(table);}
+    }
+    const{error:eTr1}=await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
+    if(eTr1)failed.push('transfer_requests (from)');
+    const{error:eTr2}=await sb.from('transfer_requests').delete().eq('to_instructor_id',id);
+    if(eTr2)failed.push('transfer_requests (to)');
     const{error:e6}=await sb.from('lessons').delete().eq('instructor_id',id);
-    if(e6)console.warn('lessons delete:',e6);
-    // 7. instructor record itself
+    if(e6){console.warn('lessons delete:',e6.message);failed.push('lessons');}
+    // instructor record itself
     const{error:eMain}=await sb.from('instructors').delete().eq('id',id);
     if(eMain){
       console.error('Instructor delete error:',eMain);
@@ -1235,7 +1241,11 @@ async function deleteInstr(id,name){
       showToast('Delete blocked by database constraint. See SQL helper.','error');
       return;
     }
-    showToast('🗑️ Instructor "'+name+'" removed.','success');
+    if(failed.length){
+      showToast('⚠️ Instructor removed, but some related data failed to clean up ('+failed.join(', ')+'). Check console.','error');
+    }else{
+      showToast('🗑️ Instructor "'+name+'" removed.','success');
+    }
     await loadInstrs();
     if(viewingId===id){viewingId=null;switchTab('instructors');}
   }catch(e){
@@ -1487,13 +1497,17 @@ async function loadInstrRoster(){
 async function loadAllStudents(){
   const[lessonsR,accountsR,progressR]=await Promise.all([
     sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
-    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at'),
+    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at,instructor_id'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score')
   ]);
   const acctMap={};
   (accountsR.data||[]).forEach(a=>{
     if(a.phone)acctMap[normalizePhone(a.phone)]=a;
-    if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()]=a;
+    // Scoped by instructor_id, same as the lesson grouping key below — two different instructors
+    // can each have a student with the same name, and an unscoped name key would silently let
+    // the last one processed overwrite the other, cross-attaching one student's progress/last
+    // login onto a completely different person.
+    if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()+'__'+a.instructor_id]=a;
   });
   const progMap={};
   (progressR.data||[]).forEach(p=>{
@@ -1516,7 +1530,7 @@ async function loadAllStudents(){
   });
   Object.values(map).forEach(s=>{
     const normPhone=normalizePhone(s.phone);
-    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()]||null;
+    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()+'__'+s.instrId]||null;
     s.lastLogin=acc?.last_login||null;
     s.acctId=acc?.id||null;
     s.onApp=!!acc?.last_login;
@@ -1698,6 +1712,11 @@ async function saveAdminLesson(){
   const student=document.getElementById('al-student').value.trim();
   const addr=document.getElementById('al-addr').value.trim();
   if(!instrId||!date||!student||!addr){showToast('Fill required fields.','error');return;}
+  // Look up student_account_id so the lesson shows up in the student's own app — without this
+  // an admin-booked lesson for an already-registered student stayed invisible in their portal
+  // until they happened to log out and back in (the only path that re-links orphaned lessons).
+  let _accId=null;
+  try{const{data:_acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instrId).ilike('full_name',student).maybeSingle();_accId=_acc?.id||null;}catch(e){}
   const{error}=await sb.from('lessons').insert([{
     instructor_id:instrId,lesson_date:date,
     start_time:document.getElementById('al-time').value,
@@ -1705,6 +1724,7 @@ async function saveAdminLesson(){
     student_name:student,student_phone:document.getElementById('al-phone').value.trim(),
     pickup_address:addr,lesson_type:document.getElementById('al-type').value,
     notes:document.getElementById('al-notes').value.trim(),
+    student_account_id:_accId,
     created_at:new Date().toISOString()
   }]);
   if(error){showToast('Failed to save lesson.','error');return;}
@@ -2027,9 +2047,13 @@ function openAssignModal(instrId,instrName,instrPhone){
 async function confirmAssign(){
   const instrId=document.getElementById('assign-instr-id').value;const s=fcStudentData||{};
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
+  // "Find Closest" only ever collects a postcode, not a real street address — previously that
+  // postcode was written straight into pickup_address too, so an approved lesson ended up with
+  // e.g. "M19 2PH" as its pickup address instead of an actual address. Leave pickup_address
+  // unset; the instructor fills in the real address when they approve the request.
   const{error}=await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
-    pickup_address:s.postcode,postcode:s.postcode,lesson_type:s.type||'Manual',
+    pickup_address:null,postcode:s.postcode,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'pending',created_at:new Date().toISOString()
   }]);
   if(error){showToast('Failed to assign.','error');return;}
