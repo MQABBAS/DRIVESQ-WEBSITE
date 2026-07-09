@@ -91,7 +91,7 @@ tr:hover td{background:rgba(209,10,17,.02)}
 .chip{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.4px;white-space:nowrap}
 .chip.adi{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pdi{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
-.chip.approved{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
+.chip.approved,.chip.accepted{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pending{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
 .chip.rejected{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
 .chip.suspended{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);color:#c084fc}
@@ -548,12 +548,16 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="panel-requests" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
     <div id="reqList" class="d-flex flex-column gap-3"></div>
+    <div class="page-title mb-3 mt-4"><i class="bi bi-calendar-event me-2" style="color:var(--gold)"></i>Reschedule Requests</div>
+    <div id="reschAdminList" class="d-flex flex-column gap-3"></div>
   </div>
 
   <!-- ══ TRANSFERS ══ -->
   <div id="panel-transfers" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Transfer Requests</div>
     <div id="transferList" class="d-flex flex-column gap-3"></div>
+    <div class="page-title mb-3 mt-4"><i class="bi bi-person-vcard me-2" style="color:#a855f7"></i>Instructor Change Requests</div>
+    <div id="instrChangeList" class="d-flex flex-column gap-3"></div>
   </div>
 
   <!-- ══ MESSAGES ══ -->
@@ -898,6 +902,22 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
+<!-- INSTRUCTOR CHANGE REQUEST — APPROVE MODAL -->
+<div class="dsq-overlay" id="changeReqModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('changeReqModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-vcard me-2" style="color:#a855f7"></i>Approve Instructor Change</h5>
+    <div class="modal-sub" id="changeReqSub">Select the student's new instructor</div>
+    <input type="hidden" id="changeReq-id"/>
+    <input type="hidden" id="changeReq-studAcc"/>
+    <div class="mb-3"><label class="dsq-lbl">New Instructor</label>
+      <select class="dsq-inp" id="changeReq-instr"><option value="">Select instructor…</option></select>
+    </div>
+    <button class="btn-gold w-100 mb-2" onclick="confirmChangeReq()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Reassign</button>
+    <button class="btn-s w-100" onclick="closeModal('changeReqModal')">Cancel</button>
+  </div>
+</div>
+
 <!-- STUDENT DETAIL MODAL -->
 <div class="dsq-overlay" id="studentDetailModal">
   <div class="dsq-modal wide">
@@ -1052,11 +1072,11 @@ function switchTab(t){
   if(t==='dashboard')loadDashboard();
   if(t==='messages')loadMessages();
   if(t==='analytics'){loadAnalytics();}
-  if(t==='requests')loadStudentRequests();
+  if(t==='requests'){loadStudentRequests();loadAdminReschedules();}
   if(t==='lessons')loadAllLessons();
   if(t==='revenue')loadRevenue();
   if(t==='feedback')loadFeedback();
-  if(t==='transfers')loadTransferRequests();
+  if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
@@ -1118,6 +1138,8 @@ function populateDropdowns(){
   document.getElementById('msg-recipient').innerHTML='<option value="">Select instructor…</option>'+all;
   document.getElementById('al-instr').innerHTML='<option value="">Select…</option>'+all;
   document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  const cri=document.getElementById('changeReq-instr');
+  if(cri)cri.innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   // Student filter dropdown
   const sf=document.getElementById('studentInstrFilter');
   if(sf)sf.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
@@ -1936,6 +1958,90 @@ async function updateTransferStatus(id,status){
   const{error}=await sb.from('transfer_requests').update({status}).eq('id',id);
   if(error){showToast('Failed.','error');return;}
   showToast(status==='approved'?'Transfer approved ✓':'Transfer declined.','success');loadTransferRequests();
+}
+
+/* ══ RESCHEDULE REQUESTS (business-wide — admin had zero visibility before) ══ */
+async function loadAdminReschedules(){
+  const{data,error}=await sb.from('reschedule_requests').select('*').order('created_at',{ascending:false}).limit(100);
+  const list=document.getElementById('reschAdminList');
+  if(error){console.warn('loadAdminReschedules error:',error.message);list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">Could not load reschedule requests.</div>';return;}
+  const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No reschedule requests yet.</div>';return;}
+  const instrMap={};allInstrs.forEach(i=>{instrMap[i.id]=i.full_name;});
+  list.innerHTML=items.map(r=>{
+    const stale=r.status==='pending'&&(Date.now()-new Date(r.created_at).getTime())>72*3600*1000;
+    return`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='accepted'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name||'Student')}</div>
+        <div style="font-size:.74rem;color:var(--txt3)">Instructor: <strong style="color:var(--txt)">${esc(instrMap[r.instructor_id]||'Unknown')}</strong></div>
+        <div style="font-size:.76rem;color:var(--txt3);margin-top:3px">Was: <strong>${esc(r.original_date||'—')}</strong> ${esc(r.original_time||'')} → Wants: <strong style="color:var(--gold)">${esc(r.preferred_date||'Flexible')}</strong> ${esc(r.preferred_time||'')}</div>
+        ${r.reason?`<div style="font-size:.73rem;color:var(--txt3);font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}${stale?' · <span style="color:var(--red)">Pending 3+ days — may need a nudge</span>':''}</div>
+      </div>
+      <span class="chip ${r.status}">${r.status}</span>
+    </div>
+  </div>`;
+  }).join('');
+}
+
+/* ══ INSTRUCTOR CHANGE REQUESTS (student promised "admin will review within 48h" — admin
+   previously had no way to see or action these at all) ══ */
+async function loadInstructorChangeRequests(){
+  const{data,error}=await sb.from('instructor_change_requests').select('*').order('created_at',{ascending:false}).limit(100);
+  const list=document.getElementById('instrChangeList');
+  if(error){console.warn('loadInstructorChangeRequests error:',error.message);list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">Could not load instructor change requests.</div>';return;}
+  const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No instructor change requests.</div>';return;}
+  const instrMap={};allInstrs.forEach(i=>{instrMap[i.id]=i.full_name;});
+  const accIds=[...new Set(items.map(r=>r.student_account_id).filter(Boolean))];
+  let acctMap={};
+  if(accIds.length){
+    const{data:accts}=await sb.from('student_accounts').select('id,full_name').in('id',accIds);
+    (accts||[]).forEach(a=>{acctMap[a.id]=a.full_name;});
+  }
+  list.innerHTML=items.map(r=>{
+    const studentName=acctMap[r.student_account_id]||'Unknown student';
+    return`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='approved'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(studentName)}</div>
+        <div style="font-size:.74rem;color:var(--txt3)">Current instructor: <strong style="color:var(--txt)">${esc(instrMap[r.current_instructor_id]||'Unknown')}</strong></div>
+        ${r.reason?`<div style="font-size:.73rem;color:var(--txt3);font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="d-flex flex-column gap-1 align-items-end">
+        <span class="chip ${r.status||'pending'}">${r.status||'pending'}</span>
+        ${(!r.status||r.status==='pending')?`<button class="abtn approve" onclick="openChangeReqModal('${r.id}','${jsEsc(studentName)}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+          <button class="abtn reject" onclick="declineChangeReq('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>`:''}
+      </div>
+    </div>
+  </div>`;
+  }).join('');
+}
+function openChangeReqModal(id,studentName){
+  document.getElementById('changeReq-id').value=id;
+  document.getElementById('changeReqSub').textContent=`Reassign: ${studentName}`;
+  openModal('changeReqModal');
+}
+async function confirmChangeReq(){
+  const id=document.getElementById('changeReq-id').value;
+  const newInstrId=document.getElementById('changeReq-instr').value;
+  if(!newInstrId){showToast('Select an instructor.','error');return;}
+  const{data:req}=await sb.from('instructor_change_requests').select('student_account_id').eq('id',id).maybeSingle();
+  if(!req){showToast('Request not found.','error');return;}
+  const{error:e1}=await sb.from('student_accounts').update({instructor_id:newInstrId}).eq('id',req.student_account_id);
+  if(e1){showToast('Failed to reassign student.','error');return;}
+  await sb.from('instructor_change_requests').update({status:'approved'}).eq('id',id);
+  showToast('Instructor change approved ✓','success');
+  closeModal('changeReqModal');
+  loadInstructorChangeRequests();
+}
+async function declineChangeReq(id){
+  const{error}=await sb.from('instructor_change_requests').update({status:'declined'}).eq('id',id);
+  if(error){showToast('Failed.','error');return;}
+  showToast('Request declined.');
+  loadInstructorChangeRequests();
 }
 
 /* ══ CREATE INSTRUCTOR ══ */
