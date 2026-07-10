@@ -561,6 +561,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <button class="cal-view-btn active" id="sview-all" onclick="setStudentFilter('all')">All</button>
           <button class="cal-view-btn" id="sview-connected" onclick="setStudentFilter('connected')"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Connected</button>
           <button class="cal-view-btn" id="sview-unread" onclick="setStudentFilter('unread')"><i class="bi bi-chat-fill me-1" style="color:#60a5fa"></i>Messages</button>
+          <button class="cal-view-btn" id="sview-archived" onclick="setStudentFilter('archived')"><i class="bi bi-archive me-1" style="color:#94a3b8"></i>Archived</button>
         </div>
         <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)" id="studentSearch"/>
         <button class="btn-p" style="width:auto;padding:8px 14px;font-size:.82rem;min-height:38px" onclick="openAddStudentDirect()"><i class="bi bi-person-plus me-1"></i>Add</button>
@@ -900,7 +901,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
-        <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()"><i class="bi bi-trash"></i></button>
+        <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as no longer an active student"><i class="bi bi-archive"></i></button>
+        <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
       </div>
     </div>
 
@@ -2361,7 +2363,7 @@ async function loadStudents(){
 let studentFilterMode='all';
 function setStudentFilter(mode){
   studentFilterMode=mode;
-  ['all','connected','unread'].forEach(m=>{document.getElementById('sview-'+m)?.classList.toggle('active',m===mode);});
+  ['all','connected','unread','archived'].forEach(m=>{document.getElementById('sview-'+m)?.classList.toggle('active',m===mode);});
   filterStudents(document.getElementById('studentSearch')?.value||'');
 }
 
@@ -2380,12 +2382,17 @@ function renderStudentStatsStrip(students){
 
 function renderStudents(students){
   const list=document.getElementById('studentList');
-  renderStudentStatsStrip(students);
-  let filtered=students;
-  if(studentFilterMode==='connected')filtered=students.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
-  else if(studentFilterMode==='unread')filtered=students.filter(s=>(s.unreadMsgs||0)>0);
+  // Archived students (passed/stopped) are hidden from every normal view — only the dedicated
+  // "archived" filter shows them, so they don't clutter the active roster while still being
+  // reachable if the instructor needs to look one up or reactivate them. Stats strip totals are
+  // computed from the active-only set too, so an archived student doesn't inflate "X students".
+  const activeStudents=students.filter(s=>s.status!=='inactive');
+  renderStudentStatsStrip(activeStudents);
+  let filtered=studentFilterMode==='archived'?students.filter(s=>s.status==='inactive'):activeStudents;
+  if(studentFilterMode==='connected')filtered=filtered.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
+  else if(studentFilterMode==='unread')filtered=filtered.filter(s=>(s.unreadMsgs||0)>0);
   if(!filtered.length){
-    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':'No students yet.'}</div>`;
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':studentFilterMode==='archived'?'No archived students.':'No students yet.'}</div>`;
     return;
   }
   list.innerHTML=filtered.map(s=>{
@@ -2884,7 +2891,12 @@ async function openStudentMgmt(studentName, tab='profile'){
   else if(lastEvent==='pin_entered')badges+='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
   else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
   else badges+='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App Yet</span>';
+  const isArchived=p.status==='inactive';
+  if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(148,163,184,.12);color:#94a3b8;border-color:rgba(148,163,184,.25)"><i class="bi bi-archive me-1"></i>Archived</span>';
   document.getElementById('smBadges').innerHTML=badges;
+  const archBtn=document.getElementById('smArchiveBtn');
+  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i>':'<i class="bi bi-archive"></i>';
+  if(archBtn)archBtn.title=isArchived?'Reactivate this student':'Mark as no longer an active student';
 
   // Populate profile
   document.getElementById('smEditName').value=p.name||'';
@@ -3059,6 +3071,20 @@ async function smRemoveFromRoster(){
   closeModal('studentMgmtModal');
   await Promise.all([loadRoster(),loadStudents()]);
   showToast('Removed from roster.');
+}
+
+// Archiving keeps the student's roster entry and full lesson/message history intact — it just
+// drops them out of the default active-student view once they've passed or stopped lessons,
+// instead of the only other option being permanently deleting their roster profile.
+async function smToggleArchive(){
+  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  if(!p?.id){showToast('Save this student to your roster first.');return;}
+  const newStatus=p.status==='inactive'?'active':'inactive';
+  const{error}=await sb.from('student_profiles').update({status:newStatus}).eq('id',p.id);
+  if(error){showToast('Could not update — your roster table may need a "status" column added.','error');console.warn('smToggleArchive error:',error.message);return;}
+  showToast(newStatus==='inactive'?'Student archived — hidden from your active roster.':'Student reactivated ✓','success');
+  await Promise.all([loadRoster(),loadStudents()]);
+  openStudentMgmt(smCurrentName,'profile');
 }
 
 function smWhatsApp(){
