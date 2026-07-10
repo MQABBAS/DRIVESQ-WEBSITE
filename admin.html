@@ -944,6 +944,18 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="section-label">Recent Lessons</div>
       <div id="sdLessons"></div>
     </div>
+    <div class="mt-3" id="sdTestDatesSection" style="display:none">
+      <div class="section-label"><i class="bi bi-calendar-event me-2" style="color:var(--gold)"></i>Test Dates</div>
+      <div id="sdTestDates"></div>
+    </div>
+    <div class="mt-3" id="sdTheorySection" style="display:none">
+      <div class="section-label"><i class="bi bi-book me-2" style="color:#a855f7"></i>Theory Checklist Progress</div>
+      <div id="sdTheory"></div>
+    </div>
+    <div class="mt-3" id="sdMessagesSection" style="display:none">
+      <div class="section-label"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Conversation with Instructor</div>
+      <div id="sdMessages" style="max-height:280px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px"></div>
+    </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
 </div>
@@ -1656,7 +1668,11 @@ async function openStudentDetail(idx){
 async function loadStudentProgress(s){
   const progSec=document.getElementById('sdProgressSection');
   const topicsSec=document.getElementById('sdTopicsSection');
+  const testDatesSec=document.getElementById('sdTestDatesSection');
+  const theorySec=document.getElementById('sdTheorySection');
+  const messagesSec=document.getElementById('sdMessagesSection');
   progSec.style.display='none';topicsSec.style.display='none';
+  testDatesSec.style.display='none';theorySec.style.display='none';messagesSec.style.display='none';
   const normPhone=normalizePhone(s.phone);
   if(!normPhone)return;
   const attempts=[s.phone,normPhone];
@@ -1706,6 +1722,41 @@ async function loadStudentProgress(s){
       </div></div>`;
     }).join('')}</div>`;
   }
+
+  // Test dates, theory checklist, and the instructor↔student conversation — admin previously
+  // had no visibility into any of these three.
+  try{
+    const{data:td}=await sb.from('student_test_dates').select('*').eq('student_account_id',acct.id).maybeSingle();
+    if(td&&(td.theory_test_date||td.practical_test_date)){
+      testDatesSec.style.display='';
+      document.getElementById('sdTestDates').innerHTML=`<div class="row g-2">
+        <div class="col-6"><div class="det-item"><div class="det-lbl">Theory Test</div><div class="det-val ${!td.theory_test_date?'empty':''}">${td.theory_test_date?fmtD(td.theory_test_date):'Not set'}</div></div></div>
+        <div class="col-6"><div class="det-item"><div class="det-lbl">Practical Test</div><div class="det-val ${!td.practical_test_date?'empty':''}">${td.practical_test_date?fmtD(td.practical_test_date):'Not set'}</div></div></div>
+      </div>`;
+    }
+  }catch(e){console.warn('student_test_dates not available:',e.message);}
+
+  try{
+    const{data:theory}=await sb.from('student_theory_progress').select('*').eq('student_account_id',acct.id);
+    if(theory&&theory.length){
+      theorySec.style.display='';
+      const ticked=theory.filter(t=>t.is_ticked).length;
+      document.getElementById('sdTheory').innerHTML=`<div style="font-size:.78rem;color:var(--txt2);margin-bottom:6px">${ticked} of ${theory.length} topics revised</div>
+        <div style="background:var(--dk3);border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);width:${theory.length?Math.round(ticked/theory.length*100):0}%"></div></div>`;
+    }
+  }catch(e){console.warn('student_theory_progress not available:',e.message);}
+
+  try{
+    const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(50);
+    if(msgs&&msgs.length){
+      messagesSec.style.display='';
+      document.getElementById('sdMessages').innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
+        <div style="display:inline-block;max-width:80%;background:${m.sender==='instructor'?'var(--dk2)':'rgba(209,10,17,.12)'};border:1px solid ${m.sender==='instructor'?'var(--bdr)':'rgba(209,10,17,.2)'};border-radius:10px;padding:7px 11px;font-size:.78rem;color:var(--txt2);text-align:left">${esc(m.message)}</div>
+        <div style="font-size:.6rem;color:var(--txt5);margin-top:2px">${m.sender==='instructor'?'Instructor':'Student'} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`).join('');
+      document.getElementById('sdMessages').scrollTop=document.getElementById('sdMessages').scrollHeight;
+    }
+  }catch(e){console.warn('student_messages not available:',e.message);}
 }
 
 function exportStudentsCSV(){
