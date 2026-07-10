@@ -578,7 +578,7 @@
         <h1>Drive<span class="red">SQ</span></h1>
         <p>Theory Academy - Master UK Driving Theory</p>
         <div class="security-text">
-            ✓ Secure & Encrypted Login
+            ✓ Free DVSA Theory Practice
         </div>
         <form onsubmit="handleLogin(event)">
             <div class="error" id="loginError"></div>
@@ -604,7 +604,7 @@
         <h1>Drive<span class="red">SQ</span></h1>
         <p>Create Your Account</p>
         <div class="security-text">
-            ✓ Bank-Level AES-256 Encryption
+            ✓ Free for All DriveSQ Students
         </div>
         <form onsubmit="handleRegister(event)">
             <div class="error" id="registerError"></div>
@@ -738,7 +738,7 @@
                     <p><strong style="color: #ffffff;">Name:</strong> <span id="settingsName" style="color: #cccccc;"></span></p>
                     <p><strong style="color: #ffffff;">Email:</strong> <span id="settingsEmail" style="color: #cccccc;"></span></p>
                     <p style="margin-top: 20px; color: #86efac;">
-                        ✓ Your data is encrypted with AES-256 encryption
+                        ✓ Your quiz progress is saved on this device
                     </p>
                 </div>
             </div>
@@ -773,6 +773,7 @@
         }
 
         register(name, email, pass) {
+            email = email.trim().toLowerCase();
             const users = JSON.parse(localStorage.getItem('drivesq_users'));
             if (users[email]) return false;
             
@@ -792,6 +793,7 @@
         }
 
         login(email, pass) {
+            email = email.trim().toLowerCase();
             const users = JSON.parse(localStorage.getItem('drivesq_users'));
             const user = users[email];
             if (!user) return false;
@@ -1314,6 +1316,7 @@
         const passed = percentage >= 80;
         
         const user = dm.getCurrentUser();
+        if (!user) { showLogin(); return; }
         dm.saveQuiz(user.email, currentQuiz.module, percentage);
         
         let html = `
@@ -1326,7 +1329,7 @@
                 <p style="color: #aaaaaa; margin-bottom: 20px;">
                     ${passed ? 'Great job! You achieved a passing score.' : 'Review the material and try again.'}
                 </p>
-                <button class="btn" onclick="location.reload()" style="margin-right: 10px;">Retake Quiz</button>
+                <button class="btn" onclick="startQuiz('${currentQuiz.module}')" style="margin-right: 10px;">Retake Quiz</button>
                 <button class="btn-secondary" onclick="showSection('home')">Back to Dashboard</button>
             </div>
         `;

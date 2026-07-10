@@ -561,6 +561,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <button class="cal-view-btn active" id="sview-all" onclick="setStudentFilter('all')">All</button>
           <button class="cal-view-btn" id="sview-connected" onclick="setStudentFilter('connected')"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Connected</button>
           <button class="cal-view-btn" id="sview-unread" onclick="setStudentFilter('unread')"><i class="bi bi-chat-fill me-1" style="color:#60a5fa"></i>Messages</button>
+          <button class="cal-view-btn" id="sview-archived" onclick="setStudentFilter('archived')"><i class="bi bi-archive me-1" style="color:#94a3b8"></i>Archived</button>
         </div>
         <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)" id="studentSearch"/>
         <button class="btn-p" style="width:auto;padding:8px 14px;font-size:.82rem;min-height:38px" onclick="openAddStudentDirect()"><i class="bi bi-person-plus me-1"></i>Add</button>
@@ -867,6 +868,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="dsq-tab" id="smt-topics" onclick="smTab('topics')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-list-check me-1"></i>Topics</button>
       <button class="dsq-tab" id="smt-messages" onclick="smTab('messages')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-chat-dots-fill me-1"></i>Chat<span id="smUnreadBadge" class="tab-badge ms-1 hidden">0</span></button>
       <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-phone me-1"></i>App Login</button>
+      <button class="dsq-tab" id="smt-feedback" onclick="smTab('feedback')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-star-fill me-1"></i>Feedback</button>
     </div>
     <input type="hidden" id="smStudentName"/>
     <input type="hidden" id="smStudentAccId"/>
@@ -899,7 +901,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
-        <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()"><i class="bi bi-trash"></i></button>
+        <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as no longer an active student"><i class="bi bi-archive"></i></button>
+        <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
       </div>
     </div>
 
@@ -986,6 +989,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <button class="btn-wa flex-fill" onclick="smShareLink()"><i class="bi bi-whatsapp me-1"></i>Send Portal Link via WA</button>
       </div>
     </div>
+
+    <!-- FEEDBACK TAB -->
+    <div id="smPanel-feedback" class="hidden">
+      <div id="smFeedbackList"><div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading feedback…</div></div>
+    </div>
   </div>
 </div>
 
@@ -1053,7 +1061,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
     </div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="approveNotes" rows="2"></textarea></div>
-    <button class="btn-g w-100 mb-2" style="min-height:44px;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:600" onclick="confirmApprove()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar</button>
+    <button class="btn-g w-100 mb-2" id="confirmApproveBtn" style="min-height:44px;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:600" onclick="confirmApprove()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar</button>
     <button class="btn-s" onclick="closeModal('approveModal')">Cancel</button>
   </div>
 </div>
@@ -1171,7 +1179,11 @@ function fmtS(d){return d.getDate()+' '+MS[d.getMonth()];}
 function fmtFull(d){const n=d.getDay();return(n===0?'Sunday':DAYS[n-1])+', '+d.getDate()+' '+MF[d.getMonth()]+' '+d.getFullYear();}
 function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);const t=Math.round(h*60+m+parseFloat(hrs)*60);return pad2(Math.floor(t/60)%24)+':'+pad2(t%60);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
+// jsEsc() is always interpolated into an HTML attribute like onclick="fn('${jsEsc(x)}')" — escaping
+// only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
+// request text) still breaks out of the surrounding HTML attribute before the browser hands the value
+// to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -1185,6 +1197,10 @@ let currentDayKey=todayKey(),currentDayName='Monday',currentDayIdx=0;
 let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let weekLessons={};
 let dayLessonsCache={};
+// Independent of weekLessons/calView — the "Today"/"Tomorrow" stat cards and the 1-hour lesson
+// reminder must reflect the real calendar today regardless of which week/month the instructor
+// has navigated to. Without this they silently went blank/stale the moment you clicked "next week".
+let todayLessons=[],tomorrowLessons=[];
 let confirmationMap={};  // lesson_id -> confirmation status
 let reschedulePending=[];
 let activeDate=null,detailId=null,detailData=null;
@@ -1200,7 +1216,14 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 (async()=>{
   await checkSuspended();
   updateNav();
-  await Promise.all([loadWeek(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadConfirmations(),loadRescheduleRequests()]);
+  // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
+  // weekLessons is actually populated. Running it concurrently here raced weekLessons while
+  // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
+  await Promise.all([loadWeek(),loadTodayTomorrow(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
+  // loadWeek() and loadTodayTomorrow() ran concurrently above, so whichever's internal
+  // updateStats() call fired first may have rendered before the other's data landed — one
+  // more call here, now that both are guaranteed settled, ensures the first paint is correct.
+  updateStats();
   populateInstrDropdowns();
   sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
   if(window.innerWidth>=992){
@@ -1209,9 +1232,19 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
   }
   setInterval(checkReminders,60000);
   setInterval(loadNotifications,30000);
-  setInterval(loadConfirmations,10000); // poll every 10s for near-instant student confirmation updates
+  setInterval(pollConfirmations,10000); // poll every 10s for near-instant student confirmation updates
   checkReminders();
 })();
+
+// Re-runs whichever view's own loader is on screen — each one already fetches its own lessons,
+// loads confirmations scoped to exactly those lessons, and re-renders. Calling loadConfirmations()
+// alone here would (a) always score against weekLessons regardless of the active view, incorrectly
+// wiping Day/Month view's confirmation data, and (b) never repaint the calendar with new results.
+function pollConfirmations(){
+  if(calView==='week')loadWeek();
+  else if(calView==='day')loadDayView(currentDayKey);
+  else if(calView==='month')loadMonthView();
+}
 
 async function checkSuspended(){
   const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instr.id).single();
@@ -1247,8 +1280,12 @@ function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.c
 /* ══════════════════════════════
    LESSON CONFIRMATIONS
 ══════════════════════════════ */
-async function loadConfirmations(){
-  const lessonIds=Object.values(weekLessons).flat().map(l=>l.id);
+// Pass the exact lessons currently on screen (day/week/month view all have their own
+// fetch). Falls back to weekLessons for callers that don't have a more specific set.
+// Without this, Month view never loaded confirmations at all (always showed "unconfirmed"),
+// and Day view opened without Week view first would scan an empty weekLessons and find none.
+async function loadConfirmations(lessons){
+  const lessonIds=(lessons||Object.values(weekLessons).flat()).map(l=>l.id);
   if(!lessonIds.length){confirmationMap={};return;}
   try{
     const{data,error}=await sb.from('lesson_confirmations').select('*').in('lesson_id',lessonIds);
@@ -1256,6 +1293,19 @@ async function loadConfirmations(){
     confirmationMap={};
     (data||[]).forEach(c=>{confirmationMap[c.lesson_id]=c;});
   }catch(e){console.warn('loadConfirmations error:',e);confirmationMap={};}
+}
+
+// Rescheduling a lesson (drag-drop, move buttons, or the edit form) reuses the same
+// lesson row/id — without this, a stale confirmation from the old date/time silently
+// carries over and shows the lesson as already confirmed on its new slot.
+async function resetConfirmationOnReschedule(lessonId){
+  try{
+    const{data:existing}=await sb.from('lesson_confirmations').select('id').eq('lesson_id',lessonId).maybeSingle();
+    if(existing){
+      await sb.from('lesson_confirmations').delete().eq('id',existing.id);
+      delete confirmationMap[lessonId];
+    }
+  }catch(e){console.warn('resetConfirmationOnReschedule error:',e);}
 }
 
 async function confirmLessonAsInstructor(lessonId){
@@ -1359,10 +1409,31 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
-  var _rReq=null;try{var{data:_rr}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq=_rr;}catch(e){}
+  const{data:req}=await sb.from('reschedule_requests').select('*').eq('id',id).maybeSingle();
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
-  if(_rReq&&_rReq.student_account_id){notifyStudent(_rReq.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will update the lesson time.');}
   document.getElementById('resch-banner-'+id)?.remove();
+  if(!req){showToast('Reschedule accepted.','success');return;}
+  // If the student gave a specific preferred date & time, apply it to the lesson directly —
+  // previously "Accept" only flipped the request's status and told the student it was done
+  // while leaving the actual lesson untouched, relying on the instructor to remember to go
+  // edit it separately.
+  if(req.lesson_id&&req.preferred_date&&req.preferred_time){
+    await sb.from('lessons').update({lesson_date:req.preferred_date,start_time:req.preferred_time}).eq('id',req.lesson_id);
+    await resetConfirmationOnReschedule(req.lesson_id);
+    if(req.student_account_id)notifyStudent(req.student_account_id,'Reschedule accepted','Your lesson has been moved to '+req.preferred_date+' at '+req.preferred_time+'. Please reconfirm your attendance in the app.');
+    if(calView==='week')await loadWeek();
+    else if(calView==='day')await loadDayView(currentDayKey);
+    else if(calView==='month')await loadMonthView();
+    showToast('Reschedule accepted — lesson moved to '+req.preferred_date+' at '+req.preferred_time+'.','success');
+    return;
+  }
+  // No specific preferred time (student said "Flexible") — open the edit form pre-filled with
+  // the lesson so the instructor can pick a time in one step instead of hunting for it manually.
+  if(req.student_account_id)notifyStudent(req.student_account_id,'Reschedule accepted','Your reschedule request has been accepted! Your instructor will confirm a new time shortly.');
+  if(req.lesson_id){
+    const{data:lesson}=await sb.from('lessons').select('*').eq('id',req.lesson_id).maybeSingle();
+    if(lesson){detailData=lesson;detailId=lesson.id;editLessonFromDetail();showToast('Pick a new time for this lesson.','success');return;}
+  }
   showToast('Reschedule accepted — update the lesson date manually.','success');
 }
 async function declineReschedule(id){
@@ -1398,6 +1469,15 @@ function calToday(){
   else if(calView==='month'){monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);loadMonthView();}
 }
 
+async function loadTodayTomorrow(){
+  const tk=todayKey(),tomk=tomorrowKey();
+  try{
+    const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).in('lesson_date',[tk,tomk]);
+    todayLessons=(data||[]).filter(l=>l.lesson_date===tk);
+    tomorrowLessons=(data||[]).filter(l=>l.lesson_date===tomk);
+  }catch(e){console.warn('loadTodayTomorrow error:',e);}
+}
+
 async function loadWeek(){
   const days=weekDays(weekStart);
   const from=dateKey(days[0]),to=dateKey(days[6]);
@@ -1413,7 +1493,7 @@ async function loadWeek(){
 async function loadDayView(dk){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
   dayLessonsCache[dk]=data||[];
-  await loadConfirmations();
+  await loadConfirmations(data||[]);
   renderDayView();updateStats();
 }
 
@@ -1423,6 +1503,7 @@ async function loadMonthView(){
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
+  await loadConfirmations(data||[]);
   renderMonthView(map);
   const allM=data||[];
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
@@ -1433,8 +1514,11 @@ async function loadMonthView(){
 }
 
 function updateStats(){
-  const tk=todayKey(),tomk=tomorrowKey();
-  const tL=weekLessons[tk]||[],tomL=weekLessons[tomk]||[];
+  const tk=todayKey();
+  // Today/Tomorrow come from their own independently-fetched cache, not weekLessons — weekLessons
+  // reflects whichever week the instructor has navigated to, which silently zeroed these cards out
+  // the moment you clicked "next week" even though today's lessons hadn't changed.
+  const tL=todayLessons,tomL=tomorrowLessons;
   const allW=Object.values(weekLessons).flat();
   const sum=arr=>arr.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalHrs=sum(allW);
@@ -1498,7 +1582,8 @@ async function onDrop(e,toDate){
   // Save new date to DB immediately
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
-  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Check your app for the updated time.');}}catch(e){}
+  await resetConfirmationOnReschedule(movingId);
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Please reconfirm your attendance in the app.');}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -1617,9 +1702,14 @@ function renderDayView(){
     const conf=confirmationMap[l.id];
     const isConf=conf&&conf.status==='both_confirmed';
     const isStudConf=conf&&conf.student_confirmed;
+    const isInstrConf=conf&&conf.instructor_confirmed;
+    // Four real states, matching the Detail modal: both confirmed and instructor-only-confirmed
+    // are badges (no button — re-clicking would re-notify the student for nothing); student-only
+    // is still a button since the instructor needs to act; neither confirmed is the plain button.
+    const confBtn=`<button onclick="event.stopPropagation();confirmLessonAsInstructor('${l.id}')" class="btn-g" style="padding:3px 8px;font-size:.65rem;min-height:24px"><i class="bi bi-check-lg me-1"></i>${isStudConf?'Confirm — waiting!':'Confirm'}</button>`;
     const confBadge=isConf?`<span style="font-size:.65rem;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>Both confirmed</span>`:
-                    isStudConf?`<span style="font-size:.65rem;color:var(--gold)"><i class="bi bi-check-circle me-1"></i>Student confirmed</span>`:
-                    `<button onclick="event.stopPropagation();confirmLessonAsInstructor('${l.id}')" class="btn-g" style="padding:3px 8px;font-size:.65rem;min-height:24px"><i class="bi bi-check-lg me-1"></i>Confirm</button>`;
+                    isInstrConf?`<span style="font-size:.65rem;color:#93c5fd"><i class="bi bi-check-circle me-1"></i>You confirmed — awaiting student</span>`:
+                    confBtn;
     const waUrl=l.student_phone?waLink(l.student_phone,'Hi '+l.student_name+', this is your DriveSQ instructor. '):'';
     return`<div class="day-lesson-row ${lClass(l.lesson_type)}" onclick="if(!_wasDragging)openDetail('${l.id}')">
       <div class="d-flex align-items-start justify-content-between">
@@ -2049,7 +2139,8 @@ async function openDetail(id){
 
 async function moveLesson(id,toDate,dayName){
   await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
-  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Check your app for details.');}
+  await resetConfirmationOnReschedule(id);
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Please reconfirm your attendance in the app.');}
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
@@ -2117,6 +2208,9 @@ async function saveEditedLesson(){
     payment_received:pay,
     student_account_id:_updAccId
   };
+  // Reschedule detection — compare against the lesson as it was before this edit opened
+  const wasRescheduled=detailData&&detailData.id===id&&(detailData.lesson_date!==newDate||detailData.start_time!==newTime);
+
   // Save to DB - try with payment_received first, then without if column missing
   let saveError=null;
   const{error:e1}=await sb.from('lessons').update(updates).eq('id',id);
@@ -2136,6 +2230,7 @@ async function saveEditedLesson(){
   // Update roster
   await saveToRoster(studentName,phone,addr,ltype,notes,null);
   await loadRoster();
+  if(wasRescheduled)await resetConfirmationOnReschedule(id);
   closeModal('editLessonModal');
   // Navigate to the week/day/month containing the updated lesson
   if(calView==='week'){
@@ -2156,7 +2251,7 @@ async function saveEditedLesson(){
   await loadStudents();
   renderStudents(allStudentsArr);
   showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
-  if(_updAccId){notifyStudent(_updAccId,'Lesson updated','Your lesson has been updated to '+newDate+' at '+newTime+'. Check your app for details.');}
+  if(_updAccId){notifyStudent(_updAccId,'Lesson updated',wasRescheduled?'Your lesson has been moved to '+newDate+' at '+newTime+'. Please reconfirm your attendance in the app.':'Your lesson details have been updated. Check your app for the latest info.');}
 }
 
 async function deleteFromDetail(){
@@ -2268,7 +2363,7 @@ async function loadStudents(){
 let studentFilterMode='all';
 function setStudentFilter(mode){
   studentFilterMode=mode;
-  ['all','connected','unread'].forEach(m=>{document.getElementById('sview-'+m)?.classList.toggle('active',m===mode);});
+  ['all','connected','unread','archived'].forEach(m=>{document.getElementById('sview-'+m)?.classList.toggle('active',m===mode);});
   filterStudents(document.getElementById('studentSearch')?.value||'');
 }
 
@@ -2287,12 +2382,17 @@ function renderStudentStatsStrip(students){
 
 function renderStudents(students){
   const list=document.getElementById('studentList');
-  renderStudentStatsStrip(students);
-  let filtered=students;
-  if(studentFilterMode==='connected')filtered=students.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
-  else if(studentFilterMode==='unread')filtered=students.filter(s=>(s.unreadMsgs||0)>0);
+  // Archived students (passed/stopped) are hidden from every normal view — only the dedicated
+  // "archived" filter shows them, so they don't clutter the active roster while still being
+  // reachable if the instructor needs to look one up or reactivate them. Stats strip totals are
+  // computed from the active-only set too, so an archived student doesn't inflate "X students".
+  const activeStudents=students.filter(s=>s.status!=='inactive');
+  renderStudentStatsStrip(activeStudents);
+  let filtered=studentFilterMode==='archived'?students.filter(s=>s.status==='inactive'):activeStudents;
+  if(studentFilterMode==='connected')filtered=filtered.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
+  else if(studentFilterMode==='unread')filtered=filtered.filter(s=>(s.unreadMsgs||0)>0);
   if(!filtered.length){
-    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':'No students yet.'}</div>`;
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':studentFilterMode==='archived'?'No archived students.':'No students yet.'}</div>`;
     return;
   }
   list.innerHTML=filtered.map(s=>{
@@ -2337,6 +2437,7 @@ function renderStudents(students){
           <div class="d-flex gap-1 mt-2 flex-wrap">
             <div class="sc-stat"><span class="sc-stat-val" style="color:var(--blue)">${s.count||0}</span><span class="sc-stat-lbl">lessons</span></div>
             <div class="sc-stat"><span class="sc-stat-val" style="color:#c084fc">${(s.totalHrs||0).toFixed(1)}h</span><span class="sc-stat-lbl">road time</span></div>
+            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?`<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£${s.totalPaid.toFixed(0)}</span><span class="sc-stat-lbl">total revenue</span></div>`:''}
             ${s.lastDate?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">${s.lastDate.slice(5)}</span><span class="sc-stat-lbl">last lesson</span></div>`:''}
             ${acc?.last_login?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span class="sc-stat-lbl">last login</span></div>`:''}
           </div>
@@ -2414,16 +2515,12 @@ function openAddStudentModal(p,fromLesson){
   document.getElementById('removeRosterBtn').classList.add('hidden');
   updateWABtn(p.phone);openModal('editStudentModal');
 }
-function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openEditStudentModal(p);}
-function openEditStudentModal(p){
-  document.getElementById('editStudentTitle').innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Edit Student';
-  document.getElementById('editStudentSubTitle').textContent='Changes update profile and all their lessons';
-  document.getElementById('editStudentId').value=p.id||'';
-  document.getElementById('esSName').value=p.name||'';document.getElementById('esSPhone').value=p.phone||'';document.getElementById('esSAddr').value=p.address||'';document.getElementById('eSType').value=p.lesson_type||'Manual';document.getElementById('eSNotes').value=p.notes||'';
-  document.getElementById('removeRosterBtn').classList.remove('hidden');
-  document.getElementById('updateAllLessons').checked=true;
-  updateWABtn(p.phone);openModal('editStudentModal');
-}
+// Editing an EXISTING roster student goes through studentMgmtModal (openStudentMgmt), not the
+// plain editStudentModal below — that modal only updates student_profiles/lessons and has no
+// idea a student_accounts row (the student's real app login) might need the same rename, which
+// used to silently orphan their app account. studentMgmtModal's saveSmProfile() already does
+// this correctly. editStudentModal is kept only for adding a student who isn't in the roster yet.
+function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openStudentMgmt(name,'profile');}
 function updateWABtn(phone){const btn=document.getElementById('waStudentBtn');if(btn)btn.disabled=!phone||!cleanPhone(phone);}
 function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const url=waLink(phone,'Hi '+name+', this is your DriveSQ instructor. ');if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
 async function saveStudentProfile(){
@@ -2468,7 +2565,11 @@ function fillTransferFromRoster(id){if(!id)return;const p=Object.values(rosterMa
 
 /* ── REMINDERS ── */
 async function checkReminders(){
-  const now=new Date();const tk=todayKey();const tLessons=weekLessons[tk]||[];
+  // Refresh independently of whatever week/day/month is on screen, and independently of
+  // weekLessons — otherwise browsing to a future week silently stopped all reminders for
+  // lessons happening today, with no indication anything was wrong.
+  await loadTodayTomorrow();
+  const now=new Date();const tLessons=todayLessons;
   for(const l of tLessons){
     if(shownReminders.has(l.id))continue;
     const[h,m]=l.start_time.split(':').map(Number);const lt=new Date();lt.setHours(h,m,0,0);const diff=(lt-now)/60000;
@@ -2537,7 +2638,7 @@ async function loadRequests(){
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
     ${r.status==='pending'?`<div class="d-flex gap-2 mt-3">
-      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.pickup_address||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.pickup_address||r.postcode||'No address given')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
       <button class="btn-r-sm flex-fill" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
     </div>`:''}
   </div>`).join('');
@@ -2546,19 +2647,24 @@ function openApprove(id,name,addr,type,notes){document.getElementById('approveRe
 async function confirmApprove(){
   const id=document.getElementById('approveReqId').value;const date=document.getElementById('approveDate').value;const time=document.getElementById('approveTime').value;const dur=parseFloat(document.getElementById('approveDur').value);
   if(!date||!time){showToast('Please pick date and time.');return;}
-  const{data:req}=await sb.from('student_requests').select('*').eq('id',id).single();if(!req)return;
-  let _caAccId2=null;
-  try{const{data:_ca2}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',req.student_name).maybeSingle();_caAccId2=_ca2?.id||null;}catch(e){}
-  const{data:lesson,error}=await sb.from('lessons').insert([{instructor_id:instr.id,lesson_date:date,start_time:time,duration_hours:dur,student_name:req.student_name,student_phone:req.student_phone,pickup_address:req.pickup_address,lesson_type:req.lesson_type||'Manual',notes:document.getElementById('approveNotes').value.trim(),student_account_id:_caAccId2,created_at:new Date().toISOString()}]).select().single();
-  if(error){showToast('Error adding lesson.');return;}
-  await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
-  await saveToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual','',null);
-  await loadRoster();
-  closeModal('approveModal');
-  await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
-  renderStudents(allStudentsArr);
-  showToast('✅ Student approved & added to calendar!','success');
-  if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
+  const btn=document.getElementById('confirmApproveBtn');
+  if(btn.disabled)return; // already in flight — a fast double-tap must not insert the lesson twice
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Approving…';
+  try{
+    const{data:req}=await sb.from('student_requests').select('*').eq('id',id).single();if(!req)return;
+    let _caAccId2=null;
+    try{const{data:_ca2}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',req.student_name).maybeSingle();_caAccId2=_ca2?.id||null;}catch(e){}
+    const{data:lesson,error}=await sb.from('lessons').insert([{instructor_id:instr.id,lesson_date:date,start_time:time,duration_hours:dur,student_name:req.student_name,student_phone:req.student_phone,pickup_address:req.pickup_address,lesson_type:req.lesson_type||'Manual',notes:document.getElementById('approveNotes').value.trim(),student_account_id:_caAccId2,created_at:new Date().toISOString()}]).select().single();
+    if(error){showToast('Error adding lesson.');return;}
+    await sb.from('student_requests').update({status:'approved',lesson_id:lesson.id,responded_at:new Date().toISOString()}).eq('id',id);
+    await saveToRoster(req.student_name,req.student_phone,req.pickup_address,req.lesson_type||'Manual','',null);
+    await loadRoster();
+    closeModal('approveModal');
+    await Promise.all([loadWeek(),loadRequests(),loadStudents()]);
+    renderStudents(allStudentsArr);
+    showToast('✅ Student approved & added to calendar!','success');
+    if(_caAccId2){notifyStudent(_caAccId2,'Lesson approved!','Your lesson request has been approved for '+date+' at '+time+'. See you there!');}
+  }finally{btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Approve &amp; Add to Calendar';}
 }
 async function declineRequest(id){if(!confirm('Decline this request?'))return;var _decReq=null;try{var{data:_dr}=await sb.from('student_requests').select('student_name').eq('id',id).single();_decReq=_dr;}catch(e){}await sb.from('student_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);if(_decReq){try{var{data:_da}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',_decReq.student_name).maybeSingle();if(_da)notifyStudent(_da.id,'Request declined','Your lesson request has been declined. Please contact your instructor for more details.');}catch(e){}}await loadRequests();showToast('Request declined.');}
 
@@ -2781,12 +2887,19 @@ async function openStudentMgmt(studentName, tab='profile'){
   // Status badges
   const hasLogin=!!(acc?.last_login);
   const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
+  const arrEntry=allStudentsArr.find(x=>x.name.toLowerCase().trim()===studentName.toLowerCase().trim());
   let badges='';
+  if(localStorage.getItem('dsq_show_payment')!=='false'&&arrEntry?.totalPaid>0)badges+=`<span class="app-status-pill" style="background:rgba(37,211,102,.1);color:#4ade80;border-color:rgba(37,211,102,.25)"><i class="bi bi-currency-pound me-1"></i>£${arrEntry.totalPaid.toFixed(0)} total revenue</span>`;
   if(hasLogin)badges+='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Registered on App</span>';
   else if(lastEvent==='pin_entered')badges+='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
   else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
   else badges+='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App Yet</span>';
+  const isArchived=p.status==='inactive';
+  if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(148,163,184,.12);color:#94a3b8;border-color:rgba(148,163,184,.25)"><i class="bi bi-archive me-1"></i>Archived</span>';
   document.getElementById('smBadges').innerHTML=badges;
+  const archBtn=document.getElementById('smArchiveBtn');
+  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i>':'<i class="bi bi-archive"></i>';
+  if(archBtn)archBtn.title=isArchived?'Reactivate this student':'Mark as no longer an active student';
 
   // Populate profile
   document.getElementById('smEditName').value=p.name||'';
@@ -2864,13 +2977,36 @@ async function openStudentMgmt(studentName, tab='profile'){
 }
 
 function smTab(tab){
-  ['profile','progress','topics','messages','access'].forEach(t=>{
+  ['profile','progress','topics','messages','access','feedback'].forEach(t=>{
     document.getElementById('smPanel-'+t)?.classList.toggle('hidden',t!==tab);
     document.getElementById('smt-'+t)?.classList.toggle('active',t===tab);
   });
   if(tab==='topics')smLoadTopics();
   if(tab==='messages')smLoadMessages();
+  if(tab==='feedback')smLoadFeedback();
   if(tab!=='messages'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}
+}
+
+async function smLoadFeedback(){
+  const container=document.getElementById('smFeedbackList');
+  if(!smCurrentAccId){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">This student hasn\'t registered in the app yet.</div>';return;}
+  container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading feedback…</div>';
+  try{
+    const{data,error}=await sb.from('student_lesson_feedback').select('*').eq('student_account_id',smCurrentAccId).order('submitted_at',{ascending:false});
+    if(error)throw error;
+    if(!data||!data.length){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">No feedback submitted yet.</div>';return;}
+    container.innerHTML=data.map(f=>{
+      const stars='★'.repeat(f.rating||0)+'☆'.repeat(5-(f.rating||0));
+      return`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:.85rem;color:var(--gold);letter-spacing:2px">${stars}</div>
+        ${f.comment?`<div style="font-size:.8rem;color:var(--txt2);margin-top:6px;line-height:1.6">${esc(f.comment)}</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:6px">${new Date(f.submitted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.warn('smLoadFeedback error:',e.message);
+    container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Couldn\'t load feedback.</div>';
+  }
 }
 
 function smUpdateProgBar(){
@@ -2938,6 +3074,20 @@ async function smRemoveFromRoster(){
   closeModal('studentMgmtModal');
   await Promise.all([loadRoster(),loadStudents()]);
   showToast('Removed from roster.');
+}
+
+// Archiving keeps the student's roster entry and full lesson/message history intact — it just
+// drops them out of the default active-student view once they've passed or stopped lessons,
+// instead of the only other option being permanently deleting their roster profile.
+async function smToggleArchive(){
+  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  if(!p?.id){showToast('Save this student to your roster first.');return;}
+  const newStatus=p.status==='inactive'?'active':'inactive';
+  const{error}=await sb.from('student_profiles').update({status:newStatus}).eq('id',p.id);
+  if(error){showToast('Could not update — your roster table may need a "status" column added.','error');console.warn('smToggleArchive error:',error.message);return;}
+  showToast(newStatus==='inactive'?'Student archived — hidden from your active roster.':'Student reactivated ✓','success');
+  await Promise.all([loadRoster(),loadStudents()]);
+  openStudentMgmt(smCurrentName,'profile');
 }
 
 function smWhatsApp(){
@@ -3221,21 +3371,28 @@ function smShareLink(){
 }
 
 /* ── Poll for new messages & registrations ── */
-// Track which students we've already notified about registration
+// Same-session dedup only, to stop pollStudentUpdates (every 20s) re-appending the same banner
+// repeatedly while a fresh registration is still inside the notification window below. This is
+// NOT what makes the notification safe from reappearing — that's the created_at time window,
+// because localStorage-based dedup alone doesn't survive a different device/browser or the
+// instructor clearing site data, which was previously reshowing "X has registered" indefinitely.
 let _notifiedRegistrations=new Set();
-try{_notifiedRegistrations=new Set(JSON.parse(localStorage.getItem('dsq_notified_regs')||'[]'));}catch(e){localStorage.removeItem('dsq_notified_regs');}
 
 async function pollStudentUpdates(){
   // Load fresh roster data
   await loadRoster();
 
-  // Check for newly registered students (have last_login set)
-  const{data:regAccounts}=await sb.from('student_accounts').select('id,full_name,last_login,email,phone,created_at').eq('instructor_id',instr.id).not('last_login','is',null).order('last_login',{ascending:false}).limit(20);
-  
+  // Check for newly registered students: last_login set (they've actually completed
+  // registration, not just an auto-created stub) AND created within the last 48h. Bounding by
+  // created_at — not just "not yet locally dismissed" — means the banner naturally stops being
+  // eligible at all once a registration is no longer recent, regardless of which device/browser
+  // the instructor is using or whether they've cleared site data.
+  const cutoff=new Date(Date.now()-48*3600*1000).toISOString();
+  const{data:regAccounts}=await sb.from('student_accounts').select('id,full_name,last_login,email,phone,created_at').eq('instructor_id',instr.id).not('last_login','is',null).gte('created_at',cutoff).order('last_login',{ascending:false}).limit(20);
+
   (regAccounts||[]).forEach(acc=>{
     if(!_notifiedRegistrations.has(acc.id)){
       _notifiedRegistrations.add(acc.id);
-      localStorage.setItem('dsq_notified_regs',JSON.stringify([..._notifiedRegistrations]));
       // Show registration notification banner
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
