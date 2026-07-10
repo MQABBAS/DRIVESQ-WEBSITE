@@ -2437,6 +2437,7 @@ function renderStudents(students){
           <div class="d-flex gap-1 mt-2 flex-wrap">
             <div class="sc-stat"><span class="sc-stat-val" style="color:var(--blue)">${s.count||0}</span><span class="sc-stat-lbl">lessons</span></div>
             <div class="sc-stat"><span class="sc-stat-val" style="color:#c084fc">${(s.totalHrs||0).toFixed(1)}h</span><span class="sc-stat-lbl">road time</span></div>
+            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?`<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£${s.totalPaid.toFixed(0)}</span><span class="sc-stat-lbl">total revenue</span></div>`:''}
             ${s.lastDate?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">${s.lastDate.slice(5)}</span><span class="sc-stat-lbl">last lesson</span></div>`:''}
             ${acc?.last_login?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span class="sc-stat-lbl">last login</span></div>`:''}
           </div>
@@ -2886,7 +2887,9 @@ async function openStudentMgmt(studentName, tab='profile'){
   // Status badges
   const hasLogin=!!(acc?.last_login);
   const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
+  const arrEntry=allStudentsArr.find(x=>x.name.toLowerCase().trim()===studentName.toLowerCase().trim());
   let badges='';
+  if(localStorage.getItem('dsq_show_payment')!=='false'&&arrEntry?.totalPaid>0)badges+=`<span class="app-status-pill" style="background:rgba(37,211,102,.1);color:#4ade80;border-color:rgba(37,211,102,.25)"><i class="bi bi-currency-pound me-1"></i>£${arrEntry.totalPaid.toFixed(0)} total revenue</span>`;
   if(hasLogin)badges+='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Registered on App</span>';
   else if(lastEvent==='pin_entered')badges+='<span class="app-status-pill link_opened"><i class="bi bi-eye me-1"></i>PIN Entered</span>';
   else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
