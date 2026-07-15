@@ -2021,6 +2021,14 @@ async function confirmLesson(){
         is_read:false,
         sent_at:new Date().toISOString()
       }]).then(()=>{},()=>{});
+      // SMS the instructor
+      try{
+        const{data:instrRow}=await sb.from('instructors').select('phone').eq('id',currentStudent.instructor_id).single();
+        if(instrRow?.phone){
+          const l=nextLesson;
+          sendSMS(instrRow.phone,'DriveSQ: ✅ '+currentStudent.name+' has confirmed their '+(l?.lesson_type||'driving')+' lesson on '+(l?.lesson_date||'the booked date')+' at '+(l?.start_time||'the booked time')+'.'+(l?.pickup_address?' Pick-up: '+l.pickup_address+'.':''));
+        }
+      }catch(e){console.warn('Instructor SMS failed:',e);}
     }
     showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
     if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
@@ -2055,10 +2063,17 @@ function updateCountdown(type,dateStr){
   const days=daysUntil(dateStr);
   const numEl=document.getElementById(type+'Countdown');
   const lblEl=document.getElementById(type+'DateLbl');
-  if(days===null){numEl.textContent='—';if(lblEl)lblEl.textContent='Not set';return;}
-  if(days<0){numEl.textContent='Done';if(lblEl)lblEl.textContent='Test date passed';}
-  else if(days===0){numEl.textContent='Today!';if(lblEl)lblEl.textContent='Good luck! 🍀';}
-  else{numEl.textContent=days;if(lblEl)lblEl.textContent='days · '+fmtDate(dateStr);}
+  if(days===null){numEl.textContent='—';numEl.style.color='';if(lblEl)lblEl.textContent='Not set';return;}
+  if(days<0){
+    numEl.textContent='✓';numEl.style.color='#4ade80';
+    if(lblEl)lblEl.textContent='Passed · '+fmtDate(dateStr);
+  } else if(days===0){
+    numEl.textContent='Today!';numEl.style.color='';
+    if(lblEl)lblEl.textContent='Good luck! 🍀';
+  } else {
+    numEl.textContent=days;numEl.style.color='';
+    if(lblEl)lblEl.textContent='days · '+fmtDate(dateStr);
+  }
 }
 
 async function saveTestDates(){

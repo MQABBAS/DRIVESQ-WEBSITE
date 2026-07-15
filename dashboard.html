@@ -1149,6 +1149,23 @@ function sendSmsReminderFromDetail(){
   sendSMS(phone,msg);
 }
 
+async function sendTomorrowReminders(){
+  // Only send once per calendar day to avoid repeat SMS on every page load
+  const tk=tomorrowKey();
+  if(localStorage.getItem('dsq_tmr_sent')===tk)return;
+  const instrPhone=instr?.phone;
+  if(!instrPhone||!SMS_WORKER_URL)return;
+  try{
+    const{data:lessons}=await sb.from('lessons').select('student_name,start_time,lesson_type,pickup_address').eq('instructor_id',instr.id).eq('lesson_date',tk).order('start_time',{ascending:true});
+    if(!lessons?.length)return;
+    for(const l of lessons){
+      const msg='DriveSQ: 📅 Tomorrow you have a '+( l.lesson_type||'driving')+' lesson with '+l.student_name+' at '+(l.start_time||'TBC')+'. Pick-up: '+(l.pickup_address||'as arranged')+'.';
+      await sendSMS(instrPhone,msg);
+    }
+    localStorage.setItem('dsq_tmr_sent',tk);
+  }catch(e){console.warn('Tomorrow reminders error:',e);}
+}
+
 /* ── AUTH ── */
 let instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
 if(!instr)window.location.href='portal.html';
@@ -1240,6 +1257,7 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
   setInterval(loadNotifications,30000);
   setInterval(loadConfirmations,10000); // poll every 10s for near-instant student confirmation updates
   checkReminders();
+  sendTomorrowReminders(); // SMS instructor about tomorrow's lessons (once per day)
 })();
 
 async function checkSuspended(){
@@ -1983,8 +2001,8 @@ async function saveLesson(e){
     await loadStudents();
     renderStudents(allStudentsArr); // ensure list refreshes if on students tab
     showToast('Lesson saved ✓','success');
-    // Booking confirmation SMS
-    if(lessonPayload.student_phone){sendSMS(lessonPayload.student_phone,'DriveSQ: Hi '+studentName+'! ✓ Your '+lessonPayload.lesson_type+' lesson is confirmed for '+activeDate+' at '+lessonPayload.start_time+'. Pick-up: '+(lessonPayload.pickup_address||'our usual spot')+'. Any questions? WhatsApp 07352 932003 🚗');}
+    // Booking notification — asks student to confirm attendance in the app
+    if(lessonPayload.student_phone){sendSMS(lessonPayload.student_phone,'DriveSQ: Hi '+studentName+'! 📅 Your instructor has booked a '+lessonPayload.lesson_type+' lesson for '+activeDate+' at '+lessonPayload.start_time+'. Pick-up: '+(lessonPayload.pickup_address||'as arranged')+'. Please open the DriveSQ Student app to confirm your attendance. Questions? WhatsApp 07352 932003 🚗');}
     if(_sAccId){notifyStudent(_sAccId,'New lesson booked','You have a lesson on '+activeDate+' at '+document.getElementById('lTime').value);}
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
