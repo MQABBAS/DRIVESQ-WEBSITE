@@ -2170,8 +2170,19 @@ function openLocalVideo(src) {
 (function() {
   const f = document.getElementById('joinForm');
   if (!f) return;
+  f.querySelectorAll('[required]').forEach(function(inp) {
+    inp.addEventListener('input', function() { if (inp.value.trim() || (inp.type === 'checkbox' && inp.checked)) inp.style.borderColor = ''; });
+    inp.addEventListener('change', function() { if (inp.value.trim() || (inp.type === 'checkbox' && inp.checked)) inp.style.borderColor = ''; });
+  });
   f.addEventListener('submit', async e => {
     e.preventDefault();
+    let valid = true;
+    f.querySelectorAll('[required]').forEach(function(inp) {
+      const ok = inp.type === 'checkbox' ? inp.checked : inp.value.trim();
+      if (!ok) { inp.style.borderColor = '#D10A11'; inp.style.outline = '2px solid rgba(209,10,17,.3)'; valid = false; }
+      else { inp.style.borderColor = ''; inp.style.outline = ''; }
+    });
+    if (!valid) { f.querySelector('[required]').focus(); return; }
     const b = f.querySelector('button[type="submit"]');
     b.disabled = true; b.textContent = 'Submitting…';
     f.querySelectorAll('.alert').forEach(a => a.remove());
