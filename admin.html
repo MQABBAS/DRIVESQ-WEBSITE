@@ -91,7 +91,7 @@ tr:hover td{background:rgba(209,10,17,.02)}
 .chip{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.4px;white-space:nowrap}
 .chip.adi{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pdi{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
-.chip.approved{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
+.chip.approved,.chip.accepted{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80}
 .chip.pending{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
 .chip.rejected{background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171}
 .chip.suspended{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.18);color:#c084fc}
@@ -395,6 +395,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div id="dashRevenue"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
         </div>
       </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-exclamation-triangle-fill me-2" style="color:var(--gold)"></i>Unconfirmed — Next 48h</div>
+          <div id="dashUnconfirmed"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -489,7 +495,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <table>
           <thead><tr>
             <th>Date</th><th>Time</th><th>Student</th><th>Instructor</th>
-            <th>Type</th><th>Duration</th><th class="hide-xs">Pickup</th><th class="hide-xs">Payment</th><th>Actions</th>
+            <th>Type</th><th>Duration</th><th class="hide-xs">Pickup</th><th class="hide-xs">Payment</th><th>Confirmed</th><th>Actions</th>
           </tr></thead>
           <tbody id="lessonsTbody"></tbody>
         </table>
@@ -554,12 +560,16 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div id="panel-requests" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-person-plus-fill me-2" style="color:var(--red)"></i>Student Requests</div>
     <div id="reqList" class="d-flex flex-column gap-3"></div>
+    <div class="page-title mb-3 mt-4"><i class="bi bi-calendar-event me-2" style="color:var(--gold)"></i>Reschedule Requests</div>
+    <div id="reschAdminList" class="d-flex flex-column gap-3"></div>
   </div>
 
   <!-- ══ TRANSFERS ══ -->
   <div id="panel-transfers" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-arrow-left-right me-2" style="color:#60a5fa"></i>Transfer Requests</div>
     <div id="transferList" class="d-flex flex-column gap-3"></div>
+    <div class="page-title mb-3 mt-4"><i class="bi bi-person-vcard me-2" style="color:#a855f7"></i>Instructor Change Requests</div>
+    <div id="instrChangeList" class="d-flex flex-column gap-3"></div>
   </div>
 
   <!-- ══ MESSAGES ══ -->
@@ -904,6 +914,22 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
+<!-- INSTRUCTOR CHANGE REQUEST — APPROVE MODAL -->
+<div class="dsq-overlay" id="changeReqModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('changeReqModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-vcard me-2" style="color:#a855f7"></i>Approve Instructor Change</h5>
+    <div class="modal-sub" id="changeReqSub">Select the student's new instructor</div>
+    <input type="hidden" id="changeReq-id"/>
+    <input type="hidden" id="changeReq-studAcc"/>
+    <div class="mb-3"><label class="dsq-lbl">New Instructor</label>
+      <select class="dsq-inp" id="changeReq-instr"><option value="">Select instructor…</option></select>
+    </div>
+    <button class="btn-gold w-100 mb-2" onclick="confirmChangeReq()"><i class="bi bi-check-lg me-1"></i>Approve &amp; Reassign</button>
+    <button class="btn-s w-100" onclick="closeModal('changeReqModal')">Cancel</button>
+  </div>
+</div>
+
 <!-- STUDENT DETAIL MODAL -->
 <div class="dsq-overlay" id="studentDetailModal">
   <div class="dsq-modal wide">
@@ -923,6 +949,18 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="mt-3">
       <div class="section-label">Recent Lessons</div>
       <div id="sdLessons"></div>
+    </div>
+    <div class="mt-3" id="sdTestDatesSection" style="display:none">
+      <div class="section-label"><i class="bi bi-calendar-event me-2" style="color:var(--gold)"></i>Test Dates</div>
+      <div id="sdTestDates"></div>
+    </div>
+    <div class="mt-3" id="sdTheorySection" style="display:none">
+      <div class="section-label"><i class="bi bi-book me-2" style="color:#a855f7"></i>Theory Checklist Progress</div>
+      <div id="sdTheory"></div>
+    </div>
+    <div class="mt-3" id="sdMessagesSection" style="display:none">
+      <div class="section-label"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Conversation with Instructor</div>
+      <div id="sdMessages" style="max-height:280px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px"></div>
     </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
@@ -1007,7 +1045,11 @@ function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reloa
 
 /* ══ STATE ══ */
 let allInstrs=[];
+// viewingId/viewingName/viewingData track which instructor's calendar drill-down is open —
+// only viewInstr() may set these. Never reuse them for unrelated state (e.g. the edit modal
+// has its own editingInstr below) or a stale drill-down can leak into another screen.
 let viewingId=null,viewingName='',viewingData=null;
+let editingInstr=null;
 let adminWeekOffset=0,adminLessons=[];
 let msgTypes={msgModal:'general',sendAllModal:'general'};
 let pwdRevealed=false;
@@ -1024,7 +1066,11 @@ function calcEnd(st,hrs){if(!st)return'';const[h,m]=st.split(':').map(Number);co
 function fmtDT(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
 function fmtD(s){if(!s)return'—';const d=new Date(s);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');}
+// jsEsc() is always interpolated into an HTML attribute like onclick="fn('${jsEsc(x)}')" — escaping
+// only for the JS string literal isn't enough, since a literal " from the input still breaks out of
+// the surrounding HTML attribute before the browser ever hands the value to the JS parser. Escape for
+// the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
@@ -1038,6 +1084,11 @@ function normalizePhone(raw){
 /* ══ TABS ══ */
 const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar'];
 function switchTab(t){
+  // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
+  // "which instructor am I viewing" state — otherwise it silently survives into unrelated
+  // screens (e.g. re-entering Calendar skips the instructor picker and shows stale data,
+  // or a lesson gets added against whichever instructor was last viewed).
+  if(t!=='calendar'){viewingId=null;viewingName='';viewingData=null;}
   TABS.forEach(id=>{
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
@@ -1045,11 +1096,11 @@ function switchTab(t){
   if(t==='dashboard')loadDashboard();
   if(t==='messages')loadMessages();
   if(t==='analytics'){loadAnalytics();}
-  if(t==='requests')loadStudentRequests();
+  if(t==='requests'){loadStudentRequests();loadAdminReschedules();}
   if(t==='lessons')loadAllLessons();
   if(t==='revenue')loadRevenue();
   if(t==='feedback')loadFeedback();
-  if(t==='transfers')loadTransferRequests();
+  if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
@@ -1111,6 +1162,8 @@ function populateDropdowns(){
   document.getElementById('msg-recipient').innerHTML='<option value="">Select instructor…</option>'+all;
   document.getElementById('al-instr').innerHTML='<option value="">Select…</option>'+all;
   document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  const cri=document.getElementById('changeReq-instr');
+  if(cri)cri.innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   // Student filter dropdown
   const sf=document.getElementById('studentInstrFilter');
   if(sf)sf.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
@@ -1200,26 +1253,32 @@ async function deleteInstr(id,name){
   if(!confirm(`⚠️ PERMANENTLY REMOVE "${name}"?\n\nThis will delete:\n• Their instructor account\n• ALL their lessons\n• ALL admin messages to them\n• All student requests & transfers\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
   showToast('Deleting instructor…','warn');
   try{
-    // Step by step — order matters for foreign key constraints
-    // 1. lesson_reminders (references lessons + instructors)
-    const{error:e1}=await sb.from('lesson_reminders').delete().eq('instructor_id',id);
-    if(e1)console.warn('lesson_reminders delete:',e1);
-    // 2. admin_messages
-    const{error:e2}=await sb.from('admin_messages').delete().eq('instructor_id',id);
-    if(e2)console.warn('admin_messages delete:',e2);
-    // 3. student profiles
-    const{error:e3}=await sb.from('student_profiles').delete().eq('instructor_id',id);
-    if(e3)console.warn('student_profiles delete:',e3);
-    // 4. student requests
-    const{error:e4}=await sb.from('student_requests').delete().eq('instructor_id',id);
-    if(e4)console.warn('student_requests delete:',e4);
-    // 5. transfer requests (both directions)
-    await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
-    await sb.from('transfer_requests').delete().eq('to_instructor_id',id);
-    // 6. lessons
+    // Step by step — order matters for foreign key constraints. Track failures instead of only
+    // logging them: a sub-delete failing here previously still showed "success", leaving rows
+    // (old chat history, confirmations, reschedule/change requests) permanently orphaned with a
+    // dangling instructor_id that nothing else could ever clean up or surface again.
+    const failed=[];
+    const steps=[
+      ['lesson_reminders','instructor_id'],
+      ['admin_messages','instructor_id'],
+      ['student_profiles','instructor_id'],
+      ['student_requests','instructor_id'],
+      ['lesson_confirmations','instructor_id'],
+      ['reschedule_requests','instructor_id'],
+      ['student_messages','instructor_id'],
+      ['instructor_change_requests','current_instructor_id'],
+    ];
+    for(const[table,col]of steps){
+      const{error}=await sb.from(table).delete().eq(col,id);
+      if(error){console.warn(table+' delete:',error.message);failed.push(table);}
+    }
+    const{error:eTr1}=await sb.from('transfer_requests').delete().eq('from_instructor_id',id);
+    if(eTr1)failed.push('transfer_requests (from)');
+    const{error:eTr2}=await sb.from('transfer_requests').delete().eq('to_instructor_id',id);
+    if(eTr2)failed.push('transfer_requests (to)');
     const{error:e6}=await sb.from('lessons').delete().eq('instructor_id',id);
-    if(e6)console.warn('lessons delete:',e6);
-    // 7. instructor record itself
+    if(e6){console.warn('lessons delete:',e6.message);failed.push('lessons');}
+    // instructor record itself
     const{error:eMain}=await sb.from('instructors').delete().eq('id',id);
     if(eMain){
       console.error('Instructor delete error:',eMain);
@@ -1228,7 +1287,11 @@ async function deleteInstr(id,name){
       showToast('Delete blocked by database constraint. See SQL helper.','error');
       return;
     }
-    showToast('🗑️ Instructor "'+name+'" removed.','success');
+    if(failed.length){
+      showToast('⚠️ Instructor removed, but some related data failed to clean up ('+failed.join(', ')+'). Check console.','error');
+    }else{
+      showToast('🗑️ Instructor "'+name+'" removed.','success');
+    }
     await loadInstrs();
     if(viewingId===id){viewingId=null;switchTab('instructors');}
   }catch(e){
@@ -1394,8 +1457,13 @@ function renderInstrDetail(instr){
 /* ══ ADMIN CALENDAR ══ */
 async function loadAdminLessons(){
   if(!viewingId)return;
+  // Capture which instructor/week this request is for — if the admin clicks a different
+  // instructor or a different week before this resolves, a slower response must not be
+  // allowed to overwrite what's now on screen.
+  const reqInstr=viewingId,reqOffset=adminWeekOffset;
   const mon=getMonday(adminWeekOffset);const sun=new Date(mon);sun.setDate(sun.getDate()+6);
   const{data}=await sb.from('lessons').select('*').eq('instructor_id',viewingId).gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)).order('start_time',{ascending:true});
+  if(reqInstr!==viewingId||reqOffset!==adminWeekOffset)return;
   adminLessons=data||[];
   renderAdminCal();
   // Update week stats
@@ -1450,7 +1518,9 @@ function renderAdminCal(){
 /* ══ INSTRUCTOR ROSTER ══ */
 async function loadInstrRoster(){
   if(!viewingId)return;
+  const reqInstr=viewingId;
   const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',viewingId).order('name',{ascending:true});
+  if(reqInstr!==viewingId)return;
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
   el.innerHTML=data.map(p=>`<div class="col-12 col-sm-6 col-md-4">
@@ -1473,13 +1543,17 @@ async function loadInstrRoster(){
 async function loadAllStudents(){
   const[lessonsR,accountsR,progressR]=await Promise.all([
     sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
-    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at'),
+    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at,instructor_id'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score')
   ]);
   const acctMap={};
   (accountsR.data||[]).forEach(a=>{
     if(a.phone)acctMap[normalizePhone(a.phone)]=a;
-    if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()]=a;
+    // Scoped by instructor_id, same as the lesson grouping key below — two different instructors
+    // can each have a student with the same name, and an unscoped name key would silently let
+    // the last one processed overwrite the other, cross-attaching one student's progress/last
+    // login onto a completely different person.
+    if(a.full_name)acctMap['name_'+a.full_name.toLowerCase().trim()+'__'+a.instructor_id]=a;
   });
   const progMap={};
   (progressR.data||[]).forEach(p=>{
@@ -1502,7 +1576,7 @@ async function loadAllStudents(){
   });
   Object.values(map).forEach(s=>{
     const normPhone=normalizePhone(s.phone);
-    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()]||null;
+    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()+'__'+s.instrId]||null;
     s.lastLogin=acc?.last_login||null;
     s.acctId=acc?.id||null;
     s.onApp=!!acc?.last_login;
@@ -1600,7 +1674,11 @@ async function openStudentDetail(idx){
 async function loadStudentProgress(s){
   const progSec=document.getElementById('sdProgressSection');
   const topicsSec=document.getElementById('sdTopicsSection');
+  const testDatesSec=document.getElementById('sdTestDatesSection');
+  const theorySec=document.getElementById('sdTheorySection');
+  const messagesSec=document.getElementById('sdMessagesSection');
   progSec.style.display='none';topicsSec.style.display='none';
+  testDatesSec.style.display='none';theorySec.style.display='none';messagesSec.style.display='none';
   const normPhone=normalizePhone(s.phone);
   if(!normPhone)return;
   const attempts=[s.phone,normPhone];
@@ -1650,6 +1728,41 @@ async function loadStudentProgress(s){
       </div></div>`;
     }).join('')}</div>`;
   }
+
+  // Test dates, theory checklist, and the instructor↔student conversation — admin previously
+  // had no visibility into any of these three.
+  try{
+    const{data:td}=await sb.from('student_test_dates').select('*').eq('student_account_id',acct.id).maybeSingle();
+    if(td&&(td.theory_test_date||td.practical_test_date)){
+      testDatesSec.style.display='';
+      document.getElementById('sdTestDates').innerHTML=`<div class="row g-2">
+        <div class="col-6"><div class="det-item"><div class="det-lbl">Theory Test</div><div class="det-val ${!td.theory_test_date?'empty':''}">${td.theory_test_date?fmtD(td.theory_test_date):'Not set'}</div></div></div>
+        <div class="col-6"><div class="det-item"><div class="det-lbl">Practical Test</div><div class="det-val ${!td.practical_test_date?'empty':''}">${td.practical_test_date?fmtD(td.practical_test_date):'Not set'}</div></div></div>
+      </div>`;
+    }
+  }catch(e){console.warn('student_test_dates not available:',e.message);}
+
+  try{
+    const{data:theory}=await sb.from('student_theory_progress').select('*').eq('student_account_id',acct.id);
+    if(theory&&theory.length){
+      theorySec.style.display='';
+      const ticked=theory.filter(t=>t.is_ticked).length;
+      document.getElementById('sdTheory').innerHTML=`<div style="font-size:.78rem;color:var(--txt2);margin-bottom:6px">${ticked} of ${theory.length} topics revised</div>
+        <div style="background:var(--dk3);border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);width:${theory.length?Math.round(ticked/theory.length*100):0}%"></div></div>`;
+    }
+  }catch(e){console.warn('student_theory_progress not available:',e.message);}
+
+  try{
+    const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(50);
+    if(msgs&&msgs.length){
+      messagesSec.style.display='';
+      document.getElementById('sdMessages').innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
+        <div style="display:inline-block;max-width:80%;background:${m.sender==='instructor'?'var(--dk2)':'rgba(209,10,17,.12)'};border:1px solid ${m.sender==='instructor'?'var(--bdr)':'rgba(209,10,17,.2)'};border-radius:10px;padding:7px 11px;font-size:.78rem;color:var(--txt2);text-align:left">${esc(m.message)}</div>
+        <div style="font-size:.6rem;color:var(--txt5);margin-top:2px">${m.sender==='instructor'?'Instructor':'Student'} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`).join('');
+      document.getElementById('sdMessages').scrollTop=document.getElementById('sdMessages').scrollHeight;
+    }
+  }catch(e){console.warn('student_messages not available:',e.message);}
 }
 
 function exportStudentsCSV(){
@@ -1684,6 +1797,11 @@ async function saveAdminLesson(){
   const student=document.getElementById('al-student').value.trim();
   const addr=document.getElementById('al-addr').value.trim();
   if(!instrId||!date||!student||!addr){showToast('Fill required fields.','error');return;}
+  // Look up student_account_id so the lesson shows up in the student's own app — without this
+  // an admin-booked lesson for an already-registered student stayed invisible in their portal
+  // until they happened to log out and back in (the only path that re-links orphaned lessons).
+  let _accId=null;
+  try{const{data:_acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instrId).ilike('full_name',student).maybeSingle();_accId=_acc?.id||null;}catch(e){}
   const{error}=await sb.from('lessons').insert([{
     instructor_id:instrId,lesson_date:date,
     start_time:document.getElementById('al-time').value,
@@ -1691,6 +1809,7 @@ async function saveAdminLesson(){
     student_name:student,student_phone:document.getElementById('al-phone').value.trim(),
     pickup_address:addr,lesson_type:document.getElementById('al-type').value,
     notes:document.getElementById('al-notes').value.trim(),
+    student_account_id:_accId,
     created_at:new Date().toISOString()
   }]);
   if(error){showToast('Failed to save lesson.','error');return;}
@@ -1732,10 +1851,10 @@ async function confirmDelLesson(id){
 /* ══ EDIT INSTRUCTOR ══ */
 function openEditForId(id){
   const instr=allInstrs.find(i=>i.id===id);if(!instr)return;
-  viewingId=id;viewingData=instr;openEditModal();
+  editingInstr=instr;openEditModal();
 }
 function openEditModal(){
-  const instr=viewingData;if(!instr)return;
+  const instr=editingInstr;if(!instr)return;
   document.getElementById('edit-id').value=instr.id;
   document.getElementById('edit-name').value=instr.full_name||'';
   document.getElementById('edit-badge').value=instr.badge_number||'';
@@ -1904,6 +2023,90 @@ async function updateTransferStatus(id,status){
   showToast(status==='approved'?'Transfer approved ✓':'Transfer declined.','success');loadTransferRequests();
 }
 
+/* ══ RESCHEDULE REQUESTS (business-wide — admin had zero visibility before) ══ */
+async function loadAdminReschedules(){
+  const{data,error}=await sb.from('reschedule_requests').select('*').order('created_at',{ascending:false}).limit(100);
+  const list=document.getElementById('reschAdminList');
+  if(error){console.warn('loadAdminReschedules error:',error.message);list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">Could not load reschedule requests.</div>';return;}
+  const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No reschedule requests yet.</div>';return;}
+  const instrMap={};allInstrs.forEach(i=>{instrMap[i.id]=i.full_name;});
+  list.innerHTML=items.map(r=>{
+    const stale=r.status==='pending'&&(Date.now()-new Date(r.created_at).getTime())>72*3600*1000;
+    return`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='accepted'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name||'Student')}</div>
+        <div style="font-size:.74rem;color:var(--txt3)">Instructor: <strong style="color:var(--txt)">${esc(instrMap[r.instructor_id]||'Unknown')}</strong></div>
+        <div style="font-size:.76rem;color:var(--txt3);margin-top:3px">Was: <strong>${esc(r.original_date||'—')}</strong> ${esc(r.original_time||'')} → Wants: <strong style="color:var(--gold)">${esc(r.preferred_date||'Flexible')}</strong> ${esc(r.preferred_time||'')}</div>
+        ${r.reason?`<div style="font-size:.73rem;color:var(--txt3);font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}${stale?' · <span style="color:var(--red)">Pending 3+ days — may need a nudge</span>':''}</div>
+      </div>
+      <span class="chip ${r.status}">${r.status}</span>
+    </div>
+  </div>`;
+  }).join('');
+}
+
+/* ══ INSTRUCTOR CHANGE REQUESTS (student promised "admin will review within 48h" — admin
+   previously had no way to see or action these at all) ══ */
+async function loadInstructorChangeRequests(){
+  const{data,error}=await sb.from('instructor_change_requests').select('*').order('created_at',{ascending:false}).limit(100);
+  const list=document.getElementById('instrChangeList');
+  if(error){console.warn('loadInstructorChangeRequests error:',error.message);list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">Could not load instructor change requests.</div>';return;}
+  const items=data||[];
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No instructor change requests.</div>';return;}
+  const instrMap={};allInstrs.forEach(i=>{instrMap[i.id]=i.full_name;});
+  const accIds=[...new Set(items.map(r=>r.student_account_id).filter(Boolean))];
+  let acctMap={};
+  if(accIds.length){
+    const{data:accts}=await sb.from('student_accounts').select('id,full_name').in('id',accIds);
+    (accts||[]).forEach(a=>{acctMap[a.id]=a.full_name;});
+  }
+  list.innerHTML=items.map(r=>{
+    const studentName=acctMap[r.student_account_id]||'Unknown student';
+    return`<div style="background:var(--dk3);border:1px solid ${r.status==='pending'?'rgba(245,197,24,.2)':r.status==='approved'?'rgba(37,211,102,.15)':'rgba(209,10,17,.15)'};border-radius:12px;padding:14px">
+    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(studentName)}</div>
+        <div style="font-size:.74rem;color:var(--txt3)">Current instructor: <strong style="color:var(--txt)">${esc(instrMap[r.current_instructor_id]||'Unknown')}</strong></div>
+        ${r.reason?`<div style="font-size:.73rem;color:var(--txt3);font-style:italic;margin-top:3px">"${esc(r.reason)}"</div>`:''}
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="d-flex flex-column gap-1 align-items-end">
+        <span class="chip ${r.status||'pending'}">${r.status||'pending'}</span>
+        ${(!r.status||r.status==='pending')?`<button class="abtn approve" onclick="openChangeReqModal('${r.id}','${jsEsc(studentName)}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+          <button class="abtn reject" onclick="declineChangeReq('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>`:''}
+      </div>
+    </div>
+  </div>`;
+  }).join('');
+}
+function openChangeReqModal(id,studentName){
+  document.getElementById('changeReq-id').value=id;
+  document.getElementById('changeReqSub').textContent=`Reassign: ${studentName}`;
+  openModal('changeReqModal');
+}
+async function confirmChangeReq(){
+  const id=document.getElementById('changeReq-id').value;
+  const newInstrId=document.getElementById('changeReq-instr').value;
+  if(!newInstrId){showToast('Select an instructor.','error');return;}
+  const{data:req}=await sb.from('instructor_change_requests').select('student_account_id').eq('id',id).maybeSingle();
+  if(!req){showToast('Request not found.','error');return;}
+  const{error:e1}=await sb.from('student_accounts').update({instructor_id:newInstrId}).eq('id',req.student_account_id);
+  if(e1){showToast('Failed to reassign student.','error');return;}
+  await sb.from('instructor_change_requests').update({status:'approved'}).eq('id',id);
+  showToast('Instructor change approved ✓','success');
+  closeModal('changeReqModal');
+  loadInstructorChangeRequests();
+}
+async function declineChangeReq(id){
+  const{error}=await sb.from('instructor_change_requests').update({status:'declined'}).eq('id',id);
+  if(error){showToast('Failed.','error');return;}
+  showToast('Request declined.');
+  loadInstructorChangeRequests();
+}
+
 /* ══ CREATE INSTRUCTOR ══ */
 async function createInstructor(){
   const name=document.getElementById('ai-name').value.trim();
@@ -2013,9 +2216,13 @@ function openAssignModal(instrId,instrName,instrPhone){
 async function confirmAssign(){
   const instrId=document.getElementById('assign-instr-id').value;const s=fcStudentData||{};
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
+  // "Find Closest" only ever collects a postcode, not a real street address — previously that
+  // postcode was written straight into pickup_address too, so an approved lesson ended up with
+  // e.g. "M19 2PH" as its pickup address instead of an actual address. Leave pickup_address
+  // unset; the instructor fills in the real address when they approve the request.
   const{error}=await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
-    pickup_address:s.postcode,postcode:s.postcode,lesson_type:s.type||'Manual',
+    pickup_address:null,postcode:s.postcode,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'pending',created_at:new Date().toISOString()
   }]);
   if(error){showToast('Failed to assign.','error');return;}
@@ -2193,6 +2400,28 @@ async function loadDashboard(){
     <div class="col-6"><div class="det-item"><div class="det-lbl">Avg per Lesson</div><div class="det-val" style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--txt2)">£${(wkL||[]).length?((wkRev/(wkL||[]).length).toFixed(0)):'0'}</div></div></div>
   </div>`;
 
+  // Unconfirmed lessons in the next 48h — admin previously had no visibility into confirmation
+  // status at all, so a lesson stuck unconfirmed by either side could go unnoticed until a no-show.
+  const in48h=new Date(Date.now()+48*3600*1000);
+  const{data:soonL}=await sb.from('lessons').select('*,instructors(full_name)').gte('lesson_date',tk).lte('lesson_date',dateKey(in48h)).order('lesson_date',{ascending:true}).order('start_time',{ascending:true});
+  const dashUc=document.getElementById('dashUnconfirmed');
+  if(!soonL||!soonL.length){dashUc.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">No lessons in the next 48 hours.</div>';}
+  else{
+    let unconf=[];
+    try{
+      const{data:confs}=await sb.from('lesson_confirmations').select('lesson_id,status').in('lesson_id',soonL.map(l=>l.id));
+      const confSet=new Set((confs||[]).filter(c=>c.status==='both_confirmed').map(c=>c.lesson_id));
+      unconf=soonL.filter(l=>!confSet.has(l.id));
+    }catch(e){unconf=soonL;}
+    if(!unconf.length){dashUc.innerHTML='<div style="text-align:center;font-size:.8rem;color:#4ade80;padding:16px"><i class="bi bi-check-circle-fill me-1"></i>All lessons in the next 48h are fully confirmed.</div>';}
+    else{
+      dashUc.innerHTML=unconf.slice(0,8).map(l=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+        <div style="width:3px;height:28px;background:var(--gold);border-radius:2px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0"><div style="font-size:.78rem;font-weight:600;color:var(--txt)">${esc(l.student_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${fmtD(l.lesson_date)} · ${l.start_time||'—'} · ${esc(l.instructors?.full_name||'—')}</div></div>
+      </div>`).join('')+(unconf.length>8?`<div style="font-size:.72rem;color:var(--txt4);padding:6px 0;text-align:center">+${unconf.length-8} more</div>`:'');
+    }
+  }
+
   // Recent activity
   const{data:recentL}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,instructors(full_name)').order('created_at',{ascending:false}).limit(8);
   const dashA=document.getElementById('dashActivity');
@@ -2202,12 +2431,21 @@ async function loadDashboard(){
 
 /* == ALL LESSONS == */
 let allLessonsCache=[];
+let adminConfirmMap={}; // lesson_id -> confirmation row — admin previously had no visibility at all
 async function loadAllLessons(){
   const{data}=await sb.from('lessons').select('*,instructors(full_name)').order('lesson_date',{ascending:false}).order('start_time',{ascending:false}).limit(500);
   allLessonsCache=data||[];
   // Populate instructor filter
   const lif=document.getElementById('lessonInstrFilter');
   if(lif)lif.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  adminConfirmMap={};
+  const ids=allLessonsCache.map(l=>l.id);
+  if(ids.length){
+    try{
+      const{data:confs}=await sb.from('lesson_confirmations').select('*').in('lesson_id',ids);
+      (confs||[]).forEach(c=>{adminConfirmMap[c.lesson_id]=c;});
+    }catch(e){console.warn('lesson_confirmations not available:',e.message);}
+  }
   renderLessonsTable(allLessonsCache);
 }
 function filterLessons(){
@@ -2227,10 +2465,15 @@ function filterLessons(){
 function renderLessonsTable(lessons){
   const tb=document.getElementById('lessonsTbody');
   document.getElementById('lessonCount').textContent=`Showing ${lessons.length} lesson${lessons.length!==1?'s':''}`;
-  if(!lessons.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
+  if(!lessons.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
   tb.innerHTML=lessons.map(l=>{
     const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
     const waNum=buildWaNum(l.student_phone||'');
+    const conf=adminConfirmMap[l.id];
+    const confHtml=conf?.status==='both_confirmed'?'<span style="color:#4ade80;font-size:.72rem"><i class="bi bi-check-circle-fill me-1"></i>Both</span>'
+      :conf?.instructor_confirmed?'<span style="color:#93c5fd;font-size:.72rem">Instructor</span>'
+      :conf?.student_confirmed?'<span style="color:var(--gold);font-size:.72rem">Student</span>'
+      :'<span style="color:var(--txt4);font-size:.72rem">—</span>';
     return`<tr>
       <td style="font-size:.78rem;color:var(--txt)">${fmtD(l.lesson_date)}</td>
       <td style="font-size:.78rem;color:var(--gold);font-weight:600">${l.start_time||'—'}${l.start_time?'–'+end:''}</td>
@@ -2240,6 +2483,7 @@ function renderLessonsTable(lessons){
       <td style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${l.duration_hours||1}h</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.pickup_address||'—')}</td>
       <td class="hide-xs" style="font-size:.78rem;color:var(--green);font-weight:600">${l.payment_received?'£'+l.payment_received:'—'}</td>
+      <td>${confHtml}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openLessonDetail(allLessonsCache.find(x=>x.id==='${l.id}'))"><i class="bi bi-eye"></i></button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
@@ -2308,17 +2552,21 @@ async function loadFeedback(){
   // Populate instructor filter if not done
   const fbIF=document.getElementById('fbInstrFilter');
   if(fbIF&&fbIF.options.length<=1)fbIF.innerHTML='<option value="">All instructors</option>'+allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
-  // Try multiple possible feedback table names
-  let feedbackData=[];
-  for(const tbl of ['student_feedback','feedback','reviews','student_reviews']){
-    const{data,error}=await sb.from(tbl).select('*').order('created_at',{ascending:false}).limit(200);
-    if(!error&&data){feedbackData=data;break;}
-  }
+  const{data,error}=await sb.from('student_lesson_feedback').select('*').order('submitted_at',{ascending:false}).limit(200);
+  const feedbackData=error?[]:(data||[]);
   const fbList=document.getElementById('fbList');
+  if(error)console.warn('loadFeedback error:',error.message);
   if(!feedbackData.length){
-    fbList.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4)"><i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt4)"></i><div style="font-size:.88rem">No feedback found</div><div style="font-size:.74rem;margin-top:4px">Student feedback will appear here once submitted. The system checks for tables: student_feedback, feedback, reviews, student_reviews.</div></div>';
+    fbList.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4)"><i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt4)"></i><div style="font-size:.88rem">No feedback found</div><div style="font-size:.74rem;margin-top:4px">Student feedback will appear here once submitted after a lesson.</div></div>';
     document.getElementById('fbStats').innerHTML='';
     return;
+  }
+  // Resolve student names for whichever accounts left feedback
+  const acctIds=[...new Set(feedbackData.map(f=>f.student_account_id).filter(Boolean))];
+  let acctMap={};
+  if(acctIds.length){
+    const{data:accts}=await sb.from('student_accounts').select('id,full_name').in('id',acctIds);
+    (accts||[]).forEach(a=>{acctMap[a.id]=a.full_name;});
   }
   let list=feedbackData;
   if(instrId)list=list.filter(f=>f.instructor_id===instrId);
@@ -2329,17 +2577,18 @@ async function loadFeedback(){
     <div class="col-6 col-sm-3"><div class="stat-card g"><div class="stat-lbl">Total Reviews</div><div class="stat-num g">${list.length}</div></div></div>
     <div class="col-6 col-sm-3"><div class="stat-card r"><div class="stat-lbl">Avg Rating</div><div class="stat-num r">${avgRating.toFixed(1)} <span style="font-size:.7rem">/ 5</span></div></div></div>
     <div class="col-6 col-sm-3"><div class="stat-card gr"><div class="stat-lbl">5-Star Reviews</div><div class="stat-num gr">${fiveStars}</div></div></div>
-    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">This Month</div><div class="stat-num b">${list.filter(f=>{const d=new Date(f.created_at);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div></div></div>`;
+    <div class="col-6 col-sm-3"><div class="stat-card b"><div class="stat-lbl">This Month</div><div class="stat-num b">${list.filter(f=>{const d=new Date(f.submitted_at);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div></div></div>`;
   fbList.innerHTML=list.map(f=>{
     const stars='★'.repeat(f.rating||0)+'☆'.repeat(5-(f.rating||0));
     const instrName=allInstrs.find(i=>i.id===f.instructor_id)?.full_name||'Unknown';
+    const studName=acctMap[f.student_account_id]||'Unknown student';
     return`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;margin-bottom:8px">
       <div class="d-flex align-items-start justify-content-between gap-2">
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(f.student_name||f.name||'Anonymous')}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(studName)}</div>
           <div style="font-size:.85rem;color:var(--gold);letter-spacing:2px;margin:2px 0">${stars}</div>
-          <div style="font-size:.78rem;color:var(--txt2);line-height:1.6;margin-top:4px">${esc(f.comment||f.review||f.message||'No comment')}</div>
-          <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Instructor: <strong style="color:var(--txt3)">${esc(instrName)}</strong> · ${fmtD(f.created_at)}</div>
+          <div style="font-size:.78rem;color:var(--txt2);line-height:1.6;margin-top:4px">${esc(f.comment||'No comment')}</div>
+          <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Instructor: <strong style="color:var(--txt3)">${esc(instrName)}</strong> · ${fmtD(f.submitted_at)}</div>
         </div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:${(f.rating||0)>=4?'var(--green)':(f.rating||0)>=3?'var(--gold)':'var(--red)'};flex-shrink:0">${f.rating||'—'}</div>
       </div>
@@ -2362,5 +2611,41 @@ function showToast(msg,type=''){
   _tt=setTimeout(()=>t.classList.remove('show'),3400);
 }
 </script>
+<!-- SQWEBSITES-CREDIT-V2 -->
+<style>
+.sqw-credit{position:relative;padding:44px 20px 34px;text-align:center;overflow:hidden;isolation:isolate;background:linear-gradient(180deg,#050505,#030303)}
+.sqw-credit::after{content:'';position:absolute;left:50%;top:50%;width:520px;height:220px;transform:translate(-50%,-50%);background:radial-gradient(ellipse at center, rgba(201,168,76,.10) 0%, rgba(201,168,76,.04) 45%, transparent 72%);z-index:0;animation:sqwBreathe 5s ease-in-out infinite}
+@keyframes sqwBreathe{0%,100%{opacity:.7;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+.sqw-credit-rule{position:absolute;top:0;left:0;right:0;height:1px;background:rgba(201,168,76,.15);overflow:hidden}
+.sqw-credit-rule::before{content:'';position:absolute;top:0;left:-30%;width:30%;height:100%;background:linear-gradient(90deg,transparent,rgba(242,220,148,.9),transparent);animation:sqwSweep 6s ease-in-out infinite}
+@keyframes sqwSweep{0%{left:-30%}45%,100%{left:130%}}
+.sqw-mark{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;position:relative;padding:10px 22px;border-radius:999px;z-index:1}
+.sqw-mark::before{content:'';position:absolute;inset:0;border-radius:999px;border:1px solid rgba(201,168,76,.22);box-shadow:0 0 0 1px rgba(201,168,76,.06) inset,0 0 26px rgba(201,168,76,.16);transition:box-shadow .5s ease,border-color .5s ease}
+.sqw-mark:hover::before{border-color:rgba(201,168,76,.4);box-shadow:0 0 0 1px rgba(201,168,76,.1) inset,0 0 42px rgba(201,168,76,.3)}
+.sqw-wordmark{font-family:'Oswald',sans-serif;font-weight:700;font-size:2.1rem;letter-spacing:2px;line-height:1;background:linear-gradient(115deg,#8B6914 0%,#C9A84C 22%,#F2DC94 42%,#FFE680 50%,#F2DC94 58%,#C9A84C 78%,#8B6914 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:sqwShimmer 4.2s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(201,168,76,.55)) drop-shadow(0 0 34px rgba(201,168,76,.28))}
+@keyframes sqwShimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.sqw-dot{display:inline-block;width:5px;height:5px;margin-left:6px;margin-bottom:14px;border-radius:50%;background:#FFE680;box-shadow:0 0 8px rgba(255,230,128,.9),0 0 22px rgba(201,168,76,.6);animation:sqwPulse 2.2s ease-in-out infinite}
+@keyframes sqwPulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.7);opacity:1}}
+.sqw-label{display:block;margin-top:2px;font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;font-weight:600;color:rgba(201,168,76,.55);position:relative;z-index:1}
+.sqw-url{margin:14px 0 0;font-size:.74rem;color:#3a3a3a;position:relative;z-index:1}
+.sqw-url a{color:rgba(201,168,76,.75);font-weight:600;text-decoration:none;transition:color .25s ease,filter .25s ease}
+.sqw-url a:hover{color:#F2DC94;filter:drop-shadow(0 0 8px rgba(201,168,76,.5))}
+.sqw-divider{width:26px;height:1px;margin:16px auto 12px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.35),transparent);position:relative;z-index:1}
+.sqw-founder{font-size:.68rem;color:#4a4a4a;letter-spacing:.04em;position:relative;z-index:1}
+.sqw-founder a{color:rgba(201,168,76,.85);font-weight:600;text-decoration:none;transition:color .25s ease}
+.sqw-founder a:hover{color:#F2DC94}
+@media (prefers-reduced-motion:reduce){.sqw-credit::after,.sqw-credit-rule::before,.sqw-wordmark,.sqw-dot{animation:none!important}}
+</style>
+<div class="sqw-credit">
+  <div class="sqw-credit-rule"></div>
+  <a href="https://www.sqwebsites.co.uk" target="_blank" rel="nofollow noopener" class="sqw-mark" aria-label="SQWebsites">
+    <span class="sqw-wordmark">SQ<span class="sqw-dot"></span></span>
+  </a>
+  <span class="sqw-label">Websites</span>
+  <p class="sqw-url">Designed &amp; Hosted by <a href="https://www.sqwebsites.co.uk" target="_blank" rel="nofollow noopener">www.sqwebsites.co.uk</a></p>
+  <div class="sqw-divider"></div>
+  <p class="sqw-founder">Crafted by <a href="https://www.linkedin.com/in/mohammed-qaim-abbas-58699b344" target="_blank" rel="nofollow noopener">Mohammed Qaim Abbas</a></p>
+</div>
+<!-- /SQWEBSITES-CREDIT-V2 -->
 </body>
 </html>
