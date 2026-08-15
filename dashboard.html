@@ -1133,10 +1133,29 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 let sb;
 try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:40px;text-align:center;color:#f87171;font-family:Inter,sans-serif"><h2>Connection Error</h2><p>Could not connect to the database. Please refresh the page.</p></div>';throw e;}
 
+/* ── STATE (declared before auth guard so TDZ never blocks button clicks) ── */
+let weekStart=getMonday(new Date());
+let calView='week';
+let currentDayKey=todayKey(),currentDayName='Monday',currentDayIdx=0;
+let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let weekLessons={};
+let dayLessonsCache={};
+let todayLessons=[],tomorrowLessons=[];
+let confirmationMap={};
+let reschedulePending=[];
+let activeDate=null,detailId=null,detailData=null;
+let shownReminders=new Set();
+let allStudentsArr=[];
+let rosterMap={};
+let studentAccountMap={};
+let linkEventMap={};
+let topicRatingsForModal={};
+let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
+
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){window.location.href='portal.html';throw new Error('not authenticated');}
+if(!instr||!instr.id){window.location.href='portal.html';}  // redirect only — no throw, no TDZ
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
 /* ══════════════════════════════
@@ -1195,28 +1214,6 @@ function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.st
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
 function waLink(phone,msg){const p=cleanPhone(phone);if(!p)return null;return'https://wa.me/44'+p.replace(/^0/,'')+(msg?'?text='+encodeURIComponent(msg):'');}
 function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
-
-/* ── STATE ── */
-let weekStart=getMonday(new Date());
-let calView='week';
-let currentDayKey=todayKey(),currentDayName='Monday',currentDayIdx=0;
-let monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
-let weekLessons={};
-let dayLessonsCache={};
-// Independent of weekLessons/calView — the "Today"/"Tomorrow" stat cards and the 1-hour lesson
-// reminder must reflect the real calendar today regardless of which week/month the instructor
-// has navigated to. Without this they silently went blank/stale the moment you clicked "next week".
-let todayLessons=[],tomorrowLessons=[];
-let confirmationMap={};  // lesson_id -> confirmation status
-let reschedulePending=[];
-let activeDate=null,detailId=null,detailData=null;
-let shownReminders=new Set();
-let allStudentsArr=[];
-let rosterMap={};
-let studentAccountMap={}; // student_code -> student_account
-let linkEventMap={};      // student_code -> last event type
-let topicRatingsForModal={}; // topic_name -> rating for progress modal
-let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 
 /* ── INIT ── */
 (async()=>{
