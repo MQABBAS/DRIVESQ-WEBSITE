@@ -287,7 +287,7 @@ footer a:hover{color:#555}
 document.getElementById('yr').textContent = new Date().getFullYear();
 
 const SUPABASE_URL = 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* Redirect if already logged in */
@@ -360,8 +360,9 @@ async function handleLogin(e){
   const badge=document.getElementById('loginBadge').value.trim().toUpperCase();
   const pass=document.getElementById('loginPass').value;
   try{
-    const {data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).single();
-    if(error||!data){ msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden'); return; }
+    const {data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).maybeSingle();
+    if(error){ msgEl.className='msg error'; msgEl.textContent='Connection error. Please try again.'; msgEl.classList.remove('hidden'); return; }
+    if(!data){ msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='pending'){ msgEl.className='msg info'; msgEl.textContent='⏳ Your account is pending admin approval. Usually within 24 hours.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='rejected'){ msgEl.className='msg error'; msgEl.textContent='Your application was not approved. Please WhatsApp DriveSQ.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='suspended'){ msgEl.className='msg error'; msgEl.textContent='🚫 Your account has been suspended. Please contact DriveSQ.'; msgEl.classList.remove('hidden'); return; }
