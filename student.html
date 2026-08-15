@@ -426,7 +426,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
       <!-- Practice shortcuts — the two things every learner needs most, front and centre -->
       <div class="row g-2 mb-3">
         <div class="col-6">
-          <button onclick="openMockTest()" style="width:100%;height:100%;background:linear-gradient(135deg,rgba(96,165,250,.14),rgba(96,165,250,.04));border:1px solid rgba(96,165,250,.3);border-radius:12px;padding:14px 10px;text-align:left;cursor:pointer">
+          <button onclick="openTheoryPicker()" style="width:100%;height:100%;background:linear-gradient(135deg,rgba(96,165,250,.14),rgba(96,165,250,.04));border:1px solid rgba(96,165,250,.3);border-radius:12px;padding:14px 10px;text-align:left;cursor:pointer">
             <i class="bi bi-clipboard-check-fill" style="font-size:1.3rem;color:#60a5fa"></i>
             <div style="font-family:'Oswald',sans-serif;font-size:.86rem;font-weight:700;color:var(--txt);margin-top:6px">Theory Practice</div>
             <div style="font-size:.66rem;color:var(--txt4);margin-top:1px">700+ questions · 14 mock tests</div>
@@ -615,16 +615,27 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 
       <!-- Theory prep -->
       <div id="learnTheory" class="hidden">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div style="font-size:.72rem;color:var(--txt4)">Tick topics as you read through them</div>
-          <div style="font-size:.72rem;color:var(--green);font-weight:600" id="theoryTickCount">0 / 0 ticked</div>
+        <!-- Mode picker -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+          <button onclick="openMockTest()" style="background:linear-gradient(135deg,rgba(209,10,17,.13),rgba(209,10,17,.04));border:1px solid rgba(209,10,17,.35);border-radius:13px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s">
+            <i class="bi bi-stopwatch-fill" style="font-size:1.6rem;color:var(--red);display:block;margin-bottom:7px"></i>
+            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Mock Test</div>
+            <div style="font-size:.65rem;color:var(--txt4);margin-top:2px">50 Qs · 57 min · timed</div>
+          </button>
+          <button onclick="showTheoryPracticeMode()" style="background:linear-gradient(135deg,rgba(96,165,250,.13),rgba(96,165,250,.04));border:1px solid rgba(96,165,250,.35);border-radius:13px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s">
+            <i class="bi bi-book-fill" style="font-size:1.6rem;color:#60a5fa;display:block;margin-bottom:7px"></i>
+            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Practice Mode</div>
+            <div style="font-size:.65rem;color:var(--txt4);margin-top:2px">Topics · tick as you go</div>
+          </button>
         </div>
-        <div class="theory-prog-bar mb-3"><div class="theory-prog-fill" id="theoryProgFill" style="width:0%"></div></div>
-        <div id="theoryTopics"></div>
-        <div style="background:linear-gradient(135deg,rgba(209,10,17,.1),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:16px;margin-top:16px">
-          <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Theory Test Centre</div>
-          <div style="font-size:.76rem;color:var(--txt3);margin-bottom:12px">700+ questions · 14 mock tests · Practice mode with instant feedback</div>
-          <button class="btn-p" onclick="openMockTest()"><i class="bi bi-play-fill me-1"></i>Open Theory Test Centre</button>
+        <!-- Practice mode content (hidden until selected) -->
+        <div id="theoryPracticeContent" class="hidden">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div style="font-size:.72rem;color:var(--txt4)">Tick topics as you read through them</div>
+            <div style="font-size:.72rem;color:var(--green);font-weight:600" id="theoryTickCount">0 / 0 ticked</div>
+          </div>
+          <div class="theory-prog-bar mb-3"><div class="theory-prog-fill" id="theoryProgFill" style="width:0%"></div></div>
+          <div id="theoryTopics"></div>
         </div>
       </div>
 
@@ -832,6 +843,34 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
     <div class="mb-3"><label class="dsq-lbl">Comments (optional)</label><textarea class="dsq-inp" id="feedbackComment" rows="3" placeholder="What went well? What could be improved?"></textarea></div>
     <button class="btn-p mb-2" onclick="submitFeedback()"><i class="bi bi-send me-1"></i>Submit Feedback</button>
     <button class="btn-s" onclick="closeModal('feedbackModal')">Skip for now</button>
+  </div>
+</div>
+
+<!-- Theory Mode Picker Modal -->
+<div class="dsq-overlay" id="theoryPickerModal">
+  <div class="dsq-modal" style="max-width:360px">
+    <button class="modal-x" onclick="closeModal('theoryPickerModal')"><i class="bi bi-x-lg"></i></button>
+    <div style="text-align:center;margin-bottom:20px">
+      <i class="bi bi-clipboard-check-fill" style="font-size:2rem;color:#60a5fa"></i>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt);margin-top:8px">Theory Practice</div>
+      <div style="font-size:.74rem;color:var(--txt4);margin-top:3px">Choose how you want to practise</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="closeModal('theoryPickerModal');openMockTest()" style="background:linear-gradient(135deg,rgba(209,10,17,.13),rgba(209,10,17,.04));border:1.5px solid rgba(209,10,17,.4);border-radius:13px;padding:18px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s">
+        <i class="bi bi-stopwatch-fill" style="font-size:1.8rem;color:var(--red);flex-shrink:0"></i>
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">Mock Test</div>
+          <div style="font-size:.7rem;color:var(--txt3);margin-top:2px">All 14 tests · 50 questions · 57 minute timer · real exam conditions</div>
+        </div>
+      </button>
+      <button onclick="closeModal('theoryPickerModal');switchTab('learn');setMobActive('learn');setLearnSection('theory');showTheoryPracticeMode()" style="background:linear-gradient(135deg,rgba(96,165,250,.13),rgba(96,165,250,.04));border:1.5px solid rgba(96,165,250,.4);border-radius:13px;padding:18px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s">
+        <i class="bi bi-book-fill" style="font-size:1.8rem;color:#60a5fa;flex-shrink:0"></i>
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">Practice Mode</div>
+          <div style="font-size:.7rem;color:var(--txt3);margin-top:2px">Browse all topics · tick as you revise · track your progress</div>
+        </div>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1755,28 +1794,7 @@ function renderLearnTab(){
     </div>`;
   }).join('');
 
-  // Theory topics (keep existing logic)
-  let total=0,ticked=0;
-  document.getElementById('theoryTopics').innerHTML=THEORY_SECTIONS.map(s=>`
-    <div style="margin-bottom:14px">
-      <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt);margin-bottom:7px;display:flex;align-items:center;gap:7px">
-        <div style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></div>${esc(s.group)}
-      </div>
-      ${s.topics.map(t=>{
-        total++;
-        const checked=!!theoryTicks[t.name];
-        if(checked)ticked++;
-        return`<div class="theory-row" onclick="toggleTheoryTick('${jsEsc(t.name)}',this)">
-          <div class="theory-check ${checked?'checked':''}" id="tc-${t.name.replace(/\s/g,'-').replace(/[^a-zA-Z0-9-]/g,'')}">
-            ${checked?'<i class="bi bi-check-lg"></i>':''}
-          </div>
-          <a href="${t.url}" target="_blank" onclick="event.stopPropagation()" style="flex:1;font-size:.82rem;color:var(--txt2);text-decoration:none">${esc(t.name)}</a>
-          <a href="${t.url}" target="_blank" onclick="event.stopPropagation()" style="font-size:.65rem;color:var(--red);white-space:nowrap;flex-shrink:0">Read →</a>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
-  document.getElementById('theoryTickCount').textContent=ticked+' / '+total+' ticked';
-  document.getElementById('theoryProgFill').style.width=(total?Math.round((ticked/total)*100):0)+'%';
+  // Theory topics rendered on demand when user picks Practice Mode
 
 }
 
@@ -1878,7 +1896,7 @@ async function toggleTheoryTick(name,row){
       await sb.from('student_theory_progress').update({is_ticked:false,ticked_at:null}).eq('student_account_id',currentStudent.id).eq('topic_name',name);
     }
   }catch(e){console.warn('student_theory_progress not available — run migration v4:',e.message);}
-  renderLearnTab();
+  renderTheoryTopicsOnly();
 }
 
 /* ── MESSAGES ── */
@@ -2210,6 +2228,38 @@ var practiceShowingAnswer=false;
 var practiceStats={correct:0,wrong:0};
 var mockHistory={}; // {testNum: [{score,total,passed,date}]}
 
+function openTheoryPicker(){
+  openModal('theoryPickerModal');
+}
+function showTheoryPracticeMode(){
+  const c=document.getElementById('theoryPracticeContent');
+  if(c)c.classList.remove('hidden');
+  renderTheoryTopicsOnly();
+}
+function renderTheoryTopicsOnly(){
+  const el=document.getElementById('theoryTopics');if(!el)return;
+  let total=0,ticked=0;
+  el.innerHTML=THEORY_SECTIONS.map(s=>`
+    <div style="margin-bottom:14px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt);margin-bottom:7px;display:flex;align-items:center;gap:7px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></div>${esc(s.group)}
+      </div>
+      ${s.topics.map(t=>{
+        total++;
+        const checked=!!theoryTicks[t.name];
+        if(checked)ticked++;
+        return`<div class="theory-row" onclick="toggleTheoryTick('${jsEsc(t.name)}',this)">
+          <div class="theory-check ${checked?'checked':''}" id="tc-${t.name.replace(/\s/g,'-').replace(/[^a-zA-Z0-9-]/g,'')}">
+            ${checked?'<i class="bi bi-check-lg"></i>':''}
+          </div>
+          <a href="${t.url}" target="_blank" onclick="event.stopPropagation()" style="flex:1;font-size:.82rem;color:var(--txt2);text-decoration:none">${esc(t.name)}</a>
+          <a href="${t.url}" target="_blank" onclick="event.stopPropagation()" style="font-size:.65rem;color:var(--red);white-space:nowrap;flex-shrink:0">Read →</a>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  const tc=document.getElementById('theoryTickCount');if(tc)tc.textContent=ticked+' / '+total+' ticked';
+  const pf=document.getElementById('theoryProgFill');if(pf)pf.style.width=(total?Math.round((ticked/total)*100):0)+'%';
+}
 function openMockTest(){
   clearInterval(mockTimer);mockMode='';mockQuestions=[];mockAnswers=[];mockTimer=null;mockTimeLeft=TEST_TIME;mockCurrent=0;practiceStats={correct:0,wrong:0};
   document.getElementById('mockTestInner').innerHTML=renderMockHome();
