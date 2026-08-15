@@ -1027,11 +1027,14 @@ async function doLogin(){
   if(!email||!pass){showLoginErr('Please enter email and password.');return;}
   btn.textContent='Signing in…';btn.disabled=true;
   try{
-    const{data,error}=await sb.from('admins').select('*').eq('email',email).single();
-    if(error||!data){showLoginErr('Admin account not found.');return;}
-    if(data.password_hash!==btoa(pass)){showLoginErr('Incorrect password.');return;}
+    const{data,error}=await sb.from('admins').select('*').eq('email',email).maybeSingle();
+    if(error){showLoginErr('Connection error. Please try again.');return;}
+    if(!data){showLoginErr('Admin account not found. Check your email address.');return;}
+    let hash;
+    try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
+    if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
     sessionStorage.setItem('dsq_admin','true');showApp();
-  }catch(e){showLoginErr('Connection error.');}
+  }catch(e){showLoginErr('Connection error. Please try again.');}
   finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
 }
 function showLoginErr(msg){const el=document.getElementById('loginErr');el.textContent=msg;el.classList.remove('hidden');}
@@ -1366,7 +1369,7 @@ ALTER TABLE lesson_reminders
 
 function copySql(){
   const txt=document.getElementById('sqlContent').textContent;
-  navigator.clipboard.writeText(txt).then(()=>showToast('SQL copied to clipboard!','success'));
+  navigator.clipboard.writeText(txt).then(()=>showToast('SQL copied to clipboard!','success')).catch(()=>showToast('Failed to copy — copy manually.','error'));
 }
 
 // Also expose a standalone SQL modal button
@@ -1662,7 +1665,7 @@ async function openStudentDetail(idx){
     <div style="padding:8px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px">
       <div style="width:3px;height:36px;background:${tc[l.lesson_type]||'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:.76rem;font-weight:600;color:var(--txt2)">${l.lesson_date} · ${l.start_time}–${calcEnd(l.start_time,l.duration_hours)}</div>
+        <div style="font-size:.76rem;font-weight:600;color:var(--txt2)">${l.lesson_date} · ${l.start_time}–${calcEnd(l.start_time,l.duration_hours||1)}</div>
         <div style="font-size:.7rem;color:var(--txt3)">${esc(l.lesson_type||'Manual')} · ${l.duration_hours}h${l.payment_received?' · £'+l.payment_received:''}${l.pickup_address?' · '+esc(l.pickup_address):''}</div>
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
@@ -1869,14 +1872,14 @@ function openEditModal(){
   const pwdEl=document.getElementById('edit-pwd-txt');
   pwdEl.textContent=instr.password||'(not stored)';
   pwdEl.style.filter='blur(4px)';pwdRevealed=false;
-  document.querySelector('.pwd-reveal').innerHTML='<i class="bi bi-eye me-1"></i>Reveal';
+  document.getElementById('editModal').querySelector('.pwd-reveal').innerHTML='<i class="bi bi-eye me-1"></i>Reveal';
   openModal('editModal');
 }
 function togglePwd(){
   pwdRevealed=!pwdRevealed;
   const el=document.getElementById('edit-pwd-txt');
   el.style.filter=pwdRevealed?'none':'blur(4px)';
-  document.querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
+  document.getElementById('editModal').querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
 }
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
@@ -1909,7 +1912,7 @@ function openMsgModal(instrId){
   msgTypes.msgModal='general';
   document.querySelectorAll('#msgModal .mtype-btn').forEach(b=>b.classList.toggle('active',b.dataset.t==='general'));
   document.getElementById('msg-subject').value='';document.getElementById('msg-body').value='';
-  if(instrId)document.getElementById('msg-recipient').value=instrId;
+  document.getElementById('msg-recipient').value=instrId||'';
   document.getElementById('msgModalSub').textContent=instrId?'To individual instructor':'Select an instructor below';
   openModal('msgModal');
 }
@@ -1928,6 +1931,7 @@ async function sendAll(){
   if(!subject||!body){showToast('Fill subject and body.','error');return;}
   const btn=document.getElementById('sendAllBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';btn.disabled=true;
   const approved=allInstrs.filter(i=>i.status==='approved');
+  if(!approved.length){showToast('No approved instructors to message.','warn');btn.innerHTML='<i class="bi bi-megaphone me-1"></i>Send to All';btn.disabled=false;return;}
   const rows=approved.map(i=>({instructor_id:i.id,subject,body,message_type:msgTypes.sendAllModal,is_read:false,dismissed:false,created_at:new Date().toISOString()}));
   const{error}=await sb.from('admin_messages').insert(rows);
   btn.innerHTML='<i class="bi bi-megaphone me-1"></i>Send to All';btn.disabled=false;

@@ -16,7 +16,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 <style>
 :root{
-  --red:#D10A11;--red2:#a80008;--gold:#F5C518;--green:#25D366;--trans:.2s ease;
+  --red:#D10A11;--red2:#a80008;--gold:#F5C518;--green:#25D366;--blue:#3b82f6;--trans:.2s ease;
   --blk:#080808;--dk:#0f0f0f;--dk2:#161616;--dk3:#1e1e1e;--bdr:#2a2a2a;
   --txt:#f0f0f0;--txt2:#aaa;--txt3:#555;--txt4:#333;--txt5:#222;
   --card-bg:#161616;--nav-bg:rgba(8,8,8,.98);--input-bg:#181818;
@@ -1135,8 +1135,9 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 
 
 /* ── AUTH ── */
-let instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');
-if(!instr)window.location.href='portal.html';
+let instr=null;
+try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
+if(!instr||!instr.id){window.location.href='portal.html';}
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
 /* ══════════════════════════════
@@ -1189,7 +1190,7 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
 // request text) still breaks out of the surrounding HTML attribute before the browser hands the value
 // to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -1461,7 +1462,7 @@ function setCalView(view){
   document.getElementById('monthViewWrap').classList.toggle('hidden',view!=='month');
   if(view==='week'){document.getElementById('desktopCal').classList.remove('hidden');renderCal();}
   else if(view==='day'){currentDayKey=todayKey();const _td=new Date();const _tdow=_td.getDay()===0?6:_td.getDay()-1;currentDayName=DAYS[_tdow];currentDayIdx=_tdow;loadDayView(currentDayKey);}
-  else if(view==='month')renderMonthView();
+  else if(view==='month')loadMonthView();
 }
 
 function calNav(dir){
@@ -2103,7 +2104,7 @@ async function openDetail(id){
     confStatusHtml='<span style="color:var(--txt4);font-size:.8rem"><i class="bi bi-circle me-1"></i>Not confirmed yet</span>';
   }
 
-  const inRoster=!!rosterMap[data.student_name.toLowerCase().trim()];
+  const inRoster=data.student_name?!!rosterMap[data.student_name.toLowerCase().trim()]:false;
   const payRow=payVisible?[['<i class="bi bi-currency-pound me-1"></i>Payment',data.payment_received&&parseFloat(data.payment_received)>0?`<span style="color:#4ade80;font-weight:700">£${parseFloat(data.payment_received).toFixed(2)} received</span>`:'<span style="color:var(--txt4)">Not recorded</span>']]:[['<i class="bi bi-currency-pound me-1"></i>Payment','<span style="color:var(--txt5);font-size:.7rem">Hidden — toggle in settings</span>']];
 
   document.getElementById('detBody').innerHTML=[
@@ -3157,7 +3158,7 @@ async function saveSmProgress(){
       const payload={student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()};
       if(ex?.id){await sb.from('student_progress').update(payload).eq('id',ex.id);}
       else{await sb.from('student_progress').insert([{...payload}]).then(()=>{},async()=>{// retry without created_at
-        await sb.from('student_progress').insert([{student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()}]).then(()=>{},()=>{});});}
+        await sb.from('student_progress').insert([{student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()}]).then(()=>{},()=>{});});}}
     }
     // Send in-app notification
     await sb.from('student_messages').insert([{
@@ -3385,6 +3386,7 @@ function smShareLink(){
 let _notifiedRegistrations=new Set();
 
 async function pollStudentUpdates(){
+  if(!allStudentsArr.length)return;
   // Load fresh roster data
   await loadRoster();
 
