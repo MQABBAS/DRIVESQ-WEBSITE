@@ -1220,46 +1220,61 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 
 /* ── INIT ── */
 (async()=>{
-  // Connection test — warn if Supabase is paused or tables missing
+  // ── STEP 1: nav + calendar render immediately, before any network calls ──
+  updateNav();
+  renderCal();
+  updateStats();
+
+  // ── STEP 2: connection ping — warn if Supabase is unreachable ──
+  let dbOnline=true;
   try{
     const{error:pingErr}=await sb.from('instructors').select('id',{count:'exact',head:true});
     if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
+      dbOnline=false;
       const warn=document.createElement('div');
       warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-      warn.innerHTML='⚠️ Database connection issue — data may not load. Check your Supabase project is active. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+      warn.innerHTML='⚠️ Database connection issue — some data may not load. Check your Supabase project is active at supabase.com. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
       document.body.prepend(warn);
     }
   }catch(pingEx){
+    dbOnline=false;
     const warn=document.createElement('div');
     warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-    warn.innerHTML='⚠️ Could not reach the database. Check your internet connection. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+    warn.innerHTML='⚠️ Could not reach the database — go to <a href="https://supabase.com" target="_blank" style="color:#fca5a5">supabase.com</a> and check your project is not paused. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
     document.body.prepend(warn);
   }
-  try{
-    await checkSuspended();
-    updateNav();
-    // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
-    // weekLessons is actually populated. Running it concurrently here raced weekLessons while
-    // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
-    await Promise.all([loadWeek(),loadTodayTomorrow(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
-    // loadWeek() and loadTodayTomorrow() ran concurrently above, so whichever's internal
-    // updateStats() call fired first may have rendered before the other's data landed — one
-    // more call here, now that both are guaranteed settled, ensures the first paint is correct.
-    updateStats();
-    populateInstrDropdowns();
-    sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
-    if(window.innerWidth>=992){
-      const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦','Student app ready ✦'];
-      const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
-    }
-    setInterval(checkReminders,60000);
-    setInterval(loadNotifications,30000);
-    setInterval(pollConfirmations,10000); // poll every 10s for near-instant student confirmation updates
-    checkReminders();
-  }catch(e){
-    console.error('Dashboard init error:',e);
-    showToast('Could not load dashboard data. Check your connection or refresh the page.','error');
+
+  // ── STEP 3: check suspended (isolated — never blocks the rest) ──
+  try{await checkSuspended();}catch(e){console.warn('checkSuspended error:',e);}
+
+  // ── STEP 4: load all data — each function isolated so one failure never kills the rest ──
+  // loadConfirmations() is intentionally not listed — loadWeek() calls it after weekLessons populates.
+  await Promise.allSettled([
+    loadWeek(),
+    loadTodayTomorrow(),
+    loadNotifications(),
+    loadRequests(),
+    loadTransfers(),
+    loadStudents(),
+    loadRoster(),
+    loadProfileData(),
+    loadRescheduleRequests(),
+  ]);
+
+  // ── STEP 5: final render pass — always runs regardless of which loads succeeded ──
+  updateStats();
+  renderCal();
+  try{populateInstrDropdowns();}catch(e){console.warn('populateInstrDropdowns:',e);}
+  try{sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});}catch(e){}
+
+  if(window.innerWidth>=992){
+    const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦','Student app ready ✦'];
+    const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
   }
+  setInterval(checkReminders,60000);
+  setInterval(loadNotifications,30000);
+  setInterval(pollConfirmations,10000);
+  checkReminders();
 })();
 
 // Re-runs whichever view's own loader is on screen — each one already fetches its own lessons,
@@ -1411,7 +1426,7 @@ async function confirmLessonAsInstructor(lessonId){
    RESCHEDULE REQUESTS
 ══════════════════════════════ */
 async function loadRescheduleRequests(){
-  const{data}=await sb.from('reschedule_requests').select('*,student_accounts(full_name)').eq('instructor_id',instr.id).eq('status','pending');
+  let data;try{const r=await sb.from('reschedule_requests').select('*,student_accounts(full_name)').eq('instructor_id',instr.id).eq('status','pending');data=r.data;}catch(e){console.warn('loadRescheduleRequests:',e);return;}
   reschedulePending=data||[];
   if(reschedulePending.length){
     const bc=document.getElementById('msgBanners');
@@ -1798,7 +1813,7 @@ function jumpToDayView(dk,dowIdx){
    ROSTER
 ══════════════════════════════ */
 async function loadRoster(){
-  const{data,error}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
   if(error){console.warn('Roster load:',error);rosterMap={};updateStats();return;}
   rosterMap={};
   (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
@@ -2630,7 +2645,7 @@ async function checkReminders(){
 
 /* ── NOTIFICATIONS ── */
 async function loadNotifications(){
-  const{data}=await sb.from('admin_messages').select('*').eq('instructor_id',instr.id).eq('dismissed',false).order('created_at',{ascending:false});
+  let data;try{const r=await sb.from('admin_messages').select('*').eq('instructor_id',instr.id).eq('dismissed',false).order('created_at',{ascending:false});data=r.data;}catch(e){console.warn('loadNotifications:',e);return;}
   const msgs=data||[];const unread=msgs.filter(m=>!m.is_read);
   document.getElementById('notifDot').classList.toggle('hidden',unread.length===0);
   const bc=document.getElementById('msgBanners');
@@ -2651,7 +2666,7 @@ document.addEventListener('click',e=>{const p=document.getElementById('notifPane
 
 /* ── REQUESTS ── */
 async function loadRequests(){
-  const{data}=await sb.from('student_requests').select('*').eq('instructor_id',instr.id).order('created_at',{ascending:false});
+  let data;try{const r=await sb.from('student_requests').select('*').eq('instructor_id',instr.id).order('created_at',{ascending:false});data=r.data;}catch(e){console.warn('loadRequests:',e);return;}
   const reqs=data||[];const pending=reqs.filter(r=>r.status==='pending').length;
   ['reqBadge','mobReqBadge'].forEach(id=>{const el=document.getElementById(id);el.textContent=pending;el.classList.toggle('hidden',pending===0);});
   const list=document.getElementById('requestList');
@@ -2700,7 +2715,7 @@ async function declineRequest(id){if(!confirm('Decline this request?'))return;va
 
 /* ── TRANSFERS ── */
 async function loadTransfers(){
-  const{data}=await sb.from('transfer_requests').select('*').eq('from_instructor_id',instr.id).order('created_at',{ascending:false});
+  let data;try{const r=await sb.from('transfer_requests').select('*').eq('from_instructor_id',instr.id).order('created_at',{ascending:false});data=r.data;}catch(e){console.warn('loadTransfers:',e);return;}
   const list=document.getElementById('transferList');const items=data||[];
   if(!items.length){list.innerHTML='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem">No transfer requests yet.</div>';return;}
   list.innerHTML=items.map(r=>`<div class="tr-card"><div class="d-flex align-items-start justify-content-between gap-2 flex-wrap"><div style="flex:1;min-width:0"><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div><div style="font-size:.75rem;color:var(--txt3)">${esc(r.pickup_address||'')}</div><div style="font-size:.73rem;color:var(--txt4);font-style:italic;margin-top:4px">"${esc(r.reason)}"</div><div style="font-size:.63rem;color:var(--txt5);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div><span class="status-pill ${r.status}">${r.status}</span></div></div>`).join('');
