@@ -848,7 +848,7 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#aaa">Could not load. Please refresh the page.</p></div>';throw e;}
 
 
 
@@ -1116,6 +1116,14 @@ async function initApp(){
     window._pollsStarted=true;
     window._msgPoll=setInterval(loadMessages,30000);
     window._notifPoll=setInterval(loadNotifications,60000);
+    // Heartbeat: keep last_seen updated so admin can see who is online
+    async function heartbeat(){
+      if(currentStudent&&currentStudent.id){
+        sb.from('student_accounts').update({last_seen:new Date().toISOString()}).eq('id',currentStudent.id).then(()=>{},()=>{});
+      }
+    }
+    heartbeat();
+    window._heartbeatPoll=setInterval(heartbeat,120000);// every 2 min
   }
   setTimeout(()=>checkLessonFeedbackPrompt(),3000);
 }

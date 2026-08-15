@@ -287,11 +287,38 @@ footer a:hover{color:#555}
 document.getElementById('yr').textContent = new Date().getFullYear();
 
 const SUPABASE_URL = 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_7UDWD7Xunqs0mGTpiJbDqQ_n6nrrm1R';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
+let sb;
+try{
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(e){
+  document.querySelectorAll('.btn[type=submit],button[onclick]').forEach(b=>b.disabled=true);
+  const m=document.getElementById('loginMsg')||document.createElement('div');
+  m.className='msg error';m.style.display='block';
+  m.textContent='Could not connect. Please refresh the page.';
+  const f=document.querySelector('form');if(f)f.prepend(m);
+  throw e;
+}
 
 /* Redirect if already logged in */
 if(sessionStorage.getItem('dsq_instructor')) window.location.href = 'dashboard.html';
+
+/* Connection test — show warning if Supabase is unreachable */
+(async function pingSupabase(){
+  try{
+    const{error}=await sb.from('instructors').select('id',{count:'exact',head:true});
+    if(error&&error.code!=='PGRST116'&&error.code!=='42P01'){
+      // 42P01 = table doesn't exist yet (normal before SQL run), PGRST116 = empty
+      // Any other error means Supabase is down/paused
+      showLoginWarning('⚠️ Database connection issue. If login fails, your Supabase project may be paused — check supabase.com/dashboard.');
+    }
+  }catch(e){showLoginWarning('⚠️ Could not reach the database. Please refresh or check your internet connection.');}
+})();
+function showLoginWarning(msg){
+  let w=document.getElementById('connWarning');
+  if(!w){w=document.createElement('div');w.id='connWarning';w.style.cssText='background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.25);border-radius:10px;padding:10px 14px;font-size:.76rem;color:#999;margin-bottom:14px;line-height:1.5';document.querySelector('.card')?.prepend(w);}
+  w.textContent=msg;
+}
 
 /* Typing animation — desktop only */
 (function(){
@@ -360,12 +387,14 @@ async function handleLogin(e){
   const badge=document.getElementById('loginBadge').value.trim().toUpperCase();
   const pass=document.getElementById('loginPass').value;
   try{
-    const {data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).single();
-    if(error||!data){ msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden'); return; }
+    const {data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).maybeSingle();
+    if(error){ msgEl.className='msg error'; msgEl.textContent='Connection error. Please try again.'; msgEl.classList.remove('hidden'); return; }
+    if(!data){ msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='pending'){ msgEl.className='msg info'; msgEl.textContent='⏳ Your account is pending admin approval. Usually within 24 hours.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='rejected'){ msgEl.className='msg error'; msgEl.textContent='Your application was not approved. Please WhatsApp DriveSQ.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='suspended'){ msgEl.className='msg error'; msgEl.textContent='🚫 Your account has been suspended. Please contact DriveSQ.'; msgEl.classList.remove('hidden'); return; }
-    if(data.password_hash!==btoa(pass)){ msgEl.className='msg error'; msgEl.textContent='Incorrect password. Please try again.'; msgEl.classList.remove('hidden'); return; }
+    let hashPass;try{hashPass=btoa(pass);}catch(e){msgEl.className='msg error';msgEl.textContent='Incorrect password. Please try again.';msgEl.classList.remove('hidden');return;}
+    if(data.password_hash!==hashPass){ msgEl.className='msg error'; msgEl.textContent='Incorrect password. Please try again.'; msgEl.classList.remove('hidden'); return; }
     sessionStorage.setItem('dsq_instructor', JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
     window.location.href='dashboard.html';
   }catch(err){
@@ -393,7 +422,7 @@ async function handleRegister(e){
       phone:document.getElementById('regPhone').value.trim(),
       email:document.getElementById('regEmail').value.trim().toLowerCase(),
       area:document.getElementById('regArea').value.trim(),
-      password_hash:btoa(pass),
+      password_hash:(()=>{try{return btoa(pass);}catch(e){return btoa(encodeURIComponent(pass));}})(),
       status:'pending',
       created_at:new Date().toISOString()
     }]);

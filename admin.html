@@ -449,12 +449,24 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="page-title mb-0"><i class="bi bi-people me-2" style="color:#c084fc"></i>All Students</div>
       <div class="d-flex gap-2 flex-wrap">
-        <input type="text" class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" placeholder="Search students…" oninput="filterAllStudents(this.value)" id="studentSearch"/>
-        <select class="dsq-inp" style="max-width:200px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentInstrFilter">
+        <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.8rem" placeholder="Search students…" oninput="filterAllStudents(this.value)" id="studentSearch"/>
+        <select class="dsq-inp" style="max-width:160px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentInstrFilter">
           <option value="">All instructors</option>
         </select>
-        <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+        <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentOnlineFilter">
+          <option value="">All students</option>
+          <option value="online">🟢 Online now</option>
+          <option value="app">On App</option>
+          <option value="never">Never logged in</option>
+        </select>
+        <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
+        <button class="btn-p" style="font-size:.78rem" onclick="openCreateStudentModal()"><i class="bi bi-person-plus-fill me-1"></i>Create Student</button>
       </div>
+    </div>
+    <div id="studentOnlineBanner" class="hidden mb-2" style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:8px 14px;font-size:.78rem;color:#4ade80;display:flex;align-items:center;gap:8px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite"></span>
+      <span id="onlineCountText">0 students online now</span>
+      <button onclick="document.getElementById('studentOnlineFilter').value='online';filterAllStudents(document.getElementById('studentSearch').value)" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 8px;font-size:.7rem;cursor:pointer;margin-left:auto">View Online</button>
     </div>
     <div id="studentCount" class="mb-2" style="font-size:.75rem;color:var(--txt3)"></div>
     <div class="dsq-card">
@@ -966,6 +978,42 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 
+<!-- CREATE STUDENT MODAL -->
+<div class="dsq-overlay" id="createStudentModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('createStudentModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-plus-fill me-2" style="color:#c084fc"></i>Create Student Account</h5>
+    <div class="modal-sub">Student will receive a login code to access the DriveSQ app</div>
+    <div id="createStudentMsg" class="hidden mb-2" style="padding:8px 12px;border-radius:8px;font-size:.8rem"></div>
+    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="cs-name" placeholder="Student full name" autocomplete="off"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone Number</label><input class="dsq-inp" id="cs-phone" type="tel" placeholder="07xxx xxx xxx" autocomplete="off"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Email Address</label><input class="dsq-inp" id="cs-email" type="email" placeholder="student@email.com" autocomplete="off"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Assign to Instructor</label>
+      <select class="dsq-inp" id="cs-instr"><option value="">Unassigned</option></select>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+      <select class="dsq-inp" id="cs-type">
+        <option value="Manual">Manual</option>
+        <option value="Automatic">Automatic</option>
+        <option value="Intensive">Intensive</option>
+      </select>
+    </div>
+    <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="cs-addr" placeholder="Default pickup address" autocomplete="off"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="cs-notes" rows="2" placeholder="Any notes about this student (optional)" style="resize:vertical"></textarea></div>
+    <div id="createStudentResult" class="hidden mb-3" style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:14px;font-size:.82rem">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#4ade80;margin-bottom:8px"><i class="bi bi-check-circle-fill me-2"></i>Account Created!</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px">Student Code</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--txt);letter-spacing:2px" id="cs-result-code">—</div></div>
+        <div><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px">PIN</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--gold);letter-spacing:2px" id="cs-result-pin">—</div></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--txt3);margin-top:8px">Share the student code and PIN with the student. They use these to log in to the DriveSQ student app.</div>
+      <button onclick="copyStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:10px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-clipboard me-1"></i>Copy Code &amp; PIN</button>
+    </div>
+    <button class="btn-p w-100 mb-2" id="createStudentBtn" onclick="confirmCreateStudent()"><i class="bi bi-person-plus-fill me-1"></i>Create Account</button>
+    <button class="btn-s w-100" onclick="closeModal('createStudentModal')">Cancel</button>
+  </div>
+</div>
+
 <!-- SQL INFO MODAL -->
 <div class="dsq-overlay" id="sqlInfoModal">
   <div class="dsq-modal wide">
@@ -984,7 +1032,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#666">Could not load the database library. Please refresh the page.<br>If this keeps happening, check your internet connection.</p></div>';throw e;}
 const PORTAL_URL='https://www.drivesq.co.uk/portal.html';
 
 /* ══ THEME ══ */
@@ -1546,7 +1594,7 @@ async function loadInstrRoster(){
 async function loadAllStudents(){
   const[lessonsR,accountsR,progressR]=await Promise.all([
     sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
-    sb.from('student_accounts').select('id,phone,full_name,last_login,created_at,instructor_id'),
+    sb.from('student_accounts').select('id,phone,full_name,email,address,lesson_type,notes,last_login,last_seen,created_at,instructor_id,status'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score')
   ]);
   const acctMap={};
@@ -1581,14 +1629,53 @@ async function loadAllStudents(){
     const normPhone=normalizePhone(s.phone);
     const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()+'__'+s.instrId]||null;
     s.lastLogin=acc?.last_login||null;
+    s.lastSeen=acc?.last_seen||null;
     s.acctId=acc?.id||null;
+    s.acctEmail=acc?.email||null;
+    s.acctStatus=acc?.status||null;
     s.onApp=!!acc?.last_login;
+    const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+    s.isOnline=!!(s.lastSeen&&s.lastSeen>=fiveMinsAgo);
     const prog=acc?progMap[acc.id]:null;
     s.targetHours=prog?.target_hours||null;
     s.testReadiness=prog?.test_readiness||null;
     s.mockScore=prog?.mock_test_score!=null?prog.mock_test_score:null;
   });
-  allStudentsCache=Object.values(map).sort((a,b)=>(b.lastLesson||'').localeCompare(a.lastLesson||''));
+  // Also include student accounts with NO lessons (created by admin)
+  (accountsR.data||[]).forEach(a=>{
+    const normPhone=normalizePhone(a.phone||'');
+    const nameKey='name_'+a.full_name.toLowerCase().trim()+'__'+a.instructor_id;
+    const alreadyIn=normPhone&&Object.values(map).find(s=>s.acctId===a.id)||
+                    Object.values(map).find(s=>s.acctId===a.id);
+    if(!alreadyIn){
+      // No lessons yet — account-only student
+      const instrData=allInstrs.find(i=>i.id===a.instructor_id);
+      const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+      map['acct_'+a.id]={
+        name:a.full_name,phone:a.phone||'',address:a.address||'',
+        instrId:a.instructor_id,instrName:instrData?.full_name||'—',
+        count:0,hours:0,lastLesson:null,types:new Set(),lessons:[],
+        lastLogin:a.last_login||null,lastSeen:a.last_seen||null,
+        acctId:a.id,acctEmail:a.email||null,acctStatus:a.status||null,
+        onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=(new Date(Date.now()-5*60*1000).toISOString())),
+        targetHours:null,testReadiness:null,mockScore:null
+      };
+    }
+  });
+  allStudentsCache=Object.values(map).sort((a,b)=>{
+    // Online first, then by last seen, then by last lesson
+    if(a.isOnline!==b.isOnline)return b.isOnline?1:-1;
+    const aT=a.lastSeen||a.lastLogin||a.lastLesson||'';
+    const bT=b.lastSeen||b.lastLogin||b.lastLesson||'';
+    return bT.localeCompare(aT);
+  });
+  const onlineCount=allStudentsCache.filter(s=>s.isOnline).length;
+  const banner=document.getElementById('studentOnlineBanner');
+  const onlineTxt=document.getElementById('onlineCountText');
+  if(banner&&onlineTxt){
+    if(onlineCount>0){banner.classList.remove('hidden');onlineTxt.textContent=onlineCount+' student'+(onlineCount!==1?'s':'')+' online now';}
+    else{banner.classList.add('hidden');}
+  }
   renderStudentsTable(allStudentsCache);
 }
 
@@ -1601,20 +1688,22 @@ function renderStudentsTable(students){
     const waNum=buildWaNum(s.phone||'');
     const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):null;
     const readyChip=s.testReadiness==='ready'?'<span class="chip approved" style="font-size:.52rem">Test Ready</span>':s.testReadiness==='nearly_there'?'<span class="chip pending" style="font-size:.52rem">Nearly</span>':'';
-    return`<tr>
+    const onlineDot=s.isOnline?`<span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:5px;vertical-align:middle" title="Online now"></span>`:'';
+    const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
+    return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
       <td style="color:var(--txt);font-weight:600">
-        <div style="width:24px;height:24px;border-radius:50%;background:${s.onApp?'rgba(37,211,102,.1)':'rgba(168,85,247,.1)'};border:1px solid ${s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        ${esc(s.name)}
+        ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        ${esc(s.name)}${!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':''}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
-      <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
-      <td>${[...s.types].map(t=>`<span class="chip ${t.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(t)}</span>`).join(' ')}</td>
+      <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
+      <td>${s.types.size?[...s.types].map(t=>`<span class="chip ${t.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(t)}</span>`).join(' '):'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
       <td style="font-size:.77rem;color:var(--txt2)">${esc(s.instrName)}</td>
       <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--txt2)">${s.count}</td>
-      <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--gold)">${s.hours.toFixed(1)}h</td>
+      <td class="hide-xs" style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--gold)">${s.hours>0?s.hours.toFixed(1)+'h':'—'}</td>
       <td class="hide-xs">${pct!=null?`<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:6px;overflow:hidden;min-width:40px"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-size:.65rem;color:var(--txt3)">${pct}%</span></div>${readyChip}`:'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
-      <td class="hide-xs" style="font-size:.7rem;color:${s.onApp?'var(--green)':'var(--txt4)'}">${s.lastLogin?fmtDT(s.lastLogin):'<span style="font-size:.65rem">Never</span>'}</td>
-      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${fmtD(s.lastLesson)}</td>
+      <td class="hide-xs">${lastSeenTxt}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${s.lastLesson?fmtD(s.lastLesson):'—'}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
@@ -1625,10 +1714,89 @@ function renderStudentsTable(students){
 
 function filterAllStudents(q){
   const instrId=document.getElementById('studentInstrFilter').value;
+  const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
   let list=allStudentsCache;
   if(instrId)list=list.filter(s=>s.instrId===instrId);
+  if(onlineF==='online')list=list.filter(s=>s.isOnline);
+  else if(onlineF==='app')list=list.filter(s=>s.onApp);
+  else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
   if(q){const lq=q.toLowerCase();list=list.filter(s=>(s.name||'').toLowerCase().includes(lq)||(s.phone||'').includes(lq)||(s.address||'').toLowerCase().includes(lq)||(s.instrName||'').toLowerCase().includes(lq));}
   renderStudentsTable(list);
+}
+
+/* ── CREATE STUDENT ACCOUNT ── */
+function openCreateStudentModal(){
+  // Reset form
+  ['cs-name','cs-phone','cs-email','cs-addr','cs-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const t=document.getElementById('cs-type');if(t)t.value='Manual';
+  // Populate instructor dropdown
+  const sel=document.getElementById('cs-instr');
+  if(sel){
+    sel.innerHTML='<option value="">Unassigned</option>';
+    allInstrs.filter(i=>i.status==='approved').forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=i.full_name;sel.appendChild(o);});
+  }
+  const msg=document.getElementById('createStudentMsg');if(msg)msg.className='hidden';
+  const res=document.getElementById('createStudentResult');if(res)res.classList.add('hidden');
+  const btn=document.getElementById('createStudentBtn');if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';}
+  openModal('createStudentModal');
+}
+function gen5Code(){return Math.random().toString(36).slice(2,7).toUpperCase();}
+function gen4Pin(){return String(Math.floor(1000+Math.random()*9000));}
+async function confirmCreateStudent(){
+  const name=document.getElementById('cs-name').value.trim();
+  if(!name){showCreateStudentMsg('error','Student name is required.');return;}
+  const btn=document.getElementById('createStudentBtn');
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';
+  const phone=document.getElementById('cs-phone').value.trim();
+  const email=document.getElementById('cs-email').value.trim().toLowerCase();
+  const instrId=document.getElementById('cs-instr').value||null;
+  const lessonType=document.getElementById('cs-type').value;
+  const addr=document.getElementById('cs-addr').value.trim();
+  const notes=document.getElementById('cs-notes').value.trim();
+  let code=gen5Code(),pin=gen4Pin();
+  // Ensure code is unique
+  for(let i=0;i<5;i++){
+    const{data:exist}=await sb.from('student_accounts').select('id').eq('student_code',code).maybeSingle();
+    if(!exist)break;
+    code=gen5Code();
+  }
+  const{data,error}=await sb.from('student_accounts').insert([{
+    full_name:name,phone:phone||null,email:email||null,
+    instructor_id:instrId||null,lesson_type:lessonType,
+    address:addr||null,notes:notes||null,
+    student_code:code,pin:pin,password_hash:btoa(pin),
+    status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+  }]).select('id').maybeSingle();
+  if(error){
+    showCreateStudentMsg('error','Failed to create account: '+error.message);
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';
+    return;
+  }
+  // Show credentials
+  document.getElementById('cs-result-code').textContent=code;
+  document.getElementById('cs-result-pin').textContent=pin;
+  document.getElementById('createStudentResult').classList.remove('hidden');
+  btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Created!';
+  showCreateStudentMsg('success','Account created successfully!');
+  // Refresh students list
+  if(allStudentsCache.length)loadAllStudents();
+}
+function showCreateStudentMsg(type,msg){
+  const el=document.getElementById('createStudentMsg');if(!el)return;
+  el.className='mb-2';
+  el.style.background=type==='error'?'rgba(209,10,17,.1)':'rgba(37,211,102,.1)';
+  el.style.border='1px solid '+(type==='error'?'rgba(209,10,17,.3)':'rgba(37,211,102,.3)');
+  el.style.color=type==='error'?'#f87171':'#4ade80';
+  el.style.padding='8px 12px';el.style.borderRadius='8px';el.style.fontSize='.8rem';
+  el.textContent=msg;el.classList.remove('hidden');
+}
+window._csCredentials={};
+function copyStudentCredentials(){
+  const code=document.getElementById('cs-result-code').textContent;
+  const pin=document.getElementById('cs-result-pin').textContent;
+  const name=document.getElementById('cs-name').value.trim();
+  const text=`DriveSQ Student Login\nName: ${name}\nStudent Code: ${code}\nPIN: ${pin}\nApp: https://www.drivesq.co.uk/student.html`;
+  navigator.clipboard.writeText(text).then(()=>showToast('Credentials copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
 }
 
 let _renderedStudents=[];
@@ -1640,10 +1808,10 @@ async function openStudentDetail(idx){
   const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):null;
   document.getElementById('sdBody').innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      ${s.onApp?'<span class="chip approved" style="font-size:.6rem"><i class="bi bi-check-circle-fill me-1"></i>On App</span>':'<span class="chip pending" style="font-size:.6rem"><i class="bi bi-dash-circle me-1"></i>Not on App</span>'}
+      ${s.isOnline?'<span class="chip approved" style="font-size:.6rem;background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.3)"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:4px;vertical-align:middle"></span>Online Now</span>':s.onApp?'<span class="chip approved" style="font-size:.6rem"><i class="bi bi-check-circle-fill me-1"></i>On App</span>':'<span class="chip pending" style="font-size:.6rem"><i class="bi bi-dash-circle me-1"></i>Not on App</span>'}
       ${s.testReadiness==='ready'?'<span class="chip approved" style="font-size:.6rem">Test Ready</span>':s.testReadiness==='nearly_there'?'<span class="chip pending" style="font-size:.6rem">Nearly Ready</span>':''}
       ${s.mockScore!=null?`<span class="chip mock" style="font-size:.6rem">Mock: ${s.mockScore}/50</span>`:''}
-      ${s.lastLogin?`<span style="font-size:.62rem;color:var(--txt3)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</span>`:''}
+      ${s.lastSeen?`<span style="font-size:.62rem;color:var(--txt3)"><i class="bi bi-circle-fill me-1" style="font-size:.4rem;color:#4ade80"></i>Last seen: ${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.62rem;color:var(--txt3)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.62rem;color:var(--txt4)">Never logged in</span>'}
     </div>
     <div class="row g-2">
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
@@ -2619,6 +2787,7 @@ function showToast(msg,type=''){
 <style>
 .sqw-credit{position:relative;padding:44px 20px 34px;text-align:center;overflow:hidden;isolation:isolate;background:linear-gradient(180deg,#050505,#030303)}
 .sqw-credit::after{content:'';position:absolute;left:50%;top:50%;width:520px;height:220px;transform:translate(-50%,-50%);background:radial-gradient(ellipse at center, rgba(201,168,76,.10) 0%, rgba(201,168,76,.04) 45%, transparent 72%);z-index:0;animation:sqwBreathe 5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
 @keyframes sqwBreathe{0%,100%{opacity:.7;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
 .sqw-credit-rule{position:absolute;top:0;left:0;right:0;height:1px;background:rgba(201,168,76,.15);overflow:hidden}
 .sqw-credit-rule::before{content:'';position:absolute;top:0;left:-30%;width:30%;height:100%;background:linear-gradient(90deg,transparent,rgba(242,220,148,.9),transparent);animation:sqwSweep 6s ease-in-out infinite}
