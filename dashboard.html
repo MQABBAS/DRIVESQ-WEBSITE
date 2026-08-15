@@ -1130,14 +1130,13 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
-const sb=supabase.createClient(SB_URL,SB_KEY);
-
-
+let sb;
+try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:40px;text-align:center;color:#f87171;font-family:Inter,sans-serif"><h2>Connection Error</h2><p>Could not connect to the database. Please refresh the page.</p></div>';throw e;}
 
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){window.location.href='portal.html';}
+if(!instr||!instr.id){window.location.href='portal.html';throw new Error('not authenticated');}
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
 /* ══════════════════════════════
@@ -1374,9 +1373,9 @@ async function confirmLessonAsInstructor(lessonId){
         }]).then(()=>{},()=>{});
       }
     }
-    await loadConfirmations();
-    if(calView==='week')renderCal();
-    else if(calView==='day')renderDayView();
+    if(calView==='week'){await loadWeek();}
+    else if(calView==='day'){await loadDayView(currentDayKey);}
+    else{await loadMonthView();}
     showToast('Lesson confirmed ✓ Student notified.','success');
   }catch(err){
     console.error('confirmLessonAsInstructor error:',err);
@@ -1914,6 +1913,7 @@ async function saveStudentProgress(){
       p_full_name:studentName,
       p_phone:''
     });
+    let accId=null;
     if(accErr){
       console.error('get_or_create_student_account error:',accErr);
       // Fallback: try direct insert
@@ -1928,9 +1928,9 @@ async function saveStudentProgress(){
         acc=newAcc;
       }
       if(!acc){showToast('Could not create student record.');return;}
-      var accId=acc.id;
+      accId=acc.id;
     } else {
-      var accId=accIdData;
+      accId=accIdData;
     }
 
     if(!accId){showToast('Could not get student account ID.');return;}
@@ -2495,7 +2495,7 @@ function onStudentInput(val){
   const suggestions=Object.values(rosterMap).filter(p=>p.name.toLowerCase().includes((val||'').toLowerCase().trim())).slice(0,6);
   const drop=document.getElementById('suggestDrop');suggestIdx=-1;
   if(!suggestions.length){drop.classList.add('hidden');suggestOpen=false;return;}
-  drop.innerHTML=suggestions.map((p,i)=>`<div class="suggest-item" data-idx="${i}" onmousedown="pickSuggestion('${p.name.toLowerCase().trim().replace(/'/g,"\\'")}')"><div class="suggest-name">${esc(p.name)}<span style="font-size:.6rem;color:#4ade80;margin-left:6px"><i class="bi bi-bookmark-fill"></i> Saved</span></div><div class="suggest-meta">${[p.phone,p.address,p.lesson_type].filter(Boolean).join(' · ')}</div></div>`).join('');
+  drop.innerHTML=suggestions.map((p,i)=>{const k=p.name.toLowerCase().trim();return`<div class="suggest-item" data-idx="${i}" data-key="${k.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onmousedown="pickSuggestion('${k.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" ><div class="suggest-name">${esc(p.name)}<span style="font-size:.6rem;color:#4ade80;margin-left:6px"><i class="bi bi-bookmark-fill"></i> Saved</span></div><div class="suggest-meta">${[p.phone,p.address,p.lesson_type].filter(Boolean).join(' · ')}</div></div>`;}).join('');
   drop.classList.remove('hidden');suggestOpen=true;
 }
 function onStudentKeydown(e){
@@ -2503,7 +2503,7 @@ function onStudentKeydown(e){
   if(!suggestOpen||!items.length)return;
   if(e.key==='ArrowDown'){e.preventDefault();suggestIdx=Math.min(suggestIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===suggestIdx));}
   else if(e.key==='ArrowUp'){e.preventDefault();suggestIdx=Math.max(suggestIdx-1,-1);items.forEach((el,i)=>el.classList.toggle('active',i===suggestIdx));}
-  else if(e.key==='Enter'&&suggestIdx>=0){e.preventDefault();const k=items[suggestIdx].getAttribute('onmousedown').match(/'([^']+)'/)?.[1];if(k)pickSuggestion(k);}
+  else if(e.key==='Enter'&&suggestIdx>=0){e.preventDefault();const k=items[suggestIdx].dataset.key;if(k)pickSuggestion(k);}
   else if(e.key==='Escape'){drop.classList.add('hidden');suggestOpen=false;}
 }
 function pickSuggestion(keyName){
@@ -2833,12 +2833,16 @@ function applyPaymentVisibility(){
   const show=localStorage.getItem('dsq_show_payment')!=='false';
   const btn=document.getElementById('payToggleBtn');
   if(btn)btn.textContent=show?'Hide':'Show';
+  const visIcon=document.getElementById('payVisIcon');
+  if(visIcon)visIcon.className='bi '+(show?'bi-eye-slash':'bi-eye')+' me-1';
+  const visLabel=document.getElementById('payVisLabel');
+  if(visLabel)visLabel.textContent=show?'Hide Payment':'Show Payment';
   ['lPaymentWrap','elPaymentWrap'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){
       const inp=el.querySelector('input');
-      if(!show){el.style.opacity='.5';if(inp)inp.placeholder='Payment hidden';}
-      else{el.style.opacity='1';if(inp)inp.placeholder='e.g. 70.00';}
+      if(!show){el.style.opacity='.5';el.style.pointerEvents='none';if(inp)inp.placeholder='Payment hidden';}
+      else{el.style.opacity='1';el.style.pointerEvents='';if(inp)inp.placeholder='e.g. 70.00';}
     }
   });
   // Refresh calendar to show/hide PAID/UNPAID badges
@@ -2849,8 +2853,9 @@ function applyPaymentVisibility(){
 setTimeout(applyPaymentVisibility,500);
 
 /* ── MODALS + TOAST ── */
-function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}
+let smCurrentName='',smCurrentAccId='',smCurrentAcc=null,smTopicState={},smMsgInterval=null;
+function openModal(id){const el=document.getElementById(id);if(!el){console.warn('openModal: not found:',id);return;}el.classList.add('open');}
+function closeModal(id){const el=document.getElementById(id);if(!el){console.warn('closeModal: not found:',id);return;}el.classList.remove('open');if(id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
@@ -2860,7 +2865,6 @@ function showToast(msg,type=''){const t=document.getElementById('toast');t.textC
 /* ══════════════════════════════════════════════════════
    STUDENT MANAGEMENT MODAL — openStudentMgmt
 ══════════════════════════════════════════════════════ */
-let smCurrentName='',smCurrentAccId='',smCurrentAcc=null,smTopicState={},smMsgInterval=null;
 
 async function openStudentMgmt(studentName, tab='profile'){
   try{
@@ -3157,8 +3161,14 @@ async function saveSmProgress(){
       const{data:ex}=await sb.from('student_progress').select('id').eq('student_account_id',aid).maybeSingle();
       const payload={student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()};
       if(ex?.id){await sb.from('student_progress').update(payload).eq('id',ex.id);}
-      else{await sb.from('student_progress').insert([{...payload}]).then(()=>{},async()=>{// retry without created_at
-        await sb.from('student_progress').insert([{student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()}]).then(()=>{},()=>{});});}}
+      else{
+        const{error:insErr}=await sb.from('student_progress').insert([{...payload}]);
+        if(insErr){
+          console.warn('Progress insert failed, retrying without created_at:',insErr.message);
+          const{error:retryErr}=await sb.from('student_progress').insert([{student_account_id:aid,instructor_id:instr.id,total_hours_done:hours,target_hours:target,test_readiness:readiness,overall_notes:notes,last_updated:new Date().toISOString()}]);
+          if(retryErr)console.error('Progress save failed on retry:',retryErr.message);
+        }
+      }
     }
     // Send in-app notification
     await sb.from('student_messages').insert([{
