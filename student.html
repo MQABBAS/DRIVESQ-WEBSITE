@@ -1108,7 +1108,7 @@ async function initApp(){
   document.getElementById('waFloat').classList.remove('hidden');
   await Promise.all([
     loadStudentData(),loadProgress(),loadTopics(),loadLessons(),
-    loadInstructor(),loadMessages(),loadTheoryTicks(),loadFeedback()
+    loadInstructor(),loadMessages(),loadTheoryTicks(),loadFeedback(),loadMockHistory()
   ]);
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
@@ -1213,6 +1213,18 @@ async function loadTheoryTicks(){
     const{data}=await sb.from('student_theory_progress').select('*').eq('student_account_id',currentStudent.id);
     (data||[]).forEach(t=>{if(t.is_ticked)theoryTicks[t.topic_name]=true;});
   }catch(e){console.warn('student_theory_progress not available:',e.message);}
+}
+
+async function loadMockHistory(){
+  mockHistory={};
+  try{
+    const{data}=await sb.from('student_theory_mock_results').select('test_number,score,total_questions,passed,completed_at').eq('student_account_id',currentStudent.id).order('completed_at',{ascending:false});
+    (data||[]).forEach(r=>{
+      var k=r.test_number||0;
+      if(!mockHistory[k])mockHistory[k]=[];
+      mockHistory[k].push({score:r.score,total:r.total_questions,passed:r.passed,date:r.completed_at});
+    });
+  }catch(e){console.warn('student_theory_mock_results not available:',e.message);}
 }
 
 async function loadNotifications(){
@@ -2185,8 +2197,10 @@ var mockAnswers=[];
 var mockTimer=null;
 var mockTimeLeft=TEST_TIME;
 var mockCurrent=0;
+var mockTestNum=null;
 var practiceShowingAnswer=false;
 var practiceStats={correct:0,wrong:0};
+var mockHistory={}; // {testNum: [{score,total,passed,date}]}
 
 function openMockTest(){
   clearInterval(mockTimer);mockMode='';mockQuestions=[];mockAnswers=[];mockTimer=null;mockTimeLeft=TEST_TIME;mockCurrent=0;practiceStats={correct:0,wrong:0};
@@ -2212,9 +2226,19 @@ function renderMockHome(){
   h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:12px">'+QUESTIONS_PER_TEST+' questions · '+Math.floor(TEST_TIME/60)+' minutes · Pass mark '+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:24px">';
   for(var t=1;t<=TOTAL_MOCK_TESTS;t++){
-    h+='<div class="mock-mode-card" onclick="startMockTest('+t+')" style="padding:14px;text-align:center;cursor:pointer">';
+    var hist=mockHistory[t]||[];
+    var best=hist.length?hist.reduce(function(b,r){return r.score>b.score?r:b;},hist[0]):null;
+    var lastAttempt=hist.length?hist[0]:null;
+    var borderCol=best?( best.passed?'rgba(37,211,102,.4)':'rgba(209,10,17,.3)' ):'var(--bdr)';
+    h+='<div class="mock-mode-card" onclick="startMockTest('+t+')" style="padding:14px;text-align:center;cursor:pointer;border-color:'+borderCol+'">';
     h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:1.4rem;color:var(--txt)">Test '+t+'</div>';
-    h+='<div style="font-size:.65rem;color:var(--txt4)">Q'+(((t-1)*50)+1)+'–Q'+(t*50)+'</div>';
+    h+='<div style="font-size:.65rem;color:var(--txt4);margin-bottom:4px">Q'+(((t-1)*50)+1)+'–Q'+(t*50)+'</div>';
+    if(best){
+      h+='<div style="font-size:.7rem;font-weight:700;color:'+(best.passed?'#4ade80':'#f87171')+'">Best: '+best.score+'/'+best.total+'</div>';
+      if(hist.length>1)h+='<div style="font-size:.6rem;color:var(--txt4)">'+hist.length+' attempt'+(hist.length>1?'s':'')+'</div>';
+    }else{
+      h+='<div style="font-size:.65rem;color:var(--txt4)">Not attempted</div>';
+    }
     h+='</div>';
   }
   h+='</div>';
@@ -2242,6 +2266,7 @@ function renderMockHome(){
 
 function startMockTest(testNum){
   mockMode='test';
+  mockTestNum=testNum;
   mockQuestions=getTestQuestions(testNum);
   if(!mockQuestions.length){showToast('Questions not loaded yet. Please refresh.');return;}
   mockAnswers=new Array(mockQuestions.length).fill(-1);
@@ -2379,6 +2404,24 @@ function showMockResults(){
     if(mockAnswers[i]===q.ans){correct++;sectionScores[sName].correct++;}
   });
   var passed=correct>=PASS_MARK;
+  // Save result to database
+  if(mockMode==='test'&&currentStudent&&currentStudent.id){
+    var resultRow={
+      student_account_id:currentStudent.id,
+      test_number:mockTestNum||0,
+      score:correct,
+      total_questions:total,
+      passed:passed,
+      mode:'mock',
+      completed_at:new Date().toISOString()
+    };
+    sb.from('student_theory_mock_results').insert([resultRow]).then(function(){
+      // Update local cache
+      var k=mockTestNum||0;
+      if(!mockHistory[k])mockHistory[k]=[];
+      mockHistory[k].unshift({score:correct,total:total,passed:passed,date:new Date().toISOString()});
+    },function(err){console.warn('Could not save mock result:',err&&err.message);});
+  }
   var h='<div style="padding-bottom:20px;text-align:center">';
   h+='<div style="font-size:2.5rem;margin-bottom:8px">'+(passed?'🎉':'📚')+'</div>';
   h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1.3rem;font-weight:700;color:'+(passed?'#4ade80':'#f87171')+';margin-bottom:4px">'+(mockMode==='test'?(passed?'PASS':'FAIL'):'Practice Complete')+'</div>';
