@@ -1220,26 +1220,46 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 
 /* ── INIT ── */
 (async()=>{
-  await checkSuspended();
-  updateNav();
-  // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
-  // weekLessons is actually populated. Running it concurrently here raced weekLessons while
-  // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
-  await Promise.all([loadWeek(),loadTodayTomorrow(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
-  // loadWeek() and loadTodayTomorrow() ran concurrently above, so whichever's internal
-  // updateStats() call fired first may have rendered before the other's data landed — one
-  // more call here, now that both are guaranteed settled, ensures the first paint is correct.
-  updateStats();
-  populateInstrDropdowns();
-  sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
-  if(window.innerWidth>=992){
-    const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦','Student app ready ✦'];
-    const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
+  // Connection test — warn if Supabase is paused or tables missing
+  try{
+    const{error:pingErr}=await sb.from('instructors').select('id',{count:'exact',head:true});
+    if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
+      const warn=document.createElement('div');
+      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+      warn.innerHTML='⚠️ Database connection issue — data may not load. Check your Supabase project is active. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+      document.body.prepend(warn);
+    }
+  }catch(pingEx){
+    const warn=document.createElement('div');
+    warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+    warn.innerHTML='⚠️ Could not reach the database. Check your internet connection. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+    document.body.prepend(warn);
   }
-  setInterval(checkReminders,60000);
-  setInterval(loadNotifications,30000);
-  setInterval(pollConfirmations,10000); // poll every 10s for near-instant student confirmation updates
-  checkReminders();
+  try{
+    await checkSuspended();
+    updateNav();
+    // loadConfirmations() is intentionally not listed here — loadWeek() calls it itself once
+    // weekLessons is actually populated. Running it concurrently here raced weekLessons while
+    // it was still empty and could clobber loadWeek's own (correct) result with an empty map.
+    await Promise.all([loadWeek(),loadTodayTomorrow(),loadNotifications(),loadRequests(),loadTransfers(),loadStudents(),loadRoster(),loadProfileData(),loadRescheduleRequests()]);
+    // loadWeek() and loadTodayTomorrow() ran concurrently above, so whichever's internal
+    // updateStats() call fired first may have rendered before the other's data landed — one
+    // more call here, now that both are guaranteed settled, ensures the first paint is correct.
+    updateStats();
+    populateInstrDropdowns();
+    sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});
+    if(window.innerWidth>=992){
+      const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦','Student app ready ✦'];
+      const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
+    }
+    setInterval(checkReminders,60000);
+    setInterval(loadNotifications,30000);
+    setInterval(pollConfirmations,10000); // poll every 10s for near-instant student confirmation updates
+    checkReminders();
+  }catch(e){
+    console.error('Dashboard init error:',e);
+    showToast('Could not load dashboard data. Check your connection or refresh the page.','error');
+  }
 })();
 
 // Re-runs whichever view's own loader is on screen — each one already fetches its own lessons,
@@ -1485,15 +1505,18 @@ async function loadTodayTomorrow(){
 }
 
 async function loadWeek(){
-  const days=weekDays(weekStart);
-  const from=dateKey(days[0]),to=dateKey(days[6]);
-  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-  weekLessons={};dayLessonsCache={};
-  (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
-  await loadConfirmations();
-  if(calView==='week')renderCal();
-  else if(calView==='day')renderDayView();
-  updateStats();checkReminders();
+  try{
+    const days=weekDays(weekStart);
+    const from=dateKey(days[0]),to=dateKey(days[6]);
+    const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
+    if(error){console.error('loadWeek error:',error);}
+    weekLessons={};dayLessonsCache={};
+    (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
+    await loadConfirmations();
+    if(calView==='week')renderCal();
+    else if(calView==='day')renderDayView();
+    updateStats();checkReminders();
+  }catch(e){console.error('loadWeek failed:',e);if(calView==='week')renderCal();updateStats();}
 }
 
 async function loadDayView(dk){
@@ -2692,7 +2715,9 @@ async function submitTransfer(){
 
 /* ── PROFILE ── */
 async function loadProfileData(){
-  const{data}=await sb.from('instructors').select('*').eq('id',instr.id).single();if(!data)return;
+  let data;
+  try{const res=await sb.from('instructors').select('*').eq('id',instr.id).single();data=res.data;}catch(e){console.warn('loadProfileData error:',e);return;}
+  if(!data)return;
   instr.name=data.full_name;instr.phone=data.phone;instr.email=data.email;instr.area=data.area;
   if(data.profile_photo_url)instr.profile_photo_url=data.profile_photo_url;
   sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
