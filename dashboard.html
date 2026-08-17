@@ -3819,6 +3819,409 @@ function smShareLink(){
   window.open(url,'_blank');
 }
 
+/* ══════════════════════════════
+   SMART CLUSTER PLANNER — MAP TAB
+══════════════════════════════ */
+
+let _instrMap = null;          // Leaflet map instance
+let _instrMarker = null;       // Instructor's marker
+let _studentMarkers = [];      // Array of {marker, student}
+let _radiusCircles = [];       // Distance ring circles
+let _routePolyline = null;     // Route line on map
+let _geoCache = {};            // postcode → {lat, lng} cache
+let _studentGeoData = [];      // [{student, lat, lng, dist}] sorted by dist
+let _instrLat = null;
+let _instrLng = null;
+let _radiusVisible = false;
+let _mapInitialised = false;
+
+/* ── Utility ── */
+function extractPostcode(str){
+  if(!str)return null;
+  const m=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i);
+  if(m)return m[1].trim().toUpperCase();
+  // outward code only e.g. M20, SK3
+  const o=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/i);
+  return o?o[1].trim().toUpperCase():null;
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=3958.8;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+
+function loadGeoCache(){
+  try{_geoCache=JSON.parse(localStorage.getItem('dsq_geo_cache_v2')||'{}');}catch(e){_geoCache={};}
+}
+function saveGeoCache(){
+  try{localStorage.setItem('dsq_geo_cache_v2',JSON.stringify(_geoCache));}catch(e){}
+}
+
+async function geocodePostcode(pc){
+  if(!pc)return null;
+  const key=pc.replace(/\s/g,'').toUpperCase();
+  if(_geoCache[key])return _geoCache[key];
+  try{
+    // Try full postcode first
+    let r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(key)}`);
+    let d=await r.json();
+    if(d.status===200&&d.result){
+      const c={lat:d.result.latitude,lng:d.result.longitude};
+      _geoCache[key]=c;saveGeoCache();return c;
+    }
+    // Try outward code (e.g. M20)
+    r=await fetch(`https://api.postcodes.io/outcodes/${encodeURIComponent(key)}`);
+    d=await r.json();
+    if(d.status===200&&d.result){
+      const c={lat:d.result.latitude,lng:d.result.longitude};
+      _geoCache[key]=c;saveGeoCache();return c;
+    }
+  }catch(e){console.warn('Geocode failed for',pc,e);}
+  return null;
+}
+
+async function bulkGeocodePostcodes(postcodes){
+  const unique=[...new Set(postcodes.map(p=>p.replace(/\s/g,'').toUpperCase()).filter(Boolean))];
+  const needed=unique.filter(p=>!_geoCache[p]);
+  if(!needed.length)return;
+  // Split into batches of 100 (API limit)
+  for(let i=0;i<needed.length;i+=100){
+    const batch=needed.slice(i,i+100);
+    try{
+      const r=await fetch('https://api.postcodes.io/postcodes',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({postcodes:batch})
+      });
+      const d=await r.json();
+      (d.result||[]).forEach(item=>{
+        if(item.result){
+          const key=item.query.replace(/\s/g,'').toUpperCase();
+          _geoCache[key]={lat:item.result.latitude,lng:item.result.longitude};
+        }
+      });
+      saveGeoCache();
+    }catch(e){console.warn('Bulk geocode error:',e);}
+  }
+  // For any still missing, try outcode endpoint
+  const stillMissing=needed.filter(p=>!_geoCache[p]);
+  for(const pc of stillMissing){
+    await geocodePostcode(pc);
+  }
+}
+
+/* ── Instructor postcode management ── */
+function getInstrPostcode(){
+  // Try instr.postcode first, then extract from instr.area
+  return instr.postcode || extractPostcode(instr.area) || null;
+}
+
+async function initMapTab(){
+  loadGeoCache();
+  const pc=getInstrPostcode();
+  if(!pc){
+    document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+    document.getElementById('mapMainContent').classList.add('hidden');
+    return;
+  }
+  document.getElementById('mapPostcodePrompt').classList.add('hidden');
+  document.getElementById('mapMainContent').classList.remove('hidden');
+  // Geocode instructor location
+  const instrGeo=await geocodePostcode(pc);
+  if(!instrGeo){
+    document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+    document.getElementById('mapPostcodeErr').textContent='Could not find postcode "'+pc+'". Please enter a valid UK postcode.';
+    document.getElementById('mapMainContent').classList.add('hidden');
+    return;
+  }
+  _instrLat=instrGeo.lat;_instrLng=instrGeo.lng;
+  await loadAndGeoStudents();
+  initLeafletMap();
+  renderStudentDistList();
+  renderRoutePicker();
+  calcEarnings();
+  renderAreaBreakdown();
+  updateMapStats();
+}
+
+async function saveMapPostcode(){
+  const pc=document.getElementById('mapPostcodeInput').value.trim().toUpperCase();
+  const errEl=document.getElementById('mapPostcodeErr');
+  if(!pc){errEl.textContent='Please enter a postcode.';return;}
+  errEl.textContent='Checking…';
+  const geo=await geocodePostcode(pc);
+  if(!geo){errEl.textContent='Postcode not found. Please enter a valid UK postcode (e.g. M20 1AA).';return;}
+  // Save to instructor profile
+  try{
+    await sb.from('instructors').update({area:pc}).eq('id',instr.id);
+    instr.area=pc;
+    errEl.textContent='';
+    initMapTab();
+  }catch(e){errEl.textContent='Could not save. Please try again.';}
+}
+
+function openMapPostcodeEdit(){
+  document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+  document.getElementById('mapMainContent').classList.add('hidden');
+  document.getElementById('mapPostcodeInput').value=getInstrPostcode()||'';
+}
+
+/* ── Load students and geocode their addresses ── */
+async function loadAndGeoStudents(){
+  // Get all students from roster
+  const students=Object.values(rosterMap||{});
+  if(!students.length){_studentGeoData=[];return;}
+  // Extract postcodes
+  const postcodes=students.map(s=>extractPostcode(s.address||s.phone||'')).filter(Boolean);
+  await bulkGeocodePostcodes(postcodes);
+  // Build geodata array
+  const results=[];
+  for(const s of students){
+    const pc=extractPostcode(s.address||'');
+    if(!pc)continue;
+    const key=pc.replace(/\s/g,'').toUpperCase();
+    const geo=_geoCache[key];
+    if(!geo)continue;
+    const dist=haversine(_instrLat,_instrLng,geo.lat,geo.lng);
+    results.push({student:s,lat:geo.lat,lng:geo.lng,dist:Math.round(dist*10)/10,postcode:pc});
+  }
+  results.sort((a,b)=>a.dist-b.dist);
+  _studentGeoData=results;
+}
+
+/* ── Leaflet map ── */
+function initLeafletMap(){
+  if(_instrMap){
+    _instrMap.remove();_instrMap=null;_instrMarker=null;_studentMarkers=[];_radiusCircles=[];_routePolyline=null;
+  }
+  // Initialise centred on instructor
+  _instrMap=L.map('instrMap',{zoomControl:true}).setView([_instrLat,_instrLng],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(_instrMap);
+
+  // Instructor marker (red star)
+  const instrIcon=L.divIcon({className:'',html:`<div style="width:32px;height:32px;background:var(--red,#D10A11);border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">⭐</div>`,iconSize:[32,32],iconAnchor:[16,16]});
+  _instrMarker=L.marker([_instrLat,_instrLng],{icon:instrIcon,zIndexOffset:1000}).addTo(_instrMap).bindPopup('<b>📍 Your Location</b><br>'+esc(getInstrPostcode()||''));
+
+  // Student markers
+  _studentMarkers=[];
+  _studentGeoData.forEach((sd,i)=>{
+    const distBadge=sd.dist<2?'🟢':sd.dist<5?'🟡':'🔴';
+    const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:${sd.dist<2?'#4ade80':sd.dist<5?'#facc15':'#f87171'};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.3)">${i+1}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+    const m=L.marker([sd.lat,sd.lng],{icon}).addTo(_instrMap);
+    m.bindPopup(`<div style="min-width:160px"><b>${esc(sd.student.name)}</b><br><span style="font-size:.8em;color:#666">${sd.postcode} · ${sd.dist} mi away</span><br><span style="font-size:.8em">${esc(sd.student.lesson_type||'Manual')}</span>${sd.student.phone?`<br><a href="https://wa.me/44${sd.student.phone.replace(/^0/,'')}" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>`:''}</div>`);
+    _studentMarkers.push({marker:m,student:sd.student,geo:sd});
+  });
+
+  // Fit all markers
+  mapFitAll();
+  _mapInitialised=true;
+}
+
+function mapFitAll(){
+  if(!_instrMap)return;
+  const latlngs=[[_instrLat,_instrLng],..._studentGeoData.map(s=>[s.lat,s.lng])];
+  if(latlngs.length>1)_instrMap.fitBounds(L.latLngBounds(latlngs),{padding:[30,30]});
+  else _instrMap.setView([_instrLat,_instrLng],13);
+}
+
+function mapToggleRadius(){
+  if(!_instrMap)return;
+  if(_radiusVisible){
+    _radiusCircles.forEach(c=>c.remove());_radiusCircles=[];_radiusVisible=false;return;
+  }
+  const opts=[
+    {r:1609,color:'#4ade80',label:'1 mile'},
+    {r:3218,color:'#facc15',label:'2 miles'},
+    {r:8047,color:'#f87171',label:'5 miles'}
+  ];
+  opts.forEach(o=>{
+    const c=L.circle([_instrLat,_instrLng],{radius:o.r,color:o.color,fillColor:o.color,fillOpacity:.04,weight:1.5,dashArray:'6 4'}).addTo(_instrMap);
+    c.bindTooltip(o.label,{permanent:false,direction:'top'});
+    _radiusCircles.push(c);
+  });
+  _radiusVisible=true;
+}
+
+/* ── Student distance list ── */
+function renderStudentDistList(){
+  const maxDist=parseFloat(document.getElementById('mapFilterDist')?.value||'all');
+  const filtered=isNaN(maxDist)?_studentGeoData:_studentGeoData.filter(s=>s.dist<=maxDist);
+  document.getElementById('mapDistCount').textContent=filtered.length+' student'+(filtered.length!==1?'s':'');
+  const container=document.getElementById('studentDistList');
+  if(!filtered.length){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.78rem">No students in this range</div>';return;}
+  container.innerHTML=filtered.map((sd,i)=>{
+    const cls=sd.dist<2?'near':sd.dist<5?'mid':'far';
+    return `<div class="student-dist-card" onclick="mapFocusStudent(${i})">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="font-weight:600;font-size:.82rem;color:var(--txt)">${i+1}. ${esc(sd.student.name)}</div>
+        <span class="dist-badge ${cls}">${sd.dist} mi</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--txt3)">${esc(sd.postcode)} · ${esc(sd.student.lesson_type||'Manual')}</div>
+    </div>`;
+  }).join('');
+}
+
+function mapFocusStudent(idx){
+  const sd=_studentGeoData[idx];if(!sd||!_instrMap)return;
+  _instrMap.setView([sd.lat,sd.lng],15);
+  const mObj=_studentMarkers[idx];if(mObj)mObj.marker.openPopup();
+}
+
+/* ── Stats bar ── */
+function updateMapStats(){
+  document.getElementById('mapStatTotal').textContent=_studentGeoData.length;
+  document.getElementById('mapStatNear').textContent=_studentGeoData.filter(s=>s.dist<=2).length;
+  const avg=_studentGeoData.length?(_studentGeoData.reduce((a,b)=>a+b.dist,0)/_studentGeoData.length).toFixed(1):'—';
+  document.getElementById('mapStatAvgDist').textContent=avg+(avg!=='—'?' mi':'');
+  document.getElementById('mapStatFar').textContent=_studentGeoData.filter(s=>s.dist>5).length;
+}
+
+/* ── Smart Day Builder ── */
+function buildSmartDay(){
+  const radius=parseFloat(document.getElementById('dayBuilderRadius').value)||2;
+  const near=_studentGeoData.filter(s=>s.dist<=radius);
+  const el=document.getElementById('smartDayResult');
+  if(!near.length){el.innerHTML=`<div style="color:var(--txt3);font-size:.78rem">No students within ${radius} miles. Try a larger radius.</div>`;return;}
+  // Group by outward code
+  const groups={};
+  near.forEach(s=>{
+    const out=(s.postcode||'').split(' ')[0]||s.postcode.slice(0,s.postcode.length-3).trim()||'Other';
+    if(!groups[out])groups[out]=[];
+    groups[out].push(s);
+  });
+  // Optimise order within each group
+  let html=`<div style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#4ade80;margin-bottom:10px">✅ Found ${near.length} student${near.length!==1?'s':''} within ${radius} miles — here's a suggested cluster day:</div>`;
+  Object.entries(groups).sort((a,b)=>b[1].length-a[1].length).forEach(([zone,students])=>{
+    const optimised=nearestNeighbour({lat:_instrLat,lng:_instrLng},students);
+    const deadMilesEst=estimateDayMiles(optimised);
+    html+=`<div class="cluster-zone-card">
+      <h6><i class="bi bi-geo-fill me-1" style="color:var(--red)"></i>${zone} area · ${students.length} student${students.length!==1?'s':''} · ~${deadMilesEst} dead miles</h6>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:8px">Suggested pickup order:</div>
+      ${optimised.map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.76rem"><span style="width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0">${i+1}</span><span style="flex:1;color:var(--txt)">${esc(s.student.name)}</span><span style="color:var(--txt3)">${s.postcode} · ${s.dist}mi</span></div>`).join('')}
+    </div>`;
+  });
+  // Savings estimate
+  const totalDeadClustered=Object.values(groups).reduce((a,g)=>{
+    return a+estimateDayMiles(nearestNeighbour({lat:_instrLat,lng:_instrLng},g));
+  },0);
+  const totalDeadUnclustered=Math.round(near.reduce((a,b)=>a+b.dist*2,0));
+  const saving=Math.max(0,totalDeadUnclustered-totalDeadClustered);
+  html+=`<div style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:10px 14px;font-size:.76rem;color:#4ade80;margin-top:10px"><i class="bi bi-piggy-bank-fill me-1"></i>Clustering saves approx. <strong>${saving} dead miles</strong> vs random scheduling — roughly <strong>£${(saving*0.14).toFixed(2)}</strong> in fuel.</div>`;
+  el.innerHTML=html;
+}
+
+function nearestNeighbour(origin,stops){
+  const rem=[...stops];const route=[];let cur=origin;
+  while(rem.length){
+    let ni=-1,nd=Infinity;
+    rem.forEach((s,i)=>{const d=haversine(cur.lat,cur.lng,s.lat,s.lng);if(d<nd){nd=d;ni=i;}});
+    route.push(rem[ni]);cur=rem[ni];rem.splice(ni,1);
+  }
+  return route;
+}
+
+function estimateDayMiles(route){
+  if(!route.length)return 0;
+  let total=haversine(_instrLat,_instrLng,route[0].lat,route[0].lng);
+  for(let i=0;i<route.length-1;i++)total+=haversine(route[i].lat,route[i].lng,route[i+1].lat,route[i+1].lng);
+  total+=haversine(route[route.length-1].lat,route[route.length-1].lng,_instrLat,_instrLng);
+  return Math.round(total*10)/10;
+}
+
+/* ── Route Optimiser ── */
+function renderRoutePicker(){
+  const el=document.getElementById('routePickerList');
+  if(!_studentGeoData.length){el.innerHTML='<div style="color:var(--txt3);font-size:.78rem">No geocoded students found.</div>';return;}
+  el.innerHTML=_studentGeoData.map((sd,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.78rem">
+      <input type="checkbox" class="form-check-input route-pick" id="rp${i}" style="flex-shrink:0"/>
+      <label for="rp${i}" style="flex:1;color:var(--txt);cursor:pointer">${i+1}. ${esc(sd.student.name)} <span style="color:var(--txt3)">(${sd.postcode} · ${sd.dist}mi)</span></label>
+    </div>`).join('');
+}
+
+function selectAllRoute(){
+  document.querySelectorAll('.route-pick').forEach(c=>c.checked=true);
+}
+
+function optimiseRoute(){
+  const checked=[...(document.querySelectorAll('.route-pick:checked'))].map(c=>parseInt(c.id.replace('rp','')));
+  if(!checked.length){document.getElementById('routeResult').innerHTML='<div style="color:#f87171;font-size:.78rem">Select at least one student.</div>';return;}
+  const selected=checked.map(i=>_studentGeoData[i]).filter(Boolean);
+  const optimised=nearestNeighbour({lat:_instrLat,lng:_instrLng},selected);
+  const totalMiles=estimateDayMiles(optimised);
+  const fuelCost=(totalMiles*0.14).toFixed(2);
+
+  // Draw route on map
+  if(_instrMap){
+    if(_routePolyline){_routePolyline.remove();_routePolyline=null;}
+    const latlngs=[[_instrLat,_instrLng],...optimised.map(s=>[s.lat,s.lng]),[_instrLat,_instrLng]];
+    _routePolyline=L.polyline(latlngs,{color:'#D10A11',weight:3,opacity:.8,dashArray:'8 4'}).addTo(_instrMap);
+    _instrMap.fitBounds(_routePolyline.getBounds(),{padding:[30,30]});
+  }
+
+  let html=`<div style="font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--txt);margin-bottom:10px">Optimised route — ${totalMiles} total miles · £${fuelCost} fuel</div>`;
+  html+=`<div style="background:var(--dk3);border-radius:8px;padding:10px">`;
+  html+=`<div class="route-step"><div class="route-num">⭐</div><div><div style="color:var(--txt)">Start: Your location</div><div style="color:var(--txt3);font-size:.7rem">${esc(getInstrPostcode()||'')}</div></div></div>`;
+  optimised.forEach((s,i)=>{
+    html+=`<div class="route-step"><div class="route-num">${i+1}</div><div><div style="color:var(--txt)">${esc(s.student.name)}</div><div style="color:var(--txt3);font-size:.7rem">${s.postcode} · ${s.dist}mi from home</div></div></div>`;
+  });
+  html+=`<div class="route-step"><div class="route-num">🏁</div><div style="color:var(--txt3)">Return home</div></div>`;
+  html+=`</div>`;
+  html+=`<div style="margin-top:10px;font-size:.74rem;color:var(--txt3)">Route drawn on map above ↑</div>`;
+  document.getElementById('routeResult').innerHTML=html;
+}
+
+/* ── Earnings calculator ── */
+function calcEarnings(){
+  const lessons=parseFloat(document.getElementById('calcLessons')?.value)||4;
+  const dur=parseFloat(document.getElementById('calcDur')?.value)||1;
+  const rate=parseFloat(document.getElementById('calcRate')?.value)||33;
+  const miles=parseFloat(document.getElementById('calcMiles')?.value)||15;
+  const gross=lessons*dur*rate;
+  const fuel=miles*0.14;
+  const net=gross-fuel;
+  const savingVsRandom=Math.max(0,(miles*1.5-miles)*0.14);
+  document.getElementById('earningsResult').innerHTML=`
+    <div class="earnings-row"><span style="color:var(--txt3)">Gross earnings</span><span style="color:var(--txt);font-weight:700">£${gross.toFixed(2)}</span></div>
+    <div class="earnings-row"><span style="color:var(--txt3)">Estimated fuel (${miles}mi × £0.14)</span><span style="color:#f87171">−£${fuel.toFixed(2)}</span></div>
+    <div class="earnings-row" style="border-top:2px solid var(--bdr);margin-top:4px;padding-top:8px"><span style="color:var(--txt);font-weight:700">Net earnings</span><span style="color:#4ade80;font-family:'Oswald',sans-serif;font-size:1.1rem">£${net.toFixed(2)}</span></div>
+    <div style="margin-top:10px;padding:8px 10px;background:rgba(37,211,102,.06);border-radius:6px;font-size:.72rem;color:#4ade80"><i class="bi bi-info-circle me-1"></i>By clustering students in the same area you could reduce fuel to ~${Math.round(miles*0.6)} miles, saving approx. £${(fuel*0.4).toFixed(2)} per day.</div>`;
+}
+
+/* ── Area Breakdown ── */
+function renderAreaBreakdown(){
+  const el=document.getElementById('areaBreakdown');
+  if(!_studentGeoData.length){el.innerHTML='<div style="color:var(--txt3);font-size:.78rem">No location data available.</div>';return;}
+  // Group by outward code
+  const groups={};
+  _studentGeoData.forEach(s=>{
+    const out=(s.postcode||'').replace(/\s?\d[A-Z]{2}$/,'').trim()||'Other';
+    if(!groups[out])groups[out]=[];
+    groups[out].push(s);
+  });
+  const sorted=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
+  const total=_studentGeoData.length;
+  el.innerHTML=sorted.map(([zone,students])=>{
+    const pct=Math.round((students.length/total)*100);
+    const avgDist=(students.reduce((a,b)=>a+b.dist,0)/students.length).toFixed(1);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.8rem;font-weight:600;color:var(--txt)">${zone}</span>
+        <span style="font-size:.72rem;color:var(--txt3)">${students.length} student${students.length!==1?'s':''} · avg ${avgDist}mi</span>
+      </div>
+      <div style="background:var(--bdr);border-radius:999px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--red),#ff6b6b);border-radius:999px;transition:width .4s"></div>
+      </div>
+      <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">${pct}% of your students</div>
+    </div>`;
+  }).join('');
+}
+
 /* ── Poll for new messages & registrations ── */
 // Persisted dedup — survives page reloads / tab switches for the same instructor.
 // Keyed by instructor ID so multiple instructors on the same device don't share state.
