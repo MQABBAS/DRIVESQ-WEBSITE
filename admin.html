@@ -1271,7 +1271,7 @@ function renderPendingTable(list){
     <td>
       <button class="abtn approve" onclick="updateStatus('${i.id}','approved')"><i class="bi bi-check-lg me-1"></i>Approve</button>
       <button class="abtn reject" onclick="updateStatus('${i.id}','rejected')"><i class="bi bi-x-lg me-1"></i>Reject</button>
-      ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! Your DriveSQ application has been reviewed. Please log into the portal: '+PORTAL_URL)}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+      ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! ✅\n\nYour DriveSQ Instructor Portal account has been approved!\n\n📱 Portal: '+PORTAL_URL+'\n🔑 Log in with your badge number: '+(i.badge_number||'your badge')+'\n\nAccess on any device — laptop, tablet or phone.\n\n— DriveSQ')}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
     </td>
   </tr>`}).join('');
 }
@@ -1768,7 +1768,14 @@ async function confirmCreateStudent(){
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
   if(error){
-    showCreateStudentMsg('error','Failed to create account: '+error.message);
+    console.error('Create student account error:',error);
+    let errMsg='Failed to create account: '+error.message;
+    if(error.message&&(error.message.includes('row-level security')||error.message.includes('permission')||error.message.includes('policy'))){
+      errMsg='Permission error — check Supabase RLS policies for student_accounts table. Ensure admin anon key has INSERT permission.';
+    } else if(error.message&&(error.message.includes('null value')&&error.message.includes('instructor_id'))){
+      errMsg='Please select an instructor — this field is required.';
+    }
+    showCreateStudentMsg('error',errMsg);
     btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';
     return;
   }
@@ -1795,7 +1802,7 @@ function copyStudentCredentials(){
   const code=document.getElementById('cs-result-code').textContent;
   const pin=document.getElementById('cs-result-pin').textContent;
   const name=document.getElementById('cs-name').value.trim();
-  const text=`DriveSQ Student Login\nName: ${name}\nStudent Code: ${code}\nPIN: ${pin}\nApp: https://www.drivesq.co.uk/student.html`;
+  const text=`Hi ${name}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 App: https://www.drivesq.co.uk/student.html\n🔑 Code: ${code}\n🔑 PIN: ${pin}\n\nWorks on phone, tablet or laptop — you can even install it as an app!\n\nSee you on the road! 🚗\n— DriveSQ Team`;
   navigator.clipboard.writeText(text).then(()=>showToast('Credentials copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
 }
 

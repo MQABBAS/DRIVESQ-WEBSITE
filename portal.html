@@ -506,6 +506,45 @@ async function handleLogin(e){
   }finally{ btn.textContent='Sign In to Portal →'; btn.disabled=false; }
 }
 
+/* PWA INSTALL */
+let _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _pwaPrompt = e;
+  const bar = document.getElementById('pwaBar');
+  if(bar){
+    bar.style.setProperty('display','flex','important');
+  }
+});
+function triggerPWAInstall(){
+  if(_pwaPrompt){
+    _pwaPrompt.prompt();
+    _pwaPrompt.userChoice.then(function(r){
+      if(r.outcome==='accepted'){
+        const bar=document.getElementById('pwaBar');
+        if(bar) bar.style.setProperty('display','none','important');
+      }
+      _pwaPrompt=null;
+    });
+  } else {
+    // Fallback tooltip for iOS / no prompt
+    const btn = document.getElementById('pwaInstallBtn');
+    if(btn){
+      const orig = btn.textContent;
+      btn.textContent = "Use browser Share / Menu → Add to Home Screen";
+      btn.style.fontSize = '.7rem';
+      setTimeout(function(){ btn.textContent = orig; btn.style.fontSize = ''; }, 4000);
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const closeBtn = document.getElementById('pwaBarClose');
+  if(closeBtn) closeBtn.addEventListener('click', function(){
+    const bar = document.getElementById('pwaBar');
+    if(bar) bar.style.setProperty('display','none','important');
+  });
+});
+
 /* REGISTER */
 async function handleRegister(e){
   e.preventDefault();

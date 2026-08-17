@@ -1624,7 +1624,7 @@ async function onDrop(e,toDate){
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
   await resetConfirmationOnReschedule(movingId);
-  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Please reconfirm your attendance in the app.');}}catch(e){}
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg=`Hi ${_movedL.student_name||''}! Your lesson has been rescheduled to ${_rsFmt}${_rsTime?' at '+_rsTime:''}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){const _rsToastEl=document.getElementById('toast');showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);}}}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -2564,7 +2564,7 @@ function openAddStudentModal(p,fromLesson){
 // this correctly. editStudentModal is kept only for adding a student who isn't in the roster yet.
 function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openStudentMgmt(name,'profile');}
 function updateWABtn(phone){const btn=document.getElementById('waStudentBtn');if(btn)btn.disabled=!phone||!cleanPhone(phone);}
-function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const url=waLink(phone,'Hi '+name+', this is your DriveSQ instructor. ');if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
+function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const url=waLink(phone,`Hi ${name}! This is ${instrName} from DriveSQ. `);if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
 async function saveStudentProfile(){
   const name=document.getElementById('esSName').value.trim();if(!name){showToast('Student name is required.');return;}
   const id=document.getElementById('editStudentId').value;
@@ -3140,7 +3140,8 @@ async function smToggleArchive(){
 
 function smWhatsApp(){
   const phone=document.getElementById('smEditPhone').value.trim()||rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
-  const url=waLink(phone,'Hi '+smCurrentName+', this is your DriveSQ instructor. ');
+  const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
+  const url=waLink(phone,`Hi ${smCurrentName}! This is ${instrName} from DriveSQ. `);
   if(url)window.open(url,'_blank');
   else showToast('No phone number saved.');
 }
@@ -3416,9 +3417,9 @@ async function notifyStudent(studentAccId,title,body){
 function smShareLink(){
   const phone=rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
   if(!phone){showToast('Add a phone number to this student first.');return;}
-  const _base=window.location.hostname==='localhost'||window.location.protocol==='file:'?'https://www.drivesq.co.uk':window.location.origin;
-  const studentUrl=_base+'/student.html';
-  const msg=`Hi ${smCurrentName}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 Open this link:\n${studentUrl}\n\n📞 Log in with your phone number: ${phone}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
+  const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
+  const studentUrl='https://www.drivesq.co.uk/student.html';
+  const msg=`Hi ${smCurrentName}! 👋\n\nWelcome to DriveSQ! Your student portal is ready.\n\n📱 Access your app here:\n${studentUrl}\n\n🔑 Log in with your phone number: ${phone}\n\nWith your portal you can:\n✅ Track lesson progress\n📅 View & confirm bookings\n📝 Study theory (700 questions + mock tests)\n💬 Message your instructor\n\nWorks on any device — phone, tablet or laptop. You can install it as an app too!\n\nSee you on the road! 🚗\n— ${instrName}, DriveSQ`;
   const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
   const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
