@@ -1044,6 +1044,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div style="font-size:.72rem;color:var(--txt3);margin-top:8px">Share the student code and PIN with the student. They use these to log in to the DriveSQ student app.</div>
       <button onclick="copyStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:10px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-clipboard me-1"></i>Copy Code &amp; PIN</button>
+      <button onclick="waStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>Send via WhatsApp</button>
     </div>
     <button class="btn-p w-100 mb-2" id="createStudentBtn" onclick="confirmCreateStudent()"><i class="bi bi-person-plus-fill me-1"></i>Create Account</button>
     <button class="btn-s w-100" onclick="closeModal('createStudentModal')">Cancel</button>
@@ -1058,7 +1059,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="modal-sub">Sends an admin message to every student account</div>
     <div id="broadcastStudentsMsg" class="hidden mb-2" style="padding:8px 12px;border-radius:8px;font-size:.8rem"></div>
     <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="bs-subject" placeholder="e.g. Important update from DriveSQ"/></div>
-    <div class="mb-3"><label class="dsq-lbl">Message <span class="req-mark">*</span></label><textarea class="dsq-inp" id="bs-body" rows="4" placeholder="Your message to all students…"></textarea></div>
+    <div class="mb-3"><label class="dsq-lbl">Message <span class="req-mark">*</span></label><textarea class="dsq-inp" id="bs-body" rows="4" placeholder="e.g. Hi! 👋 Just a reminder that your DriveSQ Student Portal has everything you need — 700 theory questions, mock tests, lesson tracking and more. Log in at https://www.drivesq.co.uk/student.html 📱"></textarea></div>
     <div class="mb-3" style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:12px">
       <div class="section-label" style="border:none;padding:0 0 6px"><i class="bi bi-whatsapp me-1" style="color:#4ade80"></i>WhatsApp Broadcast List</div>
       <div style="font-size:.75rem;color:var(--txt3);margin-bottom:8px">WhatsApp doesn't support true broadcast. Copy numbers below and paste into a WhatsApp group or message individually.</div>
@@ -1336,7 +1337,7 @@ function renderPendingTable(list){
     <td>
       <button class="abtn approve" onclick="updateStatus('${i.id}','approved')"><i class="bi bi-check-lg me-1"></i>Approve</button>
       <button class="abtn reject" onclick="updateStatus('${i.id}','rejected')"><i class="bi bi-x-lg me-1"></i>Reject</button>
-      ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! ✅\n\nYour DriveSQ Instructor Portal account has been approved!\n\n📱 Portal: '+PORTAL_URL+'\n🔑 Log in with your badge number: '+(i.badge_number||'your badge')+'\n\nAccess on any device — laptop, tablet or phone.\n\n— DriveSQ')}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+      ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(`Hi ${i.full_name}! ✅\n\nGreat news — your DriveSQ Instructor account has been *approved*!\n\n📱 *Portal:* https://www.drivesq.co.uk/portal.html\n🔑 Log in with your badge number: *${i.badge_number||'your badge'}*\n\nWith your DriveSQ Instructor Portal you can:\n📅 Manage lesson bookings & view your week planner\n🗺️ Use the Smart Map to cluster students by area — save fuel & time\n📊 Track each student's theory & practical progress\n💬 Message students directly in the app\n🚗 Share the free student portal with all your students\n🏆 Generate test-day packs & lesson reports\n\n💻 Works on laptop, tablet & mobile — install it as an app too!\n\nWelcome to the team. Any questions, reply here.\n— DriveSQ`)}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
     </td>
   </tr>`}).join('');
 }
@@ -1526,7 +1527,7 @@ async function viewInstr(id){
     ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
     :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
   const waNum=buildWaNum(instr.phone||'');
-  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+instr.full_name+'! This is a message from DriveSQ admin. Please check your portal: '+PORTAL_URL)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>`:'';
+  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(`Hi ${instr.full_name}! 👋 This is a message from DriveSQ. Please log into your instructor portal for any updates: ${PORTAL_URL} — DriveSQ Admin`)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>`:'';
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
@@ -1867,8 +1868,18 @@ function copyStudentCredentials(){
   const code=document.getElementById('cs-result-code').textContent;
   const pin=document.getElementById('cs-result-pin').textContent;
   const name=document.getElementById('cs-name').value.trim();
-  const text=`Hi ${name}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 App: https://www.drivesq.co.uk/student.html\n🔑 Code: ${code}\n🔑 PIN: ${pin}\n\nWorks on phone, tablet or laptop — you can even install it as an app!\n\nSee you on the road! 🚗\n— DriveSQ Team`;
+  const text=`DriveSQ Student Portal — Login Details\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n👤 Name: ${name}\n🔑 Student Code: ${code}\n🔒 PIN: ${pin}\n📱 App: https://www.drivesq.co.uk/student.html\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nWith your free DriveSQ Student Portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests\n🗺️ See test routes for your local test centre\n💬 Message your instructor directly\n🏆 Earn XP and badges as you progress\n\nWorks on any device — phone, tablet or laptop.\nYou can install it as a free app too! 📲\n\nSee you on the road! 🚗\n— DriveSQ Driving School`;
   navigator.clipboard.writeText(text).then(()=>showToast('Credentials copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
+}
+function waStudentCredentials(){
+  const code=document.getElementById('cs-result-code').textContent;
+  const pin=document.getElementById('cs-result-pin').textContent;
+  const name=document.getElementById('cs-name').value.trim();
+  const phone=document.getElementById('cs-phone').value.trim();
+  if(!phone){showToast('No phone number entered — cannot open WhatsApp.','');return;}
+  const waPhone='44'+phone.replace(/^0/,'').replace(/\s/g,'');
+  const msg=`Hi ${name}! 👋\n\nWelcome to DriveSQ! Your free student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n🔑 *Student Code:* ${code}\n🔒 *PIN:* ${pin}\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests\n🗺️ See test routes for your local test centre\n💬 Message your instructor directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on phone, tablet or laptop — and you can install it as a free app!\n\nSee you on the road! 🚗\n— DriveSQ Driving School`;
+  window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
 let _renderedStudents=[];
@@ -2481,7 +2492,7 @@ function openAssignModal(instrId,instrName,instrPhone){
     <strong style="color:var(--txt)">Phone:</strong> ${esc(s.phone||'Not provided')}<br>
     <strong style="color:var(--txt)">Type:</strong> ${esc(s.type||'Manual')}<br>
     ${s.notes?`<strong style="color:var(--txt)">Notes:</strong> ${esc(s.notes)}`:''}`;
-  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on DriveSQ.\n\n🧑 Student: ${s.name}\n📍 Postcode: ${s.postcode}\n🚗 Type: ${s.type}\n${s.notes?'📝 Notes: '+s.notes+'\n':''}\nCheck your portal:\n${PORTAL_URL}\n\nDriveSQ Team`;
+  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on DriveSQ.\n\n🧑 *Student:* ${s.name}\n📍 *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\n📱 View on your portal:\n${PORTAL_URL}\n\nRemember to share the student portal link with them so they can track their progress, study theory and confirm bookings.\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   openModal('assignModal');

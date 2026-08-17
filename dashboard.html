@@ -429,6 +429,17 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .route-step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr);font-size:.78rem}
 .route-step:last-child{border-bottom:none}
 .route-num{width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;font-family:'Oswald',sans-serif}
+
+/* ── TEST ROUTES ── */
+.tc-btn{background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt3);cursor:pointer;transition:all .2s;text-align:left}
+.tc-btn:hover{border-color:var(--red);color:var(--txt)}
+.tc-btn.active{border-color:var(--red);color:#fff;background:linear-gradient(135deg,rgba(209,10,17,.25),rgba(209,10,17,.1))}
+.route-pill{display:inline-flex;align-items:center;gap:6px;background:var(--dk3);border:1px solid var(--bdr);border-radius:999px;padding:5px 12px;font-size:.74rem;font-weight:600;color:var(--txt3);cursor:pointer;transition:all .2s;white-space:nowrap}
+.route-pill.active{border-color:var(--red);color:#fff;background:rgba(209,10,17,.15)}
+.route-tip-card{background:var(--dk3);border-left:3px solid var(--red);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:8px;font-size:.76rem;color:var(--txt2);line-height:1.6}
+.route-tip-card strong{color:var(--txt);font-family:'Oswald',sans-serif}
+#testRouteMap{width:100%;height:360px;border-radius:11px;overflow:hidden;border:1px solid var(--bdr)}
+@media(max-width:767px){#testRouteMap{height:260px}}
 </style>
 <style id="why-card-css">
 .why-card{display:flex;align-items:flex-start;gap:11px;padding:15px;border:1px solid #ebebeb;border-radius:12px;background:#fff;transition:all .22s ease}.why-card:hover{box-shadow:0 8px 26px rgba(0,0,0,.07);border-color:#ddd}
@@ -692,6 +703,41 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <div style="text-align:center;color:var(--txt4);padding:20px;font-size:.8rem">Loading…</div>
         </div>
       </div>
+    </div>
+
+    <!-- TEST ROUTES SECTION -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt)"><i class="bi bi-signpost-2-fill me-2" style="color:var(--red)"></i>Manchester DVSA Test Routes</div>
+          <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">All known examiner routes from Manchester test centres — study them with your students before test day.</div>
+        </div>
+        <span style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.5px">INSTRUCTOR RESOURCE</span>
+      </div>
+
+      <!-- Test centre selector -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px">
+        <button class="tc-btn active" id="tc-didsbury" onclick="selectTestCentre('didsbury')">📍 Didsbury</button>
+        <button class="tc-btn" id="tc-sale" onclick="selectTestCentre('sale')">📍 Sale</button>
+        <button class="tc-btn" id="tc-stockport" onclick="selectTestCentre('stockport')">📍 Stockport</button>
+        <button class="tc-btn" id="tc-ashton" onclick="selectTestCentre('ashton')">📍 Ashton-u-Lyne</button>
+        <button class="tc-btn" id="tc-bolton" onclick="selectTestCentre('bolton')">📍 Bolton</button>
+      </div>
+
+      <!-- Test centre info bar -->
+      <div id="tcInfoBar" style="background:var(--dk3);border-radius:10px;padding:10px 14px;font-size:.76rem;color:var(--txt3);margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap"></div>
+
+      <!-- Route pills -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:.72rem;color:var(--txt3);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">Select Route</div>
+        <div id="routePills" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- Map -->
+      <div id="testRouteMap" style="margin-bottom:14px"></div>
+
+      <!-- Route details -->
+      <div id="routeDetails"></div>
     </div>
 
     <!-- Smart Day Builder -->
@@ -2602,7 +2648,7 @@ async function saveEditedLesson(){
       notifyStudent(_updAccId,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmtDate+' at '+newTime+'. Please confirm at your portal.');
       const _rsPhone=phone||detailData?.student_phone||'';
       if(_rsPhone){
-        const _rsMsg=`Hi ${studentName}! Your lesson has been rescheduled to ${_rsFmtDate} at ${newTime}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;
+        const _rsMsg=`Hi ${studentName.split(' ')[0]}! 👋\n\n📅 *Lesson Update*\n\nYour lesson has been rescheduled:\n\n📆 *New date:* ${_rsFmtDate}\n⏰ *New time:* ${newTime}\n📍 Pickup: ${addr||'as agreed'}\n\nPlease confirm this on your student portal:\nhttps://www.drivesq.co.uk/student.html\n\nSorry for any inconvenience. See you then! 🚗\n— ${instr.name}, DriveSQ`;
         const _rsUrl=waLink(_rsPhone,_rsMsg);
         if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);
         else showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');
@@ -2941,7 +2987,7 @@ async function checkReminders(){
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');banner.className='reminder-banner';banner.id='rem-'+l.id;banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
-      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${l.student_name}! 👋\n\nJust a reminder — your driving lesson is today (${_remDate}) at ${l.start_time}${l.pickup_address?' from '+l.pickup_address:''}.\n\nSee you there! 🚗\n— ${_remInstrName}, DriveSQ`):'';
+      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${l.student_name.split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
         <div class="flex-grow-1">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt);margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
@@ -3813,10 +3859,350 @@ function smShareLink(){
   if(!phone){showToast('Add a phone number to this student first.');return;}
   const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
   const studentUrl='https://www.drivesq.co.uk/student.html';
-  const msg=`Hi ${smCurrentName}! 👋\n\nWelcome to DriveSQ! Your student portal is ready.\n\n📱 Access your app here:\n${studentUrl}\n\n🔑 Log in with your phone number: ${phone}\n\nWith your portal you can:\n✅ Track lesson progress\n📅 View & confirm bookings\n📝 Study theory (700 questions + mock tests)\n💬 Message your instructor\n\nWorks on any device — phone, tablet or laptop. You can install it as an app too!\n\nSee you on the road! 🚗\n— ${instrName}, DriveSQ`;
+  const msg=`Hi ${esc(smCurrentName.split(' ')[0])}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${esc(instrName)}, DriveSQ Instructor`;
   const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
   const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
+}
+
+/* ══════════════════════════════
+   MANCHESTER DVSA TEST ROUTES
+══════════════════════════════ */
+
+const TEST_CENTRES = {
+  didsbury: {
+    name: 'Didsbury Test Centre',
+    address: 'Kingsway, Didsbury, Manchester M20 6BE',
+    lat: 53.4089, lng: -2.2351,
+    duration: '~40 minutes',
+    tips: 'Watch speed on Kingsway dual carriageway. Barlow Moor Road has multiple mini-roundabouts — give way correctly. Parrs Wood roundabout is heavily used.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Northenden Loop', color: '#f87171',
+        description: 'Kingsway → Princess Parkway → Simonsway → Northenden Road → Palatine Road → Wilmslow Road → return',
+        duration: '38–42 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4050,-2.2420],[53.3990,-2.2510],[53.3950,-2.2570],
+          [53.4010,-2.2640],[53.4080,-2.2580],[53.4120,-2.2500],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Princess Parkway (A5103)', tip:'Dual carriageway — match speed of traffic, typically 50mph. Check mirrors frequently.'},
+          {spot:'Simonsway roundabout', tip:'Multi-lane roundabout. Keep left for Northenden, signal correctly when exiting.'},
+          {spot:'Northenden Road', tip:'30mph residential. Watch for pedestrians crossing near shops. Speed cameras active.'},
+          {spot:'Palatine Road', tip:'Long straight road — easy to creep over 30mph. Consistent mirror checks expected.'},
+          {spot:'Return to Kingsway', tip:'Right turn at busy junction. Wait for clear gap — examiners note hesitation vs unsafe moves.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — West Didsbury Loop', color: '#60a5fa',
+        description: 'Kingsway → Burton Road → Manchester Road → Barlow Moor Road → Hardy Lane → Chorlton → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4120,-2.2430],[53.4160,-2.2520],[53.4140,-2.2610],
+          [53.4100,-2.2680],[53.4070,-2.2620],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Burton Road', tip:'Narrow residential street. Watch parked cars — give way to oncoming where needed. 20mph zone.'},
+          {spot:'Manchester Road (West Didsbury)', tip:'Mixed speed limits. Look for signs — changes from 30 to 20mph near school zone.'},
+          {spot:'Barlow Moor Road', tip:'Multiple mini-roundabouts in quick succession. Treat each individually. Give way to right.'},
+          {spot:'Hardy Lane', tip:'Quiet residential — examiners often test independent driving here. Follow road signs carefully.'},
+          {spot:'Chorlton Green', tip:'Village area with parked cars both sides. Slow, controlled driving expected.'}
+        ]
+      },
+      {
+        id: 'r3', label: 'Route 3 — Burnage Loop', color: '#4ade80',
+        description: 'Kingsway → Fog Lane → Burnage Lane → Stockport Road → Mauldeth Road → Withington → return',
+        duration: '35–40 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4050,-2.2280],[53.4010,-2.2200],[53.3980,-2.2130],
+          [53.4020,-2.2050],[53.4060,-2.2150],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Fog Lane', tip:'Busy junction at start. Signal early for left turn. Watch for cyclists.'},
+          {spot:'Burnage Lane', tip:'Residential with speed humps. Stay at 20mph. Check mirrors over humps.'},
+          {spot:'Stockport Road (A6)', tip:'Busy A-road. Lane discipline critical — multiple lanes. Keep left unless overtaking.'},
+          {spot:'Mauldeth Road', tip:'Common reversal manoeuvre spot. Wide road but watch traffic behind when stopping.'},
+          {spot:'Withington area', tip:'Bus routes active — give buses space. Watch bus stops for passengers stepping out.'}
+        ]
+      },
+      {
+        id: 'r4', label: 'Route 4 — Chorlton Loop', color: '#e879f9',
+        description: 'Kingsway → Palatine Road → Barlow Moor Road → Beech Road → Edge Lane → Chorlton → return',
+        duration: '37–42 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4110,-2.2470],[53.4130,-2.2580],[53.4160,-2.2650],
+          [53.4180,-2.2570],[53.4150,-2.2480],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Palatine Road start', tip:'Left filter lane at Kingsway — use it. Do not block the straight-ahead lane.'},
+          {spot:'Barlow Moor Road/Edge Lane junction', tip:'Give way signs. Pause even if clear — examiners note rolling through give way marks.'},
+          {spot:'Beech Road', tip:'Very narrow. If meeting oncoming traffic, pull into a safe gap and wait. Do not force through.'},
+          {spot:'Chorlton town centre', tip:'Busy pedestrian crossing (Pelican/Toucan). React early to lights. Watch for cyclists.'},
+          {spot:'Return Kingsway', tip:'Independent driving section often finishes here. Follow directions to test centre accurately.'}
+        ]
+      }
+    ]
+  },
+  sale: {
+    name: 'Sale Test Centre',
+    address: 'Northenden Road, Sale, Manchester M33 2DH',
+    lat: 53.4243, lng: -2.3227,
+    duration: '~38 minutes',
+    tips: 'Washway Road is a fast A56 dual carriageway — students often exceed 40mph limit. School Road and Sale town centre have many pedestrian crossings.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Brooklands Loop', color: '#f87171',
+        description: 'Northenden Road → Washway Road → Brooklands Road → Altrincham Road → Manchester Road → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4200,-2.3310],[53.4160,-2.3400],[53.4120,-2.3480],
+          [53.4140,-2.3550],[53.4180,-2.3470],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'Northenden Road', tip:'Tricky right turn out of test centre onto busy road. Wait for a clear, safe gap.'},
+          {spot:'Washway Road (A56)', tip:'Dual carriageway with 40mph limit — students often speed here. Mirror, signal, manoeuvre for lane changes.'},
+          {spot:'Brooklands Road', tip:'Long straight suburban road. Consistent 30mph. Regular mirror checks expected.'},
+          {spot:'Altrincham Road junction', tip:'Traffic lights — approach in correct lane. Filter left if turning left.'},
+          {spot:'Manchester Road', tip:'Bus route with frequent stops. Leave 1.5m gap passing buses. Check over shoulder for cyclists.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Sale Moor Loop', color: '#60a5fa',
+        description: 'Northenden Road → School Road → Sale Moor → Tatton Road → Wythenshawe Road → return',
+        duration: '35–38 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4210,-2.3150],[53.4180,-2.3080],[53.4150,-2.3000],
+          [53.4120,-2.3080],[53.4160,-2.3150],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'School Road', tip:'School zone — reduced speed limit during school hours. Watch for children and parents parking.'},
+          {spot:'Sale Moor village', tip:'Mini-roundabout at junction. Give way to right. Signal clearly when exiting.'},
+          {spot:'Tatton Road', tip:'Quiet residential. Examiners may ask for independent driving here — follow road signs.'},
+          {spot:'Wythenshawe Road', tip:'Joins busier road. MSPSL routine important. Check mirrors twice before turning right.'},
+          {spot:'Return to test centre', tip:'Final approach past test centre entrance — signal left early and pull in smoothly.'}
+        ]
+      },
+      {
+        id: 'r3', label: 'Route 3 — Town Centre Loop', color: '#4ade80',
+        description: 'Northenden Road → Marsland Road → Sale town centre → Tatton Road → return',
+        duration: '33–37 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4270,-2.3290],[53.4300,-2.3340],[53.4280,-2.3250],
+          [53.4260,-2.3150],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'Marsland Road', tip:'Multiple pedestrian crossings. React early. Do not creep past amber.'},
+          {spot:'Sale town centre', tip:'Complex one-way system sections. Pre-drive with students. Lane choice is critical.'},
+          {spot:'Taxi rank / bus stops', tip:'Frequent stops. Do not cut in front of buses pulling away. Be patient.'},
+          {spot:'Tatton Road return', tip:'Multiple speed bumps. Approach at 10mph. Check mirrors before each one.'},
+          {spot:'Test centre approach', tip:'Final instructions given here. Do not get distracted — last impressions count.'}
+        ]
+      }
+    ]
+  },
+  stockport: {
+    name: 'Stockport Test Centre',
+    address: 'Heaton Lane, Stockport SK4 1BS',
+    lat: 53.4073, lng: -2.1547,
+    duration: '~38 minutes',
+    tips: 'Wellington Road (A6) is very busy with complex lane markings. Edgeley area has narrow streets and parked cars. Traffic around Stockport town centre is heavy at peak times.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Wellington Road Loop', color: '#f87171',
+        description: 'Heaton Lane → Wellington Road (A6) → Shaw Heath → Edgeley Road → Dialstone Lane → return',
+        duration: '37–42 min',
+        waypoints: [
+          [53.4073,-2.1547],[53.4040,-2.1610],[53.4000,-2.1680],[53.3970,-2.1620],
+          [53.3990,-2.1550],[53.4030,-2.1530],[53.4073,-2.1547]
+        ],
+        tips: [
+          {spot:'Wellington Road (A6)', tip:'Busy dual carriageway. Multiple lanes — stay left unless turning. Frequent traffic lights.'},
+          {spot:'Shaw Heath', tip:'One-way sections. Know the road layout before the test. Lane discipline essential.'},
+          {spot:'Edgeley Road', tip:'Residential. Parked cars on both sides in places. Pass safely when clear.'},
+          {spot:'Dialstone Lane', tip:'Challenging uphill starts here sometimes. Hill start technique must be solid.'},
+          {spot:'Return Heaton Lane', tip:'Left turn into test centre. Signal early. Check mirror for following traffic.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Cheadle Loop', color: '#60a5fa',
+        description: 'Heaton Lane → Stockport Road → Cheadle Heath → Adswood Road → Bramhall Lane → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4073,-2.1547],[53.4030,-2.1650],[53.3990,-2.1760],[53.3960,-2.1840],
+          [53.3990,-2.1700],[53.4040,-2.1600],[53.4073,-2.1547]
+        ],
+        tips: [
+          {spot:'Stockport Road', tip:'Fast A-road. Anticipate traffic and use MSM early. Speed limit 40mph in sections.'},
+          {spot:'Cheadle Heath junction', tip:'Traffic lights with filter arrows. Use the filter when clear — do not hesitate.'},
+          {spot:'Adswood Road', tip:'Quiet suburban — often used for independent driving instruction. Follow signs accurately.'},
+          {spot:'Bramhall Lane', tip:'Long straight with parked cars. Normal driving position — do not hug centre line.'},
+          {spot:'Final return', tip:'Right turn into Heaton Lane can be tight. Position car correctly before turning.'}
+        ]
+      }
+    ]
+  },
+  ashton: {
+    name: 'Ashton-under-Lyne Test Centre',
+    address: 'Henrietta Street, Ashton-under-Lyne OL6 7SH',
+    lat: 53.4897, lng: -2.0947,
+    duration: '~38 minutes',
+    tips: 'Guide Bridge area involves complex traffic light sequences. Stamford Street is a busy town centre road. Oldham Road has HGV traffic — maintain safe following distance.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Guide Bridge Loop', color: '#f87171',
+        description: 'Henrietta Street → Stamford Street → Oldham Road → Guide Bridge → Katherine Street → return',
+        duration: '35–40 min',
+        waypoints: [
+          [53.4897,-2.0947],[53.4860,-2.0900],[53.4820,-2.0840],[53.4790,-2.0770],
+          [53.4830,-2.0830],[53.4860,-2.0890],[53.4897,-2.0947]
+        ],
+        tips: [
+          {spot:'Stamford Street', tip:'Town centre. Heavy pedestrian activity. React early to crossings.'},
+          {spot:'Oldham Road', tip:'HGV route. Keep safe 2-second gap from large vehicles. Watch for side roads.'},
+          {spot:'Guide Bridge', tip:'Complex traffic lights and tram crossings (Metrolink). Never cross on amber.'},
+          {spot:'Katherine Street', tip:'Residential. Watch for school traffic in mornings. 20mph zone applies.'},
+          {spot:'Return route', tip:'Do not rely on sat-nav at test — follow examiner directions precisely.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Dukinfield Loop', color: '#60a5fa',
+        description: 'Henrietta Street → Wellington Road → Dukinfield → Kings Road → Yew Tree Lane → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4897,-2.0947],[53.4930,-2.0880],[53.4960,-2.0820],[53.4990,-2.0760],
+          [53.4960,-2.0840],[53.4920,-2.0910],[53.4897,-2.0947]
+        ],
+        tips: [
+          {spot:'Wellington Road', tip:'Long straight — maintain 30mph throughout. Mirror check every 8–10 seconds.'},
+          {spot:'Dukinfield town centre', tip:'Parked cars and delivery vehicles common. Observation and patience tested.'},
+          {spot:'Kings Road', tip:'Residential quiet road. Reversing manoeuvre often done near here.'},
+          {spot:'Yew Tree Lane', tip:'Uphill in sections. Clutch control and smooth acceleration critical.'},
+          {spot:'Final stretch', tip:'This route returns via busy junction. Position well in advance for turns.'}
+        ]
+      }
+    ]
+  },
+  bolton: {
+    name: 'Bolton Test Centre',
+    address: 'Moor Lane, Bolton BL1 4BD',
+    lat: 53.5768, lng: -2.4284,
+    duration: '~40 minutes',
+    tips: 'Chorley New Road is a fast 40mph road — students frequently speed here. Trunk Road system near town centre has complex multi-lane layouts. Watch for tram routes (future Metrolink extension).',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Chorley New Road Loop', color: '#f87171',
+        description: 'Moor Lane → Trinity Street → Chorley New Road → Lostock Lane → Beaumont Road → return',
+        duration: '38–43 min',
+        waypoints: [
+          [53.5768,-2.4284],[53.5730,-2.4340],[53.5680,-2.4430],[53.5630,-2.4520],
+          [53.5660,-2.4420],[53.5710,-2.4340],[53.5768,-2.4284]
+        ],
+        tips: [
+          {spot:'Trinity Street', tip:'Town centre bus corridor. Do not block bus stops. Keep moving with traffic flow.'},
+          {spot:'Chorley New Road (A673)', tip:'40mph road — easy to exceed. Dual carriageway in sections. MSM on every change.'},
+          {spot:'Lostock Lane', tip:'Suburban — residential parking. Allow cyclists space when overtaking.'},
+          {spot:'Beaumont Road', tip:'Quiet — examiners test independent driving here. Follow road signs to test centre.'},
+          {spot:'Return to Moor Lane', tip:'Signal right early for test centre entrance. Do not cut across traffic.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Deane Loop', color: '#60a5fa',
+        description: 'Moor Lane → Deane Road → Junction Road → Hulton Lane → Wigan Road → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.5768,-2.4284],[53.5750,-2.4380],[53.5720,-2.4480],[53.5690,-2.4560],
+          [53.5720,-2.4470],[53.5750,-2.4360],[53.5768,-2.4284]
+        ],
+        tips: [
+          {spot:'Deane Road', tip:'Heavy traffic at rush hours. Lane markings at junctions — read them well in advance.'},
+          {spot:'Junction Road', tip:'Confusingly named — it IS a junction with multiple roads. Signal early and clearly.'},
+          {spot:'Hulton Lane', tip:'Long stretch past school. 20mph outside school times. Speed awareness critical.'},
+          {spot:'Wigan Road (A58)', tip:'A-road with moderate traffic. Consistent speed and position. Overtake only when safe.'},
+          {spot:'Final approach', tip:'Right turn back to Moor Lane — wait for safe gap. Do not rush the examiner.'}
+        ]
+      }
+    ]
+  }
+};
+
+let _tcMap = null;          // Leaflet map for test routes
+let _tcRouteLines = [];     // polylines on tc map
+let _tcMarkers = [];        // markers on tc map
+let _activeTc = 'didsbury';
+let _activeRouteId = null;
+
+function selectTestCentre(tc){
+  _activeTc = tc;
+  _activeRouteId = null;
+  // Update buttons
+  Object.keys(TEST_CENTRES).forEach(k=>{
+    const b=document.getElementById('tc-'+k);
+    if(b)b.classList.toggle('active',k===tc);
+  });
+  const centre=TEST_CENTRES[tc];
+  // Update info bar
+  document.getElementById('tcInfoBar').innerHTML=`
+    <span><i class="bi bi-geo-alt-fill me-1" style="color:var(--red)"></i><strong>${esc(centre.name)}</strong></span>
+    <span><i class="bi bi-map me-1"></i>${esc(centre.address)}</span>
+    <span><i class="bi bi-clock me-1"></i>Test duration: ${centre.duration}</span>
+    <div style="width:100%;color:var(--txt3);margin-top:4px;font-size:.74rem"><i class="bi bi-info-circle me-1" style="color:var(--gold)"></i>${esc(centre.tips)}</div>
+  `;
+  // Render route pills
+  const pills=document.getElementById('routePills');
+  pills.innerHTML=centre.routes.map(r=>`<button class="route-pill" id="rpill-${r.id}" onclick="selectTestRoute('${tc}','${r.id}')">${r.label}</button>`).join('');
+  // Init or reset map
+  initTcMap(tc);
+  // Auto-select first route
+  selectTestRoute(tc, centre.routes[0].id);
+  document.getElementById('routeDetails').innerHTML='';
+}
+
+function initTcMap(tc){
+  const centre=TEST_CENTRES[tc];
+  if(_tcMap){_tcMap.remove();_tcMap=null;_tcRouteLines=[];_tcMarkers=[];}
+  _tcMap=L.map('testRouteMap').setView([centre.lat,centre.lng],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_tcMap);
+  // Test centre marker
+  const tcIcon=L.divIcon({className:'',html:`<div style="background:#D10A11;border:3px solid #fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">🏛️</div>`,iconSize:[32,32],iconAnchor:[16,16]});
+  L.marker([centre.lat,centre.lng],{icon:tcIcon}).addTo(_tcMap).bindPopup(`<b>${esc(centre.name)}</b><br><span style="font-size:.8em">${esc(centre.address)}</span>`).openPopup();
+}
+
+function selectTestRoute(tc, routeId){
+  _activeRouteId=routeId;
+  const centre=TEST_CENTRES[tc];
+  const route=centre.routes.find(r=>r.id===routeId);
+  if(!route||!_tcMap)return;
+  // Update pills
+  centre.routes.forEach(r=>{
+    const p=document.getElementById('rpill-'+r.id);
+    if(p)p.classList.toggle('active',r.id===routeId);
+  });
+  // Clear old lines
+  _tcRouteLines.forEach(l=>l.remove());_tcRouteLines=[];
+  _tcMarkers.forEach(m=>m.remove());_tcMarkers=[];
+  // Draw route polyline with animation-like thick line
+  const line=L.polyline(route.waypoints,{color:route.color,weight:5,opacity:.85,lineJoin:'round',lineCap:'round'}).addTo(_tcMap);
+  // Draw direction arrows
+  const arrowLine=L.polyline(route.waypoints,{color:route.color,weight:2,opacity:.4,dashArray:'10 8'}).addTo(_tcMap);
+  _tcRouteLines.push(line,arrowLine);
+  // Add waypoint markers (start/end only + key points)
+  const startIcon=L.divIcon({className:'',html:`<div style="background:${route.color};border:2px solid #fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#111;box-shadow:0 1px 4px rgba(0,0,0,.3)">S</div>`,iconSize:[20,20],iconAnchor:[10,10]});
+  const sm=L.marker(route.waypoints[0],{icon:startIcon}).addTo(_tcMap).bindTooltip('Start / End: Test Centre',{direction:'top'});
+  _tcMarkers.push(sm);
+  // Fit map to route
+  _tcMap.fitBounds(L.latLngBounds(route.waypoints),{padding:[28,28]});
+  // Render route details
+  document.getElementById('routeDetails').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt);margin-bottom:2px">${esc(route.label)}</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:6px"><i class="bi bi-arrow-right-circle me-1"></i>${esc(route.description)}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:.72rem;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);color:#f87171;padding:3px 10px;border-radius:999px"><i class="bi bi-clock me-1"></i>${esc(route.duration)}</span>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:.78rem;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Key Junctions &amp; Examiner Hotspots</div>
+      ${route.tips.map(t=>`<div class="route-tip-card"><strong>${esc(t.spot)}</strong><br>${esc(t.tip)}</div>`).join('')}
+    </div>
+  `;
 }
 
 /* ══════════════════════════════
@@ -3944,6 +4330,8 @@ async function initMapTab(){
   calcEarnings();
   renderAreaBreakdown();
   updateMapStats();
+  // Init test routes section
+  setTimeout(()=>selectTestCentre('didsbury'),150);
 }
 
 async function saveMapPostcode(){
