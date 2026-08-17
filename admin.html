@@ -464,6 +464,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <option value="never">Never logged in</option>
         </select>
         <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
+        <button class="btn-purple" style="font-size:.78rem" onclick="openBroadcastStudentsModal()"><i class="bi bi-megaphone-fill me-1"></i>Broadcast</button>
         <button class="btn-p" style="font-size:.78rem" onclick="openCreateStudentModal()"><i class="bi bi-person-plus-fill me-1"></i>Create Student</button>
       </div>
     </div>
@@ -738,6 +739,37 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     </div>
   </div>
 
+  <!-- ══ ACTIVITY LOG ══ -->
+  <div id="panel-activity" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-activity me-2" style="color:var(--blue)"></i>Activity Log</div>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-person-check me-2" style="color:var(--red)"></i>Recent Instructor Logins</div>
+          <div id="actInstrLogins"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-mortarboard me-2" style="color:#c084fc"></i>Recent Student Logins</div>
+          <div id="actStudentLogins"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-journal-text me-2" style="color:var(--blue)"></i>Recent Lessons Added</div>
+          <div id="actRecentLessons"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Recent Messages</div>
+          <div id="actRecentMessages"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /page -->
 
 <div class="dsq-toast" id="toast"></div>
@@ -971,7 +1003,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div id="sdTestDates"></div>
     </div>
     <div class="mt-3" id="sdTheorySection" style="display:none">
-      <div class="section-label"><i class="bi bi-book me-2" style="color:#a855f7"></i>Theory Checklist Progress</div>
+      <div class="section-label"><i class="bi bi-book me-2" style="color:#a855f7"></i>Theory Progress &amp; Mock Tests</div>
       <div id="sdTheory"></div>
     </div>
     <div class="mt-3" id="sdMessagesSection" style="display:none">
@@ -1015,6 +1047,34 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     </div>
     <button class="btn-p w-100 mb-2" id="createStudentBtn" onclick="confirmCreateStudent()"><i class="bi bi-person-plus-fill me-1"></i>Create Account</button>
     <button class="btn-s w-100" onclick="closeModal('createStudentModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- BROADCAST STUDENTS MODAL -->
+<div class="dsq-overlay" id="broadcastStudentsModal">
+  <div class="dsq-modal wide">
+    <button class="modal-x" onclick="closeModal('broadcastStudentsModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-megaphone-fill me-2" style="color:#c084fc"></i>📢 Broadcast to All Students</h5>
+    <div class="modal-sub">Sends an admin message to every student account</div>
+    <div id="broadcastStudentsMsg" class="hidden mb-2" style="padding:8px 12px;border-radius:8px;font-size:.8rem"></div>
+    <div class="mb-2"><label class="dsq-lbl">Subject <span class="req-mark">*</span></label><input class="dsq-inp" id="bs-subject" placeholder="e.g. Important update from DriveSQ"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Message <span class="req-mark">*</span></label><textarea class="dsq-inp" id="bs-body" rows="4" placeholder="Your message to all students…"></textarea></div>
+    <div class="mb-3" style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:12px">
+      <div class="section-label" style="border:none;padding:0 0 6px"><i class="bi bi-whatsapp me-1" style="color:#4ade80"></i>WhatsApp Broadcast List</div>
+      <div style="font-size:.75rem;color:var(--txt3);margin-bottom:8px">WhatsApp doesn't support true broadcast. Copy numbers below and paste into a WhatsApp group or message individually.</div>
+      <div id="bs-wa-numbers" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-size:.75rem;color:var(--txt2);font-family:'Courier New',monospace;max-height:120px;overflow-y:auto;word-break:break-all">Loading student numbers…</div>
+      <button onclick="copyBroadcastNumbers()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 12px;font-size:.75rem;cursor:pointer;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600;display:flex;align-items:center;gap:5px"><i class="bi bi-clipboard me-1"></i>Copy All Numbers</button>
+    </div>
+    <div id="broadcastConfirmBox" class="hidden mb-3" style="background:rgba(209,10,17,.06);border:1px solid rgba(209,10,17,.2);border-radius:10px;padding:12px">
+      <div style="font-size:.82rem;color:#f87171;margin-bottom:8px"><i class="bi bi-exclamation-triangle-fill me-1"></i>Confirm broadcast</div>
+      <div id="broadcastConfirmText" style="font-size:.78rem;color:var(--txt2);margin-bottom:10px"></div>
+      <div class="d-flex gap-2">
+        <button class="btn-p flex-fill" style="font-size:.82rem" onclick="executeBroadcast()"><i class="bi bi-send me-1"></i>Yes, Send to All</button>
+        <button class="btn-s flex-fill" style="font-size:.82rem" onclick="document.getElementById('broadcastConfirmBox').classList.add('hidden')">Cancel</button>
+      </div>
+    </div>
+    <button class="btn-purple w-100 mb-2" id="broadcastStudentsBtn" onclick="confirmBroadcastStudents()"><i class="bi bi-megaphone-fill me-1"></i>Send to All Students</button>
+    <button class="btn-s w-100" onclick="closeModal('broadcastStudentsModal')">Cancel</button>
   </div>
 </div>
 
@@ -1137,7 +1197,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar'];
+const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -1157,6 +1217,7 @@ function switchTab(t){
   if(t==='feedback')loadFeedback();
   if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
+  if(t==='activity')loadActivityLog();
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
     if(!viewingId&&picker){
@@ -1861,16 +1922,21 @@ async function loadStudentProgress(s){
   const messagesSec=document.getElementById('sdMessagesSection');
   progSec.style.display='none';topicsSec.style.display='none';
   testDatesSec.style.display='none';theorySec.style.display='none';messagesSec.style.display='none';
-  const normPhone=normalizePhone(s.phone);
-  if(!normPhone)return;
-  const attempts=[s.phone,normPhone];
-  if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
-  if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
-  const phones=[...new Set(attempts.filter(Boolean))];
+  // First try direct acctId lookup (most reliable for admin-created students)
   let acct=null;
-  for(const p of phones){
-    const{data}=await sb.from('student_accounts').select('id').eq('phone',p).maybeSingle();
-    if(data){acct=data;break;}
+  if(s.acctId){
+    acct={id:s.acctId};
+  } else {
+    const normPhone=normalizePhone(s.phone);
+    if(!normPhone)return;
+    const attempts=[s.phone,normPhone];
+    if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
+    if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
+    const phones=[...new Set(attempts.filter(Boolean))];
+    for(const p of phones){
+      const{data}=await sb.from('student_accounts').select('id').eq('phone',p).maybeSingle();
+      if(data){acct=data;break;}
+    }
   }
   if(!acct)return;
   const[progR,topicsR]=await Promise.all([
@@ -1924,12 +1990,36 @@ async function loadStudentProgress(s){
     }
   }catch(e){console.warn('student_test_dates not available:',e.message);}
 
+  // Theory mock results
+  try{
+    const{data:mockResults}=await sb.from('student_theory_mock_results').select('score,total_questions,passed,taken_at').eq('student_account_id',acct.id).order('taken_at',{ascending:false}).limit(20);
+    if(mockResults&&mockResults.length){
+      theorySec.style.display='';
+      const totalDone=mockResults.length;
+      const passed=mockResults.filter(r=>r.passed).length;
+      const failed=totalDone-passed;
+      const bestScore=mockResults.reduce((best,r)=>(!best||r.score>best.score)?r:best,null);
+      const latestScore=mockResults[0];
+      const existing=document.getElementById('sdTheory').innerHTML;
+      document.getElementById('sdTheory').innerHTML=`
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:#93c5fd;border-radius:6px;padding:3px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700">${totalDone} Mock Test${totalDone!==1?'s':''} Done</span>
+          ${bestScore?`<span style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);color:#4ade80;border-radius:6px;padding:3px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700">Best: ${bestScore.score}/${bestScore.total_questions||50}</span>`:''}
+          <span style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80;border-radius:6px;padding:3px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700">✅ ${passed} Pass</span>
+          ${failed?`<span style="background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.18);color:#f87171;border-radius:6px;padding:3px 10px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700">❌ ${failed} Fail</span>`:''}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px">${mockResults.slice(0,6).map(r=>`<div style="background:var(--dk3);border:1px solid ${r.passed?'rgba(37,211,102,.2)':'rgba(209,10,17,.2)'};border-radius:8px;padding:8px 10px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;color:${r.passed?'#4ade80':'#f87171'}">${r.score}/${r.total_questions||50}</div><div style="font-size:.62rem;color:var(--txt4)">${r.passed?'PASS':'FAIL'}</div><div style="font-size:.58rem;color:var(--txt5)">${r.taken_at?fmtD(r.taken_at):''}</div></div>`).join('')}</div>
+        ${existing}`;
+    }
+  }catch(e){console.warn('student_theory_mock_results not available:',e.message);}
+
   try{
     const{data:theory}=await sb.from('student_theory_progress').select('*').eq('student_account_id',acct.id);
     if(theory&&theory.length){
       theorySec.style.display='';
       const ticked=theory.filter(t=>t.is_ticked).length;
-      document.getElementById('sdTheory').innerHTML=`<div style="font-size:.78rem;color:var(--txt2);margin-bottom:6px">${ticked} of ${theory.length} topics revised</div>
+      const prev=document.getElementById('sdTheory').innerHTML;
+      document.getElementById('sdTheory').innerHTML=prev+`<div style="font-size:.78rem;color:var(--txt2);margin-top:10px;margin-bottom:6px">${ticked} of ${theory.length} topics revised</div>
         <div style="background:var(--dk3);border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);width:${theory.length?Math.round(ticked/theory.length*100):0}%"></div></div>`;
     }
   }catch(e){console.warn('student_theory_progress not available:',e.message);}
@@ -2784,6 +2874,150 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
+
+/* ══ ACTIVITY LOG ══ */
+async function loadActivityLog(){
+  const[instrR,studR,lessonsR,msgsR]=await Promise.all([
+    sb.from('instructors').select('full_name,badge_number,last_login').not('last_login','is',null).order('last_login',{ascending:false}).limit(20),
+    sb.from('student_accounts').select('full_name,last_login,last_seen').not('last_login','is',null).order('last_login',{ascending:false}).limit(20),
+    sb.from('lessons').select('student_name,lesson_date,lesson_type,created_at,instructors(full_name)').order('created_at',{ascending:false}).limit(50),
+    sb.from('admin_messages').select('subject,message_type,created_at,instructors(full_name)').order('created_at',{ascending:false}).limit(20)
+  ]);
+
+  // Instructor logins
+  const instrEl=document.getElementById('actInstrLogins');
+  const instrList=instrR.data||[];
+  if(!instrList.length){instrEl.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:12px">No instructor logins recorded.</div>';}
+  else{instrEl.innerHTML=instrList.map(i=>`<div class="login-log-item">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:1rem">👨‍🏫</span>
+      <div><div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:var(--txt2)">${esc(i.full_name)}</div>
+      <div style="font-size:.65rem;color:var(--txt4)">${esc(i.badge_number||'—')}</div></div>
+    </div>
+    <div style="font-size:.7rem;color:var(--txt3);text-align:right">${fmtDT(i.last_login)}</div>
+  </div>`).join('');}
+
+  // Student logins
+  const studEl=document.getElementById('actStudentLogins');
+  const studList=studR.data||[];
+  if(!studList.length){studEl.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:12px">No student logins recorded.</div>';}
+  else{
+    const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+    studEl.innerHTML=studList.map(s=>{
+      const isOnline=!!(s.last_seen&&s.last_seen>=fiveMinsAgo);
+      return`<div class="login-log-item">
+        <div style="display:flex;align-items:center;gap:8px">
+          ${isOnline?'<span style="width:8px;height:8px;border-radius:50%;background:#4ade80;flex-shrink:0;animation:pulse 1.5s infinite"></span>':''}<span style="font-size:1rem">🎓</span>
+          <div><div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:${isOnline?'#4ade80':'var(--txt2)'}">${esc(s.full_name)}</div>
+          <div style="font-size:.65rem;color:var(--txt4)">${isOnline?'<span style="color:#4ade80">Online now</span>':'Last seen: '+fmtDT(s.last_seen||s.last_login)}</div></div>
+        </div>
+        <div style="font-size:.7rem;color:var(--txt3);text-align:right">${fmtDT(s.last_login)}</div>
+      </div>`;
+    }).join('');}
+
+  // Recent lessons
+  const lessonsEl=document.getElementById('actRecentLessons');
+  const lessonsList=lessonsR.data||[];
+  if(!lessonsList.length){lessonsEl.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:12px">No recent lessons.</div>';}
+  else{lessonsEl.innerHTML=lessonsList.slice(0,15).map(l=>`<div class="login-log-item">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:1rem">📅</span>
+      <div><div style="font-size:.82rem;font-weight:600;color:var(--txt2)">${esc(l.student_name)}</div>
+      <div style="font-size:.65rem;color:var(--txt3)">${esc(l.lesson_type||'Lesson')} · ${esc(l.instructors?.full_name||'—')} · ${fmtD(l.lesson_date)}</div></div>
+    </div>
+    <div style="font-size:.68rem;color:var(--txt4);text-align:right">Added ${fmtDT(l.created_at)}</div>
+  </div>`).join('');}
+
+  // Recent messages
+  const msgsEl=document.getElementById('actRecentMessages');
+  const msgsList=msgsR.data||[];
+  const msgIcons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
+  if(!msgsList.length){msgsEl.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:12px">No messages sent yet.</div>';}
+  else{msgsEl.innerHTML=msgsList.map(m=>`<div class="login-log-item">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:1rem">${msgIcons[m.message_type]||'💬'}</span>
+      <div><div style="font-size:.82rem;font-weight:600;color:var(--txt2)">${esc(m.subject)}</div>
+      <div style="font-size:.65rem;color:var(--txt3)">To: ${esc(m.instructors?.full_name||'—')}</div></div>
+    </div>
+    <div style="font-size:.68rem;color:var(--txt4);text-align:right">${fmtDT(m.created_at)}</div>
+  </div>`).join('');}
+}
+
+/* ══ BROADCAST TO STUDENTS ══ */
+async function openBroadcastStudentsModal(){
+  document.getElementById('bs-subject').value='';
+  document.getElementById('bs-body').value='';
+  const msgEl=document.getElementById('broadcastStudentsMsg');if(msgEl)msgEl.className='hidden';
+  document.getElementById('broadcastConfirmBox').classList.add('hidden');
+  const btn=document.getElementById('broadcastStudentsBtn');if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-megaphone-fill me-1"></i>Send to All Students';}
+  // Load WA numbers
+  const waEl=document.getElementById('bs-wa-numbers');
+  if(waEl){
+    const{data}=await sb.from('student_accounts').select('full_name,phone').not('phone','is',null).order('full_name',{ascending:true});
+    const students=data||[];
+    if(!students.length){waEl.textContent='No student phone numbers found.';}
+    else{
+      window._broadcastStudents=students;
+      const nums=students.map(s=>normalizePhone(s.phone||'')).filter(Boolean);
+      waEl.textContent=nums.join(', ');
+    }
+  }
+  openModal('broadcastStudentsModal');
+}
+function copyBroadcastNumbers(){
+  const el=document.getElementById('bs-wa-numbers');
+  if(!el)return;
+  navigator.clipboard.writeText(el.textContent).then(()=>showToast('Numbers copied to clipboard ✓','success')).catch(()=>showToast('Could not copy.','error'));
+}
+function confirmBroadcastStudents(){
+  const subject=document.getElementById('bs-subject').value.trim();
+  const body=document.getElementById('bs-body').value.trim();
+  if(!subject||!body){showToast('Fill subject and message.','error');return;}
+  const count=(window._broadcastStudents||[]).length;
+  if(!count){showToast('No student accounts to message.','warn');return;}
+  const box=document.getElementById('broadcastConfirmBox');
+  document.getElementById('broadcastConfirmText').textContent=`This will send "${subject}" to all ${count} student accounts. This cannot be undone.`;
+  box.classList.remove('hidden');
+}
+async function executeBroadcast(){
+  const subject=document.getElementById('bs-subject').value.trim();
+  const body=document.getElementById('bs-body').value.trim();
+  const students=window._broadcastStudents||[];
+  if(!students.length||!subject||!body){showToast('Nothing to send.','error');return;}
+  const btn=document.getElementById('broadcastStudentsBtn');btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';
+  document.getElementById('broadcastConfirmBox').classList.add('hidden');
+  // Get all student account IDs
+  const{data:accts}=await sb.from('student_accounts').select('id');
+  if(!accts||!accts.length){showToast('No students found.','warn');btn.disabled=false;btn.innerHTML='<i class="bi bi-megaphone-fill me-1"></i>Send to All Students';return;}
+  // Insert messages in batches of 50
+  const now=new Date().toISOString();
+  let sent=0,failed=0;
+  for(let i=0;i<accts.length;i+=50){
+    const batch=accts.slice(i,i+50).map(a=>({student_account_id:a.id,subject,body,is_read:false,created_at:now}));
+    const{error}=await sb.from('student_admin_messages').insert(batch).then?sb.from('student_admin_messages').insert(batch):await sb.from('student_admin_messages').insert(batch);
+    if(error){
+      // Try admin_messages table with a note
+      failed+=batch.length;
+      console.warn('Broadcast batch error:',error.message);
+    } else {sent+=batch.length;}
+  }
+  btn.disabled=false;btn.innerHTML='<i class="bi bi-megaphone-fill me-1"></i>Send to All Students';
+  if(sent>0){
+    showBroadcastMsg('success',`✅ Message sent to ${sent} student${sent!==1?'s':''}!`+(failed?` (${failed} failed)`:''));
+    showToast(`📢 Sent to ${sent} students!`,'success');
+  } else {
+    showBroadcastMsg('error','Failed to send. Check that the student_admin_messages table exists in Supabase.');
+  }
+}
+function showBroadcastMsg(type,msg){
+  const el=document.getElementById('broadcastStudentsMsg');if(!el)return;
+  el.className='mb-2';
+  el.style.background=type==='error'?'rgba(209,10,17,.1)':'rgba(37,211,102,.1)';
+  el.style.border='1px solid '+(type==='error'?'rgba(209,10,17,.3)':'rgba(37,211,102,.3)');
+  el.style.color=type==='error'?'#f87171':'#4ade80';
+  el.style.padding='8px 12px';el.style.borderRadius='8px';el.style.fontSize='.8rem';
+  el.textContent=msg;el.classList.remove('hidden');
+}
 
 /* ══ TOAST ══ */
 let _tt;

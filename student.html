@@ -313,6 +313,8 @@ img{max-width:100%}
       <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
       <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Student</div></div>
       <div class="ms-auto d-flex align-items-center gap-2">
+        <!-- Install App (shows when PWA prompt available) -->
+        <button class="nav-btn hidden" id="navInstallBtn" onclick="triggerPWAInstall()" title="Install App" style="font-size:.7rem;gap:3px;color:#22d3ee;border-color:rgba(34,211,238,.25)"><i class="bi bi-phone-fill" style="font-size:.82rem"></i><span class="d-none d-sm-inline" style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.65rem">Install</span></button>
         <!-- Theme switcher -->
         <div style="position:relative" id="themeWrap">
           <button class="nav-btn" id="themeBtn" onclick="toggleThemePanel()" style="gap:4px">
@@ -380,10 +382,16 @@ img{max-width:100%}
         <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:9px 10px;font-size:.7rem;color:var(--txt2)"><i class="bi bi-phone me-2" style="color:#22d3ee"></i>Install as app</div>
       </div>
 
+      <!-- Students-only disclaimer -->
+      <div style="background:rgba(209,10,17,.06);border:1px solid rgba(209,10,17,.18);border-radius:9px;padding:10px 13px;margin-bottom:14px">
+        <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--red);margin-bottom:3px"><i class="bi bi-lock-fill me-2"></i>🔒 This app is free for DriveSQ students only</div>
+        <div style="font-size:.68rem;color:var(--txt3);line-height:1.55">Do not share your login — each account is personal.<br><em>Non-DriveSQ students: to sign up, contact DriveSQ.</em></div>
+      </div>
       <button class="btn btn-danger w-100 mb-2" onclick="showView('loginView')"><i class="bi bi-eye me-1"></i>Sign In</button>
       <div class="or-line">New student?</div>
       <button class="btn btn-outline-secondary w-100" onclick="showView('registerView')"><i class="bi bi-person-plus me-1"></i>Create Account</button>
-      <div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--bdr)">
+      <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)">
+        <div style="font-size:.7rem;color:var(--txt4);margin-bottom:8px">📱 Works on phone, tablet &amp; laptop — install as an app</div>
         <a href="portal.html" style="font-size:.68rem;color:var(--txt4)"><i class="bi bi-briefcase me-1"></i>Instructor login →</a>
       </div>
     </div>
@@ -464,6 +472,13 @@ img{max-width:100%}
       <!-- Test readiness -->
       <div class="d-flex justify-content-center mb-3">
         <div class="readiness-badge not_ready" id="readinessBadge"><i class="bi bi-circle-fill me-1" style="font-size:.5rem"></i><span id="readinessLbl">Not Test Ready</span></div>
+      </div>
+
+      <!-- Cross-device notice -->
+      <div class="alert d-flex align-items-center gap-2 mb-3" id="crossDeviceNotice" style="font-size:.78rem;padding:10px 14px;background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2);color:#93c5fd">
+        <i class="bi bi-laptop me-1" style="flex-shrink:0"></i>
+        <span>Access your portal on <strong>any device</strong> — phone, tablet or laptop. <span id="installHintText">Install it as an app for quick access!</span></span>
+        <button onclick="this.closest('.alert').remove()" class="btn-close ms-auto" style="width:16px;height:16px;font-size:.6rem;filter:invert(.6)"></button>
       </div>
 
       <!-- Practice shortcuts — the two things every learner needs most, front and centre -->
@@ -722,7 +737,12 @@ img{max-width:100%}
 
       <!-- Practical learn -->
       <div id="learnPractical">
-        <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Tap a group to expand. Topics link to full guides.</div>
+        <div style="font-size:.72rem;color:var(--txt4);margin-bottom:6px">Tap a group to expand. Topics link to full guides.</div>
+        <div style="display:flex;gap:10px;font-size:.66rem;color:var(--txt4);margin-bottom:10px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block"></span>Not Started</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block"></span>In Progress</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>Ready</span>
+        </div>
         <div id="learnPracticalCards"></div>
       </div>
 
@@ -749,6 +769,17 @@ img{max-width:100%}
             </div>
           </div>
         </div>
+        <!-- How to use theory info panel -->
+        <div style="background:linear-gradient(135deg,rgba(96,165,250,.09),rgba(96,165,250,.03));border:1px solid rgba(96,165,250,.25);border-radius:12px;padding:13px 14px;margin-bottom:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#93c5fd;margin-bottom:8px"><i class="bi bi-info-circle-fill me-2"></i>📚 How to Use Theory</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:.76rem;color:var(--txt2);line-height:1.5">
+            <div><span style="color:#60a5fa;font-weight:600">•</span> <strong>Practice Mode</strong> — Answer questions by topic. Each answer shows instant feedback.</div>
+            <div><span style="color:var(--red);font-weight:600">•</span> <strong>Mock Test Mode</strong> — 50 questions, 43 to pass. Timed like the real test.</div>
+            <div><span style="color:var(--green);font-weight:600">•</span> <strong>Topic Ticks</strong> — Mark topics as revised. Track your coverage.</div>
+          </div>
+          <div style="margin-top:8px;font-size:.72rem;color:var(--txt3);padding:7px 10px;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.15);border-radius:7px"><i class="bi bi-lightbulb-fill me-1" style="color:var(--gold)"></i><strong>Tip:</strong> Complete all 14 mock tests and aim for 45+/50 before booking your test.</div>
+        </div>
+
         <!-- Mode picker -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
           <button onclick="openMockTest()" style="background:linear-gradient(135deg,rgba(209,10,17,.13),rgba(209,10,17,.04));border:1px solid rgba(209,10,17,.35);border-radius:13px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s">
@@ -902,7 +933,7 @@ img{max-width:100%}
           <div style="font-size:.7rem;color:var(--txt2);font-weight:600;margin-bottom:5px"><i class="bi bi-android2 me-1"></i>Android (Chrome)</div>
           <div style="font-size:.68rem;color:var(--txt4);line-height:1.7">1. Tap the <strong style="color:var(--txt2)">⋮ Menu</strong> at top right<br>2. Tap <strong style="color:var(--txt2)">Add to Home screen</strong><br>3. Tap <strong style="color:var(--txt2)">Add</strong></div>
         </div>
-        <button id="pwaProfileInstallBtn" class="btn btn-outline-secondary w-100" style="border-color:rgba(34,211,238,.3);color:#22d3ee;font-size:.82rem;min-height:40px;display:none" onclick="triggerPWAInstall()"><i class="bi bi-download me-1"></i>Install Now</button>
+        <button id="pwaProfileInstallBtn" class="btn btn-outline-secondary w-100" style="border-color:rgba(34,211,238,.3);color:#22d3ee;font-size:.82rem;min-height:40px;display:none" onclick="triggerPWAInstall()"><i class="bi bi-phone-fill me-1"></i>📲 Install App</button>
       </div>
 
       <!-- Sign out -->
@@ -1370,7 +1401,10 @@ async function loadInstructor(){
   instrData=data;
   if(!data)return;
   const phone=data.phone||'';
-  const wa='https://wa.me/44'+phone.replace(/^0/,'').replace(/\s/g,'');
+  const instrFirstName=(data.full_name||'').split(' ')[0]||'there';
+  const studentName=currentStudent.name||'your student';
+  const waText=encodeURIComponent('Hi '+instrFirstName+'! 👋\nI\'m '+studentName+', your DriveSQ student.\n\n[type your message here]\n\n— '+studentName);
+  const wa='https://wa.me/44'+phone.replace(/^0/,'').replace(/\s/g,'')+'?text='+waText;
   document.getElementById('instrName').textContent=data.full_name||'—';
   document.getElementById('instrBadge').textContent=(data.badge_type||'ADI')+' · '+(data.badge_number||'—');
   document.getElementById('instrPhone').textContent=phone;
@@ -1971,6 +2005,8 @@ function renderLearnTab(){
   document.getElementById('learnPracticalCards').innerHTML=Object.entries(grouped).map(([g,topics])=>{
     const rated=topics.filter(t=>ratingMap[t.name]>=1).length;
     const pct=topics.length?Math.round((rated/topics.length)*100):0;
+    const skillColor=pct===0?'#666':pct>=75?'var(--green)':'var(--gold)';
+    const skillLabel=pct===0?'Not Started':pct>=75?'Ready':'In Progress';
     return`<div style="margin-bottom:6px">
       <div class="learn-group-hdr" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').style.transform=this.nextElementSibling.classList.contains('open')?'rotate(180deg)':''">
         <div style="display:flex;align-items:center;gap:9px">
@@ -1980,7 +2016,10 @@ function renderLearnTab(){
             <div style="font-size:.65rem;color:var(--txt4)">${topics.length} topics · ${pct}% covered</div>
           </div>
         </div>
-        <i class="bi bi-chevron-down chevron" style="color:var(--txt4);transition:transform .3s"></i>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:.6rem;font-weight:700;font-family:'Oswald',sans-serif;color:${skillColor};background:rgba(128,128,128,.08);border:1px solid rgba(128,128,128,.15);border-radius:5px;padding:2px 7px;white-space:nowrap">${skillLabel}</span>
+          <i class="bi bi-chevron-down chevron" style="color:var(--txt4);transition:transform .3s"></i>
+        </div>
       </div>
       <div class="learn-group-body">
         <div style="padding:6px 0">
@@ -2491,8 +2530,9 @@ function renderMockHome(){
   h+='</div>';
 
   // Mock Tests
-  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Mock Tests</div>';
-  h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:12px">'+QUESTIONS_PER_TEST+' questions · '+Math.floor(TEST_TIME/60)+' minutes · Pass mark '+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</div>';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:6px"><i class="bi bi-clipboard-check me-2" style="color:var(--red)"></i>Select Mock Test (1–14)</div>';
+  h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:4px">'+QUESTIONS_PER_TEST+' questions · '+Math.floor(TEST_TIME/60)+' minutes · Pass mark <strong style="color:var(--gold)">'+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</strong></div>';
+  h+='<div style="font-size:.7rem;color:rgba(96,165,250,.8);margin-bottom:12px;padding:6px 10px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:7px"><i class="bi bi-lightbulb me-1"></i>Complete all 14 tests and aim for 45+/50 before booking your real theory test</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:24px">';
   for(var t=1;t<=TOTAL_MOCK_TESTS;t++){
     var hist=mockHistory[t]||[];
@@ -2697,12 +2737,28 @@ function showMockResults(){
     },function(err){console.warn('Could not save mock result:',err&&err.message);});
   }
   var h='<div style="padding-bottom:20px;text-align:center">';
-  h+='<div style="font-size:2.5rem;margin-bottom:8px">'+(passed?'🎉':'📚')+'</div>';
-  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1.3rem;font-weight:700;color:'+(passed?'#4ade80':'#f87171')+';margin-bottom:4px">'+(mockMode==='test'?(passed?'PASS':'FAIL'):'Practice Complete')+'</div>';
-  h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:3rem;font-weight:800;color:var(--txt);line-height:1">'+correct+'/'+total+'</div>';
   if(mockMode==='test'){
-    h+='<div style="font-size:.78rem;color:var(--txt4);margin-bottom:20px">'+(passed?'Well done! You passed the mock test.':'Keep studying — you need '+PASS_MARK+'/'+QUESTIONS_PER_TEST+' to pass.')+'</div>';
+    // Prominent pass/fail status
+    h+='<div style="display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:12px 28px;margin-bottom:12px;'+(passed?'background:rgba(37,211,102,.12);border:2px solid rgba(37,211,102,.4);':'background:rgba(209,10,17,.1);border:2px solid rgba(209,10,17,.4);')+'">';
+    h+='<span style="font-size:1.6rem">'+(passed?'✅':'❌')+'</span>';
+    h+='<span style="font-family:\'Oswald\',sans-serif;font-size:1.6rem;font-weight:800;letter-spacing:2px;color:'+(passed?'#4ade80':'#f87171')+'">'+(passed?'PASS':'FAIL')+'</span>';
+    h+='</div>';
+    // Score in large text
+    h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:3.5rem;font-weight:800;color:var(--txt);line-height:1;margin-bottom:4px">'+correct+' <span style="font-size:2rem;color:var(--txt3)">/</span> '+total+'</div>';
+    // Pass mark reminder
+    h+='<div style="font-size:.78rem;color:var(--txt4);margin-bottom:8px">Pass mark: <strong style="color:var(--gold)">'+PASS_MARK+'/'+QUESTIONS_PER_TEST+'</strong></div>';
+    h+='<div style="font-size:.82rem;margin-bottom:18px;color:'+(passed?'#4ade80':'#f87171')+'">'+(passed?'Well done! You passed this mock test. 🎉':'Keep studying — you\'re '+Math.max(0,PASS_MARK-correct)+' mark'+(Math.max(0,PASS_MARK-correct)!==1?'s':'')+' away from passing.')+'</div>';
+    // Try Again & Next Test buttons
+    var nextTest=mockTestNum&&mockTestNum<TOTAL_MOCK_TESTS?mockTestNum+1:null;
+    h+='<div style="display:flex;gap:8px;margin-bottom:16px">';
+    h+='<button class="btn btn-outline-secondary flex-fill" onclick="startMockTest('+(mockTestNum||1)+')" style="min-height:42px"><i class="bi bi-arrow-repeat me-1"></i>Try Again</button>';
+    if(nextTest)h+='<button class="btn btn-danger flex-fill" onclick="startMockTest('+nextTest+')" style="min-height:42px"><i class="bi bi-arrow-right-circle me-1"></i>Test '+nextTest+'</button>';
+    else h+='<button class="btn btn-danger flex-fill" onclick="openMockTest()" style="min-height:42px"><i class="bi bi-grid me-1"></i>All Tests</button>';
+    h+='</div>';
   } else {
+    h+='<div style="font-size:2.5rem;margin-bottom:8px">📚</div>';
+    h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1.3rem;font-weight:700;color:var(--txt);margin-bottom:4px">Practice Complete</div>';
+    h+='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:3rem;font-weight:800;color:var(--txt);line-height:1">'+correct+'/'+total+'</div>';
     var pct=total>0?Math.round(correct/total*100):0;
     h+='<div style="font-size:.78rem;color:var(--txt4);margin-bottom:20px">'+pct+'% accuracy across '+total+' questions</div>';
   }
@@ -2733,7 +2789,7 @@ function showMockResults(){
     });
     h+='</div>';
   }
-  h+='<button class="btn btn-danger w-100 mb-2" onclick="openMockTest()"><i class="bi bi-arrow-repeat me-1"></i>Try Another Test</button>';
+  if(mockMode!=='test'){h+='<button class="btn btn-danger w-100 mb-2" onclick="openMockTest()"><i class="bi bi-arrow-repeat me-1"></i>Try Another Test</button>';}
   h+='<button class="btn btn-outline-secondary w-100" onclick="closeModal(\'mockTestModal\')">Close</button>';
   h+='</div>';
   document.getElementById('mockTestInner').innerHTML=h;
@@ -2835,6 +2891,8 @@ window.addEventListener('beforeinstallprompt',function(e){
   setTimeout(showInstallBanner,5000);
   const profileBtn=document.getElementById('pwaProfileInstallBtn');
   if(profileBtn)profileBtn.style.display='flex';
+  const navBtn=document.getElementById('navInstallBtn');
+  if(navBtn)navBtn.classList.remove('hidden');
 });
 
 function showInstallBanner(){
@@ -2843,8 +2901,8 @@ function showInstallBanner(){
   var b=document.createElement('div');
   b.id='pwaInstallBanner';
   b.style.cssText='position:fixed;top:70px;right:12px;width:280px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:14px;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,.6)';
-  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ</div><div style="font-size:.68rem;color:var(--txt3)">Add to your home screen</div></div></div>'
-    +'<div style="display:flex;gap:8px"><button id="pwaInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer"><i class="bi bi-download me-1"></i>Install</button>'
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ</div><div style="font-size:.68rem;color:var(--txt3)">Add to your home screen for quick access</div></div></div>'
+    +'<div style="display:flex;gap:8px"><button id="pwaInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer">📲 Install App</button>'
     +'<button id="pwaInstallNo" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;border-radius:9px;cursor:pointer">Later</button></div>';
   document.body.appendChild(b);
   document.getElementById('pwaInstallYes').addEventListener('click',function(){installPWA();});
