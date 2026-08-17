@@ -3425,12 +3425,12 @@ function smShareLink(){
 }
 
 /* ── Poll for new messages & registrations ── */
-// Same-session dedup only, to stop pollStudentUpdates (every 20s) re-appending the same banner
-// repeatedly while a fresh registration is still inside the notification window below. This is
-// NOT what makes the notification safe from reappearing — that's the created_at time window,
-// because localStorage-based dedup alone doesn't survive a different device/browser or the
-// instructor clearing site data, which was previously reshowing "X has registered" indefinitely.
-let _notifiedRegistrations=new Set();
+// Persisted dedup — survives page reloads / tab switches for the same instructor.
+// Keyed by instructor ID so multiple instructors on the same device don't share state.
+function getNotifiedRegsKey(){ return 'dsq_notified_regs_'+(instr?.id||'x'); }
+function loadNotifiedRegs(){ try{ return new Set(JSON.parse(localStorage.getItem(getNotifiedRegsKey())||'[]')); }catch(e){ return new Set(); } }
+function saveNotifiedRegs(s){ try{ localStorage.setItem(getNotifiedRegsKey(), JSON.stringify([...s])); }catch(e){} }
+let _notifiedRegistrations=loadNotifiedRegs();
 
 async function pollStudentUpdates(){
   if(!allStudentsArr.length)return;
@@ -3448,6 +3448,7 @@ async function pollStudentUpdates(){
   (regAccounts||[]).forEach(acc=>{
     if(!_notifiedRegistrations.has(acc.id)){
       _notifiedRegistrations.add(acc.id);
+      saveNotifiedRegs(_notifiedRegistrations);
       // Show registration notification banner
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
