@@ -14,6 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 :root{
   --red:#D10A11;--red2:#a80008;--gold:#F5C518;--green:#25D366;--blue:#3b82f6;--trans:.2s ease;
@@ -405,6 +407,39 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 @media(max-width:767px){.main-pad{padding:12px 12px 0}}
 @media(min-width:768px){.desktop-cal-wrap{display:block}.mobile-cal-wrap{display:none}}
 @media(max-width:767px){.desktop-cal-wrap{display:none}.mobile-cal-wrap{display:block}}
+
+/* ── MAP TAB ── */
+#panel-map{padding:12px}
+.map-container{border-radius:13px;overflow:hidden;border:1px solid var(--bdr);position:relative}
+#instrMap{width:100%;height:420px;z-index:1}
+@media(max-width:767px){#instrMap{height:300px}}
+.map-sidebar{max-height:420px;overflow-y:auto}
+.student-dist-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s}
+.student-dist-card:hover{border-color:var(--red)}
+.student-dist-card.selected{border-color:rgba(37,211,102,.5);background:rgba(37,211,102,.04)}
+.dist-badge{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.dist-badge.near{background:rgba(37,211,102,.15);color:#4ade80;border:1px solid rgba(37,211,102,.3)}
+.dist-badge.mid{background:rgba(245,197,24,.1);color:var(--gold);border:1px solid rgba(245,197,24,.25)}
+.dist-badge.far{background:rgba(209,10,17,.1);color:#f87171;border:1px solid rgba(209,10,17,.25)}
+.cluster-zone-card{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.cluster-zone-card h6{font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--txt);margin:0 0 6px}
+.earnings-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bdr);font-size:.78rem}
+.earnings-row:last-child{border-bottom:none}
+.map-postcode-prompt{background:rgba(209,10,17,.07);border:1px solid rgba(209,10,17,.2);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px}
+.route-step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr);font-size:.78rem}
+.route-step:last-child{border-bottom:none}
+.route-num{width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;font-family:'Oswald',sans-serif}
+
+/* ── TEST ROUTES ── */
+.tc-btn{background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:8px 14px;font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt3);cursor:pointer;transition:all .2s;text-align:left}
+.tc-btn:hover{border-color:var(--red);color:var(--txt)}
+.tc-btn.active{border-color:var(--red);color:#fff;background:linear-gradient(135deg,rgba(209,10,17,.25),rgba(209,10,17,.1))}
+.route-pill{display:inline-flex;align-items:center;gap:6px;background:var(--dk3);border:1px solid var(--bdr);border-radius:999px;padding:5px 12px;font-size:.74rem;font-weight:600;color:var(--txt3);cursor:pointer;transition:all .2s;white-space:nowrap}
+.route-pill.active{border-color:var(--red);color:#fff;background:rgba(209,10,17,.15)}
+.route-tip-card{background:var(--dk3);border-left:3px solid var(--red);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:8px;font-size:.76rem;color:var(--txt2);line-height:1.6}
+.route-tip-card strong{color:var(--txt);font-family:'Oswald',sans-serif}
+#testRouteMap{width:100%;height:360px;border-radius:11px;overflow:hidden;border:1px solid var(--bdr)}
+@media(max-width:767px){#testRouteMap{height:260px}}
 </style>
 <style id="why-card-css">
 .why-card{display:flex;align-items:flex-start;gap:11px;padding:15px;border:1px solid #ebebeb;border-radius:12px;background:#fff;transition:all .22s ease}.why-card:hover{box-shadow:0 8px 26px rgba(0,0,0,.07);border-color:#ddd}
@@ -478,6 +513,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students');setMobActive('students')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests');setMobActive('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span><span class="tab-badge ms-1 hidden" id="reqBadge">0</span></button>
     <button class="dsq-tab" id="tab-transfer" onclick="switchTab('transfer');setMobActive('transfer')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfer</span></button>
+    <button class="dsq-tab" id="tab-map" onclick="switchTab('map');setMobActive('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-profile" onclick="switchTab('profile');setMobActive('profile')"><i class="bi bi-person-circle"></i><span class="d-none d-sm-inline ms-1">Profile</span></button>
   </div>
 
@@ -593,6 +629,180 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div id="transferList" class="d-flex flex-column gap-3"></div>
   </div>
 
+<!-- ═══ MAP / CLUSTER PLANNER PANEL ═══ -->
+<div id="panel-map" class="hidden">
+
+  <!-- Postcode prompt (shown if instructor has no valid postcode) -->
+  <div id="mapPostcodePrompt" class="map-postcode-prompt hidden">
+    <i class="bi bi-geo-alt-fill" style="font-size:2rem;color:var(--red);display:block;margin-bottom:10px"></i>
+    <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;color:var(--txt);margin-bottom:6px">Set Your Home Postcode</div>
+    <div style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">We need your postcode to calculate distances to students and plan your routes.</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <input id="mapPostcodeInput" class="dsq-inp" placeholder="e.g. M20 1AA" style="max-width:180px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/>
+      <button class="btn-p" style="min-height:40px;padding:8px 18px" onclick="saveMapPostcode()"><i class="bi bi-check-lg me-1"></i>Save &amp; Load Map</button>
+    </div>
+    <div id="mapPostcodeErr" style="color:#f87171;font-size:.74rem;margin-top:8px"></div>
+  </div>
+
+  <!-- Main map content -->
+  <div id="mapMainContent" class="hidden">
+
+    <!-- Stats bar -->
+    <div class="row g-2 mb-3" id="mapStatsBar">
+      <div class="col-6 col-md-3">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;color:var(--txt)" id="mapStatTotal">—</div>
+          <div style="font-size:.68rem;color:var(--txt3)">Total Students</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;color:#4ade80" id="mapStatNear">—</div>
+          <div style="font-size:.68rem;color:var(--txt3)">Within 2 miles</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;color:var(--gold)" id="mapStatAvgDist">—</div>
+          <div style="font-size:.68rem;color:var(--txt3)">Avg Distance</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;color:var(--red)" id="mapStatFar">—</div>
+          <div style="font-size:.68rem;color:var(--txt3)">Over 5 miles</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map + student list -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-8">
+        <div class="map-container">
+          <div id="instrMap"></div>
+        </div>
+        <!-- Map controls -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn-s" style="font-size:.74rem;min-height:36px" onclick="mapToggleRadius()"><i class="bi bi-circle me-1"></i>Toggle Radius Rings</button>
+          <button class="btn-s" style="font-size:.74rem;min-height:36px" onclick="mapFitAll()"><i class="bi bi-fullscreen me-1"></i>Fit All Students</button>
+          <button class="btn-s" style="font-size:.74rem;min-height:36px" onclick="openMapPostcodeEdit()"><i class="bi bi-geo-alt me-1"></i>Change My Location</button>
+          <select id="mapFilterDist" class="dsq-inp" style="font-size:.74rem;padding:6px 10px;height:36px;min-height:36px" onchange="renderStudentDistList()">
+            <option value="all">All distances</option>
+            <option value="2">Within 2 miles</option>
+            <option value="5">Within 5 miles</option>
+            <option value="10">Within 10 miles</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--txt);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+          <span><i class="bi bi-sort-numeric-up me-1" style="color:var(--red)"></i>Students by Distance</span>
+          <span style="font-size:.68rem;color:var(--txt3)" id="mapDistCount"></span>
+        </div>
+        <div class="map-sidebar" id="studentDistList">
+          <div style="text-align:center;color:var(--txt4);padding:20px;font-size:.8rem">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST ROUTES SECTION -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt)"><i class="bi bi-signpost-2-fill me-2" style="color:var(--red)"></i>Manchester DVSA Test Routes</div>
+          <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">All known examiner routes from Manchester test centres — study them with your students before test day.</div>
+        </div>
+        <span style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.5px">INSTRUCTOR RESOURCE</span>
+      </div>
+
+      <!-- Test centre selector -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px">
+        <button class="tc-btn active" id="tc-didsbury" onclick="selectTestCentre('didsbury')">📍 Didsbury</button>
+        <button class="tc-btn" id="tc-sale" onclick="selectTestCentre('sale')">📍 Sale</button>
+        <button class="tc-btn" id="tc-stockport" onclick="selectTestCentre('stockport')">📍 Stockport</button>
+        <button class="tc-btn" id="tc-ashton" onclick="selectTestCentre('ashton')">📍 Ashton-u-Lyne</button>
+        <button class="tc-btn" id="tc-bolton" onclick="selectTestCentre('bolton')">📍 Bolton</button>
+      </div>
+
+      <!-- Test centre info bar -->
+      <div id="tcInfoBar" style="background:var(--dk3);border-radius:10px;padding:10px 14px;font-size:.76rem;color:var(--txt3);margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap"></div>
+
+      <!-- Route pills -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:.72rem;color:var(--txt3);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">Select Route</div>
+        <div id="routePills" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- Map -->
+      <div id="testRouteMap" style="margin-bottom:14px"></div>
+
+      <!-- Route details -->
+      <div id="routeDetails"></div>
+    </div>
+
+    <!-- Smart Day Builder -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt);margin-bottom:4px"><i class="bi bi-calendar-check-fill me-2" style="color:var(--red)"></i>Smart Day Builder</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:14px">Pick a radius and we'll suggest which students to cluster on the same day — minimising your dead miles.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <select id="dayBuilderRadius" class="dsq-inp" style="font-size:.8rem;padding:8px 10px;max-width:160px">
+          <option value="1">Within 1 mile</option>
+          <option value="2" selected>Within 2 miles</option>
+          <option value="3">Within 3 miles</option>
+          <option value="5">Within 5 miles</option>
+        </select>
+        <button class="btn-p" style="min-height:40px;padding:8px 18px;font-size:.82rem" onclick="buildSmartDay()"><i class="bi bi-magic me-1"></i>Suggest Cluster Day</button>
+      </div>
+      <div id="smartDayResult"></div>
+    </div>
+
+    <!-- Route Optimiser -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt);margin-bottom:4px"><i class="bi bi-signpost-split-fill me-2" style="color:var(--red)"></i>Route Optimiser</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:14px">Select students for a day and we'll calculate the shortest route order.</div>
+      <div style="font-size:.76rem;color:var(--txt3);margin-bottom:10px">Tick students to include in today's route:</div>
+      <div id="routePickerList" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-p" style="min-height:40px;padding:8px 18px;font-size:.82rem" onclick="optimiseRoute()"><i class="bi bi-geo me-1"></i>Optimise Route</button>
+        <button class="btn-s" style="min-height:40px;font-size:.82rem" onclick="selectAllRoute()"><i class="bi bi-check-all me-1"></i>Select All</button>
+      </div>
+      <div id="routeResult" style="margin-top:14px"></div>
+    </div>
+
+    <!-- Earnings & Fuel Calculator -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt);margin-bottom:4px"><i class="bi bi-calculator-fill me-2" style="color:var(--red)"></i>Earnings &amp; Fuel Calculator</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:14px">Estimate your net earnings for a day after fuel costs.</div>
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <label class="dsq-lbl">Lessons in day</label>
+          <input class="dsq-inp" id="calcLessons" type="number" value="4" min="1" max="12" oninput="calcEarnings()"/>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="dsq-lbl">Lesson duration (hrs)</label>
+          <input class="dsq-inp" id="calcDur" type="number" value="1" min="0.5" max="3" step="0.5" oninput="calcEarnings()"/>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="dsq-lbl">Rate per hour (£)</label>
+          <input class="dsq-inp" id="calcRate" type="number" value="33" min="20" max="60" oninput="calcEarnings()"/>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="dsq-lbl">Dead miles (est.)</label>
+          <input class="dsq-inp" id="calcMiles" type="number" value="15" min="0" oninput="calcEarnings()"/>
+        </div>
+      </div>
+      <div id="earningsResult" style="background:var(--dk3);border-radius:10px;padding:12px"></div>
+    </div>
+
+    <!-- Area Analytics -->
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt);margin-bottom:12px"><i class="bi bi-pie-chart-fill me-2" style="color:var(--red)"></i>Student Area Breakdown</div>
+      <div id="areaBreakdown"></div>
+    </div>
+
+  </div><!-- /mapMainContent -->
+</div><!-- /panel-map -->
+
   <!-- PROFILE TAB -->
   <div id="panel-profile" class="hidden pb-3">
     <div class="mb-3" style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)"><i class="bi bi-person-circle me-2" style="color:var(--red)"></i>My Profile</div>
@@ -679,6 +889,127 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </div>
       </div>
       <div class="col-12"><button class="btn-p" id="saveProfileBtn" onclick="saveProfile()"><i class="bi bi-check-lg me-1"></i>Save All Changes</button></div>
+
+      <!-- CROSS-DEVICE NOTICE -->
+      <div class="col-12">
+        <div style="background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:10px 14px;font-size:.78rem;color:#93c5fd;display:flex;align-items:center;gap:8px">
+          <i class="bi bi-laptop me-1"></i>
+          💻 Available on laptop, tablet &amp; mobile — works in any browser.
+        </div>
+      </div>
+
+      <!-- INSTALL APP BUTTON -->
+      <div class="col-12">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt2);margin-bottom:6px"><i class="bi bi-phone-fill me-2" style="color:var(--gold)"></i>Install App</div>
+          <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Add the DriveSQ dashboard to your home screen for quick access — no app store needed.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-gold-sm" id="profileInstallBtn" onclick="profileInstallApp()" style="font-size:.78rem;padding:8px 14px;min-height:36px"><i class="bi bi-download me-1"></i>📲 Install App</button>
+            <button class="btn-s" onclick="openHSModal()" style="font-size:.78rem;min-height:36px"><i class="bi bi-info-circle me-1"></i>How to Install</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PORTAL GUIDE ACCORDION -->
+      <div class="col-12">
+        <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt2);margin-bottom:10px"><i class="bi bi-book me-2" style="color:var(--red)"></i>📖 Portal Guide</div>
+          <div class="accordion" id="portalGuideAccordion">
+            <!-- Lesson Planner -->
+            <div class="accordion-item" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;margin-bottom:6px;overflow:hidden">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guide-lessons" style="background:var(--dk3);color:var(--txt);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;box-shadow:none;padding:10px 14px">
+                  <i class="bi bi-calendar-week me-2" style="color:#60a5fa"></i>Lesson Planner
+                </button>
+              </h2>
+              <div id="guide-lessons" class="accordion-collapse collapse" data-bs-parent="#portalGuideAccordion">
+                <div class="accordion-body" style="padding:10px 14px;font-size:.78rem;color:var(--txt3);line-height:1.6">
+                  Add lessons by clicking any day slot on the calendar — choose a saved student or enter details manually. Drag and drop lessons to reschedule them instantly.
+                  <ul style="margin-top:8px;margin-bottom:0;padding-left:18px">
+                    <li><strong>Add:</strong> Tap a date slot → fill in student, time, type → Save</li>
+                    <li><strong>Edit/Reschedule:</strong> Tap a lesson → edit date, time or type → Save</li>
+                    <li><strong>Confirm:</strong> You and your student both confirm attendance in-app</li>
+                    <li><strong>Delete:</strong> Open the lesson → tap the delete icon</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- Students Tab -->
+            <div class="accordion-item" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;margin-bottom:6px;overflow:hidden">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guide-students" style="background:var(--dk3);color:var(--txt);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;box-shadow:none;padding:10px 14px">
+                  <i class="bi bi-people-fill me-2" style="color:#4ade80"></i>Students Tab
+                </button>
+              </h2>
+              <div id="guide-students" class="accordion-collapse collapse" data-bs-parent="#portalGuideAccordion">
+                <div class="accordion-body" style="padding:10px 14px;font-size:.78rem;color:var(--txt3);line-height:1.6">
+                  The Students tab shows all your saved students. Tap any student card to open their full profile, view progress, topics, messages and theory results.
+                  <ul style="margin-top:8px;margin-bottom:0;padding-left:18px">
+                    <li>View lesson count, hours and progress status at a glance</li>
+                    <li>Share the student portal link via WhatsApp from the App Login tab</li>
+                    <li>Archive students who have passed or paused — keeps their history intact</li>
+                    <li>Use the Theory tab to see mock test scores and practical hours</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- Messages -->
+            <div class="accordion-item" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;margin-bottom:6px;overflow:hidden">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guide-messages" style="background:var(--dk3);color:var(--txt);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;box-shadow:none;padding:10px 14px">
+                  <i class="bi bi-chat-dots-fill me-2" style="color:var(--gold)"></i>Messages
+                </button>
+              </h2>
+              <div id="guide-messages" class="accordion-collapse collapse" data-bs-parent="#portalGuideAccordion">
+                <div class="accordion-body" style="padding:10px 14px;font-size:.78rem;color:var(--txt3);line-height:1.6">
+                  In-app messages go directly to your student's portal and trigger a push notification. WhatsApp links open a pre-filled message in WhatsApp — you still tap Send.
+                  <ul style="margin-top:8px;margin-bottom:0;padding-left:18px">
+                    <li>Chat tab inside a student's card → sends in-app message</li>
+                    <li>WhatsApp button → opens WA with a pre-filled greeting</li>
+                    <li>After rescheduling a lesson, you'll get a quick WA link to notify the student</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- Progress Tracking -->
+            <div class="accordion-item" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;margin-bottom:6px;overflow:hidden">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guide-progress" style="background:var(--dk3);color:var(--txt);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;box-shadow:none;padding:10px 14px">
+                  <i class="bi bi-graph-up me-2" style="color:#a855f7"></i>Progress Tracking
+                </button>
+              </h2>
+              <div id="guide-progress" class="accordion-collapse collapse" data-bs-parent="#portalGuideAccordion">
+                <div class="accordion-body" style="padding:10px 14px;font-size:.78rem;color:var(--txt3);line-height:1.6">
+                  The stats at the top of your dashboard show your weekly hours, total students, lessons this week and earnings. Update each student's practical hours and test readiness in their Progress tab.
+                  <ul style="margin-top:8px;margin-bottom:0;padding-left:18px">
+                    <li>Set hours done and target → student sees their progress bar in the app</li>
+                    <li>Set test readiness (Not Ready / Nearly There / Ready) — visible to student</li>
+                    <li>Rate driving topics (0–3) in the Topics tab — syncs to student app</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- Student App -->
+            <div class="accordion-item" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#guide-student-app" style="background:var(--dk3);color:var(--txt);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;box-shadow:none;padding:10px 14px">
+                  <i class="bi bi-phone me-2" style="color:var(--green)"></i>Student App
+                </button>
+              </h2>
+              <div id="guide-student-app" class="accordion-collapse collapse" data-bs-parent="#portalGuideAccordion">
+                <div class="accordion-body" style="padding:10px 14px;font-size:.78rem;color:var(--txt3);line-height:1.6">
+                  Direct students to <strong>drivesq.co.uk/student</strong> — they log in with their phone number. No download required; it works on any device and can be installed as an app.
+                  <ul style="margin-top:8px;margin-bottom:0;padding-left:18px">
+                    <li>Use the "Send Portal Link via WA" button (App Login tab) to share the link</li>
+                    <li>Students can view lessons, confirm bookings, study theory (700 questions + mocks)</li>
+                    <li>Their mock test results and practical hours appear in your dashboard's Theory tab</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -689,6 +1020,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <button class="mob-nb" id="mob-students" onclick="switchTab('students');setMobActive('students')"><i class="bi bi-people-fill"></i>Students</button>
   <button class="mob-nb" id="mob-requests" onclick="switchTab('requests');setMobActive('requests')"><i class="bi bi-person-plus-fill"></i>Requests<span class="mob-nb-badge hidden" id="mobReqBadge">0</span></button>
   <button class="mob-nb" id="mob-transfer" onclick="switchTab('transfer');setMobActive('transfer')"><i class="bi bi-arrow-left-right"></i>Transfer</button>
+  <button class="mob-nb" id="mob-map" onclick="switchTab('map');setMobActive('map')"><i class="bi bi-map-fill"></i>Map</button>
   <button class="mob-nb" id="mob-profile" onclick="switchTab('profile');setMobActive('profile')"><i class="bi bi-person-circle"></i>Profile</button>
 </div>
 
@@ -875,6 +1207,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <button class="dsq-tab" id="smt-messages" onclick="smTab('messages')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-chat-dots-fill me-1"></i>Chat<span id="smUnreadBadge" class="tab-badge ms-1 hidden">0</span></button>
       <button class="dsq-tab" id="smt-access" onclick="smTab('access')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-phone me-1"></i>App Login</button>
       <button class="dsq-tab" id="smt-feedback" onclick="smTab('feedback')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-star-fill me-1"></i>Feedback</button>
+      <button class="dsq-tab" id="smt-theory" onclick="smTab('theory')" style="flex:1;font-size:.72rem;padding:6px 4px"><i class="bi bi-mortarboard-fill me-1"></i>Theory</button>
     </div>
     <input type="hidden" id="smStudentName"/>
     <input type="hidden" id="smStudentAccId"/>
@@ -1000,6 +1333,13 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div id="smPanel-feedback" class="hidden">
       <div id="smFeedbackList"><div style="text-align:center;color:var(--txt4);padding:16px;font-size:.8rem">Loading feedback…</div></div>
     </div>
+
+    <!-- THEORY & PROGRESS TAB -->
+    <div id="smPanel-theory" class="hidden">
+      <div id="smTheoryContent">
+        <div style="text-align:center;color:var(--txt4);padding:20px;font-size:.8rem"><i class="bi bi-hourglass-split me-2"></i>Loading theory data…</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1120,7 +1460,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <div class="dsq-overlay" id="hsModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('hsModal')"><i class="bi bi-x-lg"></i></button>
-    <h5><i class="bi bi-phone me-2" style="color:var(--gold)"></i>Add to Home Screen</h5>
+    <h5><i class="bi bi-phone me-2" style="color:var(--gold)"></i>📲 Install App</h5>
     <div class="modal-sub">Access DriveSQ Portal like a native app</div>
     <div id="hsContent"></div>
   </div>
@@ -1303,11 +1643,12 @@ function updateNav(){
 }
 
 /* ── TABS ── */
-const TABS=['cal','students','requests','transfer','profile'];
+const TABS=['cal','students','requests','transfer','map','profile'];
 function switchTab(t){
   TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});
   if(t==='students')loadStudents();
   if(t==='transfer')populateTransferRosterDropdown();
+  if(t==='map')initMapTab();
 }
 // Helper — reload students if that tab is currently visible
 function reloadStudentsIfVisible(){
@@ -1624,7 +1965,7 @@ async function onDrop(e,toDate){
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
   await resetConfirmationOnReschedule(movingId);
-  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+toDate+'. Please reconfirm your attendance in the app.');}}catch(e){}
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg=`Hi ${_movedL.student_name||''}! Your lesson has been rescheduled to ${_rsFmt}${_rsTime?' at '+_rsTime:''}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){const _rsToastEl=document.getElementById('toast');showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);}}}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -2182,10 +2523,18 @@ async function openDetail(id){
 async function moveLesson(id,toDate,dayName){
   await sb.from('lessons').update({lesson_date:toDate}).eq('id',id);
   await resetConfirmationOnReschedule(id);
-  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been moved to '+dayName+' ('+toDate+'). Please reconfirm your attendance in the app.');}
+  const _mvFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  if(detailData&&detailData.student_account_id){notifyStudent(detailData.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_mvFmt+'. Please confirm at your portal.');}
+  const _mvPhone=detailData?.student_phone||'';
+  const _mvName=detailData?.student_name||'';
   closeModal('detailModal');
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
+  if(_mvPhone){
+    const _mvMsg=`Hi ${_mvName}! Your lesson has been rescheduled to ${_mvFmt}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;
+    const _mvUrl=waLink(_mvPhone,_mvMsg);
+    if(_mvUrl){showToast('Moved to '+dayName+' ✓ — <a href="'+_mvUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);return;}
+  }
   showToast('Moved to '+dayName+' ✓','success');
 }
 
@@ -2293,7 +2642,21 @@ async function saveEditedLesson(){
   await loadStudents();
   renderStudents(allStudentsArr);
   showToast('✓ Saved — '+new Date(newDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' at '+newTime,'success');
-  if(_updAccId){notifyStudent(_updAccId,'Lesson updated',wasRescheduled?'Your lesson has been moved to '+newDate+' at '+newTime+'. Please reconfirm your attendance in the app.':'Your lesson details have been updated. Check your app for the latest info.');}
+  if(_updAccId){
+    const _rsFmtDate=new Date(newDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+    if(wasRescheduled){
+      notifyStudent(_updAccId,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmtDate+' at '+newTime+'. Please confirm at your portal.');
+      const _rsPhone=phone||detailData?.student_phone||'';
+      if(_rsPhone){
+        const _rsMsg=`Hi ${studentName.split(' ')[0]}! 👋\n\n📅 *Lesson Update*\n\nYour lesson has been rescheduled:\n\n📆 *New date:* ${_rsFmtDate}\n⏰ *New time:* ${newTime}\n📍 Pickup: ${addr||'as agreed'}\n\nPlease confirm this on your student portal:\nhttps://www.drivesq.co.uk/student.html\n\nSorry for any inconvenience. See you then! 🚗\n— ${instr.name}, DriveSQ`;
+        const _rsUrl=waLink(_rsPhone,_rsMsg);
+        if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);
+        else showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');
+      } else {showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');}
+    } else {
+      notifyStudent(_updAccId,'Lesson updated','Your lesson details have been updated. Check your app for the latest info.');
+    }
+  }
 }
 
 async function deleteFromDetail(){
@@ -2564,7 +2927,7 @@ function openAddStudentModal(p,fromLesson){
 // this correctly. editStudentModal is kept only for adding a student who isn't in the roster yet.
 function openEditStudentFromDetail(name){closeModal('detailModal');const p=rosterMap[name.toLowerCase().trim()];if(!p)return;openStudentMgmt(name,'profile');}
 function updateWABtn(phone){const btn=document.getElementById('waStudentBtn');if(btn)btn.disabled=!phone||!cleanPhone(phone);}
-function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const url=waLink(phone,'Hi '+name+', this is your DriveSQ instructor. ');if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
+function openStudentWA(){const phone=document.getElementById('esSPhone').value.trim();const name=document.getElementById('esSName').value.trim();const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const url=waLink(phone,`Hi ${name}! This is ${instrName} from DriveSQ. `);if(url)window.open(url,'_blank');else showToast('Please enter a phone number first.');}
 async function saveStudentProfile(){
   const name=document.getElementById('esSName').value.trim();if(!name){showToast('Student name is required.');return;}
   const id=document.getElementById('editStudentId').value;
@@ -2624,7 +2987,7 @@ async function checkReminders(){
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');banner.className='reminder-banner';banner.id='rem-'+l.id;banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
-      const waRem=l.student_phone?waLink(l.student_phone,'Hi '+l.student_name+', just a reminder about your driving lesson at '+l.start_time+' today. See you soon! 🚗'):'';
+      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${l.student_name.split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
         <div class="flex-grow-1">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt);margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
@@ -2806,6 +3169,21 @@ async function populateInstrDropdowns(){
   document.getElementById('trToInstr').innerHTML='<option value="">Let admin decide</option>'+opts;
 }
 
+/* ── INSTALL APP (profile button) ── */
+function profileInstallApp(){
+  if(deferredInstall){
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(choice=>{
+      if(choice.outcome==='accepted'){showToast('Installing DriveSQ…','success');}
+      deferredInstall=null;
+      const btn=document.getElementById('profileInstallBtn');
+      if(btn)btn.disabled=true;
+    });
+  } else {
+    openHSModal();
+  }
+}
+
 /* ── HOME SCREEN ── */
 function openHSModal(){
   const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
@@ -2896,7 +3274,7 @@ function closeModal(id){const el=document.getElementById(id);if(!el){console.war
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
-function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),3200);}
+function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
 
 
 /* ══════════════════════════════════════════════════════
@@ -3025,14 +3403,76 @@ async function openStudentMgmt(studentName, tab='profile'){
 }
 
 function smTab(tab){
-  ['profile','progress','topics','messages','access','feedback'].forEach(t=>{
+  ['profile','progress','topics','messages','access','feedback','theory'].forEach(t=>{
     document.getElementById('smPanel-'+t)?.classList.toggle('hidden',t!==tab);
     document.getElementById('smt-'+t)?.classList.toggle('active',t===tab);
   });
   if(tab==='topics')smLoadTopics();
   if(tab==='messages')smLoadMessages();
   if(tab==='feedback')smLoadFeedback();
+  if(tab==='theory')smLoadTheory();
   if(tab!=='messages'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}
+}
+
+async function smLoadTheory(){
+  const container=document.getElementById('smTheoryContent');
+  if(!smCurrentAccId){
+    container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:20px;font-size:.8rem"><i class="bi bi-person-x me-2"></i>This student hasn\'t registered in the app yet.</div>';
+    return;
+  }
+  container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:20px;font-size:.8rem"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  try{
+    const[mockRes,progRes]=await Promise.all([
+      sb.from('student_theory_mock_results').select('test_number,score,total,passed,created_at').eq('student_account_id',smCurrentAccId).order('created_at',{ascending:false}).limit(10),
+      sb.from('student_progress').select('total_hours_done,target_hours,test_readiness').eq('student_account_id',smCurrentAccId).maybeSingle()
+    ]);
+    const mocks=mockRes.data||[];
+    const prog=progRes.data||null;
+    let html='';
+    // Practical progress
+    html+='<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:10px">';
+    html+='<div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🚗 Practical Progress</div>';
+    if(prog){
+      const done=parseFloat(prog.total_hours_done)||0;
+      const target=parseFloat(prog.target_hours)||1;
+      const pct=Math.min(100,Math.round(done/target*100));
+      const readMap={not_ready:'🔴 Not Ready',nearly_there:'🟡 Nearly There',ready:'🟢 Ready for Test'};
+      html+=`<div class="d-flex justify-content-between mb-1" style="font-size:.78rem;color:var(--txt2)"><span><strong>${done}</strong> hrs done</span><span>Target: <strong>${target}</strong> hrs</span></div>`;
+      html+=`<div style="height:8px;background:var(--dk2);border-radius:4px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--red),#f97316);border-radius:4px"></div></div>`;
+      html+=`<div style="font-size:.78rem;color:var(--txt3)">Test Readiness: <strong>${readMap[prog.test_readiness]||prog.test_readiness||'—'}</strong></div>`;
+    } else {
+      html+='<div style="font-size:.78rem;color:var(--txt4)">No progress data recorded yet.</div>';
+    }
+    html+='</div>';
+    // Theory mock results
+    html+='<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px">';
+    html+='<div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📝 Theory Mock Tests</div>';
+    if(mocks.length){
+      const best=mocks.reduce((b,m)=>(!b||m.score>b.score)?m:b,null);
+      const passed=mocks.filter(m=>m.passed).length;
+      html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">`;
+      html+=`<div style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:8px 12px;flex:1;min-width:80px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:900;color:#60a5fa">${mocks.length}</div><div style="font-size:.63rem;color:var(--txt4)">Tests taken</div></div>`;
+      html+=`<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:8px 12px;flex:1;min-width:80px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:900;color:#4ade80">${passed}</div><div style="font-size:.63rem;color:var(--txt4)">Passed</div></div>`;
+      html+=`<div style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:8px;padding:8px 12px;flex:1;min-width:80px;text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:900;color:var(--gold)">${best?best.score+'/'+best.total:'—'}</div><div style="font-size:.63rem;color:var(--txt4)">Best score</div></div>`;
+      html+='</div>';
+      html+='<div style="font-size:.68rem;color:var(--txt4);margin-bottom:6px">Recent results</div>';
+      mocks.slice(0,5).forEach(m=>{
+        const passColor=m.passed?'#4ade80':'#f87171';
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr)">
+          <span style="font-size:.78rem;color:var(--txt2)">Test #${m.test_number||'—'} — ${m.score||0}/${m.total||50}</span>
+          <span style="font-size:.7rem;font-weight:700;color:${passColor}">${m.passed?'PASS':'FAIL'}</span>
+          <span style="font-size:.63rem;color:var(--txt4)">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
+        </div>`;
+      });
+    } else {
+      html+='<div style="font-size:.78rem;color:var(--txt4)">No mock tests completed yet.</div>';
+    }
+    html+='</div>';
+    container.innerHTML=html;
+  }catch(e){
+    container.innerHTML='<div style="text-align:center;color:#f87171;padding:20px;font-size:.8rem">Error loading theory data.</div>';
+    console.error('smLoadTheory error:',e);
+  }
 }
 
 async function smLoadFeedback(){
@@ -3140,7 +3580,8 @@ async function smToggleArchive(){
 
 function smWhatsApp(){
   const phone=document.getElementById('smEditPhone').value.trim()||rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
-  const url=waLink(phone,'Hi '+smCurrentName+', this is your DriveSQ instructor. ');
+  const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
+  const url=waLink(phone,`Hi ${smCurrentName}! This is ${instrName} from DriveSQ. `);
   if(url)window.open(url,'_blank');
   else showToast('No phone number saved.');
 }
@@ -3416,21 +3857,766 @@ async function notifyStudent(studentAccId,title,body){
 function smShareLink(){
   const phone=rosterMap[smCurrentName.toLowerCase().trim()]?.phone||'';
   if(!phone){showToast('Add a phone number to this student first.');return;}
-  const _base=window.location.hostname==='localhost'||window.location.protocol==='file:'?'https://www.drivesq.co.uk':window.location.origin;
-  const studentUrl=_base+'/student.html';
-  const msg=`Hi ${smCurrentName}! 👋\n\nYour DriveSQ Student Portal is ready!\n\n📱 Open this link:\n${studentUrl}\n\n📞 Log in with your phone number: ${phone}\n\nTrack your progress, confirm lessons and message me directly. See you on the road! 🚗\n— Your DriveSQ Instructor`;
+  const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
+  const studentUrl='https://www.drivesq.co.uk/student.html';
+  const msg=`Hi ${esc(smCurrentName.split(' ')[0])}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${esc(instrName)}, DriveSQ Instructor`;
   const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
   const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
 }
 
+/* ══════════════════════════════
+   MANCHESTER DVSA TEST ROUTES
+══════════════════════════════ */
+
+const TEST_CENTRES = {
+  didsbury: {
+    name: 'Didsbury Test Centre',
+    address: 'Kingsway, Didsbury, Manchester M20 6BE',
+    lat: 53.4089, lng: -2.2351,
+    duration: '~40 minutes',
+    tips: 'Watch speed on Kingsway dual carriageway. Barlow Moor Road has multiple mini-roundabouts — give way correctly. Parrs Wood roundabout is heavily used.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Northenden Loop', color: '#f87171',
+        description: 'Kingsway → Princess Parkway → Simonsway → Northenden Road → Palatine Road → Wilmslow Road → return',
+        duration: '38–42 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4050,-2.2420],[53.3990,-2.2510],[53.3950,-2.2570],
+          [53.4010,-2.2640],[53.4080,-2.2580],[53.4120,-2.2500],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Princess Parkway (A5103)', tip:'Dual carriageway — match speed of traffic, typically 50mph. Check mirrors frequently.'},
+          {spot:'Simonsway roundabout', tip:'Multi-lane roundabout. Keep left for Northenden, signal correctly when exiting.'},
+          {spot:'Northenden Road', tip:'30mph residential. Watch for pedestrians crossing near shops. Speed cameras active.'},
+          {spot:'Palatine Road', tip:'Long straight road — easy to creep over 30mph. Consistent mirror checks expected.'},
+          {spot:'Return to Kingsway', tip:'Right turn at busy junction. Wait for clear gap — examiners note hesitation vs unsafe moves.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — West Didsbury Loop', color: '#60a5fa',
+        description: 'Kingsway → Burton Road → Manchester Road → Barlow Moor Road → Hardy Lane → Chorlton → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4120,-2.2430],[53.4160,-2.2520],[53.4140,-2.2610],
+          [53.4100,-2.2680],[53.4070,-2.2620],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Burton Road', tip:'Narrow residential street. Watch parked cars — give way to oncoming where needed. 20mph zone.'},
+          {spot:'Manchester Road (West Didsbury)', tip:'Mixed speed limits. Look for signs — changes from 30 to 20mph near school zone.'},
+          {spot:'Barlow Moor Road', tip:'Multiple mini-roundabouts in quick succession. Treat each individually. Give way to right.'},
+          {spot:'Hardy Lane', tip:'Quiet residential — examiners often test independent driving here. Follow road signs carefully.'},
+          {spot:'Chorlton Green', tip:'Village area with parked cars both sides. Slow, controlled driving expected.'}
+        ]
+      },
+      {
+        id: 'r3', label: 'Route 3 — Burnage Loop', color: '#4ade80',
+        description: 'Kingsway → Fog Lane → Burnage Lane → Stockport Road → Mauldeth Road → Withington → return',
+        duration: '35–40 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4050,-2.2280],[53.4010,-2.2200],[53.3980,-2.2130],
+          [53.4020,-2.2050],[53.4060,-2.2150],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Fog Lane', tip:'Busy junction at start. Signal early for left turn. Watch for cyclists.'},
+          {spot:'Burnage Lane', tip:'Residential with speed humps. Stay at 20mph. Check mirrors over humps.'},
+          {spot:'Stockport Road (A6)', tip:'Busy A-road. Lane discipline critical — multiple lanes. Keep left unless overtaking.'},
+          {spot:'Mauldeth Road', tip:'Common reversal manoeuvre spot. Wide road but watch traffic behind when stopping.'},
+          {spot:'Withington area', tip:'Bus routes active — give buses space. Watch bus stops for passengers stepping out.'}
+        ]
+      },
+      {
+        id: 'r4', label: 'Route 4 — Chorlton Loop', color: '#e879f9',
+        description: 'Kingsway → Palatine Road → Barlow Moor Road → Beech Road → Edge Lane → Chorlton → return',
+        duration: '37–42 min',
+        waypoints: [
+          [53.4089,-2.2351],[53.4110,-2.2470],[53.4130,-2.2580],[53.4160,-2.2650],
+          [53.4180,-2.2570],[53.4150,-2.2480],[53.4089,-2.2351]
+        ],
+        tips: [
+          {spot:'Palatine Road start', tip:'Left filter lane at Kingsway — use it. Do not block the straight-ahead lane.'},
+          {spot:'Barlow Moor Road/Edge Lane junction', tip:'Give way signs. Pause even if clear — examiners note rolling through give way marks.'},
+          {spot:'Beech Road', tip:'Very narrow. If meeting oncoming traffic, pull into a safe gap and wait. Do not force through.'},
+          {spot:'Chorlton town centre', tip:'Busy pedestrian crossing (Pelican/Toucan). React early to lights. Watch for cyclists.'},
+          {spot:'Return Kingsway', tip:'Independent driving section often finishes here. Follow directions to test centre accurately.'}
+        ]
+      }
+    ]
+  },
+  sale: {
+    name: 'Sale Test Centre',
+    address: 'Northenden Road, Sale, Manchester M33 2DH',
+    lat: 53.4243, lng: -2.3227,
+    duration: '~38 minutes',
+    tips: 'Washway Road is a fast A56 dual carriageway — students often exceed 40mph limit. School Road and Sale town centre have many pedestrian crossings.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Brooklands Loop', color: '#f87171',
+        description: 'Northenden Road → Washway Road → Brooklands Road → Altrincham Road → Manchester Road → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4200,-2.3310],[53.4160,-2.3400],[53.4120,-2.3480],
+          [53.4140,-2.3550],[53.4180,-2.3470],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'Northenden Road', tip:'Tricky right turn out of test centre onto busy road. Wait for a clear, safe gap.'},
+          {spot:'Washway Road (A56)', tip:'Dual carriageway with 40mph limit — students often speed here. Mirror, signal, manoeuvre for lane changes.'},
+          {spot:'Brooklands Road', tip:'Long straight suburban road. Consistent 30mph. Regular mirror checks expected.'},
+          {spot:'Altrincham Road junction', tip:'Traffic lights — approach in correct lane. Filter left if turning left.'},
+          {spot:'Manchester Road', tip:'Bus route with frequent stops. Leave 1.5m gap passing buses. Check over shoulder for cyclists.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Sale Moor Loop', color: '#60a5fa',
+        description: 'Northenden Road → School Road → Sale Moor → Tatton Road → Wythenshawe Road → return',
+        duration: '35–38 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4210,-2.3150],[53.4180,-2.3080],[53.4150,-2.3000],
+          [53.4120,-2.3080],[53.4160,-2.3150],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'School Road', tip:'School zone — reduced speed limit during school hours. Watch for children and parents parking.'},
+          {spot:'Sale Moor village', tip:'Mini-roundabout at junction. Give way to right. Signal clearly when exiting.'},
+          {spot:'Tatton Road', tip:'Quiet residential. Examiners may ask for independent driving here — follow road signs.'},
+          {spot:'Wythenshawe Road', tip:'Joins busier road. MSPSL routine important. Check mirrors twice before turning right.'},
+          {spot:'Return to test centre', tip:'Final approach past test centre entrance — signal left early and pull in smoothly.'}
+        ]
+      },
+      {
+        id: 'r3', label: 'Route 3 — Town Centre Loop', color: '#4ade80',
+        description: 'Northenden Road → Marsland Road → Sale town centre → Tatton Road → return',
+        duration: '33–37 min',
+        waypoints: [
+          [53.4243,-2.3227],[53.4270,-2.3290],[53.4300,-2.3340],[53.4280,-2.3250],
+          [53.4260,-2.3150],[53.4243,-2.3227]
+        ],
+        tips: [
+          {spot:'Marsland Road', tip:'Multiple pedestrian crossings. React early. Do not creep past amber.'},
+          {spot:'Sale town centre', tip:'Complex one-way system sections. Pre-drive with students. Lane choice is critical.'},
+          {spot:'Taxi rank / bus stops', tip:'Frequent stops. Do not cut in front of buses pulling away. Be patient.'},
+          {spot:'Tatton Road return', tip:'Multiple speed bumps. Approach at 10mph. Check mirrors before each one.'},
+          {spot:'Test centre approach', tip:'Final instructions given here. Do not get distracted — last impressions count.'}
+        ]
+      }
+    ]
+  },
+  stockport: {
+    name: 'Stockport Test Centre',
+    address: 'Heaton Lane, Stockport SK4 1BS',
+    lat: 53.4073, lng: -2.1547,
+    duration: '~38 minutes',
+    tips: 'Wellington Road (A6) is very busy with complex lane markings. Edgeley area has narrow streets and parked cars. Traffic around Stockport town centre is heavy at peak times.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Wellington Road Loop', color: '#f87171',
+        description: 'Heaton Lane → Wellington Road (A6) → Shaw Heath → Edgeley Road → Dialstone Lane → return',
+        duration: '37–42 min',
+        waypoints: [
+          [53.4073,-2.1547],[53.4040,-2.1610],[53.4000,-2.1680],[53.3970,-2.1620],
+          [53.3990,-2.1550],[53.4030,-2.1530],[53.4073,-2.1547]
+        ],
+        tips: [
+          {spot:'Wellington Road (A6)', tip:'Busy dual carriageway. Multiple lanes — stay left unless turning. Frequent traffic lights.'},
+          {spot:'Shaw Heath', tip:'One-way sections. Know the road layout before the test. Lane discipline essential.'},
+          {spot:'Edgeley Road', tip:'Residential. Parked cars on both sides in places. Pass safely when clear.'},
+          {spot:'Dialstone Lane', tip:'Challenging uphill starts here sometimes. Hill start technique must be solid.'},
+          {spot:'Return Heaton Lane', tip:'Left turn into test centre. Signal early. Check mirror for following traffic.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Cheadle Loop', color: '#60a5fa',
+        description: 'Heaton Lane → Stockport Road → Cheadle Heath → Adswood Road → Bramhall Lane → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4073,-2.1547],[53.4030,-2.1650],[53.3990,-2.1760],[53.3960,-2.1840],
+          [53.3990,-2.1700],[53.4040,-2.1600],[53.4073,-2.1547]
+        ],
+        tips: [
+          {spot:'Stockport Road', tip:'Fast A-road. Anticipate traffic and use MSM early. Speed limit 40mph in sections.'},
+          {spot:'Cheadle Heath junction', tip:'Traffic lights with filter arrows. Use the filter when clear — do not hesitate.'},
+          {spot:'Adswood Road', tip:'Quiet suburban — often used for independent driving instruction. Follow signs accurately.'},
+          {spot:'Bramhall Lane', tip:'Long straight with parked cars. Normal driving position — do not hug centre line.'},
+          {spot:'Final return', tip:'Right turn into Heaton Lane can be tight. Position car correctly before turning.'}
+        ]
+      }
+    ]
+  },
+  ashton: {
+    name: 'Ashton-under-Lyne Test Centre',
+    address: 'Henrietta Street, Ashton-under-Lyne OL6 7SH',
+    lat: 53.4897, lng: -2.0947,
+    duration: '~38 minutes',
+    tips: 'Guide Bridge area involves complex traffic light sequences. Stamford Street is a busy town centre road. Oldham Road has HGV traffic — maintain safe following distance.',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Guide Bridge Loop', color: '#f87171',
+        description: 'Henrietta Street → Stamford Street → Oldham Road → Guide Bridge → Katherine Street → return',
+        duration: '35–40 min',
+        waypoints: [
+          [53.4897,-2.0947],[53.4860,-2.0900],[53.4820,-2.0840],[53.4790,-2.0770],
+          [53.4830,-2.0830],[53.4860,-2.0890],[53.4897,-2.0947]
+        ],
+        tips: [
+          {spot:'Stamford Street', tip:'Town centre. Heavy pedestrian activity. React early to crossings.'},
+          {spot:'Oldham Road', tip:'HGV route. Keep safe 2-second gap from large vehicles. Watch for side roads.'},
+          {spot:'Guide Bridge', tip:'Complex traffic lights and tram crossings (Metrolink). Never cross on amber.'},
+          {spot:'Katherine Street', tip:'Residential. Watch for school traffic in mornings. 20mph zone applies.'},
+          {spot:'Return route', tip:'Do not rely on sat-nav at test — follow examiner directions precisely.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Dukinfield Loop', color: '#60a5fa',
+        description: 'Henrietta Street → Wellington Road → Dukinfield → Kings Road → Yew Tree Lane → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.4897,-2.0947],[53.4930,-2.0880],[53.4960,-2.0820],[53.4990,-2.0760],
+          [53.4960,-2.0840],[53.4920,-2.0910],[53.4897,-2.0947]
+        ],
+        tips: [
+          {spot:'Wellington Road', tip:'Long straight — maintain 30mph throughout. Mirror check every 8–10 seconds.'},
+          {spot:'Dukinfield town centre', tip:'Parked cars and delivery vehicles common. Observation and patience tested.'},
+          {spot:'Kings Road', tip:'Residential quiet road. Reversing manoeuvre often done near here.'},
+          {spot:'Yew Tree Lane', tip:'Uphill in sections. Clutch control and smooth acceleration critical.'},
+          {spot:'Final stretch', tip:'This route returns via busy junction. Position well in advance for turns.'}
+        ]
+      }
+    ]
+  },
+  bolton: {
+    name: 'Bolton Test Centre',
+    address: 'Moor Lane, Bolton BL1 4BD',
+    lat: 53.5768, lng: -2.4284,
+    duration: '~40 minutes',
+    tips: 'Chorley New Road is a fast 40mph road — students frequently speed here. Trunk Road system near town centre has complex multi-lane layouts. Watch for tram routes (future Metrolink extension).',
+    routes: [
+      {
+        id: 'r1', label: 'Route 1 — Chorley New Road Loop', color: '#f87171',
+        description: 'Moor Lane → Trinity Street → Chorley New Road → Lostock Lane → Beaumont Road → return',
+        duration: '38–43 min',
+        waypoints: [
+          [53.5768,-2.4284],[53.5730,-2.4340],[53.5680,-2.4430],[53.5630,-2.4520],
+          [53.5660,-2.4420],[53.5710,-2.4340],[53.5768,-2.4284]
+        ],
+        tips: [
+          {spot:'Trinity Street', tip:'Town centre bus corridor. Do not block bus stops. Keep moving with traffic flow.'},
+          {spot:'Chorley New Road (A673)', tip:'40mph road — easy to exceed. Dual carriageway in sections. MSM on every change.'},
+          {spot:'Lostock Lane', tip:'Suburban — residential parking. Allow cyclists space when overtaking.'},
+          {spot:'Beaumont Road', tip:'Quiet — examiners test independent driving here. Follow road signs to test centre.'},
+          {spot:'Return to Moor Lane', tip:'Signal right early for test centre entrance. Do not cut across traffic.'}
+        ]
+      },
+      {
+        id: 'r2', label: 'Route 2 — Deane Loop', color: '#60a5fa',
+        description: 'Moor Lane → Deane Road → Junction Road → Hulton Lane → Wigan Road → return',
+        duration: '36–40 min',
+        waypoints: [
+          [53.5768,-2.4284],[53.5750,-2.4380],[53.5720,-2.4480],[53.5690,-2.4560],
+          [53.5720,-2.4470],[53.5750,-2.4360],[53.5768,-2.4284]
+        ],
+        tips: [
+          {spot:'Deane Road', tip:'Heavy traffic at rush hours. Lane markings at junctions — read them well in advance.'},
+          {spot:'Junction Road', tip:'Confusingly named — it IS a junction with multiple roads. Signal early and clearly.'},
+          {spot:'Hulton Lane', tip:'Long stretch past school. 20mph outside school times. Speed awareness critical.'},
+          {spot:'Wigan Road (A58)', tip:'A-road with moderate traffic. Consistent speed and position. Overtake only when safe.'},
+          {spot:'Final approach', tip:'Right turn back to Moor Lane — wait for safe gap. Do not rush the examiner.'}
+        ]
+      }
+    ]
+  }
+};
+
+let _tcMap = null;          // Leaflet map for test routes
+let _tcRouteLines = [];     // polylines on tc map
+let _tcMarkers = [];        // markers on tc map
+let _activeTc = 'didsbury';
+let _activeRouteId = null;
+
+function selectTestCentre(tc){
+  _activeTc = tc;
+  _activeRouteId = null;
+  // Update buttons
+  Object.keys(TEST_CENTRES).forEach(k=>{
+    const b=document.getElementById('tc-'+k);
+    if(b)b.classList.toggle('active',k===tc);
+  });
+  const centre=TEST_CENTRES[tc];
+  // Update info bar
+  document.getElementById('tcInfoBar').innerHTML=`
+    <span><i class="bi bi-geo-alt-fill me-1" style="color:var(--red)"></i><strong>${esc(centre.name)}</strong></span>
+    <span><i class="bi bi-map me-1"></i>${esc(centre.address)}</span>
+    <span><i class="bi bi-clock me-1"></i>Test duration: ${centre.duration}</span>
+    <div style="width:100%;color:var(--txt3);margin-top:4px;font-size:.74rem"><i class="bi bi-info-circle me-1" style="color:var(--gold)"></i>${esc(centre.tips)}</div>
+  `;
+  // Render route pills
+  const pills=document.getElementById('routePills');
+  pills.innerHTML=centre.routes.map(r=>`<button class="route-pill" id="rpill-${r.id}" onclick="selectTestRoute('${tc}','${r.id}')">${r.label}</button>`).join('');
+  // Init or reset map
+  initTcMap(tc);
+  // Auto-select first route
+  selectTestRoute(tc, centre.routes[0].id);
+  document.getElementById('routeDetails').innerHTML='';
+}
+
+function initTcMap(tc){
+  const centre=TEST_CENTRES[tc];
+  if(_tcMap){_tcMap.remove();_tcMap=null;_tcRouteLines=[];_tcMarkers=[];}
+  _tcMap=L.map('testRouteMap').setView([centre.lat,centre.lng],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_tcMap);
+  // Test centre marker
+  const tcIcon=L.divIcon({className:'',html:`<div style="background:#D10A11;border:3px solid #fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">🏛️</div>`,iconSize:[32,32],iconAnchor:[16,16]});
+  L.marker([centre.lat,centre.lng],{icon:tcIcon}).addTo(_tcMap).bindPopup(`<b>${esc(centre.name)}</b><br><span style="font-size:.8em">${esc(centre.address)}</span>`).openPopup();
+}
+
+function selectTestRoute(tc, routeId){
+  _activeRouteId=routeId;
+  const centre=TEST_CENTRES[tc];
+  const route=centre.routes.find(r=>r.id===routeId);
+  if(!route||!_tcMap)return;
+  // Update pills
+  centre.routes.forEach(r=>{
+    const p=document.getElementById('rpill-'+r.id);
+    if(p)p.classList.toggle('active',r.id===routeId);
+  });
+  // Clear old lines
+  _tcRouteLines.forEach(l=>l.remove());_tcRouteLines=[];
+  _tcMarkers.forEach(m=>m.remove());_tcMarkers=[];
+  // Draw route polyline with animation-like thick line
+  const line=L.polyline(route.waypoints,{color:route.color,weight:5,opacity:.85,lineJoin:'round',lineCap:'round'}).addTo(_tcMap);
+  // Draw direction arrows
+  const arrowLine=L.polyline(route.waypoints,{color:route.color,weight:2,opacity:.4,dashArray:'10 8'}).addTo(_tcMap);
+  _tcRouteLines.push(line,arrowLine);
+  // Add waypoint markers (start/end only + key points)
+  const startIcon=L.divIcon({className:'',html:`<div style="background:${route.color};border:2px solid #fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#111;box-shadow:0 1px 4px rgba(0,0,0,.3)">S</div>`,iconSize:[20,20],iconAnchor:[10,10]});
+  const sm=L.marker(route.waypoints[0],{icon:startIcon}).addTo(_tcMap).bindTooltip('Start / End: Test Centre',{direction:'top'});
+  _tcMarkers.push(sm);
+  // Fit map to route
+  _tcMap.fitBounds(L.latLngBounds(route.waypoints),{padding:[28,28]});
+  // Render route details
+  document.getElementById('routeDetails').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt);margin-bottom:2px">${esc(route.label)}</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:6px"><i class="bi bi-arrow-right-circle me-1"></i>${esc(route.description)}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:.72rem;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);color:#f87171;padding:3px 10px;border-radius:999px"><i class="bi bi-clock me-1"></i>${esc(route.duration)}</span>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:.78rem;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Key Junctions &amp; Examiner Hotspots</div>
+      ${route.tips.map(t=>`<div class="route-tip-card"><strong>${esc(t.spot)}</strong><br>${esc(t.tip)}</div>`).join('')}
+    </div>
+  `;
+}
+
+/* ══════════════════════════════
+   SMART CLUSTER PLANNER — MAP TAB
+══════════════════════════════ */
+
+let _instrMap = null;          // Leaflet map instance
+let _instrMarker = null;       // Instructor's marker
+let _studentMarkers = [];      // Array of {marker, student}
+let _radiusCircles = [];       // Distance ring circles
+let _routePolyline = null;     // Route line on map
+let _geoCache = {};            // postcode → {lat, lng} cache
+let _studentGeoData = [];      // [{student, lat, lng, dist}] sorted by dist
+let _instrLat = null;
+let _instrLng = null;
+let _radiusVisible = false;
+let _mapInitialised = false;
+
+/* ── Utility ── */
+function extractPostcode(str){
+  if(!str)return null;
+  const m=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i);
+  if(m)return m[1].trim().toUpperCase();
+  // outward code only e.g. M20, SK3
+  const o=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/i);
+  return o?o[1].trim().toUpperCase():null;
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=3958.8;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+
+function loadGeoCache(){
+  try{_geoCache=JSON.parse(localStorage.getItem('dsq_geo_cache_v2')||'{}');}catch(e){_geoCache={};}
+}
+function saveGeoCache(){
+  try{localStorage.setItem('dsq_geo_cache_v2',JSON.stringify(_geoCache));}catch(e){}
+}
+
+async function geocodePostcode(pc){
+  if(!pc)return null;
+  const key=pc.replace(/\s/g,'').toUpperCase();
+  if(_geoCache[key])return _geoCache[key];
+  try{
+    // Try full postcode first
+    let r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(key)}`);
+    let d=await r.json();
+    if(d.status===200&&d.result){
+      const c={lat:d.result.latitude,lng:d.result.longitude};
+      _geoCache[key]=c;saveGeoCache();return c;
+    }
+    // Try outward code (e.g. M20)
+    r=await fetch(`https://api.postcodes.io/outcodes/${encodeURIComponent(key)}`);
+    d=await r.json();
+    if(d.status===200&&d.result){
+      const c={lat:d.result.latitude,lng:d.result.longitude};
+      _geoCache[key]=c;saveGeoCache();return c;
+    }
+  }catch(e){console.warn('Geocode failed for',pc,e);}
+  return null;
+}
+
+async function bulkGeocodePostcodes(postcodes){
+  const unique=[...new Set(postcodes.map(p=>p.replace(/\s/g,'').toUpperCase()).filter(Boolean))];
+  const needed=unique.filter(p=>!_geoCache[p]);
+  if(!needed.length)return;
+  // Split into batches of 100 (API limit)
+  for(let i=0;i<needed.length;i+=100){
+    const batch=needed.slice(i,i+100);
+    try{
+      const r=await fetch('https://api.postcodes.io/postcodes',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({postcodes:batch})
+      });
+      const d=await r.json();
+      (d.result||[]).forEach(item=>{
+        if(item.result){
+          const key=item.query.replace(/\s/g,'').toUpperCase();
+          _geoCache[key]={lat:item.result.latitude,lng:item.result.longitude};
+        }
+      });
+      saveGeoCache();
+    }catch(e){console.warn('Bulk geocode error:',e);}
+  }
+  // For any still missing, try outcode endpoint
+  const stillMissing=needed.filter(p=>!_geoCache[p]);
+  for(const pc of stillMissing){
+    await geocodePostcode(pc);
+  }
+}
+
+/* ── Instructor postcode management ── */
+function getInstrPostcode(){
+  // Try instr.postcode first, then extract from instr.area
+  return instr.postcode || extractPostcode(instr.area) || null;
+}
+
+async function initMapTab(){
+  loadGeoCache();
+  const pc=getInstrPostcode();
+  if(!pc){
+    document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+    document.getElementById('mapMainContent').classList.add('hidden');
+    return;
+  }
+  document.getElementById('mapPostcodePrompt').classList.add('hidden');
+  document.getElementById('mapMainContent').classList.remove('hidden');
+  // Geocode instructor location
+  const instrGeo=await geocodePostcode(pc);
+  if(!instrGeo){
+    document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+    document.getElementById('mapPostcodeErr').textContent='Could not find postcode "'+pc+'". Please enter a valid UK postcode.';
+    document.getElementById('mapMainContent').classList.add('hidden');
+    return;
+  }
+  _instrLat=instrGeo.lat;_instrLng=instrGeo.lng;
+  await loadAndGeoStudents();
+  initLeafletMap();
+  renderStudentDistList();
+  renderRoutePicker();
+  calcEarnings();
+  renderAreaBreakdown();
+  updateMapStats();
+  // Init test routes section
+  setTimeout(()=>selectTestCentre('didsbury'),150);
+}
+
+async function saveMapPostcode(){
+  const pc=document.getElementById('mapPostcodeInput').value.trim().toUpperCase();
+  const errEl=document.getElementById('mapPostcodeErr');
+  if(!pc){errEl.textContent='Please enter a postcode.';return;}
+  errEl.textContent='Checking…';
+  const geo=await geocodePostcode(pc);
+  if(!geo){errEl.textContent='Postcode not found. Please enter a valid UK postcode (e.g. M20 1AA).';return;}
+  // Save to instructor profile
+  try{
+    await sb.from('instructors').update({area:pc}).eq('id',instr.id);
+    instr.area=pc;
+    errEl.textContent='';
+    initMapTab();
+  }catch(e){errEl.textContent='Could not save. Please try again.';}
+}
+
+function openMapPostcodeEdit(){
+  document.getElementById('mapPostcodePrompt').classList.remove('hidden');
+  document.getElementById('mapMainContent').classList.add('hidden');
+  document.getElementById('mapPostcodeInput').value=getInstrPostcode()||'';
+}
+
+/* ── Load students and geocode their addresses ── */
+async function loadAndGeoStudents(){
+  // Get all students from roster
+  const students=Object.values(rosterMap||{});
+  if(!students.length){_studentGeoData=[];return;}
+  // Extract postcodes
+  const postcodes=students.map(s=>extractPostcode(s.address||s.phone||'')).filter(Boolean);
+  await bulkGeocodePostcodes(postcodes);
+  // Build geodata array
+  const results=[];
+  for(const s of students){
+    const pc=extractPostcode(s.address||'');
+    if(!pc)continue;
+    const key=pc.replace(/\s/g,'').toUpperCase();
+    const geo=_geoCache[key];
+    if(!geo)continue;
+    const dist=haversine(_instrLat,_instrLng,geo.lat,geo.lng);
+    results.push({student:s,lat:geo.lat,lng:geo.lng,dist:Math.round(dist*10)/10,postcode:pc});
+  }
+  results.sort((a,b)=>a.dist-b.dist);
+  _studentGeoData=results;
+}
+
+/* ── Leaflet map ── */
+function initLeafletMap(){
+  if(_instrMap){
+    _instrMap.remove();_instrMap=null;_instrMarker=null;_studentMarkers=[];_radiusCircles=[];_routePolyline=null;
+  }
+  // Initialise centred on instructor
+  _instrMap=L.map('instrMap',{zoomControl:true}).setView([_instrLat,_instrLng],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(_instrMap);
+
+  // Instructor marker (red star)
+  const instrIcon=L.divIcon({className:'',html:`<div style="width:32px;height:32px;background:var(--red,#D10A11);border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">⭐</div>`,iconSize:[32,32],iconAnchor:[16,16]});
+  _instrMarker=L.marker([_instrLat,_instrLng],{icon:instrIcon,zIndexOffset:1000}).addTo(_instrMap).bindPopup('<b>📍 Your Location</b><br>'+esc(getInstrPostcode()||''));
+
+  // Student markers
+  _studentMarkers=[];
+  _studentGeoData.forEach((sd,i)=>{
+    const distBadge=sd.dist<2?'🟢':sd.dist<5?'🟡':'🔴';
+    const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:${sd.dist<2?'#4ade80':sd.dist<5?'#facc15':'#f87171'};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.3)">${i+1}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+    const m=L.marker([sd.lat,sd.lng],{icon}).addTo(_instrMap);
+    m.bindPopup(`<div style="min-width:160px"><b>${esc(sd.student.name)}</b><br><span style="font-size:.8em;color:#666">${sd.postcode} · ${sd.dist} mi away</span><br><span style="font-size:.8em">${esc(sd.student.lesson_type||'Manual')}</span>${sd.student.phone?`<br><a href="https://wa.me/44${sd.student.phone.replace(/^0/,'')}" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>`:''}</div>`);
+    _studentMarkers.push({marker:m,student:sd.student,geo:sd});
+  });
+
+  // Fit all markers
+  mapFitAll();
+  _mapInitialised=true;
+}
+
+function mapFitAll(){
+  if(!_instrMap)return;
+  const latlngs=[[_instrLat,_instrLng],..._studentGeoData.map(s=>[s.lat,s.lng])];
+  if(latlngs.length>1)_instrMap.fitBounds(L.latLngBounds(latlngs),{padding:[30,30]});
+  else _instrMap.setView([_instrLat,_instrLng],13);
+}
+
+function mapToggleRadius(){
+  if(!_instrMap)return;
+  if(_radiusVisible){
+    _radiusCircles.forEach(c=>c.remove());_radiusCircles=[];_radiusVisible=false;return;
+  }
+  const opts=[
+    {r:1609,color:'#4ade80',label:'1 mile'},
+    {r:3218,color:'#facc15',label:'2 miles'},
+    {r:8047,color:'#f87171',label:'5 miles'}
+  ];
+  opts.forEach(o=>{
+    const c=L.circle([_instrLat,_instrLng],{radius:o.r,color:o.color,fillColor:o.color,fillOpacity:.04,weight:1.5,dashArray:'6 4'}).addTo(_instrMap);
+    c.bindTooltip(o.label,{permanent:false,direction:'top'});
+    _radiusCircles.push(c);
+  });
+  _radiusVisible=true;
+}
+
+/* ── Student distance list ── */
+function renderStudentDistList(){
+  const maxDist=parseFloat(document.getElementById('mapFilterDist')?.value||'all');
+  const filtered=isNaN(maxDist)?_studentGeoData:_studentGeoData.filter(s=>s.dist<=maxDist);
+  document.getElementById('mapDistCount').textContent=filtered.length+' student'+(filtered.length!==1?'s':'');
+  const container=document.getElementById('studentDistList');
+  if(!filtered.length){container.innerHTML='<div style="text-align:center;color:var(--txt4);padding:16px;font-size:.78rem">No students in this range</div>';return;}
+  container.innerHTML=filtered.map((sd,i)=>{
+    const cls=sd.dist<2?'near':sd.dist<5?'mid':'far';
+    return `<div class="student-dist-card" onclick="mapFocusStudent(${i})">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="font-weight:600;font-size:.82rem;color:var(--txt)">${i+1}. ${esc(sd.student.name)}</div>
+        <span class="dist-badge ${cls}">${sd.dist} mi</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--txt3)">${esc(sd.postcode)} · ${esc(sd.student.lesson_type||'Manual')}</div>
+    </div>`;
+  }).join('');
+}
+
+function mapFocusStudent(idx){
+  const sd=_studentGeoData[idx];if(!sd||!_instrMap)return;
+  _instrMap.setView([sd.lat,sd.lng],15);
+  const mObj=_studentMarkers[idx];if(mObj)mObj.marker.openPopup();
+}
+
+/* ── Stats bar ── */
+function updateMapStats(){
+  document.getElementById('mapStatTotal').textContent=_studentGeoData.length;
+  document.getElementById('mapStatNear').textContent=_studentGeoData.filter(s=>s.dist<=2).length;
+  const avg=_studentGeoData.length?(_studentGeoData.reduce((a,b)=>a+b.dist,0)/_studentGeoData.length).toFixed(1):'—';
+  document.getElementById('mapStatAvgDist').textContent=avg+(avg!=='—'?' mi':'');
+  document.getElementById('mapStatFar').textContent=_studentGeoData.filter(s=>s.dist>5).length;
+}
+
+/* ── Smart Day Builder ── */
+function buildSmartDay(){
+  const radius=parseFloat(document.getElementById('dayBuilderRadius').value)||2;
+  const near=_studentGeoData.filter(s=>s.dist<=radius);
+  const el=document.getElementById('smartDayResult');
+  if(!near.length){el.innerHTML=`<div style="color:var(--txt3);font-size:.78rem">No students within ${radius} miles. Try a larger radius.</div>`;return;}
+  // Group by outward code
+  const groups={};
+  near.forEach(s=>{
+    const out=(s.postcode||'').split(' ')[0]||s.postcode.slice(0,s.postcode.length-3).trim()||'Other';
+    if(!groups[out])groups[out]=[];
+    groups[out].push(s);
+  });
+  // Optimise order within each group
+  let html=`<div style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#4ade80;margin-bottom:10px">✅ Found ${near.length} student${near.length!==1?'s':''} within ${radius} miles — here's a suggested cluster day:</div>`;
+  Object.entries(groups).sort((a,b)=>b[1].length-a[1].length).forEach(([zone,students])=>{
+    const optimised=nearestNeighbour({lat:_instrLat,lng:_instrLng},students);
+    const deadMilesEst=estimateDayMiles(optimised);
+    html+=`<div class="cluster-zone-card">
+      <h6><i class="bi bi-geo-fill me-1" style="color:var(--red)"></i>${zone} area · ${students.length} student${students.length!==1?'s':''} · ~${deadMilesEst} dead miles</h6>
+      <div style="font-size:.74rem;color:var(--txt3);margin-bottom:8px">Suggested pickup order:</div>
+      ${optimised.map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.76rem"><span style="width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0">${i+1}</span><span style="flex:1;color:var(--txt)">${esc(s.student.name)}</span><span style="color:var(--txt3)">${s.postcode} · ${s.dist}mi</span></div>`).join('')}
+    </div>`;
+  });
+  // Savings estimate
+  const totalDeadClustered=Object.values(groups).reduce((a,g)=>{
+    return a+estimateDayMiles(nearestNeighbour({lat:_instrLat,lng:_instrLng},g));
+  },0);
+  const totalDeadUnclustered=Math.round(near.reduce((a,b)=>a+b.dist*2,0));
+  const saving=Math.max(0,totalDeadUnclustered-totalDeadClustered);
+  html+=`<div style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:10px 14px;font-size:.76rem;color:#4ade80;margin-top:10px"><i class="bi bi-piggy-bank-fill me-1"></i>Clustering saves approx. <strong>${saving} dead miles</strong> vs random scheduling — roughly <strong>£${(saving*0.14).toFixed(2)}</strong> in fuel.</div>`;
+  el.innerHTML=html;
+}
+
+function nearestNeighbour(origin,stops){
+  const rem=[...stops];const route=[];let cur=origin;
+  while(rem.length){
+    let ni=-1,nd=Infinity;
+    rem.forEach((s,i)=>{const d=haversine(cur.lat,cur.lng,s.lat,s.lng);if(d<nd){nd=d;ni=i;}});
+    route.push(rem[ni]);cur=rem[ni];rem.splice(ni,1);
+  }
+  return route;
+}
+
+function estimateDayMiles(route){
+  if(!route.length)return 0;
+  let total=haversine(_instrLat,_instrLng,route[0].lat,route[0].lng);
+  for(let i=0;i<route.length-1;i++)total+=haversine(route[i].lat,route[i].lng,route[i+1].lat,route[i+1].lng);
+  total+=haversine(route[route.length-1].lat,route[route.length-1].lng,_instrLat,_instrLng);
+  return Math.round(total*10)/10;
+}
+
+/* ── Route Optimiser ── */
+function renderRoutePicker(){
+  const el=document.getElementById('routePickerList');
+  if(!_studentGeoData.length){el.innerHTML='<div style="color:var(--txt3);font-size:.78rem">No geocoded students found.</div>';return;}
+  el.innerHTML=_studentGeoData.map((sd,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.78rem">
+      <input type="checkbox" class="form-check-input route-pick" id="rp${i}" style="flex-shrink:0"/>
+      <label for="rp${i}" style="flex:1;color:var(--txt);cursor:pointer">${i+1}. ${esc(sd.student.name)} <span style="color:var(--txt3)">(${sd.postcode} · ${sd.dist}mi)</span></label>
+    </div>`).join('');
+}
+
+function selectAllRoute(){
+  document.querySelectorAll('.route-pick').forEach(c=>c.checked=true);
+}
+
+function optimiseRoute(){
+  const checked=[...(document.querySelectorAll('.route-pick:checked'))].map(c=>parseInt(c.id.replace('rp','')));
+  if(!checked.length){document.getElementById('routeResult').innerHTML='<div style="color:#f87171;font-size:.78rem">Select at least one student.</div>';return;}
+  const selected=checked.map(i=>_studentGeoData[i]).filter(Boolean);
+  const optimised=nearestNeighbour({lat:_instrLat,lng:_instrLng},selected);
+  const totalMiles=estimateDayMiles(optimised);
+  const fuelCost=(totalMiles*0.14).toFixed(2);
+
+  // Draw route on map
+  if(_instrMap){
+    if(_routePolyline){_routePolyline.remove();_routePolyline=null;}
+    const latlngs=[[_instrLat,_instrLng],...optimised.map(s=>[s.lat,s.lng]),[_instrLat,_instrLng]];
+    _routePolyline=L.polyline(latlngs,{color:'#D10A11',weight:3,opacity:.8,dashArray:'8 4'}).addTo(_instrMap);
+    _instrMap.fitBounds(_routePolyline.getBounds(),{padding:[30,30]});
+  }
+
+  let html=`<div style="font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--txt);margin-bottom:10px">Optimised route — ${totalMiles} total miles · £${fuelCost} fuel</div>`;
+  html+=`<div style="background:var(--dk3);border-radius:8px;padding:10px">`;
+  html+=`<div class="route-step"><div class="route-num">⭐</div><div><div style="color:var(--txt)">Start: Your location</div><div style="color:var(--txt3);font-size:.7rem">${esc(getInstrPostcode()||'')}</div></div></div>`;
+  optimised.forEach((s,i)=>{
+    html+=`<div class="route-step"><div class="route-num">${i+1}</div><div><div style="color:var(--txt)">${esc(s.student.name)}</div><div style="color:var(--txt3);font-size:.7rem">${s.postcode} · ${s.dist}mi from home</div></div></div>`;
+  });
+  html+=`<div class="route-step"><div class="route-num">🏁</div><div style="color:var(--txt3)">Return home</div></div>`;
+  html+=`</div>`;
+  html+=`<div style="margin-top:10px;font-size:.74rem;color:var(--txt3)">Route drawn on map above ↑</div>`;
+  document.getElementById('routeResult').innerHTML=html;
+}
+
+/* ── Earnings calculator ── */
+function calcEarnings(){
+  const lessons=parseFloat(document.getElementById('calcLessons')?.value)||4;
+  const dur=parseFloat(document.getElementById('calcDur')?.value)||1;
+  const rate=parseFloat(document.getElementById('calcRate')?.value)||33;
+  const miles=parseFloat(document.getElementById('calcMiles')?.value)||15;
+  const gross=lessons*dur*rate;
+  const fuel=miles*0.14;
+  const net=gross-fuel;
+  const savingVsRandom=Math.max(0,(miles*1.5-miles)*0.14);
+  document.getElementById('earningsResult').innerHTML=`
+    <div class="earnings-row"><span style="color:var(--txt3)">Gross earnings</span><span style="color:var(--txt);font-weight:700">£${gross.toFixed(2)}</span></div>
+    <div class="earnings-row"><span style="color:var(--txt3)">Estimated fuel (${miles}mi × £0.14)</span><span style="color:#f87171">−£${fuel.toFixed(2)}</span></div>
+    <div class="earnings-row" style="border-top:2px solid var(--bdr);margin-top:4px;padding-top:8px"><span style="color:var(--txt);font-weight:700">Net earnings</span><span style="color:#4ade80;font-family:'Oswald',sans-serif;font-size:1.1rem">£${net.toFixed(2)}</span></div>
+    <div style="margin-top:10px;padding:8px 10px;background:rgba(37,211,102,.06);border-radius:6px;font-size:.72rem;color:#4ade80"><i class="bi bi-info-circle me-1"></i>By clustering students in the same area you could reduce fuel to ~${Math.round(miles*0.6)} miles, saving approx. £${(fuel*0.4).toFixed(2)} per day.</div>`;
+}
+
+/* ── Area Breakdown ── */
+function renderAreaBreakdown(){
+  const el=document.getElementById('areaBreakdown');
+  if(!_studentGeoData.length){el.innerHTML='<div style="color:var(--txt3);font-size:.78rem">No location data available.</div>';return;}
+  // Group by outward code
+  const groups={};
+  _studentGeoData.forEach(s=>{
+    const out=(s.postcode||'').replace(/\s?\d[A-Z]{2}$/,'').trim()||'Other';
+    if(!groups[out])groups[out]=[];
+    groups[out].push(s);
+  });
+  const sorted=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
+  const total=_studentGeoData.length;
+  el.innerHTML=sorted.map(([zone,students])=>{
+    const pct=Math.round((students.length/total)*100);
+    const avgDist=(students.reduce((a,b)=>a+b.dist,0)/students.length).toFixed(1);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.8rem;font-weight:600;color:var(--txt)">${zone}</span>
+        <span style="font-size:.72rem;color:var(--txt3)">${students.length} student${students.length!==1?'s':''} · avg ${avgDist}mi</span>
+      </div>
+      <div style="background:var(--bdr);border-radius:999px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--red),#ff6b6b);border-radius:999px;transition:width .4s"></div>
+      </div>
+      <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">${pct}% of your students</div>
+    </div>`;
+  }).join('');
+}
+
 /* ── Poll for new messages & registrations ── */
-// Same-session dedup only, to stop pollStudentUpdates (every 20s) re-appending the same banner
-// repeatedly while a fresh registration is still inside the notification window below. This is
-// NOT what makes the notification safe from reappearing — that's the created_at time window,
-// because localStorage-based dedup alone doesn't survive a different device/browser or the
-// instructor clearing site data, which was previously reshowing "X has registered" indefinitely.
-let _notifiedRegistrations=new Set();
+// Persisted dedup — survives page reloads / tab switches for the same instructor.
+// Keyed by instructor ID so multiple instructors on the same device don't share state.
+function getNotifiedRegsKey(){ return 'dsq_notified_regs_'+(instr?.id||'x'); }
+function loadNotifiedRegs(){ try{ return new Set(JSON.parse(localStorage.getItem(getNotifiedRegsKey())||'[]')); }catch(e){ return new Set(); } }
+function saveNotifiedRegs(s){ try{ localStorage.setItem(getNotifiedRegsKey(), JSON.stringify([...s])); }catch(e){} }
+let _notifiedRegistrations=loadNotifiedRegs();
 
 async function pollStudentUpdates(){
   if(!allStudentsArr.length)return;
@@ -3448,6 +4634,7 @@ async function pollStudentUpdates(){
   (regAccounts||[]).forEach(acc=>{
     if(!_notifiedRegistrations.has(acc.id)){
       _notifiedRegistrations.add(acc.id);
+      saveNotifiedRegs(_notifiedRegistrations);
       // Show registration notification banner
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');
