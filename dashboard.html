@@ -3024,13 +3024,33 @@ async function saveStudentProfile(){
 async function removeStudentFromRoster(){
   const id=document.getElementById('editStudentId').value;const name=document.getElementById('esSName').value.trim();
   if(!id){showToast('No saved profile to remove.');return;}
-  if(!confirm(`Remove ${name} from your roster? Lesson history preserved.`))return;
-  await sb.from('student_profiles').delete().eq('id',id);
-  closeModal('editStudentModal');
-  await loadRoster();
-  await loadStudents();
-  renderStudents(allStudentsArr);
-  showToast('Removed from roster.');
+  if(!confirm(`⚠️ Permanently delete ${name}?\n\nThis will delete:\n• Their roster profile\n• ALL lesson records\n• Their student account & login\n• All messages and progress data\n\nThis CANNOT be undone.`))return;
+  showToast('Deleting student…','warn');
+  try{
+    const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',name).maybeSingle();
+    const accId=acc?.id||null;
+    const{data:lessons}=await sb.from('lessons').select('id').eq('instructor_id',instr.id).ilike('student_name',name);
+    const lessonIds=(lessons||[]).map(l=>l.id);
+    if(lessonIds.length){
+      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds);
+      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds);
+    }
+    if(accId){
+      await sb.from('student_progress').delete().eq('student_account_id',accId);
+      await sb.from('student_messages').delete().eq('student_account_id',accId);
+      await sb.from('reschedule_requests').delete().eq('student_account_id',accId);
+    }
+    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',name);
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId);
+    await sb.from('student_profiles').delete().eq('id',id);
+    closeModal('editStudentModal');
+    await Promise.all([loadRoster(),loadStudents()]);
+    renderStudents(allStudentsArr);
+    showToast(`${name} permanently deleted.`,'success');
+  }catch(err){
+    console.error('Delete student error:',err);
+    showToast('Delete failed — check console for details.','error');
+  }
 }
 
 function populateTransferRosterDropdown(){
@@ -3629,11 +3649,48 @@ async function saveSmProfile(){
 async function smRemoveFromRoster(){
   const p=rosterMap[smCurrentName.toLowerCase().trim()];
   if(!p?.id){showToast('No profile to remove.');return;}
-  if(!confirm('Remove '+smCurrentName+' from roster? Lesson history is kept.'))return;
-  await sb.from('student_profiles').delete().eq('id',p.id);
-  closeModal('studentMgmtModal');
-  await Promise.all([loadRoster(),loadStudents()]);
-  showToast('Removed from roster.');
+  if(!confirm(`⚠️ Permanently delete ${smCurrentName}?\n\nThis will delete:\n• Their roster profile\n• ALL lesson records\n• Their student account & login\n• All messages and progress data\n\nThis CANNOT be undone.`))return;
+
+  showToast('Deleting student…','warn');
+  try{
+    // 1. Find their student_account
+    const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',smCurrentName).maybeSingle();
+    const accId=acc?.id||null;
+
+    // 2. Find all lesson IDs for this student under this instructor
+    const{data:lessons}=await sb.from('lessons').select('id').eq('instructor_id',instr.id).ilike('student_name',smCurrentName);
+    const lessonIds=(lessons||[]).map(l=>l.id);
+
+    // 3. Delete lesson-linked child records first
+    if(lessonIds.length){
+      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds);
+      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds);
+    }
+
+    // 4. Delete account-linked child records
+    if(accId){
+      await sb.from('student_progress').delete().eq('student_account_id',accId);
+      await sb.from('student_messages').delete().eq('student_account_id',accId);
+      await sb.from('reschedule_requests').delete().eq('student_account_id',accId);
+    }
+
+    // 5. Delete all lessons for this student
+    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName);
+
+    // 6. Delete the student account
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId);
+
+    // 7. Delete the roster profile
+    await sb.from('student_profiles').delete().eq('id',p.id);
+
+    closeModal('studentMgmtModal');
+    await Promise.all([loadRoster(),loadStudents()]);
+    renderStudents(allStudentsArr);
+    showToast(`${smCurrentName} permanently deleted.`,'success');
+  }catch(err){
+    console.error('Delete student error:',err);
+    showToast('Delete failed — check console for details.','error');
+  }
 }
 
 // Archiving keeps the student's roster entry and full lesson/message history intact — it just
