@@ -1778,16 +1778,33 @@ function renderStudentsTable(students){
   }).join('');
 }
 
+let _filterAllStudentsTimer=null;
 function filterAllStudents(q){
-  const instrId=document.getElementById('studentInstrFilter').value;
-  const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
-  let list=allStudentsCache;
-  if(instrId)list=list.filter(s=>s.instrId===instrId);
-  if(onlineF==='online')list=list.filter(s=>s.isOnline);
-  else if(onlineF==='app')list=list.filter(s=>s.onApp);
-  else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
-  if(q){const lq=q.toLowerCase();list=list.filter(s=>(s.name||'').toLowerCase().includes(lq)||(s.phone||'').includes(lq)||(s.address||'').toLowerCase().includes(lq)||(s.instrName||'').toLowerCase().includes(lq));}
-  renderStudentsTable(list);
+  clearTimeout(_filterAllStudentsTimer);
+  _filterAllStudentsTimer=setTimeout(()=>{
+    const instrId=document.getElementById('studentInstrFilter').value;
+    const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
+    let list=allStudentsCache;
+    if(instrId)list=list.filter(s=>s.instrId===instrId);
+    if(onlineF==='online')list=list.filter(s=>s.isOnline);
+    else if(onlineF==='app')list=list.filter(s=>s.onApp);
+    else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
+    const raw=(q||'').trim();
+    if(raw){
+      const lq=raw.toLowerCase();
+      const digitQ=raw.replace(/\D/g,'');
+      list=list.filter(s=>{
+        if((s.name||'').toLowerCase().includes(lq))return true;
+        const ph=(s.phone||'').replace(/\D/g,'');
+        if(digitQ.length>=3&&ph.includes(digitQ))return true;
+        if((s.address||'').toLowerCase().includes(lq))return true;
+        if((s.instrName||'').toLowerCase().includes(lq))return true;
+        if((s.acctEmail||'').toLowerCase().includes(lq))return true;
+        return false;
+      });
+    }
+    renderStudentsTable(list);
+  },150);
 }
 
 /* ── CREATE STUDENT ACCOUNT ── */
