@@ -605,7 +605,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <button class="cal-view-btn" id="sview-unread" onclick="setStudentFilter('unread')"><i class="bi bi-chat-fill me-1" style="color:#60a5fa"></i>Messages</button>
           <button class="cal-view-btn" id="sview-archived" onclick="setStudentFilter('archived')"><i class="bi bi-archive me-1" style="color:#94a3b8"></i>Archived</button>
         </div>
-        <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 10px;font-size:.82rem" placeholder="Search…" oninput="filterStudents(this.value)" id="studentSearch"/>
+        <div style="position:relative;display:inline-flex;align-items:center">
+          <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 28px 6px 10px;font-size:.82rem" placeholder="Search name, phone, email…" oninput="filterStudents(this.value);document.getElementById('searchClearBtn').style.display=this.value?'flex':'none'" id="studentSearch"/>
+          <button id="searchClearBtn" onclick="document.getElementById('studentSearch').value='';filterStudents('');this.style.display='none'" style="display:none;position:absolute;right:6px;background:none;border:none;color:#666;cursor:pointer;padding:0;font-size:.85rem;align-items:center;line-height:1" title="Clear search">✕</button>
+        </div>
         <button class="btn-p" style="width:auto;padding:8px 14px;font-size:.82rem;min-height:38px" onclick="openAddStudentDirect()"><i class="bi bi-person-plus me-1"></i>Add</button>
       </div>
     </div>
@@ -2820,7 +2823,7 @@ function renderStudentStatsStrip(students){
     ${withUnread?`<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>${withUnread} unread</span>`:''}`;
 }
 
-function renderStudents(students){
+function renderStudents(students,emptyOverride){
   const list=document.getElementById('studentList');
   // Archived students (passed/stopped) are hidden from every normal view — only the dedicated
   // "archived" filter shows them, so they don't clutter the active roster while still being
@@ -2832,7 +2835,7 @@ function renderStudents(students){
   if(studentFilterMode==='connected')filtered=filtered.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
   else if(studentFilterMode==='unread')filtered=filtered.filter(s=>(s.unreadMsgs||0)>0);
   if(!filtered.length){
-    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':studentFilterMode==='archived'?'No archived students.':'No students yet.'}</div>`;
+    list.innerHTML=emptyOverride||`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':studentFilterMode==='archived'?'No archived students.':'No students yet.'}</div>`;
     return;
   }
   list.innerHTML=filtered.map(s=>{
@@ -2895,10 +2898,32 @@ function renderStudents(students){
   }).join('');
 }
 
+let _filterStudentsTimer=null;
 function filterStudents(q){
-  let list=allStudentsArr;
-  if(q){const lq=q.toLowerCase();list=list.filter(s=>s.name.toLowerCase().includes(lq)||(s.phone||'').includes(lq)||(s.address||'').toLowerCase().includes(lq));}
-  renderStudents(list);
+  clearTimeout(_filterStudentsTimer);
+  _filterStudentsTimer=setTimeout(()=>{
+    const raw=(q||'').trim();
+    let list=allStudentsArr;
+    if(raw){
+      const lq=raw.toLowerCase();
+      // Normalise phone digits for comparison (strip spaces, dashes, brackets)
+      const digitQ=raw.replace(/\D/g,'');
+      list=list.filter(s=>{
+        if((s.name||'').toLowerCase().includes(lq))return true;
+        const ph=(s.phone||'').replace(/\D/g,'');
+        if(digitQ.length>=3&&ph.includes(digitQ))return true;
+        if((s.address||'').toLowerCase().includes(lq))return true;
+        // Also search email from studentAccountMap
+        const acc=Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
+        if(acc&&(acc.email||'').toLowerCase().includes(lq))return true;
+        if((s.notes||'').toLowerCase().includes(lq))return true;
+        return false;
+      });
+    }
+    // Show a search-specific "no results" message when actively filtering
+    const noResultsMsg=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">${esc(raw)}</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>`;
+    renderStudents(list,raw?noResultsMsg:null);
+  },150);
 }
 
 /* PICKER MODES */
@@ -2917,7 +2942,19 @@ function renderExistingGrid(students){
   noMsg.classList.add('hidden');
   grid.innerHTML=students.map(p=>`<button class="existing-student-btn" onclick="pickExistingStudent('${jsEsc(p.name.toLowerCase().trim())}')"><div class="esb-name">${esc(p.name)}</div><div class="esb-meta">${[p.lesson_type,p.address?p.address.slice(0,22)+'…':''].filter(Boolean).join(' · ')}</div></button>`).join('');
 }
-function filterExistingPicker(q){const all=Object.values(rosterMap);renderExistingGrid(q?all.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):all);}
+function filterExistingPicker(q){
+  const raw=(q||'').trim();
+  const all=Object.values(rosterMap);
+  if(!raw){renderExistingGrid(all);return;}
+  const lq=raw.toLowerCase();
+  const digitQ=raw.replace(/\D/g,'');
+  renderExistingGrid(all.filter(p=>{
+    if((p.name||'').toLowerCase().includes(lq))return true;
+    if(digitQ.length>=3&&(p.phone||'').replace(/\D/g,'').includes(digitQ))return true;
+    if((p.address||'').toLowerCase().includes(lq))return true;
+    return false;
+  }));
+}
 function pickExistingStudent(keyName){
   const p=rosterMap[keyName];if(!p)return;
   setPickerMode('new');
