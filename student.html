@@ -1802,6 +1802,16 @@ function initBreakdownCharts(){
 
 /* ── TOPICS RENDER ── */
 function renderTopics(){
+  // Overall checklist progress bar
+  const totalT=studentTopics.length;
+  const masteredT=studentTopics.filter(t=>t.rating===3).length;
+  const pctT=totalT?Math.round((masteredT/totalT)*100):0;
+  const lbl=document.getElementById('topicsOverallLbl');
+  const bar=document.getElementById('topicsOverallBar');
+  const sub=document.getElementById('topicsOverallSub');
+  if(lbl)lbl.textContent=masteredT+' / '+totalT;
+  if(bar)bar.style.width=pctT+'%';
+  if(sub)sub.textContent=masteredT===totalT&&totalT>0?'All topics mastered! 🎉':pctT+'% mastered · '+(totalT-masteredT)+' topics remaining';
   const container=document.getElementById('topicGroups');
   const grouped={};
   studentTopics.forEach(t=>{
@@ -2562,6 +2572,11 @@ function renderMockHome(){
   h+='<div style="font-family:\'Oswald\',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-mortarboard-fill me-2" style="color:var(--gold)"></i>Practice Mode</div>';
   h+='<div style="font-size:.72rem;color:var(--txt4);margin-bottom:12px">Instant feedback · Learn at your pace · See explanations</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:8px">';
+  h+='<div class="mock-mode-card" onclick="startPractice(\'mixed\',5)" style="padding:14px;text-align:center;cursor:pointer;border-color:rgba(245,197,24,.4);background:rgba(245,197,24,.04)">';
+  h+='<div style="font-size:1.3rem;margin-bottom:4px">⚡</div>';
+  h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.85rem;font-weight:700;color:var(--gold)">Quick 5</div>';
+  h+='<div style="font-size:.63rem;color:var(--txt4)">5 random questions</div>';
+  h+='</div>';
   h+='<div class="mock-mode-card" onclick="startPractice(\'all\')" style="padding:14px;text-align:center;cursor:pointer;border-color:rgba(209,10,17,.3)">';
   h+='<div style="font-size:1.3rem;margin-bottom:4px">🎯</div>';
   h+='<div style="font-family:\'Oswald\',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt)">All Topics</div>';
@@ -2589,13 +2604,25 @@ function startMockTest(testNum){
   renderMockQuestion();
 }
 
-function startPractice(cat){
+function startPractice(cat,limit){
   mockMode='practice';
-  mockQuestions=getPracticeQuestions(cat);
+  if(cat==='mixed'){
+    const bank=window.THEORY_BANK||[];
+    mockQuestions=shuffleArr(bank.slice()).slice(0,limit||bank.length);
+  } else {
+    mockQuestions=getPracticeQuestions(cat);
+  }
+  if(limit&&mockQuestions.length>limit)mockQuestions=mockQuestions.slice(0,limit);
   if(!mockQuestions.length){showToast('Questions not loaded yet. Please refresh.');return;}
   mockAnswers=new Array(mockQuestions.length).fill(-1);
   mockCurrent=0;practiceStats={correct:0,wrong:0};
   renderMockQuestion();
+}
+
+function startQuickPractice(){
+  mockMode='';mockQuestions=[];mockAnswers=[];mockTimer=null;mockTimeLeft=TEST_TIME;mockCurrent=0;practiceStats={correct:0,wrong:0};
+  openModal('mockTestModal');
+  startPractice('mixed',5);
 }
 
 function startMockTimer(){
