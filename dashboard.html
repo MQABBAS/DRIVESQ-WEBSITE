@@ -354,8 +354,56 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 /* TOAST */
 .dsq-toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);z-index:9999;background:var(--dk2);border:1px solid var(--bdr);border-left:3px solid var(--red);border-radius:10px;padding:10px 16px;font-size:.8rem;color:var(--txt2);opacity:0;transition:all .28s ease;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
 .dsq-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.dsq-toast.success{border-left-color:var(--green)}
+.dsq-toast.success{border-left-color:var(--green);background:rgba(37,211,102,.08)}
+.dsq-toast.error{border-left-color:#f87171;background:rgba(239,68,68,.08)}
+.dsq-toast.warning{border-left-color:var(--gold);background:rgba(245,197,24,.08)}
+.dsq-toast.info{border-left-color:#60a5fa;background:rgba(96,165,250,.08)}
 @media(min-width:768px){.dsq-toast{bottom:24px}}
+
+/* PAGE LOAD ANIMATION */
+@keyframes dsqFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.main-pad{animation:dsqFadeIn .4s ease both}
+@media(prefers-reduced-motion:reduce){.main-pad{animation:none}}
+
+/* QUICK ACTIONS ROW */
+.quick-actions{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 10px;-webkit-overflow-scrolling:touch;margin-bottom:4px}
+.quick-actions::-webkit-scrollbar{display:none}
+.qa-chip{display:inline-flex;align-items:center;gap:5px;background:var(--dk2);border:1px solid var(--bdr);border-radius:999px;padding:6px 14px;font-size:.75rem;font-weight:600;font-family:'Oswald',sans-serif;color:var(--txt3);cursor:pointer;transition:all var(--trans);white-space:nowrap;min-height:34px;flex-shrink:0}
+.qa-chip:hover{border-color:var(--red);color:var(--txt);background:rgba(209,10,17,.06);transform:translateY(-1px)}
+.qa-chip:active{transform:translateY(0)}
+
+/* EARNINGS CHART CARD */
+.earnings-chart-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;margin-bottom:12px;transition:background .4s ease}
+.ec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ec-title{font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3)}
+.ec-total{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.3rem;font-weight:900;color:var(--green)}
+#earningsChart{width:100%;height:64px;display:block}
+
+/* STUDENT STATUS BADGE */
+.s-lesson-badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.52rem;font-weight:900;border:2px solid var(--dk2);font-family:'Barlow Condensed','Oswald',sans-serif;line-height:1}
+.s-lesson-badge.needs-booking{background:var(--red);color:#fff}
+.s-lesson-badge.gold-star{background:var(--gold);color:#080808}
+.s-lesson-badge.normal{background:var(--dk3);color:var(--txt3);border-color:var(--bdr)}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(209,10,17,.5)}70%{box-shadow:0 0 0 5px rgba(209,10,17,0)}}
+.s-lesson-badge.needs-booking{animation:pulseDot 1.8s ease infinite}
+
+/* LESSON PROGRESS BAR */
+.ls-progress{height:2px;border-radius:1px;background:rgba(255,255,255,.06);margin-top:4px;overflow:hidden}
+.ls-progress-bar{height:100%;border-radius:1px;background:linear-gradient(90deg,rgba(209,10,17,.5),var(--red));transition:width .3s ease}
+
+/* MOBILE NAV INDICATOR */
+.mob-bot-nav{position:relative}
+.mob-nav-indicator{position:absolute;top:0;height:2px;background:var(--red);border-radius:0 0 2px 2px;transition:left .25s cubic-bezier(.4,0,.2,1),width .25s cubic-bezier(.4,0,.2,1);pointer-events:none}
+
+/* CARD HOVER CONSISTENCY */
+.stat-card{cursor:default}
+.stat-card:hover{transform:translateY(-2px);border-color:rgba(209,10,17,.18)}
+
+/* PULL-TO-REFRESH */
+.ptr-indicator{position:fixed;top:62px;left:50%;transform:translateX(-50%) translateY(-60px);z-index:1045;background:var(--dk);border:1px solid var(--bdr);border-radius:999px;padding:7px 16px;font-size:.75rem;color:var(--txt3);display:flex;align-items:center;gap:7px;box-shadow:0 4px 20px var(--shadow);transition:transform .25s ease,opacity .25s ease;opacity:0;pointer-events:none}
+.ptr-indicator.ptr-visible{transform:translateX(-50%) translateY(0);opacity:1}
+.ptr-indicator.ptr-loading i{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* WA FLOAT */
 .wa-float{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:14px;z-index:1039;width:46px;height:46px;border-radius:50%;background:#25D366;box-shadow:0 4px 16px rgba(37,211,102,.35);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;text-decoration:none;transition:transform var(--trans)}
@@ -506,6 +554,32 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div><div class="stat-card purple"><div class="stat-lbl">Weekly Hours</div><div class="stat-num purple" id="sHours">—</div><div class="stat-sub">hrs on road</div></div></div>
     <div><div class="stat-card blue"><div class="stat-lbl">Roster</div><div class="stat-num blue" id="sStudents">—</div><div class="stat-sub">saved students</div></div></div>
     <div><div class="stat-card green-c"><div class="stat-lbl">Week Earnings</div><div class="stat-num green-c" id="sEarnings" style="font-size:1.5rem">£0</div><div class="stat-sub">received this week</div></div></div>
+  </div>
+
+  <!-- EARNINGS SPARKLINE CHART -->
+  <div class="earnings-chart-card" id="earningsChartCard" style="display:none">
+    <div class="ec-header">
+      <span class="ec-title"><i class="bi bi-bar-chart-fill me-1" style="color:var(--green)"></i>Weekly Earnings</span>
+      <span class="ec-total" id="ecTotal">£0</span>
+    </div>
+    <canvas id="earningsChart"></canvas>
+    <div style="display:flex;justify-content:space-between;margin-top:4px">
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Mon</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Tue</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Wed</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Thu</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Fri</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Sat</span>
+      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Sun</span>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="quick-actions" id="quickActions">
+    <button class="qa-chip" onclick="openAddModal(todayKey(),'Today',new Date().getDay()===0?6:new Date().getDay()-1)"><span>📅</span>Book Lesson</button>
+    <button class="qa-chip" onclick="switchTab('students');setMobActive('students');setTimeout(()=>document.getElementById('studentSearch')?.focus(),200)"><span>💬</span>Message Student</button>
+    <button class="qa-chip" onclick="switchTab('cal');setMobActive('cal')"><span>📋</span>View Schedule</button>
+    <button class="qa-chip" onclick="switchTab('map');setMobActive('map')"><span>🎯</span>Today's Route</button>
   </div>
 
   <div class="dsq-tabs mb-3">
@@ -1053,7 +1127,8 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 </div>
 
 <!-- MOBILE BOTTOM NAV -->
-<div class="mob-bot-nav">
+<div class="mob-bot-nav" id="mobBotNav">
+  <div class="mob-nav-indicator" id="mobNavIndicator"></div>
   <button class="mob-nb active" id="mob-cal" onclick="switchTab('cal');setMobActive('cal')"><i class="bi bi-calendar-week"></i>Calendar</button>
   <button class="mob-nb" id="mob-students" onclick="switchTab('students');setMobActive('students')"><i class="bi bi-people-fill"></i>Students</button>
   <button class="mob-nb" id="mob-requests" onclick="switchTab('requests');setMobActive('requests')"><i class="bi bi-person-plus-fill"></i>Requests<span class="mob-nb-badge hidden" id="mobReqBadge">0</span></button>
@@ -1063,6 +1138,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 </div>
 
 <a class="wa-float" href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20help." target="_blank"><i class="bi bi-whatsapp"></i></a>
+<div class="ptr-indicator" id="ptrIndicator"><i class="bi bi-arrow-clockwise"></i><span id="ptrText">Pull to refresh</span></div>
 <div class="dsq-toast" id="toast"></div>
 <!-- ═══ ADD LESSON MODAL ═══ -->
 <div class="dsq-overlay" id="addModal">
@@ -2059,6 +2135,7 @@ function renderCal(){
         <div class="ls-name">${esc(l.student_name)}</div>
         <div class="ls-addr">${esc(l.pickup_address||'')}</div>
         <div class="mt-1">${payTag}</div>
+        ${(()=>{const _sk=allStudentsArr.find(s=>s.name&&s.name.toLowerCase()===( l.student_name||'').toLowerCase());if(!_sk)return'';const _done=_sk.count||0;const _pkg=_sk.package_total||40;const _pct=Math.min(100,Math.round(_done/_pkg*100));return`<div class="ls-progress" title="${_done}/${_pkg} lessons (${_pct}%)"><div class="ls-progress-bar" style="width:${_pct}%"></div></div>`;})()}
       </div>`;
     }).join('');
     h+=`<div class="add-ls-btn" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><i class="bi bi-plus-lg"></i></div>`;
@@ -2839,7 +2916,13 @@ function renderStudents(students,emptyOverride){
   if(studentFilterMode==='connected')filtered=filtered.filter(s=>{const a=Object.values(studentAccountMap).find(x=>x.full_name?.toLowerCase()===s.name.toLowerCase());return a?.last_login;});
   else if(studentFilterMode==='unread')filtered=filtered.filter(s=>(s.unreadMsgs||0)>0);
   if(!filtered.length){
-    list.innerHTML=emptyOverride||`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>${studentFilterMode==='connected'?'No students on the app yet.':studentFilterMode==='unread'?'No unread messages.':studentFilterMode==='archived'?'No archived students.':'No students yet.'}</div>`;
+    const _emptyMsgs={
+      connected:`<svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin:0 auto 10px;display:block"><circle cx="24" cy="24" r="22" stroke="var(--bdr)" stroke-width="1.5"/><path d="M16 28c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="var(--txt5)" stroke-width="1.5" stroke-linecap="round"/><circle cx="24" cy="17" r="3" stroke="var(--txt5)" stroke-width="1.5"/><path d="M30 32l4 4" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round"/></svg><div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt3);margin-bottom:4px">No students on the app yet</div><div style="font-size:.75rem;color:var(--txt4)">Share the student portal link to get them connected</div>`,
+      unread:`<svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin:0 auto 10px;display:block"><circle cx="24" cy="24" r="22" stroke="var(--bdr)" stroke-width="1.5"/><rect x="13" y="17" width="22" height="16" rx="3" stroke="var(--txt5)" stroke-width="1.5"/><path d="M13 20l11 7 11-7" stroke="var(--txt5)" stroke-width="1.5" stroke-linecap="round"/></svg><div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt3);margin-bottom:4px">All caught up!</div><div style="font-size:.75rem;color:var(--txt4)">No unread messages from students</div>`,
+      archived:`<svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin:0 auto 10px;display:block"><circle cx="24" cy="24" r="22" stroke="var(--bdr)" stroke-width="1.5"/><rect x="12" y="18" width="24" height="14" rx="2" stroke="var(--txt5)" stroke-width="1.5"/><path d="M12 22h24" stroke="var(--txt5)" stroke-width="1.5"/><path d="M20 26h8" stroke="var(--txt5)" stroke-width="1.5" stroke-linecap="round"/></svg><div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt3);margin-bottom:4px">No archived students</div><div style="font-size:.75rem;color:var(--txt4)">Students you mark as passed or stopped will appear here</div>`,
+      default:`<svg width="56" height="56" viewBox="0 0 56 56" fill="none" style="margin:0 auto 12px;display:block"><circle cx="28" cy="28" r="26" stroke="var(--bdr)" stroke-width="1.5"/><circle cx="20" cy="23" r="5" stroke="var(--txt5)" stroke-width="1.5"/><circle cx="36" cy="23" r="5" stroke="var(--txt5)" stroke-width="1.5"/><path d="M11 38c0-5 4-9 9-9h3M28 38c0-5 4-9 9-9" stroke="var(--txt5)" stroke-width="1.5" stroke-linecap="round"/><path d="M28 28v6m0 0l-2-2m2 2l2-2" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"/></svg><div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt3);margin-bottom:6px">No students yet</div><div style="font-size:.75rem;color:var(--txt4);margin-bottom:12px">Add your first student to get started</div><button class="btn-p" style="width:auto;padding:8px 18px;font-size:.82rem;min-height:38px;margin:0 auto;display:inline-flex" onclick="openAddStudentDirect()"><i class="bi bi-person-plus me-1"></i>Add Student</button>`
+    };
+    list.innerHTML=emptyOverride||`<div style="text-align:center;padding:40px 20px;color:var(--txt4)">${_emptyMsgs[studentFilterMode]||_emptyMsgs.default}</div>`;
     return;
   }
   list.innerHTML=filtered.map(s=>{
@@ -2863,11 +2946,14 @@ function renderStudents(students,emptyOverride){
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
     const sn=jsEsc(s.name);
+    const _lc=s.count||0;
+    const _lcBadge=_lc===0?`<div class="s-lesson-badge needs-booking" title="No lessons — needs booking">!</div>`:_lc>=5?`<div class="s-lesson-badge gold-star" title="${_lc} lessons — great progress!">★</div>`:`<div class="s-lesson-badge normal">${_lc}</div>`;
     return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
       <div class="sc-top" onclick="openStudentMgmt('${sn}')">
-        <div class="sc-init ${hasLogin?'registered-init':''}">
+        <div class="sc-init ${hasLogin?'registered-init':''}" style="position:relative">
           ${(s.name||'?').charAt(0).toUpperCase()}
           ${hasLogin?'<div class="sc-reg-dot"></div>':''}
+          ${_lcBadge}
         </div>
         <div style="flex:1;min-width:0">
           <div class="d-flex align-items-center gap-2 flex-wrap">
