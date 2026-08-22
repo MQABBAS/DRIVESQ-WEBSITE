@@ -1019,7 +1019,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('createStudentModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-person-plus-fill me-2" style="color:#c084fc"></i>Create Student Account</h5>
-    <div class="modal-sub">Student will receive a login code to access the DriveSQ app</div>
+    <div class="modal-sub">Student logs in with their phone number — no code or PIN needed</div>
     <div id="createStudentMsg" class="hidden mb-2" style="padding:8px 12px;border-radius:8px;font-size:.8rem"></div>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="cs-name" placeholder="Student full name" autocomplete="off"/></div>
     <div class="mb-2"><label class="dsq-lbl">Phone Number</label><input class="dsq-inp" id="cs-phone" type="tel" placeholder="07xxx xxx xxx" autocomplete="off"/></div>
@@ -1038,14 +1038,9 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="cs-notes" rows="2" placeholder="Any notes about this student (optional)" style="resize:vertical"></textarea></div>
     <div id="createStudentResult" class="hidden mb-3" style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:14px;font-size:.82rem">
       <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#4ade80;margin-bottom:8px"><i class="bi bi-check-circle-fill me-2"></i>Account Created!</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px">Student Code</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--txt);letter-spacing:2px" id="cs-result-code">—</div></div>
-        <div><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px">PIN</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--gold);letter-spacing:2px" id="cs-result-pin">—</div></div>
-      </div>
-      <div style="font-size:.72rem;color:var(--txt3);margin-top:8px">Share the student code and PIN with the student. They use these to log in to the DriveSQ student app.</div>
-      <div style="font-size:.72rem;color:var(--txt3);margin-top:6px;padding:6px 8px;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.15);border-radius:6px"><i class="bi bi-info-circle me-1" style="color:var(--gold)"></i>Student has been added to the instructor's roster. Notify them to book their first lesson and share app access.</div>
-      <button onclick="copyStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:10px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-clipboard me-1"></i>Copy Code &amp; PIN</button>
-      <button onclick="waStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student — Share App Access</button>
+      <div style="font-size:.78rem;color:var(--txt2);margin-bottom:6px">Student logs in at <strong>drivesq.co.uk/student.html</strong> using their phone number — no code or PIN needed.</div>
+      <div style="font-size:.72rem;color:var(--txt3);padding:6px 8px;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.15);border-radius:6px"><i class="bi bi-info-circle me-1" style="color:var(--gold)"></i>Student added to instructor's roster. Notify them to book their first lesson.</div>
+      <button onclick="waStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:10px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student — Share App Link</button>
       <button id="cs-instr-wa-btn" onclick="waInstructorNewStudent()" style="display:none;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);color:#60a5fa;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>WhatsApp Instructor — Full Student Details</button>
     </div>
     <button class="btn-p w-100 mb-2" id="createStudentBtn" onclick="confirmCreateStudent()"><i class="bi bi-person-plus-fill me-1"></i>Create Account</button>
@@ -1838,18 +1833,10 @@ async function confirmCreateStudent(){
   const lessonType=document.getElementById('cs-type').value;
   const addr=document.getElementById('cs-addr').value.trim();
   const notes=document.getElementById('cs-notes').value.trim();
-  let code=gen5Code(),pin=gen4Pin();
-  // Ensure code is unique
-  for(let i=0;i<5;i++){
-    const{data:exist}=await sb.from('student_accounts').select('id').eq('student_code',code).maybeSingle();
-    if(!exist)break;
-    code=gen5Code();
-  }
   const{data,error}=await sb.from('student_accounts').insert([{
     full_name:name,phone:phone||null,email:email||null,
     instructor_id:instrId||null,lesson_type:lessonType,
     address:addr||null,notes:notes||null,
-    student_code:code,pin:pin,password_hash:btoa(pin),
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
   if(error){
@@ -1873,10 +1860,7 @@ async function confirmCreateStudent(){
     if(profErr)console.warn('student_profiles insert:',profErr.message);
   }
   // Store for WhatsApp buttons
-  window._csLastCreated={name,phone,email,code,pin,lessonType,addr,notes,instrObj};
-  // Show credentials
-  document.getElementById('cs-result-code').textContent=code;
-  document.getElementById('cs-result-pin').textContent=pin;
+  window._csLastCreated={name,phone,email,lessonType,addr,notes,instrObj};
   // Show/hide instructor WA button
   const instrWaBtn=document.getElementById('cs-instr-wa-btn');
   if(instrWaBtn)instrWaBtn.style.display=instrObj&&buildWaNum(instrObj.phone||'')?'block':'none';
@@ -1904,14 +1888,12 @@ function copyStudentCredentials(){
 }
 function waStudentCredentials(){
   const c=window._csLastCreated||{};
-  const code=document.getElementById('cs-result-code').textContent||c.code||'';
-  const pin=document.getElementById('cs-result-pin').textContent||c.pin||'';
   const name=document.getElementById('cs-name').value.trim()||c.name||'';
   const phone=document.getElementById('cs-phone').value.trim()||c.phone||'';
   if(!phone){showToast('No phone number — cannot open WhatsApp.','');return;}
   const waPhone=buildWaNum(phone);
   const instrName=c.instrObj?.full_name||'your DriveSQ instructor';
-  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n🔑 *Your Code:* *${code}*\n🔢 *Your PIN:* *${pin}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nLog in at: https://www.drivesq.co.uk/student.html\n\nSee you on the road! 🚗\n— DriveSQ`;
+  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nJust log in with your phone number — *${phone}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nSee you on the road! 🚗\n— DriveSQ`;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 function waInstructorNewStudent(){
@@ -1920,7 +1902,7 @@ function waInstructorNewStudent(){
   if(!instrObj||!instrObj.phone){showToast('No instructor phone number on file.','');return;}
   const waNum=buildWaNum(instrObj.phone);
   const instrFirst=(instrObj.full_name||'').split(' ')[0]||'Hi';
-  const msg=`Hi ${instrFirst}! 👋\n\n*New student assigned to you on DriveSQ.*\n\n👤 *Name:* ${c.name||'—'}\n📞 *Phone:* ${c.phone||'Not provided'}\n${c.email?'📧 *Email:* '+c.email+'\n':''}📍 *Address:* ${c.addr||'Not provided'}\n🚗 *Lesson type:* ${c.lessonType||'Manual'}\n${c.notes?'📝 *Notes:* '+c.notes+'\n':''}\n*Student App Login:*\n🔑 Code: *${c.code}*\n🔢 PIN: *${c.pin}*\n\nPlease contact the student to arrange their first lesson.\n\nYou can also share these login details so they can access the DriveSQ student platform — theory guides, test routes, hazard perception, and lesson tracking:\n📱 https://www.drivesq.co.uk/student.html\n\n— DriveSQ Admin`;
+  const msg=`Hi ${instrFirst}! 👋\n\n*New student assigned to you on DriveSQ.*\n\n👤 *Name:* ${c.name||'—'}\n📞 *Phone:* ${c.phone||'Not provided'}\n${c.email?'📧 *Email:* '+c.email+'\n':''}📍 *Address:* ${c.addr||'Not provided'}\n🚗 *Lesson type:* ${c.lessonType||'Manual'}\n${c.notes?'📝 *Notes:* '+c.notes+'\n':''}\nPlease contact the student to arrange their first lesson.\n\nThey can access the DriveSQ student platform (theory guides, test routes, hazard perception, lesson tracking) by logging in with their phone number at:\n📱 https://www.drivesq.co.uk/student.html\n\n— DriveSQ Admin`;
   window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -2544,14 +2526,10 @@ async function confirmAssign(){
   const instrName=document.getElementById('assign-instr-name').value;
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
   showToast('Assigning student…','');
-  // Generate login credentials
-  let code=gen5Code(),pin=gen4Pin();
-  for(let i=0;i<5;i++){const{data:ex}=await sb.from('student_accounts').select('id').eq('student_code',code).maybeSingle();if(!ex)break;code=gen5Code();}
-  // 1. Create student_accounts so they can log into the student app
+  // 1. Create student_accounts so they can log into the student app (phone number login — no code/PIN)
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
     full_name:s.name,phone:s.phone||null,instructor_id:instrId,
     lesson_type:s.type||'Manual',notes:s.notes||null,
-    student_code:code,pin:pin,password_hash:btoa(pin),
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
   if(accErr){console.error('student_accounts insert:',accErr);showToast('Failed to create student account: '+accErr.message,'error');return;}
@@ -2573,7 +2551,7 @@ async function confirmAssign(){
   ['fc-name','fc-postcode','fc-phone','fc-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
   // Store for potential WhatsApp use after modal closes
-  window._assignLastCreated={name:s.name,phone:s.phone,code,pin,instrName};
+  window._assignLastCreated={name:s.name,phone:s.phone,instrName};
   fcStudentData=null;
   if(allStudentsCache.length)loadAllStudents();
 }
