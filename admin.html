@@ -1043,8 +1043,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <div><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px">PIN</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--gold);letter-spacing:2px" id="cs-result-pin">—</div></div>
       </div>
       <div style="font-size:.72rem;color:var(--txt3);margin-top:8px">Share the student code and PIN with the student. They use these to log in to the DriveSQ student app.</div>
+      <div style="font-size:.72rem;color:var(--txt3);margin-top:6px;padding:6px 8px;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.15);border-radius:6px"><i class="bi bi-info-circle me-1" style="color:var(--gold)"></i>Student has been added to the instructor's roster. Notify them to book their first lesson and share app access.</div>
       <button onclick="copyStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:10px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-clipboard me-1"></i>Copy Code &amp; PIN</button>
-      <button onclick="waStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>Send via WhatsApp</button>
+      <button onclick="waStudentCredentials()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student — Share App Access</button>
+      <button id="cs-instr-wa-btn" onclick="waInstructorNewStudent()" style="display:none;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);color:#60a5fa;border-radius:8px;padding:8px 14px;font-size:.78rem;cursor:pointer;width:100%;margin-top:8px;font-family:'Oswald',sans-serif;font-weight:600"><i class="bi bi-whatsapp me-1"></i>WhatsApp Instructor — Full Student Details</button>
     </div>
     <button class="btn-p w-100 mb-2" id="createStudentBtn" onclick="confirmCreateStudent()"><i class="bi bi-person-plus-fill me-1"></i>Create Account</button>
     <button class="btn-s w-100" onclick="closeModal('createStudentModal')">Cancel</button>
@@ -1862,13 +1864,25 @@ async function confirmCreateStudent(){
     btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';
     return;
   }
+  // Also add student directly to instructor's roster (student_profiles) so they appear immediately
+  let instrObj=null;
+  if(instrId){
+    instrObj=allInstrs.find(i=>i.id===instrId)||null;
+    const profPayload={instructor_id:instrId,name:name,phone:phone||null,address:addr||null,lesson_type:lessonType,notes:notes||null,status:'active',created_at:new Date().toISOString()};
+    const{error:profErr}=await sb.from('student_profiles').insert([profPayload]);
+    if(profErr)console.warn('student_profiles insert:',profErr.message);
+  }
+  // Store for WhatsApp buttons
+  window._csLastCreated={name,phone,email,code,pin,lessonType,addr,notes,instrObj};
   // Show credentials
   document.getElementById('cs-result-code').textContent=code;
   document.getElementById('cs-result-pin').textContent=pin;
+  // Show/hide instructor WA button
+  const instrWaBtn=document.getElementById('cs-instr-wa-btn');
+  if(instrWaBtn)instrWaBtn.style.display=instrObj&&buildWaNum(instrObj.phone||'')?'block':'none';
   document.getElementById('createStudentResult').classList.remove('hidden');
   btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Created!';
-  showCreateStudentMsg('success','Account created successfully!');
-  // Refresh students list
+  showCreateStudentMsg('success','Account created & added to instructor\'s roster!');
   if(allStudentsCache.length)loadAllStudents();
 }
 function showCreateStudentMsg(type,msg){
@@ -1889,14 +1903,25 @@ function copyStudentCredentials(){
   navigator.clipboard.writeText(text).then(()=>showToast('Credentials copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
 }
 function waStudentCredentials(){
-  const code=document.getElementById('cs-result-code').textContent;
-  const pin=document.getElementById('cs-result-pin').textContent;
-  const name=document.getElementById('cs-name').value.trim();
-  const phone=document.getElementById('cs-phone').value.trim();
-  if(!phone){showToast('No phone number entered — cannot open WhatsApp.','');return;}
-  const waPhone='44'+phone.replace(/^0/,'').replace(/\s/g,'');
-  const msg=`Hi ${name}! 👋\n\nWelcome to DriveSQ! Your free student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n🔑 *Student Code:* ${code}\n🔒 *PIN:* ${pin}\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests\n🗺️ See test routes for your local test centre\n💬 Message your instructor directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on phone, tablet or laptop — and you can install it as a free app!\n\nSee you on the road! 🚗\n— DriveSQ Driving School`;
+  const c=window._csLastCreated||{};
+  const code=document.getElementById('cs-result-code').textContent||c.code||'';
+  const pin=document.getElementById('cs-result-pin').textContent||c.pin||'';
+  const name=document.getElementById('cs-name').value.trim()||c.name||'';
+  const phone=document.getElementById('cs-phone').value.trim()||c.phone||'';
+  if(!phone){showToast('No phone number — cannot open WhatsApp.','');return;}
+  const waPhone=buildWaNum(phone);
+  const instrName=c.instrObj?.full_name||'your DriveSQ instructor';
+  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n🔑 *Your Code:* *${code}*\n🔢 *Your PIN:* *${pin}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nLog in at: https://www.drivesq.co.uk/student.html\n\nSee you on the road! 🚗\n— DriveSQ`;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+function waInstructorNewStudent(){
+  const c=window._csLastCreated||{};
+  const instrObj=c.instrObj;
+  if(!instrObj||!instrObj.phone){showToast('No instructor phone number on file.','');return;}
+  const waNum=buildWaNum(instrObj.phone);
+  const instrFirst=(instrObj.full_name||'').split(' ')[0]||'Hi';
+  const msg=`Hi ${instrFirst}! 👋\n\n*New student assigned to you on DriveSQ.*\n\n👤 *Name:* ${c.name||'—'}\n📞 *Phone:* ${c.phone||'Not provided'}\n${c.email?'📧 *Email:* '+c.email+'\n':''}📍 *Address:* ${c.addr||'Not provided'}\n🚗 *Lesson type:* ${c.lessonType||'Manual'}\n${c.notes?'📝 *Notes:* '+c.notes+'\n':''}\n*Student App Login:*\n🔑 Code: *${c.code}*\n🔢 PIN: *${c.pin}*\n\nPlease contact the student to arrange their first lesson.\n\nYou can also share these login details so they can access the DriveSQ student platform — theory guides, test routes, hazard perception, and lesson tracking:\n📱 https://www.drivesq.co.uk/student.html\n\n— DriveSQ Admin`;
+  window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
 let _renderedStudents=[];
@@ -2509,28 +2534,48 @@ function openAssignModal(instrId,instrName,instrPhone){
     <strong style="color:var(--txt)">Phone:</strong> ${esc(s.phone||'Not provided')}<br>
     <strong style="color:var(--txt)">Type:</strong> ${esc(s.type||'Manual')}<br>
     ${s.notes?`<strong style="color:var(--txt)">Notes:</strong> ${esc(s.notes)}`:''}`;
-  const waMsg=`Hi ${instrName}! 👋\n\nA new student has been assigned to you on DriveSQ.\n\n🧑 *Student:* ${s.name}\n📍 *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\n📱 View on your portal:\n${PORTAL_URL}\n\nRemember to share the student portal link with them so they can track their progress, study theory and confirm bookings.\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student is being assigned to you.*\n\n👤 *Name:* ${s.name}\n📞 *Phone:* ${s.phone||'Not provided'}\n📍 *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   openModal('assignModal');
 }
 async function confirmAssign(){
   const instrId=document.getElementById('assign-instr-id').value;const s=fcStudentData||{};
+  const instrName=document.getElementById('assign-instr-name').value;
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
-  // "Find Closest" only ever collects a postcode, not a real street address — previously that
-  // postcode was written straight into pickup_address too, so an approved lesson ended up with
-  // e.g. "M19 2PH" as its pickup address instead of an actual address. Leave pickup_address
-  // unset; the instructor fills in the real address when they approve the request.
-  const{error}=await sb.from('student_requests').insert([{
+  showToast('Assigning student…','');
+  // Generate login credentials
+  let code=gen5Code(),pin=gen4Pin();
+  for(let i=0;i<5;i++){const{data:ex}=await sb.from('student_accounts').select('id').eq('student_code',code).maybeSingle();if(!ex)break;code=gen5Code();}
+  // 1. Create student_accounts so they can log into the student app
+  const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
+    full_name:s.name,phone:s.phone||null,instructor_id:instrId,
+    lesson_type:s.type||'Manual',notes:s.notes||null,
+    student_code:code,pin:pin,password_hash:btoa(pin),
+    status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+  }]).select('id').maybeSingle();
+  if(accErr){console.error('student_accounts insert:',accErr);showToast('Failed to create student account: '+accErr.message,'error');return;}
+  // 2. Add directly to instructor's roster (student_profiles) — no approval step needed
+  const{error:profErr}=await sb.from('student_profiles').insert([{
+    instructor_id:instrId,name:s.name,phone:s.phone||null,
+    address:null,lesson_type:s.type||'Manual',notes:(s.notes||'')+(s.postcode?'\nPostcode: '+s.postcode:''),
+    status:'active',created_at:new Date().toISOString()
+  }]);
+  if(profErr)console.warn('student_profiles insert (assign):',profErr.message);
+  // 3. Also log in student_requests for audit trail
+  await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
     pickup_address:null,postcode:s.postcode,lesson_type:s.type||'Manual',
-    notes:s.notes||null,status:'pending',created_at:new Date().toISOString()
-  }]);
-  if(error){showToast('Failed to assign.','error');return;}
-  closeModal('assignModal');showToast(`✅ ${s.name} assigned to ${document.getElementById('assign-instr-name').value}!`,'success');
+    notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
+  }]).catch(()=>{});
+  closeModal('assignModal');
+  showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
   ['fc-name','fc-postcode','fc-phone','fc-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
+  // Store for potential WhatsApp use after modal closes
+  window._assignLastCreated={name:s.name,phone:s.phone,code,pin,instrName};
   fcStudentData=null;
+  if(allStudentsCache.length)loadAllStudents();
 }
 
 /* ══ ANALYTICS ══ */
