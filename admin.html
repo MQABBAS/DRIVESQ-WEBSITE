@@ -1444,7 +1444,7 @@ function populateDropdowns(){
 /* ══ RENDER INSTRUCTORS ══ */
 function renderInstrsTable(list){
   const tb=document.getElementById('instrTbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--txt4);padding:24px">No instructors found.</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr>'+emptyState('No instructors found','Try adjusting your search or status filter')+'</tr>';return;}
   tb.innerHTML=list.map(i=>{
     const isSusp=i.status==='suspended';
     const blockBtn=isSusp
@@ -1462,7 +1462,7 @@ function renderInstrsTable(list){
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
       <td>${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
       <td class="hide-xs">${esc(i.area||'—')}</td>
-      <td><span class="chip ${i.status}">${i.status}</span></td>
+      <td><span class="chip ${i.status}" style="cursor:pointer" title="Click to change status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span></td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
@@ -1481,7 +1481,7 @@ function renderInstrsTable(list){
 
 function renderPendingTable(list){
   const tb=document.getElementById('pendingTbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--txt4);padding:24px">No pending applications.</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr>'+emptyState('No pending applications','All applications have been reviewed')+'</tr>';return;}
   tb.innerHTML=list.map(i=>{ const waNum=buildWaNum(i.phone||'');
     return`<tr>
     <td style="color:var(--txt);font-weight:600">${esc(i.full_name)}</td>
@@ -1522,8 +1522,10 @@ async function updateStatus(id,status){
 }
 
 /* ══ DELETE INSTRUCTOR — FIXED CASCADE ══ */
-async function deleteInstr(id,name){
-  if(!confirm(`⚠️ PERMANENTLY REMOVE "${name}"?\n\nThis will delete:\n• Their instructor account\n• ALL their lessons\n• ALL admin messages to them\n• All student requests & transfers\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
+function deleteInstr(id,name){
+  showConfirm('Permanently Remove "'+name+'"?','This will delete their instructor account, ALL lessons, admin messages, and all student requests. This CANNOT be undone.',()=>_doDeleteInstr(id,name),{icon:'🗑️',actionLabel:'Yes, Delete Permanently'});
+}
+async function _doDeleteInstr(id,name){
   showToast('Deleting instructor…','warn');
   try{
     // Step by step — order matters for foreign key constraints. Track failures instead of only
@@ -1561,9 +1563,9 @@ async function deleteInstr(id,name){
       return;
     }
     if(failed.length){
-      showToast('⚠️ Instructor removed, but some related data failed to clean up ('+failed.join(', ')+'). Check console.','error');
+      showToast('Instructor removed, but some related data failed to clean up ('+failed.join(', ')+').','warn');
     }else{
-      showToast('🗑️ Instructor "'+name+'" removed.','success');
+      showToast('Instructor "'+name+'" deleted.','success');
     }
     await loadInstrs();
     if(viewingId===id){viewingId=null;switchTab('instructors');}
@@ -1912,7 +1914,7 @@ function renderStudentsTable(students){
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
   document.getElementById('studentCount').textContent=`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
-  if(!students.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--txt4);padding:24px">No students found.</td></tr>';return;}
+  if(!students.length){tb.innerHTML='<tr>'+emptyState('No students found','Try adjusting your search or instructor filter')+'</tr>';return;}
   tb.innerHTML=students.map((s,idx)=>{
     const waNum=buildWaNum(s.phone||'');
     const pct=s.targetHours?Math.min(100,(s.hours/s.targetHours*100)).toFixed(0):null;
@@ -2318,17 +2320,20 @@ function openLessonDetail(l){
   else ms.innerHTML='';
   openModal('lessonDetailModal');
 }
-async function deleteAdminLesson(){
-  if(!activeLessonId||!confirm('Remove this lesson?'))return;
-  const{error}=await sb.from('lessons').delete().eq('id',activeLessonId);
-  if(error){showToast('Failed.','error');return;}
-  closeModal('lessonDetailModal');showToast('Lesson removed.');await loadAdminLessons();
+function deleteAdminLesson(){
+  if(!activeLessonId)return;
+  showConfirm('Remove this lesson?','This action cannot be undone.',async()=>{
+    const{error}=await sb.from('lessons').delete().eq('id',activeLessonId);
+    if(error){showToast('Failed to remove lesson.','error');return;}
+    closeModal('lessonDetailModal');showToast('Lesson removed.','success');await loadAdminLessons();
+  },{icon:'🗑️',actionLabel:'Remove Lesson'});
 }
-async function confirmDelLesson(id){
-  if(!confirm('Remove this lesson?'))return;
-  const{error}=await sb.from('lessons').delete().eq('id',id);
-  if(error){showToast('Failed.','error');return;}
-  showToast('Lesson removed.');await loadAdminLessons();
+function confirmDelLesson(id){
+  showConfirm('Remove this lesson?','This action cannot be undone.',async()=>{
+    const{error}=await sb.from('lessons').delete().eq('id',id);
+    if(error){showToast('Failed to remove lesson.','error');return;}
+    showToast('Lesson removed.','success');await loadAdminLessons();
+  },{icon:'🗑️',actionLabel:'Remove Lesson'});
 }
 
 /* ══ EDIT INSTRUCTOR ══ */
@@ -3020,7 +3025,7 @@ function filterLessons(){
 function renderLessonsTable(lessons){
   const tb=document.getElementById('lessonsTbody');
   document.getElementById('lessonCount').textContent=`Showing ${lessons.length} lesson${lessons.length!==1?'s':''}`;
-  if(!lessons.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--txt4);padding:24px">No lessons found.</td></tr>';return;}
+  if(!lessons.length){tb.innerHTML='<tr>'+emptyState('No lessons found','Try adjusting your search filters or date range')+'</tr>';return;}
   tb.innerHTML=lessons.map(l=>{
     const end=calcEnd(l.start_time,parseFloat(l.duration_hours)||1);
     const waNum=buildWaNum(l.student_phone||'');
@@ -3303,11 +3308,220 @@ function showBroadcastMsg(type,msg){
 
 /* ══ TOAST ══ */
 let _tt;
+const _toastIcons={success:'✅',error:'❌',warn:'⚠️',info:'ℹ️',''  :'📋'};
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
-  t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');
-  clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));
-  _tt=setTimeout(()=>t.classList.remove('show'),3400);
+  const icon=document.getElementById('toastIcon');
+  const msgEl=document.getElementById('toastMsg');
+  if(icon)icon.textContent=_toastIcons[type]||'';
+  if(msgEl)msgEl.textContent=msg;else t.textContent=msg;
+  t.className='dsq-toast'+(type?' '+type:'');
+  clearTimeout(_tt);
+  t.classList.remove('show');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  _tt=setTimeout(()=>t.classList.remove('show'),4000);
+}
+
+/* ══ CONFIRM MODAL ══ */
+let _confirmCb=null;
+function showConfirm(title,msg,cb,{icon='⚠️',actionLabel='Confirm',actionClass=''}={}){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmIcon').textContent=icon;
+  const btn=document.getElementById('confirmActionBtn');
+  btn.textContent=actionLabel;
+  btn.className='btn-p flex-fill'+(actionClass?' '+actionClass:'');
+  _confirmCb=cb;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirmModal(){document.getElementById('confirmModal').classList.remove('open');_confirmCb=null;}
+function executeConfirm(){const cb=_confirmCb;closeConfirmModal();if(cb)cb();}
+
+/* ══ GLOBAL SEARCH ══ */
+let _gsIdx=-1,_gsItems=[];
+function openGlobalSearch(){
+  const m=document.getElementById('globalSearchModal');
+  m.classList.add('open');
+  const inp=document.getElementById('globalSearchInp');
+  inp.value='';
+  document.getElementById('globalSearchResults').innerHTML='<div class="gsearch-empty"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--bdr2)"></i>Start typing to search across instructors and students</div>';
+  setTimeout(()=>inp.focus(),80);
+  _gsIdx=-1;_gsItems=[];
+}
+function closeGlobalSearch(){document.getElementById('globalSearchModal').classList.remove('open');}
+function runGlobalSearch(q){
+  const raw=(q||'').trim();_gsIdx=-1;
+  const res=document.getElementById('globalSearchResults');
+  if(!raw){res.innerHTML='<div class="gsearch-empty"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--bdr2)"></i>Start typing to search</div>';_gsItems=[];return;}
+  const lq=raw.toLowerCase();
+  const instrHits=allInstrs.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.email||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq)).slice(0,5);
+  const studHits=allStudentsCache.filter(s=>(s.name||'').toLowerCase().includes(lq)||(s.phone||'').includes(raw)||(s.address||'').toLowerCase().includes(lq)||(s.instrName||'').toLowerCase().includes(lq)).slice(0,5);
+  _gsItems=[];
+  let html='';
+  if(instrHits.length){
+    html+='<div class="gsearch-section"><div class="gsearch-lbl">Instructors</div>';
+    instrHits.forEach(i=>{
+      _gsItems.push({type:'instr',id:i.id});
+      html+=`<div class="gsearch-item" onclick="gSearchSelect(${_gsItems.length-1})">
+        <div class="gsearch-item-icon instr">${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:30px;height:30px;border-radius:8px;object-fit:cover" alt=""/>`:esc((i.full_name||'?').charAt(0))}</div>
+        <div><div class="gsearch-item-name">${esc(i.full_name)}</div><div class="gsearch-item-sub"><span class="chip ${i.status}" style="font-size:.52rem;padding:1px 5px;margin-right:4px">${i.status}</span>${esc(i.badge_number||'')} ${i.area?'· '+esc(i.area):''}</div></div>
+        <i class="bi bi-chevron-right ms-auto" style="color:var(--bdr2);font-size:.7rem"></i>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  if(studHits.length){
+    html+='<div class="gsearch-section"><div class="gsearch-lbl">Students</div>';
+    studHits.forEach(s=>{
+      _gsItems.push({type:'student',data:s});
+      html+=`<div class="gsearch-item" onclick="gSearchSelect(${_gsItems.length-1})">
+        <div class="gsearch-item-icon student">${(s.name||'?').charAt(0).toUpperCase()}</div>
+        <div><div class="gsearch-item-name">${esc(s.name)}</div><div class="gsearch-item-sub">${esc(s.phone||'No phone')} · ${esc(s.instrName)}</div></div>
+        <i class="bi bi-chevron-right ms-auto" style="color:var(--bdr2);font-size:.7rem"></i>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  if(!instrHits.length&&!studHits.length){html='<div class="gsearch-empty"><i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:8px;color:var(--bdr2)"></i>No results for "'+esc(raw)+'"</div>';}
+  res.innerHTML=html;
+}
+function gSearchSelect(idx){
+  const item=_gsItems[idx];if(!item)return;
+  closeGlobalSearch();
+  if(item.type==='instr'){viewInstr(item.id);}
+  else if(item.type==='student'){
+    switchTab('students');
+    setTimeout(()=>{
+      const idx2=allStudentsCache.findIndex(s=>s.name===item.data.name&&s.instrId===item.data.instrId);
+      if(idx2>=0)openStudentDetail(idx2);
+    },300);
+  }
+}
+function handleSearchKey(e){
+  const items=document.querySelectorAll('#globalSearchResults .gsearch-item');
+  if(e.key==='ArrowDown'){e.preventDefault();_gsIdx=Math.min(_gsIdx+1,items.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();_gsIdx=Math.max(_gsIdx-1,0);}
+  else if(e.key==='Enter'){if(_gsIdx>=0&&_gsIdx<_gsItems.length)gSearchSelect(_gsIdx);return;}
+  else if(e.key==='Escape'){closeGlobalSearch();return;}
+  items.forEach((el,i)=>el.classList.toggle('active',i===_gsIdx));
+  if(_gsIdx>=0&&items[_gsIdx])items[_gsIdx].scrollIntoView({block:'nearest'});
+}
+// Keyboard shortcut
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openGlobalSearch();}
+  if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'&&document.activeElement.tagName!=='SELECT'){
+    const gm=document.getElementById('globalSearchModal');
+    if(!gm.classList.contains('open')){e.preventDefault();openGlobalSearch();}
+  }
+  if(e.key==='Escape'){
+    const gm=document.getElementById('globalSearchModal');
+    const cm=document.getElementById('confirmModal');
+    if(gm.classList.contains('open'))closeGlobalSearch();
+    if(cm.classList.contains('open'))closeConfirmModal();
+  }
+});
+
+/* ══ INSTRUCTOR VIEW TOGGLE ══ */
+let _instrView='table';
+function setInstrView(v){
+  _instrView=v;
+  document.getElementById('instrViewTable').classList.toggle('active',v==='table');
+  document.getElementById('instrViewGrid').classList.toggle('active',v==='grid');
+  document.getElementById('instrTableWrap').classList.toggle('hidden',v!=='table');
+  document.getElementById('instrGridWrap').classList.toggle('hidden',v!=='grid');
+  if(v==='grid'){
+    const q=(document.getElementById('instrSearch')||{}).value||'';
+    const status=(document.getElementById('statusFilter')||{}).value||'';
+    let list=allInstrs;
+    if(status)list=list.filter(i=>i.status===status);
+    if(q){const lq=q.toLowerCase();list=list.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq)||(i.email||'').toLowerCase().includes(lq));}
+    renderInstrsGrid(list);
+  }
+}
+function renderInstrsGrid(list){
+  const g=document.getElementById('instrGridWrap');
+  if(!list.length){g.innerHTML='<div class="dsq-card" style="grid-column:1/-1"><div class="dsq-empty"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><div class="dsq-empty-title">No instructors found</div><div class="dsq-empty-sub">Try adjusting your search or status filter</div></div></div>';return;}
+  g.innerHTML=list.map(i=>{
+    const waNum=buildWaNum(i.phone||'');
+    const isSusp=i.status==='suspended';
+    const photo=i.profile_photo_url?`<img class="instr-card-avatar" src="${esc(i.profile_photo_url)}" alt=""/>`:`<div class="instr-card-init">${(i.full_name||'?').charAt(0).toUpperCase()}</div>`;
+    const ltLabel=i.car_type==='Both'?'M & A':i.car_type||'Manual';
+    const ltColor=i.car_type==='Both'?'#c084fc':i.car_type==='Automatic'?'#4ade80':'#60a5fa';
+    return`<div class="instr-card ${i.status}">
+      <div class="d-flex align-items-center gap-3 mb-10" style="margin-bottom:10px">
+        ${photo}
+        <div style="min-width:0">
+          <div class="instr-card-name">${esc(i.full_name)}</div>
+          <div class="instr-card-badge">${esc(i.badge_number||'—')}</div>
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+            <span class="chip ${(i.badge_type||'ADI').toLowerCase()}" style="font-size:.55rem">${esc(i.badge_type||'ADI')}</span>
+            <span style="background:rgba(0,0,0,.1);border:1px solid ${ltColor}33;color:${ltColor};font-size:.55rem;font-weight:700;padding:2px 6px;border-radius:4px;font-family:'Oswald',sans-serif">${ltLabel}</span>
+            <span class="chip ${i.status}" style="font-size:.52rem;cursor:pointer" title="Click to toggle status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span>
+          </div>
+        </div>
+      </div>
+      ${i.area?`<div style="font-size:.68rem;color:var(--txt3);margin-bottom:8px"><i class="bi bi-geo-alt me-1"></i>${esc(i.area)}</div>`:''}
+      <div class="instr-card-stats">
+        <div class="instr-card-stat"><div class="instr-card-stat-val" style="color:var(--red)">${(i._weekHrs||0).toFixed(1)}h</div><div class="instr-card-stat-lbl">This week</div></div>
+        <div class="instr-card-stat"><div class="instr-card-stat-val" style="color:var(--green)">£${(i._weekEarn||0).toFixed(0)}</div><div class="instr-card-stat-lbl">Earned</div></div>
+      </div>
+      <div class="instr-card-actions">
+        <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
+        <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
+        ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
+        ${isSusp?`<button class="abtn unblock" onclick="unblockInstr('${i.id}')"><i class="bi bi-unlock"></i></button>`:`<button class="abtn block" onclick="openBlockModal('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-slash-circle"></i></button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ INSTRUCTOR STATUS TOGGLE (chip click) ══ */
+function toggleInstrStatus(id,currentStatus,name){
+  if(currentStatus==='approved'){
+    showConfirm('Suspend Instructor','Suspending '+name+' will block their access to the portal. You can unblock them at any time.',()=>openBlockModal(id,name),{icon:'⛔',actionLabel:'Continue to Block',actionClass:''});
+  } else if(currentStatus==='suspended'){
+    showConfirm('Unblock Instructor','Restore full access for '+name+'?',()=>unblockInstr(id),{icon:'✅',actionLabel:'Unblock',actionClass:''});
+  } else if(currentStatus==='pending'){
+    showConfirm('Approve Instructor','Approve '+name+' as a verified instructor?',()=>updateStatus(id,'approved'),{icon:'✅',actionLabel:'Approve',actionClass:''});
+  }
+}
+
+/* ══ EXPORT INSTRUCTORS CSV ══ */
+function exportInstrsCSV(){
+  const list=allInstrs;
+  if(!list.length){showToast('No instructors to export.','error');return;}
+  const hdr='Name,Badge Number,Type,Car Type,Email,Phone,Area,Status,Hours This Week,Earnings This Week,Last Login,Joined';
+  const rows=list.map(i=>[i.full_name,i.badge_number||'',i.badge_type||'ADI',i.car_type||'Manual',i.email||'',i.phone||'',i.area||'',i.status,(i._weekHrs||0).toFixed(1),(i._weekEarn||0).toFixed(0),i.last_login||'',i.created_at||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[hdr,...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='drivesq_instructors.csv';a.click();
+  showToast('Instructors exported ✓','success');
+}
+
+/* ══ DASHBOARD 7-DAY REVENUE CHART ══ */
+async function loadDash7DayChart(){
+  const days=[];const today=new Date();
+  for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);days.push(dateKey(d));}
+  const{data:l7}=await sb.from('lessons').select('lesson_date,payment_received').gte('lesson_date',days[0]).lte('lesson_date',days[6]);
+  const byDay={};days.forEach(d=>{byDay[d]=0;});
+  (l7||[]).forEach(l=>{if(byDay[l.lesson_date]!==undefined)byDay[l.lesson_date]+=(parseFloat(l.payment_received)||0);});
+  const vals=days.map(d=>byDay[d]);
+  const labels=days.map(d=>{const dt=new Date(d+'T12:00:00');return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];});
+  const todayStr=dateKey(today);
+  const c=_getChartColors();
+  _destroyChart('dash7day');
+  _charts.dash7day=new Chart(document.getElementById('dash7DayCanvas'),{
+    type:'bar',
+    data:{labels,datasets:[{data:vals,backgroundColor:days.map(d=>d===todayStr?'rgba(37,211,102,.8)':'rgba(37,211,102,.3)'),borderColor:days.map(d=>d===todayStr?'#25D366':'rgba(37,211,102,.5)'),borderWidth:1,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'£'+ctx.raw.toFixed(0)}}},animation:{duration:500},scales:{y:{beginAtZero:true,grid:{color:c.grid},ticks:{color:c.text,font:{size:10},callback:v=>'£'+v}},x:{grid:{display:false},ticks:{color:c.text,font:{family:'Oswald',size:11}}}}}
+  });
+}
+
+/* ══ BETTER EMPTY STATES ══ */
+function emptyState(msg,sub){
+  return`<td colspan="99" style="padding:0;border:none"><div class="dsq-empty">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--bdr2);margin-bottom:14px"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
+    <div class="dsq-empty-title">${msg}</div>${sub?`<div class="dsq-empty-sub">${sub}</div>`:''}
+  </div></td>`;
 }
 </script>
 <!-- SQWEBSITES-CREDIT-V2 -->
