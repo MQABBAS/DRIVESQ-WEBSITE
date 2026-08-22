@@ -2984,10 +2984,23 @@ async function loadDashboard(){
   }
 
   // Recent activity
-  const{data:recentL}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,instructors(full_name)').order('created_at',{ascending:false}).limit(8);
+  const{data:recentL}=await sb.from('lessons').select('student_name,lesson_date,lesson_type,instructors(full_name)').order('created_at',{ascending:false}).limit(10);
   const dashA=document.getElementById('dashActivity');
   if(!recentL||!recentL.length){dashA.innerHTML='<div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">No recent activity.</div>';}
-  else{dashA.innerHTML=recentL.map(l=>`<div class="act-item"><div class="act-dot" style="background:${typeColors[l.lesson_type]||'#60a5fa'}"></div><div><div class="act-txt"><strong>${esc(l.student_name)}</strong> — ${esc(l.lesson_type||'Manual')} with ${esc(l.instructors?.full_name||'—')}</div><div class="act-time">${fmtD(l.lesson_date)}</div></div></div>`).join('');}
+  else{
+    const dotColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
+    dashA.innerHTML=recentL.map(l=>`<div class="act-item">
+      <div class="act-dot" style="background:${dotColors[l.lesson_type]||'#60a5fa'}"></div>
+      <div style="flex:1">
+        <div class="act-txt"><strong>${esc(l.student_name)}</strong> — <span style="color:${dotColors[l.lesson_type]||'#60a5fa'};font-weight:600">${esc(l.lesson_type||'Manual')}</span> with ${esc(l.instructors?.full_name||'—')}</div>
+        <div class="act-time"><i class="bi bi-calendar3 me-1"></i>${fmtD(l.lesson_date)}</div>
+      </div>
+      <span class="chip ${(l.lesson_type||'Manual').replace(/\s/g,'-')}" style="font-size:.5rem">${esc(l.lesson_type||'Manual')}</span>
+    </div>`).join('');
+  }
+
+  // 7-day revenue chart
+  loadDash7DayChart();
 }
 
 /* == ALL LESSONS == */
