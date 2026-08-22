@@ -2887,12 +2887,20 @@ function renderStudents(students,emptyOverride){
         </div>
         <div style="color:var(--txt4);font-size:.9rem;flex-shrink:0;margin-left:4px"><i class="bi bi-chevron-right"></i></div>
       </div>
+      ${(s.count===0&&!hasLogin)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px">
+        <i class="bi bi-bell-fill" style="flex-shrink:0"></i>
+        <span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span>
+      </div>`:''}
+      ${(s.count===0&&acc&&acc.student_code&&!hasLogin)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px">
+        <i class="bi bi-phone" style="flex-shrink:0"></i>
+        <span>Student app code: <strong>${esc(acc.student_code)}</strong> · Share <strong>drivesq.co.uk/student.html</strong> with them to access theory guides &amp; lesson tracking.</span>
+      </div>`:''}
       <div class="sc-actions">
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
         <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
-        ${phone?`<a href="${waLink(phone,'Hi '+s.name+', this is your DriveSQ instructor. ')}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
+        ${phone?`<a href="${waLink(phone,`Hi ${s.name}, this is your DriveSQ instructor. I’ve been assigned to you — let’s get your first lesson booked! 🚗`)}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
       </div>
     </div>`;
   }).join('');
