@@ -290,6 +290,29 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
 @media(min-width:768px){.wa-float{bottom:22px}}
 
 @media(max-width:767px){.s-main{padding:12px 12px 0}}
+
+/* PANEL ANIMATION */
+.panel-anim{animation:panelIn .2s ease both}
+@keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* XP BAR */
+.xp-bar-outer{background:var(--dk3);border-radius:4px;height:5px;overflow:hidden;margin-top:4px}
+.xp-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),#f59e0b);border-radius:4px;transition:width .6s ease}
+
+/* LESSON TYPE CHIP */
+.lt-chip{display:inline-block;font-size:.58rem;font-weight:700;padding:1px 7px;border-radius:4px;font-family:'Oswald',sans-serif;letter-spacing:.3px;white-space:nowrap;vertical-align:middle}
+
+/* DAILY TIP */
+.tip-card{background:var(--dk2);border:2px solid rgba(245,197,24,.3);border-radius:13px;padding:13px;margin-bottom:12px;position:relative;overflow:hidden}
+.tip-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
+
+/* PROFILE COMPLETION */
+.prof-comp-bar{height:6px;background:var(--dk3);border-radius:3px;overflow:hidden;margin-top:5px}
+.prof-comp-fill{height:100%;background:linear-gradient(90deg,var(--green),#22c55e);border-radius:3px;transition:width .6s ease}
+
+/* STREAK CARD */
+.streak-card{background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.04));border:1px solid rgba(245,197,24,.3);border-radius:13px;padding:13px;position:relative;overflow:hidden}
+.streak-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
 </style>
 </head>
 <body>
@@ -569,6 +592,12 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
         </div>
       </div>
 
+      <!-- Daily tip -->
+      <div class="tip-card mb-3" id="dailyTipCard">
+        <div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--gold);margin-bottom:5px"><i class="bi bi-lightbulb-fill me-1"></i>Driving Tip of the Day</div>
+        <div class="tip-text" style="font-size:.82rem;color:var(--txt2);line-height:1.55">Loading tip…</div>
+      </div>
+
       <!-- Upcoming Lessons -->
       <div class="mb-3 hidden" id="upcomingLessonsSection">
         <div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px"><i class="bi bi-calendar-check me-1" style="color:var(--blue)"></i>Upcoming Lessons</div>
@@ -576,10 +605,37 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
       </div>
 
       <!-- Stats -->
-      <div class="row g-2 mb-3">
+      <div class="row g-2 mb-2">
         <div class="col-4"><div class="stat-card red"><div class="stat-lbl">Hours Done</div><div class="stat-num red" id="statHoursDone">0</div><div class="stat-sub">lessons completed</div></div></div>
         <div class="col-4"><div class="stat-card gold"><div class="stat-lbl">Remaining</div><div class="stat-num gold" id="statHoursLeft">20</div><div class="stat-sub">hrs to target</div></div></div>
         <div class="col-4"><div class="stat-card green"><div class="stat-lbl">Mastered</div><div class="stat-num green" id="statTopics">0</div><div class="stat-sub">topics</div></div></div>
+      </div>
+      <!-- Streak + XP row -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <div class="streak-card" id="streakCard">
+            <div class="streak-num" style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--gold)">🔥 1-day streak</div>
+            <div class="streak-sub" style="font-size:.62rem;color:var(--txt4);margin-top:2px">Great start! Come back tomorrow.</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="stat-card purple" id="xpCard">
+            <div class="stat-lbl">XP Level</div>
+            <div class="xp-lbl" style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#a855f7">Level 0 · 0/100 XP</div>
+            <div class="xp-bar-outer"><div class="xp-bar-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+      <!-- Quick practice button -->
+      <div class="mb-3">
+        <button onclick="startQuickPractice()" style="width:100%;background:linear-gradient(135deg,rgba(245,197,24,.14),rgba(245,197,24,.04));border:1px solid rgba(245,197,24,.35);border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:12px">
+          <span style="font-size:1.4rem">⚡</span>
+          <div>
+            <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt)">Quick 5-Question Practice</div>
+            <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">Random theory questions · Instant feedback</div>
+          </div>
+          <div style="margin-left:auto;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);border-radius:8px;padding:4px 10px;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--gold)">GO →</div>
+        </button>
       </div>
 
       <!-- Test countdowns -->
@@ -703,7 +759,16 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
     <!-- ── TOPICS TAB ── -->
     <div id="panel-topics" class="hidden">
       <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt);margin-bottom:6px"><i class="bi bi-list-check me-2" style="color:var(--red)"></i>Topic Progress</div>
-      <div style="font-size:.72rem;color:var(--txt4);margin-bottom:14px">Tap a topic group to expand. Green = Independent ✓</div>
+      <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Tap a topic group to expand. Green = Independent ✓</div>
+      <!-- Overall topic checklist progress bar -->
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:11px;padding:11px 14px;margin-bottom:12px">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div style="font-size:.72rem;color:var(--txt3);font-weight:600"><i class="bi bi-check2-all me-1" style="color:var(--green)"></i>Topics Mastered</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)" id="topicsOverallLbl">0 / 0</div>
+        </div>
+        <div class="hours-bar-outer"><div class="hours-bar-fill" id="topicsOverallBar" style="width:0%;background:linear-gradient(90deg,var(--green),#22c55e)"></div></div>
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px" id="topicsOverallSub">Tick topics as Independent to fill the bar</div>
+      </div>
       <div id="topicGroups"></div>
     </div>
 
@@ -781,6 +846,16 @@ select.dsq-inp option{background:var(--input-bg);color:var(--txt)}
     <!-- ── PROFILE TAB ── -->
     <div id="panel-profile" class="hidden pb-3">
       <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt);margin-bottom:14px"><i class="bi bi-person-circle me-2" style="color:var(--red)"></i>My Profile</div>
+
+      <!-- Profile completion bar -->
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:11px;padding:11px 14px;margin-bottom:10px" id="profCompletionWrap">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div style="font-size:.72rem;color:var(--txt3);font-weight:600"><i class="bi bi-person-check me-1" style="color:var(--green)"></i>Profile Complete</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--green)" id="profCompPct">0%</div>
+        </div>
+        <div class="prof-comp-bar"><div class="prof-comp-fill" id="profCompBar" style="width:0%"></div></div>
+        <div style="font-size:.62rem;color:var(--txt4);margin-top:4px" id="profCompMissing"></div>
+      </div>
 
       <!-- Photo + name -->
       <div class="profile-section">
@@ -1348,7 +1423,11 @@ document.addEventListener('click',e=>{const p=document.getElementById('notifPane
 const TABS=['home','progress','topics','learn','messages','profile'];
 function switchTab(t){
   TABS.forEach(id=>{
-    document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
+    const panel=document.getElementById('panel-'+id);
+    if(panel){
+      panel.classList.toggle('hidden',id!==t);
+      if(id===t){panel.classList.remove('panel-anim');void panel.offsetWidth;panel.classList.add('panel-anim');}
+    }
     document.getElementById('dtab-'+id)?.classList.toggle('active',id===t);
   });
   if(t==='progress'){
@@ -1363,6 +1442,53 @@ function switchTab(t){
   if(t==='messages'){loadMessages();}
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
+
+/* ── STREAK ── */
+function updateStreak(){
+  if(!currentStudent?.id)return 0;
+  const key='dsq_streak_'+currentStudent.id;
+  const today=todayKey();
+  let streak=JSON.parse(localStorage.getItem(key)||'{"count":0,"lastDate":""}');
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const yk=yesterday.getFullYear()+'-'+pad2(yesterday.getMonth()+1)+'-'+pad2(yesterday.getDate());
+  if(streak.lastDate===today){/* already counted today */}
+  else if(streak.lastDate===yk){streak.count++;streak.lastDate=today;}
+  else{streak.count=1;streak.lastDate=today;}
+  localStorage.setItem(key,JSON.stringify(streak));
+  return streak.count;
+}
+
+/* ── DAILY TIP ── */
+const DAILY_TIPS=[
+  'Check your mirrors every 8–10 seconds on the move.',
+  'At a junction, look right, left, then right again before pulling out.',
+  'Never cross your arms when steering — use the push-pull technique.',
+  'Keep at least a 2-second gap from the car in front in dry conditions.',
+  'Signal in good time — other drivers need to react to your intentions.',
+  'When parking, always apply the handbrake before selecting neutral.',
+  'On a hill start, find the biting point before releasing the handbrake.',
+  'Approaching a roundabout, slow down and select the correct lane early.',
+  'Before moving off, do a full all-round observation including blind spots.',
+  'In wet conditions, double your following distance to at least 4 seconds.',
+  'Use your mirrors before braking, turning, signalling or accelerating.',
+  'When turning right, position just left of the centre line.',
+  'Clutch control is key — don\'t ride the clutch on hills for long periods.',
+  'Emergency stop: brake firmly and clutch down just before you stop.',
+  'Hazard perception: click when you SEE a developing hazard, not after it develops.',
+  'Theory test pass is valid for 2 years — book your practical promptly.',
+  'On a motorway, stay in the left lane unless overtaking.',
+  'Always check blind spots before pulling away from the kerb.',
+  'In a 20mph zone, anticipate pedestrians — especially near schools.',
+  'Keep your tyres at the correct pressure — check monthly and before long journeys.'
+];
+function getDailyTip(){
+  const d=new Date();
+  const start=new Date(d.getFullYear(),0,0);
+  const diff=d-start;
+  const oneDay=1000*60*60*24;
+  const dayOfYear=Math.floor(diff/oneDay);
+  return DAILY_TIPS[dayOfYear%DAILY_TIPS.length];
+}
 
 /* ── HOME RENDER ── */
 function renderHome(){
@@ -1379,9 +1505,28 @@ function renderHome(){
   document.getElementById('statHoursLeft').textContent=Math.max(0,target-done);
   const mastered=studentTopics.filter(t=>t.rating===3).length;
   document.getElementById('statTopics').textContent=mastered;
+  // Streak
+  const streakCount=updateStreak();
+  const streakEl=document.getElementById('streakCard');
+  if(streakEl){
+    streakEl.querySelector('.streak-num').textContent='🔥 '+streakCount+'-day streak';
+    streakEl.querySelector('.streak-sub').textContent=streakCount===1?'Great start! Come back tomorrow.':streakCount>=7?'Amazing consistency! 🏆':'Keep it up — don\'t break the chain!';
+  }
+  // XP bar
+  const xp=(done*10)+(mastered*5)+(studentLessons.length*2);
+  const level=Math.floor(xp/100);
+  const xpProgress=xp%100;
+  const xpEl=document.getElementById('xpCard');
+  if(xpEl){
+    xpEl.querySelector('.xp-lbl').textContent='Level '+level+' · '+xpProgress+'/100 XP';
+    xpEl.querySelector('.xp-bar-fill').style.width=xpProgress+'%';
+  }
   // Lesson banner
   renderLessonBanner();
   renderUpcomingLessons();
+  // Daily tip
+  const tipEl=document.getElementById('dailyTipCard');
+  if(tipEl)tipEl.querySelector('.tip-text').textContent=getDailyTip();
   // Feedback
   if(studentProgress?.overall_notes){
     document.getElementById('latestFeedback').textContent=studentProgress.overall_notes;
@@ -1401,20 +1546,50 @@ function renderLessonBanner(){
     document.getElementById('lessonDateLbl').textContent='No upcoming lessons scheduled';
     document.getElementById('lessonTimeLbl').textContent='';
     document.getElementById('lessonAddrLbl').textContent='Contact your instructor to book your next lesson';
+    document.getElementById('lessonStatusBadge').innerHTML='';
     actions.classList.add('hidden');
     return;
   }
   const l=nextLesson;
-  document.getElementById('lessonDateLbl').textContent=fmtDate(l.lesson_date);
-  document.getElementById('lessonTimeLbl').textContent=l.start_time+(l.duration_hours?' · '+l.duration_hours+' hr'+(l.duration_hours!=1?'s':''):'')+(l.lesson_type?' · '+l.lesson_type:'');
-  document.getElementById('lessonAddrLbl').textContent=l.pickup_address||'';
   currentLessonId=l.id;
   const today=new Date();today.setHours(0,0,0,0);
   const lessonDate=new Date(l.lesson_date+'T12:00:00');
-  const diff=(lessonDate-today)/(1000*60*60*24);
+  const diff=Math.round((lessonDate-today)/(1000*60*60*24));
+  // Countdown display
+  let countdownHtml='';
+  if(diff===0){
+    countdownHtml=`<div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);line-height:1">Today!</div>`;
+    banner.className='lesson-banner mb-3';
+    banner.style.boxShadow='0 0 0 2px rgba(245,197,24,.5),0 0 16px rgba(245,197,24,.2)';
+    banner.style.borderColor='rgba(245,197,24,.5)';
+  } else if(diff<=2&&diff>0){
+    countdownHtml=`<div style="display:flex;align-items:baseline;gap:4px"><div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.4rem;font-weight:800;color:#f87171;line-height:1">${diff}</div><div style="font-size:.72rem;color:#f87171;font-weight:600">days</div></div>`;
+    banner.className='lesson-banner mb-3';
+    banner.style.boxShadow='0 0 0 2px rgba(239,68,68,.4),0 0 20px rgba(239,68,68,.15)';
+    banner.style.borderColor='rgba(239,68,68,.5)';
+  } else if(diff>0){
+    countdownHtml=`<div style="display:flex;align-items:baseline;gap:4px"><div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.4rem;font-weight:800;color:var(--txt);line-height:1">${diff}</div><div style="font-size:.72rem;color:var(--txt4);font-weight:600">days</div></div>`;
+    banner.className='lesson-banner mb-3';
+    banner.style.boxShadow='';banner.style.borderColor='';
+  } else {
+    banner.className='lesson-banner mb-3';
+    banner.style.boxShadow='';banner.style.borderColor='';
+  }
+  // Build banner content with large countdown
+  const countdownBlock=diff>=0?`<div style="text-align:center;padding:4px 10px;background:rgba(0,0,0,.15);border-radius:9px;flex-shrink:0"><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px">In</div>${countdownHtml}</div>`:'';
+  document.getElementById('lessonDateLbl').innerHTML=`⏰ ${esc(fmtDate(l.lesson_date))}`;
+  document.getElementById('lessonTimeLbl').textContent=l.start_time+(l.duration_hours?' · '+(parseFloat(l.duration_hours)===1?'1 hr':parseFloat(l.duration_hours)+' hrs'):'')+(l.lesson_type?' · '+l.lesson_type:'');
+  document.getElementById('lessonAddrLbl').textContent=l.pickup_address||'';
+  // Inject countdown badge into banner header
+  let countdownInject=document.getElementById('lessonCountdownInject');
+  if(!countdownInject){
+    countdownInject=document.createElement('div');
+    countdownInject.id='lessonCountdownInject';
+    banner.querySelector('.d-flex').appendChild(countdownInject);
+  }
+  countdownInject.innerHTML=countdownBlock;
   if(diff>=0&&diff<=7){
     actions.classList.remove('hidden');
-    banner.className='lesson-banner mb-3';
     checkConfirmationStatus(l.id);
   } else {
     actions.classList.add('hidden');
@@ -1452,18 +1627,35 @@ async function checkConfirmationStatus(lessonId){
   }catch(e){}
 }
 
+function lessonTypeChip(type){
+  const tc={'Manual':['#3b82f6','rgba(59,130,246,.12)'],'Automatic':['#22c55e','rgba(34,197,94,.12)'],'Mock Test':['#ef4444','rgba(239,68,68,.12)'],'Intensive':['#f97316','rgba(249,115,22,.12)'],'Pass Plus':['#a855f7','rgba(168,85,247,.12)'],'Refresher':['#eab308','rgba(234,179,8,.12)']};
+  const t=type||'Manual';const[col,bg]=tc[t]||['#60a5fa','rgba(96,165,250,.12)'];
+  return`<span class="lt-chip" style="background:${bg};color:${col};border:1px solid ${col}44">${esc(t)}</span>`;
+}
+function fmtDuration(h){
+  if(!h)return'1 hr';
+  const n=parseFloat(h);
+  if(n===Math.floor(n))return n+(n===1?' hr':' hrs');
+  return n+' hrs';
+}
 function renderRecentLessons(){
   const container=document.getElementById('recentLessons');
   const recent=studentLessons.slice(0,3);
   if(!recent.length){container.innerHTML='<div style="text-align:center;padding:16px;font-size:.78rem;color:var(--txt4)">No lessons yet</div>';return;}
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  container.innerHTML=recent.map(l=>`<div class="hist-row">
-    <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
-      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||'—'} · ${l.duration_hours||1}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
-    </div>
-  </div>`).join('');
+  container.innerHTML=recent.map(l=>{
+    const col=tc[l.lesson_type]||'#60a5fa';
+    return`<div class="hist-row" style="border-left:3px solid ${col};padding-left:10px;margin-left:-12px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <div style="font-size:.82rem;color:var(--txt);font-weight:600">${fmtDate(l.lesson_date)}</div>
+          ${lessonTypeChip(l.lesson_type)}
+        </div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${l.start_time||'—'} · ${fmtDuration(l.duration_hours)}</div>
+        ${l.notes?`<div style="font-size:.66rem;color:var(--txt4);font-style:italic;margin-top:1px">${esc(l.notes)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 const ACHIEVEMENTS=[
@@ -1979,10 +2171,18 @@ function renderChatMessages(){
   if(!chatMessages.length){container.innerHTML='<div style="text-align:center;font-size:.75rem;color:var(--txt4);padding:20px">No messages yet. Send a message to your instructor!</div>';return;}
   container.innerHTML=chatMessages.map(m=>{
     const isMe=m.sender==='student';
+    let receipt='';
+    if(isMe){
+      if(m.is_read){
+        receipt=`<span style="color:#60a5fa;font-size:.58rem;margin-left:4px">✓✓ Read</span>`;
+      } else {
+        receipt=`<span style="color:var(--txt4);font-size:.58rem;margin-left:4px">✓ Sent</span>`;
+      }
+    }
     return`<div style="display:flex;justify-content:${isMe?'flex-end':'flex-start'}">
       <div class="chat-msg ${isMe?'from-me':'from-them'}">
         <div>${esc(m.message)}</div>
-        <div class="chat-time">${new Date(m.sent_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+        <div class="chat-time">${new Date(m.sent_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}${receipt}</div>
       </div>
     </div>`;
   }).join('');
@@ -2003,6 +2203,27 @@ async function sendMessage(){
 }
 
 /* ── PROFILE RENDER + SAVE ── */
+function updateProfileCompletion(data){
+  const fields=[
+    {key:'name',label:'Full Name',val:data.full_name},
+    {key:'phone',label:'Phone',val:data.phone},
+    {key:'email',label:'Email',val:data.email},
+    {key:'address',label:'Address',val:data.address},
+    {key:'emergency',label:'Emergency Contact',val:data.emergency_contact},
+    {key:'testdate',label:'Test Date',val:document.getElementById('theoryDate').value||document.getElementById('practicalDate').value}
+  ];
+  const filled=fields.filter(f=>!!(f.val||'').trim()).length;
+  const pct=Math.round((filled/fields.length)*100);
+  const missing=fields.filter(f=>!(f.val||'').trim()).map(f=>f.label);
+  const pctEl=document.getElementById('profCompPct');
+  const barEl=document.getElementById('profCompBar');
+  const missEl=document.getElementById('profCompMissing');
+  if(pctEl)pctEl.textContent=pct+'%';
+  if(pctEl)pctEl.style.color=pct>=80?'var(--green)':pct>=50?'var(--gold)':'#f87171';
+  if(barEl){barEl.style.width=pct+'%';barEl.style.background=pct>=80?'linear-gradient(90deg,var(--green),#22c55e)':pct>=50?'linear-gradient(90deg,var(--gold),#f59e0b)':'linear-gradient(90deg,#f87171,#ef4444)';}
+  if(missEl)missEl.textContent=missing.length?'Missing: '+missing.join(', '):'All fields complete 🎉';
+}
+
 function renderProfile(){
   document.getElementById('profNameDisp').textContent=currentStudent.name||'—';
   document.getElementById('profPhoneDisp').textContent=currentStudent.phone||'—';
@@ -2025,6 +2246,8 @@ function renderProfile(){
     if(data.notification_lesson_sms!=null&&document.getElementById('prefLessonSMS'))document.getElementById('prefLessonSMS').checked=data.notification_lesson_sms;
     if(data.notification_progress_sms!=null&&document.getElementById('prefProgressSMS'))document.getElementById('prefProgressSMS').checked=data.notification_progress_sms;
     if(data.notification_msg_sms!=null&&document.getElementById('prefMsgSMS'))document.getElementById('prefMsgSMS').checked=data.notification_msg_sms;
+    // Profile completion
+    updateProfileCompletion(data);
   });
   // Lesson history
   renderFullLessonHistory();
@@ -2035,14 +2258,19 @@ function renderFullLessonHistory(){
   const container=document.getElementById('fullLessonHistory');
   if(!studentLessons.length){container.innerHTML='<div style="text-align:center;padding:16px;font-size:.78rem;color:var(--txt4)">No lessons yet</div>';return;}
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
-  container.innerHTML=studentLessons.map(l=>`<div class="hist-row">
-    <div class="hist-type-dot" style="background:${tc[l.lesson_type]||'#60a5fa'}"></div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:.8rem;color:var(--txt2);font-weight:600">${fmtDate(l.lesson_date)}</div>
-      <div style="font-size:.68rem;color:var(--txt4)">${l.start_time||'—'} · ${l.duration_hours||1}hr${l.duration_hours!=1?'s':''} · ${esc(l.lesson_type||'Manual')}</div>
-      ${l.notes?`<div style="font-size:.66rem;color:var(--txt4);font-style:italic;margin-top:1px">${esc(l.notes)}</div>`:''}
-    </div>
-  </div>`).join('');
+  container.innerHTML=studentLessons.map(l=>{
+    const col=tc[l.lesson_type]||'#60a5fa';
+    return`<div class="hist-row" style="border-left:3px solid ${col};padding-left:10px;margin-left:-2px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <div style="font-size:.82rem;color:var(--txt);font-weight:600">${fmtDate(l.lesson_date)}</div>
+          ${lessonTypeChip(l.lesson_type)}
+        </div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${l.start_time||'—'} · ${fmtDuration(l.duration_hours)}</div>
+        ${l.notes?`<div style="font-size:.66rem;color:var(--txt4);font-style:italic;margin-top:1px">${esc(l.notes)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderFeedbackHistory(){
