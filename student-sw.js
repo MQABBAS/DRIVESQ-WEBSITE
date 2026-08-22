@@ -1,4 +1,4 @@
-var CACHE_NAME='drivesq-student-v2';
+var CACHE_NAME='drivesq-student-v3';
 var PRECACHE=[
   '/student.html',
   '/theory-questions.js',
@@ -68,8 +68,14 @@ self.addEventListener('notificationclick',function(e){
   var url=e.notification.data&&e.notification.data.url?e.notification.data.url:'/student.html';
   e.waitUntil(
     clients.matchAll({type:'window',includeUncontrolled:true}).then(function(list){
+      // Try to focus an existing open window for the target URL
       for(var i=0;i<list.length;i++){
-        if(list[i].url.includes('student.html')&&'focus' in list[i])return list[i].focus();
+        var w=list[i];
+        if('focus' in w){
+          if(url.includes('admin')&&w.url.includes('admin.html'))return w.focus();
+          if(url.includes('dashboard')&&w.url.includes('dashboard.html'))return w.focus();
+          if(w.url.includes('student.html'))return w.focus();
+        }
       }
       return clients.openWindow(url);
     })

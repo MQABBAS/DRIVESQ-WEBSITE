@@ -2851,39 +2851,79 @@ async function checkLessonFeedbackPrompt(){
   }
 }
 
-/* ── PWA + NOTIFICATIONS ── */
+/* ── PWA + PUSH NOTIFICATIONS ── */
+var STUDENT_PUSH_KEY='BImUHUO2z_Qk-7X_57bNY7YgIazbzp2DelfO9yH5EQ2bASguRNbA4o9wD-A4GCruJfYvEPYvxhvXMbQQIHaghN0';
+var STUDENT_PUSH_EDGE='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push';
+var _swReg=null;
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/student-sw.js').then(function(reg){
+    _swReg=reg;
     console.log('SW registered, scope:',reg.scope);
-    if('Notification' in window && Notification.permission==='default'){
-      setTimeout(function(){showPushPrompt(reg);},15000);
+    // If already granted, silently ensure subscription is saved
+    if('Notification' in window && Notification.permission==='granted'){
+      _ensurePushSubscription(reg);
+    } else if(Notification.permission==='default' && !localStorage.getItem('pushDeclined_student')){
+      setTimeout(function(){showPushPrompt();},8000);
     }
   }).catch(function(e){console.warn('SW registration failed:',e);});
 }
 
 var pushPromptShown=false;
 function showPushPrompt(){
-  if(pushPromptShown||!currentStudent)return;
+  if(pushPromptShown||!currentStudent||localStorage.getItem('pushDeclined_student'))return;
   pushPromptShown=true;
   var d=document.createElement('div');
   d.id='notifPrompt';
-  d.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+  d.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;background:var(--dk2);border:1px solid var(--gold);border-radius:13px;padding:16px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.6);animation:slideUp .3s ease';
   d.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><i class="bi bi-bell-fill" style="color:var(--gold);font-size:1.2rem"></i><div style="font-family:\'Oswald\',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">Enable Notifications?</div></div>'
-    +'<div style="font-size:.78rem;color:var(--txt2);margin-bottom:12px;line-height:1.5">Get notified when your instructor sends you a message, adds a lesson, or updates your progress.</div>'
+    +'<div style="font-size:.78rem;color:var(--txt2);margin-bottom:12px;line-height:1.5">Get notified when your instructor sends you a message, books a lesson, or updates your progress — even when the app is closed.</div>'
     +'<div style="display:flex;gap:8px"><button id="notifYesBtn" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:10px;cursor:pointer"><i class="bi bi-bell me-1"></i>Yes, notify me</button>'
     +'<button id="notifNoBtn" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:10px;border-radius:9px;cursor:pointer">Not now</button></div>';
   document.body.appendChild(d);
   document.getElementById('notifYesBtn').addEventListener('click',function(){acceptNotifs();});
-  document.getElementById('notifNoBtn').addEventListener('click',function(){d.remove();});
+  document.getElementById('notifNoBtn').addEventListener('click',function(){d.remove();localStorage.setItem('pushDeclined_student','1');});
 }
 
 async function acceptNotifs(){
   var el=document.getElementById('notifPrompt');if(el)el.remove();
-  if('Notification' in window){
-    var perm=await Notification.requestPermission();
-    if(perm==='granted')showToast('Notifications enabled!');
+  if(!('Notification' in window)){showToast('Notifications not supported on this browser','warning');return;}
+  var perm=await Notification.requestPermission();
+  if(perm==='granted'){
+    showToast('🔔 Notifications enabled! You\'ll hear from us.','success');
+    if(_swReg) await _ensurePushSubscription(_swReg);
+  } else {
+    showToast('Notifications blocked — you can enable them in browser settings','warning');
   }
   startNotifPolling();
+}
+
+function _urlBase64ToUint8Array(b64){
+  var pad='='.repeat((4-b64.length%4)%4);
+  var base64=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(base64);var out=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+
+async function _ensurePushSubscription(reg){
+  if(!currentStudent||!currentStudent.id)return;
+  try{
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlBase64ToUint8Array(STUDENT_PUSH_KEY)});
+    }
+    var j=sub.toJSON();
+    await sb.from('push_subscriptions').upsert({
+      instructor_id:currentStudent.id, // reuse instructor_id field for student id
+      endpoint:j.endpoint,
+      p256dh:j.keys.p256dh,
+      auth:j.keys.auth,
+      user_agent:navigator.userAgent,
+      updated_at:new Date().toISOString()
+    },{onConflict:'instructor_id,endpoint'});
+    console.log('Push subscription saved for student');
+  }catch(e){console.warn('Push subscription error:',e);}
 }
 
 var notifInterval=null;
