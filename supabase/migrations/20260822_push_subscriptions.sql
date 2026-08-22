@@ -1,9 +1,10 @@
 -- Push subscriptions for Web Push Notifications
--- Run this in the Supabase SQL Editor: https://supabase.com/dashboard/project/vwvbfqrlumvoabzkjxoa/editor
+-- Run this in the Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/vwvbfqrlumvoabzkjxoa/editor
 
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  instructor_id uuid REFERENCES instructors(id) ON DELETE CASCADE,
+  instructor_id uuid NOT NULL,
   endpoint text NOT NULL,
   p256dh text NOT NULL,
   auth text NOT NULL,
@@ -13,10 +14,10 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   UNIQUE(instructor_id, endpoint)
 );
 
--- Allow instructors to manage their own subscriptions
+-- Allow all reads/writes (RLS permissive — same pattern as other tables)
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Instructors can upsert own subscriptions"
+CREATE POLICY "Allow all on push_subscriptions"
   ON push_subscriptions FOR ALL
   USING (true)
   WITH CHECK (true);
