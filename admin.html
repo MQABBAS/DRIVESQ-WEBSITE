@@ -1826,7 +1826,7 @@ async function loadInstrRoster(){
 async function loadAllStudents(){
   const[lessonsR,accountsR,progressR]=await Promise.all([
     sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
-    sb.from('student_accounts').select('id,phone,full_name,email,address,lesson_type,notes,last_login,last_seen,created_at,instructor_id,status'),
+    sb.from('student_accounts').select('id,phone,full_name,email,address,notes,last_login,last_seen,created_at,instructor_id,status'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score')
   ]);
   const acctMap={};
@@ -2008,7 +2008,7 @@ async function confirmCreateStudent(){
   const _placeholderCode=Math.random().toString(36).slice(2,9).toUpperCase();
   const{data,error}=await sb.from('student_accounts').insert([{
     full_name:name,phone:phone||null,email:email||null,
-    instructor_id:instrId||null,lesson_type:lessonType,
+    instructor_id:instrId||null,
     address:addr||null,notes:notes||null,
     student_code:_placeholderCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
@@ -2763,7 +2763,7 @@ async function confirmAssign(){
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
     full_name:s.name,phone:s.phone||null,email:s.email||null,
     address:s.addr||null,instructor_id:instrId,
-    lesson_type:s.type||'Manual',notes:[s.notes,s.avail?'Availability: '+s.avail:''].filter(Boolean).join('\n')||null,
+    notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.type?'Lesson type: '+s.type:''].filter(Boolean).join('\n')||null,
     student_code:_aCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
