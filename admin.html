@@ -632,18 +632,22 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="row g-3">
       <div class="col-12 col-md-4">
         <div class="dsq-card p-3">
-          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt2);margin-bottom:12px">Student Details</div>
-          <div class="mb-2"><label class="dsq-lbl">Student Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Student full name"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt2);margin-bottom:12px"><i class="bi bi-person-fill me-2" style="color:var(--gold)"></i>Customer Details</div>
+          <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Customer full name"/></div>
           <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+          <div class="mb-2"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="fc-email" type="email" placeholder="customer@email.com"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="fc-addr" placeholder="Full street address"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Lesson Type <span class="req-mark">*</span></label>
             <select class="dsq-inp" id="fc-type">
-              <option value="Manual">Manual</option><option value="Automatic">Automatic</option>
-              <option value="Mock Test">Mock Test</option><option value="Intensive">Intensive</option>
+              <option value="Manual">🔧 Manual</option>
+              <option value="Automatic">⚙️ Automatic</option>
+              <option value="Intensive">⚡ Intensive</option>
+              <option value="Mock Test">📋 Mock Test</option>
             </select>
           </div>
           <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
-          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest</button>
+          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
         </div>
       </div>
       <div class="col-12 col-md-8">
@@ -786,7 +790,14 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div class="row g-2">
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="edit-name"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Number</label><input class="dsq-inp" id="edit-badge"/></div>
-      <div class="col-12 col-sm-6"><label class="dsq-lbl">Type</label><select class="dsq-inp" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Type</label><select class="dsq-inp" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Lesson Types</label>
+        <select class="dsq-inp" id="edit-lesson-types">
+          <option value="Manual">Manual Only</option>
+          <option value="Automatic">Automatic Only</option>
+          <option value="Both">Manual &amp; Automatic</option>
+        </select>
+      </div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="edit-phone" type="tel"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="edit-email" type="email"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
@@ -1302,6 +1313,7 @@ function renderInstrsTable(list){
       </td>
       <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
+      <td>${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
       <td class="hide-xs">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}">${i.status}</span></td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
@@ -1555,15 +1567,22 @@ async function viewInstr(id){
 
 function renderInstrDetail(instr){
   const grid=document.getElementById('instrDetailGrid');if(!grid)return;
-  const carInfo=instr.car_model?`${instr.car_model}${instr.car_plate?' · '+instr.car_plate:''} (${instr.car_type||'Manual'})`:'—';
+  const carInfo=instr.car_model?`${instr.car_model}${instr.car_plate?' · '+instr.car_plate:''}`:null;
+  const lessonTypes=instr.car_type||'Manual';
+  const ltColor=lessonTypes==='Both'?'#c084fc':lessonTypes==='Automatic'?'#4ade80':'#60a5fa';
+  const ltBg=lessonTypes==='Both'?'rgba(168,85,247,.1)':lessonTypes==='Automatic'?'rgba(37,211,102,.1)':'rgba(59,130,246,.1)';
+  const ltBorder=lessonTypes==='Both'?'rgba(168,85,247,.3)':lessonTypes==='Automatic'?'rgba(37,211,102,.3)':'rgba(59,130,246,.3)';
+  const ltLabel=lessonTypes==='Both'?'Manual &amp; Automatic':lessonTypes==='Automatic'?'Automatic Only':'Manual Only';
+  const ltChipHtml=`<span style="background:${ltBg};border:1px solid ${ltBorder};color:${ltColor};border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700">${ltLabel}</span>`;
   const fields=[
+    ['Lesson Types',ltChipHtml],
     ['Email',instr.email],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
     ['Area',instr.area],['Address',instr.address],
     ['Status',`<span class="chip ${instr.status}">${instr.status}</span>`],
     ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
     ['Joined',fmtD(instr.created_at)],
     ['Badge Photo',instr.badge_photo_url?'<span style="color:#4ade80">✅ Uploaded</span>':'<span style="color:#f87171">❌ Not uploaded</span>'],
-    ['Vehicle',carInfo],
+    ...(carInfo?[['Vehicle',esc(carInfo)]]:[]),
   ];
   grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${val||'—'}</div></div>`).join('');
 }
@@ -2174,6 +2193,7 @@ function openEditModal(){
   document.getElementById('edit-name').value=instr.full_name||'';
   document.getElementById('edit-badge').value=instr.badge_number||'';
   document.getElementById('edit-type').value=instr.badge_type||'ADI';
+  document.getElementById('edit-lesson-types').value=instr.car_type||'Manual';
   document.getElementById('edit-phone').value=instr.phone||'';
   document.getElementById('edit-email').value=instr.email||'';
   document.getElementById('edit-area').value=instr.area||'';
@@ -2199,6 +2219,7 @@ async function saveEdit(){
     full_name:document.getElementById('edit-name').value.trim(),
     badge_number:document.getElementById('edit-badge').value.trim(),
     badge_type:document.getElementById('edit-type').value,
+    car_type:document.getElementById('edit-lesson-types').value,
     phone:document.getElementById('edit-phone').value.trim(),
     email:document.getElementById('edit-email').value.trim(),
     area:document.getElementById('edit-area').value.trim(),
@@ -2451,6 +2472,8 @@ async function findClosest(){
   const studentName=document.getElementById('fc-name').value.trim();
   const postcode=document.getElementById('fc-postcode').value.trim().toUpperCase().replace(/\s+/g,'');
   const phone=document.getElementById('fc-phone').value.trim();
+  const email=(document.getElementById('fc-email')||{}).value?.trim()||'';
+  const addr=(document.getElementById('fc-addr')||{}).value?.trim()||'';
   const type=document.getElementById('fc-type').value;
   const notes=document.getElementById('fc-notes').value.trim();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
@@ -2477,20 +2500,37 @@ async function findClosest(){
     const results=await Promise.all(pcLookups);
     const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
     const unknown=results.filter(r=>r.dist===null);
-    fcStudentData={name:studentName,postcode,phone,type,notes};
-    let html='';
+    fcStudentData={name:studentName,postcode,phone,email,addr,type,notes};
+    // Summary bar showing what we're matching
+    let html=`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--txt3);margin-bottom:10px">
+      <i class="bi bi-person-fill me-1" style="color:var(--gold)"></i><strong style="color:var(--txt)">${esc(studentName)}</strong>
+      ${phone?`&nbsp;·&nbsp;<i class="bi bi-telephone me-1"></i>${esc(phone)}`:''}
+      &nbsp;·&nbsp;<span class="chip ${type==='Automatic'?'Automatic':'Manual'}" style="font-size:.62rem;padding:1px 6px">${esc(type)}</span>
+      &nbsp;·&nbsp;<i class="bi bi-geo-alt me-1"></i>${esc(postcode)}
+    </div>`;
     if(ranked.length){
       html+=ranked.map((r,idx)=>{
         const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
-        return`<div class="dist-card mb-2">
+        // Instructor lesson type from car_type
+        const instrLT=r.instr.car_type||'Manual';
+        const canTeach=(instrLT==='Both')||(instrLT===type)||(type!=='Automatic'&&instrLT!=='Automatic');
+        const ltChip=instrLT==='Both'
+          ?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">Manual &amp; Auto</span>`
+          :instrLT==='Automatic'
+          ?`<span class="chip Automatic" style="font-size:.6rem">Automatic</span>`
+          :`<span class="chip Manual" style="font-size:.6rem">Manual</span>`;
+        const mismatchWarn=!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:3px"><i class="bi bi-exclamation-triangle me-1"></i>Student wants ${type} but this instructor does ${instrLT} only</div>`:'';
+        return`<div class="dist-card mb-2" style="${!canTeach?'opacity:.7':''}">
           <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
             <div class="d-flex align-items-center gap-3">
               <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${idx===0?'var(--gold)':'var(--txt4)'};line-height:1;min-width:30px">${idx+1}</div>
               <div>
                 ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:``}
                 <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
-                <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1">${esc(r.instr.badge_type||'ADI')}</span>
+                <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(r.instr.badge_type||'ADI')}</span>
+                ${ltChip}
                 <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
+                ${mismatchWarn}
               </div>
             </div>
             <div class="d-flex flex-column align-items-end gap-2">
@@ -2506,8 +2546,8 @@ async function findClosest(){
     }
     if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode found for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
     resultsEl.innerHTML=html||'<div style="text-align:center;padding:24px;color:var(--txt4)">No results.</div>';
-  }catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
-  finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest';btn.disabled=false;}
+  }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
+  finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructor';btn.disabled=false;}
 }
 function haversine(lat1,lon1,lat2,lon2){
   const R=3958.8;const dLat=(lat2-lat1)*Math.PI/180;const dLon=(lon2-lon1)*Math.PI/180;
@@ -2537,7 +2577,8 @@ async function confirmAssign(){
   // 1. Create student_accounts so they can log in with their phone number
   const _aCode=Math.random().toString(36).slice(2,9).toUpperCase(); // placeholder for NOT NULL column
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
-    full_name:s.name,phone:s.phone||null,instructor_id:instrId,
+    full_name:s.name,phone:s.phone||null,email:s.email||null,
+    address:s.addr||null,instructor_id:instrId,
     lesson_type:s.type||'Manual',notes:s.notes||null,
     student_code:_aCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
@@ -2546,7 +2587,7 @@ async function confirmAssign(){
   // 2. Add directly to instructor's roster (student_profiles) — no approval step needed
   const{error:profErr}=await sb.from('student_profiles').insert([{
     instructor_id:instrId,name:s.name,phone:s.phone||null,
-    address:null,lesson_type:s.type||'Manual',notes:(s.notes||'')+(s.postcode?'\nPostcode: '+s.postcode:''),
+    address:s.addr||null,lesson_type:s.type||'Manual',notes:(s.notes||'')+(s.postcode?'\nPostcode: '+s.postcode:''),
     status:'active',created_at:new Date().toISOString()
   }]);
   if(profErr)console.warn('student_profiles insert (assign):',profErr.message);
@@ -2558,7 +2599,7 @@ async function confirmAssign(){
   }]).catch(()=>{});
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
-  ['fc-name','fc-postcode','fc-phone','fc-notes'].forEach(id=>document.getElementById(id).value='');
+  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
   // Store for potential WhatsApp use after modal closes
   window._assignLastCreated={name:s.name,phone:s.phone,instrName};
