@@ -1825,27 +1825,35 @@ function gen4Pin(){return String(Math.floor(1000+Math.random()*9000));}
 async function confirmCreateStudent(){
   const name=document.getElementById('cs-name').value.trim();
   if(!name){showCreateStudentMsg('error','Student name is required.');return;}
+  const instrId=document.getElementById('cs-instr').value||null;
+  if(!instrId){showCreateStudentMsg('error','Please select an instructor to assign this student to.');return;}
   const btn=document.getElementById('createStudentBtn');
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';
   const phone=document.getElementById('cs-phone').value.trim();
   const email=document.getElementById('cs-email').value.trim().toLowerCase();
-  const instrId=document.getElementById('cs-instr').value||null;
   const lessonType=document.getElementById('cs-type').value;
   const addr=document.getElementById('cs-addr').value.trim();
   const notes=document.getElementById('cs-notes').value.trim();
+  // Generate a placeholder student_code in case the DB column has a NOT NULL constraint.
+  // Login is phone-number-only; this value is never shown to users.
+  const _placeholderCode=Math.random().toString(36).slice(2,9).toUpperCase();
   const{data,error}=await sb.from('student_accounts').insert([{
     full_name:name,phone:phone||null,email:email||null,
     instructor_id:instrId||null,lesson_type:lessonType,
     address:addr||null,notes:notes||null,
+    student_code:_placeholderCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
   if(error){
     console.error('Create student account error:',error);
-    let errMsg='Failed to create account: '+error.message;
+    // Show the exact DB error so it is easy to diagnose
+    let errMsg='Error: '+error.message;
     if(error.message&&(error.message.includes('row-level security')||error.message.includes('permission')||error.message.includes('policy'))){
-      errMsg='Permission error — check Supabase RLS policies for student_accounts table. Ensure admin anon key has INSERT permission.';
-    } else if(error.message&&(error.message.includes('null value')&&error.message.includes('instructor_id'))){
-      errMsg='Please select an instructor — this field is required.';
+      errMsg='Permission denied — the admin key does not have INSERT permission on student_accounts. Check Supabase RLS policies.';
+    } else if(error.message&&error.message.includes('duplicate')){
+      errMsg='A student with this phone number already exists.';
+    } else if(error.message&&error.message.includes('instructor_id')&&error.message.includes('null')){
+      errMsg='Please select an instructor — the instructor field is required.';
     }
     showCreateStudentMsg('error',errMsg);
     btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';
@@ -2526,10 +2534,12 @@ async function confirmAssign(){
   const instrName=document.getElementById('assign-instr-name').value;
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
   showToast('Assigning student…','');
-  // 1. Create student_accounts so they can log into the student app (phone number login — no code/PIN)
+  // 1. Create student_accounts so they can log in with their phone number
+  const _aCode=Math.random().toString(36).slice(2,9).toUpperCase(); // placeholder for NOT NULL column
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
     full_name:s.name,phone:s.phone||null,instructor_id:instrId,
     lesson_type:s.type||'Manual',notes:s.notes||null,
+    student_code:_aCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
   if(accErr){console.error('student_accounts insert:',accErr);showToast('Failed to create student account: '+accErr.message,'error');return;}
