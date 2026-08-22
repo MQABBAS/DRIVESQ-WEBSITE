@@ -4007,17 +4007,22 @@ async function initPushSubscription(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
   if(!instr?.id)return;
   try{
-    // Check if already subscribed — skip permission prompt if so
     const reg=await navigator.serviceWorker.ready;
-    const existing=await reg.pushManager.getSubscription();
-    if(existing){
-      // Make sure it's still saved in DB
-      await savePushSubscription(existing);
+    // Already granted — just make sure subscription is saved in DB
+    if(Notification.permission==='granted'){
+      const existing=await reg.pushManager.getSubscription();
+      if(existing){await savePushSubscription(existing);}
+      else{
+        // Permission granted but no subscription — re-subscribe
+        const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_PUBLIC_KEY)});
+        await savePushSubscription(sub);
+      }
       return;
     }
-    // Only ask once per session — show a friendly banner instead of raw browser prompt
-    if(sessionStorage.getItem('pushAsked'))return;
-    sessionStorage.setItem('pushAsked','1');
+    // Already denied — don't ask again
+    if(Notification.permission==='denied')return;
+    // 'default' — ask, but only once per device (localStorage survives tab close)
+    if(localStorage.getItem('pushDeclined'))return;
     showPushBanner();
   }catch(e){console.warn('initPushSubscription:',e);}
 }
