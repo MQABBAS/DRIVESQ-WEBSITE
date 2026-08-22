@@ -2044,8 +2044,13 @@ async function confirmCreateStudent(){
   document.getElementById('createStudentResult').classList.remove('hidden');
   btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Created!';
   showCreateStudentMsg('success','Account created & added to instructor\'s roster!');
-  // Push notification to instructor
-  if(instrId)sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New student assigned to you',name+' has been added to your roster.','/dashboard.html');
+  // Push notification + in-app message to instructor
+  if(instrId){
+    sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New Student: '+name,'Tap to view '+name+'\'s details in your Students tab','/dashboard.html');
+    const _iName=instrObj?.full_name||'Instructor';
+    const _csMsg='Hi '+_iName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+name+'\n📞 Phone: '+(phone||'Not provided')+'\n🚗 Lesson Type: '+(lessonType||'Manual')+'\n📍 Address: '+(addr||'Not provided')+(notes?'\n📝 Notes: '+notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
+    await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+  }
   if(allStudentsCache.length)loadAllStudents();
 }
 function showCreateStudentMsg(type,msg){
@@ -2782,7 +2787,10 @@ async function confirmAssign(){
     notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
   // 4. Push notification to instructor
-  sendPushToInstructor(instrId,instrName,'👤 New student assigned to you',s.name+' has been added to your roster. Check the Students tab.','/dashboard.html');
+  sendPushToInstructor(instrId,instrName,'👤 New Student: '+s.name,'Tap to view '+s.name+'\'s details in your Students tab','/dashboard.html');
+  // 5. In-app admin message to instructor
+  const _assignMsg='Hi '+instrName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+s.name+'\n📞 Phone: '+(s.phone||'Not provided')+'\n🚗 Lesson Type: '+(s.type||'Manual')+'\n📍 Address: '+(s.addr||'Not provided')+(s.avail?'\n🕐 Availability: '+s.avail:'')+(s.notes?'\n📝 Notes: '+s.notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
+  await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+s.name,message_type:'general',body:_assignMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
