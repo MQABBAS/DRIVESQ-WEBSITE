@@ -1108,6 +1108,19 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#666">Could not load the database library. Please refresh the page.<br>If this keeps happening, check your internet connection.</p></div>';throw e;}
 const PORTAL_URL='https://www.drivesq.co.uk/portal.html';
+const PUSH_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push';
+
+// Send a Web Push notification to an instructor via the Edge Function
+async function sendPushToInstructor(instrId,instrName,title,body,url){
+  if(!instrId)return;
+  try{
+    fetch(PUSH_EDGE_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({instructor_id:instrId,title,body,url:url||'/dashboard.html'})
+    }).catch(()=>{});
+  }catch(e){console.warn('sendPushToInstructor:',e.message);}
+}
 
 /* ══ THEME ══ */
 let manualTheme=localStorage.getItem('dsq_admin_theme')||'auto';
@@ -1895,6 +1908,8 @@ async function confirmCreateStudent(){
   document.getElementById('createStudentResult').classList.remove('hidden');
   btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Created!';
   showCreateStudentMsg('success','Account created & added to instructor\'s roster!');
+  // Push notification to instructor
+  if(instrId)sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New student assigned to you',name+' has been added to your roster.','/dashboard.html');
   if(allStudentsCache.length)loadAllStudents();
 }
 function showCreateStudentMsg(type,msg){
@@ -2627,6 +2642,8 @@ async function confirmAssign(){
     pickup_address:null,postcode:s.postcode,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
+  // 4. Push notification to instructor
+  sendPushToInstructor(instrId,instrName,'👤 New student assigned to you',s.name+' has been added to your roster. Check the Students tab.','/dashboard.html');
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});

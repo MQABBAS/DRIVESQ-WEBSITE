@@ -1,4 +1,4 @@
-var CACHE_NAME='drivesq-dashboard-v1';
+var CACHE_NAME='drivesq-dashboard-v3';
 var PRECACHE=[
   '/dashboard.html',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap',
@@ -39,6 +39,40 @@ self.addEventListener('fetch',function(e){
       return resp;
     }).catch(function(){
       return caches.match(e.request);
+    })
+  );
+});
+
+/* ══ PUSH NOTIFICATIONS ══ */
+self.addEventListener('push',function(e){
+  var data={title:'DriveSQ',body:'You have a new notification',url:'/dashboard.html',icon:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',badge:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png'};
+  try{
+    if(e.data){var parsed=e.data.json();data=Object.assign(data,parsed);}
+  }catch(err){}
+  e.waitUntil(
+    self.registration.showNotification(data.title,{
+      body:data.body,
+      icon:data.icon,
+      badge:data.badge,
+      data:{url:data.url||'/dashboard.html'},
+      vibrate:[200,100,200],
+      requireInteraction:false,
+      tag:data.tag||'drivesq-'+Date.now()
+    })
+  );
+});
+
+self.addEventListener('notificationclick',function(e){
+  e.notification.close();
+  var target=e.notification.data&&e.notification.data.url?e.notification.data.url:'/dashboard.html';
+  e.waitUntil(
+    clients.matchAll({type:'window',includeUncontrolled:true}).then(function(wins){
+      for(var i=0;i<wins.length;i++){
+        if(wins[i].url.includes('dashboard.html')&&'focus' in wins[i]){
+          return wins[i].focus();
+        }
+      }
+      return clients.openWindow(target);
     })
   );
 });
