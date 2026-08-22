@@ -3035,29 +3035,41 @@ async function removeStudentFromRoster(){
   if(!confirm(`⚠️ Permanently delete ${name}?\n\nThis will delete:\n• Their roster profile\n• ALL lesson records\n• Their student account & login\n• All messages and progress data\n\nThis CANNOT be undone.`))return;
   showToast('Deleting student…','warn');
   try{
+    // 1. Find linked account
     const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',name).maybeSingle();
     const accId=acc?.id||null;
+    // 2. Find lesson IDs
     const{data:lessons}=await sb.from('lessons').select('id').eq('instructor_id',instr.id).ilike('student_name',name);
     const lessonIds=(lessons||[]).map(l=>l.id);
+    // 3. Delete child rows — swallow errors for tables that may not exist
     if(lessonIds.length){
-      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds);
-      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds);
+      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{});
+      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{});
     }
     if(accId){
-      await sb.from('student_progress').delete().eq('student_account_id',accId);
-      await sb.from('student_messages').delete().eq('student_account_id',accId);
-      await sb.from('reschedule_requests').delete().eq('student_account_id',accId);
+      await sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{});
+      await sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{});
+      await sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{});
     }
-    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',name);
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId);
-    await sb.from('student_profiles').delete().eq('id',id);
+    // 4. Delete lessons and account
+    const{error:lessonDelErr}=await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',name);
+    if(lessonDelErr)console.warn('lessons delete:',lessonDelErr.message);
+    if(accId){const{error:accDelErr}=await sb.from('student_accounts').delete().eq('id',accId);if(accDelErr)console.warn('account delete:',accDelErr.message);}
+    // 5. Delete the profile — this is the critical one
+    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',id);
+    if(profDelErr)throw profDelErr;
+    // 6. Remove from in-memory arrays immediately so column refreshes at once
+    const nk=name.toLowerCase().trim();
+    allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
+    delete rosterMap[nk];
     closeModal('editStudentModal');
-    await Promise.all([loadRoster(),loadStudents()]);
     renderStudents(allStudentsArr);
     showToast(`${name} permanently deleted.`,'success');
+    // Reload from DB in background to keep everything in sync
+    Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
   }catch(err){
     console.error('Delete student error:',err);
-    showToast('Delete failed — check console for details.','error');
+    showToast('Delete failed: '+(err?.message||'check console'),'error');
   }
 }
 
@@ -3655,49 +3667,46 @@ async function saveSmProfile(){
 }
 
 async function smRemoveFromRoster(){
-  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  const nk=smCurrentName.toLowerCase().trim();
+  const p=rosterMap[nk];
   if(!p?.id){showToast('No profile to remove.');return;}
   if(!confirm(`⚠️ Permanently delete ${smCurrentName}?\n\nThis will delete:\n• Their roster profile\n• ALL lesson records\n• Their student account & login\n• All messages and progress data\n\nThis CANNOT be undone.`))return;
 
   showToast('Deleting student…','warn');
   try{
-    // 1. Find their student_account
+    // 1. Find linked account
     const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',smCurrentName).maybeSingle();
     const accId=acc?.id||null;
-
-    // 2. Find all lesson IDs for this student under this instructor
+    // 2. Find lesson IDs
     const{data:lessons}=await sb.from('lessons').select('id').eq('instructor_id',instr.id).ilike('student_name',smCurrentName);
     const lessonIds=(lessons||[]).map(l=>l.id);
-
-    // 3. Delete lesson-linked child records first
+    // 3. Delete child rows — swallow errors for optional tables
     if(lessonIds.length){
-      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds);
-      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds);
+      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{});
+      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{});
     }
-
-    // 4. Delete account-linked child records
     if(accId){
-      await sb.from('student_progress').delete().eq('student_account_id',accId);
-      await sb.from('student_messages').delete().eq('student_account_id',accId);
-      await sb.from('reschedule_requests').delete().eq('student_account_id',accId);
+      await sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{});
+      await sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{});
+      await sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{});
     }
-
-    // 5. Delete all lessons for this student
-    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName);
-
-    // 6. Delete the student account
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId);
-
-    // 7. Delete the roster profile
-    await sb.from('student_profiles').delete().eq('id',p.id);
-
+    // 4. Delete lessons and account
+    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName).catch(()=>{});
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
+    // 5. Delete profile — critical
+    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',p.id);
+    if(profDelErr)throw profDelErr;
+    // 6. Remove from in-memory arrays immediately
+    allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
+    delete rosterMap[nk];
     closeModal('studentMgmtModal');
-    await Promise.all([loadRoster(),loadStudents()]);
     renderStudents(allStudentsArr);
     showToast(`${smCurrentName} permanently deleted.`,'success');
+    // Background sync
+    Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
   }catch(err){
     console.error('Delete student error:',err);
-    showToast('Delete failed — check console for details.','error');
+    showToast('Delete failed: '+(err?.message||'check console'),'error');
   }
 }
 

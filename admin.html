@@ -642,10 +642,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
             <select class="dsq-inp" id="fc-type">
               <option value="Manual">🔧 Manual</option>
               <option value="Automatic">⚙️ Automatic</option>
-              <option value="Intensive">⚡ Intensive</option>
+              <option value="Intensive">⚡ Intensive (Manual)</option>
               <option value="Mock Test">📋 Mock Test</option>
             </select>
           </div>
+          <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="fc-avail" placeholder="e.g. Weekday mornings, Saturdays"/></div>
           <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
           <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
         </div>
@@ -2475,6 +2476,7 @@ async function findClosest(){
   const email=(document.getElementById('fc-email')||{}).value?.trim()||'';
   const addr=(document.getElementById('fc-addr')||{}).value?.trim()||'';
   const type=document.getElementById('fc-type').value;
+  const avail=(document.getElementById('fc-avail')||{}).value?.trim()||'';
   const notes=document.getElementById('fc-notes').value.trim();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
@@ -2500,52 +2502,74 @@ async function findClosest(){
     const results=await Promise.all(pcLookups);
     const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
     const unknown=results.filter(r=>r.dist===null);
-    fcStudentData={name:studentName,postcode,phone,email,addr,type,notes};
-    // Summary bar showing what we're matching
-    let html=`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--txt3);margin-bottom:10px">
+    fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes};
+
+    // Helper: does instructor car_type match student's requested lesson type?
+    function instrCanTeach(instrLT,reqType){
+      if(instrLT==='Both')return true;
+      if(reqType==='Automatic')return instrLT==='Automatic';
+      // Manual / Intensive / Mock Test → instructor must do Manual or Both
+      return instrLT!=='Automatic';
+    }
+    function ltChipHtml(instrLT){
+      return instrLT==='Both'
+        ?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">Manual &amp; Auto</span>`
+        :instrLT==='Automatic'
+        ?`<span class="chip Automatic" style="font-size:.6rem">Automatic</span>`
+        :`<span class="chip Manual" style="font-size:.6rem">Manual</span>`;
+    }
+    function instrCardHtml(r,displayNum){
+      const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
+      const instrLT=r.instr.car_type||'Manual';
+      const canTeach=instrCanTeach(instrLT,type);
+      return`<div class="dist-card mb-2"${!canTeach?' style="opacity:.65"':''}>
+        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+          <div class="d-flex align-items-center gap-3">
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${displayNum===1?'var(--gold)':'var(--txt4)'};line-height:1;min-width:30px">${displayNum}</div>
+            <div>
+              ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:``}
+              <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
+              <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(r.instr.badge_type||'ADI')}</span>
+              ${ltChipHtml(instrLT)}
+              <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
+              ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
+            </div>
+          </div>
+          <div class="d-flex flex-column align-items-end gap-2">
+            <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
+            <div class="d-flex gap-1">
+              ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
+              <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${jsEsc(r.instr.full_name)}','${jsEsc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Split into matching and non-matching instructors
+    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type));
+    const nonMatching=ranked.filter(r=>!instrCanTeach(r.instr.car_type||'Manual',type));
+
+    // Summary bar
+    let html=`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--txt3);margin-bottom:12px">
       <i class="bi bi-person-fill me-1" style="color:var(--gold)"></i><strong style="color:var(--txt)">${esc(studentName)}</strong>
       ${phone?`&nbsp;·&nbsp;<i class="bi bi-telephone me-1"></i>${esc(phone)}`:''}
       &nbsp;·&nbsp;<span class="chip ${type==='Automatic'?'Automatic':'Manual'}" style="font-size:.62rem;padding:1px 6px">${esc(type)}</span>
       &nbsp;·&nbsp;<i class="bi bi-geo-alt me-1"></i>${esc(postcode)}
+      ${avail?`&nbsp;·&nbsp;<i class="bi bi-clock me-1"></i>${esc(avail)}`:''}
     </div>`;
-    if(ranked.length){
-      html+=ranked.map((r,idx)=>{
-        const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
-        // Instructor lesson type from car_type
-        const instrLT=r.instr.car_type||'Manual';
-        const canTeach=(instrLT==='Both')||(instrLT===type)||(type!=='Automatic'&&instrLT!=='Automatic');
-        const ltChip=instrLT==='Both'
-          ?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">Manual &amp; Auto</span>`
-          :instrLT==='Automatic'
-          ?`<span class="chip Automatic" style="font-size:.6rem">Automatic</span>`
-          :`<span class="chip Manual" style="font-size:.6rem">Manual</span>`;
-        const mismatchWarn=!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:3px"><i class="bi bi-exclamation-triangle me-1"></i>Student wants ${type} but this instructor does ${instrLT} only</div>`:'';
-        return`<div class="dist-card mb-2" style="${!canTeach?'opacity:.7':''}">
-          <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-            <div class="d-flex align-items-center gap-3">
-              <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${idx===0?'var(--gold)':'var(--txt4)'};line-height:1;min-width:30px">${idx+1}</div>
-              <div>
-                ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:``}
-                <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
-                <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(r.instr.badge_type||'ADI')}</span>
-                ${ltChip}
-                <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
-                ${mismatchWarn}
-              </div>
-            </div>
-            <div class="d-flex flex-column align-items-end gap-2">
-              <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
-              <div class="d-flex gap-1">
-                ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
-                <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${jsEsc(r.instr.full_name)}','${jsEsc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
+
+    if(matching.length){
+      html+=`<div style="font-size:.7rem;font-weight:700;color:var(--green,#4ade80);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px"><i class="bi bi-check-circle me-1"></i>Matching instructors — can teach ${esc(type)}</div>`;
+      html+=matching.map((r,i)=>instrCardHtml(r,i+1)).join('');
     }
-    if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode found for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
-    resultsEl.innerHTML=html||'<div style="text-align:center;padding:24px;color:var(--txt4)">No results.</div>';
+    if(nonMatching.length){
+      html+=`<div style="font-size:.7rem;font-weight:700;color:#f97316;letter-spacing:.05em;text-transform:uppercase;margin:${matching.length?'14px':0} 0 6px"><i class="bi bi-exclamation-triangle me-1"></i>Other nearby instructors — lesson type mismatch</div>`;
+      html+=nonMatching.map((r,i)=>instrCardHtml(r,i+1)).join('');
+    }
+    if(!ranked.length) html+='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem">No instructors with a known postcode found.</div>';
+    if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
+    resultsEl.innerHTML=html;
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
   finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructor';btn.disabled=false;}
 }
@@ -2566,10 +2590,11 @@ function openAssignModal(instrId,instrName,instrPhone){
     ['📍 Address', s.addr||'—'],
     ['🏷️ Postcode', s.postcode||'—'],
     ['🚗 Lesson Type', s.type||'Manual'],
+    ...(s.avail?[['🕐 Availability', s.avail]]:[]),
     ...(s.notes?[['📝 Notes', s.notes]]:[])
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
-  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you.*\n\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking. They log in at drivesq.co.uk/student.html with their phone number.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you.*\n\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking. They log in at drivesq.co.uk/student.html with their phone number.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   openModal('assignModal');
@@ -2584,7 +2609,7 @@ async function confirmAssign(){
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
     full_name:s.name,phone:s.phone||null,email:s.email||null,
     address:s.addr||null,instructor_id:instrId,
-    lesson_type:s.type||'Manual',notes:s.notes||null,
+    lesson_type:s.type||'Manual',notes:[s.notes,s.avail?'Availability: '+s.avail:''].filter(Boolean).join('\n')||null,
     student_code:_aCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
@@ -2592,7 +2617,7 @@ async function confirmAssign(){
   // 2. Add directly to instructor's roster (student_profiles) — no approval step needed
   const{error:profErr}=await sb.from('student_profiles').insert([{
     instructor_id:instrId,name:s.name,phone:s.phone||null,
-    address:s.addr||null,lesson_type:s.type||'Manual',notes:(s.notes||'')+(s.postcode?'\nPostcode: '+s.postcode:''),
+    address:s.addr||null,lesson_type:s.type||'Manual',notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n')||null,
     status:'active',created_at:new Date().toISOString()
   }]);
   if(profErr)console.warn('student_profiles insert (assign):',profErr.message);
@@ -2604,7 +2629,7 @@ async function confirmAssign(){
   }]).catch(()=>{});
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
-  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
   // Store for potential WhatsApp use after modal closes
   window._assignLastCreated={name:s.name,phone:s.phone,instrName};
