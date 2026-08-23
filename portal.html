@@ -499,9 +499,10 @@ function showTab(t){
   const isLogin = t==='login';
   const loginCard = document.getElementById('loginCard');
   const regCard = document.getElementById('registerCard');
-  // Fade out whichever is visible
   const visible = isLogin ? regCard : loginCard;
   const target = isLogin ? loginCard : regCard;
+  // Early exit if target already visible (prevents opacity corruption)
+  if(!target.classList.contains('hidden')){return;}
   visible.style.opacity = '0';
   setTimeout(function(){
     visible.classList.add('hidden');
@@ -578,7 +579,7 @@ async function handleLogin(e){
     if(data.status==='pending'){ msgEl.className='msg info'; msgEl.textContent='⏳ Your account is pending admin approval. Usually within 24 hours.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='rejected'){ msgEl.className='msg error'; msgEl.textContent='Your application was not approved. Please WhatsApp DriveSQ.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='suspended'){ msgEl.className='msg error'; msgEl.textContent='🚫 Your account has been suspended. Please contact DriveSQ.'; msgEl.classList.remove('hidden'); return; }
-    let hashPass;try{hashPass=btoa(pass);}catch(e){msgEl.className='msg error';msgEl.textContent='Incorrect password. Please try again.';msgEl.classList.remove('hidden');setFieldError('loginPass');return;}
+    let hashPass;try{hashPass=btoa(pass);}catch(e){hashPass=btoa(encodeURIComponent(pass));}
     if(data.password_hash!==hashPass){
       msgEl.className='msg error'; msgEl.textContent='Incorrect password. Please try again.'; msgEl.classList.remove('hidden');
       setFieldError('loginPass');
