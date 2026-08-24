@@ -421,6 +421,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
       <div class="ms-auto d-flex align-items-center gap-2">
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
+        <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
       </div>
@@ -1378,6 +1379,35 @@ async function acceptAdminPush(){
   } else {
     showToast('Notifications blocked — enable in browser settings','warning');
   }
+  _updateAdminNotifBtn();
+}
+
+function _updateAdminNotifBtn(){
+  const btn=document.getElementById('adminNotifToggle');
+  const dot=document.getElementById('adminNotifDot');
+  const icon=document.getElementById('adminNotifIcon');
+  if(!btn)return;
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='granted'){
+    btn.title='Push notifications enabled ✓';
+    btn.style.color='var(--gold)';
+    if(dot)dot.style.display='none';
+  } else if(perm==='denied'){
+    btn.title='Notifications blocked — click to see instructions';
+    btn.style.color='var(--red)';
+    if(dot)dot.style.display='block',dot.style.background='var(--red)';
+  } else {
+    btn.title='Enable push notifications';
+    btn.style.color='';
+    if(dot)dot.style.display='block';
+  }
+}
+
+async function adminManualEnableNotifs(){
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='denied'){showToast('Notifications are blocked. Go to browser settings → Notifications → allow this site.','warning');return;}
+  if(perm==='granted'){showToast('Push notifications are already enabled ✓','success');return;}
+  await acceptAdminPush();
 }
 
 async function _saveAdminPushSub(reg){
@@ -1433,7 +1463,7 @@ function showApp(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainNav').classList.remove('hidden');
   document.getElementById('mainPage').classList.remove('hidden');
-  setTimeout(initAdminPush,5000);
+  setTimeout(()=>{initAdminPush();_updateAdminNotifBtn();},2000);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
 }
