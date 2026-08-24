@@ -321,12 +321,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 /* ══ GLOBAL SEARCH MODAL ══ */
 .gsearch-overlay{position:fixed;inset:0;background:var(--overlay);z-index:9000;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .gsearch-overlay.open{display:flex}
-.gsearch-box{background:var(--dk);border:1px solid rgba(209,10,17,.25);border-radius:16px;width:100%;max-width:580px;overflow:hidden;box-shadow:0 40px 80px var(--shadow)}
+.gsearch-box{background:var(--dk);border:1px solid rgba(209,10,17,.25);border-radius:16px;width:100%;max-width:720px;overflow:hidden;box-shadow:0 40px 80px var(--shadow)}
 .gsearch-inp-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bdr)}
 .gsearch-inp-row i{font-size:1.1rem;color:var(--txt3);flex-shrink:0}
-.gsearch-inp{background:transparent;border:none;outline:none;width:100%;font-size:.95rem;color:var(--txt);font-family:'Inter',sans-serif}
+.gsearch-inp{background:transparent;border:none;outline:none;width:100%;font-size:1.1rem;color:var(--txt);font-family:'Inter',sans-serif}
 .gsearch-inp::placeholder{color:var(--txt4)}
-.gsearch-results{max-height:380px;overflow-y:auto}
+.gsearch-results{max-height:480px;overflow-y:auto}
 .gsearch-section{padding:8px 0}
 .gsearch-lbl{font-family:'Oswald',sans-serif;font-size:.58rem;font-weight:700;color:var(--txt4);letter-spacing:1.5px;text-transform:uppercase;padding:6px 16px 4px}
 .gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;transition:background var(--trans)}
@@ -389,6 +389,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 @media(max-width:575px){.search-trigger-btn span,.search-trigger-btn kbd{display:none}}
 .qa-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:7px;padding:4px 10px;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
 .qa-btn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.map-filter-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:20px;padding:5px 13px;font-family:'Oswald',sans-serif;font-size:.74rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;}
+.map-filter-btn.active{background:var(--dk3);border-color:var(--red);color:var(--txt);}
+.map-filter-btn:hover{border-color:var(--red);}
+.map-stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center;}
+.map-stat-val{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--txt);line-height:1;}
+.map-stat-lbl{font-size:.68rem;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
 </style>
 <style id="why-card-css">
 .why-card{display:flex;align-items:flex-start;gap:11px;padding:15px;border:1px solid #ebebeb;border-radius:12px;background:#fff;transition:all .22s ease}.why-card:hover{box-shadow:0 8px 26px rgba(0,0,0,.07);border-color:#ddd}
@@ -472,7 +478,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card p"><div class="stat-lbl">This Week</div><div class="stat-num p" id="sWeek">0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card g"><div class="stat-lbl">Hours This Week</div><div class="stat-num g" id="sHours">0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr"><div class="stat-lbl">Earnings This Week</div><div class="stat-num gr" id="sEarnings">£0</div></div></div>
-    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b"><div class="stat-lbl">Total Students</div><div class="stat-num b" id="sTotalStudents">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b" style="cursor:pointer" onclick="switchTab('students');setActiveTab('students')" title="Click to view all students"><div class="stat-lbl">Total Students</div><div class="stat-num b" id="sTotalStudents">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr" style="cursor:pointer" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>filterStudentsByReg(true),600)" title="Students with portal accounts — click to view"><div class="stat-lbl">✅ Fully Registered</div><div class="stat-num gr" id="sFullyReg">0</div></div></div>
   </div>
 
   <!-- == DASHBOARD == -->
@@ -571,11 +578,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <select class="dsq-inp" style="max-width:160px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentInstrFilter">
           <option value="">All instructors</option>
         </select>
-        <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentOnlineFilter">
+        <select class="dsq-inp" style="max-width:140px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentOnlineFilter">
           <option value="">All students</option>
           <option value="online">🟢 Online now</option>
-          <option value="app">On App</option>
-          <option value="never">Never logged in</option>
+          <option value="app">📱 On App</option>
+          <option value="registered">✅ Fully Registered</option>
+          <option value="never">❌ Never logged in</option>
         </select>
         <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
         <button class="btn-purple" style="font-size:.78rem" onclick="openBroadcastStudentsModal()"><i class="bi bi-megaphone-fill me-1"></i>Broadcast</button>
@@ -890,21 +898,43 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <div id="panel-map" class="hidden">
-  <div style="padding:0 0 16px">
-    <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--txt);margin-bottom:2px"><i class="bi bi-map-fill me-2" style="color:var(--red)"></i>Instructor Map</div>
-    <div style="font-size:.75rem;color:var(--txt3)">View instructor locations, enter a student address to find the nearest instructor, and assign from the map.</div>
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--txt);margin-bottom:2px"><i class="bi bi-map-fill me-2" style="color:var(--red)"></i>Coverage Map</div>
+      <div style="font-size:.75rem;color:var(--txt3)">All instructors and students on one live map. Click any pin to view profile, WhatsApp or assign.</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button id="mapFilterInstrs" class="map-filter-btn active" onclick="toggleMapFilter('instructors')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:5px"></span>Instructors</button>
+      <button id="mapFilterStudents" class="map-filter-btn active" onclick="toggleMapFilter('students')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Students</button>
+      <button class="btn-s" onclick="mapReset()" style="font-size:.72rem;padding:5px 10px"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+    </div>
   </div>
-  <!-- Student lookup bar -->
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <input class="dsq-inp" id="mapStudentAddr" placeholder="Enter student postcode or address to find nearest instructor…" style="flex:1;min-width:200px"/>
-    <button class="btn-p" onclick="mapFindNearest()" style="white-space:nowrap"><i class="bi bi-search me-1"></i>Find Nearest</button>
-    <button class="btn-s" onclick="mapReset()" style="white-space:nowrap"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+
+  <!-- Stats row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px" id="mapStatsRow">
+    <div class="map-stat-card"><div class="map-stat-val" id="mapStatInstrs">—</div><div class="map-stat-lbl">Instructors</div></div>
+    <div class="map-stat-card"><div class="map-stat-val" id="mapStatStudents">—</div><div class="map-stat-lbl">Students on Map</div></div>
+    <div class="map-stat-card"><div class="map-stat-val" id="mapStatAreas">—</div><div class="map-stat-lbl">Areas Covered</div></div>
+    <div class="map-stat-card"><div class="map-stat-val" id="mapStatOnline">—</div><div class="map-stat-lbl">Online Now</div></div>
   </div>
-  <!-- Nearest result -->
-  <div id="mapNearestResult" style="display:none;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:.82rem"></div>
-  <!-- The map -->
-  <div id="adminMapEl" style="height:480px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
-  <div style="margin-top:10px;font-size:.72rem;color:var(--txt4)"><i class="bi bi-info-circle me-1"></i>Click any instructor pin to view details &amp; WhatsApp them. Red pins = instructors. Blue pin = student location.</div>
+
+  <!-- Find nearest bar -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input class="dsq-inp" id="mapStudentAddr" placeholder="Enter student postcode to find nearest instructor…" style="flex:1;min-width:200px;font-size:.82rem"/>
+    <button class="btn-p" onclick="mapFindNearest()" style="white-space:nowrap;font-size:.82rem"><i class="bi bi-crosshair me-1"></i>Find Nearest</button>
+  </div>
+  <div id="mapNearestResult" style="display:none;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:.82rem"></div>
+
+  <!-- Map -->
+  <div id="adminMapEl" style="height:540px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+
+  <!-- Legend -->
+  <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:14px;font-size:.72rem;color:var(--txt3)">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:4px"></span>Instructor pin — click to view &amp; assign</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>Student pin — click to view details</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;margin-right:4px"></span>Nearest instructor result</span>
+  </div>
 </div>
 
 </div><!-- /page -->
@@ -1547,7 +1577,7 @@ function switchTab(t){
   if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
-  if(t==='map'){setTimeout(()=>initAdminMap(),100);}
+  if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
     if(!viewingId&&picker){
@@ -1601,6 +1631,10 @@ async function loadGlobalStats(){
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
   document.getElementById('sTotalStudents').textContent=studR.count||0;
+  // Fully registered = student_accounts with a last_login (they've actually logged in)
+  sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
+    document.getElementById('sFullyReg').textContent=r.count||0;
+  }).catch(()=>{});
 }
 
 function populateDropdowns(){
@@ -2150,6 +2184,14 @@ function renderStudentsTable(students){
   }).join('');
 }
 
+function filterStudentsByReg(registered){
+  if(registered){
+    document.getElementById('studentOnlineFilter').value='registered';
+    document.getElementById('studentSearch').value='';
+    filterAllStudents('');
+  }
+}
+
 let _filterAllStudentsTimer=null;
 function filterAllStudents(q){
   clearTimeout(_filterAllStudentsTimer);
@@ -2160,6 +2202,7 @@ function filterAllStudents(q){
     if(instrId)list=list.filter(s=>s.instrId===instrId);
     if(onlineF==='online')list=list.filter(s=>s.isOnline);
     else if(onlineF==='app')list=list.filter(s=>s.onApp);
+    else if(onlineF==='registered')list=list.filter(s=>s.onApp&&s.lastLogin);
     else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
     const raw=(q||'').trim();
     if(raw){
@@ -3200,14 +3243,18 @@ function openAssignModal(instrId,instrName,instrPhone){
   openModal('assignModal');
 }
 async function confirmAssign(){
-  const instrId=document.getElementById('assign-instr-id').value;const s=fcStudentData||{};
+  const instrId=document.getElementById('assign-instr-id').value;
   const instrName=document.getElementById('assign-instr-name').value;
-  if(!instrId||!s.name){showToast('Missing data.','error');return;}
-  showToast('Assigning student…','');
+  const s=fcStudentData||{};
+  if(!instrId||!s.name){showToast('Missing student or instructor data.','error');return;}
 
-  // 1. Try creating student_accounts (best effort - may fail if columns differ)
-  const _aCode='STU'+Math.random().toString(36).slice(2,7).toUpperCase();
+  // Lock button to prevent double-submit
+  const btn=document.querySelector('#assignModal .btn-p');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Assigning…';}
+
+  // 1. Try creating student_accounts (best effort — non-fatal)
   let accId=null;
+  const _aCode='STU'+(Date.now().toString(36)).toUpperCase().slice(-5);
   try{
     const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
       full_name:s.name,phone:s.phone||null,email:s.email||null,
@@ -3216,47 +3263,78 @@ async function confirmAssign(){
       status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
     }]).select('id').maybeSingle();
     if(!accErr&&accData)accId=accData.id;
-    else if(accErr)console.warn('student_accounts insert (non-fatal):',accErr.message);
-  }catch(e){console.warn('student_accounts insert exception:',e);}
+    else if(accErr)console.warn('student_accounts (non-fatal):',accErr.message);
+  }catch(e){console.warn('student_accounts exception:',e);}
 
-  // 2. Add to instructor roster (student_profiles) — CRITICAL step
+  // 2. Add to instructor roster (student_profiles) — CRITICAL, try 3 fallbacks
   let profInserted=false;
   const profBase={instructor_id:instrId,name:s.name,phone:s.phone||null,address:s.addr||null,status:'active',created_at:new Date().toISOString()};
+  const notesStr=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n')||null;
   for(const payload of [
-    {...profBase,lesson_type:s.type||'Manual',notes:[s.notes,s.avail?'Avail:'+s.avail:'',s.postcode?'PC:'+s.postcode:''].filter(Boolean).join('\n')||null},
+    {...profBase,lesson_type:s.type||'Manual',notes:notesStr},
     {...profBase,lesson_type:s.type||'Manual'},
-    {...profBase}
+    profBase
   ]){
     const{error:e}=await sb.from('student_profiles').insert([payload]);
     if(!e){profInserted=true;break;}
-    console.warn('student_profiles insert attempt failed:',e.message);
+    console.warn('student_profiles attempt failed:',e.message);
   }
-  if(!profInserted){showToast('Failed to add to roster. Check Supabase RLS on student_profiles.','error');return;}
-  // 3. Also log in student_requests for audit trail
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Assign Student';}
+
+  if(!profInserted){
+    showToast('❌ Failed to add to roster — run the SQL fix in Supabase (RLS on student_profiles).','error',8000);
+    return;
+  }
+
+  // 3. Audit trail
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
-    pickup_address:null,postcode:s.postcode,lesson_type:s.type||'Manual',
+    pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
-  // 4. Push notification to instructor
-  sendPushToInstructor(instrId,instrName,'👤 New Student: '+s.name,'Tap to view '+s.name+'\'s details in your Students tab','/dashboard.html');
-  // 5. In-app admin message to instructor
-  const _assignMsg='Hi '+instrName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+s.name+'\n📞 Phone: '+(s.phone||'Not provided')+'\n🚗 Lesson Type: '+(s.type||'Manual')+'\n📍 Address: '+(s.addr||'Not provided')+(s.avail?'\n🕐 Availability: '+s.avail:'')+(s.notes?'\n📝 Notes: '+s.notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
-  await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+s.name,message_type:'general',body:_assignMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+
+  // 4. Push notification to instructor device
+  await sendPushToInstructor(instrId,instrName,
+    '👤 New Student Assigned: '+s.name,
+    'Admin has added '+s.name+(s.phone?' ('+s.phone+')':'')+' to your roster. Tap to view.',
+    '/dashboard.html');
+
+  // 5. In-app message to instructor (shows in their notifications panel)
+  const _msg='Hi '+instrName+',\n\nA new student has been assigned to you by admin:\n\n'
+    +'👤 Name: '+s.name+'\n'
+    +'📞 Phone: '+(s.phone||'Not provided')+'\n'
+    +'🚗 Lesson Type: '+(s.type||'Manual')+'\n'
+    +'📍 Address: '+(s.addr||'Not provided')+'\n'
+    +(s.avail?'🕐 Availability: '+s.avail+'\n':'')
+    +(s.notes?'📝 Notes: '+s.notes+'\n':'')+'\n'
+    +'Open your Students tab to see them and get in touch to book their first lesson! 🎉\n\n'
+    +'— DriveSQ Admin';
+  await sb.from('admin_messages').insert([{
+    instructor_id:instrId,
+    subject:'👤 New Student Assigned: '+s.name,
+    message_type:'general',body:_msg,
+    is_read:false,dismissed:false,created_at:new Date().toISOString()
+  }]).catch(()=>{});
+
   closeModal('assignModal');
-  showToast(`✅ ${s.name} assigned to ${instrName} & added to their roster!`,'success');
-  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
-  // Store for potential WhatsApp use after modal closes
-  window._assignLastCreated={name:s.name,phone:s.phone,instrName};
-  // Offer admin a WhatsApp link to send login instructions to the student
+  showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
+
+  // 6. Offer WhatsApp to student
   if(s.phone){
     const _stuWaNum=buildWaNum(s.phone);
     if(_stuWaNum){
-      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nJust log in with your phone number — *${s.phone}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nSee you on the road! 🚗\n— DriveSQ`;
-      showToast(`✅ ${s.name} assigned! <a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;text-decoration:underline;margin-left:6px"><i class="bi bi-whatsapp"></i> Send login link to student</a>`,'success',12000);
+      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your account is all set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number — *${s.phone}*\n\nYour instructor is *${instrName}*. They'll be in touch to book your first lesson.\n\nIn the app you can:\n✅ Confirm & track lessons\n📖 Study theory — 700+ DVSA questions\n💬 Message your instructor\n🏆 Earn XP as you progress\n\nSee you on the road! 🚗\n— DriveSQ`;
+      setTimeout(()=>{
+        showToast(`<a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Send portal link to ${s.name.split(' ')[0]} via WhatsApp</a>`,'success',15000);
+      },1500);
     }
   }
+
+  // Reset find form
+  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fr=document.getElementById('findResults');
+  if(fr)fr.innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>';
   fcStudentData=null;
   if(allStudentsCache.length)loadAllStudents();
 }
@@ -4004,15 +4082,26 @@ function emptyState(msg,sub){
 }
 
 /* ══ MAP ══ */
-let _leafletLoaded=false,_adminMap=null,_instrMarkers=[],_studentMarker=null;
+let _adminMap=null,_instrMarkers=[],_studentMapMarkers=[],_studentMarker=null;
+let _mapShowInstrs=true,_mapShowStudents=true;
+
+function toggleMapFilter(type){
+  if(type==='instructors'){
+    _mapShowInstrs=!_mapShowInstrs;
+    document.getElementById('mapFilterInstrs')?.classList.toggle('active',_mapShowInstrs);
+    _instrMarkers.forEach(m=>_mapShowInstrs?m.addTo(_adminMap):m.remove());
+  } else {
+    _mapShowStudents=!_mapShowStudents;
+    document.getElementById('mapFilterStudents')?.classList.toggle('active',_mapShowStudents);
+    _studentMapMarkers.forEach(m=>_mapShowStudents?m.addTo(_adminMap):m.remove());
+  }
+}
 
 async function initAdminMap(){
-  if(_adminMap)return;
-  // Load Leaflet CSS
+  if(_adminMap){refreshMapStats();plotInstrMarkers();plotStudentMapMarkers();return;}
   if(!document.getElementById('leaflet-css')){
     const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
-  // Load Leaflet JS
   if(!window.L){
     await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
@@ -4020,6 +4109,20 @@ async function initAdminMap(){
   _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
   plotInstrMarkers();
+  plotStudentMapMarkers();
+  refreshMapStats();
+}
+
+function refreshMapStats(){
+  const approved=(allInstrs||[]).filter(i=>i.status==='approved');
+  const studs=allStudentsCache||[];
+  const areas=new Set(approved.map(i=>(i.area||'').split(/[\s,]+/)[0].toLowerCase()).filter(Boolean));
+  const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+  const online=studs.filter(s=>s.isOnline).length+approved.filter(i=>i.last_seen&&i.last_seen>=fiveMinsAgo).length;
+  document.getElementById('mapStatInstrs').textContent=approved.length;
+  document.getElementById('mapStatStudents').textContent=studs.length;
+  document.getElementById('mapStatAreas').textContent=areas.size;
+  document.getElementById('mapStatOnline').textContent=online;
 }
 
 function plotInstrMarkers(){
@@ -4028,25 +4131,68 @@ function plotInstrMarkers(){
   (allInstrs||[]).filter(i=>i.status==='approved').forEach(i=>{
     const area=i.area||'';
     const coords=manchesterAreaCoords(area);
-    const initial=(i.full_name||'?').trim()[0].toUpperCase();
-    const instrIcon=L.divIcon({
-      html:`<div style="background:#D10A11;width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;font-size:13px;color:#fff;cursor:pointer">${initial}</div>`,
-      iconSize:[32,32],iconAnchor:[16,16],className:''
-    });
-    const marker=L.marker(coords,{icon:instrIcon}).addTo(_adminMap);
-    const waNum=buildWaNum(i.phone||'');
     const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
-    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
-      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:5px">${esc(i.full_name)}</div>
-      <div style="font-size:.76rem;color:#555;margin-bottom:2px"><b>Area:</b> ${esc(area)}</div>
-      <div style="font-size:.75rem;color:#666;margin-bottom:2px"><b>Badge:</b> ${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</div>
-      <div style="font-size:.75rem;color:#555;margin-bottom:8px"><b>Students:</b> ${studCount} · <b>Type:</b> ${esc(i.car_type||'Manual')}</div>
+    const initial=(i.full_name||'?').trim()[0].toUpperCase();
+    // Size pin by student count — busier instructors have larger pins
+    const sz=Math.min(44,32+studCount*2);
+    const instrIcon=L.divIcon({
+      html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer;position:relative">
+        <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
+        ${studCount?`<span style="font-size:9px;color:rgba(255,255,255,.8);line-height:1">${studCount}</span>`:''}
+      </div>`,
+      iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''
+    });
+    const waNum=buildWaNum(i.phone||'');
+    const marker=L.marker(coords,{icon:instrIcon});
+    if(_mapShowInstrs)marker.addTo(_adminMap);
+    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
+      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
+        <span style="color:#888">Area</span><span>${esc(area||'—')}</span>
+        <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
+        <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
+        <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
+        ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
+      </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp</a>`:''}
-        <button onclick="viewInstr('${i.id}')" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer;white-space:nowrap">View Profile</button>
+        ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
+        <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View Profile</button>
+        <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
       </div>
     </div>`);
     _instrMarkers.push(marker);
+  });
+}
+
+function plotStudentMapMarkers(){
+  if(!_adminMap||!window.L)return;
+  _studentMapMarkers.forEach(m=>m.remove());_studentMapMarkers=[];
+  (allStudentsCache||[]).filter(s=>s.address||s.instrId).forEach(s=>{
+    // Use instructor area coords as fallback for students without geocoded address
+    const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
+    const coords=manchesterAreaCoords(instrArea);
+    // Deterministic jitter so students don't all pile exactly on instructor pin
+    const jitterSeed=(s.name||'').charCodeAt(0)||0;
+    const jitter=[(((jitterSeed*13)%20)-10)*.001,(((jitterSeed*7)%20)-10)*.001];
+    const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+    const sIcon=L.divIcon({
+      html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
+      iconSize:[14,14],iconAnchor:[7,7],className:''
+    });
+    const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
+    if(_mapShowStudents)marker.addTo(_adminMap);
+    const waNum=buildWaNum(s.phone||'');
+    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
+        <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
+        <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
+        ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
+        <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
+      </div>
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
+    </div>`);
+    _studentMapMarkers.push(marker);
   });
 }
 
