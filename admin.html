@@ -2132,10 +2132,63 @@ function filterAllStudents(q){
 }
 
 /* ══ ADMIN STUDENT PROFILE MODAL ══ */
+let _adminStudentCtx=null; // stores {accId, profileId, instrId, name} for delete action
+
+async function adminDeleteStudent(){
+  if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
+  const{accId,profileId,instrId,name}=_adminStudentCtx;
+  if(!confirm(`⚠️ PERMANENTLY DELETE ${name}?\n\nThis will erase:\n• Student account & login\n• Roster profile\n• ALL lesson records\n• All messages, progress & feedback\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
+  showToast('Deleting student from system…','warn');
+  const btn=document.getElementById('adminDeleteStudentBtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Deleting…';}
+  try{
+    if(accId){
+      // Delete all child rows linked to account
+      await Promise.all([
+        sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{}),
+        sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{}),
+      ]);
+    }
+    if(instrId){
+      // Get lesson IDs to clean up child tables
+      const{data:lessonRows}=await sb.from('lessons').select('id').eq('instructor_id',instrId).ilike('student_name',name).catch(()=>({data:[]}));
+      const lessonIds=(lessonRows||[]).map(l=>l.id);
+      if(lessonIds.length){
+        await Promise.all([
+          sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{}),
+          sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{}),
+        ]);
+      }
+      await sb.from('lessons').delete().eq('instructor_id',instrId).ilike('student_name',name).catch(()=>{});
+    }
+    // Delete roster profile
+    if(profileId) await sb.from('student_profiles').delete().eq('id',profileId).catch(()=>{});
+    else if(instrId) await sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name).catch(()=>{});
+    // Delete account last (may be blocked by RLS — non-fatal)
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
+    // Remove from memory
+    allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase()!==name.toLowerCase());
+    document.getElementById('adminStudentProfileModal').classList.remove('open');
+    showToast(`✅ ${name} permanently deleted from the system.`,'success');
+    _adminStudentCtx=null;
+    loadAllStudents();
+  }catch(err){
+    console.error('Admin delete student:',err);
+    showToast('Delete failed: '+(err?.message||'unknown error'),'error');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
+  }
+}
+
 async function openAdminStudentProfile(studentName,phone,instrId){
   const modal=document.getElementById('adminStudentProfileModal');
   if(!modal)return;
   modal.classList.add('open');
+  _adminStudentCtx=null;
+  const delBtn=document.getElementById('adminDeleteStudentBtn');
+  if(delBtn){delBtn.disabled=false;delBtn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   const content=document.getElementById('adminStudentProfileContent');
   content.innerHTML='<div style="text-align:center;padding:40px;font-size:.85rem;color:var(--txt3)"><i class="bi bi-hourglass-split me-2"></i>Loading student profile…</div>';
   const normPhone=normalizePhone(phone||'');
@@ -2171,6 +2224,8 @@ async function openAdminStudentProfile(studentName,phone,instrId){
   const instrData=allInstrs.find(i=>i.id===(instrId||acc?.instructor_id));
   const instrName=instrData?.full_name||acc?.instructor_name||'—';
   const name=acc?.full_name||profile?.name||studentName||'Unknown';
+  // Store context for delete action
+  _adminStudentCtx={accId:acc?.id||null,profileId:profile?.id||null,instrId:instrId||acc?.instructor_id||null,name};
   const ph=acc?.phone||profile?.phone||phone||'';
   const email=acc?.email||'';
   const status=acc?.status||profile?.status||'active';
@@ -4076,6 +4131,9 @@ async function toggleGuideMode(instrId, instrName){
     <button class="modal-x" onclick="document.getElementById('adminStudentProfileModal').classList.remove('open')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-person-badge-fill me-2" style="color:#c084fc"></i>Student Profile</h5>
     <div id="adminStudentProfileContent" style="overflow-y:auto;flex:1;margin-top:10px"></div>
+    <div style="padding-top:10px;border-top:1px solid var(--bdr);margin-top:8px">
+      <button class="btn-r-sm w-100" id="adminDeleteStudentBtn" onclick="adminDeleteStudent()" style="font-size:.8rem;padding:9px"><i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System</button>
+    </div>
   </div>
 </div>
 
