@@ -2485,15 +2485,21 @@ async function confirmLesson(){
       const{error:insErr}=await sb.from('lesson_confirmations').insert([{lesson_id:currentLessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,student_confirmed:true,student_confirmed_at:new Date().toISOString(),status:'student_confirmed',created_at:new Date().toISOString()}]);
       if(insErr)throw insErr;
     }
+    const _lessonDateFmt=nextLesson?.lesson_date||'the scheduled date';
+    const _lessonTimeFmt=nextLesson?.start_time||'the scheduled time';
+    const _confirmMsg='✅ '+currentStudent.name+' has confirmed their lesson on '+_lessonDateFmt+' at '+_lessonTimeFmt+'.';
     if(currentStudent.instructor_id){
+      // Store message in chat
       sb.from('student_messages').insert([{
         student_account_id:currentStudent.id,
         instructor_id:currentStudent.instructor_id,
         sender:'student',
-        message:'✅ '+currentStudent.name+' has confirmed their lesson on '+(nextLesson?.lesson_date||'the scheduled date')+' at '+(nextLesson?.start_time||'the scheduled time')+'.',
+        message:_confirmMsg,
         is_read:false,
         sent_at:new Date().toISOString()
       }]).then(()=>{},()=>{});
+      // Send push notification to instructor immediately
+      pushToInstructor(currentStudent.instructor_id,'✅ Lesson Confirmed — '+currentStudent.name,currentStudent.name+' confirmed their lesson on '+_lessonDateFmt+' at '+_lessonTimeFmt,'/dashboard.html');
     }
     sfxBooking();showToast('Lesson confirmed ✓ Your instructor has been notified.','success');
     if(actions)actions.innerHTML='<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:9px 13px;font-size:.8rem;color:#4ade80;text-align:center"><i class="bi bi-check-circle-fill me-1"></i>You have confirmed attendance</div>';
