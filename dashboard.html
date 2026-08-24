@@ -4245,9 +4245,10 @@ async function pushToInstructor(instrId,title,body,url){
   }catch(e){console.warn('pushToInstructor:',e.message);}
 }
 
-// Notify student in-app (stores in pending_notifications for polling in student.html)
+// Notify student — stores in DB for in-app polling AND sends real Web Push if student enabled notifications
 async function notifyStudent(studentAccId,title,body){
   if(!studentAccId)return;
+  // 1. Store in pending_notifications for in-app polling (student.html polls every 30s)
   try{
     await sb.from('pending_notifications').insert([{
       student_account_id:studentAccId,
@@ -4256,7 +4257,16 @@ async function notifyStudent(studentAccId,title,body){
       is_read:false,
       created_at:new Date().toISOString()
     }]);
-  }catch(e){console.log('Notification skipped:',e.message);}
+  }catch(e){console.log('Notification DB insert skipped:',e.message);}
+  // 2. Also send real Web Push via Edge Function (works even when student app is closed)
+  // push_subscriptions stores student subs with instructor_id = student account id
+  try{
+    await fetch(PUSH_EDGE_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
+      body:JSON.stringify({instructor_id:studentAccId,title,body,url:'/student.html',tag:'drivesq-student'})
+    });
+  }catch(e){console.warn('Student Web Push send failed (non-fatal):',e.message);}
 }
 
 /* ── Access tab ── */
