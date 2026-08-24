@@ -3039,6 +3039,50 @@ async function installPWA(){
     setMobActive(TAB_ORDER[next]);
   },{passive:true});
 })();
+
+/* ── RATE YOUR INSTRUCTOR ── */
+let _ratingVal=0;
+function setRating(v){
+  _ratingVal=v;
+  document.querySelectorAll('.rate-star').forEach(s=>{
+    s.style.color=parseInt(s.dataset.v)<=v?'var(--gold)':'var(--bdr)';
+  });
+}
+async function submitInstrRating(){
+  const msg=document.getElementById('rateMsg');
+  if(!_ratingVal){
+    msg.style.cssText='padding:8px 12px;border-radius:8px;font-size:.8rem;margin-bottom:10px;background:rgba(209,10,17,.1);color:#f87171;display:block';
+    msg.textContent='Please select a star rating first.';return;
+  }
+  const comment=document.getElementById('rateComment').value.trim();
+  const studentId=currentStudent?.id||null;
+  const instrId=currentStudent?.instructor_id||null;
+  const studentName=currentStudent?.name||currentStudent?.full_name||null;
+  const{error}=await sb.from('student_lesson_feedback').insert([{
+    student_account_id:studentId,
+    instructor_id:instrId,
+    rating:_ratingVal,
+    comment:comment||null,
+    student_name:studentName,
+    submitted_at:new Date().toISOString()
+  }]);
+  if(error){
+    msg.style.cssText='padding:8px 12px;border-radius:8px;font-size:.8rem;margin-bottom:10px;background:rgba(209,10,17,.1);color:#f87171;display:block';
+    msg.textContent='Could not submit. Please try again.';console.error(error);return;
+  }
+  if(instrId){
+    await sb.from('admin_messages').insert([{
+      instructor_id:instrId,
+      subject:'⭐ New Student Rating: '+_ratingVal+'/5',
+      message_type:'general',
+      body:'A student rated their lessons: '+'★'.repeat(_ratingVal)+'☆'.repeat(5-_ratingVal)+' ('+_ratingVal+'/5)'+(comment?'\n\n"'+comment+'"':''),
+      is_read:false,dismissed:false,created_at:new Date().toISOString()
+    }]).catch(()=>{});
+  }
+  msg.style.cssText='padding:8px 12px;border-radius:8px;font-size:.8rem;margin-bottom:10px;background:rgba(37,211,102,.1);color:#4ade80;display:block';
+  msg.textContent='Thank you! Your feedback has been sent to your instructor ⭐';
+  setRating(0);document.getElementById('rateComment').value='';
+}
 </script>
 <!-- SQWEBSITES-CREDIT-V2 -->
 <style>
