@@ -42,6 +42,9 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:600px;backgrou
 
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:shake .35s ease both}
+.field-error{border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.15)!important}
 
 /* TABS */
 .tabs{display:flex;justify-content:center;margin:0 20px 28px;max-width:460px;margin-left:auto;margin-right:auto;background:var(--dk2);border-radius:11px;padding:4px;border:1px solid var(--bdr);position:relative;z-index:1}
@@ -51,7 +54,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:600px;backgrou
 
 /* CARD */
 .card-wrap{max-width:440px;margin:0 auto;padding:0 20px 70px;position:relative;z-index:1}
-.card{background:linear-gradient(160deg,#141420,#0e0e14);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:32px 28px;animation:fadeIn .4s both;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.card{background:linear-gradient(160deg,#141420,#0e0e14);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:32px 28px;animation:fadeIn .4s both;box-shadow:0 20px 60px rgba(0,0,0,.5);transition:opacity .25s ease}
 .card-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
 .card-ico{width:42px;height:42px;border-radius:11px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}
 .card-title{font-family:'Oswald',sans-serif;font-size:1.35rem;font-weight:700;color:#fff}
@@ -70,6 +73,7 @@ select.form-control option{background:#13131a}
 .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .btn.btn-ghost{background:transparent;border:1px solid var(--bdr);color:#444;box-shadow:none;margin-top:10px}
 .btn.btn-ghost:hover{border-color:#444;color:#aaa;background:rgba(255,255,255,.03)}
+.btn.btn-success{background:linear-gradient(135deg,#16a34a,#15803d)!important;box-shadow:0 4px 20px rgba(22,163,74,.35)!important}
 .or-line{display:flex;align-items:center;gap:8px;color:#222;font-size:.7rem;margin:14px 0;letter-spacing:.5px}
 .or-line::before,.or-line::after{content:'';flex:1;height:1px;background:#1e1e28}
 .msg{padding:10px 14px;border-radius:9px;font-size:.82rem;margin-bottom:12px;line-height:1.5}
@@ -78,15 +82,29 @@ select.form-control option{background:#13131a}
 .msg.info{background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.18);color:var(--gold)}
 .hidden{display:none!important}
 
+/* PASSWORD TOGGLE */
+.pw-wrap{position:relative}
+.pw-wrap .form-control{padding-right:42px}
+.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#333;cursor:pointer;padding:4px 6px;font-size:1rem;line-height:1;transition:color var(--trans)}
+.pw-toggle:hover{color:#888}
+
 /* PENDING */
 .pending-box{background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.18);border-radius:14px;padding:24px 20px;text-align:center}
 .pending-box h3{font-family:'Oswald',sans-serif;color:var(--gold);font-size:1.2rem;margin-bottom:10px}
 .pending-box p{font-size:.82rem;color:#555;line-height:1.7}
 
+/* STEP PROGRESS */
+.step-progress-bar{height:3px;background:#1e1e28;border-radius:999px;margin-bottom:14px;overflow:hidden}
+.step-progress-fill{height:100%;background:var(--red);border-radius:999px;transition:width .35s ease;width:33%}
+
 /* STEP DOTS */
 .step-dots{display:flex;gap:6px;justify-content:center;margin-bottom:22px}
 .dot{width:7px;height:7px;border-radius:50%;background:#1e1e28;transition:background var(--trans),box-shadow var(--trans)}
 .dot.active{background:var(--red);box-shadow:0 0 8px rgba(209,10,17,.5)}
+
+/* SPIN */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin .6s linear infinite}
 
 /* TRUST STRIP */
 .trust-strip{background:#090910;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:16px 0;position:relative;z-index:1}
@@ -124,9 +142,9 @@ footer a:hover{color:#555}
 .feature-section .sec-eyebrow{display:inline-block;font-size:.64rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--red);margin-bottom:10px;opacity:.8}
 .feature-section h2{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:clamp(1.9rem,5vw,2.8rem);font-weight:800;color:#fff;margin-bottom:32px;letter-spacing:-.5px;text-wrap:balance}
 .feature-section h2 span{color:var(--red)}
-.feat-card{background:linear-gradient(145deg,#12121a,#0d0d14);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px 18px;height:100%;transition:border-color var(--trans),transform var(--trans),box-shadow var(--trans)}
-.feat-card:hover{border-color:rgba(209,10,17,.3);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
-.feat-ico{font-size:1.6rem;margin-bottom:10px;display:block}
+.feat-card{background:linear-gradient(145deg,#12121a,#0d0d14);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px 18px;height:100%;transition:border-color var(--trans),transform var(--trans),box-shadow var(--trans);border-left-width:3px}
+.feat-card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.feat-ico{font-size:1.4rem;margin-bottom:10px;display:block;line-height:1}
 .feat-title{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fff;margin-bottom:5px}
 .feat-desc{font-size:.75rem;color:#444;line-height:1.65}
 
@@ -192,7 +210,10 @@ footer a:hover{color:#555}
       </div>
       <div class="form-group">
         <label>Password <span class="req">*</span></label>
-        <input class="form-control" id="loginPass" type="password" placeholder="Your password" required/>
+        <div class="pw-wrap">
+          <input class="form-control" id="loginPass" type="password" placeholder="Your password" required/>
+          <button type="button" class="pw-toggle" onclick="togglePw('loginPass',this)" title="Show/hide password"><i class="bi bi-eye"></i></button>
+        </div>
       </div>
       <button class="btn" type="submit" id="loginBtn">Sign In to Portal →</button>
       <a class="forgot-link" href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20to%20reset%20my%20instructor%20portal%20password.%20My%20badge%20number%20is%3A%20" target="_blank">Forgot your password? WhatsApp DriveSQ →</a>
@@ -222,6 +243,7 @@ footer a:hover{color:#555}
     </div>
 
     <form id="regForm" onsubmit="handleRegister(event)">
+      <div class="step-progress-bar"><div class="step-progress-fill" id="stepFill"></div></div>
       <div class="step-dots">
         <div class="dot active" id="d1"></div>
         <div class="dot" id="d2"></div>
@@ -244,6 +266,15 @@ footer a:hover{color:#555}
             <option value="">Select…</option>
             <option value="ADI">ADI — Fully Qualified</option>
             <option value="PDI">PDI — In Training</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Lesson Types <span class="req">*</span></label>
+          <select class="form-control" id="regCarType" required>
+            <option value="">Select…</option>
+            <option value="Manual">Manual Only</option>
+            <option value="Automatic">Automatic Only</option>
+            <option value="Both">Manual &amp; Automatic</option>
           </select>
         </div>
         <button type="button" class="btn" onclick="nextStep(2)">Continue →</button>
@@ -273,11 +304,17 @@ footer a:hover{color:#555}
       <div id="step3" class="hidden">
         <div class="form-group">
           <label>Create Password <span class="req">*</span></label>
-          <input class="form-control" id="regPass" type="password" placeholder="Min 8 characters" required minlength="8"/>
+          <div class="pw-wrap">
+            <input class="form-control" id="regPass" type="password" placeholder="Min 8 characters" required minlength="8"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('regPass',this)" title="Show/hide password"><i class="bi bi-eye"></i></button>
+          </div>
         </div>
         <div class="form-group">
           <label>Confirm Password <span class="req">*</span></label>
-          <input class="form-control" id="regPass2" type="password" placeholder="Repeat password" required minlength="8"/>
+          <div class="pw-wrap">
+            <input class="form-control" id="regPass2" type="password" placeholder="Repeat password" required minlength="8"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('regPass2',this)" title="Show/hide password"><i class="bi bi-eye"></i></button>
+          </div>
         </div>
         <div style="background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.12);border-radius:9px;padding:11px 14px;font-size:.76rem;color:#555;margin-bottom:14px;line-height:1.6">
           ⚠️ Your account will need <strong style="color:var(--gold)">admin approval</strong> before you can log in. Usually within 24 hours.
@@ -303,45 +340,45 @@ footer a:hover{color:#555}
     </div>
     <div class="row g-3">
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">📅</span>
+        <div class="feat-card" style="border-left-color:#D10A11">
+          <span class="feat-ico"><i class="bi bi-calendar-week" style="color:#D10A11"></i></span>
           <div class="feat-title">Manage Lesson Bookings</div>
           <p class="feat-desc">Book, reschedule and cancel lessons. Students are auto-notified when dates change.</p>
         </div>
       </div>
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">🗺️</span>
-          <div class="feat-title">Week Planner</div>
-          <p class="feat-desc">Visual Mon–Sun calendar. See your full week at a glance.</p>
+        <div class="feat-card" style="border-left-color:#F5C518">
+          <span class="feat-ico"><i class="bi bi-geo-alt-fill" style="color:#F5C518"></i></span>
+          <div class="feat-title">Routes &amp; Week Planner</div>
+          <p class="feat-desc">Visual Mon–Sun calendar with map integration. See your full week at a glance.</p>
         </div>
       </div>
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">📊</span>
+        <div class="feat-card" style="border-left-color:#22c55e">
+          <span class="feat-ico"><i class="bi bi-graph-up-arrow" style="color:#22c55e"></i></span>
           <div class="feat-title">Student Progress</div>
           <p class="feat-desc">Track theory test results, practical hours and mock test scores per student.</p>
         </div>
       </div>
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">💬</span>
+        <div class="feat-card" style="border-left-color:#3b82f6">
+          <span class="feat-ico"><i class="bi bi-chat-dots-fill" style="color:#3b82f6"></i></span>
           <div class="feat-title">Direct Messaging</div>
           <p class="feat-desc">Send messages and WhatsApp directly from the portal. Students see them instantly.</p>
         </div>
       </div>
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">🏆</span>
-          <div class="feat-title">Progress Dashboard</div>
-          <p class="feat-desc">Monitor each student's journey from first lesson to test-ready.</p>
+        <div class="feat-card" style="border-left-color:#a855f7">
+          <span class="feat-ico"><i class="bi bi-currency-pound" style="color:#a855f7"></i></span>
+          <div class="feat-title">Earnings Dashboard</div>
+          <p class="feat-desc">Monitor your lesson income, track payments and see your monthly earnings at a glance.</p>
         </div>
       </div>
       <div class="col-md-4 col-sm-6">
-        <div class="feat-card">
-          <span class="feat-ico">📱</span>
+        <div class="feat-card" style="border-left-color:#D10A11">
+          <span class="feat-ico"><i class="bi bi-phone" style="color:#D10A11"></i></span>
           <div class="feat-title">Install as App</div>
-          <p class="feat-desc">Add this portal to your phone home screen for instant access.</p>
+          <p class="feat-desc">Add this portal to your phone home screen for instant access — no app store needed.</p>
         </div>
       </div>
     </div>
@@ -412,8 +449,6 @@ if(sessionStorage.getItem('dsq_instructor')) window.location.href = 'dashboard.h
   try{
     const{error}=await sb.from('instructors').select('id',{count:'exact',head:true});
     if(error&&error.code!=='PGRST116'&&error.code!=='42P01'){
-      // 42P01 = table doesn't exist yet (normal before SQL run), PGRST116 = empty
-      // Any other error means Supabase is down/paused
       showLoginWarning('⚠️ Database connection issue. If login fails, your Supabase project may be paused — check supabase.com/dashboard.');
     }
   }catch(e){showLoginWarning('⚠️ Could not reach the database. Please refresh or check your internet connection.');}
@@ -446,23 +481,52 @@ function showLoginWarning(msg){
   tick();
 })();
 
+/* PASSWORD TOGGLE */
+function togglePw(id, btn){
+  const inp = document.getElementById(id);
+  const ico = btn.querySelector('i');
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    ico.className = 'bi bi-eye-slash';
+  } else {
+    inp.type = 'password';
+    ico.className = 'bi bi-eye';
+  }
+}
+
 /* TABS */
 function showTab(t){
   const isLogin = t==='login';
-  document.getElementById('loginCard').classList.toggle('hidden', !isLogin);
-  document.getElementById('registerCard').classList.toggle('hidden', isLogin);
+  const loginCard = document.getElementById('loginCard');
+  const regCard = document.getElementById('registerCard');
+  const visible = isLogin ? regCard : loginCard;
+  const target = isLogin ? loginCard : regCard;
+  // Early exit if target already visible (prevents opacity corruption)
+  if(!target.classList.contains('hidden')){return;}
+  visible.style.opacity = '0';
+  setTimeout(function(){
+    visible.classList.add('hidden');
+    target.classList.remove('hidden');
+    target.style.opacity = '0';
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ target.style.opacity = '1'; });
+    });
+  }, 150);
   document.getElementById('tabLogin').classList.toggle('active', isLogin);
   document.getElementById('tabRegister').classList.toggle('active', !isLogin);
 }
 
 /* MULTI-STEP */
 let currentStep = 1;
+const stepFillWidths = ['33%','67%','100%'];
+
 function nextStep(n){
   if(n > currentStep){
     if(currentStep===1){
       if(!document.getElementById('regName').value.trim()){ showRegMsg('error','Please enter your full name.'); return; }
       if(!document.getElementById('regBadge').value.trim()){ showRegMsg('error','Please enter your badge number.'); return; }
       if(!document.getElementById('regType').value){ showRegMsg('error','Please select your badge type.'); return; }
+      if(!document.getElementById('regCarType').value){ showRegMsg('error','Please select your lesson type.'); return; }
     }
     if(currentStep===2){
       if(!document.getElementById('regPhone').value.trim()){ showRegMsg('error','Please enter your phone number.'); return; }
@@ -476,16 +540,30 @@ function nextStep(n){
   document.getElementById('d'+currentStep).classList.remove('active');
   document.getElementById('d'+n).classList.add('active');
   currentStep=n;
+  document.getElementById('stepFill').style.width = stepFillWidths[n-1];
 }
 
 function showRegMsg(type,text){ const el=document.getElementById('regMsg'); el.className='msg '+type; el.textContent=text; el.classList.remove('hidden'); }
 function hideRegMsg(){ document.getElementById('regMsg').classList.add('hidden'); }
 
+/* FIELD ERROR HELPERS */
+function setFieldError(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.add('field-error','shake');
+  el.addEventListener('animationend',function(){ el.classList.remove('shake'); },{once:true});
+}
+function clearFieldErrors(){
+  document.querySelectorAll('.field-error').forEach(function(el){ el.classList.remove('field-error','shake'); });
+}
+
 /* LOGIN */
 async function handleLogin(e){
   e.preventDefault();
+  clearFieldErrors();
   const btn=document.getElementById('loginBtn');
-  btn.textContent='Signing in…'; btn.disabled=true;
+  btn.innerHTML='<i class="bi bi-arrow-repeat spin me-1"></i>Signing in…';
+  btn.disabled=true;
   const msgEl=document.getElementById('loginMsg');
   msgEl.classList.add('hidden');
   const badge=document.getElementById('loginBadge').value.trim().toUpperCase();
@@ -493,18 +571,48 @@ async function handleLogin(e){
   try{
     const {data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).maybeSingle();
     if(error){ msgEl.className='msg error'; msgEl.textContent='Connection error. Please try again.'; msgEl.classList.remove('hidden'); return; }
-    if(!data){ msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden'); return; }
+    if(!data){
+      msgEl.className='msg error'; msgEl.textContent='Badge number not found.'; msgEl.classList.remove('hidden');
+      setFieldError('loginBadge');
+      return;
+    }
     if(data.status==='pending'){ msgEl.className='msg info'; msgEl.textContent='⏳ Your account is pending admin approval. Usually within 24 hours.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='rejected'){ msgEl.className='msg error'; msgEl.textContent='Your application was not approved. Please WhatsApp DriveSQ.'; msgEl.classList.remove('hidden'); return; }
     if(data.status==='suspended'){ msgEl.className='msg error'; msgEl.textContent='🚫 Your account has been suspended. Please contact DriveSQ.'; msgEl.classList.remove('hidden'); return; }
-    let hashPass;try{hashPass=btoa(pass);}catch(e){msgEl.className='msg error';msgEl.textContent='Incorrect password. Please try again.';msgEl.classList.remove('hidden');return;}
-    if(data.password_hash!==hashPass){ msgEl.className='msg error'; msgEl.textContent='Incorrect password. Please try again.'; msgEl.classList.remove('hidden'); return; }
+    let hashPass;try{hashPass=btoa(pass);}catch(e){hashPass=btoa(encodeURIComponent(pass));}
+    if(data.password_hash!==hashPass){
+      msgEl.className='msg error'; msgEl.textContent='Incorrect password. Please try again.'; msgEl.classList.remove('hidden');
+      setFieldError('loginPass');
+      return;
+    }
     sessionStorage.setItem('dsq_instructor', JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
-    window.location.href='dashboard.html';
+    // Success state
+    btn.innerHTML='✓ Redirecting…';
+    btn.classList.add('btn-success');
+    btn.disabled=true;
+    setTimeout(function(){ window.location.href='dashboard.html'; }, 600);
   }catch(err){
     msgEl.className='msg error'; msgEl.textContent='Connection error. Please try again.'; msgEl.classList.remove('hidden');
-  }finally{ btn.textContent='Sign In to Portal →'; btn.disabled=false; }
+  }finally{
+    // Only reset if we didn't redirect
+    if(!document.querySelector('.btn-success')){
+      btn.innerHTML='Sign In to Portal →'; btn.disabled=false;
+    }
+  }
 }
+
+/* Badge field Enter → focus password */
+document.addEventListener('DOMContentLoaded', function(){
+  const badgeField = document.getElementById('loginBadge');
+  if(badgeField){
+    badgeField.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        document.getElementById('loginPass').focus();
+      }
+    });
+  }
+});
 
 /* PWA INSTALL */
 let _pwaPrompt = null;
@@ -527,7 +635,6 @@ function triggerPWAInstall(){
       _pwaPrompt=null;
     });
   } else {
-    // Fallback tooltip for iOS / no prompt
     const btn = document.getElementById('pwaInstallBtn');
     if(btn){
       const orig = btn.textContent;
@@ -562,6 +669,7 @@ async function handleRegister(e){
       full_name:document.getElementById('regName').value.trim(),
       badge_number:badge,
       badge_type:document.getElementById('regType').value,
+      car_type:document.getElementById('regCarType').value,
       phone:document.getElementById('regPhone').value.trim(),
       email:document.getElementById('regEmail').value.trim().toLowerCase(),
       area:document.getElementById('regArea').value.trim(),
