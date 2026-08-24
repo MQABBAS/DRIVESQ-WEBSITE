@@ -2974,7 +2974,9 @@ function renderStudents(students,emptyOverride){
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
     const sn=jsEsc(s.name);
     const _lc=s.count||0;
-    const _lcBadge=_lc===0?`<div class="s-lesson-badge needs-booking" title="No lessons — needs booking">!</div>`:_lc>=5?`<div class="s-lesson-badge gold-star" title="${_lc} lessons — great progress!">★</div>`:`<div class="s-lesson-badge normal">${_lc}</div>`;
+    // Show ! only if 0 lessons AND no student account (truly new/uncontacted). If registered, show ✓ badge. Instructor can dismiss ! by clicking it.
+    const _dismissed=localStorage.getItem('dsq_badge_dismiss_'+s.name.toLowerCase().trim());
+    const _lcBadge=hasLogin?`<div class="s-lesson-badge gold-star" title="Fully registered on app ✓" style="background:#4ade80;color:#080808">✓</div>`:acc?`<div class="s-lesson-badge normal" title="Has account — not logged in yet (${_lc} lessons)">${_lc}</div>`:(_lc===0&&!_dismissed)?`<div class="s-lesson-badge needs-booking" title="No account yet — click to dismiss" onclick="event.stopPropagation();localStorage.setItem('dsq_badge_dismiss_${s.name.toLowerCase().trim()}','1');loadStudents()">!</div>`:_lc>=5?`<div class="s-lesson-badge gold-star" title="${_lc} lessons — great progress!">★</div>`:`<div class="s-lesson-badge normal">${_lc}</div>`;
     return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
       <div class="sc-top" onclick="openStudentMgmt('${sn}')">
         <div class="sc-init ${hasLogin?'registered-init':''}" style="position:relative">
@@ -3026,9 +3028,12 @@ function renderStudents(students,emptyOverride){
 let _filterStudentsTimer=null;
 function filterStudents(q){
   clearTimeout(_filterStudentsTimer);
+  // Run immediately for empty string (clear), debounce 80ms for typing
+  if(!q||!q.trim()){renderStudents(allStudentsArr);return;}
   _filterStudentsTimer=setTimeout(()=>{
     const raw=(q||'').trim();
     let list=allStudentsArr;
+    if(!raw){renderStudents(list);return;}
     if(raw){
       const lq=raw.toLowerCase();
       // Normalise phone digits for comparison (strip spaces, dashes, brackets)
@@ -3048,7 +3053,7 @@ function filterStudents(q){
     // Show a search-specific "no results" message when actively filtering
     const noResultsMsg=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">${esc(raw)}</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>`;
     renderStudents(list,raw?noResultsMsg:null);
-  },150);
+  },80);
 }
 
 /* PICKER MODES */
@@ -3813,10 +3818,16 @@ async function smRemoveFromRoster(){
     }
     // 4. Delete lessons and account
     await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName).catch(()=>{});
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
-    // 5. Delete profile — critical
-    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',p.id);
-    if(profDelErr)throw profDelErr;
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(e=>console.warn('account delete (may need admin):', e?.message));
+    // 5. Delete topic ratings linked to this student
+    if(accId) await sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{});
+    if(accId) await sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{});
+    // 6. Delete profile — try by id first, fallback by instructor_id+name
+    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',p.id).eq('instructor_id',instr.id);
+    if(profDelErr){
+      // Fallback: delete by name match
+      await sb.from('student_profiles').delete().eq('instructor_id',instr.id).ilike('name',smCurrentName).catch(()=>{});
+    }
     // 6. Remove from in-memory arrays immediately
     allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
     delete rosterMap[nk];

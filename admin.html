@@ -1601,6 +1601,8 @@ function filterInstrs(q){
   if(_instrView==='grid')renderInstrsGrid(list);
 }
 
+// Format postcode with a space: M191FX → M19 1FX, SW1A2AA → SW1A 2AA
+function fmtPostcode(pc){if(!pc)return pc;const p=pc.trim().toUpperCase().replace(/\s+/g,'');const m=p.match(/^([A-Z]{1,2}[0-9][0-9A-Z]?)([0-9][A-Z]{2})$/);return m?m[1]+' '+m[2]:p;}
 function buildWaNum(phone){
   const d=normalizePhone(phone).replace(/\D/g,'');
   if(!d)return'';
@@ -2842,13 +2844,13 @@ function openAssignModal(instrId,instrName,instrPhone){
     ['📞 Phone', s.phone||'Not provided'],
     ['📧 Email', s.email||'Not provided'],
     ['📍 Address', s.addr||'—'],
-    ['🏷️ Postcode', s.postcode||'—'],
+    ['🏷️ Postcode', fmtPostcode(s.postcode)||'—'],
     ['🚗 Lesson Type', s.type||'Manual'],
     ...(s.avail?[['🕐 Availability', s.avail]]:[]),
     ...(s.notes?[['📝 Notes', s.notes]]:[])
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
-  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you.*\n\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${s.postcode||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking. They log in at drivesq.co.uk/student.html with their phone number.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you.*\n\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking. They log in at drivesq.co.uk/student.html with their phone number.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   openModal('assignModal');
@@ -2892,6 +2894,14 @@ async function confirmAssign(){
   document.getElementById('findResults').innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Student assigned. Enter new details to find another.</div>';
   // Store for potential WhatsApp use after modal closes
   window._assignLastCreated={name:s.name,phone:s.phone,instrName};
+  // Offer admin a WhatsApp link to send login instructions to the student
+  if(s.phone){
+    const _stuWaNum=buildWaNum(s.phone);
+    if(_stuWaNum){
+      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nJust log in with your phone number — *${s.phone}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nSee you on the road! 🚗\n— DriveSQ`;
+      showToast(`✅ ${s.name} assigned! <a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;text-decoration:underline;margin-left:6px"><i class="bi bi-whatsapp"></i> Send login link to student</a>`,'success',12000);
+    }
+  }
   fcStudentData=null;
   if(allStudentsCache.length)loadAllStudents();
 }
