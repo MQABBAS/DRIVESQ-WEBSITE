@@ -1840,7 +1840,7 @@ async function confirmLessonAsInstructor(lessonId){
         status:newStatus
       }).eq('id',existing.id);
       if(error)throw error;
-      // BUG 2: Notify student that instructor confirmed
+      // Notify student that instructor confirmed
       if(existing.student_account_id){
         const lessonData=Object.values(weekLessons).flat().find(l=>l.id===lessonId);
         const msgText=existing.student_confirmed
@@ -1853,7 +1853,8 @@ async function confirmLessonAsInstructor(lessonId){
           message:msgText,
           is_read:false,
           sent_at:new Date().toISOString()
-        }]).then(()=>{}).then(()=>{},()=>{});
+        }]).then(()=>{},()=>{});
+        notifyStudent(existing.student_account_id,existing.student_confirmed?'✅ Lesson Fully Confirmed!':'📅 Lesson Confirmed by Instructor',msgText);
       }
     } else {
       // No record yet — get lesson details to find student account
@@ -1874,7 +1875,7 @@ async function confirmLessonAsInstructor(lessonId){
         created_at:new Date().toISOString()
       }]);
       if(error)throw error;
-      // BUG 2: Notify student
+      // Notify student
       if(studentAccId){
         const msgText='📅 Your instructor has confirmed your lesson on '+(lessonData?.lesson_date||'the scheduled date')+' at '+(lessonData?.start_time||'the scheduled time')+'. Please confirm your attendance in the app.';
         await sb.from('student_messages').insert([{
@@ -1885,6 +1886,7 @@ async function confirmLessonAsInstructor(lessonId){
           is_read:false,
           sent_at:new Date().toISOString()
         }]).then(()=>{},()=>{});
+        notifyStudent(studentAccId,'📅 Lesson Confirmed by Instructor',msgText);
       }
     }
     if(calView==='week'){await loadWeek();}
@@ -2573,7 +2575,12 @@ async function saveLesson(e){
     showToast('Lesson saved ✓','success');
     // Local notification confirming the lesson was booked
     localNotify('Lesson booked ✓',studentName+' · '+activeDate+' at '+document.getElementById('lTime').value,'/dashboard.html');
-    if(_sAccId){notifyStudent(_sAccId,'New lesson booked','You have a lesson on '+activeDate+' at '+document.getElementById('lTime').value);}
+    if(_sAccId){
+      const _lTime=document.getElementById('lTime').value;
+      const _lType=document.getElementById('lType').value||'Manual';
+      const _lDur=document.getElementById('lDuration').value||'1';
+      notifyStudent(_sAccId,'📅 New Lesson Booked!','Your instructor has booked a lesson for you on '+activeDate+' at '+_lTime+' ('+_lDur+'h '+_lType+'). Open the app to confirm your attendance.');
+    }
   }catch(err){console.error(err);showToast('Error: '+err.message);}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Lesson';btn.disabled=false;}
 }
