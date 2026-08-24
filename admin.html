@@ -436,7 +436,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     </div>
     <!-- Quick Actions Bar -->
     <div id="quickActionsBar" class="hidden" style="border-top:1px solid var(--bdr);padding:6px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="qa-btn" onclick="openModal('createStudentModal')"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
+      <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
       <button class="qa-btn" onclick="switchTab('find');setActiveTab('find')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>
       <button class="qa-btn" onclick="openGlobalSearch()"><i class="bi bi-search me-1"></i>Search</button>
@@ -453,20 +453,20 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div class="dsq-tabs mb-3">
     <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
     <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
-    <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
+    <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
+    <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
+    <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-revenue" onclick="switchTab('revenue')"><i class="bi bi-currency-pound"></i><span class="d-none d-sm-inline ms-1">Revenue</span></button>
     <button class="dsq-tab" id="tab-feedback" onclick="switchTab('feedback')"><i class="bi bi-star-fill"></i><span class="d-none d-sm-inline ms-1">Feedback</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
-    <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
-    <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
   </div>
 
   <!-- GLOBAL STATS -->
@@ -2035,11 +2035,16 @@ async function loadInstrRoster(){
 
 /* ══ STUDENTS TAB ══ */
 async function loadAllStudents(){
+  // Show skeleton immediately so the tab feels instant
+  const el=document.getElementById('studentTbody');
+  if(el&&!allStudentsCache.length)el.innerHTML='<tr><td colspan="12" style="text-align:center;padding:28px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading students…</td></tr>';
+
   const[lessonsR,accountsR,progressR,rosterR]=await Promise.all([
-    sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
+    // Only fetch columns we actually use — avoids pulling large unused fields
+    sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
     sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
-    sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id')
+    sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,created_at,instructor_id')
   ]);
   // Populate instructor filter dropdown
   const instrFilterSel=document.getElementById('studentInstrFilter');
@@ -2065,36 +2070,9 @@ async function loadAllStudents(){
     if(p.student_id)progMap[p.student_id]=p;
     if(p.student_account_id)progMap[p.student_account_id]=p;
   });
+  const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const map={};
-  (lessonsR.data||[]).forEach(l=>{
-    const key=l.student_name+'__'+l.instructor_id;
-    if(!map[key])map[key]={
-      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
-      instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
-      count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[]
-    };
-    const s=map[key];
-    s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
-    s.types.add(l.lesson_type||'Manual');
-    if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
-    s.lessons.push(l);
-  });
-  Object.values(map).forEach(s=>{
-    const normPhone=normalizePhone(s.phone);
-    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()+'__'+s.instrId]||null;
-    s.lastLogin=acc?.last_login||null;
-    s.lastSeen=acc?.last_seen||null;
-    s.acctId=acc?.id||null;
-    s.acctEmail=acc?.email||null;
-    s.acctStatus=acc?.status||null;
-    s.onApp=!!acc?.last_login;
-    const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
-    s.isOnline=!!(s.lastSeen&&s.lastSeen>=fiveMinsAgo);
-    const prog=acc?progMap[acc.id]:null;
-    s.targetHours=prog?.target_hours||null;
-    s.testReadiness=prog?.test_readiness||null;
-    s.mockScore=prog?.mock_test_score!=null?prog.mock_test_score:null;
-  });
+  // Phase 1: build map from accounts + roster only (fast — no lessons yet)
   // Also include student accounts with NO lessons (created by admin)
   (accountsR.data||[]).forEach(a=>{
     const normPhone=normalizePhone(a.phone||'');
@@ -2104,15 +2082,16 @@ async function loadAllStudents(){
     if(!alreadyIn){
       // No lessons yet — account-only student
       const instrData=allInstrs.find(i=>i.id===a.instructor_id);
-      const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+      const prog=progMap[a.id];
       map['acct_'+a.id]={
         name:a.full_name,phone:a.phone||'',address:a.address||'',
         instrId:a.instructor_id,instrName:instrData?.full_name||'—',
         count:0,hours:0,lastLesson:null,types:new Set(),lessons:[],
         lastLogin:a.last_login||null,lastSeen:a.last_seen||null,
         acctId:a.id,acctEmail:a.email||null,acctStatus:a.status||null,
-        onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=(new Date(Date.now()-5*60*1000).toISOString())),
-        targetHours:null,testReadiness:null,mockScore:null
+        onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=fiveMinsAgo),
+        targetHours:prog?.target_hours||null,testReadiness:prog?.test_readiness||null,
+        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null
       };
     }
   });
@@ -2134,21 +2113,58 @@ async function loadAllStudents(){
     };
   });
 
-  allStudentsCache=Object.values(map).sort((a,b)=>{
-    // Online first, then by last seen, then by last lesson
-    if(a.isOnline!==b.isOnline)return b.isOnline?1:-1;
-    const aT=a.lastSeen||a.lastLogin||a.lastLesson||'';
-    const bT=b.lastSeen||b.lastLogin||b.lastLesson||'';
-    return bT.localeCompare(aT);
-  });
-  const onlineCount=allStudentsCache.filter(s=>s.isOnline).length;
-  const banner=document.getElementById('studentOnlineBanner');
-  const onlineTxt=document.getElementById('onlineCountText');
-  if(banner&&onlineTxt){
-    if(onlineCount>0){banner.classList.remove('hidden');onlineTxt.textContent=onlineCount+' student'+(onlineCount!==1?'s':'')+' online now';}
-    else{banner.classList.add('hidden');}
+  function sortAndRender(){
+    allStudentsCache=Object.values(map).sort((a,b)=>{
+      if(a.isOnline!==b.isOnline)return b.isOnline?1:-1;
+      const aT=a.lastSeen||a.lastLogin||a.lastLesson||'';
+      const bT=b.lastSeen||b.lastLogin||b.lastLesson||'';
+      return bT.localeCompare(aT);
+    });
+    const onlineCount=allStudentsCache.filter(s=>s.isOnline).length;
+    const banner=document.getElementById('studentOnlineBanner');
+    const onlineTxt=document.getElementById('onlineCountText');
+    if(banner&&onlineTxt){
+      if(onlineCount>0){banner.classList.remove('hidden');onlineTxt.textContent=onlineCount+' student'+(onlineCount!==1?'s':'')+' online now';}
+      else{banner.classList.add('hidden');}
+    }
+    filterAllStudents(document.getElementById('studentSearch')?.value||'');
   }
-  renderStudentsTable(allStudentsCache);
+
+  // Phase 1: render immediately from accounts + roster (fast)
+  sortAndRender();
+
+  // Phase 2: enrich with lessons data (may be slower — re-render after)
+  (lessonsR.data||[]).forEach(l=>{
+    const key=l.student_name+'__'+l.instructor_id;
+    if(!map[key])map[key]={
+      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
+      instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
+      count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[],
+      lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:null,
+      onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null
+    };
+    const s=map[key];
+    s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
+    s.types.add(l.lesson_type||'Manual');
+    if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
+    s.lessons.push(l);
+    // Merge account data if not already attached
+    const normPhone=normalizePhone(l.student_phone||'');
+    if(!s.acctId){
+      const acc=acctMap[normPhone]||acctMap['name_'+(l.student_name||'').toLowerCase().trim()+'__'+l.instructor_id]||null;
+      if(acc){
+        s.lastLogin=acc.last_login||null;s.lastSeen=acc.last_seen||null;
+        s.acctId=acc.id||null;s.acctEmail=acc.email||null;s.acctStatus=acc.status||null;
+        s.onApp=!!acc.last_login;
+        const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+        s.isOnline=!!(acc.last_seen&&acc.last_seen>=fiveMinsAgo);
+        const prog=progMap[acc.id];
+        if(prog){s.targetHours=prog.target_hours||null;s.testReadiness=prog.test_readiness||null;s.mockScore=prog.mock_test_score!=null?prog.mock_test_score:null;}
+      }
+    }
+  });
+  // Re-render with full data
+  sortAndRender();
 }
 
 function renderStudentsTable(students){
@@ -2591,8 +2607,10 @@ async function openStudentDetail(idx){
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
     </div>`).join('');
+  // Open modal immediately with cached data — progress/messages load async after
   openModal('studentDetailModal');
-  loadStudentProgress(s);
+  // Load heavier data (progress, messages, theory) asynchronously after modal is visible
+  requestAnimationFrame(()=>loadStudentProgress(s));
 }
 
 async function loadStudentProgress(s){
@@ -4097,8 +4115,27 @@ function toggleMapFilter(type){
   }
 }
 
+// Geocode cache — persisted in localStorage so repeat visits are instant
+const _geoCache={};
+try{Object.assign(_geoCache,JSON.parse(localStorage.getItem('dsq_geocache')||'{}'));}catch(e){}
+function _saveGeoCache(){try{localStorage.setItem('dsq_geocache',JSON.stringify(_geoCache));}catch(e){}}
+
+async function geocodePostcode(raw){
+  if(!raw)return null;
+  const pc=raw.trim().toUpperCase().replace(/\s+/g,'');
+  if(_geoCache[pc])return _geoCache[pc];
+  try{
+    const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`);
+    const d=await r.json();
+    if(d.status===200&&d.result){
+      const c=[d.result.latitude,d.result.longitude];
+      _geoCache[pc]=c;_saveGeoCache();return c;
+    }
+  }catch(e){}
+  return null;
+}
+
 async function initAdminMap(){
-  if(_adminMap){refreshMapStats();plotInstrMarkers();plotStudentMapMarkers();return;}
   if(!document.getElementById('leaflet-css')){
     const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
@@ -4106,11 +4143,13 @@ async function initAdminMap(){
     await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const el=document.getElementById('adminMapEl');if(!el)return;
-  _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
-  plotInstrMarkers();
-  plotStudentMapMarkers();
+  if(!_adminMap){
+    _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
+  }
   refreshMapStats();
+  await plotInstrMarkers();
+  plotStudentMapMarkers();
 }
 
 function refreshMapStats(){
@@ -4125,75 +4164,106 @@ function refreshMapStats(){
   document.getElementById('mapStatOnline').textContent=online;
 }
 
-function plotInstrMarkers(){
+function _placeInstrPin(i,coords){
   if(!_adminMap||!window.L)return;
-  _instrMarkers.forEach(m=>m.remove());_instrMarkers=[];
-  (allInstrs||[]).filter(i=>i.status==='approved').forEach(i=>{
-    const area=i.area||'';
-    const coords=manchesterAreaCoords(area);
-    const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
-    const initial=(i.full_name||'?').trim()[0].toUpperCase();
-    // Size pin by student count — busier instructors have larger pins
-    const sz=Math.min(44,32+studCount*2);
-    const instrIcon=L.divIcon({
-      html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer;position:relative">
-        <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
-        ${studCount?`<span style="font-size:9px;color:rgba(255,255,255,.8);line-height:1">${studCount}</span>`:''}
-      </div>`,
-      iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''
-    });
-    const waNum=buildWaNum(i.phone||'');
-    const marker=L.marker(coords,{icon:instrIcon});
-    if(_mapShowInstrs)marker.addTo(_adminMap);
-    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
-      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
-        <span style="color:#888">Area</span><span>${esc(area||'—')}</span>
-        <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
-        <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
-        <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
-        ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
-        <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View Profile</button>
-        <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
-      </div>
-    </div>`);
-    _instrMarkers.push(marker);
+  const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+  const initial=(i.full_name||'?').trim()[0].toUpperCase();
+  const sz=Math.min(44,32+studCount*2);
+  const instrIcon=L.divIcon({
+    html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">
+      <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
+      ${studCount?`<span style="font-size:9px;color:rgba(255,255,255,.8);line-height:1">${studCount}</span>`:''}
+    </div>`,
+    iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''
   });
+  const waNum=buildWaNum(i.phone||'');
+  const area=i.area||i.postcode||'';
+  const marker=L.marker(coords,{icon:instrIcon});
+  if(_mapShowInstrs)marker.addTo(_adminMap);
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
+      <span style="color:#888">Area/Postcode</span><span>${esc(area||'—')}</span>
+      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
+      <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
+      <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
+      ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
+      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
+      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
+    </div>
+  </div>`);
+  _instrMarkers.push(marker);
 }
 
-function plotStudentMapMarkers(){
+async function plotInstrMarkers(){
+  if(!_adminMap||!window.L)return;
+  _instrMarkers.forEach(m=>m.remove());_instrMarkers=[];
+  const approved=(allInstrs||[]).filter(i=>i.status==='approved');
+  // Geocode all instructors in parallel — postcode takes priority, then area name lookup
+  await Promise.all(approved.map(async i=>{
+    // Try postcode field first, then extract postcode from area string
+    const pc=(i.postcode||'').trim()||extractPostcode(i.area||'');
+    let coords=null;
+    if(pc)coords=await geocodePostcode(pc);
+    if(!coords)coords=manchesterAreaCoords(i.area||'');
+    _placeInstrPin(i,coords);
+  }));
+}
+
+function extractPostcode(str){
+  // UK postcode pattern e.g. M14 5TP, M1 1AA, SK1 3AB
+  const m=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i);
+  return m?m[1].trim():'';
+}
+
+function _placeStuPin(s,coords){
+  if(!_adminMap||!window.L)return;
+  const jitterSeed=(s.name||'').charCodeAt(0)||0;
+  const jitter=[(((jitterSeed*13)%20)-10)*.0008,(((jitterSeed*7)%20)-10)*.0008];
+  const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  const sIcon=L.divIcon({
+    html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
+    iconSize:[14,14],iconAnchor:[7,7],className:''
+  });
+  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
+  if(_mapShowStudents)marker.addTo(_adminMap);
+  const waNum=buildWaNum(s.phone||'');
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
+      <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
+      <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
+      ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
+      <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
+    </div>
+    ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
+  </div>`);
+  _studentMapMarkers.push(marker);
+}
+
+async function plotStudentMapMarkers(){
   if(!_adminMap||!window.L)return;
   _studentMapMarkers.forEach(m=>m.remove());_studentMapMarkers=[];
-  (allStudentsCache||[]).filter(s=>s.address||s.instrId).forEach(s=>{
-    // Use instructor area coords as fallback for students without geocoded address
-    const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
-    const coords=manchesterAreaCoords(instrArea);
-    // Deterministic jitter so students don't all pile exactly on instructor pin
-    const jitterSeed=(s.name||'').charCodeAt(0)||0;
-    const jitter=[(((jitterSeed*13)%20)-10)*.001,(((jitterSeed*7)%20)-10)*.001];
-    const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
-    const sIcon=L.divIcon({
-      html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
-      iconSize:[14,14],iconAnchor:[7,7],className:''
-    });
-    const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
-    if(_mapShowStudents)marker.addTo(_adminMap);
-    const waNum=buildWaNum(s.phone||'');
-    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
-      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
-        <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
-        <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
-        ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
-        <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
-      </div>
-      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
-    </div>`);
-    _studentMapMarkers.push(marker);
-  });
+  const students=(allStudentsCache||[]).filter(s=>s.address||s.phone||s.instrId);
+  await Promise.all(students.map(async s=>{
+    // Try to extract postcode from student address, then instructor postcode/area as fallback
+    const addrPc=extractPostcode(s.address||'');
+    let coords=null;
+    if(addrPc)coords=await geocodePostcode(addrPc);
+    if(!coords){
+      const instr=(allInstrs||[]).find(i=>i.id===s.instrId);
+      const instrPc=(instr?.postcode||'').trim()||extractPostcode(instr?.area||'');
+      if(instrPc)coords=await geocodePostcode(instrPc);
+    }
+    if(!coords){
+      const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
+      coords=manchesterAreaCoords(instrArea);
+    }
+    _placeStuPin(s,coords);
+  }));
 }
 
 function manchesterAreaCoords(area){
