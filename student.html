@@ -2280,6 +2280,18 @@ function renderChatMessages(){
   container.scrollTop=container.scrollHeight;
 }
 
+// Send a push notification to the instructor via Edge Function
+async function pushToInstructor(instrId,title,body,url){
+  if(!instrId)return;
+  try{
+    await fetch(STUDENT_PUSH_EDGE,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({instructor_id:instrId,title,body,url:url||'/dashboard.html',tag:'drivesq-student-msg'})
+    });
+  }catch(e){console.warn('pushToInstructor from student:',e.message);}
+}
+
 async function sendMessage(){
   const input=document.getElementById('chatInput');
   const msg=input.value.trim();
@@ -2289,7 +2301,13 @@ async function sendMessage(){
     sender:'student',message:msg,is_read:false,sent_at:new Date().toISOString()
   }]);
   if(error){showToast('Error sending message — please try again.','error');return;}
-  input.value=''; // only clear once the send is actually confirmed
+  input.value='';
+  // Notify instructor via push notification
+  const _sName=currentStudent.name||'Your student';
+  pushToInstructor(currentStudent.instructor_id,'💬 Message from '+_sName,msg,'/dashboard.html');
+  // Also notify admin
+  const ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
+  pushToInstructor(ADMIN_PUSH_ID,'💬 Student message: '+_sName,_sName+' → Instructor: '+msg,'/admin.html');
   await loadMessages();
 }
 
@@ -2919,7 +2937,7 @@ if('serviceWorker' in navigator){
     if('Notification' in window && Notification.permission==='granted'){
       _ensurePushSubscription(reg);
     } else if(Notification.permission==='default' && !localStorage.getItem('pushDeclined_student')){
-      setTimeout(function(){showPushPrompt();},8000);
+      setTimeout(function(){showPushPrompt();},4000);
     }
   }).catch(function(e){console.warn('SW registration failed:',e);});
 }
