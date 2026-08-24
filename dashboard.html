@@ -539,6 +539,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <span style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt)"><i class="bi bi-bell-fill me-2" style="color:var(--red)"></i>Notifications</span>
     <button onclick="toggleNotif()" style="background:none;border:none;color:var(--txt3);cursor:pointer"><i class="bi bi-x-lg"></i></button>
   </div>
+  <!-- Push enable strip -->
+  <div id="pushEnableStrip" style="display:none;padding:10px 14px;background:rgba(245,197,24,.08);border-bottom:1px solid var(--bdr)">
+    <div style="font-size:.75rem;color:var(--txt2);margin-bottom:6px"><i class="bi bi-bell me-1" style="color:var(--gold)"></i>Get notified even when the app is closed</div>
+    <button id="dashEnableNotifBtn" onclick="dashManualEnableNotifs()" style="width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:7px;font-size:.78rem;font-weight:700;font-family:'Oswald',sans-serif;cursor:pointer"><i class="bi bi-bell-fill me-1"></i>Enable Push Notifications</button>
+  </div>
   <div id="notifList"><div style="padding:22px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div></div>
 </div>
 
@@ -3266,8 +3271,32 @@ async function loadNotifications(){
 }
 async function dismissMsg(id){await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);loadNotifications();}
 async function markRead(id){await sb.from('admin_messages').update({is_read:true}).eq('id',id);loadNotifications();}
-function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');}
+function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');_updateDashNotifStrip();}
 document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');if(p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
+
+function _updateDashNotifStrip(){
+  const strip=document.getElementById('pushEnableStrip');
+  const btn=document.getElementById('dashEnableNotifBtn');
+  if(!strip)return;
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='granted'){strip.style.display='none';}
+  else if(perm==='denied'){
+    strip.style.display='block';
+    btn.textContent='⚙ Enable in browser settings';
+    btn.onclick=()=>showToast('Go to browser settings → Notifications → allow DriveSQ','info');
+  } else {
+    strip.style.display='block';
+    btn.innerHTML='<i class="bi bi-bell-fill me-1"></i>Enable Push Notifications';
+    btn.onclick=dashManualEnableNotifs;
+  }
+}
+
+async function dashManualEnableNotifs(){
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='denied'){showToast('Notifications are blocked — enable them in your browser settings','warn');return;}
+  await enablePushNotifications();
+  _updateDashNotifStrip();
+}
 
 /* ── REQUESTS ── */
 async function loadRequests(){

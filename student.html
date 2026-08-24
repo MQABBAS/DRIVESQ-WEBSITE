@@ -943,22 +943,10 @@ input,textarea,select{font-size:16px!important}
 
       <!-- Notifications -->
       <div class="profile-section">
-        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:10px"><i class="bi bi-bell me-2" style="color:var(--gold)"></i>Notification Preferences</div>
-        <div id="notifPrefs">
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bdr);cursor:pointer">
-            <span style="font-size:.82rem;color:var(--txt2)">Lesson reminders (SMS)</span>
-            <input type="checkbox" id="prefLessonSMS" checked style="accent-color:var(--red);width:16px;height:16px"/>
-          </label>
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bdr);cursor:pointer">
-            <span style="font-size:.82rem;color:var(--txt2)">Progress updates (SMS)</span>
-            <input type="checkbox" id="prefProgressSMS" checked style="accent-color:var(--red);width:16px;height:16px"/>
-          </label>
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;cursor:pointer">
-            <span style="font-size:.82rem;color:var(--txt2)">Messages from instructor (SMS)</span>
-            <input type="checkbox" id="prefMsgSMS" checked style="accent-color:var(--red);width:16px;height:16px"/>
-          </label>
-        </div>
-        <button class="btn-s mt-2" style="min-height:38px;font-size:.8rem" onclick="saveNotifPrefs()"><i class="bi bi-check-lg me-1"></i>Save Preferences</button>
+        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:8px"><i class="bi bi-bell me-2" style="color:var(--gold)"></i>Push Notifications</div>
+        <div id="pushNotifStatus" style="font-size:.78rem;color:var(--txt3);margin-bottom:10px;min-height:18px"></div>
+        <button id="enableNotifsBtn" class="btn-p w-100" style="font-size:.82rem;margin-bottom:10px" onclick="manualEnableNotifs()"><i class="bi bi-bell-fill me-1"></i>Enable Notifications</button>
+        <div style="font-size:.72rem;color:var(--txt4);line-height:1.5">Get notified when your instructor books, changes or cancels a lesson — even when the app is closed.</div>
       </div>
 
       <!-- Lesson history -->
@@ -1515,6 +1503,7 @@ function switchTab(t){
     loadTopics().then(()=>{renderTopics();}).catch(()=>{});
   }
   if(t==='messages'){loadMessages();}
+  if(t==='profile'){_updateNotifStatusUI();}
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
 
@@ -2975,6 +2964,35 @@ async function acceptNotifs(){
     showToast('Notifications blocked — you can enable them in browser settings','warning');
   }
   startNotifPolling();
+  _updateNotifStatusUI();
+}
+
+function _updateNotifStatusUI(){
+  var btn=document.getElementById('enableNotifsBtn');
+  var status=document.getElementById('pushNotifStatus');
+  if(!btn||!status)return;
+  var perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='granted'){
+    status.innerHTML='<i class="bi bi-check-circle-fill me-1" style="color:var(--green)"></i>Notifications are <strong>enabled</strong>';
+    btn.innerHTML='<i class="bi bi-bell-slash me-1"></i>Disable Notifications';
+    btn.style.background='var(--dk2)';btn.style.color='var(--txt2)';btn.style.border='1px solid var(--bdr)';
+    btn.onclick=function(){Notification.requestPermission();};// can't programmatically disable; show instructions
+  } else if(perm==='denied'){
+    status.innerHTML='<i class="bi bi-x-circle-fill me-1" style="color:var(--red)"></i>Notifications are <strong>blocked</strong> — enable them in your browser/phone settings';
+    btn.innerHTML='<i class="bi bi-gear me-1"></i>Open Settings Guide';
+    btn.onclick=function(){showToast('Go to your browser settings → Notifications → allow DriveSQ','info');};
+  } else {
+    status.innerHTML='<i class="bi bi-bell me-1" style="color:var(--gold)"></i>Tap below to receive lesson alerts on this device';
+    btn.innerHTML='<i class="bi bi-bell-fill me-1"></i>Enable Notifications';
+    btn.style.background='';btn.style.color='';btn.style.border='';
+    btn.onclick=manualEnableNotifs;
+  }
+}
+
+async function manualEnableNotifs(){
+  var perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='denied'){showToast('Notifications are blocked. Please enable them in your browser/phone settings.','warning');return;}
+  await acceptNotifs();
 }
 
 function _urlBase64ToUint8Array(b64){
