@@ -1010,6 +1010,26 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </div>
       </div>
 
+      <!-- GOOGLE REVIEW CARD -->
+      <div class="col-12">
+        <div style="background:rgba(66,133,244,.07);border:1px solid rgba(66,133,244,.2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:1.4rem">⭐</div>
+          <div style="flex:1">
+            <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--txt);margin-bottom:2px">Enjoying DriveSQ? Leave a Review</div>
+            <div style="font-size:.72rem;color:var(--txt3)">Help other learners find DriveSQ on Google — takes 30 seconds</div>
+          </div>
+          <a href="https://g.page/r/Cf5Ww977kUeEBM/review" target="_blank" style="background:rgba(66,133,244,.12);border:1px solid rgba(66,133,244,.25);color:#60a5fa;border-radius:8px;padding:7px 12px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;text-decoration:none;white-space:nowrap"><i class="bi bi-google me-1"></i>Review Us</a>
+        </div>
+      </div>
+
+      <!-- MY FEEDBACK FROM STUDENTS -->
+      <div class="col-12">
+        <div style="background:var(--dk2);border:1px solid rgba(245,197,24,.18);border-radius:14px;padding:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt2);margin-bottom:10px"><i class="bi bi-star-fill me-2" style="color:var(--gold)"></i>Student Ratings &amp; Feedback</div>
+          <div id="myFeedbackSection"><div style="text-align:center;color:var(--txt4);font-size:.82rem;padding:16px">Loading feedback…</div></div>
+        </div>
+      </div>
+
       <!-- INSTALL APP BUTTON -->
       <div class="col-12">
         <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px">
@@ -1137,6 +1157,10 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <button class="mob-nb" id="mob-profile" onclick="switchTab('profile');setMobActive('profile')"><i class="bi bi-person-circle"></i>Profile</button>
 </div>
 
+<!-- Floating Guide Button -->
+<button id="floatingGuideBtn" onclick="openGuideModal()" title="How to use the app" style="position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));right:16px;z-index:900;background:var(--gold);color:#080808;border:none;border-radius:50%;width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;box-shadow:0 4px 20px rgba(245,197,24,.4);transition:transform .2s" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">
+  <i class="bi bi-question-lg"></i>
+</button>
 <a class="wa-float" href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20help." target="_blank"><i class="bi bi-whatsapp"></i></a>
 <div class="ptr-indicator" id="ptrIndicator"><i class="bi bi-arrow-clockwise"></i><span id="ptrText">Pull to refresh</span></div>
 <div class="dsq-toast" id="toast"></div>
@@ -1354,7 +1378,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
-        <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as no longer an active student"><i class="bi bi-archive"></i></button>
+        <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as On Break / Deactivate" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px"><i class="bi bi-archive"></i><span id="smArchiveBtnLbl">On Break</span></button>
         <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
       </div>
     </div>
@@ -1765,6 +1789,7 @@ function switchTab(t){
   if(t==='students')loadStudents();
   if(t==='transfer')populateTransferRosterDropdown();
   if(t==='map')initMapTab();
+  if(t==='profile')loadMyFeedback();
 }
 // Helper — reload students if that tab is currently visible
 function reloadStudentsIfVisible(){
@@ -3532,8 +3557,8 @@ async function openStudentMgmt(studentName, tab='profile'){
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(148,163,184,.12);color:#94a3b8;border-color:rgba(148,163,184,.25)"><i class="bi bi-archive me-1"></i>Archived</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
-  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i>':'<i class="bi bi-archive"></i>';
-  if(archBtn)archBtn.title=isArchived?'Reactivate this student':'Mark as no longer an active student';
+  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">Reactivate</span>':'<i class="bi bi-archive"></i><span id="smArchiveBtnLbl">On Break</span>';
+  if(archBtn)archBtn.title=isArchived?'Reactivate this student':'Mark as On Break / Deactivate';
 
   // Populate profile
   document.getElementById('smEditName').value=p.name||'';
@@ -5429,6 +5454,36 @@ window.addEventListener('load',()=>setTimeout(()=>updateMobNavIndicator('cal'),4
     }
   },{passive:true});
 })();
+
+/* ── GUIDE MODAL ── */
+function openGuideModal(){
+  switchTab('profile');setMobActive('profile');
+  const guideEl=document.getElementById('portalGuideAccordion');
+  if(guideEl)setTimeout(()=>guideEl.scrollIntoView({behavior:'smooth',block:'start'}),200);
+}
+
+/* ── MY FEEDBACK FROM STUDENTS ── */
+async function loadMyFeedback(){
+  if(!instr?.id)return;
+  const el=document.getElementById('myFeedbackSection');if(!el)return;
+  const{data}=await sb.from('student_lesson_feedback').select('*').eq('instructor_id',instr.id).order('submitted_at',{ascending:false}).limit(50);
+  const fb=data||[];
+  if(!fb.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.82rem;padding:16px">No feedback yet — students rate you after lessons.</div>';return;}
+  const avg=fb.reduce((a,f)=>a+(f.rating||0),0)/fb.length;
+  const stars=n=>('★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n)));
+  el.innerHTML=`<div style="text-align:center;margin-bottom:12px">
+    <div style="font-size:2rem;color:var(--gold);letter-spacing:2px">${stars(avg)}</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700">${avg.toFixed(1)} / 5</div>
+    <div style="font-size:.72rem;color:var(--txt3)">${fb.length} review${fb.length!==1?'s':''}</div>
+  </div>
+  ${fb.map(f=>`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="color:var(--gold);font-size:1rem">${stars(f.rating||0)}</span>
+      <span style="font-size:.68rem;color:var(--txt4)">${f.submitted_at?new Date(f.submitted_at).toLocaleDateString('en-GB'):''}</span>
+    </div>
+    ${f.comment?`<div style="font-size:.8rem;color:var(--txt2);font-style:italic">"${esc(f.comment)}"</div>`:''}
+  </div>`).join('')}`;
+}
 </script>
 <!-- SQWEBSITES-CREDIT-V2 -->
 <style>
