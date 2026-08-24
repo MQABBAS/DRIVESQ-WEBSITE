@@ -448,6 +448,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button class="qa-btn" onclick="switchTab('scorecard');setActiveTab('scorecard')"><i class="bi bi-bar-chart-fill me-1"></i>Scorecard</button>
       <button class="qa-btn" onclick="switchTab('bulk');setActiveTab('bulk')"><i class="bi bi-send-fill me-1"></i>Bulk Message</button>
       <button class="qa-btn" onclick="switchTab('progress-overview');setActiveTab('progress-overview')"><i class="bi bi-graph-up-arrow me-1"></i>Progress View</button>
+      <button class="qa-btn" onclick="switchTab('waitlist');setActiveTab('waitlist')" style="border-color:rgba(251,191,36,.4);color:#fbbf24"><i class="bi bi-person-lines-fill me-1"></i>Waiting List</button>
+      <button class="qa-btn" onclick="switchTab('availability');setActiveTab('availability')"><i class="bi bi-calendar-week-fill me-1"></i>Availability</button>
     </div>
   </div>
 </nav>
@@ -1026,6 +1028,36 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     </select>
   </div>
   <div id="progressOverviewGrid" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<!-- WAITING LIST PANEL -->
+<div id="panel-waitlist" class="hidden" style="padding:10px 0">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Waiting List</h5>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select class="dsq-inp" id="wlStatusFilter" onchange="loadWaitlist()" style="width:auto;font-size:.82rem">
+        <option value="waiting">⏳ Waiting</option>
+        <option value="all">All</option>
+        <option value="assigned">✅ Assigned</option>
+        <option value="cancelled">❌ Cancelled</option>
+      </select>
+      <button class="btn-p" onclick="openAddWaitlistModal()" style="font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add Manually</button>
+    </div>
+  </div>
+  <div id="waitlistStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px"></div>
+  <div id="waitlistList" style="display:flex;flex-direction:column;gap:10px"></div>
+</div>
+
+<!-- AVAILABILITY PANEL -->
+<div id="panel-availability" class="hidden" style="padding:10px 0">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-calendar-week-fill me-2" style="color:#60a5fa"></i>Instructor Availability</h5>
+    <select class="dsq-inp" id="availInstrFilter" onchange="loadAvailabilityView()" style="width:auto;font-size:.82rem">
+      <option value="">All Instructors</option>
+    </select>
+  </div>
+  <p style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">Instructors set their own hours in their dashboard. This shows a read-only overview of who's free when.</p>
+  <div id="availGrid" style="overflow-x:auto"></div>
 </div>
 
 </div><!-- /page -->
@@ -1647,7 +1679,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes','actions','scorecard','bulk','progress-overview'];
+const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes','actions','scorecard','bulk','progress-overview','waitlist','availability'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -1673,6 +1705,8 @@ function switchTab(t){
   if(t==='scorecard')loadScorecard();
   if(t==='bulk')loadBulkList();
   if(t==='progress-overview')loadProgressOverview();
+  if(t==='waitlist')loadWaitlist();
+  if(t==='availability')loadAvailabilityView();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
@@ -3319,7 +3353,13 @@ async function findClosest(){
       html+=`<div style="font-size:.7rem;font-weight:700;color:#f97316;letter-spacing:.05em;text-transform:uppercase;margin:${matching.length?'14px':0} 0 6px"><i class="bi bi-exclamation-triangle me-1"></i>Other nearby instructors — lesson type mismatch</div>`;
       html+=nonMatching.map((r,i)=>instrCardHtml(r,i+1)).join('');
     }
-    if(!ranked.length) html+='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem">No instructors with a known postcode found.</div>';
+    if(!ranked.length) html+=`<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem">No instructors with a known postcode found.</div>`;
+    // Always show "Add to Waiting List" option at bottom
+    html+=`<div style="margin-top:16px;padding:14px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:0"><div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;color:#fbbf24;margin-bottom:2px"><i class="bi bi-person-lines-fill me-2"></i>No match? Add to Waiting List</div>
+      <div style="font-size:.74rem;color:var(--txt3)">Student will be saved and you'll be alerted when an instructor becomes available in their area.</div></div>
+      <button class="btn-p" onclick="addToWaitlist()" style="background:#fbbf24;color:#000;border-color:#fbbf24;white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
+    </div>`;
     if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
     resultsEl.innerHTML=html;
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
@@ -3405,7 +3445,32 @@ async function confirmAssign(){
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Assign Student';}
 
   if(!profInserted){
-    showToast('❌ Failed to add to roster — run the SQL fix in Supabase (RLS on student_profiles).','error',8000);
+    // Fallback: pre-fill Add Student form with the instructor already selected
+    bootstrap.Modal.getInstance(document.getElementById('assignModal'))?.hide();
+    showToast('Auto-filling Add Student form…','info',3000);
+    setTimeout(()=>{
+      switchTab('add');
+      const nm=document.getElementById('newStudentName');
+      const ph=document.getElementById('newStudentPhone');
+      const em=document.getElementById('newStudentEmail');
+      const ad=document.getElementById('newStudentAddress');
+      const lt=document.getElementById('newStudentType');
+      const nt=document.getElementById('newStudentNotes');
+      const iSel=document.getElementById('newStudentInstructor');
+      if(nm)nm.value=s.name||'';
+      if(ph)ph.value=s.phone||'';
+      if(em)em.value=s.email||'';
+      if(ad)ad.value=s.addr||'';
+      if(lt&&s.type)lt.value=s.type;
+      if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n');
+      // Pre-select the instructor in the dropdown
+      if(iSel){
+        // Try to find matching option
+        const opt=[...iSel.options].find(o=>o.value===instrId||o.text.toLowerCase().includes(instrName.toLowerCase()));
+        if(opt)iSel.value=opt.value;
+        else{const o=document.createElement('option');o.value=instrId;o.textContent=instrName;iSel.appendChild(o);iSel.value=instrId;}
+      }
+    },400);
     return;
   }
 
@@ -3441,6 +3506,11 @@ async function confirmAssign(){
 
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
+  // If this assignment came from the waiting list, mark it assigned
+  if(window._waitlistIdToAssign){
+    updateWaitlistStatus(window._waitlistIdToAssign,'assigned',instrId).catch(()=>{});
+    window._waitlistIdToAssign=null;
+  }
 
   // 6. Offer WhatsApp to student
   if(s.phone){
@@ -4502,6 +4572,179 @@ async function toggleGuideMode(instrId, instrName){
   showToast('Guide mode activated — '+instrName+' notified ✓','success');
 }
 
+/* ══ WAITING LIST ══ */
+async function addToWaitlist(){
+  const s=fcStudentData||{};
+  if(!s.name){showToast('Search for a student first in Find & Assign.','warn');return;}
+  const{error}=await sb.from('waiting_list').insert([{
+    student_name:s.name,student_phone:s.phone||null,
+    postcode:(s.postcode||'').toUpperCase()||null,
+    area:s.addr||null,lesson_type:s.type||'Manual',
+    notes:[s.notes,s.avail?'Availability: '+s.avail:''].filter(Boolean).join('\n')||null,
+    status:'waiting',created_at:new Date().toISOString()
+  }]);
+  if(error){showToast('Failed to add: '+error.message,'error');return;}
+  showToast(`✅ ${s.name} added to waiting list.`,'success');
+}
+function openAddWaitlistModal(){
+  ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('wl-type').value='Manual';
+  openModal('waitlistAddModal');
+}
+async function saveWaitlistEntry(){
+  const name=(document.getElementById('wl-name').value||'').trim();
+  const postcode=(document.getElementById('wl-postcode').value||'').trim().toUpperCase();
+  if(!name||!postcode){showToast('Name and postcode required.','error');return;}
+  const btn=document.querySelector('#waitlistAddModal .btn-p');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';}
+  const{error}=await sb.from('waiting_list').insert([{
+    student_name:name,
+    student_phone:(document.getElementById('wl-phone').value||'').trim()||null,
+    postcode,area:(document.getElementById('wl-area').value||'').trim()||null,
+    lesson_type:document.getElementById('wl-type').value||'Manual',
+    notes:(document.getElementById('wl-notes').value||'').trim()||null,
+    status:'waiting',created_at:new Date().toISOString()
+  }]);
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
+  if(error){showToast('Failed: '+error.message,'error');return;}
+  closeModal('waitlistAddModal');
+  showToast(`✅ ${name} added to waiting list.`,'success');
+  loadWaitlist();
+}
+async function loadWaitlist(){
+  const el=document.getElementById('waitlistList');
+  const statsEl=document.getElementById('waitlistStats');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const statusF=document.getElementById('wlStatusFilter')?.value||'waiting';
+  let q=sb.from('waiting_list').select('*').order('created_at',{ascending:true});
+  if(statusF!=='all')q=q.eq('status',statusF);
+  const{data,error}=await q;
+  if(error){el.innerHTML='<div style="color:#f87171;padding:20px">Error: '+error.message+'</div>';return;}
+  // Stats
+  if(statsEl){
+    const all=data||[];
+    const waiting=all.filter(r=>r.status==='waiting').length;
+    const assigned=all.filter(r=>r.status==='assigned').length;
+    statsEl.innerHTML=`
+      <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
+      <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
+      <div class="stat-card b"><div class="stat-lbl">Total</div><div class="stat-num b">${all.length}</div></div>`;
+  }
+  const rows=data||[];
+  if(!rows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No entries in this category.</div>';return;}
+  const now=new Date();
+  el.innerHTML=rows.map(r=>{
+    const daysWaiting=Math.floor((now-new Date(r.created_at))/864e5);
+    const isUrgent=r.status==='waiting'&&daysWaiting>=7;
+    const waNum=buildWaNum(r.student_phone||'');
+    const statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
+    return`<div style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:var(--txt)">${esc(r.student_name)}</span>
+            <span class="chip ${r.lesson_type?.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(r.lesson_type||'Manual')}</span>
+            <span style="font-size:.6rem;color:${statusCol};background:${statusCol}22;border:1px solid ${statusCol}44;border-radius:3px;padding:1px 5px;font-family:'Oswald',sans-serif;font-weight:700">${r.status.toUpperCase()}</span>
+            ${isUrgent?'<span style="font-size:.58rem;color:#f87171;font-weight:700">⚠️ Waiting 7+ days</span>':''}
+          </div>
+          <div style="font-size:.75rem;color:var(--txt3);display:flex;flex-wrap:wrap;gap:8px">
+            ${r.student_phone?`<span><i class="bi bi-phone me-1"></i>${esc(r.student_phone)}</span>`:''}
+            ${r.postcode?`<span><i class="bi bi-geo-alt me-1"></i>${esc(r.postcode)}</span>`:''}
+            ${r.area?`<span><i class="bi bi-map me-1"></i>${esc(r.area)}</span>`:''}
+            <span><i class="bi bi-clock me-1"></i>${daysWaiting===0?'Today':daysWaiting+' day'+(daysWaiting!==1?'s':'')+' ago'}</span>
+          </div>
+          ${r.notes?`<div style="font-size:.72rem;color:var(--txt3);margin-top:4px;font-style:italic">${esc(r.notes)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
+          ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+          ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
+          ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function waitlistAssign(id,name,postcode,type,phone,notes){
+  // Pre-fill Find & Assign and switch to it
+  switchTab('find');setActiveTab('find');
+  setTimeout(()=>{
+    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-notes']:notes};
+    Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
+    document.getElementById('fc-type').value=type||'Manual';
+    window._waitlistIdToAssign=id;
+    findClosest();
+  },300);
+}
+async function updateWaitlistStatus(id,status,instrId=null){
+  const update={status};
+  if(instrId)update.assigned_instructor_id=instrId;
+  if(status==='assigned')update.assigned_at=new Date().toISOString();
+  await sb.from('waiting_list').update(update).eq('id',id);
+  loadWaitlist();
+}
+
+/* ══ INSTRUCTOR AVAILABILITY ══ */
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+async function loadAvailabilityView(){
+  const el=document.getElementById('availGrid');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  // Populate filter
+  const sel=document.getElementById('availInstrFilter');
+  if(sel&&sel.options.length<=1){
+    (allInstrs||[]).filter(i=>i.status==='approved').sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'')).forEach(i=>{
+      const o=document.createElement('option');o.value=i.id;o.textContent=i.full_name;sel.appendChild(o);
+    });
+  }
+  const instrIdFilter=sel?.value||'';
+  let q=sb.from('instructor_availability').select('*');
+  if(instrIdFilter)q=q.eq('instructor_id',instrIdFilter);
+  const{data}=await q;
+  const rows=data||[];
+  const approved=(allInstrs||[]).filter(i=>i.status==='approved'&&(!instrIdFilter||i.id===instrIdFilter));
+  if(!approved.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No approved instructors found.</div>';return;}
+  // Build map: instrId → day → {start,end,is_available}
+  const avMap={};
+  rows.forEach(r=>{
+    if(!avMap[r.instructor_id])avMap[r.instructor_id]={};
+    avMap[r.instructor_id][r.day_of_week]={start:r.start_time,end:r.end_time,is_available:r.is_available};
+  });
+  const cellStyle='padding:6px 4px;text-align:center;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);font-size:.72rem';
+  const headStyle='padding:8px 6px;text-align:center;border-bottom:2px solid var(--bdr);border-right:1px solid var(--bdr);font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);background:var(--dk3)';
+  let html=`<table style="width:100%;border-collapse:collapse;border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
+    <thead><tr>
+      <th style="${headStyle};text-align:left;min-width:120px">Instructor</th>
+      ${DAYS.map(d=>`<th style="${headStyle}">${d}</th>`).join('')}
+    </tr></thead><tbody>`;
+  approved.forEach(instr=>{
+    const iav=avMap[instr.id]||{};
+    html+=`<tr>
+      <td style="${cellStyle};text-align:left;font-weight:600;color:var(--txt);padding-left:10px">
+        <div style="font-family:'Oswald',sans-serif">${esc(instr.full_name)}</div>
+        <div style="font-size:.62rem;color:var(--txt4)">${esc(instr.area||'')}</div>
+      </td>`;
+    for(let d=0;d<7;d++){
+      const slot=iav[d];
+      if(!slot){
+        html+=`<td style="${cellStyle};color:var(--txt4)">—</td>`;
+      } else if(!slot.is_available){
+        html+=`<td style="${cellStyle};background:rgba(248,113,113,.07)"><span style="color:#f87171;font-size:.65rem">Off</span></td>`;
+      } else {
+        html+=`<td style="${cellStyle};background:rgba(37,211,102,.05)">
+          <div style="color:#4ade80;font-size:.7rem;font-weight:600">${slot.start}–${slot.end}</div>
+        </td>`;
+      }
+    }
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  html+=`<div style="margin-top:10px;display:flex;gap:14px;font-size:.7rem;color:var(--txt3);flex-wrap:wrap">
+    <span><span style="display:inline-block;width:10px;height:10px;background:rgba(37,211,102,.3);border-radius:2px;margin-right:4px"></span>Available (with hours)</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:rgba(248,113,113,.15);border-radius:2px;margin-right:4px"></span>Marked off</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:2px;margin-right:4px"></span>Not set</span>
+  </div>`;
+  el.innerHTML=html;
+}
+
 /* ══ ACTION QUEUE ══ */
 async function loadActionQueue(filter='all'){
   ['all','students','instructors','requests'].forEach(k=>{document.getElementById('aq-'+k)?.classList.toggle('active',k===filter);});
@@ -4854,6 +5097,23 @@ function renderTheoryList(rows){
   }).join('');
 }
 </script>
+<!-- Add to Waitlist Modal -->
+<div class="dsq-overlay" id="waitlistAddModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('waitlistAddModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List</h5>
+    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-name" placeholder="Student full name"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="wl-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Area</label><input class="dsq-inp" id="wl-area" placeholder="e.g. Didsbury, Withington"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
+      <select class="dsq-inp" id="wl-type"><option value="Manual">Manual</option><option value="Automatic">Automatic</option><option value="Intensive">Intensive</option></select>
+    </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any notes about availability, preferences…"></textarea></div>
+    <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
+  </div>
+</div>
+
 <!-- Theory Progress Modal -->
 <div class="dsq-overlay" id="theoryProgressModal">
   <div class="dsq-modal wide" style="max-height:88vh;display:flex;flex-direction:column">

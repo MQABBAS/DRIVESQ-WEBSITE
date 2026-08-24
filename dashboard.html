@@ -1007,6 +1007,16 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       </div>
       <div class="col-12"><button class="btn-p" id="saveProfileBtn" onclick="saveProfile()"><i class="bi bi-check-lg me-1"></i>Save All Changes</button></div>
 
+      <!-- WEEKLY AVAILABILITY -->
+      <div class="col-12">
+        <div style="background:var(--dk2);border:1px solid rgba(96,165,250,.2);border-radius:14px;padding:16px">
+          <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:#93c5fd;margin-bottom:4px"><i class="bi bi-calendar-week-fill me-2"></i>My Weekly Availability</div>
+          <p style="font-size:.74rem;color:var(--txt3);margin-bottom:14px">Set your available hours for each day. Admin uses this to know when you're free for new students.</p>
+          <div id="availEditor" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn-p mt-3" onclick="saveAvailability()" style="font-size:.82rem"><i class="bi bi-check-lg me-1"></i>Save Availability</button>
+        </div>
+      </div>
+
       <!-- CROSS-DEVICE NOTICE -->
       <div class="col-12">
         <div style="background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:10px 14px;font-size:.78rem;color:#93c5fd;display:flex;align-items:center;gap:8px">
@@ -1794,7 +1804,7 @@ function switchTab(t){
   if(t==='students')loadStudents();
   if(t==='transfer')populateTransferRosterDropdown();
   if(t==='map')initMapTab();
-  if(t==='profile')loadMyFeedback();
+  if(t==='profile'){loadMyFeedback();loadAvailability();}
 }
 // Helper — reload students if that tab is currently visible
 function reloadStudentsIfVisible(){
@@ -5530,6 +5540,59 @@ function openGuideModal(){
   switchTab('profile');setMobActive('profile');
   const guideEl=document.getElementById('portalGuideAccordion');
   if(guideEl)setTimeout(()=>guideEl.scrollIntoView({behavior:'smooth',block:'start'}),200);
+}
+
+/* ── INSTRUCTOR AVAILABILITY ── */
+const AVAIL_DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+async function loadAvailability(){
+  const el=document.getElementById('availEditor');if(!el||!instr?.id)return;
+  // Fetch existing rows
+  let existing={};
+  try{
+    const{data}=await sb.from('instructor_availability').select('*').eq('instructor_id',instr.id);
+    (data||[]).forEach(r=>{existing[r.day_of_week]=r;});
+  }catch(e){}
+  el.innerHTML=AVAIL_DAYS.map(day=>{
+    const r=existing[day];
+    const avail=r?r.is_available:false;
+    const st=r?.start_time||'09:00';
+    const en=r?.end_time||'17:00';
+    return `<div style="display:flex;align-items:center;gap:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px" id="avrow-${day}">
+      <input type="checkbox" id="avchk-${day}" ${avail?'checked':''} onchange="toggleAvailRow('${day}')" style="width:16px;height:16px;accent-color:#60a5fa;cursor:pointer">
+      <label for="avchk-${day}" style="font-family:'Oswald',sans-serif;font-weight:600;font-size:.85rem;color:var(--txt1);width:82px;cursor:pointer;margin:0">${day}</label>
+      <div id="avtimes-${day}" style="display:${avail?'flex':'none'};align-items:center;gap:8px;flex:1">
+        <input type="time" id="avst-${day}" value="${st}" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt1);padding:4px 8px;font-size:.8rem;flex:1">
+        <span style="color:var(--txt4);font-size:.78rem">to</span>
+        <input type="time" id="aven-${day}" value="${en}" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt1);padding:4px 8px;font-size:.8rem;flex:1">
+      </div>
+      ${avail?'':'<span style="color:var(--txt4);font-size:.78rem;flex:1">Not available</span>'}
+    </div>`;
+  }).join('');
+}
+function toggleAvailRow(day){
+  const chk=document.getElementById('avchk-'+day);
+  const times=document.getElementById('avtimes-'+day);
+  const row=document.getElementById('avrow-'+day);
+  if(!chk||!times)return;
+  times.style.display=chk.checked?'flex':'none';
+  // update "Not available" label
+  const lbl=row?.querySelector('span.av-na');
+  if(chk.checked){if(lbl)lbl.remove();}
+  else{if(!row?.querySelector('span.av-na')){const s=document.createElement('span');s.className='av-na';s.style.cssText='color:var(--txt4);font-size:.78rem;flex:1';s.textContent='Not available';row.appendChild(s);}}
+}
+async function saveAvailability(){
+  if(!instr?.id){showToast('Not logged in','error');return;}
+  const rows=AVAIL_DAYS.map(day=>{
+    const avail=document.getElementById('avchk-'+day)?.checked||false;
+    const st=document.getElementById('avst-'+day)?.value||'09:00';
+    const en=document.getElementById('aven-'+day)?.value||'17:00';
+    return{instructor_id:instr.id,day_of_week:day,is_available:avail,start_time:avail?st:null,end_time:avail?en:null};
+  });
+  try{
+    const{error}=await sb.from('instructor_availability').upsert(rows,{onConflict:'instructor_id,day_of_week'});
+    if(error)throw error;
+    showToast('Availability saved ✓','success');
+  }catch(e){showToast('Save failed: '+e.message,'error');}
 }
 
 /* ── MY FEEDBACK FROM STUDENTS ── */
