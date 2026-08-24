@@ -1398,11 +1398,43 @@ async function pushToAdmin(title,body,url){
       body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title,body:body,url:url||'/admin.html',tag:'drivesq-admin'})});
   }catch(e){console.warn('Admin push send error:',e);}
 }
+/* ══ PWA INSTALL ══ */
+let _pwaInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _pwaInstallPrompt=e;
+  // Show floating install button after login
+  if(document.getElementById('mainPage')&&!document.getElementById('mainPage').classList.contains('hidden')){
+    _showPwaInstallBtn();
+  }
+});
+function _showPwaInstallBtn(){
+  if(document.getElementById('pwaInstallBanner'))return;
+  const b=document.createElement('div');
+  b.id='pwaInstallBanner';
+  b.style.cssText='position:fixed;top:16px;right:16px;z-index:9999;background:var(--card-bg);border:1.5px solid var(--red);border-radius:12px;padding:12px 16px;box-shadow:0 6px 24px rgba(0,0,0,.6);display:flex;align-items:center;gap:10px;max-width:300px';
+  b.innerHTML='<i class="bi bi-phone-fill" style="color:var(--red);font-size:1.2rem;flex-shrink:0"></i>'
+    +'<div style="flex:1"><div style="font-family:\'Oswald\',sans-serif;font-weight:700;font-size:.85rem;color:var(--txt)">Install Admin App</div>'
+    +'<div style="font-size:.7rem;color:var(--txt2);margin-top:1px">Add to home screen for quick access</div></div>'
+    +'<button id="pwaInstallBtn" style="background:var(--red);color:#fff;border:none;border-radius:8px;font-family:\'Oswald\',sans-serif;font-weight:700;font-size:.75rem;padding:7px 11px;cursor:pointer;flex-shrink:0" onclick="triggerPwaInstall()">Install</button>'
+    +'<button onclick="document.getElementById(\'pwaInstallBanner\').remove()" style="background:none;border:none;color:var(--txt3);font-size:1rem;cursor:pointer;flex-shrink:0;padding:4px">✕</button>';
+  document.body.appendChild(b);
+}
+async function triggerPwaInstall(){
+  if(!_pwaInstallPrompt){showToast('Install prompt not available — use browser menu to install','info');return;}
+  _pwaInstallPrompt.prompt();
+  const{outcome}=await _pwaInstallPrompt.userChoice;
+  _pwaInstallPrompt=null;
+  document.getElementById('pwaInstallBanner')?.remove();
+  if(outcome==='accepted')showToast('✅ Admin app installed!','success');
+}
+
 function showApp(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainNav').classList.remove('hidden');
   document.getElementById('mainPage').classList.remove('hidden');
   setTimeout(initAdminPush,5000);
+  if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
 }
 function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reload();}
@@ -1923,7 +1955,7 @@ async function loadInstrRoster(){
 async function loadAllStudents(){
   const[lessonsR,accountsR,progressR,rosterR]=await Promise.all([
     sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
-    sb.from('student_accounts').select('id,phone,full_name,email,address,notes,last_login,last_seen,created_at,instructor_id,status'),
+    sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
     sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id')
   ]);
@@ -2289,10 +2321,11 @@ async function confirmCreateStudent(){
   // Generate a placeholder student_code in case the DB column has a NOT NULL constraint.
   // Login is phone-number-only; this value is never shown to users.
   const _placeholderCode=Math.random().toString(36).slice(2,9).toUpperCase();
+  // NOTE: student_accounts does NOT have a notes column — notes go to student_profiles only
   const{data,error}=await sb.from('student_accounts').insert([{
     full_name:name,phone:phone||null,email:email||null,
     instructor_id:instrId||null,
-    address:addr||null,notes:notes||null,
+    address:addr||null,
     student_code:_placeholderCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
@@ -2937,7 +2970,7 @@ async function findClosest(){
     const json=await res.json();
     if(!json.result){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode not found.</div>';return;}
     const{latitude:sLat,longitude:sLon}=json.result;
-    const approved=allInstrs.filter(i=>i.status==='approved'&&i.area);
+    const approved=allInstrs.filter(i=>i.status==='approved');
     const pcLookups=approved.map(async i=>{
       const pcMatch=(i.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
       if(!pcMatch)return{instr:i,dist:null};
@@ -3059,7 +3092,7 @@ async function confirmAssign(){
   const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
     full_name:s.name,phone:s.phone||null,email:s.email||null,
     address:s.addr||null,instructor_id:instrId,
-    notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.type?'Lesson type: '+s.type:''].filter(Boolean).join('\n')||null,
+    // NOTE: student_accounts has no notes column — notes go to student_profiles only
     student_code:_aCode,pin:'',password_hash:'',
     status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
   }]).select('id').maybeSingle();
@@ -3866,8 +3899,7 @@ function plotInstrMarkers(){
   _instrMarkers.forEach(m=>m.remove());_instrMarkers=[];
   (allInstrs||[]).filter(i=>i.status==='approved').forEach(i=>{
     const area=i.area||'';
-    if(!area)return;
-    const coords=manchesterAreaCoords(area);if(!coords)return;
+    const coords=manchesterAreaCoords(area);
     const initial=(i.full_name||'?').trim()[0].toUpperCase();
     const instrIcon=L.divIcon({
       html:`<div style="background:#D10A11;width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;font-size:13px;color:#fff;cursor:pointer">${initial}</div>`,
@@ -3938,8 +3970,8 @@ async function mapFindNearest(){
     _studentMarker=L.marker([lat,lng],{icon:sIcon}).addTo(_adminMap).bindPopup('<strong>Student location</strong><br>'+esc(addr)).openPopup();
     _adminMap.setView([lat,lng],13);
     // Find nearest approved instructor
-    const approved=(allInstrs||[]).filter(i=>i.status==='approved'&&i.area);
-    if(!approved.length){res.innerHTML='<span style="color:var(--gold)">No approved instructors with areas found.</span>';return;}
+    const approved=(allInstrs||[]).filter(i=>i.status==='approved');
+    if(!approved.length){res.innerHTML='<span style="color:var(--gold)">No approved instructors found.</span>';return;}
     let nearest=null,bestDist=Infinity;
     approved.forEach(i=>{const c=manchesterAreaCoords(i.area||'');if(!c)return;const d2=Math.hypot(c[0]-lat,c[1]-lng);if(d2<bestDist){bestDist=d2;nearest=i;}});
     if(nearest){
@@ -3965,7 +3997,7 @@ function mapReset(){
 async function showInstrStudents(instrId, instrName){
   showToast('Loading students for '+instrName+'…','');
   const[{data:accts},{data:profiles},{data:lessons}]=await Promise.all([
-    sb.from('student_accounts').select('id,full_name,phone,email,address,notes,status,created_at,last_login').eq('instructor_id',instrId),
+    sb.from('student_accounts').select('id,full_name,phone,email,address,status,created_at,last_login').eq('instructor_id',instrId),
     sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at').eq('instructor_id',instrId),
     sb.from('lessons').select('student_name,lesson_date,lesson_type,duration_hours,payment_received,notes').eq('instructor_id',instrId).order('lesson_date',{ascending:false}).limit(100)
   ]);
