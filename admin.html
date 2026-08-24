@@ -436,7 +436,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     </div>
     <!-- Quick Actions Bar -->
     <div id="quickActionsBar" class="hidden" style="border-top:1px solid var(--bdr);padding:6px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="qa-btn" onclick="openModal('createStudentModal')"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
+      <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
       <button class="qa-btn" onclick="switchTab('find');setActiveTab('find')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>
       <button class="qa-btn" onclick="openGlobalSearch()"><i class="bi bi-search me-1"></i>Search</button>
@@ -453,20 +453,20 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div class="dsq-tabs mb-3">
     <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
     <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
-    <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
+    <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
+    <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
+    <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-revenue" onclick="switchTab('revenue')"><i class="bi bi-currency-pound"></i><span class="d-none d-sm-inline ms-1">Revenue</span></button>
     <button class="dsq-tab" id="tab-feedback" onclick="switchTab('feedback')"><i class="bi bi-star-fill"></i><span class="d-none d-sm-inline ms-1">Feedback</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
-    <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
-    <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
   </div>
 
   <!-- GLOBAL STATS -->
@@ -2035,11 +2035,16 @@ async function loadInstrRoster(){
 
 /* ══ STUDENTS TAB ══ */
 async function loadAllStudents(){
+  // Show skeleton immediately so the tab feels instant
+  const el=document.getElementById('studentTbody');
+  if(el&&!allStudentsCache.length)el.innerHTML='<tr><td colspan="12" style="text-align:center;padding:28px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading students…</td></tr>';
+
   const[lessonsR,accountsR,progressR,rosterR]=await Promise.all([
-    sb.from('lessons').select('*,instructors(full_name,id)').order('lesson_date',{ascending:false}),
+    // Only fetch columns we actually use — avoids pulling large unused fields
+    sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
     sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
     sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
-    sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id')
+    sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,created_at,instructor_id')
   ]);
   // Populate instructor filter dropdown
   const instrFilterSel=document.getElementById('studentInstrFilter');
@@ -2065,36 +2070,9 @@ async function loadAllStudents(){
     if(p.student_id)progMap[p.student_id]=p;
     if(p.student_account_id)progMap[p.student_account_id]=p;
   });
+  const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const map={};
-  (lessonsR.data||[]).forEach(l=>{
-    const key=l.student_name+'__'+l.instructor_id;
-    if(!map[key])map[key]={
-      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
-      instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
-      count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[]
-    };
-    const s=map[key];
-    s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
-    s.types.add(l.lesson_type||'Manual');
-    if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
-    s.lessons.push(l);
-  });
-  Object.values(map).forEach(s=>{
-    const normPhone=normalizePhone(s.phone);
-    const acc=acctMap[normPhone]||acctMap['name_'+s.name.toLowerCase().trim()+'__'+s.instrId]||null;
-    s.lastLogin=acc?.last_login||null;
-    s.lastSeen=acc?.last_seen||null;
-    s.acctId=acc?.id||null;
-    s.acctEmail=acc?.email||null;
-    s.acctStatus=acc?.status||null;
-    s.onApp=!!acc?.last_login;
-    const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
-    s.isOnline=!!(s.lastSeen&&s.lastSeen>=fiveMinsAgo);
-    const prog=acc?progMap[acc.id]:null;
-    s.targetHours=prog?.target_hours||null;
-    s.testReadiness=prog?.test_readiness||null;
-    s.mockScore=prog?.mock_test_score!=null?prog.mock_test_score:null;
-  });
+  // Phase 1: build map from accounts + roster only (fast — no lessons yet)
   // Also include student accounts with NO lessons (created by admin)
   (accountsR.data||[]).forEach(a=>{
     const normPhone=normalizePhone(a.phone||'');
@@ -2104,15 +2082,16 @@ async function loadAllStudents(){
     if(!alreadyIn){
       // No lessons yet — account-only student
       const instrData=allInstrs.find(i=>i.id===a.instructor_id);
-      const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+      const prog=progMap[a.id];
       map['acct_'+a.id]={
         name:a.full_name,phone:a.phone||'',address:a.address||'',
         instrId:a.instructor_id,instrName:instrData?.full_name||'—',
         count:0,hours:0,lastLesson:null,types:new Set(),lessons:[],
         lastLogin:a.last_login||null,lastSeen:a.last_seen||null,
         acctId:a.id,acctEmail:a.email||null,acctStatus:a.status||null,
-        onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=(new Date(Date.now()-5*60*1000).toISOString())),
-        targetHours:null,testReadiness:null,mockScore:null
+        onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=fiveMinsAgo),
+        targetHours:prog?.target_hours||null,testReadiness:prog?.test_readiness||null,
+        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null
       };
     }
   });
@@ -2134,21 +2113,58 @@ async function loadAllStudents(){
     };
   });
 
-  allStudentsCache=Object.values(map).sort((a,b)=>{
-    // Online first, then by last seen, then by last lesson
-    if(a.isOnline!==b.isOnline)return b.isOnline?1:-1;
-    const aT=a.lastSeen||a.lastLogin||a.lastLesson||'';
-    const bT=b.lastSeen||b.lastLogin||b.lastLesson||'';
-    return bT.localeCompare(aT);
-  });
-  const onlineCount=allStudentsCache.filter(s=>s.isOnline).length;
-  const banner=document.getElementById('studentOnlineBanner');
-  const onlineTxt=document.getElementById('onlineCountText');
-  if(banner&&onlineTxt){
-    if(onlineCount>0){banner.classList.remove('hidden');onlineTxt.textContent=onlineCount+' student'+(onlineCount!==1?'s':'')+' online now';}
-    else{banner.classList.add('hidden');}
+  function sortAndRender(){
+    allStudentsCache=Object.values(map).sort((a,b)=>{
+      if(a.isOnline!==b.isOnline)return b.isOnline?1:-1;
+      const aT=a.lastSeen||a.lastLogin||a.lastLesson||'';
+      const bT=b.lastSeen||b.lastLogin||b.lastLesson||'';
+      return bT.localeCompare(aT);
+    });
+    const onlineCount=allStudentsCache.filter(s=>s.isOnline).length;
+    const banner=document.getElementById('studentOnlineBanner');
+    const onlineTxt=document.getElementById('onlineCountText');
+    if(banner&&onlineTxt){
+      if(onlineCount>0){banner.classList.remove('hidden');onlineTxt.textContent=onlineCount+' student'+(onlineCount!==1?'s':'')+' online now';}
+      else{banner.classList.add('hidden');}
+    }
+    filterAllStudents(document.getElementById('studentSearch')?.value||'');
   }
-  renderStudentsTable(allStudentsCache);
+
+  // Phase 1: render immediately from accounts + roster (fast)
+  sortAndRender();
+
+  // Phase 2: enrich with lessons data (may be slower — re-render after)
+  (lessonsR.data||[]).forEach(l=>{
+    const key=l.student_name+'__'+l.instructor_id;
+    if(!map[key])map[key]={
+      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
+      instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
+      count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[],
+      lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:null,
+      onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null
+    };
+    const s=map[key];
+    s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
+    s.types.add(l.lesson_type||'Manual');
+    if(l.lesson_date>s.lastLesson)s.lastLesson=l.lesson_date;
+    s.lessons.push(l);
+    // Merge account data if not already attached
+    const normPhone=normalizePhone(l.student_phone||'');
+    if(!s.acctId){
+      const acc=acctMap[normPhone]||acctMap['name_'+(l.student_name||'').toLowerCase().trim()+'__'+l.instructor_id]||null;
+      if(acc){
+        s.lastLogin=acc.last_login||null;s.lastSeen=acc.last_seen||null;
+        s.acctId=acc.id||null;s.acctEmail=acc.email||null;s.acctStatus=acc.status||null;
+        s.onApp=!!acc.last_login;
+        const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+        s.isOnline=!!(acc.last_seen&&acc.last_seen>=fiveMinsAgo);
+        const prog=progMap[acc.id];
+        if(prog){s.targetHours=prog.target_hours||null;s.testReadiness=prog.test_readiness||null;s.mockScore=prog.mock_test_score!=null?prog.mock_test_score:null;}
+      }
+    }
+  });
+  // Re-render with full data
+  sortAndRender();
 }
 
 function renderStudentsTable(students){
@@ -2591,8 +2607,10 @@ async function openStudentDetail(idx){
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
     </div>`).join('');
+  // Open modal immediately with cached data — progress/messages load async after
   openModal('studentDetailModal');
-  loadStudentProgress(s);
+  // Load heavier data (progress, messages, theory) asynchronously after modal is visible
+  requestAnimationFrame(()=>loadStudentProgress(s));
 }
 
 async function loadStudentProgress(s){
