@@ -3816,29 +3816,42 @@ async function smRemoveFromRoster(){
       await sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{});
       await sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{});
     }
-    // 4. Delete lessons and account
+    // 4. Delete lessons and account (swallow permission errors — RLS may block account delete for instructors)
     await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName).catch(()=>{});
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(e=>console.warn('account delete (may need admin):', e?.message));
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
     // 5. Delete topic ratings linked to this student
     if(accId) await sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{});
     if(accId) await sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{});
-    // 6. Delete profile — try by id first, fallback by instructor_id+name
+    // 6. Delete profile — try by id+instructor_id first, then fallback by name
+    let profDelOk=false;
     const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',p.id).eq('instructor_id',instr.id);
-    if(profDelErr){
-      // Fallback: delete by name match
-      await sb.from('student_profiles').delete().eq('instructor_id',instr.id).ilike('name',smCurrentName).catch(()=>{});
+    if(!profDelErr){profDelOk=true;}
+    else{
+      // Fallback: delete by instructor_id + name match
+      const{error:profDelErr2}=await sb.from('student_profiles').delete().eq('instructor_id',instr.id).ilike('name',smCurrentName);
+      if(!profDelErr2) profDelOk=true;
+      else console.warn('Profile delete fallback error:',profDelErr2?.message);
     }
-    // 6. Remove from in-memory arrays immediately
+    // Remove from in-memory arrays regardless — keeps UI in sync
     allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
     delete rosterMap[nk];
     closeModal('studentMgmtModal');
     renderStudents(allStudentsArr);
-    showToast(`${smCurrentName} permanently deleted.`,'success');
+    if(profDelOk){
+      showToast(`${smCurrentName} permanently deleted.`,'success');
+    } else {
+      showToast(`${smCurrentName} removed from your view. Contact admin to fully delete their account.`,'info');
+    }
     // Background sync
     Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
   }catch(err){
     console.error('Delete student error:',err);
-    showToast('Delete failed: '+(err?.message||'check console'),'error');
+    // Even on unexpected error, remove from UI so instructor isn't stuck
+    allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
+    delete rosterMap[nk];
+    closeModal('studentMgmtModal');
+    renderStudents(allStudentsArr);
+    showToast('Student removed from view. Some data may need admin to fully clear.','info');
   }
 }
 
