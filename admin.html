@@ -2560,7 +2560,8 @@ async function loadStudentProgress(s){
   }catch(e){console.warn('student_theory_progress not available:',e.message);}
 
   try{
-    const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(50);
+    const _instrId=acct.instructor_id||instrId;
+    const{data:msgs}=await sb.from('student_messages').select('*').or('student_account_id.eq.'+acct.id+(_instrId?',instructor_id.eq.'+_instrId:'')).order('sent_at',{ascending:true}).limit(50);
     if(msgs&&msgs.length){
       messagesSec.style.display='';
       document.getElementById('sdMessages').innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
