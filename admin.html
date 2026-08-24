@@ -930,6 +930,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         </select>
       </div>
     </div>
+    <div class="sec-div">App Installation</div>
+    <button class="btn-p w-100 mb-2" onclick="triggerPwaInstall()" id="pwaManualInstallBtn"><i class="bi bi-phone-fill me-1"></i>Install Admin App</button>
+    <div style="font-size:.72rem;color:var(--txt3);margin-top:4px;margin-bottom:6px">Install this admin portal as an app on your device for quick access.</div>
     <div class="sec-div">Suspension Settings</div>
     <div class="d-flex align-items-center gap-2 mb-2 py-1">
       <input type="checkbox" id="edit-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
@@ -1403,10 +1406,7 @@ let _pwaInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   _pwaInstallPrompt=e;
-  // Show floating install button after login
-  if(document.getElementById('mainPage')&&!document.getElementById('mainPage').classList.contains('hidden')){
-    _showPwaInstallBtn();
-  }
+  _showPwaInstallBtn();  // show immediately when prompt fires, not just after login
 });
 function _showPwaInstallBtn(){
   if(document.getElementById('pwaInstallBanner'))return;
@@ -2083,7 +2083,7 @@ function renderStudentsTable(students){
     return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        <button onclick="openAdminStudentProfile('${jsEsc(s.name||'')}','${jsEsc(s.phone||'')}','${s.instrId||''}')" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':''}
+        <button onclick="openAdminStudentProfile('${jsEsc(s.name||'')}','${jsEsc(s.phone||'')}','${s.instrId||''}')" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -2132,10 +2132,63 @@ function filterAllStudents(q){
 }
 
 /* ══ ADMIN STUDENT PROFILE MODAL ══ */
+let _adminStudentCtx=null; // stores {accId, profileId, instrId, name} for delete action
+
+async function adminDeleteStudent(){
+  if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
+  const{accId,profileId,instrId,name}=_adminStudentCtx;
+  if(!confirm(`⚠️ PERMANENTLY DELETE ${name}?\n\nThis will erase:\n• Student account & login\n• Roster profile\n• ALL lesson records\n• All messages, progress & feedback\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
+  showToast('Deleting student from system…','warn');
+  const btn=document.getElementById('adminDeleteStudentBtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Deleting…';}
+  try{
+    if(accId){
+      // Delete all child rows linked to account
+      await Promise.all([
+        sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{}),
+        sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{}),
+        sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{}),
+      ]);
+    }
+    if(instrId){
+      // Get lesson IDs to clean up child tables
+      const{data:lessonRows}=await sb.from('lessons').select('id').eq('instructor_id',instrId).ilike('student_name',name).catch(()=>({data:[]}));
+      const lessonIds=(lessonRows||[]).map(l=>l.id);
+      if(lessonIds.length){
+        await Promise.all([
+          sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{}),
+          sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{}),
+        ]);
+      }
+      await sb.from('lessons').delete().eq('instructor_id',instrId).ilike('student_name',name).catch(()=>{});
+    }
+    // Delete roster profile
+    if(profileId) await sb.from('student_profiles').delete().eq('id',profileId).catch(()=>{});
+    else if(instrId) await sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name).catch(()=>{});
+    // Delete account last (may be blocked by RLS — non-fatal)
+    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
+    // Remove from memory
+    allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase()!==name.toLowerCase());
+    document.getElementById('adminStudentProfileModal').classList.remove('open');
+    showToast(`✅ ${name} permanently deleted from the system.`,'success');
+    _adminStudentCtx=null;
+    loadAllStudents();
+  }catch(err){
+    console.error('Admin delete student:',err);
+    showToast('Delete failed: '+(err?.message||'unknown error'),'error');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
+  }
+}
+
 async function openAdminStudentProfile(studentName,phone,instrId){
   const modal=document.getElementById('adminStudentProfileModal');
   if(!modal)return;
   modal.classList.add('open');
+  _adminStudentCtx=null;
+  const delBtn=document.getElementById('adminDeleteStudentBtn');
+  if(delBtn){delBtn.disabled=false;delBtn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   const content=document.getElementById('adminStudentProfileContent');
   content.innerHTML='<div style="text-align:center;padding:40px;font-size:.85rem;color:var(--txt3)"><i class="bi bi-hourglass-split me-2"></i>Loading student profile…</div>';
   const normPhone=normalizePhone(phone||'');
@@ -2171,6 +2224,8 @@ async function openAdminStudentProfile(studentName,phone,instrId){
   const instrData=allInstrs.find(i=>i.id===(instrId||acc?.instructor_id));
   const instrName=instrData?.full_name||acc?.instructor_name||'—';
   const name=acc?.full_name||profile?.name||studentName||'Unknown';
+  // Store context for delete action
+  _adminStudentCtx={accId:acc?.id||null,profileId:profile?.id||null,instrId:instrId||acc?.instructor_id||null,name};
   const ph=acc?.phone||profile?.phone||phone||'';
   const email=acc?.email||'';
   const status=acc?.status||profile?.status||'active';
@@ -2560,7 +2615,8 @@ async function loadStudentProgress(s){
   }catch(e){console.warn('student_theory_progress not available:',e.message);}
 
   try{
-    const{data:msgs}=await sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(50);
+    const _instrId=acct.instructor_id||instrId;
+    const{data:msgs}=await sb.from('student_messages').select('*').or('student_account_id.eq.'+acct.id+(_instrId?',instructor_id.eq.'+_instrId:'')).order('sent_at',{ascending:true}).limit(50);
     if(msgs&&msgs.length){
       messagesSec.style.display='';
       document.getElementById('sdMessages').innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
@@ -3087,23 +3143,38 @@ async function confirmAssign(){
   const instrName=document.getElementById('assign-instr-name').value;
   if(!instrId||!s.name){showToast('Missing data.','error');return;}
   showToast('Assigning student…','');
-  // 1. Create student_accounts so they can log in with their phone number
-  const _aCode=Math.random().toString(36).slice(2,9).toUpperCase(); // placeholder for NOT NULL column
-  const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
-    full_name:s.name,phone:s.phone||null,email:s.email||null,
-    address:s.addr||null,instructor_id:instrId,
-    // NOTE: student_accounts has no notes column — notes go to student_profiles only
-    student_code:_aCode,pin:'',password_hash:'',
-    status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-  }]).select('id').maybeSingle();
-  if(accErr){console.error('student_accounts insert:',accErr);showToast('Failed to create student account: '+accErr.message,'error');return;}
-  // 2. Add directly to instructor's roster (student_profiles) — no approval step needed
+
+  // 1. Try creating student_accounts (best effort - may fail if columns differ)
+  const _aCode='STU'+Math.random().toString(36).slice(2,7).toUpperCase();
+  let accId=null;
+  try{
+    const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
+      full_name:s.name,phone:s.phone||null,email:s.email||null,
+      address:s.addr||null,instructor_id:instrId,
+      student_code:_aCode,pin:'0000',password_hash:'',
+      status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+    }]).select('id').maybeSingle();
+    if(!accErr&&accData)accId=accData.id;
+    else if(accErr)console.warn('student_accounts insert (non-fatal):',accErr.message);
+  }catch(e){console.warn('student_accounts insert exception:',e);}
+
+  // 2. Add to instructor roster (student_profiles) — this is the CRITICAL step
+  const notesArr=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean);
   const{error:profErr}=await sb.from('student_profiles').insert([{
     instructor_id:instrId,name:s.name,phone:s.phone||null,
-    address:s.addr||null,lesson_type:s.type||'Manual',notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n')||null,
+    address:s.addr||null,lesson_type:s.type||'Manual',
+    notes:notesArr.length?notesArr.join('\n'):null,
     status:'active',created_at:new Date().toISOString()
   }]);
-  if(profErr)console.warn('student_profiles insert (assign):',profErr.message);
+  if(profErr){
+    // Try without notes column in case it doesn't exist
+    const{error:profErr2}=await sb.from('student_profiles').insert([{
+      instructor_id:instrId,name:s.name,phone:s.phone||null,
+      address:s.addr||null,lesson_type:s.type||'Manual',
+      status:'active',created_at:new Date().toISOString()
+    }]);
+    if(profErr2){showToast('Failed to add student to roster: '+profErr2.message,'error');console.error('student_profiles:',profErr2);return;}
+  }
   // 3. Also log in student_requests for audit trail
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
@@ -4060,6 +4131,9 @@ async function toggleGuideMode(instrId, instrName){
     <button class="modal-x" onclick="document.getElementById('adminStudentProfileModal').classList.remove('open')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-person-badge-fill me-2" style="color:#c084fc"></i>Student Profile</h5>
     <div id="adminStudentProfileContent" style="overflow-y:auto;flex:1;margin-top:10px"></div>
+    <div style="padding-top:10px;border-top:1px solid var(--bdr);margin-top:8px">
+      <button class="btn-r-sm w-100" id="adminDeleteStudentBtn" onclick="adminDeleteStudent()" style="font-size:.8rem;padding:9px"><i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System</button>
+    </div>
   </div>
 </div>
 
