@@ -444,6 +444,10 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button class="qa-btn" onclick="switchTab('pending');setActiveTab('pending')"><i class="bi bi-hourglass-split me-1"></i>Pending</button>
       <button class="qa-btn" onclick="openTheoryProgressModal()"><i class="bi bi-book-fill me-1"></i>Theory Progress</button>
       <button class="qa-btn" onclick="switchTab('notes');setActiveTab('notes')"><i class="bi bi-journal-text me-1"></i>My Notes</button>
+      <button class="qa-btn" onclick="switchTab('actions');setActiveTab('actions')" style="border-color:rgba(249,115,22,.4);color:#f97316"><i class="bi bi-lightning-charge-fill me-1"></i>Action Queue</button>
+      <button class="qa-btn" onclick="switchTab('scorecard');setActiveTab('scorecard')"><i class="bi bi-bar-chart-fill me-1"></i>Scorecard</button>
+      <button class="qa-btn" onclick="switchTab('bulk');setActiveTab('bulk')"><i class="bi bi-send-fill me-1"></i>Bulk Message</button>
+      <button class="qa-btn" onclick="switchTab('progress-overview');setActiveTab('progress-overview')"><i class="bi bi-graph-up-arrow me-1"></i>Progress View</button>
     </div>
   </div>
 </nav>
@@ -949,6 +953,79 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
   <textarea class="dsq-inp" id="notesBody" placeholder="Type your note here…" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:12px"></textarea>
   <div id="notesList" style="display:flex;flex-direction:column;gap:10px"></div>
+</div>
+
+<!-- ACTION QUEUE PANEL -->
+<div id="panel-actions" class="hidden" style="padding:10px 0">
+  <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:4px"><i class="bi bi-lightning-charge-fill me-2" style="color:#f97316"></i>Action Queue</h5>
+  <p style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">Auto-detected items that need your attention.</p>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="qa-btn active" onclick="loadActionQueue('all')" id="aq-all">All</button>
+    <button class="qa-btn" onclick="loadActionQueue('students')" id="aq-students">Students</button>
+    <button class="qa-btn" onclick="loadActionQueue('instructors')" id="aq-instructors">Instructors</button>
+    <button class="qa-btn" onclick="loadActionQueue('requests')" id="aq-requests">Requests</button>
+  </div>
+  <div id="actionQueueList" style="display:flex;flex-direction:column;gap:10px"></div>
+</div>
+
+<!-- INSTRUCTOR SCORECARD PANEL -->
+<div id="panel-scorecard" class="hidden" style="padding:10px 0">
+  <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-bar-chart-fill me-2" style="color:#F5C518"></i>Instructor Scorecard</h5>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem" id="scorecardTable">
+      <thead><tr style="border-bottom:2px solid var(--bdr);color:var(--txt3);font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">
+        <th style="text-align:left;padding:8px 6px;cursor:pointer" onclick="sortScorecard('name')">Instructor ↕</th>
+        <th style="text-align:center;padding:8px 6px;cursor:pointer" onclick="sortScorecard('students')">Students ↕</th>
+        <th style="text-align:center;padding:8px 6px;cursor:pointer" onclick="sortScorecard('lessonsMonth')">Lessons/Mo ↕</th>
+        <th style="text-align:center;padding:8px 6px;cursor:pointer" onclick="sortScorecard('hoursMonth')">Hours/Mo ↕</th>
+        <th style="text-align:center;padding:8px 6px;cursor:pointer" onclick="sortScorecard('revenue')">Revenue ↕</th>
+        <th style="text-align:center;padding:8px 6px;cursor:pointer" onclick="sortScorecard('avgRating')">Rating ↕</th>
+        <th style="text-align:center;padding:8px 6px">Status</th>
+        <th style="padding:8px 6px"></th>
+      </tr></thead>
+      <tbody id="scorecardBody"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--txt4)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- BULK MESSAGE PANEL -->
+<div id="panel-bulk" class="hidden" style="padding:10px 0">
+  <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-send-fill me-2" style="color:#3b82f6"></i>Bulk Messaging</h5>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+    <select class="dsq-inp" id="bulkTarget" onchange="loadBulkList()" style="width:auto;font-size:.83rem">
+      <option value="students">Students</option>
+      <option value="instructors">Instructors</option>
+    </select>
+    <input class="dsq-inp" id="bulkSearch" oninput="filterBulkList(this.value)" placeholder="Filter names…" style="flex:1;min-width:150px;font-size:.83rem"/>
+    <button class="qa-btn" onclick="bulkSelectAll(true)">Select All</button>
+    <button class="qa-btn" onclick="bulkSelectAll(false)">Deselect</button>
+    <span id="bulkSelectedCount" style="font-size:.8rem;color:var(--gold);font-family:'Oswald',sans-serif;font-weight:700">0 selected</span>
+  </div>
+  <div id="bulkList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:260px;overflow-y:auto;margin-bottom:14px;padding:4px"></div>
+  <input class="dsq-inp" id="bulkSubject" placeholder="Message subject / title…" style="margin-bottom:8px;font-size:.85rem"/>
+  <textarea class="dsq-inp" id="bulkBody" placeholder="Message body…" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:10px"></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn-p" onclick="sendBulkMessages()" style="font-size:.83rem"><i class="bi bi-send-fill me-1"></i>Send to Selected</button>
+    <button class="btn-s" onclick="sendBulkWhatsApp()" style="font-size:.83rem;background:#25D366;color:#fff;border-color:#25D366"><i class="bi bi-whatsapp me-1"></i>Open WhatsApp for Each</button>
+  </div>
+</div>
+
+<!-- PROGRESS OVERVIEW PANEL -->
+<div id="panel-progress-overview" class="hidden" style="padding:10px 0">
+  <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:4px"><i class="bi bi-graph-up-arrow me-2" style="color:#4ade80"></i>Student Progress Overview</h5>
+  <p style="font-size:.78rem;color:var(--txt3);margin-bottom:12px">All students ranked by driving lesson progress.</p>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input class="dsq-inp" id="poSearch" oninput="filterProgressOverview(this.value)" placeholder="Search student…" style="flex:1;min-width:180px;font-size:.83rem"/>
+    <select class="dsq-inp" id="poInstr" onchange="filterProgressOverview(document.getElementById('poSearch').value)" style="width:auto;font-size:.83rem">
+      <option value="">All Instructors</option>
+    </select>
+    <select class="dsq-inp" id="poSort" onchange="filterProgressOverview(document.getElementById('poSearch').value)" style="width:auto;font-size:.83rem">
+      <option value="pct">Progress %</option>
+      <option value="hours">Hours Done</option>
+      <option value="readiness">Test Readiness</option>
+    </select>
+  </div>
+  <div id="progressOverviewGrid" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
 
 </div><!-- /page -->
@@ -1570,7 +1647,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes'];
+const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes','actions','scorecard','bulk','progress-overview'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -1592,6 +1669,10 @@ function switchTab(t){
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
   if(t==='notes')loadAdminNotes();
+  if(t==='actions')loadActionQueue('all');
+  if(t==='scorecard')loadScorecard();
+  if(t==='bulk')loadBulkList();
+  if(t==='progress-overview')loadProgressOverview();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
@@ -2606,7 +2687,7 @@ async function openStudentDetail(idx){
     </div>
     <div class="row g-2">
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Default Address</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Full Address / Postcode</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="display:block;font-size:.68rem;color:#60a5fa;margin-top:3px"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>`:''}${s.address?`<span style="font-size:.68rem;color:var(--txt4);display:block;margin-top:2px">Postcode: ${extractPostcode(s.address)||'—'}</span>`:''}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName)}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Types</div><div class="det-val">${[...s.types].join(', ')}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
@@ -4419,6 +4500,266 @@ async function toggleGuideMode(instrId, instrName){
   }]).catch(()=>{});
   sendPushToInstructor(instrId,instrName,'📚 Guide Mode Activated','Your admin has shared a platform guide. Tap to view it.','/dashboard.html');
   showToast('Guide mode activated — '+instrName+' notified ✓','success');
+}
+
+/* ══ ACTION QUEUE ══ */
+async function loadActionQueue(filter='all'){
+  ['all','students','instructors','requests'].forEach(k=>{document.getElementById('aq-'+k)?.classList.toggle('active',k===filter);});
+  const el=document.getElementById('actionQueueList');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Scanning…</div>';
+  const items=[];
+  const now=new Date();
+  const thirtyDaysAgo=new Date(now-30*864e5).toISOString();
+  const sevenDaysAgo=new Date(now-7*864e5).toISOString();
+  if(filter==='all'||filter==='students'){
+    // Students with no lessons for 30+ days
+    const stale=(allStudentsCache||[]).filter(s=>s.lastLesson&&s.lastLesson<thirtyDaysAgo.slice(0,10)&&s.instrId);
+    stale.slice(0,10).forEach(s=>items.push({sev:'warn',icon:'bi-clock-history',title:'Inactive: '+s.name,desc:'Last lesson: '+fmtD(s.lastLesson)+' · Instructor: '+s.instrName,action:`openStudentDetail(${_renderedStudents.indexOf(s)>=0?_renderedStudents.indexOf(s):0})`,actionLbl:'View Student'}));
+    // Students with test readiness "ready" but no test date set
+    const readyNoDate=(allStudentsCache||[]).filter(s=>s.testReadiness==='ready');
+    readyNoDate.slice(0,8).forEach(s=>items.push({sev:'info',icon:'bi-check-circle',title:'Test Ready: '+s.name,desc:'Marked as Test Ready — book a practical test if not already done.',action:'',actionLbl:''}));
+    // Students never logged in (unregistered)
+    const unregistered=(allStudentsCache||[]).filter(s=>!s.lastLogin&&!s.rosterOnly).slice(0,8);
+    unregistered.forEach(s=>items.push({sev:'low',icon:'bi-person-x',title:'Not Registered: '+s.name,desc:'Student has an account but has never logged in. Send them their portal link.',action:`openStudentDetail(${_renderedStudents.indexOf(s)>=0?_renderedStudents.indexOf(s):0})`,actionLbl:'View & Send Link'}));
+  }
+  if(filter==='all'||filter==='instructors'){
+    // Instructors pending approval
+    const pendingInstrs=(allInstrs||[]).filter(i=>i.status==='pending');
+    pendingInstrs.forEach(i=>items.push({sev:'urgent',icon:'bi-person-badge',title:'Pending Approval: '+i.full_name,desc:'Instructor is awaiting approval to start teaching.',action:`viewInstr('${i.id}')`,actionLbl:'Review'}));
+    // Approved instructors with 0 students
+    const noStudents=(allInstrs||[]).filter(i=>i.status==='approved'&&!(allStudentsCache||[]).some(s=>s.instrId===i.id));
+    noStudents.slice(0,6).forEach(i=>items.push({sev:'low',icon:'bi-people',title:'No Students: '+i.full_name,desc:'Approved instructor has no students assigned.',action:`openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}')`,actionLbl:'Assign Student'}));
+  }
+  if(filter==='all'||filter==='requests'){
+    // Pending student requests older than 2 days
+    try{
+      const reqR=await sb.from('student_requests').select('id,student_name,created_at,postcode,lesson_type').eq('status','pending').lt('created_at',sevenDaysAgo).limit(10);
+      (reqR.data||[]).forEach(r=>items.push({sev:'urgent',icon:'bi-envelope-exclamation',title:'Aged Request: '+(r.student_name||'Unknown'),desc:'Pending since '+fmtD(r.created_at?.slice(0,10))+(r.postcode?' · '+r.postcode:'')+(r.lesson_type?' · '+r.lesson_type:''),action:`switchTab('requests');setActiveTab('requests')`,actionLbl:'Go to Requests'}));
+    }catch(e){}
+  }
+  if(!items.length){el.innerHTML='<div style="text-align:center;padding:40px;font-size:.85rem;color:#4ade80"><i class="bi bi-check-circle-fill me-2"></i>No issues found — everything looks good!</div>';return;}
+  const sevOrder={urgent:0,warn:1,info:2,low:3};
+  items.sort((a,b)=>sevOrder[a.sev]-sevOrder[b.sev]);
+  const sevStyle={urgent:{bg:'rgba(248,113,113,.08)',bdr:'rgba(248,113,113,.3)',dot:'#f87171',lbl:'URGENT'},warn:{bg:'rgba(245,197,24,.07)',bdr:'rgba(245,197,24,.3)',dot:'#F5C518',lbl:'WARNING'},info:{bg:'rgba(96,165,250,.07)',bdr:'rgba(96,165,250,.25)',dot:'#60a5fa',lbl:'INFO'},low:{bg:'rgba(148,163,184,.06)',bdr:'rgba(148,163,184,.2)',dot:'#94a3b8',lbl:'LOW'}};
+  el.innerHTML=items.map(it=>{const ss=sevStyle[it.sev]||sevStyle.low;return`<div style="background:${ss.bg};border:1px solid ${ss.bdr};border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start">
+    <i class="bi ${it.icon}" style="color:${ss.dot};font-size:1.1rem;margin-top:2px;flex-shrink:0"></i>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+        <span style="font-size:.56rem;font-family:'Oswald',sans-serif;font-weight:700;color:${ss.dot};background:${ss.dot}22;border:1px solid ${ss.dot}44;border-radius:3px;padding:1px 5px">${ss.lbl}</span>
+        <span style="font-weight:600;color:var(--txt);font-size:.84rem">${esc(it.title)}</span>
+      </div>
+      <div style="font-size:.75rem;color:var(--txt3)">${esc(it.desc)}</div>
+    </div>
+    ${it.action&&it.actionLbl?`<button onclick="${it.action}" style="background:var(--dk3);border:1px solid var(--bdr);color:var(--txt2);border-radius:7px;padding:5px 10px;font-size:.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">${esc(it.actionLbl)}</button>`:''}
+  </div>`;}).join('');
+}
+
+/* ══ INSTRUCTOR SCORECARD ══ */
+let _scorecardData=[];let _scorecardSort={key:'lessonsMonth',dir:-1};
+async function loadScorecard(){
+  const tbody=document.getElementById('scorecardBody');
+  tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</td></tr>';
+  const monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
+  const [lessonsR,feedbackR]=await Promise.all([
+    sb.from('lessons').select('instructor_id,duration_hours,payment_received,lesson_date').gte('lesson_date',monthStart),
+    sb.from('student_lesson_feedback').select('instructor_id,rating').gte('submitted_at',monthStart)
+  ]);
+  const lMap={},fMap={};
+  (lessonsR.data||[]).forEach(l=>{
+    if(!lMap[l.instructor_id])lMap[l.instructor_id]={count:0,hours:0,rev:0};
+    lMap[l.instructor_id].count++;lMap[l.instructor_id].hours+=(parseFloat(l.duration_hours)||1);
+    lMap[l.instructor_id].rev+=(parseFloat(l.payment_received)||0);
+  });
+  (feedbackR.data||[]).forEach(f=>{
+    if(!fMap[f.instructor_id])fMap[f.instructor_id]={sum:0,count:0};
+    fMap[f.instructor_id].sum+=(f.rating||0);fMap[f.instructor_id].count++;
+  });
+  _scorecardData=(allInstrs||[]).filter(i=>i.status==='approved').map(i=>{
+    const l=lMap[i.id]||{count:0,hours:0,rev:0};
+    const f=fMap[i.id]||{sum:0,count:0};
+    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+    return{id:i.id,name:i.full_name,phone:i.phone,status:i.status,students:studs,lessonsMonth:l.count,hoursMonth:parseFloat(l.hours.toFixed(1)),revenue:parseFloat(l.rev.toFixed(0)),avgRating:f.count?parseFloat((f.sum/f.count).toFixed(1)):null,ratingCount:f.count};
+  });
+  renderScorecard();
+}
+function sortScorecard(key){
+  if(_scorecardSort.key===key)_scorecardSort.dir*=-1;
+  else{_scorecardSort.key=key;_scorecardSort.dir=-1;}
+  renderScorecard();
+}
+function renderScorecard(){
+  const tbody=document.getElementById('scorecardBody');
+  const sorted=[..._scorecardData].sort((a,b)=>{
+    const av=a[_scorecardSort.key]??-1,bv=b[_scorecardSort.key]??-1;
+    return typeof av==='string'?av.localeCompare(bv)*_scorecardSort.dir:(bv-av)*_scorecardSort.dir*-1;
+  });
+  if(!sorted.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--txt4)">No approved instructors found.</td></tr>';return;}
+  const maxRev=Math.max(...sorted.map(r=>r.revenue),1);
+  tbody.innerHTML=sorted.map((r,i)=>{
+    const waNum=buildWaNum(r.phone||'');
+    const revPct=Math.round(r.revenue/maxRev*100);
+    const ratingCol=r.avgRating>=4?'#4ade80':r.avgRating>=3?'#F5C518':'#f87171';
+    return`<tr style="border-bottom:1px solid var(--bdr)">
+      <td style="padding:10px 6px;font-weight:600;color:var(--txt)">
+        <span style="font-family:'Oswald',sans-serif;font-size:.7rem;color:var(--txt4);margin-right:6px">${i+1}</span>
+        <button onclick="viewInstr('${r.id}')" style="background:none;border:none;color:var(--txt);cursor:pointer;font-weight:600;padding:0;text-decoration:underline;text-underline-offset:2px">${esc(r.name)}</button>
+      </td>
+      <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#60a5fa;padding:10px 6px">${r.students}</td>
+      <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt2);padding:10px 6px">${r.lessonsMonth}</td>
+      <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold);padding:10px 6px">${r.hoursMonth}h</td>
+      <td style="padding:10px 6px;min-width:100px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;background:var(--dk3);border-radius:2px;height:6px;overflow:hidden"><div style="height:100%;background:var(--green);width:${revPct}%;border-radius:2px"></div></div>
+          <span style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--green);white-space:nowrap">£${r.revenue}</span>
+        </div>
+      </td>
+      <td style="text-align:center;padding:10px 6px">${r.avgRating!=null?`<span style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:${ratingCol}">★${r.avgRating}</span><span style="font-size:.62rem;color:var(--txt4)"> (${r.ratingCount})</span>`:'<span style="color:var(--txt4);font-size:.72rem">No reviews</span>'}</td>
+      <td style="text-align:center;padding:10px 6px"><span class="chip approved" style="font-size:.55rem">ACTIVE</span></td>
+      <td style="padding:10px 6px;white-space:nowrap">
+        ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+        <button class="abtn view" onclick="viewInstr('${r.id}')"><i class="bi bi-eye me-1"></i>View</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══ BULK MESSAGING ══ */
+let _bulkItems=[];
+async function loadBulkList(){
+  const target=document.getElementById('bulkTarget').value;
+  document.getElementById('bulkList').innerHTML='<div style="color:var(--txt4);font-size:.8rem;padding:8px">Loading…</div>';
+  if(target==='students'){
+    _bulkItems=(allStudentsCache||[]).filter(s=>s.acctId||s.phone).map(s=>({id:s.acctId,name:s.name,phone:s.phone,sub:s.instrName,type:'student',instrId:s.instrId}));
+  } else {
+    _bulkItems=(allInstrs||[]).filter(i=>i.status==='approved').map(i=>({id:i.id,name:i.full_name,phone:i.phone,sub:i.area||i.badge_number||'',type:'instructor'}));
+  }
+  renderBulkList(_bulkItems);
+}
+function renderBulkList(items){
+  const el=document.getElementById('bulkList');
+  if(!items.length){el.innerHTML='<div style="color:var(--txt4);font-size:.8rem;padding:8px">No items found.</div>';return;}
+  el.innerHTML=items.map((it,i)=>`<label style="display:flex;align-items:center;gap:8px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;cursor:pointer;user-select:none" id="bulk-label-${i}">
+    <input type="checkbox" data-idx="${i}" onchange="updateBulkCount()" style="accent-color:var(--gold);width:15px;height:15px;flex-shrink:0"/>
+    <div style="min-width:0">
+      <div style="font-weight:600;font-size:.82rem;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
+      <div style="font-size:.68rem;color:var(--txt3)">${esc(it.sub||'')}</div>
+    </div>
+  </label>`).join('');
+  updateBulkCount();
+}
+function filterBulkList(q){
+  const lq=(q||'').toLowerCase();
+  renderBulkList(lq?_bulkItems.filter(it=>it.name.toLowerCase().includes(lq)):_bulkItems);
+}
+function bulkSelectAll(v){
+  document.querySelectorAll('#bulkList input[type=checkbox]').forEach(cb=>cb.checked=v);
+  updateBulkCount();
+}
+function updateBulkCount(){
+  const n=document.querySelectorAll('#bulkList input[type=checkbox]:checked').length;
+  document.getElementById('bulkSelectedCount').textContent=n+' selected';
+}
+function getSelectedBulkItems(){
+  const cbs=document.querySelectorAll('#bulkList input[type=checkbox]:checked');
+  return [...cbs].map(cb=>_bulkItems[parseInt(cb.dataset.idx)]).filter(Boolean);
+}
+async function sendBulkMessages(){
+  const selected=getSelectedBulkItems();
+  if(!selected.length){showToast('Select at least one recipient.','warn');return;}
+  const subject=(document.getElementById('bulkSubject').value||'').trim();
+  const body=(document.getElementById('bulkBody').value||'').trim();
+  if(!body){showToast('Enter a message body.','warn');return;}
+  const btn=document.querySelector('#panel-bulk .btn-p');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';}
+  const target=document.getElementById('bulkTarget').value;
+  let sent=0;
+  if(target==='instructors'){
+    await Promise.all(selected.map(async it=>{
+      await sb.from('admin_messages').insert([{instructor_id:it.id,subject:subject||'Message from Admin',body,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+      await sendPushToInstructor(it.id,it.name,subject||'Message from Admin',body.slice(0,80),'/dashboard.html').catch(()=>{});
+      sent++;
+    }));
+  } else {
+    // For students: send via student_messages table
+    await Promise.all(selected.map(async it=>{
+      if(!it.id)return;
+      await sb.from('student_messages').insert([{student_account_id:it.id,instructor_id:it.instrId||null,sender:'admin',subject:subject||'Message from Admin',message:body,sent_at:new Date().toISOString(),is_read:false}]).catch(()=>{});
+      sent++;
+    }));
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill me-1"></i>Send to Selected';}
+  showToast(`✅ Message sent to ${sent} recipient${sent!==1?'s':''}.`,'success');
+  bulkSelectAll(false);
+}
+function sendBulkWhatsApp(){
+  const selected=getSelectedBulkItems();
+  if(!selected.length){showToast('Select at least one recipient.','warn');return;}
+  const body=(document.getElementById('bulkBody').value||'').trim();
+  if(!body){showToast('Enter a message body.','warn');return;}
+  selected.filter(it=>it.phone).forEach(it=>{
+    const n=buildWaNum(it.phone);
+    if(n)window.open('https://wa.me/'+n+'?text='+encodeURIComponent(body),'_blank');
+  });
+}
+
+/* ══ PROGRESS OVERVIEW ══ */
+let _poData=[];
+async function loadProgressOverview(){
+  document.getElementById('progressOverviewGrid').innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  // populate instructor filter
+  const sel=document.getElementById('poInstr');
+  sel.innerHTML='<option value="">All Instructors</option>'+(allInstrs||[]).filter(i=>i.status==='approved').sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'')).map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  // Fetch progress for all students
+  const [progR]=await Promise.all([
+    sb.from('student_progress').select('student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score,instructor_id')
+  ]);
+  const progMap={};
+  (progR.data||[]).forEach(p=>{progMap[p.student_account_id]=p;});
+  _poData=(allStudentsCache||[]).map(s=>{
+    const p=progMap[s.acctId]||null;
+    const done=p?.total_hours_done||s.hours||0;
+    const target=p?.target_hours||s.targetHours||20;
+    const pct=target>0?Math.min(100,Math.round(done/target*100)):0;
+    return{name:s.name,instrName:s.instrName,instrId:s.instrId,phone:s.phone,done:parseFloat(done.toFixed(1)),target:parseFloat(target),pct,testReadiness:p?.test_readiness||s.testReadiness||null,mockScore:p?.mock_test_score??s.mockScore??null};
+  }).filter(s=>s.name);
+  filterProgressOverview('');
+}
+function filterProgressOverview(q){
+  const lq=(q||'').toLowerCase();
+  const instrId=document.getElementById('poInstr').value;
+  const sort=document.getElementById('poSort').value;
+  let list=_poData;
+  if(lq)list=list.filter(s=>s.name.toLowerCase().includes(lq));
+  if(instrId)list=list.filter(s=>s.instrId===instrId);
+  if(sort==='pct')list=[...list].sort((a,b)=>b.pct-a.pct);
+  else if(sort==='hours')list=[...list].sort((a,b)=>b.done-a.done);
+  else if(sort==='readiness'){const o={'ready':0,'nearly_there':1,'needs_work':2,null:3};list=[...list].sort((a,b)=>(o[a.testReadiness]||3)-(o[b.testReadiness]||3));}
+  renderProgressOverview(list);
+}
+function renderProgressOverview(list){
+  const el=document.getElementById('progressOverviewGrid');
+  if(!list.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No progress data found.</div>';return;}
+  const readinessMap={'ready':['#4ade80','🟢 Test Ready'],'nearly_there':['#F5C518','🟡 Nearly There'],'needs_work':['#f87171','🔴 Needs Work']};
+  el.innerHTML=list.map((s,i)=>{
+    const col=s.pct>=80?'#4ade80':s.pct>=50?'#F5C518':'#f87171';
+    const [rc,rl]=readinessMap[s.testReadiness]||['#94a3b8','—'];
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px">
+      <div style="width:32px;height:32px;border-radius:50%;background:${col}22;border:2px solid ${col}44;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:${col};flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+          <span style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(s.name)}</span>
+          <span style="font-size:.68rem;color:var(--txt3)">${esc(s.instrName||'—')}</span>
+          <span style="font-size:.68rem;color:${rc};margin-left:auto">${rl}</span>
+          ${s.mockScore!=null?`<span style="font-size:.65rem;color:#a855f7">Mock: ${s.mockScore}/50</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--bdr);border-radius:3px;height:8px;overflow:hidden"><div style="height:100%;background:${col};width:${s.pct}%;border-radius:3px;transition:width .5s"></div></div>
+          <span style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:${col};width:36px;text-align:right">${s.pct}%</span>
+          <span style="font-size:.68rem;color:var(--txt3);white-space:nowrap">${s.done}/${s.target}h</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 /* ══ ADMIN NOTES ══ */
