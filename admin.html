@@ -442,6 +442,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button class="qa-btn" onclick="openGlobalSearch()"><i class="bi bi-search me-1"></i>Search</button>
       <button class="qa-btn" onclick="switchTab('messages');setActiveTab('messages')"><i class="bi bi-chat-dots-fill me-1"></i>Broadcast</button>
       <button class="qa-btn" onclick="switchTab('pending');setActiveTab('pending')"><i class="bi bi-hourglass-split me-1"></i>Pending</button>
+      <button class="qa-btn" onclick="openTheoryProgressModal()"><i class="bi bi-book-fill me-1"></i>Theory Progress</button>
+      <button class="qa-btn" onclick="switchTab('notes');setActiveTab('notes')"><i class="bi bi-journal-text me-1"></i>My Notes</button>
     </div>
   </div>
 </nav>
@@ -480,6 +482,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr"><div class="stat-lbl">Earnings This Week</div><div class="stat-num gr" id="sEarnings">£0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card b" style="cursor:pointer" onclick="switchTab('students');setActiveTab('students')" title="Click to view all students"><div class="stat-lbl">Total Students</div><div class="stat-num b" id="sTotalStudents">0</div></div></div>
     <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card gr" style="cursor:pointer" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>filterStudentsByReg(true),600)" title="Students with portal accounts — click to view"><div class="stat-lbl">✅ Fully Registered</div><div class="stat-num gr" id="sFullyReg">0</div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="stat-card p" style="cursor:pointer" onclick="switchTab('students');setActiveTab('students')" title="New students joined this week"><div class="stat-lbl">🆕 New This Week</div><div class="stat-num p" id="sNewThisWeek">0</div></div></div>
   </div>
 
   <!-- == DASHBOARD == -->
@@ -935,6 +938,17 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>Student pin — click to view details</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;margin-right:4px"></span>Nearest instructor result</span>
   </div>
+</div>
+
+<!-- NOTES PANEL -->
+<div id="panel-notes" class="hidden" style="padding:10px 0">
+  <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-journal-text me-2" style="color:#c084fc"></i>Admin Notes & Diary</h5>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <input class="dsq-inp" id="notesTitle" placeholder="Note title (optional)…" style="flex:1;font-size:.85rem"/>
+    <button class="btn-p" onclick="addAdminNote()" style="white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add Note</button>
+  </div>
+  <textarea class="dsq-inp" id="notesBody" placeholder="Type your note here…" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:12px"></textarea>
+  <div id="notesList" style="display:flex;flex-direction:column;gap:10px"></div>
 </div>
 
 </div><!-- /page -->
@@ -1556,7 +1570,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map'];
+const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -1577,6 +1591,7 @@ function switchTab(t){
   if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
+  if(t==='notes')loadAdminNotes();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
     const picker=document.getElementById('calInstrPicker');
@@ -1634,6 +1649,11 @@ async function loadGlobalStats(){
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
+  }).catch(()=>{});
+  // New students this week (created_at in last 7 days)
+  const weekAgo=new Date(Date.now()-7*24*60*60*1000).toISOString();
+  sb.from('student_accounts').select('id',{count:'exact',head:true}).gte('created_at',weekAgo).then(r=>{
+    document.getElementById('sNewThisWeek').textContent=r.count||0;
   }).catch(()=>{});
 }
 
@@ -2130,6 +2150,8 @@ async function loadAllStudents(){
     filterAllStudents(document.getElementById('studentSearch')?.value||'');
   }
 
+  // Track roster count for map stat
+  window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
 
@@ -2181,7 +2203,7 @@ function renderStudentsTable(students){
     return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        <button onclick="openAdminStudentProfile('${jsEsc(s.name||'')}','${jsEsc(s.phone||'')}','${s.instrId||''}')" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
+        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -2595,7 +2617,8 @@ async function openStudentDetail(idx){
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
-    ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}`;
+    ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
+    <button class="btn-p" onclick="closeModal('studentDetailModal');switchTab('find');setActiveTab('find');setTimeout(()=>{const fn=document.getElementById('fc-name');if(fn){fn.value='${jsEsc(s.name||'')}';fn.dispatchEvent(new Event('input'));}},500)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-geo-alt-fill me-1"></i>${s.instrId?'Reassign':'Assign'} to Instructor</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
   document.getElementById('sdLessons').innerHTML=recentLessons.map(l=>`
@@ -4159,7 +4182,7 @@ function refreshMapStats(){
   const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const online=studs.filter(s=>s.isOnline).length+approved.filter(i=>i.last_seen&&i.last_seen>=fiveMinsAgo).length;
   document.getElementById('mapStatInstrs').textContent=approved.length;
-  document.getElementById('mapStatStudents').textContent=studs.length;
+  document.getElementById('mapStatStudents').textContent=window._rosterCount!=null?window._rosterCount:studs.length;
   document.getElementById('mapStatAreas').textContent=areas.size;
   document.getElementById('mapStatOnline').textContent=online;
 }
@@ -4168,7 +4191,7 @@ function _placeInstrPin(i,coords){
   if(!_adminMap||!window.L)return;
   const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
   const initial=(i.full_name||'?').trim()[0].toUpperCase();
-  const sz=Math.min(44,32+studCount*2);
+  const sz=36;
   const instrIcon=L.divIcon({
     html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">
       <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
@@ -4397,7 +4420,109 @@ async function toggleGuideMode(instrId, instrName){
   sendPushToInstructor(instrId,instrName,'📚 Guide Mode Activated','Your admin has shared a platform guide. Tap to view it.','/dashboard.html');
   showToast('Guide mode activated — '+instrName+' notified ✓','success');
 }
+
+/* ══ ADMIN NOTES ══ */
+function loadAdminNotes(){
+  const nl=document.getElementById('notesList');if(!nl)return;
+  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+  if(!notes.length){nl.innerHTML='<div style="text-align:center;padding:30px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-journal me-2"></i>No notes yet. Add your first note above.</div>';return;}
+  nl.innerHTML=notes.map((n,i)=>`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;color:#c084fc;font-size:.9rem">${esc(n.title||'Note')}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <span style="font-size:.65rem;color:var(--txt4)">${n.date||''}</span>
+        <button onclick="deleteAdminNote(${i})" style="background:none;border:none;color:#f87171;cursor:pointer;padding:0;font-size:.8rem" title="Delete"><i class="bi bi-trash3-fill"></i></button>
+      </div>
+    </div>
+    <div style="font-size:.82rem;color:var(--txt2);white-space:pre-wrap;line-height:1.5">${esc(n.body)}</div>
+  </div>`).join('');
+}
+function addAdminNote(){
+  const title=(document.getElementById('notesTitle').value||'').trim();
+  const body=(document.getElementById('notesBody').value||'').trim();
+  if(!body){showToast('Write something first!','warn');return;}
+  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+  const now=new Date();
+  const date=now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  notes.unshift({title:title||'Note',body,date});
+  try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
+  document.getElementById('notesTitle').value='';document.getElementById('notesBody').value='';
+  loadAdminNotes();showToast('Note saved ✓','success');
+}
+function deleteAdminNote(idx){
+  if(!confirm('Delete this note?'))return;
+  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+  notes.splice(idx,1);
+  try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
+  loadAdminNotes();
+}
+
+/* ══ THEORY PROGRESS MODAL ══ */
+async function openTheoryProgressModal(){
+  const modal=document.getElementById('theoryProgressModal');
+  if(!modal)return;
+  modal.classList.add('open');
+  document.getElementById('theoryProgressList').innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  // Fetch all students with theory progress
+  const [acctR, theoryR] = await Promise.all([
+    sb.from('student_accounts').select('id,full_name,instructor_id'),
+    sb.from('student_theory_progress').select('student_account_id,topic_name,is_ticked')
+  ]);
+  const accounts = acctR.data||[];
+  const theory = theoryR.data||[];
+  // Group by student
+  const byStudent = {};
+  theory.forEach(t=>{
+    if(!byStudent[t.student_account_id])byStudent[t.student_account_id]={total:0,ticked:0};
+    byStudent[t.student_account_id].total++;
+    if(t.is_ticked)byStudent[t.student_account_id].ticked++;
+  });
+  // Build list sorted by % descending
+  const rows = accounts.map(a=>{
+    const p=byStudent[a.id]||{total:0,ticked:0};
+    const pct=p.total>0?Math.round(p.ticked/p.total*100):0;
+    const instrName=(allInstrs||[]).find(i=>i.id===a.instructor_id)?.full_name||'—';
+    return{name:a.full_name||'Unknown',instrName,ticked:p.ticked,total:p.total,pct,acctId:a.id};
+  }).filter(r=>r.total>0).sort((a,b)=>b.pct-a.pct);
+  window._theoryRows=rows;
+  renderTheoryList(rows);
+}
+function filterTheoryList(q){
+  if(!window._theoryRows)return;
+  const lq=(q||'').toLowerCase().trim();
+  renderTheoryList(lq?window._theoryRows.filter(r=>r.name.toLowerCase().includes(lq)):window._theoryRows);
+}
+function renderTheoryList(rows){
+  const el=document.getElementById('theoryProgressList');
+  if(!rows.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No theory progress data found.</div>';return;}
+  el.innerHTML=rows.map((r,i)=>{
+    const col=r.pct>=80?'#4ade80':r.pct>=50?'#F5C518':'#f87171';
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+      <div style="font-family:'Oswald',sans-serif;font-size:.8rem;color:var(--txt4);width:22px;text-align:right">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.name)}</div>
+        <div style="font-size:.7rem;color:var(--txt3)">${esc(r.instrName)} · ${r.ticked}/${r.total} topics</div>
+      </div>
+      <div style="width:100px">
+        <div style="background:var(--dk3);border-radius:3px;height:7px;overflow:hidden;border:1px solid var(--bdr)">
+          <div style="height:100%;background:${col};width:${r.pct}%;border-radius:3px;transition:width .4s"></div>
+        </div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:${col};width:38px;text-align:right">${r.pct}%</div>
+    </div>`;
+  }).join('');
+}
 </script>
+<!-- Theory Progress Modal -->
+<div class="dsq-overlay" id="theoryProgressModal">
+  <div class="dsq-modal wide" style="max-height:88vh;display:flex;flex-direction:column">
+    <button class="modal-x" onclick="document.getElementById('theoryProgressModal').classList.remove('open')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-book-fill me-2" style="color:#c084fc"></i>Theory Progress — All Students</h5>
+    <input class="dsq-inp" id="theorySearch" placeholder="Search student name…" oninput="filterTheoryList(this.value)" style="margin:10px 0;font-size:.85rem"/>
+    <div id="theoryProgressList" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
 <!-- Admin Student Profile Modal -->
 <div class="dsq-overlay" id="adminStudentProfileModal">
   <div class="dsq-modal wide" style="max-height:88vh;display:flex;flex-direction:column">
