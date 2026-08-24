@@ -4115,8 +4115,27 @@ function toggleMapFilter(type){
   }
 }
 
+// Geocode cache — persisted in localStorage so repeat visits are instant
+const _geoCache={};
+try{Object.assign(_geoCache,JSON.parse(localStorage.getItem('dsq_geocache')||'{}'));}catch(e){}
+function _saveGeoCache(){try{localStorage.setItem('dsq_geocache',JSON.stringify(_geoCache));}catch(e){}}
+
+async function geocodePostcode(raw){
+  if(!raw)return null;
+  const pc=raw.trim().toUpperCase().replace(/\s+/g,'');
+  if(_geoCache[pc])return _geoCache[pc];
+  try{
+    const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`);
+    const d=await r.json();
+    if(d.status===200&&d.result){
+      const c=[d.result.latitude,d.result.longitude];
+      _geoCache[pc]=c;_saveGeoCache();return c;
+    }
+  }catch(e){}
+  return null;
+}
+
 async function initAdminMap(){
-  if(_adminMap){refreshMapStats();plotInstrMarkers();plotStudentMapMarkers();return;}
   if(!document.getElementById('leaflet-css')){
     const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
@@ -4124,11 +4143,13 @@ async function initAdminMap(){
     await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const el=document.getElementById('adminMapEl');if(!el)return;
-  _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
-  plotInstrMarkers();
-  plotStudentMapMarkers();
+  if(!_adminMap){
+    _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
+  }
   refreshMapStats();
+  await plotInstrMarkers();
+  plotStudentMapMarkers();
 }
 
 function refreshMapStats(){
@@ -4143,75 +4164,106 @@ function refreshMapStats(){
   document.getElementById('mapStatOnline').textContent=online;
 }
 
-function plotInstrMarkers(){
+function _placeInstrPin(i,coords){
   if(!_adminMap||!window.L)return;
-  _instrMarkers.forEach(m=>m.remove());_instrMarkers=[];
-  (allInstrs||[]).filter(i=>i.status==='approved').forEach(i=>{
-    const area=i.area||'';
-    const coords=manchesterAreaCoords(area);
-    const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
-    const initial=(i.full_name||'?').trim()[0].toUpperCase();
-    // Size pin by student count — busier instructors have larger pins
-    const sz=Math.min(44,32+studCount*2);
-    const instrIcon=L.divIcon({
-      html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer;position:relative">
-        <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
-        ${studCount?`<span style="font-size:9px;color:rgba(255,255,255,.8);line-height:1">${studCount}</span>`:''}
-      </div>`,
-      iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''
-    });
-    const waNum=buildWaNum(i.phone||'');
-    const marker=L.marker(coords,{icon:instrIcon});
-    if(_mapShowInstrs)marker.addTo(_adminMap);
-    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
-      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
-        <span style="color:#888">Area</span><span>${esc(area||'—')}</span>
-        <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
-        <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
-        <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
-        ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
-        <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View Profile</button>
-        <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
-      </div>
-    </div>`);
-    _instrMarkers.push(marker);
+  const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+  const initial=(i.full_name||'?').trim()[0].toUpperCase();
+  const sz=Math.min(44,32+studCount*2);
+  const instrIcon=L.divIcon({
+    html:`<div style="background:#D10A11;width:${sz}px;height:${sz}px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">
+      <span style="font-size:${Math.round(sz*.38)}px;color:#fff;line-height:1">${initial}</span>
+      ${studCount?`<span style="font-size:9px;color:rgba(255,255,255,.8);line-height:1">${studCount}</span>`:''}
+    </div>`,
+    iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''
   });
+  const waNum=buildWaNum(i.phone||'');
+  const area=i.area||i.postcode||'';
+  const marker=L.marker(coords,{icon:instrIcon});
+  if(_mapShowInstrs)marker.addTo(_adminMap);
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
+      <span style="color:#888">Area/Postcode</span><span>${esc(area||'—')}</span>
+      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
+      <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
+      <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
+      ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
+      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
+      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
+    </div>
+  </div>`);
+  _instrMarkers.push(marker);
 }
 
-function plotStudentMapMarkers(){
+async function plotInstrMarkers(){
+  if(!_adminMap||!window.L)return;
+  _instrMarkers.forEach(m=>m.remove());_instrMarkers=[];
+  const approved=(allInstrs||[]).filter(i=>i.status==='approved');
+  // Geocode all instructors in parallel — postcode takes priority, then area name lookup
+  await Promise.all(approved.map(async i=>{
+    // Try postcode field first, then extract postcode from area string
+    const pc=(i.postcode||'').trim()||extractPostcode(i.area||'');
+    let coords=null;
+    if(pc)coords=await geocodePostcode(pc);
+    if(!coords)coords=manchesterAreaCoords(i.area||'');
+    _placeInstrPin(i,coords);
+  }));
+}
+
+function extractPostcode(str){
+  // UK postcode pattern e.g. M14 5TP, M1 1AA, SK1 3AB
+  const m=(str||'').match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i);
+  return m?m[1].trim():'';
+}
+
+function _placeStuPin(s,coords){
+  if(!_adminMap||!window.L)return;
+  const jitterSeed=(s.name||'').charCodeAt(0)||0;
+  const jitter=[(((jitterSeed*13)%20)-10)*.0008,(((jitterSeed*7)%20)-10)*.0008];
+  const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  const sIcon=L.divIcon({
+    html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
+    iconSize:[14,14],iconAnchor:[7,7],className:''
+  });
+  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
+  if(_mapShowStudents)marker.addTo(_adminMap);
+  const waNum=buildWaNum(s.phone||'');
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
+      <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
+      <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
+      ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
+      <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
+    </div>
+    ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
+  </div>`);
+  _studentMapMarkers.push(marker);
+}
+
+async function plotStudentMapMarkers(){
   if(!_adminMap||!window.L)return;
   _studentMapMarkers.forEach(m=>m.remove());_studentMapMarkers=[];
-  (allStudentsCache||[]).filter(s=>s.address||s.instrId).forEach(s=>{
-    // Use instructor area coords as fallback for students without geocoded address
-    const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
-    const coords=manchesterAreaCoords(instrArea);
-    // Deterministic jitter so students don't all pile exactly on instructor pin
-    const jitterSeed=(s.name||'').charCodeAt(0)||0;
-    const jitter=[(((jitterSeed*13)%20)-10)*.001,(((jitterSeed*7)%20)-10)*.001];
-    const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
-    const sIcon=L.divIcon({
-      html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
-      iconSize:[14,14],iconAnchor:[7,7],className:''
-    });
-    const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
-    if(_mapShowStudents)marker.addTo(_adminMap);
-    const waNum=buildWaNum(s.phone||'');
-    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
-      <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
-        <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
-        <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
-        ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
-        <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
-      </div>
-      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
-    </div>`);
-    _studentMapMarkers.push(marker);
-  });
+  const students=(allStudentsCache||[]).filter(s=>s.address||s.phone||s.instrId);
+  await Promise.all(students.map(async s=>{
+    // Try to extract postcode from student address, then instructor postcode/area as fallback
+    const addrPc=extractPostcode(s.address||'');
+    let coords=null;
+    if(addrPc)coords=await geocodePostcode(addrPc);
+    if(!coords){
+      const instr=(allInstrs||[]).find(i=>i.id===s.instrId);
+      const instrPc=(instr?.postcode||'').trim()||extractPostcode(instr?.area||'');
+      if(instrPc)coords=await geocodePostcode(instrPc);
+    }
+    if(!coords){
+      const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
+      coords=manchesterAreaCoords(instrArea);
+    }
+    _placeStuPin(s,coords);
+  }));
 }
 
 function manchesterAreaCoords(area){
