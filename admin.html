@@ -1799,8 +1799,8 @@ async function loadGlobalStats(){
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
-  // Use roster count (student_profiles) as the canonical total — includes students not yet on the app
-  document.getElementById('sTotalStudents').textContent=Math.max(rosterR.count||0,studR.count||0);
+  // Roster (student_profiles) is the canonical count — every student an instructor has added
+  document.getElementById('sTotalStudents').textContent=rosterR.count||studR.count||0;
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
@@ -2350,14 +2350,12 @@ async function loadAllStudents(){
 function renderStudentsTable(students){
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
-  const total=allStudentsCache.length||students.length;
-  const isFiltered=students.length!==total;
+  // Roster total comes from sTotalStudents (set by loadGlobalStats from student_profiles count)
+  const rosterTotal=parseInt(document.getElementById('sTotalStudents')?.textContent)||allStudentsCache.length||students.length;
+  const isFiltered=students.length<rosterTotal;
   document.getElementById('studentCount').textContent=isFiltered
-    ?`Showing ${students.length} of ${total} student${total!==1?'s':''} (filtered)`
+    ?`Showing ${students.length} of ${rosterTotal} student${rosterTotal!==1?'s':''} (filtered)`
     :`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
-  // Keep stat card in sync
-  const sTotalEl=document.getElementById('sTotalStudents');
-  if(sTotalEl&&(parseInt(sTotalEl.textContent)||0)<total)sTotalEl.textContent=total;
   if(!students.length){tb.innerHTML='<tr>'+emptyState('No students found','Try adjusting your search or instructor filter')+'</tr>';return;}
   tb.innerHTML=students.map((s,idx)=>{
     const waNum=buildWaNum(s.phone||'');
@@ -2490,48 +2488,60 @@ async function adminDeleteStudent(skipConfirm){
   if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
   const{accId,profileId,instrId,name}=_adminStudentCtx;
   if(!skipConfirm&&!confirm(`⚠️ PERMANENTLY DELETE ${name}?\n\nThis will erase:\n• Student account & login\n• Roster profile\n• ALL lesson records\n• All messages, progress & feedback\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
-  showToast('Deleting student from system…','warn');
+  showToast('Deleting…','warn',10000);
   const btn=document.getElementById('adminDeleteStudentBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Deleting…';}
+  const errs=[];
+  const tryDel=async(tbl,query)=>{const{error}=await query;if(error)errs.push(tbl+': '+error.message);};
   try{
+    // 1. Child records linked to account
     if(accId){
-      // Delete all child rows linked to account
       await Promise.all([
-        sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{}),
-        sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{}),
-        sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{}),
-        sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{}),
-        sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{}),
+        tryDel('student_progress',sb.from('student_progress').delete().eq('student_account_id',accId)),
+        tryDel('student_lesson_feedback',sb.from('student_lesson_feedback').delete().eq('student_account_id',accId)),
+        tryDel('student_topic_ratings',sb.from('student_topic_ratings').delete().eq('student_id',accId)),
+        tryDel('student_messages',sb.from('student_messages').delete().eq('student_account_id',accId)),
+        tryDel('reschedule_requests',sb.from('reschedule_requests').delete().eq('student_account_id',accId)),
+        tryDel('push_subscriptions',sb.from('push_subscriptions').delete().eq('user_id',accId)),
       ]);
     }
+    // 2. Lessons and their child tables (matched by instructor + student name)
     if(instrId){
-      // Get lesson IDs to clean up child tables
-      const{data:lessonRows}=await sb.from('lessons').select('id').eq('instructor_id',instrId).ilike('student_name',name).catch(()=>({data:[]}));
+      const{data:lessonRows,error:lErr}=await sb.from('lessons').select('id').eq('instructor_id',instrId).ilike('student_name',name);
+      if(lErr)errs.push('lessons lookup: '+lErr.message);
       const lessonIds=(lessonRows||[]).map(l=>l.id);
       if(lessonIds.length){
         await Promise.all([
-          sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{}),
-          sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{}),
+          tryDel('lesson_confirmations',sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds)),
+          tryDel('lesson_reminders',sb.from('lesson_reminders').delete().in('lesson_id',lessonIds)),
         ]);
       }
-      await sb.from('lessons').delete().eq('instructor_id',instrId).ilike('student_name',name).catch(()=>{});
+      await tryDel('lessons',sb.from('lessons').delete().eq('instructor_id',instrId).ilike('student_name',name));
     }
-    // Delete roster profile
-    if(profileId) await sb.from('student_profiles').delete().eq('id',profileId).catch(()=>{});
-    else if(instrId) await sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name).catch(()=>{});
-    // Delete account last (may be blocked by RLS — non-fatal)
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
-    // Remove from memory
+    // 3. Roster profile — try all available identifiers
+    if(profileId){
+      await tryDel('student_profiles(id)',sb.from('student_profiles').delete().eq('id',profileId));
+    } else {
+      // Fallback: delete by instructor+name or just name
+      if(instrId) await tryDel('student_profiles(instr+name)',sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name));
+      else await tryDel('student_profiles(name)',sb.from('student_profiles').delete().ilike('name',name));
+    }
+    // 4. Account last
+    if(accId) await tryDel('student_accounts',sb.from('student_accounts').delete().eq('id',accId));
+    // Log any non-fatal errors to console
+    if(errs.length)console.warn('adminDeleteStudent partial errors:',errs);
+    // Remove from memory and close modals
     allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase()!==name.toLowerCase());
     _recentlyDeletedNames.add(name.toLowerCase().trim());
     document.getElementById('adminStudentProfileModal')?.classList.remove('open');
     document.getElementById('studentDetailModal')?.classList.remove('open');
-    showToast(`✅ ${name} permanently deleted from the system.`,'success');
+    const note=errs.length?' (some tables may need RLS fix — check console)':'';
+    showToast(`✅ ${name} deleted.`+(note),'success',5000);
     _adminStudentCtx=null;
     loadAllStudents();
   }catch(err){
-    console.error('Admin delete student:',err);
-    showToast('Delete failed: '+(err?.message||'unknown error'),'error');
+    console.error('adminDeleteStudent fatal:',err);
+    showToast('Delete failed: '+(err?.message||err),'error');
     if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   }
 }
