@@ -498,7 +498,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Admin Panel</div></div>
       <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
       <div class="ms-auto d-flex align-items-center gap-2">
-        <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span style="display:none" id="webBookingsBtnLabel">Web Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px">0</span></button>
+        <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
@@ -3095,7 +3095,7 @@ async function confirmCreateStudent(){
     const wbId=window._pendingWbId;
     window._pendingWbId=null;
     // Mark as assigned in waiting_list
-    sb.from('waiting_list').update({status:'assigned',assigned_instructor_id:instrId,assigned_at:new Date().toISOString()}).eq('id',wbId).then(()=>{loadWebBookingsBadge();}).catch(()=>{});
+    sb.from('waiting_list').update({status:'assigned'}).eq('id',wbId).then(()=>{loadWebBookingsBadge();}).catch(()=>{});
     // Show WhatsApp buttons for both student and instructor
     const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
@@ -5683,10 +5683,7 @@ function waitlistAssign(id,name,postcode,type,phone,notes){
   },300);
 }
 async function updateWaitlistStatus(id,status,instrId=null){
-  const update={status};
-  if(instrId)update.assigned_instructor_id=instrId;
-  if(status==='assigned')update.assigned_at=new Date().toISOString();
-  await sb.from('waiting_list').update(update).eq('id',id);
+  await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
   loadWaitlist();
 }
 
@@ -5694,12 +5691,10 @@ async function updateWaitlistStatus(id,status,instrId=null){
 let _webBookingsData=[];
 async function loadWebBookingsBadge(){
   try{
-    const{data}=await sb.from('waiting_list').select('id').eq('source','website').eq('status','waiting');
+    const{data}=await sb.from('waiting_list').select('id').ilike('notes','%[WEB]%').eq('status','waiting');
     const count=(data||[]).length;
     const badge=document.getElementById('webBookingsBadge');
-    const lbl=document.getElementById('webBookingsBtnLabel');
-    if(badge){badge.textContent=count;badge.style.display=count>0?'inline-block':'none';}
-    if(lbl){lbl.style.display=count>0?'inline':'none';}
+    if(badge){badge.textContent=count;badge.style.display=count>0?'inline-flex':'none';}
   }catch(e){}
 }
 async function openWebBookingsPanel(){
@@ -5711,7 +5706,7 @@ async function loadWebBookings(){
   if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   const statusF=document.getElementById('wbStatusFilter')?.value||'waiting';
-  let q=sb.from('waiting_list').select('*').eq('source','website').order('created_at',{ascending:false});
+  let q=sb.from('waiting_list').select('*').ilike('notes','%[WEB]%').order('created_at',{ascending:false});
   if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">'+error.message+'</div>';return;}
