@@ -673,6 +673,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <option value="never">❌ Never logged in</option>
         </select>
         <button class="btn-s" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
+        <button class="btn-s" style="font-size:.78rem;background:rgba(245,197,24,.1);border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openMergeModal()"><i class="bi bi-intersect me-1"></i>Merge Duplicates</button>
         <button class="btn-purple" style="font-size:.78rem" onclick="openBroadcastStudentsModal()"><i class="bi bi-megaphone-fill me-1"></i>Broadcast</button>
         <button class="btn-p" style="font-size:.78rem" onclick="openCreateStudentModal()"><i class="bi bi-person-plus-fill me-1"></i>Create Student</button>
       </div>
@@ -1416,6 +1417,16 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button onclick="saveAdminStudentNote()" class="abtn" style="margin-top:6px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:.8rem;cursor:pointer"><i class="bi bi-floppy me-1"></i>Save Note</button>
     </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
+  </div>
+</div>
+
+<!-- MERGE DUPLICATES MODAL -->
+<div class="dsq-overlay" id="mergeModal">
+  <div class="dsq-modal" style="max-width:600px">
+    <button class="modal-x" onclick="closeModal('mergeModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-intersect me-2" style="color:var(--gold)"></i>Merge Duplicate Students</h5>
+    <div class="modal-sub">Students sharing the same phone number — choose which profile to keep</div>
+    <div id="mergeModalBody" style="max-height:60vh;overflow-y:auto;margin-top:12px"></div>
   </div>
 </div>
 
@@ -3189,6 +3200,92 @@ async function loadStudentProgress(s){
     if(msgsBox)msgsBox.innerHTML='<div style="color:#f87171;font-size:.78rem;padding:8px">Could not load chat: '+esc(e.message)+'</div>';
     console.warn('student_messages not available:',e.message);
   }
+}
+
+/* ══ MERGE DUPLICATE STUDENTS ══ */
+function openMergeModal(){
+  const body=document.getElementById('mergeModalBody');
+  // Find duplicates by normalised phone
+  const byPhone={};
+  (allStudentsCache||[]).forEach(s=>{
+    const p=normalizePhone(s.phone||'');
+    if(!p)return;
+    if(!byPhone[p])byPhone[p]=[];
+    byPhone[p].push(s);
+  });
+  const dupes=Object.entries(byPhone).filter(([,arr])=>arr.length>1);
+  if(!dupes.length){
+    body.innerHTML='<div style="text-align:center;padding:24px;color:#4ade80"><i class="bi bi-check-circle-fill" style="font-size:1.4rem;display:block;margin-bottom:8px"></i>No duplicate phone numbers found — all students are unique!</div>';
+    openModal('mergeModal');
+    return;
+  }
+  body.innerHTML=dupes.map(([phone,students],gi)=>{
+    const rows=students.map((s,si)=>`
+      <div style="border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:flex-start;gap:10px;background:var(--dk3)">
+        <input type="radio" name="merge_keep_${gi}" value="${si}" style="margin-top:3px;accent-color:var(--gold)" ${si===0?'checked':''}>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:var(--txt);font-size:.85rem">${esc(s.name||'—')}</div>
+          <div style="font-size:.72rem;color:var(--txt3);margin-top:2px">
+            ${s.instrName?'<i class="bi bi-person-workspace me-1"></i>'+esc(s.instrName):'No instructor'} ·
+            ${s.count} lesson${s.count!==1?'s':''} ·
+            ${s.acctId?'<span style="color:#4ade80"><i class="bi bi-phone me-1"></i>On App</span>':'<span style="color:var(--txt4)">Roster only</span>'} ·
+            ${s.address?esc(s.address.slice(0,40)):'No address'}
+          </div>
+        </div>
+        <div style="font-size:.65rem;color:var(--txt4);white-space:nowrap">${s.lastLesson?'Last: '+fmtD(s.lastLesson):''}</div>
+      </div>`).join('');
+    return`<div style="margin-bottom:18px">
+      <div style="font-size:.72rem;font-family:'Oswald',sans-serif;color:var(--txt3);letter-spacing:.5px;margin-bottom:6px"><i class="bi bi-phone me-1"></i>${phone} — ${students.length} profiles</div>
+      ${rows}
+      <button onclick="mergeStudentGroup(${gi})" data-gi="${gi}" style="width:100%;margin-top:4px;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:7px;font-size:.8rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700"><i class="bi bi-arrow-through-heart me-1"></i>Keep Selected & Delete Other${students.length>2?'s':''}</button>
+    </div>`;
+  }).join('');
+  // Store dupe groups for access in merge function
+  window._mergeGroups=dupes.map(([,students])=>students);
+  openModal('mergeModal');
+}
+
+async function mergeStudentGroup(gi){
+  const students=window._mergeGroups[gi];
+  if(!students)return;
+  const radio=document.querySelector(`input[name="merge_keep_${gi}"]:checked`);
+  const keepIdx=radio?parseInt(radio.value):0;
+  const keep=students[keepIdx];
+  const discard=students.filter((_,i)=>i!==keepIdx);
+  const btn=document.querySelector(`button[data-gi="${gi}"]`);
+  if(btn){btn.disabled=true;btn.textContent='Merging…';}
+  const errs=[];
+  for(const d of discard){
+    // If discard has lessons, re-point them to the keeper's name
+    if(d.count>0&&keep.instrId&&d.instrId){
+      const{error}=await sb.from('lessons').update({student_name:keep.name,student_phone:keep.phone}).eq('instructor_id',d.instrId).ilike('student_name',d.name);
+      if(error)errs.push('lessons: '+error.message);
+    }
+    // Delete discard profile
+    if(d.rosterId){
+      const{error}=await sb.from('student_profiles').delete().eq('id',d.rosterId);
+      if(error)errs.push('profile: '+error.message);
+    }
+    if(d.acctId){
+      // Transfer messages to keeper account if keeper has an account
+      if(keep.acctId){
+        await sb.from('student_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId).catch(()=>{});
+        await sb.from('student_admin_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId).catch(()=>{});
+      }
+      const{error}=await sb.from('student_accounts').delete().eq('id',d.acctId);
+      if(error)errs.push('account: '+error.message);
+    }
+    // Remove from cache
+    allStudentsCache=(allStudentsCache||[]).filter(s=>s!==d);
+  }
+  if(errs.length){showToast('Merged with errors: '+errs.join(', '),'warn',7000);}
+  else{showToast('✅ Merged into '+keep.name,'success');}
+  // Remove the group from UI
+  if(btn)btn.closest('div[style*="margin-bottom:18px"]').remove();
+  if(document.getElementById('mergeModalBody').children.length===0){
+    document.getElementById('mergeModalBody').innerHTML='<div style="text-align:center;padding:20px;color:#4ade80"><i class="bi bi-check-circle-fill me-2"></i>All duplicates resolved!</div>';
+  }
+  renderStudentsTable(allStudentsCache);
 }
 
 function exportStudentsCSV(){
