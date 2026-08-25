@@ -2546,6 +2546,9 @@ async function adminDeleteStudent(skipConfirm){
     _recentlyDeletedNames.add(name.toLowerCase().trim());
     document.getElementById('adminStudentProfileModal')?.classList.remove('open');
     document.getElementById('studentDetailModal')?.classList.remove('open');
+    // Immediately decrement total student counter so the UI reflects the removal at once
+    const totEl=document.getElementById('sTotalStudents');
+    if(totEl){const cur=parseInt(totEl.textContent)||0;if(cur>0)totEl.textContent=cur-1;}
     const note=errs.length?' (some tables may need RLS fix — check console)':'';
     showToast(`✅ ${name} deleted.`+(note),'success',5000);
     _adminStudentCtx=null;
@@ -3058,7 +3061,7 @@ async function loadStudentProgress(s){
       </div>`).join('');
       msgsBox.scrollTop=msgsBox.scrollHeight;
     } else {
-      msgsBox.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:16px"><i class="bi bi-chat-dots me-1"></i>No messages yet between this instructor and student.</div>';
+      msgsBox.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:20px"><i class="bi bi-chat-dots me-2" style="font-size:1.1rem;opacity:.4"></i><br>No conversation yet — messages between the student and instructor will appear here.</div>';
     }
   }catch(e){
     const msgsBox=document.getElementById('sdMessages');
@@ -4739,15 +4742,21 @@ function _placeStuPin(s,coords){
   const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
   if(_mapShowStudents)marker.addTo(_adminMap);
   const waNum=buildWaNum(s.phone||'');
-  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+  // Store student in a lookup so the popup button can open their full detail
+  const _stuKey='_mapStu_'+(s.acctId||s.name||'').replace(/[^a-z0-9]/gi,'_');
+  window[_stuKey]=s;
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
     <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
-    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:6px">
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:8px">
       <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
       <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
       ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
       <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
     </div>
-    ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <button onclick="openStudentDetail(null,window['${_stuKey}']);if(_adminMap)_adminMap.closePopup()" style="width:100%;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="bi bi-person-lines-fill"></i> More Info (incl. Chat)</button>
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+s.name.split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. — DriveSQ Team 🚗')}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WhatsApp Student</a>`:''}
+    </div>
   </div>`);
   _studentMapMarkers.push(marker);
 }
