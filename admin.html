@@ -60,6 +60,29 @@ a{color:var(--red);text-decoration:none}
 .dsq-tab{background:transparent;border:none;color:var(--txt3);font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;padding:7px 10px;border-radius:7px;cursor:pointer;transition:all var(--trans);white-space:nowrap;display:flex;align-items:center;gap:4px;min-height:36px;flex-shrink:0}
 .dsq-tab.active{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(209,10,17,.3)}
 .dsq-tab:not(.active):hover{color:var(--txt);background:rgba(209,10,17,.06)}
+
+/* MOBILE BOTTOM TAB BAR */
+.mob-tab-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--dk2);border-top:1px solid var(--bdr);padding:4px 0 env(safe-area-inset-bottom,4px)}
+.mob-tab-bar-row{display:flex;justify-content:space-around;align-items:center}
+.mob-tab-btn{background:none;border:none;color:var(--txt3);font-size:.58rem;font-family:'Oswald',sans-serif;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 6px;cursor:pointer;min-width:48px;border-radius:8px;transition:color .15s}
+.mob-tab-btn i{font-size:1.15rem;line-height:1}
+.mob-tab-btn.active{color:var(--red)}
+.mob-tab-btn.active i{filter:drop-shadow(0 0 4px rgba(209,10,17,.5))}
+/* More panel */
+.mob-more-panel{display:none;position:fixed;bottom:56px;left:0;right:0;z-index:299;background:var(--dk2);border-top:1px solid var(--bdr);padding:10px 12px;max-height:60vh;overflow-y:auto}
+.mob-more-panel.open{display:block}
+.mob-more-group{margin-bottom:10px}
+.mob-more-label{font-size:.58rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;padding:0 2px}
+.mob-more-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mob-more-btn{background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;color:var(--txt2);font-size:.6rem;font-family:'Oswald',sans-serif;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;cursor:pointer;transition:background .15s}
+.mob-more-btn i{font-size:1.1rem;color:var(--txt3)}
+.mob-more-btn.active{background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:var(--red)}
+.mob-more-btn.active i{color:var(--red)}
+@media(max-width:767px){
+  .mob-tab-bar{display:block}
+  .dsq-tabs{display:none}
+  .container-fluid.px-3{padding-bottom:70px!important}
+}
 .tab-badge{background:rgba(245,197,24,.15);color:var(--gold);border-radius:8px;padding:1px 5px;font-size:.6rem;font-family:'Inter',sans-serif;font-weight:700}
 .dsq-tab.active .tab-badge{background:rgba(255,255,255,.25);color:#fff}
 
@@ -476,6 +499,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
   </div>
+
+  <!-- HIDDEN tabs not in main strip -->
+
 
   <!-- GLOBAL STATS -->
   <div class="row g-2 mb-3" id="globalStats">
@@ -3371,7 +3397,7 @@ async function findClosest(){
             <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
             <div class="d-flex gap-1">
               ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
-              <button class="abtn approve" onclick="openAssignModal('${r.instr.id}','${jsEsc(r.instr.full_name)}','${jsEsc(r.instr.phone||'')}')"><i class="bi bi-person-check me-1"></i>Assign</button>
+              <button class="abtn approve" onclick="openCreateAndAssign('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-person-plus me-1"></i>Create &amp; Assign</button>
             </div>
           </div>
         </div>
@@ -3416,6 +3442,36 @@ function haversine(lat1,lon1,lat2,lon2){
   const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+function openCreateAndAssign(instrId,instrName){
+  // Pre-fill Create Student modal with Find & Assign details then open it
+  const s=fcStudentData||{};
+  openCreateStudentModal();
+  setTimeout(()=>{
+    const nm=document.getElementById('cs-name');
+    const ph=document.getElementById('cs-phone');
+    const em=document.getElementById('cs-email');
+    const ad=document.getElementById('cs-addr');
+    const lt=document.getElementById('cs-type');
+    const nt=document.getElementById('cs-notes');
+    const sel=document.getElementById('cs-instr');
+    if(nm)nm.value=s.name||'';
+    if(ph)ph.value=s.phone||'';
+    if(em)em.value=s.email||'';
+    if(ad)ad.value=s.addr||'';
+    if(lt&&s.type)lt.value=s.type;
+    if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n');
+    if(sel){
+      const opt=[...sel.options].find(o=>o.value===instrId);
+      if(opt){sel.value=instrId;}
+      else{const o=document.createElement('option');o.value=instrId;o.textContent=instrName;sel.appendChild(o);sel.value=instrId;}
+    }
+    // Show a banner inside the modal so admin knows what they're doing
+    const msg=document.getElementById('createStudentMsg');
+    if(msg){msg.style.cssText='display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:8px 12px;font-size:.8rem;margin-bottom:10px';
+    msg.textContent='✅ Details pre-filled from Find & Assign — instructor set to '+instrName+'. Review and save to create the student.';}
+  },200);
+}
+
 function openAssignModal(instrId,instrName,instrPhone){
   document.getElementById('assign-instr-id').value=instrId;
   document.getElementById('assign-instr-name').value=instrName;
@@ -4154,7 +4210,20 @@ function runGlobalSearch(q){
   const lq=raw.toLowerCase();
   const digitQ=raw.replace(/\D/g,'');
   const instrHits=allInstrs.filter(i=>(i.full_name||'').toLowerCase().includes(lq)||(i.badge_number||'').toLowerCase().includes(lq)||(i.email||'').toLowerCase().includes(lq)||(i.area||'').toLowerCase().includes(lq)||(digitQ.length>=7&&(i.phone||'').replace(/\D/g,'').includes(digitQ))).slice(0,5);
-  const studHits=allStudentsCache.filter(s=>(s.name||'').toLowerCase().includes(lq)||(digitQ.length>=7&&(s.phone||'').replace(/\D/g,'').includes(digitQ))||(s.phone||'').includes(raw)||(s.address||'').toLowerCase().includes(lq)||(s.instrName||'').toLowerCase().includes(lq)).slice(0,5);
+  // Search across both caches for maximum coverage
+  const _allStuds=[...new Map([...(allStudentsCache||[]),...(_renderedStudents||[])].map(s=>[s.name,s])).values()];
+  const studHits=_allStuds.filter(s=>{
+    const nm=(s.name||'').toLowerCase();
+    const ph=(s.phone||'').replace(/\D/g,'');
+    const addr=(s.address||'').toLowerCase();
+    const inm=(s.instrName||'').toLowerCase();
+    if(nm.includes(lq))return true;
+    if(digitQ.length>=4&&ph.includes(digitQ))return true;
+    if((s.phone||'').includes(raw))return true;
+    if(addr.includes(lq))return true;
+    if(inm.includes(lq))return true;
+    return false;
+  }).slice(0,8);
   _gsItems=[];
   let html='';
   if(instrHits.length){
@@ -4189,7 +4258,10 @@ function gSearchSelect(idx){
   closeGlobalSearch();
   if(item.type==='instr'){viewInstr(item.id);}
   else if(item.type==='student'){
-    openAdminStudentProfile(item.data.name||'',item.data.phone||'',item.data.instrId||'');
+    // Try fast path via cached index first
+    const idx=(_renderedStudents||[]).findIndex(s=>s.name===item.data.name&&(s.instrId||'')===(item.data.instrId||''));
+    if(idx>=0){switchTab('students');setActiveTab('students');setTimeout(()=>openStudentDetail(idx),200);}
+    else{switchTab('students');setActiveTab('students');openAdminStudentProfile(item.data.name||'',item.data.phone||'',item.data.instrId||'');}
   }
 }
 function handleSearchKey(e){
@@ -4379,7 +4451,10 @@ function refreshMapStats(){
   const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const online=studs.filter(s=>s.isOnline).length+approved.filter(i=>i.last_seen&&i.last_seen>=fiveMinsAgo).length;
   document.getElementById('mapStatInstrs').textContent=approved.length;
-  document.getElementById('mapStatStudents').textContent=window._rosterCount!=null?window._rosterCount:studs.length;
+  // Use the accurate total from the dashboard stats card (sTotalStudents)
+  const dashTotal=document.getElementById('sTotalStudents')?.textContent;
+  const displayCount=dashTotal&&dashTotal!=='0'&&dashTotal!=='—'?dashTotal:(window._rosterCount!=null?window._rosterCount:studs.length||'N/A');
+  document.getElementById('mapStatStudents').textContent=displayCount;
   document.getElementById('mapStatAreas').textContent=areas.size;
   document.getElementById('mapStatOnline').textContent=online;
 }
@@ -5227,5 +5302,87 @@ function renderTheoryList(rows){
   <p class="sqw-founder">Crafted by <a href="https://www.linkedin.com/in/mohammed-qaim-abbas-58699b344" target="_blank" rel="nofollow noopener">Mohammed Qaim Abbas</a></p>
 </div>
 <!-- /SQWEBSITES-CREDIT-V2 -->
+
+<!-- MOBILE BOTTOM TAB BAR -->
+<div class="mob-tab-bar" id="mobTabBar">
+  <div class="mob-tab-bar-row">
+    <button class="mob-tab-btn active" id="mobt-dashboard" onclick="switchTab('dashboard');_mobSetActive('dashboard')"><i class="bi bi-speedometer2"></i>Home</button>
+    <button class="mob-tab-btn" id="mobt-instructors" onclick="switchTab('instructors');_mobSetActive('instructors')"><i class="bi bi-people-fill"></i>Instructors</button>
+    <button class="mob-tab-btn" id="mobt-students" onclick="switchTab('students');_mobSetActive('students')"><i class="bi bi-people"></i>Students</button>
+    <button class="mob-tab-btn" id="mobt-find" onclick="switchTab('find');_mobSetActive('find')"><i class="bi bi-geo-alt-fill"></i>Find</button>
+    <button class="mob-tab-btn" id="mobt-more" onclick="_mobToggleMore()"><i class="bi bi-grid-fill"></i>More</button>
+  </div>
+</div>
+
+<!-- MOBILE MORE PANEL -->
+<div class="mob-more-panel" id="mobMorePanel">
+  <div class="mob-more-group">
+    <div class="mob-more-label">Lessons & Finance</div>
+    <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-lessons" onclick="switchTab('lessons');_mobSetActive('lessons');_mobCloseMore()"><i class="bi bi-journal-text"></i>Lessons</button>
+      <button class="mob-more-btn" id="mmore-revenue" onclick="switchTab('revenue');_mobSetActive('revenue');_mobCloseMore()"><i class="bi bi-currency-pound"></i>Revenue</button>
+      <button class="mob-more-btn" id="mmore-calendar" onclick="switchTab('calendar');_mobSetActive('calendar');_mobCloseMore()"><i class="bi bi-calendar-week"></i>Calendar</button>
+      <button class="mob-more-btn" id="mmore-analytics" onclick="switchTab('analytics');_mobSetActive('analytics');_mobCloseMore()"><i class="bi bi-bar-chart-fill"></i>Analytics</button>
+    </div>
+  </div>
+  <div class="mob-more-group">
+    <div class="mob-more-label">Requests & Messages</div>
+    <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-requests" onclick="switchTab('requests');_mobSetActive('requests');_mobCloseMore()"><i class="bi bi-person-plus-fill"></i>Requests</button>
+      <button class="mob-more-btn" id="mmore-pending" onclick="switchTab('pending');_mobSetActive('pending');_mobCloseMore()"><i class="bi bi-hourglass-split"></i>Pending</button>
+      <button class="mob-more-btn" id="mmore-messages" onclick="switchTab('messages');_mobSetActive('messages');_mobCloseMore()"><i class="bi bi-chat-dots-fill"></i>Messages</button>
+      <button class="mob-more-btn" id="mmore-transfers" onclick="switchTab('transfers');_mobSetActive('transfers');_mobCloseMore()"><i class="bi bi-arrow-left-right"></i>Transfers</button>
+    </div>
+  </div>
+  <div class="mob-more-group">
+    <div class="mob-more-label">Tools</div>
+    <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-map" onclick="switchTab('map');_mobSetActive('map');_mobCloseMore()"><i class="bi bi-map-fill"></i>Map</button>
+      <button class="mob-more-btn" id="mmore-add" onclick="switchTab('add');_mobSetActive('add');_mobCloseMore()"><i class="bi bi-person-plus"></i>Add</button>
+      <button class="mob-more-btn" id="mmore-waitlist" onclick="switchTab('waitlist');_mobSetActive('waitlist');_mobCloseMore()"><i class="bi bi-person-lines-fill"></i>Waitlist</button>
+      <button class="mob-more-btn" id="mmore-availability" onclick="switchTab('availability');_mobSetActive('availability');_mobCloseMore()"><i class="bi bi-calendar-check"></i>Avail.</button>
+    </div>
+  </div>
+  <div class="mob-more-group">
+    <div class="mob-more-label">Admin</div>
+    <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-actions" onclick="switchTab('actions');_mobSetActive('actions');_mobCloseMore()"><i class="bi bi-lightning-fill"></i>Actions</button>
+      <button class="mob-more-btn" id="mmore-scorecard" onclick="switchTab('scorecard');_mobSetActive('scorecard');_mobCloseMore()"><i class="bi bi-trophy-fill"></i>Scores</button>
+      <button class="mob-more-btn" id="mmore-bulk" onclick="switchTab('bulk');_mobSetActive('bulk');_mobCloseMore()"><i class="bi bi-megaphone-fill"></i>Bulk</button>
+      <button class="mob-more-btn" id="mmore-notes" onclick="switchTab('notes');_mobSetActive('notes');_mobCloseMore()"><i class="bi bi-journal-text"></i>Notes</button>
+    </div>
+  </div>
+  <div class="mob-more-group">
+    <div class="mob-more-label">Other</div>
+    <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-feedback" onclick="switchTab('feedback');_mobSetActive('feedback');_mobCloseMore()"><i class="bi bi-star-fill"></i>Feedback</button>
+      <button class="mob-more-btn" id="mmore-activity" onclick="switchTab('activity');_mobSetActive('activity');_mobCloseMore()"><i class="bi bi-activity"></i>Activity</button>
+      <button class="mob-more-btn" id="mmore-progress-overview" onclick="switchTab('progress-overview');_mobSetActive('progress-overview');_mobCloseMore()"><i class="bi bi-graph-up"></i>Progress</button>
+    </div>
+  </div>
+</div>
+<script>
+function _mobSetActive(t){
+  document.querySelectorAll('.mob-tab-btn').forEach(b=>b.classList.remove('active'));
+  const mainBtn=document.getElementById('mobt-'+t);
+  if(mainBtn)mainBtn.classList.add('active');
+  else document.getElementById('mobt-more')?.classList.add('active');
+  document.querySelectorAll('.mob-more-btn').forEach(b=>b.classList.remove('active'));
+  const moreBtn=document.getElementById('mmore-'+t);
+  if(moreBtn)moreBtn.classList.add('active');
+}
+function _mobToggleMore(){
+  const p=document.getElementById('mobMorePanel');
+  p.classList.toggle('open');
+}
+function _mobCloseMore(){
+  document.getElementById('mobMorePanel')?.classList.remove('open');
+}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('mobMorePanel');
+  const b=document.getElementById('mobt-more');
+  if(p&&b&&p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
+});
+</script>
 </body>
 </html>
