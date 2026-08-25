@@ -487,6 +487,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
+    <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-revenue" onclick="switchTab('revenue')"><i class="bi bi-currency-pound"></i><span class="d-none d-sm-inline ms-1">Revenue</span></button>
@@ -494,7 +495,6 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
-    <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
@@ -2922,7 +2922,9 @@ async function loadStudentProgress(s){
   const theorySec=document.getElementById('sdTheorySection');
   const messagesSec=document.getElementById('sdMessagesSection');
   progSec.style.display='none';topicsSec.style.display='none';
-  testDatesSec.style.display='none';theorySec.style.display='none';messagesSec.style.display='none';
+  testDatesSec.style.display='none';theorySec.style.display='none';
+  // Messages section always visible — show loading state
+  if(messagesSec){messagesSec.style.display='';const b=document.getElementById('sdMessages');if(b)b.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:16px"><i class="bi bi-hourglass-split me-1"></i>Loading chat…</div>';}
   // First try direct acctId lookup (most reliable for admin-created students)
   let acct=null;
   if(s.acctId){
@@ -3445,6 +3447,8 @@ async function findClosest(){
   const notes=document.getElementById('fc-notes').value.trim();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
+  // Ensure student roster is loaded for postcode frequency analysis
+  if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
@@ -3483,10 +3487,30 @@ async function findClosest(){
         ?`<span class="chip Automatic" style="font-size:.6rem">Automatic</span>`
         :`<span class="chip Manual" style="font-size:.6rem">Manual</span>`;
     }
+    // Build postcode frequency map from student roster
+    // Extract outward code (first part) from a full UK postcode for area matching
+    function outwardCode(pc){return(pc||'').toUpperCase().trim().replace(/\s+/g,'').replace(/\d[A-Z]{2}$/,'').trim();}
+    const searchedOC=outwardCode(postcode); // e.g. "M14" from "M14 5TP"
+    // Count students per instructor that share the same outward postcode area
+    const instrAreaCount={}; // instrId -> {total, matching}
+    (allStudentsCache||[]).forEach(s=>{
+      if(!s.instrId)return;
+      const sPC=extractPostcode(s.address||'');
+      const sOC=outwardCode(sPC);
+      if(!instrAreaCount[s.instrId])instrAreaCount[s.instrId]={total:0,areaMatch:0,name:s.instrName||'',students:[]};
+      instrAreaCount[s.instrId].total++;
+      instrAreaCount[s.instrId].students.push(sOC);
+      if(searchedOC&&sOC===searchedOC)instrAreaCount[s.instrId].areaMatch++;
+    });
+
     function instrCardHtml(r,displayNum){
       const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
       const instrLT=r.instr.car_type||'Manual';
       const canTeach=instrCanTeach(instrLT,type);
+      const ic=instrAreaCount[r.instr.id]||{total:0,areaMatch:0,students:[]};
+      const areaNote=ic.areaMatch>0
+        ?`<div style="font-size:.68rem;color:var(--green,#4ade80);margin-top:3px;font-weight:600"><i class="bi bi-people-fill me-1"></i>This instructor has ${ic.areaMatch} student${ic.areaMatch!==1?'s':''} in ${searchedOC||'this area'}</div>`
+        :(ic.total>0?`<div style="font-size:.68rem;color:var(--txt4);margin-top:3px"><i class="bi bi-people me-1"></i>${ic.total} student${ic.total!==1?'s':''} on roster (none in ${searchedOC||'this area'})</div>`:'');
       return`<div class="dist-card mb-2"${!canTeach?' style="opacity:.65"':''}>
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
           <div class="d-flex align-items-center gap-3">
@@ -3498,6 +3522,7 @@ async function findClosest(){
               ${ltChipHtml(instrLT)}
               <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
               ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
+              ${areaNote}
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
@@ -3540,6 +3565,56 @@ async function findClosest(){
       <button class="btn-p" onclick="addToWaitlist()" style="background:#fbbf24;color:#000;border-color:#fbbf24;white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
     </div>`;
     if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
+
+    // ── POSTCODE DISTRIBUTION CHART ──────────────────────────────────────────
+    // Build: for each instructor in results, group their students by outward code
+    // and show a bar chart of top areas per instructor
+    const chartData=ranked.map(r=>{
+      const ic=instrAreaCount[r.instr.id]||{total:0,students:[]};
+      // Count occurrences of each outward code
+      const ocCount={};
+      (ic.students||[]).forEach(oc=>{if(oc)ocCount[oc]=(ocCount[oc]||0)+1;});
+      const sortedOC=Object.entries(ocCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      return{name:r.instr.full_name,total:ic.total,areas:sortedOC,id:r.instr.id};
+    }).filter(d=>d.total>0);
+
+    if(chartData.length){
+      const globalMax=Math.max(1,...chartData.flatMap(d=>d.areas.map(a=>a[1])));
+      const instrColors=['#D10A11','#F5C518','#25D366','#3b82f6','#a855f7','#f97316','#ec4899','#14b8a6'];
+      html+=`<div style="margin-top:20px;padding:16px;background:var(--dk2);border:1px solid var(--bdr);border-radius:12px">
+        <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;color:var(--txt);margin-bottom:4px"><i class="bi bi-bar-chart-fill me-2" style="color:var(--gold)"></i>Postcode Coverage by Instructor</div>
+        <div style="font-size:.7rem;color:var(--txt4);margin-bottom:14px">Top student postcode areas per instructor, from the full roster</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          ${chartData.map((d,ci)=>{
+            const color=instrColors[ci%instrColors.length];
+            return`<div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+                <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;color:var(--txt)">${esc(d.name)}</span>
+                <span style="font-size:.66rem;color:var(--txt4);margin-left:auto">${d.total} student${d.total!==1?'s':''} total</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${d.areas.map(([oc,cnt])=>{
+                  const pct=Math.round(cnt/globalMax*100);
+                  const isSearched=oc===searchedOC;
+                  return`<div style="display:flex;align-items:center;gap:6px">
+                    <div style="font-size:.65rem;color:${isSearched?color:'var(--txt3)'};font-weight:${isSearched?700:400};min-width:38px;text-align:right;font-family:'Oswald',sans-serif">${esc(oc)}</div>
+                    <div style="flex:1;background:var(--dk3);border-radius:4px;height:14px;overflow:hidden;position:relative">
+                      <div style="height:100%;border-radius:4px;background:${isSearched?color:color+'66'};width:${pct}%;transition:width .4s ease"></div>
+                      ${isSearched?`<div style="position:absolute;inset:0;border:1px solid ${color};border-radius:4px;pointer-events:none"></div>`:''}
+                    </div>
+                    <div style="font-size:.65rem;color:${isSearched?color:'var(--txt3)'};font-weight:${isSearched?700:400};min-width:18px">${cnt}</div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${searchedOC?`<div style="margin-top:12px;font-size:.68rem;color:var(--txt4)"><i class="bi bi-circle-fill me-1" style="color:var(--gold);font-size:.4rem;vertical-align:middle"></i>Highlighted bars = <strong style="color:var(--txt3)">${esc(searchedOC)}</strong> — the searched postcode area</div>`:''}
+      </div>`;
+    }
+    // ── END CHART ─────────────────────────────────────────────────────────────
+
     resultsEl.innerHTML=html;
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
   finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructor';btn.disabled=false;}
@@ -5145,6 +5220,8 @@ async function loadBulkList(){
   const target=document.getElementById('bulkTarget').value;
   document.getElementById('bulkList').innerHTML='<div style="color:var(--txt4);font-size:.8rem;padding:8px">Loading…</div>';
   if(target==='students'){
+    // Ensure roster is loaded before building the list
+    if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
     _bulkItems=(allStudentsCache||[]).filter(s=>s.acctId||s.phone).map(s=>({id:s.acctId,name:s.name,phone:s.phone,sub:s.instrName,type:'student',instrId:s.instrId}));
   } else {
     _bulkItems=(allInstrs||[]).filter(i=>i.status==='approved').map(i=>({id:i.id,name:i.full_name,phone:i.phone,sub:i.area||i.badge_number||'',type:'instructor'}));
