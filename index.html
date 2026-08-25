@@ -133,7 +133,10 @@ section { overflow:hidden; }
 .navbar.nav-light .ntag { color:#999; }
 .navbar.nav-light .nlogo { border-color:var(--red); }
 .navbar.nav-light .navbar-toggler-icon { filter:invert(1) grayscale(1) brightness(.4); }
-.nav-inner { padding:7px 0; }
+.nav-inner { padding:7px 0; transition:padding .3s ease; }
+.navbar.scrolled .nav-inner { padding:4px 0; }
+.navbar.scrolled .nlogo { width:38px; height:38px; transition:width .3s ease,height .3s ease; }
+.navbar.scrolled .nbrand { font-size:1.45rem; transition:font-size .3s ease; }
 .nlogo { width:44px; height:44px; border-radius:50%; border:2px solid var(--red); box-shadow:0 0 14px var(--red-glow); flex-shrink:0; transition:box-shadow var(--trans); }
 .nlogo:hover { box-shadow:0 0 26px rgba(209,10,17,.6); }
 .nbrand { font-family:'Oswald',sans-serif; font-size:1.65rem; font-weight:700; color:#fff; letter-spacing:1.5px; line-height:1; }
@@ -835,6 +838,64 @@ footer a:hover { color:#fff; }
 .fab-label { display:block; font-size:.54rem; color:rgba(255,255,255,.75); background:rgba(0,0,0,.72); padding:2px 7px; border-radius:4px; white-space:nowrap; font-weight:700; letter-spacing:.4px; text-align:center; margin-top:3px; font-family:'Inter',sans-serif; }
 @media(min-width:992px) { #wa-fab-btn { width:52px; height:52px; font-size:1.5rem; } #db-icon { width:52px; height:52px; } #db-icon img { width:35px; height:35px; } }
 
+/* ═══ SCROLL PROGRESS BAR ═══ */
+#scroll-progress {
+  position:fixed; top:0; left:0; height:3px; z-index:99999;
+  background:linear-gradient(90deg,var(--red),#ff4444,var(--gold));
+  width:0%; transition:width .1s linear;
+  pointer-events:none;
+}
+
+/* ═══ DROPDOWN POLISH ═══ */
+.dropdown-menu-dark .dropdown-item:hover {
+  background:rgba(209,10,17,.18) !important;
+  color:#fff !important;
+}
+.nav-item.dropdown .dropdown-toggle::after {
+  border:none;
+  content:'\F282';
+  font-family:'bootstrap-icons';
+  font-size:.62rem;
+  vertical-align:middle;
+  margin-left:2px;
+  opacity:.5;
+}
+
+/* ═══ ENHANCED SECTION TRANSITIONS ═══ */
+.reveal { opacity:0; transform:translateY(24px); transition:opacity .65s cubic-bezier(.4,0,.2,1),transform .65s cubic-bezier(.4,0,.2,1); }
+.reveal.visible { opacity:1; transform:translateY(0); }
+.reveal-left { opacity:0; transform:translateX(-24px); transition:opacity .65s cubic-bezier(.4,0,.2,1),transform .65s cubic-bezier(.4,0,.2,1); }
+.reveal-left.visible { opacity:1; transform:translateX(0); }
+.reveal-scale { opacity:0; transform:scale(.96); transition:opacity .6s cubic-bezier(.4,0,.2,1),transform .6s cubic-bezier(.4,0,.2,1); }
+.reveal-scale.visible { opacity:1; transform:scale(1); }
+
+/* ═══ NAV DROPDOWN ANIMATION ═══ */
+.dropdown-menu {
+  animation:dropIn .2s cubic-bezier(.4,0,.2,1) both;
+  transform-origin:top center;
+}
+@keyframes dropIn { from{opacity:0;transform:translateY(-6px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+/* ═══ SMOOTH SECTION SEPARATOR ═══ */
+.wave-sep {
+  overflow:hidden;
+  line-height:0;
+  margin-bottom:-1px;
+}
+.wave-sep svg { display:block; width:100%; }
+
+/* ═══ IMPROVED MOBILE NAV ═══ */
+@media(max-width:991px) {
+  .navbar-collapse { background:rgba(10,10,10,.98); border-radius:0 0 16px 16px; margin:0 -12px; padding:12px 16px 16px; border-top:1px solid #1e1e1e; }
+  .navbar-nav .nav-link { padding:.65rem .5rem !important; border-bottom:1px solid #1a1a1a; font-size:.9rem; }
+  .navbar-nav .nav-item:last-child .nav-link { border-bottom:none; }
+  .dropdown-menu { background:#0d0d0d !important; border-color:#222 !important; border-radius:8px !important; margin-left:12px; }
+}
+
+/* ═══ SECTION ACTIVE NAV HIGHLIGHT ═══ */
+.nav-link.active { color:#fff !important; }
+.nav-link.active::after { left:8px !important; right:8px !important; }
+
 /* ═══ RESPONSIVE ═══ */
 @media(max-width:768px) {
   .video-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -908,6 +969,7 @@ footer a:hover { color:#fff; }
   <div class="loader-text">DriveSQ</div>
 </div>
 
+<div id="scroll-progress" aria-hidden="true"></div>
 <a class="skip-link" href="#main">Skip to main content</a>
 
 <!-- ANNOUNCE BAR -->
@@ -934,14 +996,16 @@ footer a:hover { color:#fff; }
     <div class="collapse navbar-collapse" id="navLinks">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center" style="gap:2px">
         <li class="nav-item"><a class="nav-link" href="#reviews">Reviews</a></li>
-        <li class="nav-item"><a class="nav-link" href="#services">Pricing</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-right:.9rem!important">Courses</a>
+          <ul class="dropdown-menu dropdown-menu-dark" style="min-width:190px;background:#111;border:1px solid #2a2a2a;border-radius:10px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+            <li><a class="dropdown-item" href="#services" style="border-radius:7px;font-size:.84rem;color:#bbb;padding:8px 12px">💷 Pricing</a></li>
+            <li><a class="dropdown-item" href="#intensive" style="border-radius:7px;font-size:.84rem;color:#bbb;padding:8px 12px">⚡ Intensive Courses</a></li>
+            <li><a class="dropdown-item" href="#passplus" style="border-radius:7px;font-size:.84rem;color:#bbb;padding:8px 12px">🏆 Pass Plus</a></li>
+          </ul>
+        </li>
         <li class="nav-item"><a class="nav-link" href="#area-deals">Area Deals</a></li>
-        <li class="nav-item"><a class="nav-link" href="#intensive">Intensive</a></li>
-        <li class="nav-item"><a class="nav-link" href="#compare">Compare Us</a></li>
-        <li class="nav-item"><a class="nav-link" href="#passplus">Pass Plus</a></li>
         <li class="nav-item"><a class="nav-link" href="#areas">Areas</a></li>
-        <li class="nav-item"><a class="nav-link" href="#stockport">Stockport</a></li>
-        <li class="nav-item"><a class="nav-link" href="#manchester">Manchester</a></li>
         <li class="nav-item"><a class="nav-link" href="#faq">FAQs</a></li>
         <!-- STUDENT PORTAL — desktop: full button, mobile: icon -->
         <li class="nav-item ms-lg-2 d-none d-lg-flex align-items-center">
@@ -2334,6 +2398,33 @@ window.addEventListener('load', () => document.querySelector('.hero').classList.
 window.addEventListener('scroll', () => {
   document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
 }, { passive: true });
+
+/* ── SCROLL PROGRESS BAR ── */
+(function(){
+  const bar = document.getElementById('scroll-progress');
+  if(!bar) return;
+  window.addEventListener('scroll', () => {
+    const doc = document.documentElement;
+    const pct = (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100;
+    bar.style.width = Math.min(pct, 100) + '%';
+  }, { passive: true });
+})();
+
+/* ── ACTIVE NAV HIGHLIGHT ── */
+(function(){
+  const sections = document.querySelectorAll('section[id], header[id], div[id]');
+  const navLinks = document.querySelectorAll('.navbar-nav .nav-link[href^="#"]');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting){
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector('.navbar-nav .nav-link[href="#'+e.target.id+'"]');
+        if(active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+})();
 
 /* ── TYPING ── */
 (function() {
