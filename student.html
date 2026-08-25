@@ -470,11 +470,6 @@ input,textarea,select{font-size:16px!important}
         <i class="bi bi-person-plus me-2"></i>Create Account
       </button>
 
-      <div class="or-line">Not with DriveSQ yet?</div>
-      <button class="btn btn-outline-danger w-100 mb-3" style="min-height:46px;border-radius:12px" onclick="showView('bookingView')">
-        <i class="bi bi-calendar-plus me-2"></i>Book a Lesson
-      </button>
-
       <!-- Footer links -->
       <div style="text-align:center;padding-top:16px;border-top:1px solid var(--bdr)">
         <div style="font-size:.67rem;color:var(--txt4);margin-bottom:10px">📱 Works on any device — add to home screen for best experience</div>
@@ -563,42 +558,6 @@ input,textarea,select{font-size:16px!important}
     </div>
   </div>
 
-  <!-- ══════ BOOK A LESSON ══════ -->
-  <div class="auth-wrap hidden" id="bookingView" style="background:var(--blk);min-height:100vh;padding:0">
-    <div style="width:100%;max-width:440px;margin:0 auto;padding:40px 20px">
-      <div style="text-align:center;margin-bottom:22px">
-        <div style="display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:50%;background:rgba(209,10,17,.12);border:2px solid rgba(209,10,17,.3);margin-bottom:12px">
-          <i class="bi bi-calendar-plus-fill" style="font-size:1.6rem;color:var(--red)"></i>
-        </div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:700;color:var(--txt)">Book a Lesson</div>
-        <div style="font-size:.75rem;color:var(--txt3);margin-top:4px">Fill in your details — we'll match you with a nearby instructor</div>
-      </div>
-      <div class="card" style="border-radius:16px;border-color:var(--bdr);padding:22px">
-        <div class="alert alert-danger hidden" id="bookErr"></div>
-        <div class="alert alert-success hidden" id="bookSuccess"></div>
-        <div class="mb-3"><label class="form-label">Full Name <span class="req-mark">*</span></label><input class="form-control" id="bkName" placeholder="Jane Smith" autocomplete="name"/></div>
-        <div class="mb-3"><label class="form-label">Mobile Number <span class="req-mark">*</span></label><input class="form-control" id="bkPhone" type="tel" placeholder="07xxx xxx xxx" autocomplete="tel"/></div>
-        <div class="mb-3"><label class="form-label">Postcode <span class="req-mark">*</span></label><input class="form-control" id="bkPostcode" placeholder="M20 1AB" style="text-transform:uppercase" autocomplete="postal-code"/></div>
-        <div class="mb-3"><label class="form-label">Full Address</label><input class="form-control" id="bkAddr" placeholder="14 Oak Street, Manchester" autocomplete="street-address"/></div>
-        <div class="mb-3"><label class="form-label">Lesson Type</label>
-          <select class="form-control" id="bkType">
-            <option value="Manual">Manual</option>
-            <option value="Automatic">Automatic</option>
-            <option value="Intensive">Intensive Course</option>
-            <option value="Pass Plus">Pass Plus</option>
-          </select>
-        </div>
-        <div class="mb-3"><label class="form-label">When are you free? (days/times)</label><input class="form-control" id="bkAvail" placeholder="e.g. Weekday mornings, Saturday afternoons"/></div>
-        <div class="mb-4"><label class="form-label">Anything else we should know?</label><textarea class="form-control" id="bkNotes" rows="2" placeholder="e.g. nervous learner, previous experience…" style="resize:vertical"></textarea></div>
-        <button class="btn btn-danger w-100 mb-2" id="bookSubmitBtn" onclick="doBookingRequest()" style="min-height:50px;font-size:1rem;border-radius:12px">
-          <i class="bi bi-send-fill me-2"></i>Send Booking Request
-        </button>
-        <button class="btn btn-outline-secondary w-100" style="min-height:44px" onclick="showView('landingView')">
-          <i class="bi bi-arrow-left me-2"></i>Back
-        </button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -1229,45 +1188,9 @@ function normalizePhone(raw){
 
 /* ── AUTH ── */
 function showView(v){
-  ['landingView','loginView','registerView','bookingView'].forEach(id=>{
+  ['landingView','loginView','registerView'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.classList.toggle('hidden',id!==v);
   });
-}
-
-async function doBookingRequest(){
-  const name=document.getElementById('bkName').value.trim();
-  const phone=document.getElementById('bkPhone').value.trim();
-  const postcode=document.getElementById('bkPostcode').value.trim().toUpperCase();
-  const addr=document.getElementById('bkAddr').value.trim();
-  const type=document.getElementById('bkType').value;
-  const avail=document.getElementById('bkAvail').value.trim();
-  const notes=document.getElementById('bkNotes').value.trim();
-  const errEl=document.getElementById('bookErr');
-  const succEl=document.getElementById('bookSuccess');
-  errEl.classList.add('hidden');succEl.classList.add('hidden');
-  if(!name){errEl.textContent='Please enter your full name.';errEl.classList.remove('hidden');return;}
-  if(!phone){errEl.textContent='Please enter your mobile number.';errEl.classList.remove('hidden');return;}
-  if(!postcode){errEl.textContent='Please enter your postcode.';errEl.classList.remove('hidden');return;}
-  const btn=document.getElementById('bookSubmitBtn');
-  btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';btn.disabled=true;
-  try{
-    const fullNotes=[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null;
-    const{error}=await sb.from('waiting_list').insert([{
-      student_name:name,student_phone:normalizePhone(phone),
-      postcode,area:addr||null,lesson_type:type,
-      notes:fullNotes,status:'waiting',source:'website',
-      created_at:new Date().toISOString()
-    }]);
-    if(error)throw error;
-    succEl.innerHTML='<i class="bi bi-check-circle-fill me-2"></i><strong>Booking request sent!</strong> Our team will contact you shortly to confirm your instructor and first lesson.';
-    succEl.classList.remove('hidden');
-    ['bkName','bkPhone','bkPostcode','bkAddr','bkAvail','bkNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-    document.getElementById('bkType').value='Manual';
-  }catch(err){
-    errEl.textContent='Something went wrong: '+(err.message||'please try again.');errEl.classList.remove('hidden');
-  }finally{
-    btn.innerHTML='<i class="bi bi-send-fill me-2"></i>Send Booking Request';btn.disabled=false;
-  }
 }
 
 // Check if already logged in

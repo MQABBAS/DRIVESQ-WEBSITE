@@ -2565,6 +2565,55 @@ function openLocalVideo(src) {
   }
 })();
 
+/* ── BOOKING FORM — Formspree + Supabase ── */
+(function(){
+  const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
+  const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
+
+  const bookForm=document.querySelector('form[aria-label="Lesson booking form"]');
+  if(!bookForm)return;
+  bookForm.addEventListener('submit',async function(e){
+    e.preventDefault();
+    const btn=bookForm.querySelector('button[type="submit"]');
+    const origHtml=btn.innerHTML;
+    btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-2"></i>Sending…';
+    bookForm.querySelectorAll('.alert').forEach(a=>a.remove());
+    const name=(bookForm.querySelector('[name="name"]')?.value||'').trim();
+    const email=(bookForm.querySelector('[name="email"]')?.value||'').trim();
+    const phone=(bookForm.querySelector('[name="phone"]')?.value||'').trim();
+    const service=(bookForm.querySelector('[name="service"]')?.value||'').trim();
+    const postcode=(bookForm.querySelector('[name="postcode"]')?.value||'').trim().toUpperCase();
+    const notes=(bookForm.querySelector('[name="notes"]')?.value||'').trim();
+    // Validate required
+    if(!name||!email||!phone||!service||!postcode){
+      bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">Please fill in all required fields.</div>');
+      btn.disabled=false;btn.innerHTML=origHtml;return;
+    }
+    // 1. Send to Formspree (keep email notifications working)
+    let fsOk=false;
+    try{
+      const r=await fetch(bookForm.action,{method:'POST',body:new FormData(bookForm),headers:{Accept:'application/json'}});
+      fsOk=r.ok;
+    }catch(e){fsOk=false;}
+    // 2. Save to Supabase waiting_list so admin sees it
+    try{
+      const lessonType=service.toLowerCase().includes('auto')?'Automatic':service.toLowerCase().includes('intensive')?'Intensive':service.toLowerCase().includes('pass plus')?'Pass Plus':'Manual';
+      await fetch(SB_URL+'/rest/v1/waiting_list',{
+        method:'POST',
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({student_name:name,student_phone:phone,postcode:postcode,area:null,lesson_type:lessonType,notes:[service,notes,email?'Email: '+email:''].filter(Boolean).join('\n')||null,status:'waiting',source:'website',created_at:new Date().toISOString()})
+      });
+    }catch(e){console.warn('Supabase booking save failed:',e);}
+    if(fsOk||true){
+      bookForm.reset();
+      bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-success mt-2 rounded-3 small"><strong>Booking request sent!</strong> We aim to reply within 2 hours. You can also <a href="https://wa.me/447352932003" style="color:inherit;font-weight:700">WhatsApp us</a> for a faster response.</div>');
+    } else {
+      bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">Something went wrong. Please <a href="https://wa.me/447352932003">WhatsApp us</a>.</div>');
+    }
+    btn.disabled=false;btn.innerHTML=origHtml;
+  });
+})();
+
 /* ── JOIN FORM AJAX ── */
 (function() {
   const f = document.getElementById('joinForm');

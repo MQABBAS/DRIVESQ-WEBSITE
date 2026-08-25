@@ -3063,22 +3063,29 @@ async function confirmCreateStudent(){
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
   if(allStudentsCache.length)loadAllStudents();
-  // If this student was created from a website booking, mark it as assigned
+  // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
   if(window._pendingWbId&&instrId){
-    sb.from('waiting_list').update({status:'assigned',assigned_instructor_id:instrId,assigned_at:new Date().toISOString()}).eq('id',window._pendingWbId).then(()=>{
-      window._pendingWbId=null;
-      loadWebBookingsBadge();
-      // WhatsApp instructor
-      if(instrObj){
-        const instrWaNum=buildWaNum(instrObj.phone||'');
-        if(instrWaNum){
-          const instrMsg=`Hi ${instrObj.full_name}, DriveSQ admin has assigned you a new student from the website:\n\n👤 ${name}\n📞 ${phone||'N/A'}\n📍 ${addr||r?.postcode||'N/A'}\n🚗 ${lessonType||'Manual'}\n\nPlease contact them to arrange their first lesson.`;
-          setTimeout(()=>{
-            if(confirm('Open WhatsApp to notify the instructor?')){window.open(instrWaNum+'?text='+encodeURIComponent(instrMsg),'_blank');}
-          },500);
-        }
-      }
-    });
+    const wbId=window._pendingWbId;
+    window._pendingWbId=null;
+    // Mark as assigned in waiting_list
+    sb.from('waiting_list').update({status:'assigned',assigned_instructor_id:instrId,assigned_at:new Date().toISOString()}).eq('id',wbId).then(()=>{loadWebBookingsBadge();}).catch(()=>{});
+    // Show WhatsApp buttons for both student and instructor
+    const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
+    const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
+    const instrWaNum=instrObj?buildWaNum(instrObj.phone||''):'';
+    const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. They will be in touch shortly to arrange your first lesson. Welcome to DriveSQ! 🚗`;
+    const instrMsg=`Hi ${instrObj?.full_name||'there'}, DriveSQ admin has assigned you a new student from the website:\n\n👤 ${name}\n📞 ${phone||'N/A'}\n📍 ${addr||wbEntry.postcode||'N/A'}\n🚗 ${lessonType||'Manual'}\n\nPlease contact them to arrange their first lesson.`;
+    // Add WA buttons to the createStudentResult area
+    setTimeout(()=>{
+      const res=document.getElementById('createStudentResult');
+      if(!res)return;
+      let waHtml='<div style="margin-top:10px;display:flex;flex-direction:column;gap:7px">';
+      waHtml+='<div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:2px"><i class="bi bi-telephone-fill me-1"></i>Contact both parties now:</div>';
+      if(stuWaNum)waHtml+=`<a href="${stuWaNum}?text=${encodeURIComponent(stuMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Student: ${esc(name.split(' ')[0])}</a>`;
+      if(instrWaNum)waHtml+=`<a href="${instrWaNum}?text=${encodeURIComponent(instrMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Instructor: ${esc(instrObj?.full_name||'')}</a>`;
+      waHtml+='</div>';
+      res.insertAdjacentHTML('beforeend',waHtml);
+    },200);
   }
 }
 function showCreateStudentMsg(type,msg){
@@ -5720,7 +5727,7 @@ function renderWebBookings(){
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
       <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
-        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Create Student &amp; Assign</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Assign to Instructor</button>`:''}
         ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="wbMarkStatus(${r.id},'cancelled')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
     </div>`;
@@ -5750,7 +5757,7 @@ function openWbDetail(id){
       <i class="bi bi-telephone-fill" style="flex-shrink:0;margin-top:1px"></i>
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
     </div>`;
-  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Create Student &amp; Assign</button>`:'')
+  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Assign to Instructor</button>`:'')
     +(waNum?`<a href="${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
     +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="wbMarkStatus(${r.id},'cancelled');closeModal('wbDetailModal')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
@@ -5764,20 +5771,38 @@ async function openWbCreateStudent(wbId){
   const r=_webBookingsData.find(x=>x.id===wbId);
   if(!r){showToast('Booking not found','error');return;}
   closeModal('webBookingsModal');closeModal('wbDetailModal');
-  // Pre-fill Find tab and switch to it
-  switchTab('find');setActiveTab('find');
-  if(document.getElementById('fc-name'))document.getElementById('fc-name').value=r.student_name||'';
-  if(document.getElementById('fc-phone'))document.getElementById('fc-phone').value=r.student_phone||'';
-  if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode||'';
-  if(document.getElementById('fc-addr'))document.getElementById('fc-addr').value=r.area||'';
-  if(document.getElementById('fc-type'))document.getElementById('fc-type').value=r.lesson_type||'Manual';
-  // Auto-find closest instructor
-  setTimeout(()=>{
-    if(typeof findClosest==='function')findClosest();
-  },300);
-  // Store wbId for after instructor is assigned so we can mark as assigned
+  // Store wbId so confirmCreateStudent can mark it as assigned when done
   window._pendingWbId=wbId;
-  showToast(`📍 Finding nearest instructor for ${r.student_name}…`,'success');
+  // Open the standard Create Student modal pre-filled with booking details
+  openCreateStudentModal();
+  setTimeout(()=>{
+    const nm=document.getElementById('cs-name');if(nm)nm.value=r.student_name||'';
+    const ph=document.getElementById('cs-phone');if(ph)ph.value=r.student_phone||'';
+    const ad=document.getElementById('cs-addr');if(ad)ad.value=r.area||r.postcode||'';
+    const lt=document.getElementById('cs-type');if(lt)lt.value=r.lesson_type||'Manual';
+    const no=document.getElementById('cs-notes');if(no){
+      const existing=no.value?no.value+'\n':'';
+      no.value=existing+(r.notes||'')+(r.notes&&r.postcode?'\n':'')+(r.postcode?'Postcode: '+r.postcode:'');
+    }
+    // Also pre-fill Find tab in background so instructor search works
+    if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode||'';
+    if(document.getElementById('fc-type'))document.getElementById('fc-type').value=r.lesson_type||'Manual';
+    // Pre-run nearest instructor finder to populate cs-instr dropdown
+    if(r.postcode&&typeof findClosest==='function'){
+      if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode;
+      if(document.getElementById('fc-name'))document.getElementById('fc-name').value=r.student_name||'';
+      if(document.getElementById('fc-phone'))document.getElementById('fc-phone').value=r.student_phone||'';
+    }
+    // Show note about contacting student
+    const msgEl=document.getElementById('createStudentMsg');
+    if(msgEl){
+      msgEl.className='mb-2';
+      msgEl.style.cssText='background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.3);border-radius:8px;padding:9px 12px;font-size:.77rem;color:#fde68a';
+      msgEl.innerHTML='<i class="bi bi-telephone-fill me-2"></i><strong>Contact required:</strong> Once assigned, contact the student on <strong>'+(r.student_phone||'their number')+'</strong> to confirm their instructor and first lesson.';
+      msgEl.classList.remove('hidden');
+    }
+  },100);
+  showToast(`Assign ${r.student_name} to an instructor below`,'success');
 }
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
