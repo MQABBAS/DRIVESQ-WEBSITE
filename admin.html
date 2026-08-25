@@ -318,6 +318,48 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
 @media(max-width:575px){.hide-xs{display:none!important}}
 
+/* ══ MOBILE / TABLET RESPONSIVE IMPROVEMENTS ══ */
+
+/* Action button cells — allow wrapping on small screens */
+@media(max-width:767px){
+  td[style*="white-space:nowrap"],td.act-cell{white-space:normal!important}
+  .abtn{font-size:.58rem;padding:3px 6px;min-height:27px}
+  /* Stack stat cards smaller */
+  .stat-num{font-size:1.6rem}
+  /* Page title rows with buttons — stack vertically */
+  .d-flex.align-items-center.justify-content-between.flex-wrap{gap:8px!important}
+  /* sdActions in student detail — wrap */
+  #sdActions{display:flex;flex-wrap:wrap;gap:6px!important}
+  #sdActions a, #sdActions button{flex:1 1 calc(50% - 6px);min-width:120px;justify-content:center;font-size:.75rem!important}
+  /* Modal actions */
+  .dsq-modal .d-flex{flex-wrap:wrap}
+}
+@media(max-width:400px){
+  #sdActions a, #sdActions button{flex:1 1 100%}
+  .btn-p,.btn-s,.btn-gold,.btn-green,.btn-purple{font-size:.8rem;padding:.5rem .9rem}
+  .stat-num{font-size:1.4rem}
+}
+
+/* Tablet — keep tables scrollable, improve action cols */
+@media(min-width:576px) and (max-width:991px){
+  table{min-width:500px}
+  .abtn{font-size:.62rem;padding:3px 7px}
+  td[style*="white-space:nowrap"]{white-space:normal!important}
+}
+
+/* Ensure all table wrappers scroll horizontally */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+
+/* Instructor table action column — icon-only on small screens */
+@media(max-width:767px){
+  .abtn.view .me-1 ~ *:not(i), .abtn.students .me-1 ~ *:not(i){display:none}
+  /* Tab strip header buttons — smaller */
+  .btn-gold,.btn-s,.btn-purple{font-size:.75rem;padding:.45rem .85rem;min-height:34px}
+}
+
+/* Button label — hidden on xs, shown on sm+ */
+@media(max-width:575px){.btn-lbl-md{display:none!important}}
+
 /* ══ PAGE FADE-IN ══ */
 @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 #mainPage{animation:pageIn .35s ease both}
@@ -1881,9 +1923,9 @@ function renderInstrsTable(list){
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
       <td class="hide-xs">${utilGauge(weekHrs)}</td>
-      <td style="white-space:nowrap">
-        <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
-        <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
+      <td style="white-space:nowrap;min-width:0">
+        <button class="abtn view" onclick="viewInstr('${i.id}')" title="View schedule"><i class="bi bi-calendar-week me-1"></i><span class="btn-lbl-md">View</span></button>
+        <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Students"><i class="bi bi-people me-1"></i><span class="btn-lbl-md">Students</span></button>
         <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
         <button class="abtn msg" onclick="openMsgModal('${i.id}')"><i class="bi bi-envelope"></i></button>
         ${waBtn}
@@ -3009,7 +3051,9 @@ async function openStudentDetail(idx,_directData){
   requestAnimationFrame(()=>loadStudentProgress(s));
 }
 
+let _sdLoadToken=0; // increments each time we open a student — lets us abort stale loads
 async function loadStudentProgress(s){
+  const myToken=++_sdLoadToken; // capture this load's token
   const progSec=document.getElementById('sdProgressSection');
   const topicsSec=document.getElementById('sdTopicsSection');
   const testDatesSec=document.getElementById('sdTestDatesSection');
@@ -3128,11 +3172,8 @@ async function loadStudentProgress(s){
     const q1=sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(100);
     const{data:msgs1}=await q1;
     msgsData=msgs1||[];
-    // If no results and we have instrId, also try by instructor (catches unlinked sessions)
-    if(!msgsData.length&&_instrId){
-      const{data:msgs2}=await sb.from('student_messages').select('*').eq('instructor_id',_instrId).order('sent_at',{ascending:true}).limit(100);
-      msgsData=msgs2||[];
-    }
+    // NOTE: do NOT fall back to instructor-only query — it returns all students' messages for that instructor
+    if(myToken!==_sdLoadToken)return; // user opened a different student — discard stale results
     const msgsBox=document.getElementById('sdMessages');
     if(msgsData.length){
       msgsBox.innerHTML=msgsData.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
