@@ -805,7 +805,10 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           </div>
           <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="fc-avail" placeholder="e.g. Weekday mornings, Saturdays"/></div>
           <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
-          <button class="btn-p w-100" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-p" style="flex:1" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
+            <button class="btn-s" onclick="resetFindForm()" title="Reset form" style="flex-shrink:0;padding:8px 14px"><i class="bi bi-arrow-counterclockwise"></i></button>
+          </div>
         </div>
       </div>
       <div class="col-12 col-md-8">
@@ -1338,12 +1341,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="section-label"><i class="bi bi-book me-2" style="color:#a855f7"></i>Theory Progress &amp; Mock Tests</div>
       <div id="sdTheory"></div>
     </div>
-    <div class="mt-3" id="sdMessagesSection" style="display:none">
+    <div class="mt-3" id="sdMessagesSection">
       <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
         <span><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Chat History — Instructor ↔ Student</span>
         <button onclick="const m=document.getElementById('sdMessages');m.style.display=m.style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--bdr);border-radius:6px;color:var(--txt3);font-size:.7rem;padding:3px 8px;cursor:pointer"><i class="bi bi-eye me-1"></i>Toggle</button>
       </div>
-      <div id="sdMessages" style="max-height:320px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px"></div>
+      <div id="sdMessages" style="max-height:320px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;color:var(--txt4);font-size:.78rem;text-align:center"><i class="bi bi-hourglass-split me-1"></i>Loading chat…</div>
     </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
@@ -2298,6 +2301,9 @@ async function loadAllStudents(){
   window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
+  // Update total students stat card with real count
+  const sTotalEl=document.getElementById('sTotalStudents');
+  if(sTotalEl)sTotalEl.textContent=allStudentsCache.length||window._rosterCount||0;
 
   // Phase 2: enrich with lessons data (may be slower — re-render after)
   (lessonsR.data||[]).forEach(l=>{
@@ -2361,9 +2367,60 @@ function renderStudentsTable(students){
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+        <button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>
       </td>
     </tr>`;
   }).join('');
+}
+
+function quickDeleteStudent(idx){
+  const s=_renderedStudents[idx];if(!s)return;
+  if(!confirm(`Permanently delete "${s.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  adminDeleteStudent(true);
+}
+
+async function adminReassignStudent(idx){
+  const s=_renderedStudents[idx];if(!s)return;
+  // Build instructor picker
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  const opts=approved.map(i=>`<option value="${i.id}"${i.id===s.instrId?' selected':''}>${esc(i.full_name)}</option>`).join('');
+  const picked=await new Promise(resolve=>{
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML=`<div style="background:var(--dk1);border:1px solid var(--bdr);border-radius:16px;padding:24px;max-width:400px;width:100%">
+      <h5 style="font-family:Oswald,sans-serif;color:var(--txt);margin-bottom:16px"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold)"></i>Reassign — ${esc(s.name)}</h5>
+      <label class="dsq-lbl">New Instructor</label>
+      <select id="_reassignSel" class="dsq-inp mb-3">${opts}</select>
+      <div style="display:flex;gap:8px">
+        <button id="_reassignOk" class="btn-p" style="flex:1">Reassign</button>
+        <button id="_reassignCancel" class="btn-s" style="flex:1">Cancel</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#_reassignOk').onclick=()=>{const v=overlay.querySelector('#_reassignSel').value;document.body.removeChild(overlay);resolve(v||null);};
+    overlay.querySelector('#_reassignCancel').onclick=()=>{document.body.removeChild(overlay);resolve(null);};
+  });
+  if(!picked)return;
+  const newInstr=allInstrs.find(i=>i.id===picked);
+  if(!newInstr){showToast('Instructor not found.','error');return;}
+  // Update student_profiles row
+  const updates={instructor_id:picked};
+  let ok=false;
+  if(s.profileId){
+    const{error}=await sb.from('student_profiles').update(updates).eq('id',s.profileId);
+    ok=!error;
+  } else if(s.instrId){
+    const{error}=await sb.from('student_profiles').update(updates).eq('instructor_id',s.instrId).ilike('name',s.name);
+    ok=!error;
+  }
+  if(ok){
+    showToast(`✅ ${s.name} reassigned to ${newInstr.full_name}`,'success');
+    closeModal('studentDetailModal');
+    loadAllStudents();
+  } else {
+    showToast('Reassign failed — please try again.','error');
+  }
 }
 
 function filterStudentsByReg(registered){
@@ -2407,10 +2464,10 @@ function filterAllStudents(q){
 /* ══ ADMIN STUDENT PROFILE MODAL ══ */
 let _adminStudentCtx=null; // stores {accId, profileId, instrId, name} for delete action
 
-async function adminDeleteStudent(){
+async function adminDeleteStudent(skipConfirm){
   if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
   const{accId,profileId,instrId,name}=_adminStudentCtx;
-  if(!confirm(`⚠️ PERMANENTLY DELETE ${name}?\n\nThis will erase:\n• Student account & login\n• Roster profile\n• ALL lesson records\n• All messages, progress & feedback\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
+  if(!skipConfirm&&!confirm(`⚠️ PERMANENTLY DELETE ${name}?\n\nThis will erase:\n• Student account & login\n• Roster profile\n• ALL lesson records\n• All messages, progress & feedback\n\nThis CANNOT be undone. Are you absolutely sure?`))return;
   showToast('Deleting student from system…','warn');
   const btn=document.getElementById('adminDeleteStudentBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Deleting…';}
@@ -2444,7 +2501,9 @@ async function adminDeleteStudent(){
     if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
     // Remove from memory
     allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase()!==name.toLowerCase());
-    document.getElementById('adminStudentProfileModal').classList.remove('open');
+    _recentlyDeletedNames.add(name.toLowerCase().trim());
+    document.getElementById('adminStudentProfileModal')?.classList.remove('open');
+    document.getElementById('studentDetailModal')?.classList.remove('open');
     showToast(`✅ ${name} permanently deleted from the system.`,'success');
     _adminStudentCtx=null;
     loadAllStudents();
@@ -2805,7 +2864,8 @@ async function openStudentDetail(idx){
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
-    <button class="btn-p" onclick="closeModal('studentDetailModal');switchTab('find');setActiveTab('find');setTimeout(()=>{const fn=document.getElementById('fc-name');if(fn){fn.value='${jsEsc(s.name||'')}';fn.dispatchEvent(new Event('input'));}},500)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-geo-alt-fill me-1"></i>${s.instrId?'Reassign':'Assign'} to Instructor</button>`;
+    <button class="btn-p" onclick="adminReassignStudent(${idx})" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
+    <button class="abtn" onclick="quickDeleteStudent(${idx})" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
   document.getElementById('sdLessons').innerHTML=recentLessons.map(l=>`
@@ -2934,17 +2994,32 @@ async function loadStudentProgress(s){
   }catch(e){console.warn('student_theory_progress not available:',e.message);}
 
   try{
-    const _instrId=acct.instructor_id||instrId;
-    const{data:msgs}=await sb.from('student_messages').select('*').or('student_account_id.eq.'+acct.id+(_instrId?',instructor_id.eq.'+_instrId:'')).order('sent_at',{ascending:true}).limit(50);
-    if(msgs&&msgs.length){
-      messagesSec.style.display='';
-      document.getElementById('sdMessages').innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
-        <div style="display:inline-block;max-width:80%;background:${m.sender==='instructor'?'var(--dk2)':'rgba(209,10,17,.12)'};border:1px solid ${m.sender==='instructor'?'var(--bdr)':'rgba(209,10,17,.2)'};border-radius:10px;padding:7px 11px;font-size:.78rem;color:var(--txt2);text-align:left">${esc(m.message)}</div>
-        <div style="font-size:.6rem;color:var(--txt5);margin-top:2px">${m.sender==='instructor'?'Instructor':'Student'} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-      </div>`).join('');
-      document.getElementById('sdMessages').scrollTop=document.getElementById('sdMessages').scrollHeight;
+    const _instrId=s.instrId||null;
+    let msgsData=[];
+    // Try by account ID first (most reliable)
+    const q1=sb.from('student_messages').select('*').eq('student_account_id',acct.id).order('sent_at',{ascending:true}).limit(100);
+    const{data:msgs1}=await q1;
+    msgsData=msgs1||[];
+    // If no results and we have instrId, also try by instructor (catches unlinked sessions)
+    if(!msgsData.length&&_instrId){
+      const{data:msgs2}=await sb.from('student_messages').select('*').eq('instructor_id',_instrId).order('sent_at',{ascending:true}).limit(100);
+      msgsData=msgs2||[];
     }
-  }catch(e){console.warn('student_messages not available:',e.message);}
+    const msgsBox=document.getElementById('sdMessages');
+    if(msgsData.length){
+      msgsBox.innerHTML=msgsData.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
+        <div style="display:inline-block;max-width:80%;background:${m.sender==='instructor'?'var(--dk2)':'rgba(209,10,17,.12)'};border:1px solid ${m.sender==='instructor'?'var(--bdr)':'rgba(209,10,17,.2)'};border-radius:10px;padding:7px 11px;font-size:.78rem;color:var(--txt2);text-align:left">${esc(m.message)}</div>
+        <div style="font-size:.6rem;color:var(--txt5);margin-top:2px">${m.sender==='instructor'?'<i class="bi bi-person-workspace me-1"></i>Instructor':'<i class="bi bi-person me-1"></i>Student'} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`).join('');
+      msgsBox.scrollTop=msgsBox.scrollHeight;
+    } else {
+      msgsBox.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:16px"><i class="bi bi-chat-dots me-1"></i>No messages yet between this instructor and student.</div>';
+    }
+  }catch(e){
+    const msgsBox=document.getElementById('sdMessages');
+    if(msgsBox)msgsBox.innerHTML='<div style="color:#f87171;font-size:.78rem;padding:8px">Could not load chat: '+esc(e.message)+'</div>';
+    console.warn('student_messages not available:',e.message);
+  }
 }
 
 function exportStudentsCSV(){
@@ -3625,12 +3700,16 @@ async function confirmAssign(){
     }
   }
 
-  // Reset find form
+  resetFindForm(true);
+}
+function resetFindForm(afterAssign){
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const fr=document.getElementById('findResults');
-  if(fr)fr.innerHTML='<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>';
+  if(fr)fr.innerHTML=afterAssign
+    ?'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>'
+    :'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Enter student details and click Find to see nearby instructors ranked by distance.</div>';
   fcStudentData=null;
-  if(allStudentsCache.length)loadAllStudents();
+  if(afterAssign&&allStudentsCache.length)loadAllStudents();
 }
 
 /* ══ ANALYTICS ══ */
