@@ -1780,10 +1780,11 @@ async function loadInstrs(){
 async function loadGlobalStats(){
   const tk=todayKey();
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const[todayR,weekR,studR]=await Promise.all([
+  const[todayR,weekR,studR,rosterR]=await Promise.all([
     sb.from('lessons').select('id',{count:'exact',head:true}).eq('lesson_date',tk),
     sb.from('lessons').select('duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-    sb.from('student_accounts').select('id',{count:'exact',head:true})
+    sb.from('student_accounts').select('id',{count:'exact',head:true}),
+    sb.from('student_profiles').select('id',{count:'exact',head:true})
   ]);
   document.getElementById('sToday').textContent=todayR.count||0;
   const weekLessons=weekR.data||[];
@@ -1792,7 +1793,8 @@ async function loadGlobalStats(){
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
-  document.getElementById('sTotalStudents').textContent=studR.count||0;
+  // Use roster count (student_profiles) as the canonical total — includes students not yet on the app
+  document.getElementById('sTotalStudents').textContent=Math.max(rosterR.count||0,studR.count||0);
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
@@ -2301,9 +2303,9 @@ async function loadAllStudents(){
   window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
-  // Update total students stat card with real count
+  // Update total students stat card — prefer roster count from DB, fall back to cache
   const sTotalEl=document.getElementById('sTotalStudents');
-  if(sTotalEl)sTotalEl.textContent=allStudentsCache.length||window._rosterCount||0;
+  if(sTotalEl){const cur=parseInt(sTotalEl.textContent)||0;const calc=Math.max(cur,(rosterR.data||[]).length,(accountsR.data||[]).length,allStudentsCache.length);if(calc>0)sTotalEl.textContent=calc;}
 
   // Phase 2: enrich with lessons data (may be slower — re-render after)
   (lessonsR.data||[]).forEach(l=>{
@@ -2377,6 +2379,13 @@ function quickDeleteStudent(idx){
   const s=_renderedStudents[idx];if(!s)return;
   if(!confirm(`Permanently delete "${s.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
   _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  adminDeleteStudent(true);
+}
+
+function adminDeleteStudentFromDetail(){
+  // _adminStudentCtx is already set by openStudentDetail — no idx needed
+  if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
+  if(!confirm(`Permanently delete "${_adminStudentCtx.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
   adminDeleteStudent(true);
 }
 
@@ -2833,8 +2842,8 @@ function waInstructorNewStudent(){
 }
 
 let _renderedStudents=[];
-async function openStudentDetail(idx){
-  const s=_renderedStudents[idx];if(!s)return;
+async function openStudentDetail(idx,_directData){
+  const s=_directData||_renderedStudents[idx];if(!s)return;
   // Set delete context immediately from cached data — enables delete even before progress loads
   _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   const delBtn=document.getElementById('adminDeleteStudentBtn');
@@ -2865,7 +2874,7 @@ async function openStudentDetail(idx){
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(${idx})" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
-    <button class="abtn" onclick="quickDeleteStudent(${idx})" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
+    <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
   document.getElementById('sdLessons').innerHTML=recentLessons.map(l=>`
@@ -4337,10 +4346,24 @@ function gSearchSelect(idx){
   closeGlobalSearch();
   if(item.type==='instr'){viewInstr(item.id);}
   else if(item.type==='student'){
-    // Try fast path via cached index first
-    const idx=(_renderedStudents||[]).findIndex(s=>s.name===item.data.name&&(s.instrId||'')===(item.data.instrId||''));
-    if(idx>=0){switchTab('students');setActiveTab('students');setTimeout(()=>openStudentDetail(idx),200);}
-    else{switchTab('students');setActiveTab('students');openAdminStudentProfile(item.data.name||'',item.data.phone||'',item.data.instrId||'');}
+    const d=item.data;
+    // Build a minimal student object from search data — works even if _renderedStudents is stale/empty
+    const cached=(_renderedStudents||[]).find(s=>s.name===d.name&&(s.instrId||'')===(d.instrId||''))
+      ||(allStudentsCache||[]).find(s=>s.name===d.name&&(s.instrId||'')===(d.instrId||''));
+    if(cached){
+      openStudentDetail(null,cached);
+    } else {
+      // Build a synthetic student object from available search data
+      const synth={
+        name:d.name||'Unknown',phone:d.phone||'',address:d.address||'',
+        instrId:d.instrId||null,instrName:d.instrName||'—',
+        acctId:d.acctId||null,profileId:d.profileId||null,
+        count:0,hours:0,lessons:[],types:new Set(),
+        isOnline:false,onApp:false,testReadiness:null,mockScore:null,
+        lastSeen:null,lastLogin:null,lastLesson:null,targetHours:null
+      };
+      openStudentDetail(null,synth);
+    }
   }
 }
 function handleSearchKey(e){
@@ -4782,17 +4805,24 @@ async function toggleGuideMode(instrId, instrName){
 
 /* ══ WAITING LIST ══ */
 async function addToWaitlist(){
-  const s=fcStudentData||{};
-  if(!s.name){showToast('Search for a student first in Find & Assign.','warn');return;}
+  // Read directly from form fields (works before or after Find is clicked)
+  const name=(document.getElementById('fc-name')?.value||'').trim()||(fcStudentData?.name||'');
+  const phone=(document.getElementById('fc-phone')?.value||'').trim()||(fcStudentData?.phone||'');
+  const postcode=(document.getElementById('fc-postcode')?.value||'').trim().toUpperCase()||(fcStudentData?.postcode||'');
+  const addr=(document.getElementById('fc-addr')?.value||'').trim()||(fcStudentData?.addr||'');
+  const type=document.getElementById('fc-type')?.value||(fcStudentData?.type||'Manual');
+  const avail=(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||'');
+  const notes=(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'');
+  if(!name){showToast('Please enter a student name first.','warn');return;}
   const{error}=await sb.from('waiting_list').insert([{
-    student_name:s.name,student_phone:s.phone||null,
-    postcode:(s.postcode||'').toUpperCase()||null,
-    area:s.addr||null,lesson_type:s.type||'Manual',
-    notes:[s.notes,s.avail?'Availability: '+s.avail:''].filter(Boolean).join('\n')||null,
+    student_name:name,student_phone:phone||null,
+    postcode:postcode||null,
+    area:addr||null,lesson_type:type||'Manual',
+    notes:[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null,
     status:'waiting',created_at:new Date().toISOString()
   }]);
   if(error){showToast('Failed to add: '+error.message,'error');return;}
-  showToast(`✅ ${s.name} added to waiting list.`,'success');
+  showToast(`✅ ${name} added to waiting list.`,'success');
 }
 function openAddWaitlistModal(){
   ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
