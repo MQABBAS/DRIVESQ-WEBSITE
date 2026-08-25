@@ -768,7 +768,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
           <div class="mb-2"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="fc-email" type="email" placeholder="customer@email.com"/></div>
           <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="fc-addr" placeholder="Full street address"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')findClosest()"/></div>
           <div class="mb-2"><label class="dsq-lbl">Lesson Type <span class="req-mark">*</span></label>
             <select class="dsq-inp" id="fc-type">
               <option value="Manual">🔧 Manual</option>
@@ -1313,8 +1313,11 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div id="sdTheory"></div>
     </div>
     <div class="mt-3" id="sdMessagesSection" style="display:none">
-      <div class="section-label"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Conversation with Instructor</div>
-      <div id="sdMessages" style="max-height:280px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px"></div>
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Chat History — Instructor ↔ Student</span>
+        <button onclick="const m=document.getElementById('sdMessages');m.style.display=m.style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--bdr);border-radius:6px;color:var(--txt3);font-size:.7rem;padding:3px 8px;cursor:pointer"><i class="bi bi-eye me-1"></i>Toggle</button>
+      </div>
+      <div id="sdMessages" style="max-height:320px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px"></div>
     </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
@@ -2569,6 +2572,27 @@ async function openAdminStudentProfile(studentName,phone,instrId){
       </div>`).join('')}
     </div>`:'' }
 
+    <!-- Address -->
+    ${(acc?.address||profile?.address)?`
+    <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:700;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px"><i class="bi bi-geo-alt-fill me-1" style="color:var(--gold)"></i>Address / Location</div>
+      <div style="font-size:.82rem;color:var(--txt2)">${esc(acc?.address||profile?.address||'')}</div>
+      ${(acc?.address||profile?.address)?`<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(acc?.address||profile?.address||'')}" target="_blank" style="font-size:.75rem;color:#60a5fa;text-decoration:none"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>
+        <span style="font-size:.75rem;color:var(--txt4)">Postcode: ${extractPostcode(acc?.address||profile?.address||'')||'—'}</span>
+      </div>`:''}
+    </div>`:'' }
+
+    <!-- Chat History -->
+    ${msgCount>0?`
+    <div style="background:var(--dk3);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px" id="adminChatSection">
+      <div style="font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:700;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <span><i class="bi bi-chat-dots-fill me-1" style="color:#60a5fa"></i>Chat History (${msgCount} messages)</span>
+        <button onclick="loadAdminChatHistory('${acc?.id||''}','${profile?.instructor_id||instrId||''}')" style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);color:#60a5fa;border-radius:6px;padding:3px 10px;font-size:.72rem;cursor:pointer"><i class="bi bi-eye me-1"></i>View Chat</button>
+      </div>
+      <div id="adminChatMsgs" style="display:none;max-height:300px;overflow-y:auto;margin-top:8px"></div>
+    </div>`:'' }
+
     <!-- Admin Notes -->
     ${acc?`<div style="margin-bottom:4px">
       <div style="font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:700;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Admin Notes</div>
@@ -2577,6 +2601,24 @@ async function openAdminStudentProfile(studentName,phone,instrId){
     </div>`:''}
   `;
   content.innerHTML=html;
+}
+
+async function loadAdminChatHistory(acctId,instrId){
+  const box=document.getElementById('adminChatMsgs');if(!box)return;
+  box.style.display='block';
+  box.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:12px"><i class="bi bi-hourglass-split me-1"></i>Loading…</div>';
+  try{
+    let q=sb.from('student_messages').select('*').order('sent_at',{ascending:true}).limit(100);
+    if(acctId)q=q.eq('student_account_id',acctId);
+    else if(instrId)q=q.eq('instructor_id',instrId);
+    const{data:msgs}=await q;
+    if(!msgs||!msgs.length){box.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.8rem;padding:12px">No messages found.</div>';return;}
+    box.innerHTML=msgs.map(m=>`<div style="margin-bottom:8px;text-align:${m.sender==='instructor'?'left':'right'}">
+      <div style="display:inline-block;max-width:80%;background:${m.sender==='instructor'?'var(--dk2)':'rgba(209,10,17,.12)'};border:1px solid ${m.sender==='instructor'?'var(--bdr)':'rgba(209,10,17,.2)'};border-radius:10px;padding:7px 11px;font-size:.78rem;color:var(--txt2);text-align:left">${esc(m.message)}</div>
+      <div style="font-size:.6rem;color:var(--txt5);margin-top:2px">${m.sender==='instructor'?'Instructor':'Student'} · ${new Date(m.sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('');
+    box.scrollTop=box.scrollHeight;
+  }catch(e){box.innerHTML='<div style="color:#f87171;font-size:.78rem;padding:8px">Failed to load chat: '+esc(e.message)+'</div>';}
 }
 
 async function saveAdminStudentNotes(acctId){
@@ -2708,6 +2750,10 @@ function waInstructorNewStudent(){
 let _renderedStudents=[];
 async function openStudentDetail(idx){
   const s=_renderedStudents[idx];if(!s)return;
+  // Set delete context immediately from cached data — enables delete even before progress loads
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  const delBtn=document.getElementById('adminDeleteStudentBtn');
+  if(delBtn){delBtn.disabled=false;delBtn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   document.getElementById('sdTitle').textContent=s.name;
   const totalPaid=s.lessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sdSub').textContent=`${s.instrName} · ${s.count} lesson${s.count!==1?'s':''} · ${s.hours.toFixed(1)}h total${totalPaid?' · £'+totalPaid.toFixed(0)+' paid':''}`;
@@ -4487,11 +4533,19 @@ async function mapFindNearest(){
     const sIcon=L.divIcon({html:'<div style="background:#3b82f6;width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',iconSize:[20,20],iconAnchor:[10,10],className:''});
     _studentMarker=L.marker([lat,lng],{icon:sIcon}).addTo(_adminMap).bindPopup('<strong>Student location</strong><br>'+esc(addr)).openPopup();
     _adminMap.setView([lat,lng],13);
-    // Find nearest approved instructor
+    // Find nearest approved instructor using accurate geocoded coords
     const approved=(allInstrs||[]).filter(i=>i.status==='approved');
     if(!approved.length){res.innerHTML='<span style="color:var(--gold)">No approved instructors found.</span>';return;}
+    // Geocode each instructor the same way plotInstrMarkers does
+    const instrWithCoords=await Promise.all(approved.map(async i=>{
+      const pc=(i.postcode||'').trim()||extractPostcode(i.area||'');
+      let c=null;
+      if(pc)c=await geocodePostcode(pc);
+      if(!c)c=manchesterAreaCoords(i.area||'');
+      return{i,c};
+    }));
     let nearest=null,bestDist=Infinity;
-    approved.forEach(i=>{const c=manchesterAreaCoords(i.area||'');if(!c)return;const d2=Math.hypot(c[0]-lat,c[1]-lng);if(d2<bestDist){bestDist=d2;nearest=i;}});
+    instrWithCoords.forEach(({i,c})=>{if(!c)return;const d2=Math.hypot(c[0]-lat,c[1]-lng);if(d2<bestDist){bestDist=d2;nearest=i;}});
     if(nearest){
       const waNum=buildWaNum(nearest.phone||'');
       res.innerHTML=`<div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1rem;margin-bottom:4px">Nearest Instructor: <span style="color:#D10A11">${esc(nearest.full_name)}</span></div>
@@ -4684,7 +4738,7 @@ async function updateWaitlistStatus(id,status,instrId=null){
 }
 
 /* ══ INSTRUCTOR AVAILABILITY ══ */
-const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const AVAIL_DAYS_SHORT=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 async function loadAvailabilityView(){
   const el=document.getElementById('availGrid');
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
@@ -4713,7 +4767,7 @@ async function loadAvailabilityView(){
   let html=`<table style="width:100%;border-collapse:collapse;border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
     <thead><tr>
       <th style="${headStyle};text-align:left;min-width:120px">Instructor</th>
-      ${DAYS.map(d=>`<th style="${headStyle}">${d}</th>`).join('')}
+      ${AVAIL_DAYS_SHORT.map(d=>`<th style="${headStyle}">${d}</th>`).join('')}
     </tr></thead><tbody>`;
   approved.forEach(instr=>{
     const iav=avMap[instr.id]||{};

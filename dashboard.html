@@ -3202,7 +3202,13 @@ async function removeStudentFromRoster(){
     // 5. Delete the profile — this is the critical one
     const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',id);
     if(profDelErr)throw profDelErr;
-    // 6. Remove from in-memory arrays immediately so column refreshes at once
+    // 6. Leave an audit note in student_requests so admin can see this deletion
+    sb.from('student_requests').insert([{
+      instructor_id:instr.id,student_name:name,student_phone:null,
+      lesson_type:'Manual',notes:`⚠️ Deleted by instructor ${instr.full_name} on ${new Date().toLocaleDateString('en-GB')}`,
+      status:'deleted_by_instructor',created_at:new Date().toISOString()
+    }]).catch(()=>{});
+    // 7. Remove from in-memory arrays immediately so column refreshes at once
     const nk=name.toLowerCase().trim();
     allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
     delete rosterMap[nk];
