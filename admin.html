@@ -415,6 +415,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 .map-filter-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:20px;padding:5px 13px;font-family:'Oswald',sans-serif;font-size:.74rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;}
 .map-filter-btn.active{background:var(--dk3);border-color:var(--red);color:var(--txt);}
 .map-filter-btn:hover{border-color:var(--red);}
+/* Map fullscreen */
+#adminMapWrap.map-fullscreen{position:fixed!important;inset:0;z-index:9999;background:var(--bg);padding:0;margin:0;border-radius:0}
+#adminMapWrap.map-fullscreen #adminMapEl{height:100vh!important;border-radius:0!important;border:none!important}
 .map-stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center;}
 .map-stat-val{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--txt);line-height:1;}
 .map-stat-lbl{font-size:.68rem;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
@@ -947,6 +950,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button id="mapFilterInstrs" class="map-filter-btn active" onclick="toggleMapFilter('instructors')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:5px"></span>Instructors</button>
       <button id="mapFilterStudents" class="map-filter-btn active" onclick="toggleMapFilter('students')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Students</button>
       <button class="btn-s" onclick="mapReset()" style="font-size:.72rem;padding:5px 10px"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+      <button class="btn-s" id="mapFullscreenBtn" onclick="toggleMapFullscreen()" style="font-size:.72rem;padding:5px 10px" title="Fullscreen map"><i class="bi bi-fullscreen" id="mapFullscreenIcon"></i></button>
     </div>
   </div>
 
@@ -966,7 +970,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="mapNearestResult" style="display:none;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:.82rem"></div>
 
   <!-- Map -->
-  <div id="adminMapEl" style="height:540px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+  <div id="adminMapWrap" style="position:relative">
+    <div id="adminMapEl" style="height:540px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+  </div>
 
   <!-- Legend -->
   <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:14px;font-size:.72rem;color:var(--txt3)">
@@ -1718,7 +1724,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes','actions','scorecard','bulk','progress-overview','waitlist','availability'];
+const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2393,7 +2399,7 @@ function renderStudentsTable(students){
 function quickDeleteStudent(idx){
   const s=_renderedStudents[idx];if(!s)return;
   if(!confirm(`Permanently delete "${s.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
-  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   adminDeleteStudent(true);
 }
 
@@ -2873,7 +2879,7 @@ let _renderedStudents=[];
 async function openStudentDetail(idx,_directData){
   const s=_directData||_renderedStudents[idx];if(!s)return;
   // Set delete context immediately from cached data — enables delete even before progress loads
-  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   const delBtn=document.getElementById('adminDeleteStudentBtn');
   if(delBtn){delBtn.disabled=false;delBtn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   document.getElementById('sdTitle').textContent=s.name;
@@ -2948,7 +2954,7 @@ async function loadStudentProgress(s){
   }
   if(!acct)return;
   const[progR,topicsR]=await Promise.all([
-    sb.from('student_progress').select('*').eq('student_id',acct.id).maybeSingle(),
+    sb.from('student_progress').select('*').eq('student_account_id',acct.id).maybeSingle(),
     sb.from('student_topic_ratings').select('*').eq('student_id',acct.id).order('topic_name',{ascending:true})
   ]);
   if(progR.data){
@@ -4326,7 +4332,7 @@ async function executeBroadcast(){
   let sent=0,failed=0;
   for(let i=0;i<accts.length;i+=50){
     const batch=accts.slice(i,i+50).map(a=>({student_account_id:a.id,subject,body,is_read:false,created_at:now}));
-    const{error}=await sb.from('student_admin_messages').insert(batch).then?sb.from('student_admin_messages').insert(batch):await sb.from('student_admin_messages').insert(batch);
+    const{error}=await sb.from('student_admin_messages').insert(batch);
     if(error){
       // Try admin_messages table with a note
       failed+=batch.length;
@@ -4859,6 +4865,24 @@ function mapReset(){
   const inp=document.getElementById('mapStudentAddr');if(inp)inp.value='';
   if(_adminMap)_adminMap.setView([53.483,-2.244],11);
 }
+let _mapIsFullscreen=false;
+function toggleMapFullscreen(){
+  const wrap=document.getElementById('adminMapWrap');
+  const icon=document.getElementById('mapFullscreenIcon');
+  if(!wrap)return;
+  _mapIsFullscreen=!_mapIsFullscreen;
+  wrap.classList.toggle('map-fullscreen',_mapIsFullscreen);
+  if(icon){icon.className=_mapIsFullscreen?'bi bi-fullscreen-exit':'bi bi-fullscreen';}
+  // Invalidate Leaflet size after transition
+  setTimeout(()=>{if(_adminMap)_adminMap.invalidateSize();},50);
+  // Escape key exits fullscreen
+  if(_mapIsFullscreen){
+    document.addEventListener('keydown',_mapEscHandler);
+  } else {
+    document.removeEventListener('keydown',_mapEscHandler);
+  }
+}
+function _mapEscHandler(e){if(e.key==='Escape'&&_mapIsFullscreen)toggleMapFullscreen();}
 
 /* ══ INSTRUCTOR STUDENT DRILL-DOWN ══ */
 async function showInstrStudents(instrId, instrName){
