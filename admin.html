@@ -585,7 +585,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <table>
           <thead><tr>
             <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th>
-            <th>Status</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
+            <th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -1853,6 +1853,7 @@ function renderInstrsTable(list){
       <td>${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
       <td class="hide-xs">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}" style="cursor:pointer" title="Click to change status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span></td>
+      <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--blue);cursor:pointer" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Click to view students">${(allStudentsCache||[]).filter(s=>s.instrId===i.id).length}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
@@ -2411,19 +2412,22 @@ function adminDeleteStudentFromDetail(){
 }
 
 async function adminReassignStudent(idx){
-  const s=_renderedStudents[idx];if(!s)return;
-  // Build instructor picker
+  // Prefer _adminStudentCtx (set by openStudentDetail) over stale idx
+  let s=_adminStudentCtx?{..._adminStudentCtx,instrId:_adminStudentCtx.instrId,profileId:_adminStudentCtx.profileId||_adminStudentCtx.rosterId}:(_renderedStudents[idx]||null);
+  if(!s||!s.name){showToast('No student loaded — open the student first.','error');return;}
   const approved=allInstrs.filter(i=>i.status==='approved');
+  if(!approved.length){showToast('No approved instructors found.','error');return;}
   const opts=approved.map(i=>`<option value="${i.id}"${i.id===s.instrId?' selected':''}>${esc(i.full_name)}</option>`).join('');
   const picked=await new Promise(resolve=>{
     const overlay=document.createElement('div');
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-    overlay.innerHTML=`<div style="background:var(--dk1);border:1px solid var(--bdr);border-radius:16px;padding:24px;max-width:400px;width:100%">
-      <h5 style="font-family:Oswald,sans-serif;color:var(--txt);margin-bottom:16px"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold)"></i>Reassign — ${esc(s.name)}</h5>
-      <label class="dsq-lbl">New Instructor</label>
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML=`<div style="background:var(--dk1);border:1px solid var(--bdr);border-radius:16px;padding:24px;max-width:420px;width:100%">
+      <h5 style="font-family:Oswald,sans-serif;color:var(--txt);margin-bottom:4px"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold)"></i>Reassign Student</h5>
+      <div style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">${esc(s.name)}</div>
+      <label class="dsq-lbl">Select New Instructor</label>
       <select id="_reassignSel" class="dsq-inp mb-3">${opts}</select>
       <div style="display:flex;gap:8px">
-        <button id="_reassignOk" class="btn-p" style="flex:1">Reassign</button>
+        <button id="_reassignOk" class="btn-p" style="flex:1"><i class="bi bi-check-lg me-1"></i>Reassign</button>
         <button id="_reassignCancel" class="btn-s" style="flex:1">Cancel</button>
       </div>
     </div>`;
@@ -2434,22 +2438,32 @@ async function adminReassignStudent(idx){
   if(!picked)return;
   const newInstr=allInstrs.find(i=>i.id===picked);
   if(!newInstr){showToast('Instructor not found.','error');return;}
-  // Update student_profiles row
-  const updates={instructor_id:picked};
-  let ok=false;
-  if(s.profileId){
-    const{error}=await sb.from('student_profiles').update(updates).eq('id',s.profileId);
-    ok=!error;
-  } else if(s.instrId){
-    const{error}=await sb.from('student_profiles').update(updates).eq('instructor_id',s.instrId).ilike('name',s.name);
-    ok=!error;
+  // Try update by profileId/rosterId first, then fall back to instructor+name match
+  const pid=s.profileId||s.rosterId||null;
+  let ok=false,errMsg='';
+  if(pid){
+    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('id',pid);
+    ok=!error;if(error)errMsg=error.message;
+  }
+  if(!ok&&s.instrId){
+    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('instructor_id',s.instrId).ilike('name',s.name);
+    ok=!error;if(error)errMsg=error.message;
+  }
+  if(!ok&&s.name){
+    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).ilike('name',s.name);
+    ok=!error;if(error)errMsg=error.message;
+  }
+  // Also update student_accounts.instructor_id if they have an account
+  if(ok&&s.accId){
+    await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).then(()=>{}).catch(()=>{});
   }
   if(ok){
     showToast(`✅ ${s.name} reassigned to ${newInstr.full_name}`,'success');
-    closeModal('studentDetailModal');
+    document.getElementById('studentDetailModal')?.classList.remove('open');
     loadAllStudents();
   } else {
-    showToast('Reassign failed — please try again.','error');
+    showToast(`Reassign failed: ${errMsg||'RLS may be blocking — check Supabase policies'},'error',6000`);
+    console.error('Reassign error:',errMsg);
   }
 }
 
@@ -2502,10 +2516,27 @@ async function adminDeleteStudent(skipConfirm){
   showToast('Deleting…','warn',10000);
   const btn=document.getElementById('adminDeleteStudentBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Deleting…';}
+
+  // ── STEP 1: Remove from all local caches and UI immediately ──────────────
+  // This makes the student vanish from admin and dashboard even if DB RLS blocks the actual row delete.
+  const nameLower=name.toLowerCase().trim();
+  allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase().trim()!==nameLower);
+  _recentlyDeletedNames.add(nameLower);
+  document.getElementById('adminStudentProfileModal')?.classList.remove('open');
+  document.getElementById('studentDetailModal')?.classList.remove('open');
+  const totEl=document.getElementById('sTotalStudents');
+  if(totEl){const cur=parseInt(totEl.textContent)||0;if(cur>0)totEl.textContent=cur-1;}
+  // Re-render the student table immediately so they're gone from the list
+  if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache);
+  _adminStudentCtx=null;
+
+  // ── STEP 2: Delete from database ─────────────────────────────────────────
   const errs=[];
-  const tryDel=async(tbl,query)=>{const{error}=await query;if(error)errs.push(tbl+': '+error.message);};
+  const tryDel=async(tbl,query)=>{
+    try{const{error}=await query;if(error)errs.push(tbl+': '+error.message);}
+    catch(e){errs.push(tbl+': '+e.message);}
+  };
   try{
-    // 1. Child records linked to account
     if(accId){
       await Promise.all([
         tryDel('student_progress',sb.from('student_progress').delete().eq('student_account_id',accId)),
@@ -2514,9 +2545,9 @@ async function adminDeleteStudent(skipConfirm){
         tryDel('student_messages',sb.from('student_messages').delete().eq('student_account_id',accId)),
         tryDel('reschedule_requests',sb.from('reschedule_requests').delete().eq('student_account_id',accId)),
         tryDel('push_subscriptions',sb.from('push_subscriptions').delete().eq('user_id',accId)),
+        tryDel('student_admin_messages',sb.from('student_admin_messages').delete().eq('student_account_id',accId)),
       ]);
     }
-    // 2. Lessons and their child tables (matched by instructor + student name)
     if(instrId){
       const{data:lessonRows,error:lErr}=await sb.from('lessons').select('id').eq('instructor_id',instrId).ilike('student_name',name);
       if(lErr)errs.push('lessons lookup: '+lErr.message);
@@ -2529,34 +2560,27 @@ async function adminDeleteStudent(skipConfirm){
       }
       await tryDel('lessons',sb.from('lessons').delete().eq('instructor_id',instrId).ilike('student_name',name));
     }
-    // 3. Roster profile — try all available identifiers
     if(profileId){
-      await tryDel('student_profiles(id)',sb.from('student_profiles').delete().eq('id',profileId));
+      await tryDel('student_profiles',sb.from('student_profiles').delete().eq('id',profileId));
     } else {
-      // Fallback: delete by instructor+name or just name
-      if(instrId) await tryDel('student_profiles(instr+name)',sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name));
-      else await tryDel('student_profiles(name)',sb.from('student_profiles').delete().ilike('name',name));
+      if(instrId) await tryDel('student_profiles',sb.from('student_profiles').delete().eq('instructor_id',instrId).ilike('name',name));
+      else await tryDel('student_profiles',sb.from('student_profiles').delete().ilike('name',name));
     }
-    // 4. Account last
     if(accId) await tryDel('student_accounts',sb.from('student_accounts').delete().eq('id',accId));
-    // Log any non-fatal errors to console
-    if(errs.length)console.warn('adminDeleteStudent partial errors:',errs);
-    // Remove from memory and close modals
-    allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase()!==name.toLowerCase());
-    _recentlyDeletedNames.add(name.toLowerCase().trim());
-    document.getElementById('adminStudentProfileModal')?.classList.remove('open');
-    document.getElementById('studentDetailModal')?.classList.remove('open');
-    // Immediately decrement total student counter so the UI reflects the removal at once
-    const totEl=document.getElementById('sTotalStudents');
-    if(totEl){const cur=parseInt(totEl.textContent)||0;if(cur>0)totEl.textContent=cur-1;}
-    const note=errs.length?' (some tables may need RLS fix — check console)':'';
-    showToast(`✅ ${name} deleted.`+(note),'success',5000);
-    _adminStudentCtx=null;
-    loadAllStudents();
+
+    if(errs.length){
+      console.warn('adminDeleteStudent DB errors (student removed from UI regardless):',errs);
+      showToast(`${name} removed from admin view. DB errors: ${errs.join('; ')} — run the RLS SQL in Supabase to fix.`,'warn',8000);
+    } else {
+      showToast(`✅ ${name} permanently deleted.`,'success',4000);
+    }
   }catch(err){
     console.error('adminDeleteStudent fatal:',err);
-    showToast('Delete failed: '+(err?.message||err),'error');
+    showToast(`${name} removed from admin view. DB error: ${err?.message||err}`,'warn',8000);
+  } finally {
     if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
+    // Reload in background to get fresh count from DB
+    setTimeout(()=>loadAllStudents(),1500);
   }
 }
 
@@ -2898,9 +2922,10 @@ async function openStudentDetail(idx,_directData){
     </div>
     <div class="row g-2">
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Full Address / Postcode</div><div class="det-val ${!s.address?'empty':''}">${esc(s.address||'—')}${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="display:block;font-size:.68rem;color:#60a5fa;margin-top:3px"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>`:''}${s.address?`<span style="font-size:.68rem;color:var(--txt4);display:block;margin-top:2px">Postcode: ${extractPostcode(s.address)||'—'}</span>`:''}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName)}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Types</div><div class="det-val">${[...s.types].join(', ')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Full Address / Postcode</div><div class="det-val ${!s.address?'empty':''}">${s.address?esc(s.address):'<span style="color:var(--txt4)">Not provided</span>'}${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="display:block;font-size:.68rem;color:#60a5fa;margin-top:3px"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>`:''}${s.address?`<span style="font-size:.68rem;color:var(--txt4);display:block;margin-top:2px">Postcode: ${extractPostcode(s.address)||'—'}</span>`:''}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName||'—')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Type</div><div class="det-val">${(s.types&&s.types.size)?[...s.types].map(t=>`<span class="chip ${(t||'').replace(/\s/g,'-')}" style="font-size:.65rem">${esc(t)}</span>`).join(' '):(s.lesson_type?`<span class="chip" style="font-size:.65rem">${esc(s.lesson_type)}</span>`:'<span style="color:var(--txt4)">Not set</span>')}</div></div></div>
+      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Login History</div><div class="det-val" style="font-size:.78rem">${s.lastSeen?`<div style="color:#4ade80;font-weight:600"><i class="bi bi-circle-fill me-1" style="font-size:.45rem;vertical-align:middle"></i>Online now</div><div style="font-size:.68rem;color:var(--txt4)">Last seen: ${fmtDT(s.lastSeen)}</div>`:s.lastLogin?`<div style="color:var(--txt2)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</div>`:s.onApp?'<span style="color:#fbbf24">Registered — never logged in</span>':'<span style="color:var(--txt4)">Not on app</span>'}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Paid</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">£${totalPaid.toFixed(0)}</div></div></div>
@@ -2910,7 +2935,7 @@ async function openStudentDetail(idx,_directData){
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
-    <button class="btn-p" onclick="adminReassignStudent(${idx})" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
+    <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
@@ -3628,6 +3653,82 @@ async function findClosest(){
       </div>`;
     }
     // ── END CHART ─────────────────────────────────────────────────────────────
+
+    // ── AREA INTELLIGENCE PANEL ───────────────────────────────────────────────
+    // Score every instructor using: area students, distance, lesson type match, weekly workload
+    // Score formula: areaMatch*30 + nearbyBonus(dist) + typeMatch*20 - workloadPenalty
+    if(ranked.length){
+      const scored=ranked.map(r=>{
+        const ic=instrAreaCount[r.instr.id]||{total:0,areaMatch:0,students:[]};
+        const areaScore=ic.areaMatch*30; // 30 pts per existing student in exact area
+        // Nearby bonus: max 25 pts, halved every 2 miles
+        const nearbyScore=Math.max(0,25-r.dist*3);
+        // Lesson type: 20 pts if match, 0 if mismatch
+        const typeScore=instrCanTeach(r.instr.car_type||'Manual',type)?20:0;
+        // Workload penalty: -2 pts per student on roster (busier = harder to take on more)
+        const workloadPenalty=Math.min(ic.total*2,20);
+        // Adjacent area bonus: outward codes sharing first letters (e.g. M14 and M15 are close)
+        const adjBonus=searchedOC&&ic.students.some(oc=>oc&&oc!==searchedOC&&oc.replace(/\d+$/,'')===searchedOC.replace(/\d+$/,''))?10:0;
+        const total=Math.round(areaScore+nearbyScore+typeScore+adjBonus-workloadPenalty);
+        return{...r,ic,score:total,areaScore,nearbyScore,typeScore,adjBonus,workloadPenalty};
+      }).sort((a,b)=>b.score-a.score);
+
+      const best=scored[0];
+      const maxScore=Math.max(1,...scored.map(s=>s.score));
+      const instrColors=['#D10A11','#F5C518','#25D366','#3b82f6','#a855f7','#f97316'];
+
+      html+=`<div style="margin-top:20px;padding:16px;background:linear-gradient(135deg,rgba(209,10,17,.06),rgba(245,197,24,.04));border:1px solid rgba(209,10,17,.2);border-radius:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <i class="bi bi-cpu-fill" style="color:var(--gold);font-size:1rem"></i>
+          <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.92rem;color:var(--txt)">Area Intelligence</span>
+          <span style="font-size:.65rem;background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.25);border-radius:10px;padding:1px 7px;font-weight:700">AI SCORE</span>
+        </div>
+        <div style="font-size:.7rem;color:var(--txt4);margin-bottom:14px">Ranked by: existing students in area · distance · lesson type match · current workload</div>
+
+        ${best?`<div style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+          <div style="font-size:.65rem;color:var(--gold);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px"><i class="bi bi-trophy-fill me-1"></i>Top Recommendation</div>
+          <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.05rem;color:var(--txt);margin-bottom:4px">${esc(best.instr.full_name)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+            ${best.ic.areaMatch>0?`<span style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-people-fill me-1"></i>${best.ic.areaMatch} student${best.ic.areaMatch!==1?'s':''} in ${searchedOC||'this area'}</span>`:''}
+            <span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:#93c5fd;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-geo-alt me-1"></i>${best.dist.toFixed(1)} miles away</span>
+            ${best.typeScore>0?`<span style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700">✓ Teaches ${esc(type)}</span>`:`<span style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.18);color:#f97316;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700">⚠ Type mismatch</span>`}
+            ${best.adjBonus>0?`<span style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);color:#c084fc;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-map me-1"></i>Adjacent area coverage</span>`:''}
+          </div>
+          <div style="font-size:.7rem;color:var(--txt3)">${best.ic.areaMatch>0?`Already operates in ${searchedOC||'this area'} — familiar with the roads, test routes, and local hazards.`:best.adjBonus>0?`Covers adjacent areas to ${searchedOC||'this postcode'} — strong local knowledge nearby.`:`Closest available instructor${best.typeScore>0?' for '+type+' lessons':''}.`}</div>
+        </div>`:''}
+
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${scored.slice(0,6).map((r,ci)=>{
+            const pct=Math.max(4,Math.round(r.score/maxScore*100));
+            const color=instrColors[ci%instrColors.length];
+            const breakdown=[];
+            if(r.areaScore>0)breakdown.push(`+${r.areaScore} area`);
+            if(r.nearbyScore>0)breakdown.push(`+${Math.round(r.nearbyScore)} proximity`);
+            if(r.typeScore>0)breakdown.push(`+${r.typeScore} type`);
+            if(r.adjBonus>0)breakdown.push(`+${r.adjBonus} adjacent`);
+            if(r.workloadPenalty>0)breakdown.push(`-${r.workloadPenalty} workload`);
+            return`<div style="display:flex;align-items:center;gap-8px gap:8px">
+              <div style="min-width:24px;font-family:'Oswald',sans-serif;font-size:.7rem;color:${ci===0?'var(--gold)':'var(--txt4)'};font-weight:700;text-align:center">${ci+1}</div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+                  <span style="font-size:.76rem;font-weight:600;color:var(--txt);font-family:'Oswald',sans-serif">${esc(r.instr.full_name)}</span>
+                  <span style="font-size:.65rem;color:${color};font-weight:700;font-family:'Oswald',sans-serif">${r.score} pts</span>
+                </div>
+                <div style="background:var(--dk3);border-radius:4px;height:8px;overflow:hidden;margin-bottom:3px">
+                  <div style="height:100%;border-radius:4px;background:${color};width:${pct}%;transition:width .5s ease"></div>
+                </div>
+                <div style="font-size:.62rem;color:var(--txt4)">${breakdown.join(' · ')||'No score breakdown'}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div style="margin-top:12px;padding:10px 12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;font-size:.69rem;color:var(--txt4)">
+          <strong style="color:var(--txt3)">Score formula:</strong> Area students ×30 · Proximity (max 25) · Type match +20 · Adjacent area +10 · Workload −2/student
+        </div>
+      </div>`;
+    }
+    // ── END AREA INTELLIGENCE ─────────────────────────────────────────────────
 
     resultsEl.innerHTML=html;
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
