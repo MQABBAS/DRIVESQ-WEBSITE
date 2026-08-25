@@ -439,7 +439,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="login-sub">Admin Panel · Restricted Access</div>
     <div class="login-err hidden" id="loginErr"></div>
     <label class="form-lbl">Email</label>
-    <input class="form-inp" id="adminEmail" type="email" placeholder="admin@drivesq.co.uk" autocomplete="email"/>
+    <input class="form-inp" id="adminEmail" type="email" placeholder="admin@drivesq.co.uk" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"/>
     <label class="form-lbl">Password</label>
     <input class="form-inp" id="adminPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In to Admin →</button>
@@ -1844,6 +1844,17 @@ function populateDropdowns(){
 }
 
 /* ══ RENDER INSTRUCTORS ══ */
+function utilGauge(weekHrs){
+  const h=parseFloat(weekHrs)||0;
+  const cap=20;
+  const pct=Math.min(Math.round(h/cap*100),100);
+  const col=pct>=85?'var(--red)':pct>=60?'var(--gold)':'#25D366';
+  return '<div title="'+h+'h of '+cap+'h capacity ('+pct+'%)" style="display:flex;align-items:center;gap:5px">'
+    +'<div style="width:48px;height:7px;background:var(--dk3);border-radius:4px;overflow:hidden;border:1px solid var(--bdr)">'
+    +'<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:4px;transition:width .4s"></div></div>'
+    +'<span style="font-size:.65rem;color:'+col+';font-weight:700;font-family:\'Oswald\',sans-serif">'+pct+'%</span></div>';
+}
+
 function renderInstrsTable(list){
   const tb=document.getElementById('instrTbody');
   if(!list.length){tb.innerHTML='<tr>'+emptyState('No instructors found','Try adjusting your search or status filter')+'</tr>';return;}
@@ -1869,7 +1880,7 @@ function renderInstrsTable(list){
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
-      <td class="hide-xs">${(()=>{const h=parseFloat(weekHrs)||0;const cap=20;const pct=Math.min(Math.round(h/cap*100),100);const col=pct>=85?'var(--red)':pct>=60?'var(--gold)':'#25D366';const lbl=pct>=85?'High':'pct>=60'?'Mid':'Low';return`<div title="${h}h of ${cap}h capacity (${pct}%)" style="display:flex;align-items:center;gap:5px"><div style="width:48px;height:7px;background:var(--dk3);border-radius:4px;overflow:hidden;border:1px solid var(--bdr)"><div style="width:${pct}%;height:100%;background:${col};border-radius:4px;transition:width .4s"></div></div><span style="font-size:.65rem;color:${col};font-weight:700;font-family:'Oswald',sans-serif">${pct}%</span></div>`;})()</td>
+      <td class="hide-xs">${utilGauge(weekHrs)}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
