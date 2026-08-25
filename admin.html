@@ -635,6 +635,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="tbl-scroll">
         <table>
           <thead><tr>
+            <th style="width:36px;text-align:center;color:var(--txt4);font-size:.65rem">#</th>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
             <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
           </tr></thead>
@@ -2348,6 +2349,8 @@ async function loadAllStudents(){
 }
 
 function renderStudentsTable(students){
+  // Always display alphabetically by name
+  students=[...students].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
   // Roster total comes from sTotalStudents (set by loadGlobalStats from student_profiles count)
@@ -2364,6 +2367,7 @@ function renderStudentsTable(students){
     const onlineDot=s.isOnline?`<span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:5px;vertical-align:middle" title="Online now"></span>`:'';
     const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
     return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
+      <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
         <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
@@ -4654,8 +4658,10 @@ function refreshMapStats(){
   document.getElementById('mapStatInstrs').textContent=approved.length;
   // mapStatStudents is set by plotStudentMapMarkers (shows pinned/total)
   // Only set it here as initial placeholder if not yet set
-  if(document.getElementById('mapStatStudents').textContent==='—')
-    document.getElementById('mapStatStudents').textContent=studs.length||'—';
+  if(document.getElementById('mapStatStudents').textContent==='—'){
+    const rTot=parseInt(document.getElementById('sTotalStudents')?.textContent)||studs.length||'—';
+    document.getElementById('mapStatStudents').textContent=rTot;
+  }
   document.getElementById('mapStatAreas').textContent=areas.size;
   document.getElementById('mapStatOnline').textContent=online;
 }
@@ -4755,8 +4761,9 @@ async function plotStudentMapMarkers(){
     _placeStuPin(s,coords);
     mapped++;
   }));
-  // Update "Students on Map" stat to show pinned count / total
-  document.getElementById('mapStatStudents').textContent=mapped+' / '+(students.length||'—');
+  // Update "Students on Map" stat — use roster total (sTotalStudents) as the denominator
+  const rosterTot=parseInt(document.getElementById('sTotalStudents')?.textContent)||students.length||'—';
+  document.getElementById('mapStatStudents').textContent=mapped+' / '+rosterTot;
   // Populate no-address section
   const sec=document.getElementById('mapNoAddressSection');
   const lst=document.getElementById('mapNoAddressList');
