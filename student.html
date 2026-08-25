@@ -3074,15 +3074,16 @@ async function studentEnableNotifs(){
   if(banner)banner.style.display='none';
   var el=document.getElementById('notifPrompt');if(el)el.remove();
 
-  if(!('Notification' in window)||!('serviceWorker' in navigator)){
-    showToast('Notifications are not supported on this browser.','warning',6000);return;
-  }
-  // iOS requires PWA (Add to Home Screen)
+  // iOS must be checked FIRST — older iOS Safari doesn't expose Notification in window at all
   var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   var isPWA=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
   if(isIOS&&!isPWA){
-    showToast('📱 To get notifications on iPhone: tap Share → "Add to Home Screen", then open DriveSQ from your home screen and tap Enable again.','warning',12000);
+    showToast('📱 To get notifications on iPhone: tap the Share button (□↑) → "Add to Home Screen", then open DriveSQ from your home screen and tap Enable again.','warning',12000);
     return;
+  }
+
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){
+    showToast('Notifications are not supported on this browser.','warning',6000);return;
   }
   try{
     var perm=await Notification.requestPermission();

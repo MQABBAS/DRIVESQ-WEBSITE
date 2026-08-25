@@ -4264,17 +4264,17 @@ async function enablePushNotifications(){
   const banner=document.getElementById('pushBanner');if(banner)banner.remove();
   const topBanner=document.getElementById('pushTopBanner');if(topBanner)topBanner.style.display='none';
 
-  // Check basic API support
-  if(!('Notification' in window)||!('serviceWorker' in navigator)){
-    showToast('Your browser does not support notifications.','warn',6000);return;
-  }
-
-  // iOS Safari only supports Web Push when installed as a PWA (Add to Home Screen)
+  // iOS must be checked FIRST — older iOS Safari doesn't have Notification in window at all
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isInStandaloneMode=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
   if(isIOS&&!isInStandaloneMode){
-    showToast('📱 To enable notifications on iPhone/iPad, tap the Share button → "Add to Home Screen", then open the app from your home screen and try again.','warn',10000);
+    showToast('📱 To enable notifications on iPhone/iPad: tap the Share button (□↑) → "Add to Home Screen", then open DriveSQ from your home screen and try again.','warn',12000);
     return;
+  }
+
+  // Check basic API support (non-iOS browsers)
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){
+    showToast('Your browser does not support notifications. Try Chrome or Firefox.','warn',6000);return;
   }
 
   // Check if pushManager is available (some browsers/contexts block it)
