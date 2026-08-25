@@ -557,6 +557,7 @@ input,textarea,select{font-size:16px!important}
       </div>
     </div>
   </div>
+
 </div>
 
 <!-- ══════════════════════════════════
@@ -716,7 +717,7 @@ input,textarea,select{font-size:16px!important}
           <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1rem;color:var(--txt);margin-bottom:2px">Loving Your Lessons?</div>
           <div style="font-size:.75rem;color:var(--txt3)">Leave a Google review — it helps DriveSQ and your instructor!</div>
         </div>
-        <a href="https://g.page/r/Cf5Ww977kUeEBM/review" target="_blank" style="background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 3px 12px rgba(66,133,244,.3)">⭐ Review Us</a>
+        <a href="https://www.google.com/search?sca_esv=52231ff833dc7835&sxsrf=APpeQnsiK1Gfopup1rENRlfzSDmMg9skwQ:1787691117347&kgmid=/g/11yj_3_dv9&q=Drive+SQ+-+Driving+School&shem=dlvs1,epsd1,ltae,rimspwouoe&shndl=30&source=sh/x/loc/uni/m1/1&kgs=9e75b3a498071dbb" target="_blank" style="background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 3px 12px rgba(66,133,244,.3)">⭐ Review Us</a>
       </div>
 
       <!-- Rate Your Instructor Card -->
@@ -1099,13 +1100,15 @@ function _playTone(freq,type,dur,vol,delay){
   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+dur);
   o.start(ctx.currentTime+delay);o.stop(ctx.currentTime+delay+dur+0.02);
 }
-function sfxCorrect(){_playTone(523,'sine',0.12,0.18,0);_playTone(659,'sine',0.12,0.18,0.1);_playTone(784,'sine',0.18,0.22,0.2);_playTone(1047,'sine',0.25,0.20,0.34);if(navigator.vibrate)navigator.vibrate([30,20,60]);}
-function sfxWrong(){_playTone(220,'sawtooth',0.08,0.15,0);_playTone(180,'sawtooth',0.12,0.15,0.1);_playTone(150,'square',0.10,0.10,0.22);if(navigator.vibrate)navigator.vibrate([80,30,80]);}
-function sfxXP(){_playTone(880,'sine',0.06,0.15,0);_playTone(1174,'sine',0.08,0.15,0.06);_playTone(1319,'sine',0.10,0.18,0.12);if(navigator.vibrate)navigator.vibrate(20);}
-function sfxStreak(){[523,587,659,698,784,880].forEach(function(f,i){_playTone(f,'triangle',0.12,0.16,i*0.06);});if(navigator.vibrate)navigator.vibrate([20,10,20,10,40]);}
-function sfxTap(){_playTone(600,'sine',0.04,0.06,0);if(navigator.vibrate)navigator.vibrate(8);}
-function sfxLevelUp(){[523,659,784,1047,1319].forEach(function(f,i){_playTone(f,'sine',0.2,0.2,i*0.1);});_playTone(1568,'sine',0.5,0.25,0.6);if(navigator.vibrate)navigator.vibrate([30,20,30,20,100]);}
-function sfxBooking(){_playTone(440,'sine',0.05,0.12,0);_playTone(660,'sine',0.12,0.18,0.05);if(navigator.vibrate)navigator.vibrate(25);}
+// NOTE: _playTone is redefined later with an array-based signature.
+// These stubs are overwritten — the real definitions are below at the audio section.
+function sfxCorrect(){}
+function sfxWrong(){}
+function sfxXP(){}
+function sfxStreak(){}
+function sfxTap(){}
+function sfxLevelUp(){}
+function sfxBooking(){}
 </script>
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
@@ -1780,6 +1783,9 @@ function _playTone(freqs,dur,type='sine',vol=0.18){
     osc.stop(ctx.currentTime+i*dur*0.5+dur*0.5);
   });
 }
+function sfxCorrect(){_playTone([523,659,784,1047],0.18,'sine',0.22);if(navigator.vibrate)navigator.vibrate([30,20,60]);}
+function sfxWrong(){_playTone([220,180,150],0.15,'sawtooth',0.12);if(navigator.vibrate)navigator.vibrate([80,30,80]);}
+function sfxBooking(){_playTone([440,660],0.14,'sine',0.14);if(navigator.vibrate)navigator.vibrate(25);}
 function sfxXP(){_playTone([523,659],0.12,'sine',0.15);}
 function sfxLevelUp(){_playTone([523,659,784,1047],0.14,'sine',0.2);}
 function sfxStreak(){_playTone([392,523,659,784,1047],0.13,'triangle',0.18);}
@@ -2685,12 +2691,12 @@ function setRating(n){
 
 async function submitFeedback(){
   if(!feedbackRating){showToast('Please select a rating.');return;}
-  const lessonId=document.getElementById('feedbackLessonId').value;
+  const lessonId=document.getElementById('feedbackLessonId').value||null;
   const comment=document.getElementById('feedbackComment').value.trim();
   let fbErr=null;
   try{
     const{error}=await sb.from('student_lesson_feedback').insert([{
-      lesson_id:lessonId,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,
+      lesson_id:lessonId||null,student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,
       rating:feedbackRating,comment,submitted_at:new Date().toISOString()
     }]);
     fbErr=error;

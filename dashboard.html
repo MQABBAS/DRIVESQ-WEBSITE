@@ -372,13 +372,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .qa-chip:hover{border-color:var(--red);color:var(--txt);background:rgba(209,10,17,.06);transform:translateY(-1px)}
 .qa-chip:active{transform:translateY(0)}
 
-/* EARNINGS CHART CARD */
-.earnings-chart-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;margin-bottom:12px;transition:background .4s ease}
-.ec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.ec-title{font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3)}
-.ec-total{font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.3rem;font-weight:900;color:var(--green)}
-#earningsChart{width:100%;height:64px;display:block}
-
 /* STUDENT STATUS BADGE */
 .s-lesson-badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.52rem;font-weight:900;border:2px solid var(--dk2);font-family:'Barlow Condensed','Oswald',sans-serif;line-height:1}
 .s-lesson-badge.needs-booking{background:var(--red);color:#fff}
@@ -573,24 +566,6 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div><div class="stat-card green-c"><div class="stat-lbl">Week Earnings<i class="bi bi-question-circle" title="Your total earnings this week from confirmed lessons" style="color:var(--txt3);font-size:.75rem;cursor:help;margin-left:4px"></i></div><div class="stat-num green-c" id="sEarnings" style="font-size:1.5rem">£0</div><div class="stat-sub">received this week</div></div></div>
   </div>
 
-  <!-- EARNINGS SPARKLINE CHART -->
-  <div class="earnings-chart-card" id="earningsChartCard" style="display:none">
-    <div class="ec-header">
-      <span class="ec-title"><i class="bi bi-bar-chart-fill me-1" style="color:var(--green)"></i>Weekly Earnings</span>
-      <span class="ec-total" id="ecTotal">£0</span>
-    </div>
-    <canvas id="earningsChart"></canvas>
-    <div style="display:flex;justify-content:space-between;margin-top:4px">
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Mon</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Tue</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Wed</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Thu</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Fri</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Sat</span>
-      <span style="font-size:.55rem;color:var(--txt5);font-family:'Oswald',sans-serif">Sun</span>
-    </div>
-  </div>
-
   <!-- QUICK ACTIONS -->
   <div class="quick-actions" id="quickActions">
     <button class="qa-chip" onclick="openAddModal(todayKey(),'Today',new Date().getDay()===0?6:new Date().getDay()-1)" title="Schedule a new driving lesson for one of your students"><span>📅</span>Book Lesson</button>
@@ -694,7 +669,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
           <button class="cal-view-btn active" id="sview-all" onclick="setStudentFilter('all')">All</button>
           <button class="cal-view-btn" id="sview-connected" onclick="setStudentFilter('connected')"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Connected</button>
           <button class="cal-view-btn" id="sview-unread" onclick="setStudentFilter('unread')"><i class="bi bi-chat-fill me-1" style="color:#60a5fa"></i>Messages</button>
-          <button class="cal-view-btn" id="sview-archived" onclick="setStudentFilter('archived')"><i class="bi bi-archive me-1" style="color:#94a3b8"></i>Archived</button>
+          <button class="cal-view-btn" id="sview-archived" onclick="setStudentFilter('archived')"><i class="bi bi-moon me-1" style="color:#fbbf24"></i>On Break</button>
         </div>
         <div style="position:relative;display:inline-flex;align-items:center">
           <input type="text" class="dsq-inp" style="max-width:170px;padding:6px 28px 6px 10px;font-size:.82rem" placeholder="Search name, phone, email…" oninput="filterStudents(this.value);document.getElementById('searchClearBtn').style.display=this.value?'flex':'none'" id="studentSearch"/>
@@ -2096,8 +2071,6 @@ function updateStats(){
   if(payBadge&&payLbl){payLbl.textContent='£'+totalPay.toFixed(2);payBadge.style.display=totalPay>0?'inline-flex':'none';}
   const earningsEl=document.getElementById('sEarnings');
   if(earningsEl)earningsEl.textContent='£'+totalPay.toFixed(2);
-  // Render earnings sparkline chart (function defined later in script)
-  if(typeof renderEarningsChart==='function')renderEarningsChart();
 }
 
 /* ── DRAG & DROP ── */
@@ -3625,11 +3598,11 @@ async function openStudentMgmt(studentName, tab='profile'){
   else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
   else badges+='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App Yet</span>';
   const isArchived=p.status==='inactive';
-  if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(148,163,184,.12);color:#94a3b8;border-color:rgba(148,163,184,.25)"><i class="bi bi-archive me-1"></i>Archived</span>';
+  if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
-  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">Reactivate</span>':'<i class="bi bi-archive"></i><span id="smArchiveBtnLbl">On Break</span>';
-  if(archBtn)archBtn.title=isArchived?'Reactivate this student':'Mark as On Break / Deactivate';
+  if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">End Break</span>':'<i class="bi bi-moon"></i><span id="smArchiveBtnLbl">On Break</span>';
+  if(archBtn)archBtn.title=isArchived?'Return student to active roster':'Mark student as On Break (hides from active list)';
 
   // Populate profile
   document.getElementById('smEditName').value=p.name||'';
@@ -3862,63 +3835,21 @@ async function smRemoveFromRoster(){
   const nk=smCurrentName.toLowerCase().trim();
   const p=rosterMap[nk];
   if(!p?.id){showToast('No profile to remove.');return;}
-  if(!confirm(`⚠️ Permanently delete ${smCurrentName}?\n\nThis will delete:\n• Their roster profile\n• ALL lesson records\n• Their student account & login\n• All messages and progress data\n\nThis CANNOT be undone.`))return;
+  if(!confirm(`Remove ${smCurrentName} from your roster?\n\nThis will hide them from your student list. Their lesson history is preserved — contact admin if you need their account fully deleted.`))return;
 
-  showToast('Deleting student…','warn');
-  try{
-    // 1. Find linked account
-    const{data:acc}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',smCurrentName).maybeSingle();
-    const accId=acc?.id||null;
-    // 2. Find lesson IDs
-    const{data:lessons}=await sb.from('lessons').select('id').eq('instructor_id',instr.id).ilike('student_name',smCurrentName);
-    const lessonIds=(lessons||[]).map(l=>l.id);
-    // 3. Delete child rows — swallow errors for optional tables
-    if(lessonIds.length){
-      await sb.from('lesson_confirmations').delete().in('lesson_id',lessonIds).catch(()=>{});
-      await sb.from('lesson_reminders').delete().in('lesson_id',lessonIds).catch(()=>{});
-    }
-    if(accId){
-      await sb.from('student_progress').delete().eq('student_account_id',accId).catch(()=>{});
-      await sb.from('student_messages').delete().eq('student_account_id',accId).catch(()=>{});
-      await sb.from('reschedule_requests').delete().eq('student_account_id',accId).catch(()=>{});
-    }
-    // 4. Delete lessons and account (swallow permission errors — RLS may block account delete for instructors)
-    await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',smCurrentName).catch(()=>{});
-    if(accId) await sb.from('student_accounts').delete().eq('id',accId).catch(()=>{});
-    // 5. Delete topic ratings linked to this student
-    if(accId) await sb.from('student_topic_ratings').delete().eq('student_id',accId).catch(()=>{});
-    if(accId) await sb.from('student_lesson_feedback').delete().eq('student_account_id',accId).catch(()=>{});
-    // 6. Delete profile — try by id+instructor_id first, then fallback by name
-    let profDelOk=false;
-    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',p.id).eq('instructor_id',instr.id);
-    if(!profDelErr){profDelOk=true;}
-    else{
-      // Fallback: delete by instructor_id + name match
-      const{error:profDelErr2}=await sb.from('student_profiles').delete().eq('instructor_id',instr.id).ilike('name',smCurrentName);
-      if(!profDelErr2) profDelOk=true;
-      else console.warn('Profile delete fallback error:',profDelErr2?.message);
-    }
-    // Remove from in-memory arrays regardless — keeps UI in sync
-    allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
-    delete rosterMap[nk];
-    closeModal('studentMgmtModal');
-    renderStudents(allStudentsArr);
-    if(profDelOk){
-      showToast(`${smCurrentName} permanently deleted.`,'success');
-    } else {
-      showToast(`${smCurrentName} removed from your view. Contact admin to fully delete their account.`,'info');
-    }
-    // Background sync
-    Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
-  }catch(err){
-    console.error('Delete student error:',err);
-    // Even on unexpected error, remove from UI so instructor isn't stuck
-    allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
-    delete rosterMap[nk];
-    closeModal('studentMgmtModal');
-    renderStudents(allStudentsArr);
-    showToast('Student removed from view. Some data may need admin to fully clear.','info');
-  }
+  showToast('Removing from roster…','warn');
+  // Update: clear instructor_id so they no longer appear in this instructor's roster.
+  // Using UPDATE instead of DELETE avoids RLS permission issues entirely.
+  const{error}=await sb.from('student_profiles').update({instructor_id:null,status:'removed'}).eq('id',p.id);
+  if(error)console.warn('smRemoveFromRoster:',error.message); // best-effort — remove from UI regardless
+  // Remove from in-memory arrays so UI updates immediately
+  allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
+  delete rosterMap[nk];
+  closeModal('studentMgmtModal');
+  renderStudents(allStudentsArr);
+  showToast(`${smCurrentName} removed from your roster ✓`,'success');
+  // Background refresh to stay in sync
+  Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
 }
 
 // Archiving keeps the student's roster entry and full lesson/message history intact — it just
@@ -3929,8 +3860,8 @@ async function smToggleArchive(){
   if(!p?.id){showToast('Save this student to your roster first.');return;}
   const newStatus=p.status==='inactive'?'active':'inactive';
   const{error}=await sb.from('student_profiles').update({status:newStatus}).eq('id',p.id);
-  if(error){showToast('Could not update — your roster table may need a "status" column added.','error');console.warn('smToggleArchive error:',error.message);return;}
-  showToast(newStatus==='inactive'?'Student archived — hidden from your active roster.':'Student reactivated ✓','success');
+  if(error){showToast('Could not update status.','error');console.warn('smToggleArchive error:',error.message);return;}
+  showToast(newStatus==='inactive'?'Student marked On Break — find them in the On Break filter.':'Student returned to active roster ✓','success');
   await Promise.all([loadRoster(),loadStudents()]);
   openStudentMgmt(smCurrentName,'profile');
 }
@@ -5454,62 +5385,6 @@ function showDashInstallBanner(){
   });
   document.getElementById('dashInstallNo').addEventListener('click',function(){b.remove();});
 }
-
-/* ══════════════════════════════════════════════════════
-   EARNINGS SPARKLINE CHART
-══════════════════════════════════════════════════════ */
-// Polyfill roundRect for older browsers
-if(typeof CanvasRenderingContext2D!=='undefined'&&!CanvasRenderingContext2D.prototype.roundRect){
-  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r,w/2,h/2);this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.arcTo(x+w,y,x+w,y+r,r);this.lineTo(x+w,y+h-r);this.arcTo(x+w,y+h,x+w-r,y+h,r);this.lineTo(x+r,y+h);this.arcTo(x,y+h,x,y+h-r,r);this.lineTo(x,y+r);this.arcTo(x,y,x+r,y,r);this.closePath();return this;};
-}
-window.addEventListener('resize',()=>{if(typeof renderEarningsChart==='function')setTimeout(renderEarningsChart,100);});
-function renderEarningsChart(){
-  const days=weekDays(weekStart);
-  const vals=days.map(d=>{ const dk=dateKey(d); const ls=weekLessons[dk]||[]; return ls.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0); });
-  const total=vals.reduce((a,v)=>a+v,0);
-  const card=document.getElementById('earningsChartCard');
-  const ecTotalEl=document.getElementById('ecTotal');
-  if(!card)return;
-  if(total===0&&vals.every(v=>v===0)){card.style.display='none';return;}
-  card.style.display='block';
-  if(ecTotalEl)ecTotalEl.textContent='£'+total.toFixed(2);
-  const canvas=document.getElementById('earningsChart');
-  if(!canvas)return;
-  const dpr=window.devicePixelRatio||1;
-  const W=canvas.offsetWidth||canvas.parentElement.offsetWidth||300;
-  const H=64;
-  canvas.width=W*dpr;canvas.height=H*dpr;
-  canvas.style.width=W+'px';canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,W,H);
-  const max=Math.max(...vals,1);
-  const pad=6;const barW=Math.floor((W-pad*2)/7)-4;const gap=4;
-  const todayDow=(new Date().getDay()+6)%7;
-  const isDark=document.documentElement.getAttribute('data-theme')==='dark'||(document.documentElement.getAttribute('data-theme')!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);
-  const barBase=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
-  vals.forEach((v,i)=>{
-    const x=pad+i*(barW+gap);
-    const bh=Math.max(2,Math.round((v/max)*(H-18)));
-    const y=H-bh;
-    // Base bar
-    ctx.fillStyle=barBase;ctx.beginPath();ctx.roundRect(x,pad,barW,H-pad-2,2);ctx.fill();
-    // Filled bar
-    if(v>0){
-      const grad=ctx.createLinearGradient(0,y,0,H-2);
-      grad.addColorStop(0,i===todayDow?'rgba(245,197,24,.9)':'rgba(37,211,102,.85)');
-      grad.addColorStop(1,i===todayDow?'rgba(245,197,24,.35)':'rgba(37,211,102,.35)');
-      ctx.fillStyle=grad;ctx.beginPath();ctx.roundRect(x,y,barW,H-y-2,2);ctx.fill();
-      // Amount label
-      ctx.fillStyle=i===todayDow?'#F5C518':'#25D366';
-      ctx.font='bold '+(barW<24?'6':'7')+'px "Barlow Condensed","Oswald",sans-serif';
-      ctx.textAlign='center';
-      ctx.fillText('£'+v.toFixed(0),x+barW/2,y-2);
-    }
-  });
-}
-
-// renderEarningsChart is called from within updateStats() defined earlier in the script
 
 /* ══════════════════════════════════════════════════════
    KEYBOARD SHORTCUT — Ctrl+K or / → focus student search
