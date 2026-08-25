@@ -415,6 +415,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 .map-filter-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:20px;padding:5px 13px;font-family:'Oswald',sans-serif;font-size:.74rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;}
 .map-filter-btn.active{background:var(--dk3);border-color:var(--red);color:var(--txt);}
 .map-filter-btn:hover{border-color:var(--red);}
+/* Map fullscreen */
+#adminMapWrap.map-fullscreen{position:fixed!important;inset:0;z-index:9999;background:var(--bg);padding:0;margin:0;border-radius:0}
+#adminMapWrap.map-fullscreen #adminMapEl{height:100vh!important;border-radius:0!important;border:none!important}
 .map-stat-card{background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;text-align:center;}
 .map-stat-val{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--txt);line-height:1;}
 .map-stat-lbl{font-size:.68rem;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
@@ -487,6 +490,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-find" onclick="switchTab('find')"><i class="bi bi-geo-alt-fill"></i><span class="d-none d-sm-inline ms-1">Find</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
+    <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
     <button class="dsq-tab" id="tab-revenue" onclick="switchTab('revenue')"><i class="bi bi-currency-pound"></i><span class="d-none d-sm-inline ms-1">Revenue</span></button>
@@ -494,7 +498,6 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
-    <button class="dsq-tab" id="tab-add" onclick="switchTab('add')"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
@@ -635,6 +638,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="tbl-scroll">
         <table>
           <thead><tr>
+            <th style="width:36px;text-align:center;color:var(--txt4);font-size:.65rem">#</th>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
             <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
           </tr></thead>
@@ -946,6 +950,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button id="mapFilterInstrs" class="map-filter-btn active" onclick="toggleMapFilter('instructors')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:5px"></span>Instructors</button>
       <button id="mapFilterStudents" class="map-filter-btn active" onclick="toggleMapFilter('students')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Students</button>
       <button class="btn-s" onclick="mapReset()" style="font-size:.72rem;padding:5px 10px"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+      <button class="btn-s" id="mapFullscreenBtn" onclick="toggleMapFullscreen()" style="font-size:.72rem;padding:5px 10px" title="Fullscreen map"><i class="bi bi-fullscreen" id="mapFullscreenIcon"></i></button>
     </div>
   </div>
 
@@ -965,7 +970,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="mapNearestResult" style="display:none;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:.82rem"></div>
 
   <!-- Map -->
-  <div id="adminMapEl" style="height:540px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+  <div id="adminMapWrap" style="position:relative">
+    <div id="adminMapEl" style="height:540px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+  </div>
 
   <!-- Legend -->
   <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:14px;font-size:.72rem;color:var(--txt3)">
@@ -1717,7 +1724,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','pending','students','lessons','revenue','feedback','requests','transfers','messages','add','find','analytics','calendar','activity','map','notes','actions','scorecard','bulk','progress-overview','waitlist','availability'];
+const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2348,6 +2355,8 @@ async function loadAllStudents(){
 }
 
 function renderStudentsTable(students){
+  // Always display alphabetically by name
+  students=[...students].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
   // Roster total comes from sTotalStudents (set by loadGlobalStats from student_profiles count)
@@ -2364,6 +2373,7 @@ function renderStudentsTable(students){
     const onlineDot=s.isOnline?`<span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:5px;vertical-align:middle" title="Online now"></span>`:'';
     const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
     return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
+      <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
         <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
@@ -2389,7 +2399,7 @@ function renderStudentsTable(students){
 function quickDeleteStudent(idx){
   const s=_renderedStudents[idx];if(!s)return;
   if(!confirm(`Permanently delete "${s.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
-  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   adminDeleteStudent(true);
 }
 
@@ -2483,6 +2493,7 @@ function filterAllStudents(q){
 
 /* ══ ADMIN STUDENT PROFILE MODAL ══ */
 let _adminStudentCtx=null; // stores {accId, profileId, instrId, name} for delete action
+const _recentlyDeletedNames=new Set();
 
 async function adminDeleteStudent(skipConfirm){
   if(!_adminStudentCtx){showToast('No student loaded.','error');return;}
@@ -2868,7 +2879,7 @@ let _renderedStudents=[];
 async function openStudentDetail(idx,_directData){
   const s=_directData||_renderedStudents[idx];if(!s)return;
   // Set delete context immediately from cached data — enables delete even before progress loads
-  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
+  _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   const delBtn=document.getElementById('adminDeleteStudentBtn');
   if(delBtn){delBtn.disabled=false;delBtn.innerHTML='<i class="bi bi-trash3-fill me-1"></i>Permanently Delete Student from System';}
   document.getElementById('sdTitle').textContent=s.name;
@@ -2922,7 +2933,9 @@ async function loadStudentProgress(s){
   const theorySec=document.getElementById('sdTheorySection');
   const messagesSec=document.getElementById('sdMessagesSection');
   progSec.style.display='none';topicsSec.style.display='none';
-  testDatesSec.style.display='none';theorySec.style.display='none';messagesSec.style.display='none';
+  testDatesSec.style.display='none';theorySec.style.display='none';
+  // Messages section always visible — show loading state
+  if(messagesSec){messagesSec.style.display='';const b=document.getElementById('sdMessages');if(b)b.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.78rem;padding:16px"><i class="bi bi-hourglass-split me-1"></i>Loading chat…</div>';}
   // First try direct acctId lookup (most reliable for admin-created students)
   let acct=null;
   if(s.acctId){
@@ -2941,7 +2954,7 @@ async function loadStudentProgress(s){
   }
   if(!acct)return;
   const[progR,topicsR]=await Promise.all([
-    sb.from('student_progress').select('*').eq('student_id',acct.id).maybeSingle(),
+    sb.from('student_progress').select('*').eq('student_account_id',acct.id).maybeSingle(),
     sb.from('student_topic_ratings').select('*').eq('student_id',acct.id).order('topic_name',{ascending:true})
   ]);
   if(progR.data){
@@ -3445,6 +3458,8 @@ async function findClosest(){
   const notes=document.getElementById('fc-notes').value.trim();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
+  // Ensure student roster is loaded for postcode frequency analysis
+  if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
@@ -3483,10 +3498,30 @@ async function findClosest(){
         ?`<span class="chip Automatic" style="font-size:.6rem">Automatic</span>`
         :`<span class="chip Manual" style="font-size:.6rem">Manual</span>`;
     }
+    // Build postcode frequency map from student roster
+    // Extract outward code (first part) from a full UK postcode for area matching
+    function outwardCode(pc){return(pc||'').toUpperCase().trim().replace(/\s+/g,'').replace(/\d[A-Z]{2}$/,'').trim();}
+    const searchedOC=outwardCode(postcode); // e.g. "M14" from "M14 5TP"
+    // Count students per instructor that share the same outward postcode area
+    const instrAreaCount={}; // instrId -> {total, matching}
+    (allStudentsCache||[]).forEach(s=>{
+      if(!s.instrId)return;
+      const sPC=extractPostcode(s.address||'');
+      const sOC=outwardCode(sPC);
+      if(!instrAreaCount[s.instrId])instrAreaCount[s.instrId]={total:0,areaMatch:0,name:s.instrName||'',students:[]};
+      instrAreaCount[s.instrId].total++;
+      instrAreaCount[s.instrId].students.push(sOC);
+      if(searchedOC&&sOC===searchedOC)instrAreaCount[s.instrId].areaMatch++;
+    });
+
     function instrCardHtml(r,displayNum){
       const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
       const instrLT=r.instr.car_type||'Manual';
       const canTeach=instrCanTeach(instrLT,type);
+      const ic=instrAreaCount[r.instr.id]||{total:0,areaMatch:0,students:[]};
+      const areaNote=ic.areaMatch>0
+        ?`<div style="font-size:.68rem;color:var(--green,#4ade80);margin-top:3px;font-weight:600"><i class="bi bi-people-fill me-1"></i>This instructor has ${ic.areaMatch} student${ic.areaMatch!==1?'s':''} in ${searchedOC||'this area'}</div>`
+        :(ic.total>0?`<div style="font-size:.68rem;color:var(--txt4);margin-top:3px"><i class="bi bi-people me-1"></i>${ic.total} student${ic.total!==1?'s':''} on roster (none in ${searchedOC||'this area'})</div>`:'');
       return`<div class="dist-card mb-2"${!canTeach?' style="opacity:.65"':''}>
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
           <div class="d-flex align-items-center gap-3">
@@ -3498,6 +3533,7 @@ async function findClosest(){
               ${ltChipHtml(instrLT)}
               <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
               ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
+              ${areaNote}
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
@@ -3540,6 +3576,56 @@ async function findClosest(){
       <button class="btn-p" onclick="addToWaitlist()" style="background:#fbbf24;color:#000;border-color:#fbbf24;white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
     </div>`;
     if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
+
+    // ── POSTCODE DISTRIBUTION CHART ──────────────────────────────────────────
+    // Build: for each instructor in results, group their students by outward code
+    // and show a bar chart of top areas per instructor
+    const chartData=ranked.map(r=>{
+      const ic=instrAreaCount[r.instr.id]||{total:0,students:[]};
+      // Count occurrences of each outward code
+      const ocCount={};
+      (ic.students||[]).forEach(oc=>{if(oc)ocCount[oc]=(ocCount[oc]||0)+1;});
+      const sortedOC=Object.entries(ocCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      return{name:r.instr.full_name,total:ic.total,areas:sortedOC,id:r.instr.id};
+    }).filter(d=>d.total>0);
+
+    if(chartData.length){
+      const globalMax=Math.max(1,...chartData.flatMap(d=>d.areas.map(a=>a[1])));
+      const instrColors=['#D10A11','#F5C518','#25D366','#3b82f6','#a855f7','#f97316','#ec4899','#14b8a6'];
+      html+=`<div style="margin-top:20px;padding:16px;background:var(--dk2);border:1px solid var(--bdr);border-radius:12px">
+        <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;color:var(--txt);margin-bottom:4px"><i class="bi bi-bar-chart-fill me-2" style="color:var(--gold)"></i>Postcode Coverage by Instructor</div>
+        <div style="font-size:.7rem;color:var(--txt4);margin-bottom:14px">Top student postcode areas per instructor, from the full roster</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          ${chartData.map((d,ci)=>{
+            const color=instrColors[ci%instrColors.length];
+            return`<div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+                <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;color:var(--txt)">${esc(d.name)}</span>
+                <span style="font-size:.66rem;color:var(--txt4);margin-left:auto">${d.total} student${d.total!==1?'s':''} total</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${d.areas.map(([oc,cnt])=>{
+                  const pct=Math.round(cnt/globalMax*100);
+                  const isSearched=oc===searchedOC;
+                  return`<div style="display:flex;align-items:center;gap:6px">
+                    <div style="font-size:.65rem;color:${isSearched?color:'var(--txt3)'};font-weight:${isSearched?700:400};min-width:38px;text-align:right;font-family:'Oswald',sans-serif">${esc(oc)}</div>
+                    <div style="flex:1;background:var(--dk3);border-radius:4px;height:14px;overflow:hidden;position:relative">
+                      <div style="height:100%;border-radius:4px;background:${isSearched?color:color+'66'};width:${pct}%;transition:width .4s ease"></div>
+                      ${isSearched?`<div style="position:absolute;inset:0;border:1px solid ${color};border-radius:4px;pointer-events:none"></div>`:''}
+                    </div>
+                    <div style="font-size:.65rem;color:${isSearched?color:'var(--txt3)'};font-weight:${isSearched?700:400};min-width:18px">${cnt}</div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${searchedOC?`<div style="margin-top:12px;font-size:.68rem;color:var(--txt4)"><i class="bi bi-circle-fill me-1" style="color:var(--gold);font-size:.4rem;vertical-align:middle"></i>Highlighted bars = <strong style="color:var(--txt3)">${esc(searchedOC)}</strong> — the searched postcode area</div>`:''}
+      </div>`;
+    }
+    // ── END CHART ─────────────────────────────────────────────────────────────
+
     resultsEl.innerHTML=html;
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
   finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructor';btn.disabled=false;}
@@ -4246,7 +4332,7 @@ async function executeBroadcast(){
   let sent=0,failed=0;
   for(let i=0;i<accts.length;i+=50){
     const batch=accts.slice(i,i+50).map(a=>({student_account_id:a.id,subject,body,is_read:false,created_at:now}));
-    const{error}=await sb.from('student_admin_messages').insert(batch).then?sb.from('student_admin_messages').insert(batch):await sb.from('student_admin_messages').insert(batch);
+    const{error}=await sb.from('student_admin_messages').insert(batch);
     if(error){
       // Try admin_messages table with a note
       failed+=batch.length;
@@ -4578,8 +4664,10 @@ function refreshMapStats(){
   document.getElementById('mapStatInstrs').textContent=approved.length;
   // mapStatStudents is set by plotStudentMapMarkers (shows pinned/total)
   // Only set it here as initial placeholder if not yet set
-  if(document.getElementById('mapStatStudents').textContent==='—')
-    document.getElementById('mapStatStudents').textContent=studs.length||'—';
+  if(document.getElementById('mapStatStudents').textContent==='—'){
+    const rTot=parseInt(document.getElementById('sTotalStudents')?.textContent)||studs.length||'—';
+    document.getElementById('mapStatStudents').textContent=rTot;
+  }
   document.getElementById('mapStatAreas').textContent=areas.size;
   document.getElementById('mapStatOnline').textContent=online;
 }
@@ -4679,8 +4767,9 @@ async function plotStudentMapMarkers(){
     _placeStuPin(s,coords);
     mapped++;
   }));
-  // Update "Students on Map" stat to show pinned count / total
-  document.getElementById('mapStatStudents').textContent=mapped+' / '+(students.length||'—');
+  // Update "Students on Map" stat — use roster total (sTotalStudents) as the denominator
+  const rosterTot=parseInt(document.getElementById('sTotalStudents')?.textContent)||students.length||'—';
+  document.getElementById('mapStatStudents').textContent=mapped+' / '+rosterTot;
   // Populate no-address section
   const sec=document.getElementById('mapNoAddressSection');
   const lst=document.getElementById('mapNoAddressList');
@@ -4776,6 +4865,24 @@ function mapReset(){
   const inp=document.getElementById('mapStudentAddr');if(inp)inp.value='';
   if(_adminMap)_adminMap.setView([53.483,-2.244],11);
 }
+let _mapIsFullscreen=false;
+function toggleMapFullscreen(){
+  const wrap=document.getElementById('adminMapWrap');
+  const icon=document.getElementById('mapFullscreenIcon');
+  if(!wrap)return;
+  _mapIsFullscreen=!_mapIsFullscreen;
+  wrap.classList.toggle('map-fullscreen',_mapIsFullscreen);
+  if(icon){icon.className=_mapIsFullscreen?'bi bi-fullscreen-exit':'bi bi-fullscreen';}
+  // Invalidate Leaflet size after transition
+  setTimeout(()=>{if(_adminMap)_adminMap.invalidateSize();},50);
+  // Escape key exits fullscreen
+  if(_mapIsFullscreen){
+    document.addEventListener('keydown',_mapEscHandler);
+  } else {
+    document.removeEventListener('keydown',_mapEscHandler);
+  }
+}
+function _mapEscHandler(e){if(e.key==='Escape'&&_mapIsFullscreen)toggleMapFullscreen();}
 
 /* ══ INSTRUCTOR STUDENT DRILL-DOWN ══ */
 async function showInstrStudents(instrId, instrName){
@@ -5145,6 +5252,8 @@ async function loadBulkList(){
   const target=document.getElementById('bulkTarget').value;
   document.getElementById('bulkList').innerHTML='<div style="color:var(--txt4);font-size:.8rem;padding:8px">Loading…</div>';
   if(target==='students'){
+    // Ensure roster is loaded before building the list
+    if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
     _bulkItems=(allStudentsCache||[]).filter(s=>s.acctId||s.phone).map(s=>({id:s.acctId,name:s.name,phone:s.phone,sub:s.instrName,type:'student',instrId:s.instrId}));
   } else {
     _bulkItems=(allInstrs||[]).filter(i=>i.status==='approved').map(i=>({id:i.id,name:i.full_name,phone:i.phone,sub:i.area||i.badge_number||'',type:'instructor'}));
