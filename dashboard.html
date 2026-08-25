@@ -1651,6 +1651,7 @@ let reschedulePending=[];
 let activeDate=null,detailId=null,detailData=null;
 let shownReminders=new Set();
 let allStudentsArr=[];
+const _recentlyDeletedNames=new Set(); // prevents deleted students reappearing via lesson-backfill
 let rosterMap={};
 let studentAccountMap={};
 let linkEventMap={};
@@ -2920,7 +2921,7 @@ async function loadStudents(){
 
   // Backfill lesson students not yet in profiles
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
-  const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k));
+  const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k)&&!_recentlyDeletedNames.has(k));
   if(newFromLessons.length){
     // Save each new student to roster silently
     for(const[k]of newFromLessons){
@@ -3222,6 +3223,7 @@ async function removeStudentFromRoster(){
     }]).catch(()=>{});
     // 7. Remove from in-memory arrays immediately so column refreshes at once
     const nk=name.toLowerCase().trim();
+    _recentlyDeletedNames.add(nk); // block lesson-backfill from re-adding this student
     allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
     delete rosterMap[nk];
     closeModal('editStudentModal');
