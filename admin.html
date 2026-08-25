@@ -2545,9 +2545,11 @@ async function adminDeleteStudent(skipConfirm){
 
   // ── STEP 2: Delete from database ─────────────────────────────────────────
   const errs=[];
+  // Tables where RLS may block but failure is non-critical (data is orphaned, not dangerous)
+  const _silentTbls=new Set(['push_subscriptions','student_lesson_feedback','lesson_reminders']);
   const tryDel=async(tbl,query)=>{
-    try{const{error}=await query;if(error)errs.push(tbl+': '+error.message);}
-    catch(e){errs.push(tbl+': '+e.message);}
+    try{const{error}=await query;if(error&&!_silentTbls.has(tbl))errs.push(tbl+': '+error.message);}
+    catch(e){if(!_silentTbls.has(tbl))errs.push(tbl+': '+e.message);}
   };
   try{
     if(accId){
