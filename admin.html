@@ -558,6 +558,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <div id="dashUnconfirmed"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading...</div></div>
         </div>
       </div>
+      <div class="col-12">
+        <div class="dsq-card p-3">
+          <div class="section-label"><i class="bi bi-bell-fill me-2" style="color:var(--gold)"></i>Re-engagement Alerts</div>
+          <div id="dashReEngagement"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -568,6 +574,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn-gold" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
         <button class="btn-s" style="font-size:.78rem" onclick="exportInstrsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
+        <button class="btn-s" style="font-size:.78rem;background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.3);color:#c084fc" onclick="exportInstrPerformanceReport()"><i class="bi bi-file-earmark-bar-graph me-1"></i>Monthly Report</button>
         <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.8rem" placeholder="Search…" oninput="filterInstrs(this.value)" id="instrSearch"/>
         <select class="dsq-inp" style="max-width:130px;padding:6px 10px;font-size:.8rem" onchange="filterInstrs(document.getElementById('instrSearch').value)" id="statusFilter">
           <option value="">All statuses</option><option value="approved">Approved</option>
@@ -585,7 +592,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <table>
           <thead><tr>
             <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th>
-            <th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
+            <th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th class="hide-xs">Utilisation</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -1361,6 +1368,11 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       </div>
       <div id="sdMessages" style="max-height:320px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;color:var(--txt4);font-size:.78rem;text-align:center"><i class="bi bi-hourglass-split me-1"></i>Loading chat…</div>
     </div>
+    <div class="mt-3" id="sdAdminNotesSection">
+      <div class="section-label"><i class="bi bi-sticky-fill me-2" style="color:var(--gold)"></i>Admin Notes <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(private — not visible to instructor or student)</span></div>
+      <textarea id="sdAdminNotesInput" class="dsq-inp" rows="3" placeholder="Add internal notes about this student…" style="resize:vertical;font-size:.82rem;line-height:1.5"></textarea>
+      <button onclick="saveAdminStudentNote()" class="abtn" style="margin-top:6px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:.8rem;cursor:pointer"><i class="bi bi-floppy me-1"></i>Save Note</button>
+    </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
 </div>
@@ -1857,6 +1869,7 @@ function renderInstrsTable(list){
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
+      <td class="hide-xs">${(()=>{const h=parseFloat(weekHrs)||0;const cap=20;const pct=Math.min(Math.round(h/cap*100),100);const col=pct>=85?'var(--red)':pct>=60?'var(--gold)':'#25D366';const lbl=pct>=85?'High':'pct>=60'?'Mid':'Low';return`<div title="${h}h of ${cap}h capacity (${pct}%)" style="display:flex;align-items:center;gap:5px"><div style="width:48px;height:7px;background:var(--dk3);border-radius:4px;overflow:hidden;border:1px solid var(--bdr)"><div style="width:${pct}%;height:100%;background:${col};border-radius:4px;transition:width .4s"></div></div><span style="font-size:.65rem;color:${col};font-weight:700;font-family:'Oswald',sans-serif">${pct}%</span></div>`;})()</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="viewInstr('${i.id}')"><i class="bi bi-calendar-week me-1"></i>View</button>
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-people me-1"></i>Students</button>
@@ -2784,6 +2797,31 @@ async function saveAdminStudentNotes(acctId){
   else showToast('Notes saved ✓','success');
 }
 
+/* ── ADMIN NOTES ON STUDENT DETAIL ── */
+async function saveAdminStudentNote(){
+  const ta=document.getElementById('sdAdminNotesInput');
+  if(!ta||!_adminStudentCtx)return;
+  const note=ta.value.trim();
+  // Try saving to student_profiles first (profileId), fallback to student_accounts (acctId)
+  let saved=false;
+  if(_adminStudentCtx.profileId){
+    const{error}=await sb.from('student_profiles').update({notes:note}).eq('id',_adminStudentCtx.profileId);
+    if(!error)saved=true;
+  }
+  if(!saved&&_adminStudentCtx.accId){
+    const{error}=await sb.from('student_accounts').update({notes:note}).eq('id',_adminStudentCtx.accId);
+    if(!error)saved=true;
+  }
+  if(saved){
+    showToast('Note saved ✓','success');
+    // Update cache
+    const n=_adminStudentCtx.name.toLowerCase().trim();
+    (allStudentsCache||[]).forEach(s=>{if((s.name||'').toLowerCase().trim()===n)s.notes=note;});
+  } else {
+    showToast('Failed to save note.','error');
+  }
+}
+
 /* ── CREATE STUDENT ACCOUNT ── */
 function openCreateStudentModal(){
   // Reset form
@@ -2934,6 +2972,7 @@ async function openStudentDetail(idx,_directData){
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
+    ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
@@ -2948,6 +2987,9 @@ async function openStudentDetail(idx,_directData){
       </div>
       ${l.pickup_address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}" target="_blank" style="color:#60a5fa;font-size:.72rem"><i class="bi bi-map-fill"></i></a>`:''}
     </div>`).join('');
+  // Pre-populate admin notes
+  const notesInput=document.getElementById('sdAdminNotesInput');
+  if(notesInput) notesInput.value=s.notes||'';
   // Open modal immediately with cached data — progress/messages load async after
   openModal('studentDetailModal');
   // Load heavier data (progress, messages, theory) asynchronously after modal is visible
@@ -4142,6 +4184,50 @@ async function loadDashboard(){
 
   // 7-day revenue chart
   loadDash7DayChart();
+
+  // Re-engagement alerts — students with no lesson in 21+ days
+  loadReEngagementAlerts();
+}
+
+async function loadReEngagementAlerts(){
+  const alertEl=document.getElementById('dashReEngagement');
+  if(!alertEl)return;
+  if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-21);
+  const cutoffStr=dateKey(cutoff);
+  // Get all student names that have had a lesson in the last 21 days
+  const{data:recentLessons}=await sb.from('lessons').select('student_name').gte('lesson_date',cutoffStr);
+  const recentNames=new Set((recentLessons||[]).map(l=>(l.student_name||'').toLowerCase().trim()));
+  // Find active students not in recentNames
+  const inactive=(allStudentsCache||[]).filter(s=>{
+    if(!s.name||(s.status&&s.status==='inactive')) return false;
+    return !recentNames.has((s.name||'').toLowerCase().trim());
+  });
+  if(!inactive.length){
+    alertEl.innerHTML='<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:10px 14px;font-size:.78rem;color:#4ade80"><i class="bi bi-check-circle-fill me-2"></i>All students have had a lesson in the last 21 days — great!</div>';
+    return;
+  }
+  const collapsed=inactive.length>5;
+  const shown=inactive.slice(0,5);
+  const rows=inactive.map((s,idx)=>{
+    const waNum=buildWaNum(s.phone||'');
+    const chaseMsg=encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 We noticed it\'s been a while since your last driving lesson with DriveSQ. We\'d love to help you continue your progress — want to book your next session? Reply here or visit https://www.drivesq.co.uk/student.html 🚗');
+    return`<div class="re-alert-row" style="${idx>=5?'display:none':''};display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8rem;font-weight:600;color:var(--txt)">${esc(s.name)}</div>
+        <div style="font-size:.65rem;color:var(--txt4)">${s.phone||'No phone'} · ${s.instrId?(allInstrs.find(i=>i.id===s.instrId)?.full_name||'Unknown instructor'):'Unassigned'}</div>
+      </div>
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${chaseMsg}" target="_blank" style="font-size:.72rem;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);color:#25D366;border-radius:6px;padding:4px 10px;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp me-1"></i>Chase</a>`:'<span style="font-size:.7rem;color:var(--txt4)">No phone</span>'}
+    </div>`;
+  }).join('');
+  alertEl.innerHTML=`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:10px;overflow:hidden">
+    <div style="padding:10px 14px;background:rgba(245,197,24,.1);border-bottom:1px solid rgba(245,197,24,.2);display:flex;align-items:center;gap:8px;cursor:pointer" onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none'">
+      <i class="bi bi-exclamation-triangle-fill" style="color:var(--gold)"></i>
+      <span style="font-size:.82rem;font-weight:700;color:var(--gold)">${inactive.length} Student${inactive.length!==1?'s':''} Need${inactive.length===1?'s':''} Re-engagement</span>
+      <span style="font-size:.7rem;color:var(--txt4);margin-left:auto">No lesson in 21+ days · click to expand</span>
+    </div>
+    <div style="padding:0 14px 8px;display:none">${rows}${inactive.length>5?`<button onclick="this.closest('[style]').querySelectorAll('.re-alert-row').forEach(r=>r.style.display='flex');this.style.display='none'" style="background:none;border:none;color:var(--txt4);font-size:.72rem;padding:6px 0;cursor:pointer"><i class="bi bi-chevron-down me-1"></i>Show all ${inactive.length}</button>`:''}</div>
+  </div>`;
 }
 
 /* == ALL LESSONS == */
@@ -4677,6 +4763,38 @@ function exportInstrsCSV(){
   const csv=[hdr,...rows].join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='drivesq_instructors.csv';a.click();
   showToast('Instructors exported ✓','success');
+}
+
+/* ══ INSTRUCTOR PERFORMANCE REPORT ══ */
+async function exportInstrPerformanceReport(){
+  showToast('Generating report…','info');
+  const now=new Date();
+  const y=now.getFullYear(),m=now.getMonth();
+  const monthStart=new Date(y,m,1);const monthEnd=new Date(y,m+1,0);
+  const msStr=dateKey(monthStart),meStr=dateKey(monthEnd);
+  const{data:lessons}=await sb.from('lessons').select('instructor_id,lesson_type,duration_hours,payment_received,lesson_date').gte('lesson_date',msStr).lte('lesson_date',meStr);
+  const byInstr={};
+  (lessons||[]).forEach(l=>{
+    if(!l.instructor_id)return;
+    if(!byInstr[l.instructor_id])byInstr[l.instructor_id]={lessons:0,hours:0,revenue:0};
+    byInstr[l.instructor_id].lessons++;
+    byInstr[l.instructor_id].hours+=parseFloat(l.duration_hours)||1;
+    byInstr[l.instructor_id].revenue+=parseFloat(l.payment_received)||0;
+  });
+  const monthName=monthStart.toLocaleString('en-GB',{month:'long',year:'numeric'});
+  const hdr=`Instructor,Badge,Type,Area,Status,Students,Lessons (${monthName}),Hours (${monthName}),Revenue (${monthName}),Avg/Lesson`;
+  const rows=allInstrs.map(i=>{
+    const r=byInstr[i.id]||{lessons:0,hours:0,revenue:0};
+    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+    const avg=r.lessons?((r.revenue/r.lessons).toFixed(2)):0;
+    return[i.full_name,i.badge_number||'',i.badge_type||'ADI',i.area||'',i.status,studs,r.lessons,r.hours.toFixed(1),'£'+r.revenue.toFixed(2),'£'+avg].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv=[hdr,...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`drivesq_instructor_performance_${y}_${String(m+1).padStart(2,'0')}.csv`;
+  a.click();
+  showToast('Performance report exported ✓','success');
 }
 
 /* ══ DASHBOARD 7-DAY REVENUE CHART ══ */
