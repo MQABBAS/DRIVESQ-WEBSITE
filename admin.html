@@ -973,6 +973,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>Student pin — click to view details</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;margin-right:4px"></span>Nearest instructor result</span>
   </div>
+
+  <!-- Students with no geocodable address -->
+  <div id="mapNoAddressSection" style="display:none;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px"><i class="bi bi-geo-alt-fill me-2" style="color:#f87171"></i>Students Without a Mappable Address (<span id="mapNoAddressCount">0</span>)</div>
+    <div id="mapNoAddressList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px"></div>
+  </div>
 </div>
 
 <!-- NOTES PANEL -->
@@ -2344,7 +2350,14 @@ async function loadAllStudents(){
 function renderStudentsTable(students){
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
-  document.getElementById('studentCount').textContent=`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
+  const total=allStudentsCache.length||students.length;
+  const isFiltered=students.length!==total;
+  document.getElementById('studentCount').textContent=isFiltered
+    ?`Showing ${students.length} of ${total} student${total!==1?'s':''} (filtered)`
+    :`Showing ${students.length} student${students.length!==1?'s':''} across all instructors`;
+  // Keep stat card in sync
+  const sTotalEl=document.getElementById('sTotalStudents');
+  if(sTotalEl&&(parseInt(sTotalEl.textContent)||0)<total)sTotalEl.textContent=total;
   if(!students.length){tb.innerHTML='<tr>'+emptyState('No students found','Try adjusting your search or instructor filter')+'</tr>';return;}
   tb.innerHTML=students.map((s,idx)=>{
     const waNum=buildWaNum(s.phone||'');
@@ -4553,10 +4566,10 @@ function refreshMapStats(){
   const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const online=studs.filter(s=>s.isOnline).length+approved.filter(i=>i.last_seen&&i.last_seen>=fiveMinsAgo).length;
   document.getElementById('mapStatInstrs').textContent=approved.length;
-  // Use the accurate total from the dashboard stats card (sTotalStudents)
-  const dashTotal=document.getElementById('sTotalStudents')?.textContent;
-  const displayCount=dashTotal&&dashTotal!=='0'&&dashTotal!=='—'?dashTotal:(window._rosterCount!=null?window._rosterCount:studs.length||'N/A');
-  document.getElementById('mapStatStudents').textContent=displayCount;
+  // mapStatStudents is set by plotStudentMapMarkers (shows pinned/total)
+  // Only set it here as initial placeholder if not yet set
+  if(document.getElementById('mapStatStudents').textContent==='—')
+    document.getElementById('mapStatStudents').textContent=studs.length||'—';
   document.getElementById('mapStatAreas').textContent=areas.size;
   document.getElementById('mapStatOnline').textContent=online;
 }
@@ -4644,23 +4657,35 @@ function _placeStuPin(s,coords){
 async function plotStudentMapMarkers(){
   if(!_adminMap||!window.L)return;
   _studentMapMarkers.forEach(m=>m.remove());_studentMapMarkers=[];
-  const students=(allStudentsCache||[]).filter(s=>s.address||s.phone||s.instrId);
+  const students=allStudentsCache||[];
+  const noAddr=[];
+  let mapped=0;
   await Promise.all(students.map(async s=>{
-    // Try to extract postcode from student address, then instructor postcode/area as fallback
+    // Only use postcode extracted from the student's own address — no instructor fallback
     const addrPc=extractPostcode(s.address||'');
-    let coords=null;
-    if(addrPc)coords=await geocodePostcode(addrPc);
-    if(!coords){
-      const instr=(allInstrs||[]).find(i=>i.id===s.instrId);
-      const instrPc=(instr?.postcode||'').trim()||extractPostcode(instr?.area||'');
-      if(instrPc)coords=await geocodePostcode(instrPc);
-    }
-    if(!coords){
-      const instrArea=(allInstrs||[]).find(i=>i.id===s.instrId)?.area||'';
-      coords=manchesterAreaCoords(instrArea);
-    }
+    if(!addrPc){noAddr.push(s);return;}
+    const coords=await geocodePostcode(addrPc);
+    if(!coords){noAddr.push(s);return;}
     _placeStuPin(s,coords);
+    mapped++;
   }));
+  // Update "Students on Map" stat to show pinned count / total
+  document.getElementById('mapStatStudents').textContent=mapped+' / '+(students.length||'—');
+  // Populate no-address section
+  const sec=document.getElementById('mapNoAddressSection');
+  const lst=document.getElementById('mapNoAddressList');
+  const cnt=document.getElementById('mapNoAddressCount');
+  if(noAddr.length&&sec&&lst&&cnt){
+    cnt.textContent=noAddr.length;
+    lst.innerHTML=noAddr.map(s=>`<div style="background:var(--dk2);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+      <div style="width:28px;height:28px;border-radius:50%;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-size:.7rem;color:#f87171;flex-shrink:0">${(s.name||'?').charAt(0).toUpperCase()}</div>
+      <div style="min-width:0">
+        <div style="font-size:.78rem;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</div>
+        <div style="font-size:.65rem;color:var(--txt4)">${s.instrName?esc(s.instrName):'Unassigned'}${s.address?' · <span style="color:#f87171">No postcode</span>':' · <span style="color:#f87171">No address</span>'}</div>
+      </div>
+    </div>`).join('');
+    sec.style.display='';
+  } else if(sec){sec.style.display='none';}
 }
 
 function manchesterAreaCoords(area){
