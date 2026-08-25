@@ -4263,8 +4263,26 @@ async function dashTopEnableNotifs(){
 async function enablePushNotifications(){
   const banner=document.getElementById('pushBanner');if(banner)banner.remove();
   const topBanner=document.getElementById('pushTopBanner');if(topBanner)topBanner.style.display='none';
+
+  // Check basic API support
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){
+    showToast('Your browser does not support notifications.','warn',6000);return;
+  }
+
+  // iOS Safari only supports Web Push when installed as a PWA (Add to Home Screen)
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
+  if(isIOS&&!isInStandaloneMode){
+    showToast('📱 To enable notifications on iPhone/iPad, tap the Share button → "Add to Home Screen", then open the app from your home screen and try again.','warn',10000);
+    return;
+  }
+
+  // Check if pushManager is available (some browsers/contexts block it)
   try{
     const reg=await navigator.serviceWorker.ready;
+    if(!reg.pushManager){
+      showToast('Push notifications are not supported in this browser. Try Chrome or Safari (installed as app on iPhone).','warn',7000);return;
+    }
     const perm=await Notification.requestPermission();
     if(perm!=='granted'){showToast('Notifications blocked — enable them in your browser settings.','warn');return;}
     const sub=await reg.pushManager.subscribe({
@@ -4273,7 +4291,13 @@ async function enablePushNotifications(){
     });
     await savePushSubscription(sub);
     showToast('🔔 Notifications enabled!','success');
-  }catch(e){console.warn('enablePushNotifications:',e);showToast('Could not enable notifications: '+e.message,'error');}
+  }catch(e){
+    console.warn('enablePushNotifications:',e);
+    // Friendly messages for common errors
+    if(e.name==='NotAllowedError'){showToast('Notifications blocked — go to your browser settings and allow notifications for this site.','warn',7000);}
+    else if(e.name==='NotSupportedError'||e.name==='AbortError'){showToast('📱 Notifications require the app to be installed. Tap Share → "Add to Home Screen" first.','warn',9000);}
+    else{showToast('Could not enable notifications: '+e.message,'error',7000);}
+  }
 }
 
 async function savePushSubscription(sub){
