@@ -549,6 +549,18 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 
 <!-- MAIN -->
 <div class="main-pad" style="padding:14px 16px 0">
+  <!-- Push notification enable banner — shown every session until notifications are granted -->
+  <div id="pushTopBanner" style="display:none;background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.06));border:1px solid rgba(245,197,24,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:1.4rem;flex-shrink:0">🔔</span>
+    <div style="flex:1;min-width:180px">
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--gold);margin-bottom:2px">Enable Push Notifications</div>
+      <div style="font-size:.74rem;color:var(--txt3);line-height:1.4">Get alerted for new students, messages, and lesson confirmations — even when the app is closed.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+      <button onclick="dashTopEnableNotifs()" style="background:var(--gold);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;cursor:pointer;white-space:nowrap"><i class="bi bi-bell-fill me-1"></i>Enable Now</button>
+      <button onclick="document.getElementById('pushTopBanner').style.display='none';sessionStorage.setItem('pushBannerDismissed','1')" style="background:transparent;color:var(--txt3);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;font-size:.78rem;cursor:pointer;white-space:nowrap">Not now</button>
+    </div>
+  </div>
   <div id="reminderArea"></div>
   <div id="msgBanners"></div>
 
@@ -4201,8 +4213,9 @@ async function initPushSubscription(){
   if(!instr?.id)return;
   try{
     const reg=await navigator.serviceWorker.ready;
-    // Already granted — just make sure subscription is saved in DB
+    // Already granted — hide banner and ensure subscription is saved
     if(Notification.permission==='granted'){
+      const topBanner=document.getElementById('pushTopBanner');if(topBanner)topBanner.style.display='none';
       const existing=await reg.pushManager.getSubscription();
       if(existing){await savePushSubscription(existing);}
       else{
@@ -4212,35 +4225,42 @@ async function initPushSubscription(){
       }
       return;
     }
-    // Already denied — don't ask again
-    if(Notification.permission==='denied')return;
-    // 'default' — ask, but only once per device (localStorage survives tab close)
-    if(localStorage.getItem('pushDeclined'))return;
-    showPushBanner();
+    // Already denied — show the strip inside notification panel, and top banner with settings link
+    if(Notification.permission==='denied'){
+      _showTopPushBanner(true);
+      return;
+    }
+    // 'default' — show banner every session unless dismissed this session
+    if(!sessionStorage.getItem('pushBannerDismissed'))_showTopPushBanner(false);
   }catch(e){console.warn('initPushSubscription:',e);}
 }
 
-function showPushBanner(){
-  if(document.getElementById('pushBanner'))return;
-  const b=document.createElement('div');
-  b.id='pushBanner';
-  b.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:min(360px,calc(100vw - 24px));background:var(--dk2,#1a1a2e);border:1px solid var(--gold,#f5c518);border-radius:14px;padding:14px 16px;z-index:2000;box-shadow:0 8px 32px rgba(0,0,0,.7);font-family:Inter,sans-serif';
-  b.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px">
-    <span style="font-size:1.5rem;flex-shrink:0">🔔</span>
-    <div style="flex:1">
-      <div style="font-size:.88rem;font-weight:700;color:var(--txt,#fff);margin-bottom:3px">Enable lesson notifications</div>
-      <div style="font-size:.76rem;color:var(--txt3,#aaa);margin-bottom:10px">Get notified when a new student is assigned, you receive a message, or a lesson is confirmed — even when the app is closed.</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="enablePushNotifications()" style="flex:1;background:var(--gold,#f5c518);color:#000;border:none;border-radius:8px;padding:7px;font-size:.8rem;font-weight:700;cursor:pointer">Enable</button>
-        <button onclick="document.getElementById('pushBanner').remove();localStorage.setItem('pushDeclined','1')" style="flex:1;background:transparent;color:var(--txt3,#aaa);border:1px solid var(--bdr,#333);border-radius:8px;padding:7px;font-size:.8rem;cursor:pointer">Not now</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(b);
+function _showTopPushBanner(denied){
+  const b=document.getElementById('pushTopBanner');
+  if(!b)return;
+  if(denied){
+    // Change button to settings guide
+    const btn=b.querySelector('button');
+    if(btn){btn.textContent='⚙ Open browser settings';btn.onclick=()=>showToast('Go to browser Settings → Notifications → find DriveSQ and allow.','info',6000);}
+    const sub=b.querySelector('div>div:last-child');
+    if(sub)sub.textContent='Notifications are blocked. Enable them in your browser settings to receive lesson alerts.';
+  }
+  b.style.display='flex';
+}
+
+// Keep old showPushBanner as no-op for backward compat
+function showPushBanner(){}
+
+async function dashTopEnableNotifs(){
+  const perm=('Notification' in window)?Notification.permission:'unsupported';
+  if(perm==='denied'){showToast('Notifications are blocked — enable them in your browser settings → Notifications → DriveSQ','warn',7000);return;}
+  await enablePushNotifications();
+  _updateDashNotifStrip();
 }
 
 async function enablePushNotifications(){
   const banner=document.getElementById('pushBanner');if(banner)banner.remove();
+  const topBanner=document.getElementById('pushTopBanner');if(topBanner)topBanner.style.display='none';
   try{
     const reg=await navigator.serviceWorker.ready;
     const perm=await Notification.requestPermission();
