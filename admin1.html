@@ -507,6 +507,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <i class="bi bi-robot" id="autopilotIcon"></i>
           <span id="autopilotLabel">Autopilot</span>
         </button>
+        <button class="theme-toggle" onclick="openApSettings()" title="Autopilot settings — distance, student limits, instructor exclusions" style="border-color:rgba(37,211,102,.3);color:#25D366"><i class="bi bi-gear-fill"></i></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
@@ -550,6 +551,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')" title="Student requests to change instructor"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')" title="Instructor transfer requests"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')" title="Broadcast a message to all instructors at once"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
+    <button class="dsq-tab" id="tab-wa-inbox" onclick="switchTab('wa-inbox');loadWaInbox()" title="WhatsApp inbox — all inbound and outbound messages" style="position:relative"><i class="bi bi-whatsapp" style="color:#25D366"></i><span class="d-none d-sm-inline ms-1">WA Inbox</span><span class="tab-badge ms-1 hidden" id="waInboxBadge" style="background:#25D366">0</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')" title="Charts: hours per instructor, pass rates, lesson trends"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
@@ -865,6 +867,40 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <!-- ══ MESSAGES ══ -->
+  <!-- ══ WA INBOX PANEL ══ -->
+  <div id="panel-wa-inbox" class="hidden">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div class="page-title mb-0"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>WhatsApp Inbox</div>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <select id="waInboxFilter" class="dsq-inp" style="width:auto;font-size:.78rem;padding:5px 10px" onchange="loadWaInbox()">
+          <option value="all">All messages</option>
+          <option value="inbound">Inbound only</option>
+          <option value="outbound">Outbound only</option>
+          <option value="unprocessed">Unread replies</option>
+        </select>
+        <button class="btn-s" onclick="loadWaInbox()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+        <div id="waWebhookStatus" style="font-size:.7rem;padding:4px 10px;border-radius:6px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);color:#f97316"><i class="bi bi-plug me-1"></i>Webhook: not configured</div>
+      </div>
+    </div>
+    <!-- Webhook setup notice -->
+    <div id="waSetupBanner" class="dsq-card p-3 mb-3" style="border-color:rgba(37,211,102,.3)">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#25D366;margin-bottom:8px"><i class="bi bi-robot me-2"></i>Two-Way WhatsApp Setup Checklist</div>
+      <div style="font-size:.78rem;color:var(--txt3);line-height:1.7">
+        <div>1️⃣ <strong style="color:var(--txt)">Create Meta Business account</strong> at <a href="https://business.facebook.com" target="_blank" style="color:#25D366">business.facebook.com</a></div>
+        <div>2️⃣ <strong style="color:var(--txt)">Register a WhatsApp Business phone number</strong> in Meta Developer Console</div>
+        <div>3️⃣ <strong style="color:var(--txt)">Add Supabase secrets:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_TOKEN</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_PHONE_ID</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_VERIFY_TOKEN</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">SB_SERVICE_KEY</code></div>
+        <div>4️⃣ <strong style="color:var(--txt)">Deploy edge functions:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">supabase functions deploy send-whatsapp whatsapp-webhook</code></div>
+        <div>5️⃣ <strong style="color:var(--txt)">Set webhook URL in Meta Console:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/whatsapp-webhook</code></div>
+        <div>6️⃣ <strong style="color:var(--txt)">Subscribe to:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">messages</code> webhook field · Run the SQL migration for whatsapp_messages table</div>
+        <div style="margin-top:8px;color:#4ade80"><i class="bi bi-check-circle me-1"></i>Once set up, instructor replies (YES/NO) are processed automatically and appear here in real time.</div>
+      </div>
+    </div>
+    <!-- Message list -->
+    <div class="dsq-card" id="waInboxList">
+      <div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>No messages yet — they appear here once WhatsApp is configured.</div>
+    </div>
+  </div>
+
   <div id="panel-messages" class="hidden">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="page-title mb-0"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
@@ -1447,6 +1483,36 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 </div>
 
+<!-- AUTOPILOT SETTINGS MODAL -->
+<div class="modal fade" id="apSettingsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--dk);border:1px solid var(--bdr);border-radius:16px">
+      <div class="modal-body p-4">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt)"><i class="bi bi-gear-fill me-2" style="color:#25D366"></i>Autopilot Settings</div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Max distance (miles) <span style="font-size:.7rem;color:var(--txt4)">Skip instructors further than this</span></label>
+          <input class="dsq-inp" type="number" id="aps-maxdist" min="1" max="50" value="20"/>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Max students per instructor <span style="font-size:.7rem;color:var(--txt4)">Skip instructor if roster is already this large</span></label>
+          <input class="dsq-inp" type="number" id="aps-maxstu" min="1" max="100" value="30"/>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Exclude from autopilot <span style="font-size:.7rem;color:var(--txt4)">These instructors will never be auto-assigned</span></label>
+          <div id="aps-excl-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;margin-top:6px"></div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn-p flex-fill" onclick="saveApSettings()"><i class="bi bi-check-lg me-1"></i>Save Settings</button>
+          <button class="btn-s" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- REASSIGN MODAL -->
 <div class="dsq-overlay" id="reassignModal">
   <div class="dsq-modal">
@@ -1772,9 +1838,73 @@ async function runAutopilot(){
   _apTimer=setInterval(autopilotCycle,60000); // poll every 60 s
 }
 
+function getApSettings(){
+  try{ return {...{maxDist:20,maxStudents:30,excludedIds:[]}, ...JSON.parse(localStorage.getItem('dsq_ap_settings')||'{}')}; }
+  catch{ return {maxDist:20,maxStudents:30,excludedIds:[]}; }
+}
+function saveApSettings(){
+  const maxDist=parseFloat(document.getElementById('aps-maxdist').value)||20;
+  const maxStudents=parseInt(document.getElementById('aps-maxstu').value)||30;
+  const excludedIds=[...document.querySelectorAll('.aps-excl-cb:checked')].map(cb=>cb.value);
+  localStorage.setItem('dsq_ap_settings',JSON.stringify({maxDist,maxStudents,excludedIds}));
+  bootstrap.Modal.getInstance(document.getElementById('apSettingsModal'))?.hide();
+  showToast('<i class="bi bi-gear-fill me-1"></i>Autopilot settings saved','success',3000);
+}
+function openApSettings(){
+  const s=getApSettings();
+  document.getElementById('aps-maxdist').value=s.maxDist;
+  document.getElementById('aps-maxstu').value=s.maxStudents;
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  document.getElementById('aps-excl-list').innerHTML=approved.map(i=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.82rem;cursor:pointer">
+      <input type="checkbox" class="aps-excl-cb" value="${i.id}" ${s.excludedIds.includes(i.id)?'checked':''}/>
+      ${esc(i.full_name)} <span style="color:var(--txt3);font-size:.7rem">${esc(i.area||'')}</span>
+    </label>`).join('');
+  new bootstrap.Modal(document.getElementById('apSettingsModal')).show();
+}
+
+async function autopilotCheckDeclined(){
+  const {data:declined}=await sb.from('waiting_list')
+    .select('*').eq('confirm_status','declined').is('next_candidates','not.null')
+    .order('confirm_responded_at',{ascending:true}).limit(5);
+  if(!declined||!declined.length)return;
+  for(const entry of declined){
+    let nextList=[];
+    try{nextList=JSON.parse(entry.next_candidates||'[]');}catch{}
+    if(!nextList.length){
+      await sb.from('waiting_list').update({confirm_status:'no_instructor',next_candidates:null}).eq('id',entry.id).catch(()=>{});
+      continue;
+    }
+    const next=nextList[0];
+    const remaining=nextList.slice(1);
+    const newToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
+    const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(newToken)}`;
+    const profBase={instructor_id:next.id,name:entry.student_name,phone:entry.student_phone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
+    let ok=false;
+    for(const p of[{...profBase,lesson_type:entry.lesson_type||'Manual',notes:entry.notes||null},{...profBase,lesson_type:entry.lesson_type||'Manual'},profBase]){
+      const{error}=await sb.from('student_profiles').insert([p]);
+      if(!error){ok=true;break;}
+    }
+    if(!ok)continue;
+    await sb.from('waiting_list').update({
+      instructor_id:next.id,
+      confirm_token:newToken,
+      confirm_status:'pending',
+      next_candidates:JSON.stringify(remaining),
+      status:'assigned'
+    }).eq('id',entry.id).catch(()=>{});
+    const instrMsg2=`Hi ${next.full_name}! 👋\n\n🤖 *DriveSQ Autopilot — Student Re-assigned to You:*\n\n👤 *Name:* ${entry.student_name}\n📞 *Phone:* ${entry.student_phone||'Not provided'}\n🏷️ *Postcode:* ${entry.postcode||'—'}\n🚗 *Lesson type:* ${entry.lesson_type||'Manual'}\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
+    await sendWA(next.phone||'',instrMsg2);
+    _apLog.unshift({ts:new Date(),student:entry.student_name,instructor:next.full_name,action:'🔄 Re-assigned (previous declined)'});
+    renderApLog();
+    showToast(`<i class="bi bi-robot me-1"></i>🔄 Re-assigned <strong>${entry.student_name}</strong> to <strong>${next.full_name}</strong>`,'info',5000);
+  }
+}
+
 async function autopilotCycle(){
   if(!isAutopilotOn()){clearInterval(_apTimer);_apTimer=null;return;}
   try{
+    await autopilotCheckDeclined();
     const {data:waiting,error}=await sb.from('waiting_list')
       .select('*').eq('status','waiting').order('created_at',{ascending:true});
     if(error||!waiting||!waiting.length)return;
@@ -1815,7 +1945,9 @@ async function autopilotAssignEntry(entry){
   } catch(e){return;}
 
   const searchedOC=outwardCodeAP(rawPc);
+  const apS=getApSettings();
   const approved=allInstrs.filter(i=>i.status==='approved');
+  const filteredApproved=approved.filter(i=>!apS.excludedIds.includes(i.id));
 
   // 2. Score each instructor same algorithm as findClosest()
   function instrCanTeachAP(instrLT,reqType){
@@ -1824,7 +1956,7 @@ async function autopilotAssignEntry(entry){
     return instrLT!=='Automatic';
   }
 
-  const scored=await Promise.all(approved.map(async instr=>{
+  const scored=await Promise.all(filteredApproved.map(async instr=>{
     const pcMatch=(instr.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
     if(!pcMatch)return null;
     try{
@@ -1853,16 +1985,23 @@ async function autopilotAssignEntry(entry){
     }catch{return null;}
   }));
 
-  const candidates=scored.filter(Boolean).sort((a,b)=>b.score-a.score);
-  if(!candidates.length){
+  const stuCountByInstr={};
+  (allStudentsCache||[]).forEach(s=>{if(s.instrId)stuCountByInstr[s.instrId]=(stuCountByInstr[s.instrId]||0)+1;});
+  const candidates=scored.filter(Boolean).filter(r=>r.dist<=apS.maxDist).sort((a,b)=>b.score-a.score);
+  const candidatesFiltered=candidates.filter(r=>(stuCountByInstr[r.instr.id]||0)<apS.maxStudents);
+  if(!candidatesFiltered.length){
     _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ No matching instructor found — left on waiting list'});
     renderApLog(); return;
   }
 
-  const best=candidates[0];
+  const best=candidatesFiltered[0];
   const instrId=best.instr.id;
   const instrName=best.instr.full_name;
   const instrPhone=best.instr.phone||'';
+
+  // Generate confirm token and next candidates
+  const confirmToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
+  const nextCandidates=candidatesFiltered.slice(1,5).map(c=>({id:c.instr.id,full_name:c.instr.full_name,phone:c.instr.phone||''}));
 
   // 3. Insert student_profiles
   const profBase={instructor_id:instrId,name:stuName,phone:stuPhone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
@@ -1880,8 +2019,14 @@ async function autopilotAssignEntry(entry){
     renderApLog(); return;
   }
 
-  // 4. Mark waiting_list as assigned
-  await sb.from('waiting_list').update({status:'assigned',instructor_id:instrId}).eq('id',entry.id).catch(()=>{});
+  // 4. Mark waiting_list as assigned with confirm columns
+  await sb.from('waiting_list').update({
+    status:'assigned',
+    instructor_id:instrId,
+    confirm_token:confirmToken,
+    confirm_status:'pending',
+    next_candidates: JSON.stringify(nextCandidates)
+  }).eq('id',entry.id).catch(()=>{});
 
   // 5. Audit trail
   await sb.from('student_requests').insert([{
@@ -1897,7 +2042,8 @@ async function autopilotAssignEntry(entry){
     '/dashboard.html');
 
   // 7. WhatsApp messages
-  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ Autopilot has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏷️ *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\nThey will appear in your roster on your instructor portal.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
+  const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(confirmToken)}`;
+  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ Autopilot has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏷️ *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
   const stuMsg=stuPhone?`Hi ${stuName.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! You've been automatically matched to an instructor.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${stuPhone}*\nYour instructor is *${instrName}*.\n\nSee you on the road! 🚗\n— DriveSQ`:'';
 
   await sendWA(instrPhone,instrMsg);
@@ -1932,6 +2078,81 @@ function initAutopilot(){
     runAutopilot();
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WHATSAPP INBOX
+   Reads whatsapp_messages table and renders a conversation-style
+   inbox. Inbound = replies from instructors/students.
+   Outbound = messages sent by admin/autopilot.
+══════════════════════════════════════════════════════════════ */
+async function loadWaInbox(){
+  const listEl=document.getElementById('waInboxList');
+  if(!listEl)return;
+  listEl.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-1"></i>Loading…</div>';
+
+  const filter=document.getElementById('waInboxFilter')?.value||'all';
+  let q=sb.from('whatsapp_messages').select('*').order('created_at',{ascending:false}).limit(100);
+  if(filter==='inbound')q=q.eq('direction','inbound');
+  else if(filter==='outbound')q=q.eq('direction','outbound');
+  else if(filter==='unprocessed')q=q.eq('direction','inbound').eq('processed',false);
+
+  const{data:msgs,error}=await q;
+
+  // Check badge
+  const{data:unread}=await sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false);
+  const unreadCount=unread?.length||0;
+  const badge=document.getElementById('waInboxBadge');
+  if(badge){badge.textContent=unreadCount;badge.classList.toggle('hidden',unreadCount===0);}
+
+  if(error||!msgs||!msgs.length){
+    listEl.innerHTML='<div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>'+(error?'Error loading messages — run the whatsapp_messages SQL migration first.':'No messages yet.')+'</div>';
+    // Show/hide setup banner based on error
+    const banner=document.getElementById('waSetupBanner');
+    if(banner)banner.style.display=error?'':'none';
+    return;
+  }
+
+  document.getElementById('waSetupBanner')?.style.setProperty('display','none');
+
+  listEl.innerHTML=msgs.map(m=>{
+    const isIn=m.direction==='inbound';
+    const ts=m.created_at?new Date(m.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    const name=m.contact_name||m.from_number||m.to_number||'Unknown';
+    const typeColor=m.contact_type==='instructor'?'var(--gold)':m.contact_type==='student'?'#60a5fa':'var(--txt3)';
+    const typeIcon=m.contact_type==='instructor'?'bi-person-badge-fill':m.contact_type==='student'?'bi-mortarboard-fill':'bi-question-circle';
+    const unreadDot=isIn&&!m.processed?`<span style="width:7px;height:7px;border-radius:50%;background:#25D366;display:inline-block;margin-left:5px;vertical-align:middle"></span>`:'';
+    return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bdr);align-items:flex-start;${isIn?'background:rgba(37,211,102,.04)':''}">
+      <div style="width:36px;height:36px;border-radius:50%;background:${isIn?'rgba(37,211,102,.15)':'rgba(96,165,250,.12)'};border:1px solid ${isIn?'rgba(37,211,102,.3)':'rgba(96,165,250,.25)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem">
+        <i class="bi ${isIn?'bi-person-fill':'bi-robot'}" style="color:${isIn?'#25D366':'#60a5fa'}"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+          <span style="font-size:.78rem;font-weight:700;color:var(--txt)">${esc(name)}</span>
+          ${m.contact_type&&m.contact_type!=='unknown'?`<span style="font-size:.65rem;color:${typeColor}"><i class="bi ${typeIcon} me-1"></i>${m.contact_type}</span>`:''}
+          <span style="font-size:.65rem;color:var(--txt4);margin-left:auto">${ts}</span>
+          ${unreadDot}
+        </div>
+        <div style="font-size:.78rem;color:var(--txt2);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:hidden">${esc(m.body||'')}</div>
+        <div style="font-size:.65rem;color:var(--txt4);margin-top:4px">
+          ${isIn?`<i class="bi bi-arrow-down-left me-1" style="color:#25D366"></i>From: ${esc(m.from_number||'')}`:
+                 `<i class="bi bi-arrow-up-right me-1" style="color:#60a5fa"></i>To: ${esc(m.to_number||'')}`}
+          ${m.processed&&isIn?'&nbsp;·&nbsp;<span style="color:#4ade80"><i class="bi bi-check2-all"></i> Processed</span>':''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Poll WA inbox badge every 2 min when tab is active
+setInterval(()=>{
+  if(!document.hidden){
+    sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false).then(({data})=>{
+      const n=data?.length||0;
+      const badge=document.getElementById('waInboxBadge');
+      if(badge){badge.textContent=n;badge.classList.toggle('hidden',n===0);}
+    });
+  }
+},120000);
 
 // Send a Web Push notification to an instructor via the Edge Function
 async function sendPushToInstructor(instrId,instrName,title,body,url){
@@ -2194,7 +2415,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','wa-inbox','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated

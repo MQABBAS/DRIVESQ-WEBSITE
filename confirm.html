@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DriveSQ — Assignment Confirmation</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080808;color:#efefef;font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#141414;border:1px solid #252525;border-radius:20px;padding:32px 24px;max-width:420px;width:100%;text-align:center}
+.logo{width:56px;height:56px;border-radius:50%;border:2px solid #D10A11;object-fit:cover;margin:0 auto 16px}
+.brand{font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+.brand span{color:#D10A11}
+.icon{font-size:3.5rem;margin:20px 0 12px}
+.title{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:8px}
+.sub{font-size:.85rem;color:#aaa;line-height:1.5}
+.student-box{background:#1c1c1c;border:1px solid #252525;border-radius:12px;padding:14px 16px;margin:20px 0;text-align:left;font-size:.82rem}
+.student-box .row{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #252525}
+.student-box .row:last-child{border-bottom:none}
+.student-box .lbl{color:#666;min-width:80px;flex-shrink:0}
+.student-box .val{color:#efefef;font-weight:600}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.5px;cursor:pointer;text-decoration:none;margin-top:12px}
+.btn-accept{background:#25D366;color:#000}
+.btn-decline{background:#1c1c1c;color:#f87171;border:1.5px solid rgba(248,113,113,.4)}
+.loading{color:#666;font-size:.9rem;padding:20px 0}
+.err{color:#f87171;font-size:.85rem;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+  <div class="brand">Drive<span>SQ</span></div>
+  <div class="loading" id="state">Loading…</div>
+</div>
+<script>
+const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiektqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjkxMTgsImV4cCI6MjA1ODk0NTExOH0.IvNjOhVWMoMDIKuqLQh4qFitFQiQKFYsrI8MHJB0HLg';
+const HEADERS={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+const params=new URLSearchParams(location.search);
+const token=params.get('token');
+const action=params.get('action'); // 'accept' or 'decline'
+
+async function init(){
+  const st=document.getElementById('state');
+  if(!token||!action){st.innerHTML='<span style="color:#f87171">❌ Invalid link — please check your WhatsApp message.</span>';return;}
+
+  // Fetch the waiting_list row
+  let entry;
+  try{
+    const res=await fetch(SB_URL+'/rest/v1/waiting_list?confirm_token=eq.'+encodeURIComponent(token)+'&select=*',{headers:HEADERS});
+    const rows=await res.json();
+    if(!rows||!rows.length){st.innerHTML='<span style="color:#f87171">❌ Assignment not found. It may have already been handled.</span>';return;}
+    entry=rows[0];
+  }catch(e){st.innerHTML='<span style="color:#f87171">❌ Connection error. Please try again.</span>';return;}
+
+  // Already responded?
+  if(entry.confirm_status==='accepted'){
+    showDone('✅','Already Accepted','You already confirmed this student. They\'ll be in touch soon!',entry,'#25D366');return;
+  }
+  if(entry.confirm_status==='declined'){
+    showDone('❌','Already Declined','You already declined this student. We\'ve found them another instructor.',entry,'#f87171');return;
+  }
+
+  if(action==='accept'){
+    await respond(entry,'accepted');
+    showDone('✅','Student Accepted!','Great! '+esc(entry.student_name||'The student')+' is now on your roster. They\'ll be in touch to arrange their first lesson.',entry,'#25D366');
+  } else if(action==='decline'){
+    await respond(entry,'declined');
+    showDone('❌','Declined','Understood — we\'ll find '+esc(entry.student_name||'the student')+' another instructor right away.',entry,'#f97316');
+  } else {
+    st.innerHTML='<span style="color:#f87171">❌ Invalid action.</span>';
+  }
+}
+
+async function respond(entry,status){
+  await fetch(SB_URL+'/rest/v1/waiting_list?confirm_token=eq.'+encodeURIComponent(token),{
+    method:'PATCH',
+    headers:{...HEADERS,'Prefer':'return=minimal'},
+    body:JSON.stringify({confirm_status:status,confirm_responded_at:new Date().toISOString()})
+  }).catch(()=>{});
+}
+
+function showDone(icon,title,msg,entry,color){
+  const card=document.getElementById('card');
+  const stuBox=entry?`<div class="student-box">
+    <div class="row"><span class="lbl">Student</span><span class="val">${esc(entry.student_name||'—')}</span></div>
+    <div class="row"><span class="lbl">Phone</span><span class="val">${esc(entry.student_phone||'Not provided')}</span></div>
+    <div class="row"><span class="lbl">Postcode</span><span class="val">${esc(entry.postcode||'—')}</span></div>
+    <div class="row"><span class="lbl">Type</span><span class="val">${esc(entry.lesson_type||'Manual')}</span></div>
+  </div>`:'';
+  card.innerHTML=`
+    <img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
+    <div class="brand">Drive<span>SQ</span></div>
+    <div class="icon">${icon}</div>
+    <div class="title" style="color:${color}">${title}</div>
+    <div class="sub">${msg}</div>
+    ${stuBox}
+    <div style="font-size:.72rem;color:#444;margin-top:16px">— DriveSQ Autopilot 🤖</div>`;
+}
+
+init();
+</script>
+</body>
+</html>
