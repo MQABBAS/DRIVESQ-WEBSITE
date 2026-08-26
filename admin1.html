@@ -2085,6 +2085,42 @@ function initAutopilot(){
    inbox. Inbound = replies from instructors/students.
    Outbound = messages sent by admin/autopilot.
 ══════════════════════════════════════════════════════════════ */
+// Same word lists as the webhook — keeps admin1.html and edge function in sync
+const WA_ACCEPT_WORDS=new Set(['1','yes','y','yep','yup','yeah','yea','ya','accept','accepted','ok','okay','sure','soundsgood','great','perfect','absolutely','definitely','confirm','confirmed','agreed','deal','fine','happy','illdoit','illdo','illtake','✅','👍']);
+const WA_DECLINE_WORDS=new Set(['2','no','n','nope','nah','nay','decline','declined','reject','rejected','pass','cant','cannot','unable','sorry','unavailable','busy','full','nothanks','notinterested','❌','👎']);
+
+function waDetectIntent(body){
+  const w=(body||'').toLowerCase().replace(/[^a-z0-9✅❌👍👎]/g,'');
+  if(WA_ACCEPT_WORDS.has(w))return'accept';
+  if(WA_DECLINE_WORDS.has(w))return'decline';
+  return null;
+}
+
+async function waManualProcess(msgId,fromNumber,action){
+  // Find pending waiting_list confirmation for this instructor phone
+  const num=(fromNumber||'').replace(/\D/g,'');
+  const suffix=num.slice(-9);
+  const{data:instrs}=await sb.from('instructors').select('id,full_name,phone').eq('status','approved');
+  const instr=(instrs||[]).find(i=>{const n=(i.phone||'').replace(/\D/g,'');return n&&(n===num||n.endsWith(suffix));});
+  if(!instr){showToast('Could not match this number to an instructor.','error');return;}
+
+  const{data:rows}=await sb.from('waiting_list').select('*').eq('instructor_id',instr.id).eq('confirm_status','pending').order('created_at',{ascending:false}).limit(1);
+  const entry=rows?.[0];
+  if(!entry){showToast('No pending confirmation found for '+instr.full_name+'.','error');return;}
+
+  const newStatus=action==='accept'?'accepted':'declined';
+  await sb.from('waiting_list').update({confirm_status:newStatus,confirm_responded_at:new Date().toISOString()}).eq('id',entry.id).catch(()=>{});
+  await sb.from('whatsapp_messages').update({processed:true}).eq('id',msgId).catch(()=>{});
+
+  showToast(`<i class="bi bi-check2-all me-1"></i>${instr.full_name} marked as <strong>${newStatus}</strong> for ${esc(entry.student_name||'student')}`,'success',5000);
+  loadWaInbox();
+
+  if(newStatus==='declined'){
+    // Trigger re-assign via autopilotCheckDeclined on next cycle
+    showToast('Autopilot will re-assign to next instructor on next cycle.','info',4000);
+  }
+}
+
 async function loadWaInbox(){
   const listEl=document.getElementById('waInboxList');
   if(!listEl)return;
@@ -2098,15 +2134,14 @@ async function loadWaInbox(){
 
   const{data:msgs,error}=await q;
 
-  // Check badge
+  // Update badge
   const{data:unread}=await sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false);
   const unreadCount=unread?.length||0;
   const badge=document.getElementById('waInboxBadge');
   if(badge){badge.textContent=unreadCount;badge.classList.toggle('hidden',unreadCount===0);}
 
   if(error||!msgs||!msgs.length){
-    listEl.innerHTML='<div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>'+(error?'Error loading messages — run the whatsapp_messages SQL migration first.':'No messages yet.')+'</div>';
-    // Show/hide setup banner based on error
+    listEl.innerHTML='<div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>'+(error?'Error loading — run the whatsapp_messages SQL migration first.':'No messages yet.')+'</div>';
     const banner=document.getElementById('waSetupBanner');
     if(banner)banner.style.display=error?'':'none';
     return;
@@ -2121,14 +2156,32 @@ async function loadWaInbox(){
     const typeColor=m.contact_type==='instructor'?'var(--gold)':m.contact_type==='student'?'#60a5fa':'var(--txt3)';
     const typeIcon=m.contact_type==='instructor'?'bi-person-badge-fill':m.contact_type==='student'?'bi-mortarboard-fill':'bi-question-circle';
     const unreadDot=isIn&&!m.processed?`<span style="width:7px;height:7px;border-radius:50%;background:#25D366;display:inline-block;margin-left:5px;vertical-align:middle"></span>`:'';
-    return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bdr);align-items:flex-start;${isIn?'background:rgba(37,211,102,.04)':''}">
+
+    // Detect YES/NO intent in unprocessed inbound messages
+    const intent=isIn&&!m.processed?waDetectIntent(m.body):null;
+    const intentBadge=intent==='accept'
+      ?`<span style="font-size:.65rem;font-weight:700;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);color:#25D366;border-radius:5px;padding:1px 7px;margin-left:4px">✅ Looks like YES</span>`
+      :intent==='decline'
+      ?`<span style="font-size:.65rem;font-weight:700;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);color:#f87171;border-radius:5px;padding:1px 7px;margin-left:4px">❌ Looks like NO</span>`
+      :'';
+
+    // Manual process buttons for unprocessed inbound from instructors
+    const manualBtns=isIn&&!m.processed&&m.contact_type==='instructor'
+      ?`<div style="display:flex;gap:6px;margin-top:8px">
+          <button onclick="waManualProcess(${m.id},'${jsEsc(m.from_number||'')}','accept')" style="font-size:.7rem;font-weight:700;font-family:'Oswald',sans-serif;padding:4px 12px;border-radius:6px;cursor:pointer;border:1.5px solid rgba(37,211,102,.5);background:rgba(37,211,102,.1);color:#25D366">✅ Mark Accepted</button>
+          <button onclick="waManualProcess(${m.id},'${jsEsc(m.from_number||'')}','decline')" style="font-size:.7rem;font-weight:700;font-family:'Oswald',sans-serif;padding:4px 12px;border-radius:6px;cursor:pointer;border:1.5px solid rgba(248,113,113,.4);background:rgba(248,113,113,.08);color:#f87171">❌ Mark Declined</button>
+        </div>`
+      :'';
+
+    return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bdr);align-items:flex-start;${isIn&&!m.processed?'background:rgba(37,211,102,.04)':''}">
       <div style="width:36px;height:36px;border-radius:50%;background:${isIn?'rgba(37,211,102,.15)':'rgba(96,165,250,.12)'};border:1px solid ${isIn?'rgba(37,211,102,.3)':'rgba(96,165,250,.25)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem">
         <i class="bi ${isIn?'bi-person-fill':'bi-robot'}" style="color:${isIn?'#25D366':'#60a5fa'}"></i>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
           <span style="font-size:.78rem;font-weight:700;color:var(--txt)">${esc(name)}</span>
           ${m.contact_type&&m.contact_type!=='unknown'?`<span style="font-size:.65rem;color:${typeColor}"><i class="bi ${typeIcon} me-1"></i>${m.contact_type}</span>`:''}
+          ${intentBadge}
           <span style="font-size:.65rem;color:var(--txt4);margin-left:auto">${ts}</span>
           ${unreadDot}
         </div>
@@ -2138,6 +2191,7 @@ async function loadWaInbox(){
                  `<i class="bi bi-arrow-up-right me-1" style="color:#60a5fa"></i>To: ${esc(m.to_number||'')}`}
           ${m.processed&&isIn?'&nbsp;·&nbsp;<span style="color:#4ade80"><i class="bi bi-check2-all"></i> Processed</span>':''}
         </div>
+        ${manualBtns}
       </div>
     </div>`;
   }).join('');
