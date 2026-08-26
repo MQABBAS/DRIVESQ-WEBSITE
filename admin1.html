@@ -551,6 +551,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')" title="Student requests to change instructor"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')" title="Instructor transfer requests"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
     <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')" title="Broadcast a message to all instructors at once"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
+    <button class="dsq-tab" id="tab-wa-inbox" onclick="switchTab('wa-inbox');loadWaInbox()" title="WhatsApp inbox — all inbound and outbound messages" style="position:relative"><i class="bi bi-whatsapp" style="color:#25D366"></i><span class="d-none d-sm-inline ms-1">WA Inbox</span><span class="tab-badge ms-1 hidden" id="waInboxBadge" style="background:#25D366">0</span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')" title="Charts: hours per instructor, pass rates, lesson trends"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
@@ -866,6 +867,40 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <!-- ══ MESSAGES ══ -->
+  <!-- ══ WA INBOX PANEL ══ -->
+  <div id="panel-wa-inbox" class="hidden">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div class="page-title mb-0"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>WhatsApp Inbox</div>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <select id="waInboxFilter" class="dsq-inp" style="width:auto;font-size:.78rem;padding:5px 10px" onchange="loadWaInbox()">
+          <option value="all">All messages</option>
+          <option value="inbound">Inbound only</option>
+          <option value="outbound">Outbound only</option>
+          <option value="unprocessed">Unread replies</option>
+        </select>
+        <button class="btn-s" onclick="loadWaInbox()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+        <div id="waWebhookStatus" style="font-size:.7rem;padding:4px 10px;border-radius:6px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);color:#f97316"><i class="bi bi-plug me-1"></i>Webhook: not configured</div>
+      </div>
+    </div>
+    <!-- Webhook setup notice -->
+    <div id="waSetupBanner" class="dsq-card p-3 mb-3" style="border-color:rgba(37,211,102,.3)">
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#25D366;margin-bottom:8px"><i class="bi bi-robot me-2"></i>Two-Way WhatsApp Setup Checklist</div>
+      <div style="font-size:.78rem;color:var(--txt3);line-height:1.7">
+        <div>1️⃣ <strong style="color:var(--txt)">Create Meta Business account</strong> at <a href="https://business.facebook.com" target="_blank" style="color:#25D366">business.facebook.com</a></div>
+        <div>2️⃣ <strong style="color:var(--txt)">Register a WhatsApp Business phone number</strong> in Meta Developer Console</div>
+        <div>3️⃣ <strong style="color:var(--txt)">Add Supabase secrets:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_TOKEN</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_PHONE_ID</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">WA_VERIFY_TOKEN</code> · <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">SB_SERVICE_KEY</code></div>
+        <div>4️⃣ <strong style="color:var(--txt)">Deploy edge functions:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">supabase functions deploy send-whatsapp whatsapp-webhook</code></div>
+        <div>5️⃣ <strong style="color:var(--txt)">Set webhook URL in Meta Console:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/whatsapp-webhook</code></div>
+        <div>6️⃣ <strong style="color:var(--txt)">Subscribe to:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">messages</code> webhook field · Run the SQL migration for whatsapp_messages table</div>
+        <div style="margin-top:8px;color:#4ade80"><i class="bi bi-check-circle me-1"></i>Once set up, instructor replies (YES/NO) are processed automatically and appear here in real time.</div>
+      </div>
+    </div>
+    <!-- Message list -->
+    <div class="dsq-card" id="waInboxList">
+      <div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>No messages yet — they appear here once WhatsApp is configured.</div>
+    </div>
+  </div>
+
   <div id="panel-messages" class="hidden">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div class="page-title mb-0"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
@@ -2044,6 +2079,81 @@ function initAutopilot(){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   WHATSAPP INBOX
+   Reads whatsapp_messages table and renders a conversation-style
+   inbox. Inbound = replies from instructors/students.
+   Outbound = messages sent by admin/autopilot.
+══════════════════════════════════════════════════════════════ */
+async function loadWaInbox(){
+  const listEl=document.getElementById('waInboxList');
+  if(!listEl)return;
+  listEl.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-1"></i>Loading…</div>';
+
+  const filter=document.getElementById('waInboxFilter')?.value||'all';
+  let q=sb.from('whatsapp_messages').select('*').order('created_at',{ascending:false}).limit(100);
+  if(filter==='inbound')q=q.eq('direction','inbound');
+  else if(filter==='outbound')q=q.eq('direction','outbound');
+  else if(filter==='unprocessed')q=q.eq('direction','inbound').eq('processed',false);
+
+  const{data:msgs,error}=await q;
+
+  // Check badge
+  const{data:unread}=await sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false);
+  const unreadCount=unread?.length||0;
+  const badge=document.getElementById('waInboxBadge');
+  if(badge){badge.textContent=unreadCount;badge.classList.toggle('hidden',unreadCount===0);}
+
+  if(error||!msgs||!msgs.length){
+    listEl.innerHTML='<div style="padding:32px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-whatsapp me-2" style="color:#25D366"></i>'+(error?'Error loading messages — run the whatsapp_messages SQL migration first.':'No messages yet.')+'</div>';
+    // Show/hide setup banner based on error
+    const banner=document.getElementById('waSetupBanner');
+    if(banner)banner.style.display=error?'':'none';
+    return;
+  }
+
+  document.getElementById('waSetupBanner')?.style.setProperty('display','none');
+
+  listEl.innerHTML=msgs.map(m=>{
+    const isIn=m.direction==='inbound';
+    const ts=m.created_at?new Date(m.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    const name=m.contact_name||m.from_number||m.to_number||'Unknown';
+    const typeColor=m.contact_type==='instructor'?'var(--gold)':m.contact_type==='student'?'#60a5fa':'var(--txt3)';
+    const typeIcon=m.contact_type==='instructor'?'bi-person-badge-fill':m.contact_type==='student'?'bi-mortarboard-fill':'bi-question-circle';
+    const unreadDot=isIn&&!m.processed?`<span style="width:7px;height:7px;border-radius:50%;background:#25D366;display:inline-block;margin-left:5px;vertical-align:middle"></span>`:'';
+    return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bdr);align-items:flex-start;${isIn?'background:rgba(37,211,102,.04)':''}">
+      <div style="width:36px;height:36px;border-radius:50%;background:${isIn?'rgba(37,211,102,.15)':'rgba(96,165,250,.12)'};border:1px solid ${isIn?'rgba(37,211,102,.3)':'rgba(96,165,250,.25)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem">
+        <i class="bi ${isIn?'bi-person-fill':'bi-robot'}" style="color:${isIn?'#25D366':'#60a5fa'}"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+          <span style="font-size:.78rem;font-weight:700;color:var(--txt)">${esc(name)}</span>
+          ${m.contact_type&&m.contact_type!=='unknown'?`<span style="font-size:.65rem;color:${typeColor}"><i class="bi ${typeIcon} me-1"></i>${m.contact_type}</span>`:''}
+          <span style="font-size:.65rem;color:var(--txt4);margin-left:auto">${ts}</span>
+          ${unreadDot}
+        </div>
+        <div style="font-size:.78rem;color:var(--txt2);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:hidden">${esc(m.body||'')}</div>
+        <div style="font-size:.65rem;color:var(--txt4);margin-top:4px">
+          ${isIn?`<i class="bi bi-arrow-down-left me-1" style="color:#25D366"></i>From: ${esc(m.from_number||'')}`:
+                 `<i class="bi bi-arrow-up-right me-1" style="color:#60a5fa"></i>To: ${esc(m.to_number||'')}`}
+          ${m.processed&&isIn?'&nbsp;·&nbsp;<span style="color:#4ade80"><i class="bi bi-check2-all"></i> Processed</span>':''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Poll WA inbox badge every 2 min when tab is active
+setInterval(()=>{
+  if(!document.hidden){
+    sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false).then(({data})=>{
+      const n=data?.length||0;
+      const badge=document.getElementById('waInboxBadge');
+      if(badge){badge.textContent=n;badge.classList.toggle('hidden',n===0);}
+    });
+  }
+},120000);
+
 // Send a Web Push notification to an instructor via the Edge Function
 async function sendPushToInstructor(instrId,instrName,title,body,url){
   if(!instrId)return;
@@ -2305,7 +2415,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','wa-inbox','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
