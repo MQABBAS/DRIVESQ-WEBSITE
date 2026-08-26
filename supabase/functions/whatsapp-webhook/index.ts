@@ -80,8 +80,8 @@ async function sendWA(to: string, message: string) {
 
 // ── confirmation processing ───────────────────────────────────────────────────
 
-const ACCEPT_WORDS = new Set(['1', 'yes', 'y', 'accept', 'ok', 'okay', 'sure', 'confirm', 'confirmed', '✅']);
-const DECLINE_WORDS = new Set(['2', 'no', 'n', 'decline', 'reject', 'pass', 'cant', "can't", 'unable', '❌']);
+const ACCEPT_WORDS = new Set(['1', 'yes', 'y', 'yep', 'yup', 'yeah', 'yea', 'ya', 'accept', 'accepted', 'ok', 'okay', 'sure', 'sounds good', 'soundsgood', 'great', 'perfect', 'absolutely', 'definitely', 'confirm', 'confirmed', 'agreed', 'deal', 'fine', 'happy', 'ill do it', 'illdo', 'ill take', 'illtake', '✅', '👍']);
+const DECLINE_WORDS = new Set(['2', 'no', 'n', 'nope', 'nah', 'nay', 'decline', 'declined', 'reject', 'rejected', 'pass', 'cant', "can't", 'cannot', 'unable', 'sorry', 'unavailable', 'busy', 'full', 'no thanks', 'nothanks', 'not interested', '❌', '👎']);
 
 async function processConfirmationReply(fromNumber: string, bodyText: string) {
   const word = bodyText.trim().toLowerCase().replace(/[^a-z0-9✅❌]/g, '');
