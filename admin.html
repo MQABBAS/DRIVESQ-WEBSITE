@@ -868,6 +868,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-email" type="email" placeholder="instructor@email.com"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
+        <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes instructor will travel to)</span></label><input class="dsq-inp" id="ai-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
         <div class="col-12"><label class="dsq-lbl">Home Address</label><input class="dsq-inp" id="ai-address" placeholder="Full address"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Password <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-password" type="text" placeholder="Set a password"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Status</label>
@@ -3804,14 +3805,26 @@ async function createInstructor(){
     full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
     phone:document.getElementById('ai-phone').value.trim(),email,
     area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+    coverage_postcodes:document.getElementById('ai-coverage').value.toUpperCase().trim(),
     status:document.getElementById('ai-status').value,
     password,password_hash:btoa(password),
     created_at:new Date().toISOString(),show_lessons:true
   }]);
   btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;
-  if(error){showToast('Failed. Email or badge may already exist.','error');return;}
+  if(error){
+    // Retry without coverage_postcodes if column doesn't exist
+    const{error:e2}=await sb.from('instructors').insert([{
+      full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
+      phone:document.getElementById('ai-phone').value.trim(),email,
+      area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+      status:document.getElementById('ai-status').value,
+      password,password_hash:btoa(password),
+      created_at:new Date().toISOString(),show_lessons:true
+    }]);
+    if(e2){showToast('Failed. Email or badge may already exist.','error');return;}
+  }
   showToast(`✅ Account created for ${name}!`,'success');
-  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
+  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
   await loadInstrs();populateDropdowns();
 }
 
@@ -3899,6 +3912,14 @@ async function findClosest(){
       const minsLabel=r.mins!=null?`<span style="font-size:.65rem;color:var(--txt3);margin-left:4px">· ~${r.mins} min drive</span>`:'';
       const mapsUrl=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(postcode)}&destination=${encodeURIComponent(r.iPostcode||r.instr.area||'')}&travelmode=driving`;
 
+      // Coverage check: does the instructor explicitly cover the student's outward code?
+      const rawCoverage=(r.instr.coverage_postcodes||r.instr.area||'');
+      const coveredCodes=rawCoverage.toUpperCase().split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean);
+      const coversStudent=searchedOC&&coveredCodes.some(c=>c===searchedOC||outwardCode(c)===searchedOC);
+      const coversBadge=coversStudent
+        ?`<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(245,197,24,.18);border:1.5px solid rgba(245,197,24,.55);border-radius:6px;padding:2px 9px;font-size:.68rem;font-weight:700;color:var(--gold);margin-top:4px"><i class="bi bi-patch-check-fill me-1"></i>Covers ${searchedOC} — stated coverage area</div>`
+        :'';
+
       const instrLT=r.instr.car_type||'Manual';
       const canTeach=instrCanTeach(instrLT,type);
       const ic=instrAreaCount[r.instr.id]||{total:0,areaMatch:0,students:[]};
@@ -3916,6 +3937,7 @@ async function findClosest(){
               ${ltChipHtml(instrLT)}
               <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
               ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
+              ${coversBadge}
               ${areaNote}
             </div>
           </div>
@@ -4029,8 +4051,12 @@ async function findClosest(){
         const workloadPenalty=Math.min(ic.total*2,20);
         // Adjacent area bonus: outward codes sharing first letters (e.g. M14 and M15 are close)
         const adjBonus=searchedOC&&ic.students.some(oc=>oc&&oc!==searchedOC&&oc.replace(/\d+$/,'')===searchedOC.replace(/\d+$/,''))?10:0;
-        const total=Math.round(areaScore+nearbyScore+typeScore+adjBonus-workloadPenalty);
-        return{...r,ic,score:total,areaScore,nearbyScore,typeScore,adjBonus,workloadPenalty};
+        // Stated coverage bonus: instructor explicitly covers the student's outward code
+        const rawCov=(r.instr.coverage_postcodes||'');
+        const covCodes=rawCov.toUpperCase().split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean);
+        const coverageBonus=searchedOC&&covCodes.some(c=>c===searchedOC||outwardCode(c)===searchedOC)?40:0;
+        const total=Math.round(areaScore+nearbyScore+typeScore+adjBonus+coverageBonus-workloadPenalty);
+        return{...r,ic,score:total,areaScore,nearbyScore,typeScore,adjBonus,coverageBonus,workloadPenalty};
       }).sort((a,b)=>b.score-a.score);
 
       const best=scored[0];
@@ -4053,6 +4079,7 @@ async function findClosest(){
             <span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:#93c5fd;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-geo-alt me-1"></i>${best.dist.toFixed(1)} miles away</span>
             ${best.typeScore>0?`<span style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.18);color:#4ade80;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700">✓ Teaches ${esc(type)}</span>`:`<span style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.18);color:#f97316;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700">⚠ Type mismatch</span>`}
             ${best.adjBonus>0?`<span style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);color:#c084fc;border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-map me-1"></i>Adjacent area coverage</span>`:''}
+            ${best.coverageBonus>0?`<span style="background:rgba(245,197,24,.15);border:1.5px solid rgba(245,197,24,.5);color:var(--gold);border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700"><i class="bi bi-patch-check-fill me-1"></i>Covers ${searchedOC} — stated</span>`:''}
           </div>
           <div style="font-size:.7rem;color:var(--txt3)">${best.ic.areaMatch>0?`Already operates in ${searchedOC||'this area'} — familiar with the roads, test routes, and local hazards.`:best.adjBonus>0?`Covers adjacent areas to ${searchedOC||'this postcode'} — strong local knowledge nearby.`:`Closest available instructor${best.typeScore>0?' for '+type+' lessons':''}.`}</div>
         </div>`:''}
