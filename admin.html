@@ -1259,6 +1259,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="edit-phone" type="tel"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="edit-email" type="email"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
+      <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes the instructor covers)</span></label><input class="dsq-inp" id="edit-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Address</label><input class="dsq-inp" id="edit-address"/></div>
       <div class="col-12"><label class="dsq-lbl">Status</label>
         <select class="dsq-inp" id="edit-status">
@@ -2257,7 +2258,23 @@ async function viewInstr(id){
     ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
     :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
   const waNum=buildWaNum(instr.phone||'');
-  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(`Hi ${instr.full_name}! 👋 This is a message from DriveSQ. Please log into your instructor portal for any updates: ${PORTAL_URL} — DriveSQ Admin`)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>`:'';
+  const portalWelcomeMsg=`Hi ${instr.full_name}! 👋 Welcome to the *DriveSQ Instructor Portal*! 🚗\n\n` +
+    `Here's everything you need to know about your portal:\n\n` +
+    `📋 *What you can do:*\n` +
+    `• View & manage your student roster\n` +
+    `• See your lesson calendar and upcoming bookings\n` +
+    `• Log lessons and track payments received\n` +
+    `• Update your availability so admin can match you to new students\n` +
+    `• Receive messages and assignments from DriveSQ admin\n` +
+    `• View your weekly earnings and stats\n\n` +
+    `🔐 *Your login details:*\n` +
+    `📧 Email: ${instr.email||'(contact admin)'}\n` +
+    `🔑 Password: ${instr.password||'(contact admin for password)'}\n\n` +
+    `🔗 *Access your portal here:*\n` +
+    `${PORTAL_URL}\n\n` +
+    `If you have any questions, reply to this message and we'll help you out.\n\n` +
+    `— DriveSQ Admin ✅`;
+  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalWelcomeMsg)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>Send Portal Link</a>`:'';
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
@@ -2296,10 +2313,12 @@ function renderInstrDetail(instr){
   const ltBorder=lessonTypes==='Both'?'rgba(168,85,247,.3)':lessonTypes==='Automatic'?'rgba(37,211,102,.3)':'rgba(59,130,246,.3)';
   const ltLabel=lessonTypes==='Both'?'Manual &amp; Automatic':lessonTypes==='Automatic'?'Automatic Only':'Manual Only';
   const ltChipHtml=`<span style="background:${ltBg};border:1px solid ${ltBorder};color:${ltColor};border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700">${ltLabel}</span>`;
+  const covPCs=instr.coverage_postcodes?instr.coverage_postcodes.split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean):[];
+  const covHtml=covPCs.length?covPCs.map(c=>`<span style="background:rgba(245,197,24,.13);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-right:3px">${esc(c)}</span>`).join(''):'<span style="color:var(--txt4);font-size:.75rem">—</span>';
   const fields=[
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
-    ['Area',instr.area],['Address',instr.address],
+    ['Area',instr.area],['Covered Postcodes',covHtml],['Address',instr.address],
     ['Status',`<span class="chip ${instr.status}">${instr.status}</span>`],
     ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
     ['Joined',fmtD(instr.created_at)],
@@ -3543,6 +3562,7 @@ function openEditModal(){
   document.getElementById('edit-phone').value=instr.phone||'';
   document.getElementById('edit-email').value=instr.email||'';
   document.getElementById('edit-area').value=instr.area||'';
+  document.getElementById('edit-coverage').value=instr.coverage_postcodes||'';
   document.getElementById('edit-address').value=instr.address||'';
   document.getElementById('edit-status').value=instr.status||'approved';
   document.getElementById('edit-show-lessons').checked=instr.show_lessons!==false;
@@ -3569,6 +3589,7 @@ async function saveEdit(){
     phone:document.getElementById('edit-phone').value.trim(),
     email:document.getElementById('edit-email').value.trim(),
     area:document.getElementById('edit-area').value.trim(),
+    coverage_postcodes:document.getElementById('edit-coverage').value.toUpperCase().trim(),
     address:document.getElementById('edit-address').value.trim(),
     status:document.getElementById('edit-status').value,
     show_lessons:document.getElementById('edit-show-lessons').checked,
