@@ -5583,14 +5583,10 @@ async function addToWaitlist(){
   const avail=(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||'');
   const notes=(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'');
   if(!name){showToast('Please enter a student name first.','warn');return;}
-  const{error}=await sb.from('waiting_list').insert([{
-    student_name:name,student_phone:phone||null,
-    postcode:postcode||null,
-    area:addr||null,lesson_type:type||'Manual',
-    notes:[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null,
-    status:'waiting',created_at:new Date().toISOString()
-  }]);
-  if(error){showToast('Failed to add: '+error.message,'error');return;}
+  const wlFull={student_name:name,student_phone:phone||null,postcode:postcode||null,area:addr||null,lesson_type:type||'Manual',notes:[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null,status:'waiting',created_at:new Date().toISOString()};
+  let{error:wlErr}=await sb.from('waiting_list').insert([wlFull]);
+  if(wlErr){const r=await sb.from('waiting_list').insert([{student_name:name,student_phone:phone||null,postcode:postcode||null,status:'waiting',created_at:new Date().toISOString()}]);wlErr=r.error;}
+  if(wlErr){showToast('Failed to add: '+wlErr.message,'error');return;}
   showToast(`✅ ${name} added to waiting list.`,'success');
 }
 function openAddWaitlistModal(){
@@ -5601,19 +5597,29 @@ function openAddWaitlistModal(){
 async function saveWaitlistEntry(){
   const name=(document.getElementById('wl-name').value||'').trim();
   const postcode=(document.getElementById('wl-postcode').value||'').trim().toUpperCase();
-  if(!name||!postcode){showToast('Name and postcode required.','error');return;}
+  if(!name){showToast('Please enter a student name.','error');return;}
   const btn=document.querySelector('#waitlistAddModal .btn-p');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';}
-  const{error}=await sb.from('waiting_list').insert([{
+  // Try full insert first; fall back to minimal if columns are missing
+  const full={
     student_name:name,
     student_phone:(document.getElementById('wl-phone').value||'').trim()||null,
-    postcode,area:(document.getElementById('wl-area').value||'').trim()||null,
+    postcode:postcode||null,
+    area:(document.getElementById('wl-area').value||'').trim()||null,
     lesson_type:document.getElementById('wl-type').value||'Manual',
     notes:(document.getElementById('wl-notes').value||'').trim()||null,
-    status:'waiting',created_at:new Date().toISOString()
-  }]);
+    status:'waiting',
+    created_at:new Date().toISOString()
+  };
+  let {error}=await sb.from('waiting_list').insert([full]);
+  if(error){
+    // Retry with only the core columns that definitely exist
+    const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,status:'waiting',created_at:full.created_at};
+    const res=await sb.from('waiting_list').insert([minimal]);
+    error=res.error;
+  }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
-  if(error){showToast('Failed: '+error.message,'error');return;}
+  if(error){showToast('Failed to save: '+error.message,'error');return;}
   closeModal('waitlistAddModal');
   showToast(`✅ ${name} added to waiting list.`,'success');
   loadWaitlist();
