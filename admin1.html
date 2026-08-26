@@ -510,6 +510,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <button class="theme-toggle" onclick="openApSettings()" title="Autopilot settings — distance, student limits, instructor exclusions" style="border-color:rgba(37,211,102,.3);color:#25D366"><i class="bi bi-gear-fill"></i></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
+        <div id="navClock" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;color:var(--txt3);letter-spacing:.5px;min-width:54px;text-align:center;border:1px solid var(--bdr);border-radius:7px;padding:5px 8px;display:flex;align-items:center;gap:4px"><i class="bi bi-clock" style="font-size:.8rem"></i><span id="navClockTime">--:--</span></div>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
       </div>
     </div>
@@ -669,7 +670,19 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <div id="dashReEngagement"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
         </div>
       </div>
+      <!-- WAITING LIST WIDGET -->
+      <div class="col-12 col-lg-6">
+        <div class="dsq-card p-3" style="border-color:rgba(96,165,250,.25)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="section-label" style="margin-bottom:0"><i class="bi bi-person-lines-fill me-2" style="color:#60a5fa"></i>Waiting List</div>
+            <button onclick="switchTab('waitlist');setActiveTab('waitlist')" style="font-size:.72rem;font-weight:700;font-family:'Oswald',sans-serif;padding:4px 12px;border-radius:7px;cursor:pointer;border:1px solid rgba(96,165,250,.35);background:rgba(96,165,250,.1);color:#60a5fa">View All</button>
+          </div>
+          <div id="dashWaitlistWidget"><div style="text-align:center;font-size:.8rem;color:var(--txt4);padding:16px">Loading…</div></div>
+        </div>
+      </div>
     </div>
+    <!-- AUTO-REFRESH INDICATOR -->
+    <div style="text-align:right;margin-top:10px;font-size:.65rem;color:var(--txt4)" id="dashLastRefreshed"></div>
   </div>
 
   <!-- ══ INSTRUCTORS ══ -->
@@ -878,6 +891,10 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <option value="outbound">Outbound only</option>
           <option value="unprocessed">Unread replies</option>
         </select>
+        <div class="view-toggle">
+          <button class="vt-btn active" id="waViewList" onclick="setWaView('list')" title="Message list"><i class="bi bi-list-ul"></i></button>
+          <button class="vt-btn" id="waViewConvo" onclick="setWaView('convo')" title="Conversations"><i class="bi bi-chat-left-text-fill"></i></button>
+        </div>
         <button class="btn-s" onclick="loadWaInbox()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
         <div id="waWebhookStatus" style="font-size:.7rem;padding:4px 10px;border-radius:6px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);color:#f97316"><i class="bi bi-plug me-1"></i>Webhook: not configured</div>
       </div>
@@ -894,6 +911,22 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div>6️⃣ <strong style="color:var(--txt)">Subscribe to:</strong> <code style="background:var(--dk3);padding:1px 5px;border-radius:4px;font-size:.72rem">messages</code> webhook field · Run the SQL migration for whatsapp_messages table</div>
         <div style="margin-top:8px;color:#4ade80"><i class="bi bi-check-circle me-1"></i>Once set up, instructor replies (YES/NO) are processed automatically and appear here in real time.</div>
       </div>
+    </div>
+    <!-- Send WhatsApp from admin -->
+    <div class="dsq-card p-3 mb-3" style="border-color:rgba(37,211,102,.25)">
+      <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#25D366;margin-bottom:8px"><i class="bi bi-send-fill me-2"></i>Send WhatsApp Message</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:140px">
+          <label class="dsq-lbl">Phone (with country code)</label>
+          <input class="dsq-inp" id="waSendTo" placeholder="e.g. 447712345678" type="tel" style="font-size:.82rem;padding:7px 10px"/>
+        </div>
+        <div style="flex:3;min-width:200px">
+          <label class="dsq-lbl">Message</label>
+          <input class="dsq-inp" id="waSendMsg" placeholder="Type your message…" style="font-size:.82rem;padding:7px 10px" onkeydown="if(event.key==='Enter'&&!event.shiftKey)waSendFromAdmin()"/>
+        </div>
+        <button onclick="waSendFromAdmin()" class="btn-green" style="font-size:.8rem;padding:7px 14px;flex-shrink:0"><i class="bi bi-whatsapp me-1"></i>Send</button>
+      </div>
+      <div id="waSendStatus" style="font-size:.72rem;margin-top:6px;color:var(--txt4)"></div>
     </div>
     <!-- Message list -->
     <div class="dsq-card" id="waInboxList">
@@ -2149,6 +2182,53 @@ async function loadWaInbox(){
 
   document.getElementById('waSetupBanner')?.style.setProperty('display','none');
 
+  // Conversations view — group by phone number
+  if(_waView==='convo'){
+    const threads={};
+    for(const m of msgs){
+      const key=m.direction==='inbound'?m.from_number:m.to_number;
+      if(!threads[key])threads[key]={msgs:[],name:m.contact_name||key,type:m.contact_type,unread:0};
+      threads[key].msgs.push(m);
+      if(m.direction==='inbound'&&!m.processed)threads[key].unread++;
+    }
+    const sorted=Object.entries(threads).sort(([,a],[,b])=>{
+      const ta=new Date(a.msgs[0]?.created_at||0);
+      const tb=new Date(b.msgs[0]?.created_at||0);
+      return tb-ta;
+    });
+    listEl.innerHTML=sorted.map(([phone,thread])=>`
+      <div style="border-bottom:1px solid var(--bdr);cursor:pointer" onclick="this.querySelector('.wa-thread-msgs').classList.toggle('hidden');this.querySelector('.wa-thread-chevron').classList.toggle('bi-chevron-down');this.querySelector('.wa-thread-chevron').classList.toggle('bi-chevron-up')">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;${thread.unread?'background:rgba(37,211,102,.04)':''}">
+          <div style="width:38px;height:38px;border-radius:50%;background:${thread.type==='instructor'?'rgba(245,197,24,.15)':thread.type==='student'?'rgba(168,85,247,.12)':'rgba(96,165,250,.1)'};border:1px solid ${thread.type==='instructor'?'rgba(245,197,24,.3)':thread.type==='student'?'rgba(168,85,247,.3)':'rgba(96,165,250,.25)'};display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:${thread.type==='instructor'?'var(--gold)':thread.type==='student'?'#c084fc':'#93c5fd'};flex-shrink:0">${(thread.name||'?').charAt(0).toUpperCase()}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82rem;font-weight:700;color:var(--txt)">${esc(thread.name)} ${thread.unread?`<span style="font-size:.6rem;background:#25D366;color:#000;border-radius:10px;padding:1px 6px;font-weight:700;margin-left:4px">${thread.unread} new</span>`:''}</div>
+            <div style="font-size:.68rem;color:var(--txt3)">${esc(phone)} · ${thread.msgs.length} message${thread.msgs.length!==1?'s':''}</div>
+            <div style="font-size:.72rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;margin-top:1px">${esc((thread.msgs[0]?.body||'').slice(0,80))}</div>
+          </div>
+          <i class="bi bi-chevron-down wa-thread-chevron" style="color:var(--txt4);font-size:.8rem;flex-shrink:0"></i>
+        </div>
+        <div class="wa-thread-msgs hidden" style="padding:0 16px 12px;border-top:1px solid var(--bdr)">
+          ${thread.msgs.map(m=>{
+            const isIn=m.direction==='inbound';
+            const ts=m.created_at?new Date(m.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+            return`<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--bdr);align-items:flex-start">
+              <div style="width:6px;height:6px;border-radius:50%;background:${isIn?'#25D366':'#60a5fa'};flex-shrink:0;margin-top:5px"></div>
+              <div style="flex:1">
+                <div style="font-size:.68rem;color:var(--txt4);margin-bottom:2px">${isIn?'Received':'Sent'} · ${ts}</div>
+                <div style="font-size:.78rem;color:var(--txt2);white-space:pre-wrap">${esc(m.body||'')}</div>
+                ${isIn&&!m.processed&&m.contact_type==='instructor'?`<div style="display:flex;gap:6px;margin-top:6px"><button onclick="waManualProcess(${m.id},'${jsEsc(m.from_number||'')}','accept');event.stopPropagation()" style="font-size:.68rem;font-weight:700;font-family:'Oswald',sans-serif;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid rgba(37,211,102,.5);background:rgba(37,211,102,.1);color:#25D366">✅ Accept</button><button onclick="waManualProcess(${m.id},'${jsEsc(m.from_number||'')}','decline');event.stopPropagation()" style="font-size:.68rem;font-weight:700;font-family:'Oswald',sans-serif;padding:3px 10px;border-radius:5px;cursor:pointer;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.08);color:#f87171">❌ Decline</button></div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <input class="dsq-inp" placeholder="Quick reply…" style="font-size:.78rem;padding:5px 10px;flex:1" id="wa-reply-${phone.replace(/\D/g,'')}" onkeydown="if(event.key==='Enter'){document.getElementById('wa-send-${phone.replace(/\D/g,'')}-btn').click()}"/>
+            <button id="wa-send-${phone.replace(/\D/g,'')}-btn" onclick="(async()=>{const inp=document.getElementById('wa-reply-${phone.replace(/\D/g,'')}');const msg=inp?.value?.trim();if(!msg)return;const r=await sendWA('${phone}',msg);if(r.sent){inp.value='';showToast('Sent!','success');setTimeout(()=>loadWaInbox(),1000);}else if(r.fallbackUrl){window.open(r.fallbackUrl,'_blank');}else showToast('Send failed','error');})()" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:7px;padding:5px 12px;font-size:.78rem;cursor:pointer;white-space:nowrap"><i class="bi bi-send-fill"></i></button>
+          </div>
+        </div>
+      </div>`).join('');
+    return;
+  }
+
   listEl.innerHTML=msgs.map(m=>{
     const isIn=m.direction==='inbound';
     const ts=m.created_at?new Date(m.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
@@ -2197,7 +2277,7 @@ async function loadWaInbox(){
   }).join('');
 }
 
-// Poll WA inbox badge every 2 min when tab is active
+// Poll WA inbox badge every 30s when tab is active
 setInterval(()=>{
   if(!document.hidden){
     sb.from('whatsapp_messages').select('id',{count:'exact'}).eq('direction','inbound').eq('processed',false).then(({data})=>{
@@ -2206,7 +2286,7 @@ setInterval(()=>{
       if(badge){badge.textContent=n;badge.classList.toggle('hidden',n===0);}
     });
   }
-},120000);
+},30000);
 
 // Send a Web Push notification to an instructor via the Edge Function
 async function sendPushToInstructor(instrId,instrName,title,body,url){
@@ -2425,6 +2505,7 @@ function showApp(){
   setTimeout(()=>{initAdminPush();_updateAdminNotifBtn();},2000);
   setTimeout(loadWebBookingsBadge,3000);
   setTimeout(initAutopilot,1500);
+  setTimeout(loadDashWaitlistWidget,4000);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
 }
@@ -7335,6 +7416,147 @@ document.addEventListener('click',e=>{
   const b=document.getElementById('mobt-more');
   if(p&&b&&p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
 });
+
+/* ══ LIVE CLOCK ══ */
+(function(){
+  function tick(){
+    const d=new Date();
+    const t=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    const el=document.getElementById('navClockTime');
+    if(el)el.textContent=t;
+  }
+  tick();
+  setInterval(tick,30000);
+})();
+
+/* ══ DASHBOARD AUTO-REFRESH ══ */
+(function(){
+  let _dashRefreshTimer=null;
+  const DASH_INTERVAL=5*60*1000; // 5 minutes
+  function startDashRefresh(){
+    if(_dashRefreshTimer)return;
+    _dashRefreshTimer=setInterval(()=>{
+      const panel=document.getElementById('panel-dashboard');
+      if(panel&&!panel.classList.contains('hidden')&&!document.hidden){
+        loadDashboard&&loadDashboard();
+        loadDashWaitlistWidget&&loadDashWaitlistWidget();
+        const el=document.getElementById('dashLastRefreshed');
+        if(el){const d=new Date();el.textContent='Last refreshed: '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+      }
+    },DASH_INTERVAL);
+  }
+  // Start after login
+  document.addEventListener('DOMContentLoaded',()=>{
+    const orig=window.doLogin;
+    // Patch: hook after loadAll
+    const _origLoadAll=window.loadAll;
+    if(_origLoadAll) window.loadAll=function(){const r=_origLoadAll.apply(this,arguments);startDashRefresh();return r;};
+    else setTimeout(startDashRefresh,5000);
+  });
+  setTimeout(startDashRefresh,8000);
+})();
+
+/* ══ WA INBOX AUTO-REFRESH (30s when tab visible) ══ */
+(function(){
+  let _waRefreshTimer=null;
+  function startWaRefresh(){
+    if(_waRefreshTimer)return;
+    _waRefreshTimer=setInterval(()=>{
+      const panel=document.getElementById('panel-wa-inbox');
+      if(panel&&!panel.classList.contains('hidden')&&!document.hidden){
+        loadWaInbox&&loadWaInbox();
+      }
+    },30000);
+  }
+  setTimeout(startWaRefresh,5000);
+})();
+
+/* ══ DASHBOARD WAITING LIST WIDGET ══ */
+async function loadDashWaitlistWidget(){
+  const el=document.getElementById('dashWaitlistWidget');
+  if(!el)return;
+  const{data,error}=await sb.from('waiting_list').select('id,status,created_at,student_name,postcode,lesson_type').order('created_at',{ascending:true});
+  if(error||!data){el.innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:8px 0">Unable to load</div>';return;}
+  const now=new Date();
+  const waiting=data.filter(r=>r.status==='waiting');
+  const assigned=data.filter(r=>r.status==='assigned');
+  const urgent=waiting.filter(r=>Math.floor((now-new Date(r.created_at))/864e5)>=7);
+  const webBook=data.filter(r=>r.status==='waiting'); // shown as waiting total
+  // Stats row
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:#fbbf24;line-height:1">${waiting.length}</div>
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Waiting</div>
+      </div>
+      <div style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.18);border-radius:9px;padding:10px;text-align:center">
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:#4ade80;line-height:1">${assigned.length}</div>
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Assigned</div>
+      </div>
+      <div style="background:${urgent.length?'rgba(248,113,113,.08)':'rgba(59,130,246,.07)'};border:1px solid ${urgent.length?'rgba(248,113,113,.3)':'rgba(59,130,246,.18)'};border-radius:9px;padding:10px;text-align:center">
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:${urgent.length?'#f87171':'#60a5fa'};line-height:1">${urgent.length}</div>
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">⚠ 7+ Days</div>
+      </div>
+    </div>
+    ${waiting.slice(0,4).map(r=>{
+      const days=Math.floor((now-new Date(r.created_at))/864e5);
+      const isUrg=days>=7;
+      return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+        <div style="width:3px;height:28px;background:${isUrg?'#f87171':'#60a5fa'};border-radius:2px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.78rem;font-weight:600;color:var(--txt)">${esc(r.student_name||'—')}</div>
+          <div style="font-size:.64rem;color:var(--txt3)">${esc(r.postcode||'—')} · ${esc(r.lesson_type||'Manual')} · ${days===0?'Today':days+'d ago'}</div>
+        </div>
+        ${isUrg?'<span style="font-size:.6rem;color:#f87171;font-weight:700">URGENT</span>':''}
+      </div>`;
+    }).join('')}
+    ${waiting.length>4?`<div style="font-size:.72rem;color:var(--txt4);padding:6px 0;text-align:center">+${waiting.length-4} more waiting</div>`:''}
+    ${!waiting.length?`<div style="text-align:center;font-size:.78rem;color:#4ade80;padding:10px"><i class="bi bi-check-circle-fill me-1"></i>No one waiting — all assigned!</div>`:''}
+  `;
+}
+
+/* ══ SEND WA FROM ADMIN (WA INBOX) ══ */
+async function waSendFromAdmin(){
+  const to=(document.getElementById('waSendTo')?.value||'').trim();
+  const msg=(document.getElementById('waSendMsg')?.value||'').trim();
+  const statusEl=document.getElementById('waSendStatus');
+  if(!to||!msg){if(statusEl)statusEl.innerHTML='<span style="color:#f87171">Please enter a phone number and message.</span>';return;}
+  if(statusEl)statusEl.innerHTML='<span style="color:var(--txt4)">Sending…</span>';
+  const result=await sendWA(to,msg).catch(e=>({sent:false,error:e.message}));
+  if(result&&result.sent){
+    if(statusEl)statusEl.innerHTML='<span style="color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>Sent successfully!</span>';
+    document.getElementById('waSendMsg').value='';
+    setTimeout(()=>loadWaInbox(),1500);
+  } else if(result&&result.fallbackUrl){
+    window.open(result.fallbackUrl,'_blank');
+    if(statusEl)statusEl.innerHTML='<span style="color:#fbbf24"><i class="bi bi-exclamation-triangle-fill me-1"></i>WhatsApp not configured — opened wa.me link instead.</span>';
+  } else {
+    if(statusEl)statusEl.innerHTML='<span style="color:#f87171">Failed to send. Check WA_TOKEN and WA_PHONE_ID secrets.</span>';
+  }
+  setTimeout(()=>{if(statusEl)statusEl.innerHTML='';},5000);
+}
+
+/* ══ WA VIEW TOGGLE (list vs conversations) ══ */
+let _waView='list';
+function setWaView(v){
+  _waView=v;
+  document.getElementById('waViewList')?.classList.toggle('active',v==='list');
+  document.getElementById('waViewConvo')?.classList.toggle('active',v==='convo');
+  loadWaInbox();
+}
+
+/* ══ HOOK loadDashboard TO ALSO LOAD WIDGET ══ */
+const _origLoadDashboard=window.loadDashboard;
+if(typeof loadDashboard==='function'){
+  const _ldo=loadDashboard;
+  window.loadDashboard=async function(){
+    const r=await _ldo();
+    loadDashWaitlistWidget();
+    const el=document.getElementById('dashLastRefreshed');
+    if(el){const d=new Date();el.textContent='Last refreshed: '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+    return r;
+  };
+}
 </script>
 </body>
 </html>
