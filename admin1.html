@@ -1816,6 +1816,7 @@ async function autoWA(phone,message){
 ══════════════════════════════════════════════════════════════ */
 let _apTimer=null;
 let _apLog=[];  // [{ts, student, instructor, action}]
+let _apRunning=false; // guard against overlapping cycles
 
 function isAutopilotOn(){return localStorage.getItem('dsq_autopilot')==='1';}
 
@@ -1828,6 +1829,7 @@ function toggleAutopilot(){
     runAutopilot();
   } else {
     if(_apTimer){clearInterval(_apTimer);_apTimer=null;}
+    _apRunning=false; // release any stuck lock
     showToast(`<i class="bi bi-robot me-1"></i>Autopilot OFF — assignments are now manual.`,'info',3000);
   }
 }
@@ -1898,14 +1900,20 @@ function openApSettings(){
 
 async function autopilotCheckDeclined(){
   const {data:declined}=await sb.from('waiting_list')
-    .select('*').eq('confirm_status','declined').is('next_candidates','not.null')
+    .select('*').eq('confirm_status','declined').not('next_candidates','is',null)
     .order('confirm_responded_at',{ascending:true}).limit(5);
   if(!declined||!declined.length)return;
   for(const entry of declined){
     let nextList=[];
-    try{nextList=JSON.parse(entry.next_candidates||'[]');}catch{}
+    try{
+      const nc=entry.next_candidates;
+      nextList=Array.isArray(nc)?nc:(nc?JSON.parse(nc):[]);
+    }catch{}
     if(!nextList.length){
-      await sb.from('waiting_list').update({confirm_status:'no_instructor',next_candidates:null}).eq('id',entry.id).catch(()=>{});
+      await sb.from('waiting_list').update({confirm_status:'no_instructor',next_candidates:null,status:'waiting'}).eq('id',entry.id).catch(()=>{});
+      _apLog.unshift({ts:new Date(),student:entry.student_name,action:'❌ No more instructors available — returned to waiting list'});
+      renderApLog();
+      showToast(`No more instructors available for <strong>${esc(entry.student_name)}</strong> — returned to waiting list.`,'warn',5000);
       continue;
     }
     const next=nextList[0];
@@ -1923,7 +1931,7 @@ async function autopilotCheckDeclined(){
       instructor_id:next.id,
       confirm_token:newToken,
       confirm_status:'pending',
-      next_candidates:JSON.stringify(remaining),
+      next_candidates:remaining,  // JSONB — pass array directly, not stringified
       status:'assigned'
     }).eq('id',entry.id).catch(()=>{});
     const instrMsg2=`Hi ${next.full_name}! 👋\n\n🤖 *DriveSQ Autopilot — Student Re-assigned to You:*\n\n👤 *Name:* ${entry.student_name}\n📞 *Phone:* ${entry.student_phone||'Not provided'}\n🏷️ *Postcode:* ${entry.postcode||'—'}\n🚗 *Lesson type:* ${entry.lesson_type||'Manual'}\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
@@ -1936,6 +1944,8 @@ async function autopilotCheckDeclined(){
 
 async function autopilotCycle(){
   if(!isAutopilotOn()){clearInterval(_apTimer);_apTimer=null;return;}
+  if(_apRunning)return; // prevent overlapping cycles
+  _apRunning=true;
   try{
     await autopilotCheckDeclined();
     const {data:waiting,error}=await sb.from('waiting_list')
@@ -1950,6 +1960,7 @@ async function autopilotCycle(){
       await autopilotAssignEntry(entry);
     }
   } catch(e){console.warn('Autopilot cycle error:',e);}
+  finally{_apRunning=false;}
 }
 
 function outwardCodeAP(pc){return(pc||'').toUpperCase().trim().replace(/\s+/g,'').replace(/\d[A-Z]{2}$/,'').trim();}
@@ -2058,7 +2069,7 @@ async function autopilotAssignEntry(entry){
     instructor_id:instrId,
     confirm_token:confirmToken,
     confirm_status:'pending',
-    next_candidates: JSON.stringify(nextCandidates)
+    next_candidates: nextCandidates  // JSONB — pass array directly, not stringified
   }).eq('id',entry.id).catch(()=>{});
 
   // 5. Audit trail
@@ -2149,8 +2160,9 @@ async function waManualProcess(msgId,fromNumber,action){
   loadWaInbox();
 
   if(newStatus==='declined'){
-    // Trigger re-assign via autopilotCheckDeclined on next cycle
-    showToast('Autopilot will re-assign to next instructor on next cycle.','info',4000);
+    // Immediately trigger cascade re-assignment (don't wait for next cycle)
+    showToast('<i class="bi bi-robot me-1"></i>Re-assigning to next instructor…','info',3000);
+    setTimeout(()=>autopilotCheckDeclined(),1500);
   }
 }
 
