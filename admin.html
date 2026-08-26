@@ -3839,14 +3839,25 @@ async function findClosest(){
     const approved=allInstrs.filter(i=>i.status==='approved');
     const pcLookups=approved.map(async i=>{
       const pcMatch=(i.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
-      if(!pcMatch)return{instr:i,dist:null};
+      if(!pcMatch)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
       try{
-        const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pcMatch[0].replace(/\s+/g,''))}`);
+        const pc=pcMatch[0].replace(/\s+/g,'');
+        const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`);
         const j=await r.json();
-        if(!j.result)return{instr:i,dist:null};
-        const dist=haversine(sLat,sLon,j.result.latitude,j.result.longitude);
-        return{instr:i,dist};
-      }catch{return{instr:i,dist:null};}
+        if(!j.result)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
+        const{latitude:iLat,longitude:iLon}=j.result;
+        // Try OSRM for real road distance + drive time
+        let dist,mins;
+        try{
+          const osrm=await fetch(`https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${iLon},${iLat}?overview=false`);
+          const od=await osrm.json();
+          if(od.routes&&od.routes[0]){
+            dist=od.routes[0].distance/1609.34; // metres → miles
+            mins=Math.round(od.routes[0].duration/60); // seconds → minutes
+          } else { dist=haversine(sLat,sLon,iLat,iLon); mins=null; }
+        }catch{ dist=haversine(sLat,sLon,iLat,iLon); mins=null; }
+        return{instr:i,dist,mins,iLat,iLon,iPostcode:pc};
+      }catch{return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};}
     });
     const results=await Promise.all(pcLookups);
     const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
@@ -3885,6 +3896,9 @@ async function findClosest(){
 
     function instrCardHtml(r,displayNum){
       const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
+      const minsLabel=r.mins!=null?`<span style="font-size:.65rem;color:var(--txt3);margin-left:4px">· ~${r.mins} min drive</span>`:'';
+      const mapsUrl=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(postcode)}&destination=${encodeURIComponent(r.iPostcode||r.instr.area||'')}&travelmode=driving`;
+
       const instrLT=r.instr.car_type||'Manual';
       const canTeach=instrCanTeach(instrLT,type);
       const ic=instrAreaCount[r.instr.id]||{total:0,areaMatch:0,students:[]};
@@ -3906,10 +3920,14 @@ async function findClosest(){
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
-            <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} miles</span>
-            <div class="d-flex gap-1">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;justify-content:flex-end">
+              <span class="dist-badge ${isClose?'close':''}"><i class="bi bi-geo-alt me-1"></i>${distMiles} mi</span>
+              ${r.mins!=null?`<span class="dist-badge" style="background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.35);color:#93c5fd"><i class="bi bi-clock me-1"></i>${r.mins} min</span>`:''}
+            </div>
+            <div class="d-flex gap-1 flex-wrap justify-content-end">
               ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
-              <button class="abtn" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="openInstrAreaMap('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-map me-1"></i>Map</button>
+              <a class="abtn" style="border-color:rgba(66,133,244,.4);color:#4285f4;text-decoration:none" href="${mapsUrl}" target="_blank"><i class="bi bi-google me-1"></i>Maps</a>
+              <button class="abtn" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="openInstrAreaMap('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-map me-1"></i>Area</button>
               <button class="abtn approve" onclick="openCreateAndAssign('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-person-plus me-1"></i>Create &amp; Assign</button>
             </div>
           </div>
