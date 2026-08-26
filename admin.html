@@ -3101,7 +3101,7 @@ async function confirmCreateStudent(){
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
     const instrWaNum=instrObj?buildWaNum(instrObj.phone||''):'';
     const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. They will be in touch shortly to arrange your first lesson. Welcome to DriveSQ! 🚗`;
-    const instrMsg=`Hi ${instrObj?.full_name||'there'}, DriveSQ admin has assigned you a new student from the website:\n\n👤 ${name}\n📞 ${phone||'N/A'}\n📍 ${addr||wbEntry.postcode||'N/A'}\n🚗 ${lessonType||'Manual'}\n\nPlease contact them to arrange their first lesson.`;
+    const instrMsg=`Hi ${instrObj?.full_name||'there'}! 👋\n\n*A new student has been assigned to you from a website booking.*\n\n──────────────\n👤 *Name:* ${name}\n📞 *Phone:* ${phone||'N/A'}\n📍 *Postcode:* ${addr||wbEntry.postcode||'N/A'}\n🚗 *Lesson type:* ${lessonType||'Manual'}\n──────────────\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
     // Add WA buttons to the createStudentResult area
     setTimeout(()=>{
       const res=document.getElementById('createStudentResult');
@@ -4168,7 +4168,7 @@ function openAssignModal(instrId,instrName,instrPhone){
     ...(s.notes?[['📝 Notes', s.notes]]:[])
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
-  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you.*\n\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}\nThey will appear in your roster when you log into your portal. Please contact them to arrange their first lesson.\n\nYou can also share the DriveSQ student platform with them — theory guides, test routes, hazard perception, and lesson tracking. They log in at drivesq.co.uk/student.html with their phone number.\n\n📱 Portal: ${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n──────────────\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}──────────────\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   // Student WhatsApp
