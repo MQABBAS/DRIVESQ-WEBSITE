@@ -507,6 +507,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <i class="bi bi-robot" id="autopilotIcon"></i>
           <span id="autopilotLabel">Autopilot</span>
         </button>
+        <button class="theme-toggle" onclick="openApSettings()" title="Autopilot settings — distance, student limits, instructor exclusions" style="border-color:rgba(37,211,102,.3);color:#25D366"><i class="bi bi-gear-fill"></i></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
@@ -1447,6 +1448,36 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 </div>
 
+<!-- AUTOPILOT SETTINGS MODAL -->
+<div class="modal fade" id="apSettingsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--dk);border:1px solid var(--bdr);border-radius:16px">
+      <div class="modal-body p-4">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt)"><i class="bi bi-gear-fill me-2" style="color:#25D366"></i>Autopilot Settings</div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Max distance (miles) <span style="font-size:.7rem;color:var(--txt4)">Skip instructors further than this</span></label>
+          <input class="dsq-inp" type="number" id="aps-maxdist" min="1" max="50" value="20"/>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Max students per instructor <span style="font-size:.7rem;color:var(--txt4)">Skip instructor if roster is already this large</span></label>
+          <input class="dsq-inp" type="number" id="aps-maxstu" min="1" max="100" value="30"/>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Exclude from autopilot <span style="font-size:.7rem;color:var(--txt4)">These instructors will never be auto-assigned</span></label>
+          <div id="aps-excl-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;margin-top:6px"></div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn-p flex-fill" onclick="saveApSettings()"><i class="bi bi-check-lg me-1"></i>Save Settings</button>
+          <button class="btn-s" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- REASSIGN MODAL -->
 <div class="dsq-overlay" id="reassignModal">
   <div class="dsq-modal">
@@ -1772,9 +1803,73 @@ async function runAutopilot(){
   _apTimer=setInterval(autopilotCycle,60000); // poll every 60 s
 }
 
+function getApSettings(){
+  try{ return {...{maxDist:20,maxStudents:30,excludedIds:[]}, ...JSON.parse(localStorage.getItem('dsq_ap_settings')||'{}')}; }
+  catch{ return {maxDist:20,maxStudents:30,excludedIds:[]}; }
+}
+function saveApSettings(){
+  const maxDist=parseFloat(document.getElementById('aps-maxdist').value)||20;
+  const maxStudents=parseInt(document.getElementById('aps-maxstu').value)||30;
+  const excludedIds=[...document.querySelectorAll('.aps-excl-cb:checked')].map(cb=>cb.value);
+  localStorage.setItem('dsq_ap_settings',JSON.stringify({maxDist,maxStudents,excludedIds}));
+  bootstrap.Modal.getInstance(document.getElementById('apSettingsModal'))?.hide();
+  showToast('<i class="bi bi-gear-fill me-1"></i>Autopilot settings saved','success',3000);
+}
+function openApSettings(){
+  const s=getApSettings();
+  document.getElementById('aps-maxdist').value=s.maxDist;
+  document.getElementById('aps-maxstu').value=s.maxStudents;
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  document.getElementById('aps-excl-list').innerHTML=approved.map(i=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.82rem;cursor:pointer">
+      <input type="checkbox" class="aps-excl-cb" value="${i.id}" ${s.excludedIds.includes(i.id)?'checked':''}/>
+      ${esc(i.full_name)} <span style="color:var(--txt3);font-size:.7rem">${esc(i.area||'')}</span>
+    </label>`).join('');
+  new bootstrap.Modal(document.getElementById('apSettingsModal')).show();
+}
+
+async function autopilotCheckDeclined(){
+  const {data:declined}=await sb.from('waiting_list')
+    .select('*').eq('confirm_status','declined').is('next_candidates','not.null')
+    .order('confirm_responded_at',{ascending:true}).limit(5);
+  if(!declined||!declined.length)return;
+  for(const entry of declined){
+    let nextList=[];
+    try{nextList=JSON.parse(entry.next_candidates||'[]');}catch{}
+    if(!nextList.length){
+      await sb.from('waiting_list').update({confirm_status:'no_instructor',next_candidates:null}).eq('id',entry.id).catch(()=>{});
+      continue;
+    }
+    const next=nextList[0];
+    const remaining=nextList.slice(1);
+    const newToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
+    const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(newToken)}`;
+    const profBase={instructor_id:next.id,name:entry.student_name,phone:entry.student_phone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
+    let ok=false;
+    for(const p of[{...profBase,lesson_type:entry.lesson_type||'Manual',notes:entry.notes||null},{...profBase,lesson_type:entry.lesson_type||'Manual'},profBase]){
+      const{error}=await sb.from('student_profiles').insert([p]);
+      if(!error){ok=true;break;}
+    }
+    if(!ok)continue;
+    await sb.from('waiting_list').update({
+      instructor_id:next.id,
+      confirm_token:newToken,
+      confirm_status:'pending',
+      next_candidates:JSON.stringify(remaining),
+      status:'assigned'
+    }).eq('id',entry.id).catch(()=>{});
+    const instrMsg2=`Hi ${next.full_name}! 👋\n\n🤖 *DriveSQ Autopilot — Student Re-assigned to You:*\n\n👤 *Name:* ${entry.student_name}\n📞 *Phone:* ${entry.student_phone||'Not provided'}\n🏷️ *Postcode:* ${entry.postcode||'—'}\n🚗 *Lesson type:* ${entry.lesson_type||'Manual'}\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
+    await sendWA(next.phone||'',instrMsg2);
+    _apLog.unshift({ts:new Date(),student:entry.student_name,instructor:next.full_name,action:'🔄 Re-assigned (previous declined)'});
+    renderApLog();
+    showToast(`<i class="bi bi-robot me-1"></i>🔄 Re-assigned <strong>${entry.student_name}</strong> to <strong>${next.full_name}</strong>`,'info',5000);
+  }
+}
+
 async function autopilotCycle(){
   if(!isAutopilotOn()){clearInterval(_apTimer);_apTimer=null;return;}
   try{
+    await autopilotCheckDeclined();
     const {data:waiting,error}=await sb.from('waiting_list')
       .select('*').eq('status','waiting').order('created_at',{ascending:true});
     if(error||!waiting||!waiting.length)return;
@@ -1815,7 +1910,9 @@ async function autopilotAssignEntry(entry){
   } catch(e){return;}
 
   const searchedOC=outwardCodeAP(rawPc);
+  const apS=getApSettings();
   const approved=allInstrs.filter(i=>i.status==='approved');
+  const filteredApproved=approved.filter(i=>!apS.excludedIds.includes(i.id));
 
   // 2. Score each instructor same algorithm as findClosest()
   function instrCanTeachAP(instrLT,reqType){
@@ -1824,7 +1921,7 @@ async function autopilotAssignEntry(entry){
     return instrLT!=='Automatic';
   }
 
-  const scored=await Promise.all(approved.map(async instr=>{
+  const scored=await Promise.all(filteredApproved.map(async instr=>{
     const pcMatch=(instr.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
     if(!pcMatch)return null;
     try{
@@ -1853,16 +1950,23 @@ async function autopilotAssignEntry(entry){
     }catch{return null;}
   }));
 
-  const candidates=scored.filter(Boolean).sort((a,b)=>b.score-a.score);
-  if(!candidates.length){
+  const stuCountByInstr={};
+  (allStudentsCache||[]).forEach(s=>{if(s.instrId)stuCountByInstr[s.instrId]=(stuCountByInstr[s.instrId]||0)+1;});
+  const candidates=scored.filter(Boolean).filter(r=>r.dist<=apS.maxDist).sort((a,b)=>b.score-a.score);
+  const candidatesFiltered=candidates.filter(r=>(stuCountByInstr[r.instr.id]||0)<apS.maxStudents);
+  if(!candidatesFiltered.length){
     _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ No matching instructor found — left on waiting list'});
     renderApLog(); return;
   }
 
-  const best=candidates[0];
+  const best=candidatesFiltered[0];
   const instrId=best.instr.id;
   const instrName=best.instr.full_name;
   const instrPhone=best.instr.phone||'';
+
+  // Generate confirm token and next candidates
+  const confirmToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
+  const nextCandidates=candidatesFiltered.slice(1,5).map(c=>({id:c.instr.id,full_name:c.instr.full_name,phone:c.instr.phone||''}));
 
   // 3. Insert student_profiles
   const profBase={instructor_id:instrId,name:stuName,phone:stuPhone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
@@ -1880,8 +1984,14 @@ async function autopilotAssignEntry(entry){
     renderApLog(); return;
   }
 
-  // 4. Mark waiting_list as assigned
-  await sb.from('waiting_list').update({status:'assigned',instructor_id:instrId}).eq('id',entry.id).catch(()=>{});
+  // 4. Mark waiting_list as assigned with confirm columns
+  await sb.from('waiting_list').update({
+    status:'assigned',
+    instructor_id:instrId,
+    confirm_token:confirmToken,
+    confirm_status:'pending',
+    next_candidates: JSON.stringify(nextCandidates)
+  }).eq('id',entry.id).catch(()=>{});
 
   // 5. Audit trail
   await sb.from('student_requests').insert([{
@@ -1897,7 +2007,8 @@ async function autopilotAssignEntry(entry){
     '/dashboard.html');
 
   // 7. WhatsApp messages
-  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ Autopilot has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏷️ *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\nThey will appear in your roster on your instructor portal.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
+  const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(confirmToken)}`;
+  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ Autopilot has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏷️ *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
   const stuMsg=stuPhone?`Hi ${stuName.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! You've been automatically matched to an instructor.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${stuPhone}*\nYour instructor is *${instrName}*.\n\nSee you on the road! 🚗\n— DriveSQ`:'';
 
   await sendWA(instrPhone,instrMsg);
