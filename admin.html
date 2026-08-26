@@ -1503,6 +1503,30 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 </div>
 
+<!-- EDIT STUDENT MODAL -->
+<div class="dsq-overlay" id="editStudentModal">
+  <div class="dsq-modal" style="max-width:520px">
+    <button class="modal-x" onclick="closeModal('editStudentModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-pencil-square me-2" style="color:var(--red)"></i>Edit Student</h5>
+    <div class="modal-sub">Changes update lessons, roster and account</div>
+    <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="es-name" placeholder="Student full name"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="es-phone" type="tel" placeholder="07xxx xxx xxx"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Address / Postcode</label><input class="dsq-inp" id="es-address" placeholder="Full pickup address or postcode"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Lesson Type</label>
+      <select class="dsq-inp" id="es-type">
+        <option value="Manual">Manual</option>
+        <option value="Automatic">Automatic</option>
+        <option value="Intensive">Intensive</option>
+        <option value="Pass Plus">Pass Plus</option>
+        <option value="Refresher">Refresher</option>
+        <option value="Mock Test">Mock Test</option>
+      </select>
+    </div>
+    <button class="btn-p w-100 mb-2" id="esSubmitBtn" onclick="saveStudentEdit()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+    <button class="btn-s w-100" onclick="closeModal('editStudentModal')">Cancel</button>
+  </div>
+</div>
+
 <!-- MERGE DUPLICATES MODAL -->
 <div class="dsq-overlay" id="mergeModal">
   <div class="dsq-modal" style="max-width:600px">
@@ -2398,8 +2422,14 @@ async function loadInstrRoster(){
   if(reqInstr!==viewingId)return;
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
-  el.innerHTML=data.map(p=>`<div class="col-12 col-sm-6 col-md-4">
-    <div class="student-card">
+  el.innerHTML=data.map(p=>{
+    // Try to find this student in allStudentsCache for richer detail
+    const cached=allStudentsCache.find(s=>s.instrId===viewingId&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
+    const onClickFn=cached
+      ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${viewingId}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
+      :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${viewingId}')`;
+    return`<div class="col-12 col-sm-6 col-md-4">
+    <div class="student-card" style="cursor:pointer" onclick="${onClickFn}">
       <div class="d-flex align-items-start gap-2">
         <div class="s-init">${(p.name||'?').charAt(0).toUpperCase()}</div>
         <div style="flex:1;min-width:0">
@@ -2409,9 +2439,13 @@ async function loadInstrRoster(){
           <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
           ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
         </div>
+        <button class="abtn edit" style="font-size:.65rem;padding:4px 8px;flex-shrink:0" onclick="event.stopPropagation();${onClickFn}"><i class="bi bi-pencil me-1"></i>Edit</button>
       </div>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
+  // Expose cache ref for roster click lookups
+  window._allStudentsCacheRef=allStudentsCache;
 }
 
 /* ══ STUDENTS TAB ══ */
@@ -3208,6 +3242,7 @@ async function openStudentDetail(idx,_directData){
     ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
+    <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
@@ -3227,6 +3262,125 @@ async function openStudentDetail(idx,_directData){
   openModal('studentDetailModal');
   // Load heavier data (progress, messages, theory) asynchronously after modal is visible
   requestAnimationFrame(()=>loadStudentProgress(s));
+}
+
+/* ══ EDIT STUDENT ══ */
+// Called when clicking a roster-only student (no lesson history in cache)
+function openRosterStudentEdit(profileId,name,phone,address,lessonType,instrId){
+  _adminStudentCtx={profileId,name,phone,address,instrId,acctId:null};
+  document.getElementById('es-name').value=name||'';
+  document.getElementById('es-phone').value=phone||'';
+  document.getElementById('es-address').value=address||'';
+  document.getElementById('es-type').value=lessonType||'Manual';
+  // Show a lightweight detail header too
+  document.getElementById('sdTitle').textContent=name||'Student';
+  document.getElementById('sdSub').textContent=`${phone||''}${address?' · '+address:''}`;
+  document.getElementById('sdBody').innerHTML=`<div style="padding:12px 0;font-size:.8rem;color:var(--txt3)"><i class="bi bi-info-circle me-1"></i>This student is on the instructor's roster. Edit their details below.</div>`;
+  document.getElementById('sdActions').innerHTML=`
+    <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>`;
+  document.getElementById('sdProgressSection').style.display='none';
+  document.getElementById('sdTopicsSection').style.display='none';
+  document.getElementById('sdTestDatesSection').style.display='none';
+  document.getElementById('sdTheorySection').style.display='none';
+  document.getElementById('sdLessons').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">No lesson history found.</div>';
+  document.getElementById('sdMessages').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">—</div>';
+  openModal('studentDetailModal');
+}
+
+function openStudentEditModal(){
+  const s=_adminStudentCtx?(_renderedStudents.find(x=>x.name===_adminStudentCtx.name&&x.instrId===_adminStudentCtx.instrId)||null):null;
+  const sd=s||{name:document.getElementById('sdTitle').textContent,phone:'',address:'',lesson_type:'Manual'};
+  document.getElementById('es-name').value=sd.name||'';
+  document.getElementById('es-phone').value=sd.phone||'';
+  document.getElementById('es-address').value=sd.address||'';
+  document.getElementById('es-type').value=sd.lesson_type||(sd.types?[...sd.types][0]:'Manual')||'Manual';
+  openModal('editStudentModal');
+}
+async function saveStudentEdit(){
+  const btn=document.getElementById('esSubmitBtn');
+  const newName=document.getElementById('es-name').value.trim();
+  const newPhone=document.getElementById('es-phone').value.trim();
+  const newAddr=document.getElementById('es-address').value.trim();
+  const newType=document.getElementById('es-type').value;
+  if(!newName){showToast('Name is required.','error');return;}
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';
+
+  const ctx=_adminStudentCtx||{};
+  const oldName=ctx.name||document.getElementById('sdTitle').textContent;
+  const instrId=ctx.instrId||null;
+  const profileId=ctx.profileId||null;
+  const acctId=ctx.acctId||null;
+
+  const ops=[];
+
+  // 1. Update all matching lesson rows (by old name + instructor)
+  if(instrId){
+    ops.push(sb.from('lessons').update({
+      student_name:newName,
+      ...(newPhone?{student_phone:newPhone}:{}),
+      ...(newAddr?{pickup_address:newAddr}:{}),
+      lesson_type:newType
+    }).eq('instructor_id',instrId).ilike('student_name',oldName));
+  } else {
+    // No instructor — update by name alone across all lessons
+    ops.push(sb.from('lessons').update({
+      student_name:newName,
+      ...(newPhone?{student_phone:newPhone}:{}),
+      ...(newAddr?{pickup_address:newAddr}:{})
+    }).ilike('student_name',oldName));
+  }
+
+  // 2. Update student_profiles row if we have a profile id
+  if(profileId){
+    ops.push(sb.from('student_profiles').update({
+      name:newName,
+      ...(newPhone?{phone:newPhone}:{}),
+      ...(newAddr?{address:newAddr}:{}),
+      lesson_type:newType
+    }).eq('id',profileId));
+  } else if(instrId) {
+    // Try matching by name + instructor
+    ops.push(sb.from('student_profiles').update({
+      name:newName,
+      ...(newPhone?{phone:newPhone}:{}),
+      ...(newAddr?{address:newAddr}:{}),
+      lesson_type:newType
+    }).eq('instructor_id',instrId).ilike('name',oldName));
+  }
+
+  // 3. Update student_accounts if we have an id
+  if(acctId){
+    ops.push(sb.from('student_accounts').update({
+      full_name:newName,
+      ...(newPhone?{phone:newPhone}:{}),
+      ...(newAddr?{address:newAddr}:{})
+    }).eq('id',acctId));
+  } else if(newPhone){
+    const normOld=normalizePhone(ctx.phone||'');
+    if(normOld){
+      ops.push(sb.from('student_accounts').update({
+        full_name:newName,
+        ...(newAddr?{address:newAddr}:{})
+      }).eq('phone',normOld));
+    }
+  }
+
+  const results=await Promise.all(ops);
+  const errs=results.filter(r=>r.error);
+  btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save Changes';
+
+  if(errs.length&&errs.length===results.length){showToast('Failed to save changes.','error');return;}
+  showToast(`✅ ${newName} updated successfully`,'success');
+  closeModal('editStudentModal');
+
+  // Refresh cached data and re-open detail with new name
+  _adminStudentCtx={...ctx,name:newName,phone:newPhone||ctx.phone,address:newAddr||ctx.address};
+  await loadAllStudents();
+  // Re-open with updated data
+  const updated=_renderedStudents.find(x=>x.name===newName&&x.instrId===instrId);
+  if(updated)openStudentDetail(null,updated);
+  // Also refresh instructor roster if on calendar tab
+  if(viewingId)loadInstrRoster();
 }
 
 let _sdLoadToken=0; // increments each time we open a student — lets us abort stale loads
