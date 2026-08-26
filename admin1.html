@@ -1653,6 +1653,41 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#666">Could not load the database library. Please refresh the page.<br>If this keeps happening, check your internet connection.</p></div>';throw e;}
 const PORTAL_URL='https://www.drivesq.co.uk/portal.html';
 const PUSH_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push';
+const WA_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-whatsapp';
+
+/* ── Auto-send WhatsApp via Edge Function ──────────────────────────────────
+   sendWA(phone, message) → tries the Edge Function first.
+   If not configured (Meta credentials not set) or if it fails,
+   returns {sent:false, fallbackUrl} so the caller can open wa.me manually.
+   ────────────────────────────────────────────────────────────────────── */
+async function sendWA(phone,message){
+  const num=buildWaNum(phone||'');
+  const fallbackUrl=num?`https://wa.me/${num}?text=${encodeURIComponent(message)}`:'';
+  if(!num)return{sent:false,fallbackUrl:''};
+  try{
+    const res=await fetch(WA_EDGE_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      body:JSON.stringify({to:num,message})
+    });
+    const json=await res.json();
+    if(json.sent){
+      showToast(`<i class="bi bi-whatsapp me-1" style="color:#25D366"></i>WhatsApp sent automatically ✓`,'success',4000);
+      return{sent:true};
+    }
+    if(json.reason==='not_configured')return{sent:false,fallbackUrl};
+    console.warn('WA send failed:',json.error);
+    return{sent:false,fallbackUrl};
+  }catch(e){
+    console.warn('WA edge function unreachable:',e);
+    return{sent:false,fallbackUrl};
+  }
+}
+/* Helper: auto-send or open wa.me tab as fallback */
+async function autoWA(phone,message){
+  const r=await sendWA(phone,message);
+  if(!r.sent&&r.fallbackUrl)window.open(r.fallbackUrl,'_blank');
+}
 
 // Send a Web Push notification to an instructor via the Edge Function
 async function sendPushToInstructor(instrId,instrName,title,body,url){
@@ -2299,7 +2334,10 @@ async function viewInstr(id){
     `${PORTAL_URL}\n\n` +
     `If you have any questions, reply to this message and we'll help you out.\n\n` +
     `— DriveSQ Admin ✅`;
-  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalWelcomeMsg)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>Send Portal Link</a>`:'';
+  window._portalWAPhone=instr.phone||'';
+  window._portalWAMsg=portalWelcomeMsg;
+  const waBtn=waNum?`<button class="abtn wa" onclick="autoWA(window._portalWAPhone,window._portalWAMsg)"><i class="bi bi-whatsapp me-1"></i>Send Portal Link</button>`:'';
+
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
@@ -4390,20 +4428,18 @@ function openAssignModal(instrId,instrName,instrPhone){
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
   const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n──────────────\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}──────────────\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const stuMsg=s.phone?`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is being set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nYour instructor will be *${instrName}*.\n\nWith the DriveSQ app you can:\n✅ Confirm lessons\n📖 Study theory — 700+ DVSA questions\n📍 Track your progress\n💬 Message your instructor\n🏆 Earn XP as you learn\n\nSee you on the road! 🚗\n— DriveSQ Admin`:'';
+  // Store for confirmAssign to auto-send on confirm
+  window._pendingWA={instrPhone,instrMsg:waMsg,stuPhone:s.phone||'',stuMsg};
+  // Fallback manual links (shown in modal if auto-send not yet configured)
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
-  // Student WhatsApp
   const stuSec=document.getElementById('waStudentSection');
   const stuLink=document.getElementById('waStudentLink');
   if(stuSec&&stuLink&&s.phone){
     const stuWaNum=buildWaNum(s.phone);
-    if(stuWaNum){
-      const stuMsg=`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is being set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nYour instructor will be *${instrName}*.\n\nWith the DriveSQ app you can:\n✅ Confirm lessons\n📖 Study theory — 700+ DVSA questions\n📍 Track your progress\n💬 Message your instructor\n🏆 Earn XP as you learn\n\nSee you on the road! 🚗\n— DriveSQ Admin`;
-      stuLink.href=`https://wa.me/${stuWaNum}?text=${encodeURIComponent(stuMsg)}`;
-      stuSec.style.display='block';
-    } else {
-      stuSec.style.display='none';
-    }
+    if(stuWaNum){stuLink.href=`https://wa.me/${stuWaNum}?text=${encodeURIComponent(stuMsg)}`;stuSec.style.display='block';}
+    else stuSec.style.display='none';
   } else if(stuSec){stuSec.style.display='none';}
   openModal('assignModal');
 }
@@ -4515,16 +4551,23 @@ async function confirmAssign(){
     window._waitlistIdToAssign=null;
   }
 
-  // 6. Offer WhatsApp to student
-  if(s.phone){
-    const _stuWaNum=buildWaNum(s.phone);
-    if(_stuWaNum){
-      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your account is all set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number — *${s.phone}*\n\nYour instructor is *${instrName}*. They'll be in touch to book your first lesson.\n\nIn the app you can:\n✅ Confirm & track lessons\n📖 Study theory — 700+ DVSA questions\n💬 Message your instructor\n🏆 Earn XP as you progress\n\nSee you on the road! 🚗\n— DriveSQ`;
-      setTimeout(()=>{
-        showToast(`<a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Send portal link to ${s.name.split(' ')[0]} via WhatsApp</a>`,'success',15000);
-      },1500);
-    }
+  // 6. Auto-send WhatsApp to instructor and student
+  const _wa=window._pendingWA||{};
+  if(_wa.instrPhone&&_wa.instrMsg){
+    sendWA(_wa.instrPhone,_wa.instrMsg).then(r=>{
+      if(!r.sent&&r.fallbackUrl){
+        setTimeout(()=>showToast(`<a href="${r.fallbackUrl}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Tap to WhatsApp instructor ${instrName}</a>`,'success',15000),800);
+      }
+    });
   }
+  if(_wa.stuPhone&&_wa.stuMsg){
+    sendWA(_wa.stuPhone,_wa.stuMsg).then(r=>{
+      if(!r.sent&&r.fallbackUrl){
+        setTimeout(()=>showToast(`<a href="${r.fallbackUrl}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Tap to WhatsApp student ${s.name.split(' ')[0]}</a>`,'success',15000),1500);
+      }
+    });
+  }
+  window._pendingWA=null;
 
   resetFindForm(true);
 }
