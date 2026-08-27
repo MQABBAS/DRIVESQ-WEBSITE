@@ -1210,27 +1210,46 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 
 <!-- COVERAGE & AREA INTELLIGENCE PANEL -->
 <div id="panel-coverage" class="hidden" style="padding:10px 0">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-pin-map-fill me-2" style="color:var(--gold)"></i>Postcode Coverage &amp; Area Intelligence</h5>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div>
+      <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;margin:0"><i class="bi bi-pin-map-fill me-2" style="color:var(--gold)"></i>Area Intelligence</h5>
+      <div style="font-size:.72rem;color:var(--txt4);margin-top:2px">Coverage · Density · Gaps · Workload — based on live student data</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select class="dsq-inp" id="covInstrFilter" onchange="renderCoverageTab()" style="width:auto;font-size:.82rem"><option value="">All Instructors</option></select>
       <button class="btn-p" style="font-size:.82rem" onclick="loadCoverageTab()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
   </div>
-  <p style="font-size:.76rem;color:var(--txt3);margin-bottom:12px"><i class="bi bi-info-circle me-1"></i>This shows which postcodes and areas your instructors cover, based on their students' addresses. <strong>Postcode Distribution</strong> shows how many students are in each area. <strong>Gap Analysis</strong> flags postcodes where only one instructor operates — a risk if they leave. Use the instructor filter above to focus on one instructor.</p>
-  <div id="coverageStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="coverageGrid">
-    <div>
-      <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3);margin-bottom:10px"><i class="bi bi-postbox-fill me-1" style="color:var(--gold)"></i>Postcode Distribution</div>
-      <div id="coveragePostcodes" style="max-height:420px;overflow-y:auto"></div>
-    </div>
-    <div>
-      <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3);margin-bottom:10px"><i class="bi bi-person-workspace me-1" style="color:var(--red)"></i>Instructor Coverage</div>
-      <div id="coverageByInstr" style="max-height:420px;overflow-y:auto"></div>
-    </div>
+
+  <!-- KPI Stats Row -->
+  <div id="coverageStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px"></div>
+
+  <!-- Sub-tabs -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--bdr);padding-bottom:0;overflow-x:auto">
+    <button id="covTab-map" onclick="setCovTab('map')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid var(--gold);background:none;color:var(--gold);cursor:pointer;white-space:nowrap"><i class="bi bi-bar-chart-fill me-1"></i>Postcode Density</button>
+    <button id="covTab-instr" onclick="setCovTab('instr')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-person-workspace me-1"></i>By Instructor</button>
+    <button id="covTab-gaps" onclick="setCovTab('gaps')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-exclamation-triangle-fill me-1"></i>Gap Analysis</button>
+    <button id="covTab-mismatch" onclick="setCovTab('mismatch')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-shield-exclamation me-1"></i>Coverage Mismatch</button>
   </div>
-  <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3);margin-bottom:10px"><i class="bi bi-lightbulb-fill me-1" style="color:#4ade80"></i>Gap Analysis — Uncovered Areas</div>
-  <div id="coverageGaps" style="margin-bottom:14px"></div>
+
+  <!-- Tab panels -->
+  <div id="covPanel-map">
+    <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Student count per outward postcode, derived from student addresses. Colour shows density level.</div>
+    <div id="coveragePostcodes"></div>
+  </div>
+  <div id="covPanel-instr" style="display:none">
+    <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Each instructor's actual student distribution across postcodes, with workload bar.</div>
+    <div id="coverageByInstr"></div>
+  </div>
+  <div id="covPanel-gaps" style="display:none">
+    <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Areas that need attention — single-instructor dependencies, overloaded areas, and common Manchester postcodes with no students yet.</div>
+    <div id="coverageGaps"></div>
+  </div>
+  <div id="covPanel-mismatch" style="display:none">
+    <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Instructors whose stated coverage postcodes don't match where their students actually are.</div>
+    <div id="coverageMismatch"></div>
+  </div>
 </div>
 
 </div><!-- /page -->
@@ -6114,91 +6133,230 @@ async function openWbCreateStudent(wbId){
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
 let _covData=null;
+let _covTab='map';
+function setCovTab(t){
+  _covTab=t;
+  ['map','instr','gaps','mismatch'].forEach(k=>{
+    const panel=document.getElementById('covPanel-'+k);
+    const btn=document.getElementById('covTab-'+k);
+    if(panel)panel.style.display=k===t?'':'none';
+    if(btn){btn.style.borderBottomColor=k===t?'var(--gold)':'transparent';btn.style.color=k===t?'var(--gold)':'var(--txt3)';}
+  });
+}
 async function loadCoverageTab(){
-  // Populate instructor filter
   const sel=document.getElementById('covInstrFilter');
   if(sel&&allInstrs.length){
-    sel.innerHTML='<option value="">All Instructors</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+    sel.innerHTML='<option value="">All Instructors</option>'+allInstrs.filter(i=>i.status==='approved').sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||'')).map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   }
-  // Load all students if not already loaded
   if(!allStudentsCache.length)await loadAllStudents();
   _covData=allStudentsCache;
+  setCovTab(_covTab||'map');
   renderCoverageTab();
 }
 function renderCoverageTab(){
   const filterInstr=document.getElementById('covInstrFilter')?.value||'';
   const students=(_covData||[]).filter(s=>!filterInstr||s.instrId===filterInstr);
-  // Stats
-  const statsEl=document.getElementById('coverageStats');
-  const postcodes=[...new Set(students.map(s=>extractDistrict(s.address||s.postcode||'')).filter(Boolean))];
-  const instrIds=[...new Set(students.map(s=>s.instrId).filter(Boolean))];
-  if(statsEl)statsEl.innerHTML=`
-    <div class="stat-card r"><div class="stat-lbl">Total Students</div><div class="stat-num r">${students.length}</div></div>
-    <div class="stat-card g"><div class="stat-lbl">Postcodes Covered</div><div class="stat-num g">${postcodes.length}</div></div>
-    <div class="stat-card b"><div class="stat-lbl">Active Instructors</div><div class="stat-num b">${instrIds.length}</div></div>`;
-  // Postcode distribution
-  const pcEl=document.getElementById('coveragePostcodes');
+
+  /* ── Build postcode map ── */
   const byPC={};
   students.forEach(s=>{
     const pc=extractDistrict(s.address||s.postcode||'');
     if(!pc)return;
-    if(!byPC[pc])byPC[pc]=[];
-    byPC[pc].push(s);
+    if(!byPC[pc])byPC[pc]={count:0,instrs:new Set(),students:[]};
+    byPC[pc].count++;
+    byPC[pc].instrs.add(s.instrId||'?');
+    byPC[pc].students.push(s);
   });
-  const pcSorted=Object.entries(byPC).sort((a,b)=>b[1].length-a[1].length);
-  const maxPC=pcSorted[0]?.[1]?.length||1;
-  if(pcEl)pcEl.innerHTML=pcSorted.length?pcSorted.map(([pc,ss])=>{
-    const pct=Math.round(ss.length/maxPC*100);
-    const instrNames=[...new Set(ss.map(s=>s.instrName||'Unknown'))].slice(0,3).join(', ');
-    return`<div style="margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-        <span style="font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;color:var(--txt)">${esc(pc)}</span>
-        <span style="font-size:.7rem;color:var(--txt3)">${ss.length} student${ss.length!==1?'s':''}</span>
-      </div>
-      <div style="height:6px;background:var(--dk3);border-radius:3px;overflow:hidden;margin-bottom:2px">
-        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--gold),#f59e0b);border-radius:3px"></div>
-      </div>
-      <div style="font-size:.62rem;color:var(--txt4)">${esc(instrNames)}${instrNames&&ss.map(s=>s.instrName).filter((v,i,a)=>a.indexOf(v)===i).length>3?' +more':''}</div>
-    </div>`;
-  }).join(''):'<div style="text-align:center;padding:20px;color:var(--txt4);font-size:.8rem">No postcode data found — make sure student addresses include a postcode.</div>';
-  // By instructor
-  const biEl=document.getElementById('coverageByInstr');
+  const pcSorted=Object.entries(byPC).sort((a,b)=>b[1].count-a[1].count);
+  const maxPC=pcSorted[0]?.[1]?.count||1;
+
+  /* ── Build instructor map ── */
   const byI={};
   students.forEach(s=>{
-    const k=s.instrId||'unknown';
-    if(!byI[k])byI[k]={name:s.instrName||'Unknown',pcs:new Set(),count:0};
+    const k=s.instrId||'__unknown';
+    if(!byI[k])byI[k]={id:s.instrId,name:s.instrName||'Unknown',pcs:new Set(),count:0,students:[]};
     byI[k].count++;
     const pc=extractDistrict(s.address||s.postcode||'');
     if(pc)byI[k].pcs.add(pc);
+    byI[k].students.push(s);
   });
   const instrSorted=Object.values(byI).sort((a,b)=>b.count-a.count);
-  if(biEl)biEl.innerHTML=instrSorted.length?instrSorted.map(i=>`
-    <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt)">${esc(i.name)}</span>
-        <span style="font-size:.7rem;color:var(--txt3)">${i.count} students · ${i.pcs.size} area${i.pcs.size!==1?'s':''}</span>
+  const maxStudents=instrSorted[0]?.count||1;
+
+  /* ── KPI Stats ── */
+  const postcodes=Object.keys(byPC);
+  const instrIds=[...new Set(students.map(s=>s.instrId).filter(Boolean))];
+  const vulnerableCount=pcSorted.filter(([,d])=>d.instrs.size===1&&d.count>=2).length;
+  const overloadedCount=instrSorted.filter(i=>i.count>=10).length;
+  const topArea=pcSorted[0]?pcSorted[0][0]:'—';
+  const avgPerInstr=instrIds.length?Math.round(students.length/instrIds.length):0;
+  const statsEl=document.getElementById('coverageStats');
+  if(statsEl)statsEl.innerHTML=`
+    <div class="stat-card r" style="position:relative"><div class="stat-lbl">Total Students</div><div class="stat-num r">${students.length}</div></div>
+    <div class="stat-card g"><div class="stat-lbl">Postcodes Covered</div><div class="stat-num g">${postcodes.length}</div></div>
+    <div class="stat-card b"><div class="stat-lbl">Active Instructors</div><div class="stat-num b">${instrIds.length}</div></div>
+    <div class="stat-card" style="border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;background:var(--dk2)"><div class="stat-lbl">Avg Students / Instr</div><div class="stat-num" style="color:var(--gold)">${avgPerInstr}</div></div>
+    <div class="stat-card" style="border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 14px;background:rgba(248,113,113,.05)"><div class="stat-lbl">Vulnerable Areas</div><div class="stat-num" style="color:#f87171">${vulnerableCount}</div></div>
+    <div class="stat-card" style="border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;background:var(--dk2)"><div class="stat-lbl">Busiest Area</div><div class="stat-num" style="color:var(--txt);font-size:1.1rem">${esc(topArea)}</div></div>`;
+
+  /* ── Postcode Density Tab ── */
+  const pcEl=document.getElementById('coveragePostcodes');
+  if(pcEl)pcEl.innerHTML=pcSorted.length?pcSorted.map(([pc,d])=>{
+    const pct=Math.round(d.count/maxPC*100);
+    const density=pct>=75?'high':pct>=40?'med':'low';
+    const barCol=density==='high'?'linear-gradient(90deg,#f87171,#dc2626)':density==='med'?'linear-gradient(90deg,var(--gold),#f59e0b)':'linear-gradient(90deg,#4ade80,#16a34a)';
+    const badge=density==='high'?'<span style="font-size:.55rem;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:6px">HIGH</span>':density==='med'?'<span style="font-size:.55rem;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:6px">MED</span>':'';
+    const instrNames=[...new Set(d.students.map(s=>s.instrName||'?'))].slice(0,3);
+    const extraInstrs=d.instrs.size-3;
+    const coverageAlert=d.instrs.size===1&&d.count>=3?'<span style="font-size:.55rem;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#f87171;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:4px">⚠ 1 INSTRUCTOR</span>':'';
+    return`<div style="margin-bottom:10px;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(pc)}</span>${badge}${coverageAlert}
+        </div>
+        <span style="font-size:.72rem;color:var(--txt3);font-variant-numeric:tabular-nums">${d.count} student${d.count!==1?'s':''} · ${d.instrs.size} instr${d.instrs.size!==1?'s':''}</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${[...i.pcs].map(p=>`<span style="font-size:.6rem;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.25);border-radius:4px;padding:1px 6px">${esc(p)}</span>`).join('')}</div>
-    </div>`).join(''):'<div style="text-align:center;padding:20px;color:var(--txt4);font-size:.8rem">No instructor data found.</div>';
-  // Gap analysis — postcodes with only 1 instructor (vulnerability) or 0 (gap)
+      <div style="height:7px;background:var(--dk3);border-radius:4px;overflow:hidden;margin-bottom:6px">
+        <div style="width:${pct}%;height:100%;background:${barCol};border-radius:4px;transition:width .4s ease"></div>
+      </div>
+      <div style="font-size:.64rem;color:var(--txt4)">${instrNames.map(n=>esc(n)).join(' · ')}${extraInstrs>0?' +'+extraInstrs+' more':''}</div>
+    </div>`;
+  }).join(''):'<div style="text-align:center;padding:40px;color:var(--txt4);font-size:.82rem"><i class="bi bi-geo-alt me-2"></i>No postcode data found. Make sure student addresses include a postcode.</div>';
+
+  /* ── By Instructor Tab ── */
+  const biEl=document.getElementById('coverageByInstr');
+  if(biEl)biEl.innerHTML=instrSorted.length?instrSorted.map(i=>{
+    const pct=Math.round(i.count/maxStudents*100);
+    const loadLevel=pct>=80?'high':pct>=50?'med':'low';
+    const loadCol=loadLevel==='high'?'#f87171':loadLevel==='med'?'var(--gold)':'#4ade80';
+    const loadBar=loadLevel==='high'?'linear-gradient(90deg,#f87171,#dc2626)':loadLevel==='med'?'linear-gradient(90deg,var(--gold),#f59e0b)':'linear-gradient(90deg,#4ade80,#16a34a)';
+    const instrObj=allInstrs.find(x=>x.id===i.id);
+    const statedPCs=(instrObj?.coverage_postcodes||'').split(/[\s,;/]+/).map(c=>c.trim().toUpperCase()).filter(Boolean);
+    const actualPCs=[...i.pcs];
+    const missingFromStated=actualPCs.filter(pc=>!statedPCs.length||statedPCs.some(s=>s===pc||s.startsWith(pc)||pc.startsWith(s)));
+    const mismatchCount=statedPCs.length?actualPCs.filter(pc=>!statedPCs.some(s=>s===pc||s.startsWith(pc)||pc.startsWith(s))).length:0;
+    return`<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+        <span style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(i.name)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${mismatchCount>0?`<span style="font-size:.6rem;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);color:#fbbf24;border-radius:4px;padding:1px 6px;font-weight:700">⚠ ${mismatchCount} area${mismatchCount!==1?'s':''} outside stated coverage</span>`:''}
+          <span style="font-size:.7rem;color:${loadCol};font-weight:700;font-variant-numeric:tabular-nums">${i.count} students</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <div style="flex:1;height:6px;background:var(--dk3);border-radius:3px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${loadBar};border-radius:3px"></div>
+        </div>
+        <span style="font-size:.62rem;color:var(--txt4);white-space:nowrap">${i.pcs.size} area${i.pcs.size!==1?'s':''}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${actualPCs.sort().map(p=>{
+        const outside=statedPCs.length&&!statedPCs.some(s=>s===p||s.startsWith(p)||p.startsWith(s));
+        return`<span style="font-size:.62rem;background:${outside?'rgba(251,191,36,.1)':'rgba(245,197,24,.1)'};color:${outside?'#fbbf24':'var(--gold)'};border:1px solid ${outside?'rgba(251,191,36,.35)':'rgba(245,197,24,.25)'};border-radius:4px;padding:1px 6px">${esc(p)}${outside?' ⚠':''}</span>`;
+      }).join('')}</div>
+    </div>`;
+  }).join(''):'<div style="text-align:center;padding:40px;color:var(--txt4);font-size:.82rem">No instructor data.</div>';
+
+  /* ── Gap Analysis Tab ── */
   const gapsEl=document.getElementById('coverageGaps');
-  const vulnerables=pcSorted.filter(([,ss])=>{
-    const instrSet=new Set(ss.map(s=>s.instrId).filter(Boolean));
-    return instrSet.size===1&&ss.length>=2;
-  });
-  if(gapsEl)gapsEl.innerHTML=vulnerables.length?`
-    <div style="font-size:.78rem;color:var(--txt3);margin-bottom:8px">These areas have multiple students but only <strong>1 instructor</strong> — if that instructor becomes unavailable, students have no coverage:</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">${vulnerables.map(([pc,ss])=>{
-      const instrName=ss[0]?.instrName||'Unknown';
-      return`<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:7px 12px">
-        <div style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;color:#f87171">${esc(pc)}</div>
-        <div style="font-size:.62rem;color:var(--txt3)">${ss.length} students · ${esc(instrName)} only</div>
-      </div>`;}).join('')}</div>`:
-    '<div style="text-align:center;padding:16px;color:#4ade80;font-size:.8rem"><i class="bi bi-check-circle-fill me-2"></i>Good coverage — no single-instructor vulnerability areas detected.</div>';
+  if(gapsEl){
+    // Single-point-of-failure: 1 instructor, 2+ students
+    const vulnerable=pcSorted.filter(([,d])=>d.instrs.size===1&&d.count>=2);
+    // Overloaded: 1 instructor, 5+ students
+    const overloaded=pcSorted.filter(([,d])=>d.instrs.size===1&&d.count>=5);
+    // Common Manchester postcodes with no students
+    const manPCs=['M1','M2','M3','M4','M5','M6','M7','M8','M9','M11','M12','M13','M14','M15','M16','M18','M19','M20','M21','M22','M23','M24','M25','M26','M27','M28','M29','M30','M31','M32','M33','M34','M35','M38','M40','M41','M43','M44','M45','M46','SK1','SK2','SK3','SK4','SK5','SK6','SK7','SK8','SK9','BL1','BL2','BL3','BL4','BL5','BL6','BL7','OL1','OL2','OL4','OL6','OL8','WN1','WN2','WN3'];
+    const uncovered=manPCs.filter(p=>!byPC[p]);
+
+    let html='';
+
+    if(overloaded.length){
+      html+=`<div style="margin-bottom:16px">
+        <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#f87171;margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-fire"></i>Overloaded Areas <span style="font-size:.68rem;font-weight:400;color:var(--txt4)">(5+ students, only 1 instructor)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">${overloaded.map(([pc,d])=>{
+          const instrName=[...d.students][0]?.instrName||'Unknown';
+          return`<div style="background:rgba(248,113,113,.07);border:1.5px solid rgba(248,113,113,.3);border-radius:10px;padding:10px 12px">
+            <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#f87171">${esc(pc)}</div>
+            <div style="font-size:.7rem;color:var(--txt3);margin-top:3px">${d.count} students</div>
+            <div style="font-size:.65rem;color:var(--txt4);margin-top:2px">Only: ${esc(instrName)}</div>
+            <div style="font-size:.62rem;color:#f87171;margin-top:4px;padding:3px 6px;background:rgba(248,113,113,.1);border-radius:4px">Add 2nd instructor here</div>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    }
+
+    if(vulnerable.length){
+      html+=`<div style="margin-bottom:16px">
+        <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#fbbf24;margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-exclamation-triangle-fill"></i>Single-Instructor Dependency <span style="font-size:.68rem;font-weight:400;color:var(--txt4)">(2–4 students, 1 instructor)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${vulnerable.filter(([,d])=>d.count<5).map(([pc,d])=>{
+          const instrName=[...d.students][0]?.instrName||'Unknown';
+          return`<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px">
+            <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:#fbbf24">${esc(pc)}</div>
+            <div style="font-size:.7rem;color:var(--txt3);margin-top:3px">${d.count} students · ${esc(instrName)}</div>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    }
+
+    if(!vulnerable.length&&!overloaded.length){
+      html+='<div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:.82rem;color:#4ade80"><i class="bi bi-check-circle-fill me-2"></i>No single-instructor vulnerabilities detected — good coverage spread.</div>';
+    }
+
+    if(uncovered.length){
+      html+=`<div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-geo-alt" style="color:var(--blue)"></i>Uncovered Manchester Postcodes <span style="font-size:.68rem;font-weight:400;color:var(--txt4)">(no students yet — expansion opportunities)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${uncovered.map(p=>`<span style="font-size:.72rem;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);color:#60a5fa;border-radius:5px;padding:2px 9px">${esc(p)}</span>`).join('')}</div>
+      </div>`;
+    }
+
+    gapsEl.innerHTML=html||'<div style="text-align:center;padding:30px;color:var(--txt4)">No gap data.</div>';
+  }
+
+  /* ── Coverage Mismatch Tab ── */
+  const mmEl=document.getElementById('coverageMismatch');
+  if(mmEl){
+    const mismatches=instrSorted.map(i=>{
+      const instrObj=allInstrs.find(x=>x.id===i.id);
+      const statedPCs=(instrObj?.coverage_postcodes||'').split(/[\s,;/]+/).map(c=>c.trim().toUpperCase()).filter(Boolean);
+      if(!statedPCs.length)return{...i,stated:[]};
+      const actualPCs=[...i.pcs];
+      const outsideStated=actualPCs.filter(pc=>!statedPCs.some(s=>s===pc||s.startsWith(pc)||pc.startsWith(s)));
+      const statedButEmpty=statedPCs.filter(s=>!actualPCs.some(pc=>pc===s||pc.startsWith(s)||s.startsWith(pc)));
+      return{...i,stated:statedPCs,outsideStated,statedButEmpty,instrObj};
+    }).filter(i=>i.outsideStated?.length||i.statedButEmpty?.length);
+
+    const noStated=instrSorted.filter(i=>{
+      const instrObj=allInstrs.find(x=>x.id===i.id);
+      return!instrObj?.coverage_postcodes&&i.count>0;
+    });
+
+    let html='';
+    if(mismatches.length){
+      html+=mismatches.map(i=>`
+        <div style="background:var(--dk2);border:1px solid rgba(251,191,36,.25);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:8px">${esc(i.name)}</div>
+          ${i.outsideStated?.length?`<div style="margin-bottom:8px">
+            <div style="font-size:.68rem;color:#fbbf24;font-weight:700;margin-bottom:4px"><i class="bi bi-exclamation-triangle-fill me-1"></i>Teaching outside stated coverage:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${i.outsideStated.map(p=>`<span style="font-size:.65rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#fbbf24;border-radius:4px;padding:1px 7px">${esc(p)}</span>`).join('')}</div>
+          </div>`:''}
+          ${i.statedButEmpty?.length?`<div>
+            <div style="font-size:.68rem;color:var(--txt4);font-weight:700;margin-bottom:4px"><i class="bi bi-geo-alt me-1"></i>Stated but no students there yet:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${i.statedButEmpty.map(p=>`<span style="font-size:.65rem;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);color:#60a5fa;border-radius:4px;padding:1px 7px">${esc(p)}</span>`).join('')}</div>
+          </div>`:''}
+        </div>`).join('');
+    }
+    if(noStated.length){
+      html+=`<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:.72rem;color:var(--txt3);font-weight:700;margin-bottom:8px"><i class="bi bi-info-circle me-1"></i>No stated coverage postcodes set for these instructors:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${noStated.map(i=>`<span style="font-size:.72rem;color:var(--txt2);background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:2px 9px">${esc(i.name)}</span>`).join('')}</div>
+        <div style="font-size:.65rem;color:var(--txt4);margin-top:6px">Go to Instructors → Edit to add their covered postcodes.</div>
+      </div>`;
+    }
+    if(!html)html='<div style="text-align:center;padding:30px;color:#4ade80;font-size:.82rem"><i class="bi bi-check-circle-fill me-2"></i>All instructor stated coverage matches their actual student postcodes.</div>';
+    mmEl.innerHTML=html;
+  }
 }
 function extractDistrict(text){
   if(!text)return'';
-  // Try to extract a postcode district like "M19", "M20 3", "SK4" etc.
   const m=(text||'').toUpperCase().match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/);
   return m?m[1]:'';
 }
