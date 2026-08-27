@@ -676,8 +676,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="tbl-scroll">
         <table>
           <thead><tr>
-            <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Area</th>
-            <th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th class="hide-xs">Utilisation</th><th>Actions</th>
+            <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Transmission</th>
+            <th class="hide-xs">Postcode</th><th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -2074,14 +2074,13 @@ function renderInstrsTable(list){
       </td>
       <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
-      <td>${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
-      <td class="hide-xs">${esc(i.area||'—')}</td>
+      <td class="hide-xs">${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
+      <td class="hide-xs" style="font-size:.74rem;color:var(--txt3)">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}" style="cursor:pointer" title="Click to change status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span></td>
       <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--blue);cursor:pointer" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Click to view students">${(allStudentsCache||[]).filter(s=>s.instrId===i.id).length}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
-      <td class="hide-xs">${utilGauge(weekHrs)}</td>
       <td style="white-space:nowrap;min-width:0">
         <button class="abtn view" onclick="viewInstr('${i.id}')" title="View schedule"><i class="bi bi-calendar-week me-1"></i><span class="btn-lbl-md">View</span></button>
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Students"><i class="bi bi-people me-1"></i><span class="btn-lbl-md">Students</span></button>
