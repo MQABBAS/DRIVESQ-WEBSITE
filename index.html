@@ -2689,11 +2689,27 @@ function openLocalVideo(src) {
     // 2. Save to Supabase waiting_list so admin sees it
     try{
       const lessonType=service.toLowerCase().includes('auto')?'Automatic':service.toLowerCase().includes('intensive')?'Intensive':service.toLowerCase().includes('pass plus')?'Pass Plus':'Manual';
-      await fetch(SB_URL+'/rest/v1/waiting_list',{
-        method:'POST',
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({student_name:name,student_phone:phone,postcode:postcode,area:null,lesson_type:lessonType,notes:['[WEB]',service,notes,email?'Email: '+email:''].filter(Boolean).join('\n'),status:'waiting',created_at:new Date().toISOString()})
+      const notesStr=['[WEB]',service,notes,email?'Email: '+email:''].filter(Boolean).join('\n');
+      const sbHeaders={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
+      // Try full insert first
+      let sbRes=await fetch(SB_URL+'/rest/v1/waiting_list',{
+        method:'POST',headers:sbHeaders,
+        body:JSON.stringify({student_name:name,student_phone:phone,postcode:postcode,lesson_type:lessonType,notes:notesStr,status:'waiting',created_at:new Date().toISOString()})
       });
+      if(!sbRes.ok){
+        // Log the real error so we can diagnose
+        const errText=await sbRes.text().catch(()=>'');
+        console.warn('Supabase waiting_list insert failed ('+sbRes.status+'):',errText);
+        // Retry with absolute minimum fields
+        sbRes=await fetch(SB_URL+'/rest/v1/waiting_list',{
+          method:'POST',headers:sbHeaders,
+          body:JSON.stringify({student_name:name,student_phone:phone,notes:notesStr,status:'waiting'})
+        });
+        if(!sbRes.ok){
+          const errText2=await sbRes.text().catch(()=>'');
+          console.warn('Supabase waiting_list minimal insert also failed ('+sbRes.status+'):',errText2);
+        }
+      }
     }catch(e){console.warn('Supabase booking save failed:',e);}
     if(fsOk||true){
       bookForm.reset();
