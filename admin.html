@@ -1511,8 +1511,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="modal-sub">Changes update lessons, roster and account</div>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="es-name" placeholder="Student full name"/></div>
     <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="es-phone" type="tel" placeholder="07xxx xxx xxx"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Email Address</label><input class="dsq-inp" id="es-email" type="email" placeholder="student@email.com"/></div>
     <div class="mb-2"><label class="dsq-lbl">Address / Postcode</label><input class="dsq-inp" id="es-address" placeholder="Full pickup address or postcode"/></div>
-    <div class="mb-3"><label class="dsq-lbl">Lesson Type</label>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="es-type">
         <option value="Manual">Manual</option>
         <option value="Automatic">Automatic</option>
@@ -1522,6 +1523,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <option value="Mock Test">Mock Test</option>
       </select>
     </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes <span style="color:var(--txt4);font-weight:400;text-transform:none">(internal, not visible to student)</span></label><textarea class="dsq-inp" id="es-notes" rows="2" placeholder="Any internal notes…" style="resize:vertical"></textarea></div>
     <button class="btn-p w-100 mb-2" id="esSubmitBtn" onclick="saveStudentEdit()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
     <button class="btn-s w-100" onclick="closeModal('editStudentModal')">Cancel</button>
   </div>
@@ -2678,29 +2680,59 @@ async function adminReassignStudent(idx){
   const{instrId:picked,reason}=result;
   const newInstr=allInstrs.find(i=>i.id===picked);
   if(!newInstr){showToast('Instructor not found.','error');return;}
+  if(picked===s.instrId){showToast('Student is already with this instructor.','warn');return;}
   const oldInstr=allInstrs.find(i=>i.id===s.instrId);
-  showToast('Reassigning…','warn');
-  // Update student_profiles
-  const pid=s.profileId||s.rosterId||null;
-  let ok=false,errMsg='';
-  if(pid){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('id',pid);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  if(!ok&&s.instrId){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('instructor_id',s.instrId).ilike('name',s.name);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  if(!ok){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).ilike('name',s.name);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  // Also update student_accounts
-  if(s.accId){
-    await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).catch(()=>{});
-  }
-  if(ok){
-    // Notify old instructor via admin_messages — marked as reassignment
+  showToast('<i class="bi bi-arrow-left-right me-1"></i>Reassigning…','warn',60000);
+
+  try{
+    // Step 1: Fetch the existing student_profiles row so we can copy its data
+    const pid=s.profileId||s.rosterId||null;
+    let existingProfile=null;
+    if(pid){
+      const{data}=await sb.from('student_profiles').select('*').eq('id',pid).maybeSingle();
+      existingProfile=data;
+    }
+    // Fallback: find by name + old instructor
+    if(!existingProfile&&s.instrId){
+      const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',s.instrId).ilike('name',s.name).maybeSingle();
+      existingProfile=data;
+    }
+    if(!existingProfile){
+      showToast('Could not find student profile row to reassign.','error',6000);
+      return;
+    }
+
+    // Step 2: Check new instructor doesn't already have this student
+    const{data:dupCheck}=await sb.from('student_profiles').select('id').eq('instructor_id',picked).ilike('name',s.name).maybeSingle();
+    if(dupCheck){
+      showToast(`${s.name} is already on ${newInstr.full_name}'s roster.`,'warn',5000);
+      return;
+    }
+
+    // Step 3: INSERT fresh row for new instructor (exact copy of existing profile but new instructor_id)
+    const{id:_oldId,created_at:_oldCat,...profileData}=existingProfile;
+    const{error:insertErr}=await sb.from('student_profiles').insert([{
+      ...profileData,
+      instructor_id:picked,
+      created_at:new Date().toISOString()
+    }]);
+    if(insertErr)throw new Error('Insert failed: '+insertErr.message);
+
+    // Step 4: DELETE the old profile row
+    const{error:deleteErr}=await sb.from('student_profiles').delete().eq('id',existingProfile.id);
+    if(deleteErr)throw new Error('Delete old row failed: '+deleteErr.message);
+
+    // Step 5: Update student_accounts.instructor_id
+    if(s.accId){
+      await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).catch(()=>{});
+    } else if(s.phone){
+      const normPhone=normalizePhone(s.phone);
+      if(normPhone){
+        await sb.from('student_accounts').update({instructor_id:picked}).eq('phone',normPhone).catch(()=>{});
+      }
+    }
+
+    // Step 6: Notify old instructor
     if(oldInstr){
       const msg=`🔄 REASSIGNMENT NOTICE\n\nStudent: ${s.name}\nReassigned to: ${newInstr.full_name}${reason?'\nReason: '+reason:''}\n\nThis student has been moved to a different instructor and is no longer on your roster.`;
       await sb.from('admin_messages').insert([{
@@ -2712,12 +2744,14 @@ async function adminReassignStudent(idx){
         created_at:new Date().toISOString()
       }]).catch(()=>{});
     }
-    showToast(`✅ ${s.name} reassigned to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
+
+    showToast(`✅ ${s.name} moved to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
     document.getElementById('studentDetailModal')?.classList.remove('open');
+    _adminStudentCtx=null;
     loadAllStudents();
-  } else {
-    showToast(`Reassign failed: ${errMsg||'Check Supabase UPDATE policy on student_profiles'}`,'error',6000);
-    console.error('Reassign error:',errMsg);
+  }catch(e){
+    showToast(`Reassign failed: ${e.message}`,'error',7000);
+    console.error('Reassign error:',e);
   }
 }
 
@@ -3292,16 +3326,20 @@ function openStudentEditModal(){
   const sd=s||{name:document.getElementById('sdTitle').textContent,phone:'',address:'',lesson_type:'Manual'};
   document.getElementById('es-name').value=sd.name||'';
   document.getElementById('es-phone').value=sd.phone||'';
+  document.getElementById('es-email').value=sd.acctEmail||sd.email||_adminStudentCtx?.email||'';
   document.getElementById('es-address').value=sd.address||'';
   document.getElementById('es-type').value=sd.lesson_type||(sd.types?[...sd.types][0]:'Manual')||'Manual';
+  document.getElementById('es-notes').value=sd.notes||_adminStudentCtx?.notes||'';
   openModal('editStudentModal');
 }
 async function saveStudentEdit(){
   const btn=document.getElementById('esSubmitBtn');
   const newName=document.getElementById('es-name').value.trim();
   const newPhone=document.getElementById('es-phone').value.trim();
+  const newEmail=document.getElementById('es-email').value.trim();
   const newAddr=document.getElementById('es-address').value.trim();
   const newType=document.getElementById('es-type').value;
+  const newNotes=document.getElementById('es-notes').value.trim();
   if(!newName){showToast('Name is required.','error');return;}
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';
 
@@ -3336,7 +3374,8 @@ async function saveStudentEdit(){
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
       ...(newAddr?{address:newAddr}:{}),
-      lesson_type:newType
+      lesson_type:newType,
+      notes:newNotes
     }).eq('id',profileId));
   } else if(instrId) {
     // Try matching by name + instructor
@@ -3344,15 +3383,17 @@ async function saveStudentEdit(){
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
       ...(newAddr?{address:newAddr}:{}),
-      lesson_type:newType
+      lesson_type:newType,
+      notes:newNotes
     }).eq('instructor_id',instrId).ilike('name',oldName));
   }
 
-  // 3. Update student_accounts if we have an id
+  // 3. Update student_accounts if we have an id (notes NOT stored here — profiles only)
   if(acctId){
     ops.push(sb.from('student_accounts').update({
       full_name:newName,
       ...(newPhone?{phone:newPhone}:{}),
+      ...(newEmail?{email:newEmail}:{}),
       ...(newAddr?{address:newAddr}:{})
     }).eq('id',acctId));
   } else if(newPhone){
@@ -3360,6 +3401,7 @@ async function saveStudentEdit(){
     if(normOld){
       ops.push(sb.from('student_accounts').update({
         full_name:newName,
+        ...(newEmail?{email:newEmail}:{}),
         ...(newAddr?{address:newAddr}:{})
       }).eq('phone',normOld));
     }
@@ -4509,10 +4551,13 @@ async function confirmAssign(){
 
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
-  // If this assignment came from the waiting list, mark it assigned
-  if(window._waitlistIdToAssign){
-    updateWaitlistStatus(window._waitlistIdToAssign,'assigned',instrId).catch(()=>{});
+  // If this assignment came from a waiting list / web booking entry, mark it assigned
+  const _wlId=window._waitlistIdToAssign||window._pendingWbId||null;
+  if(_wlId){
+    updateWaitlistStatus(_wlId,'assigned',instrId).catch(()=>{});
     window._waitlistIdToAssign=null;
+    window._pendingWbId=null;
+    loadWebBookingsBadge();
   }
 
   // 6. Offer WhatsApp to student
@@ -5898,11 +5943,18 @@ async function loadWaitlist(){
     </div>`;
   }).join('');
 }
+function _extractEmailFromNotes(notes){
+  // Parses "Email: xxx@xxx.com" from the notes string saved by the website booking form
+  const m=(notes||'').match(/Email:\s*([^\n,]+)/i);
+  return m?m[1].trim():'';
+}
 function waitlistAssign(id,name,postcode,type,phone,notes){
   // Pre-fill Find & Assign and switch to it
   switchTab('find');setActiveTab('find');
   setTimeout(()=>{
-    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-notes']:notes};
+    const email=_extractEmailFromNotes(notes);
+    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').trim();
+    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=type||'Manual';
     window._waitlistIdToAssign=id;
@@ -5976,7 +6028,7 @@ function renderWebBookings(){
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
       <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
-        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Assign to Instructor</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
         ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="wbMarkStatus(${r.id},'cancelled')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
     </div>`;
@@ -6006,7 +6058,7 @@ function openWbDetail(id){
       <i class="bi bi-telephone-fill" style="flex-shrink:0;margin-top:1px"></i>
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
     </div>`;
-  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-person-plus-fill me-1"></i>Assign to Instructor</button>`:'')
+  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
     +(waNum?`<a href="${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
     +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="wbMarkStatus(${r.id},'cancelled');closeModal('wbDetailModal')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
@@ -6020,38 +6072,30 @@ async function openWbCreateStudent(wbId){
   const r=_webBookingsData.find(x=>x.id===wbId);
   if(!r){showToast('Booking not found','error');return;}
   closeModal('webBookingsModal');closeModal('wbDetailModal');
-  // Store wbId so confirmCreateStudent can mark it as assigned when done
-  window._pendingWbId=wbId;
-  // Open the standard Create Student modal pre-filled with booking details
-  openCreateStudentModal();
+  // Store wbId so confirmAssign (Find tab flow) marks it assigned when done
+  window._waitlistIdToAssign=wbId;
+  window._pendingWbId=wbId; // also kept for confirmCreateStudent fallback
+
+  // Parse email out of notes (website form saves it as "Email: xxx")
+  const email=_extractEmailFromNotes(r.notes||'');
+  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
+
+  // Go to Find & Assign tab — pre-fill all fields — then auto-search
+  switchTab('find');setActiveTab('find');
   setTimeout(()=>{
-    const nm=document.getElementById('cs-name');if(nm)nm.value=r.student_name||'';
-    const ph=document.getElementById('cs-phone');if(ph)ph.value=r.student_phone||'';
-    const ad=document.getElementById('cs-addr');if(ad)ad.value=r.area||r.postcode||'';
-    const lt=document.getElementById('cs-type');if(lt)lt.value=r.lesson_type||'Manual';
-    const no=document.getElementById('cs-notes');if(no){
-      const existing=no.value?no.value+'\n':'';
-      no.value=existing+(r.notes||'')+(r.notes&&r.postcode?'\n':'')+(r.postcode?'Postcode: '+r.postcode:'');
-    }
-    // Also pre-fill Find tab in background so instructor search works
-    if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode||'';
-    if(document.getElementById('fc-type'))document.getElementById('fc-type').value=r.lesson_type||'Manual';
-    // Pre-run nearest instructor finder to populate cs-instr dropdown
-    if(r.postcode&&typeof findClosest==='function'){
-      if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode;
-      if(document.getElementById('fc-name'))document.getElementById('fc-name').value=r.student_name||'';
-      if(document.getElementById('fc-phone'))document.getElementById('fc-phone').value=r.student_phone||'';
-    }
-    // Show note about contacting student
-    const msgEl=document.getElementById('createStudentMsg');
-    if(msgEl){
-      msgEl.className='mb-2';
-      msgEl.style.cssText='background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.3);border-radius:8px;padding:9px 12px;font-size:.77rem;color:#fde68a';
-      msgEl.innerHTML='<i class="bi bi-telephone-fill me-2"></i><strong>Contact required:</strong> Once assigned, contact the student on <strong>'+(r.student_phone||'their number')+'</strong> to confirm their instructor and first lesson.';
-      msgEl.classList.remove('hidden');
-    }
-  },100);
-  showToast(`Assign ${r.student_name} to an instructor below`,'success');
+    const fields={
+      'fc-name': r.student_name||'',
+      'fc-phone': r.student_phone||'',
+      'fc-email': email,
+      'fc-postcode': r.postcode||'',
+      'fc-addr': r.area||'',
+      'fc-notes': cleanNotes
+    };
+    Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
+    const lt=document.getElementById('fc-type');if(lt)lt.value=r.lesson_type||'Manual';
+    showToast(`<i class="bi bi-geo-alt-fill me-1"></i>Finding closest instructor for ${r.student_name}…`,'info',4000);
+    findClosest();
+  },300);
 }
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
