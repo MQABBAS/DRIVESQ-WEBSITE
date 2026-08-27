@@ -932,6 +932,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="pPhone" placeholder="07xxx xxx xxx"/></div>
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="pEmail" type="email" placeholder="you@email.com"/></div>
             <div class="col-12"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="pArea" placeholder="e.g. M19, Didsbury"/></div>
+            <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="color:var(--txt4);font-size:.6rem;font-weight:400">(outward codes you travel to)</span></label><input class="dsq-inp" id="pCoverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/><div style="font-size:.63rem;color:var(--txt4);margin-top:3px">Separate with commas. Helps the system match you to new students in your area.</div></div>
           </div>
         </div>
       </div>
@@ -3379,6 +3380,7 @@ async function loadProfileData(){
   if(data.profile_photo_url)instr.profile_photo_url=data.profile_photo_url;
   sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
   document.getElementById('pName').value=data.full_name||'';document.getElementById('pBadge').value=data.badge_number||'';document.getElementById('pPhone').value=data.phone||'';document.getElementById('pEmail').value=data.email||'';document.getElementById('pArea').value=data.area||'';document.getElementById('pCarModel').value=data.car_model||'';document.getElementById('pCarPlate').value=data.car_plate||'';document.getElementById('pCarType').value=data.car_type||'Manual';
+  const covEl=document.getElementById('pCoverage');if(covEl)covEl.value=data.coverage_postcodes||'';
   document.getElementById('profileNameDisp').textContent=data.full_name||'—';document.getElementById('profileBadgeDisp').textContent=data.badge_number||'—';
   const ts='?t='+Date.now();
   if(data.profile_photo_url){document.getElementById('profileAvatar').src=data.profile_photo_url+ts;document.getElementById('navAvatar').src=data.profile_photo_url+ts;}
@@ -3439,7 +3441,8 @@ async function saveProfile(){
     if(newPwd.length<6){showToast('Password must be at least 6 characters.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
   }
   const badgeExpiry=document.getElementById('pBadgeExpiry')?.value||null;
-  const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null};
+  const coveragePostcodes=(document.getElementById('pCoverage')?.value||'').toUpperCase().trim()||null;
+  const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null,coverage_postcodes:coveragePostcodes};
   if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
   try{
     const pFile=document.getElementById('profilePhotoInput').files[0];

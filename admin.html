@@ -3895,6 +3895,8 @@ async function saveEdit(){
     area:document.getElementById('edit-area').value.trim(),
     address:document.getElementById('edit-address').value.trim(),
     status:document.getElementById('edit-status').value,
+    coverage_postcodes:(document.getElementById('edit-coverage')?.value||'').toUpperCase().trim()||null,
+    badge_expiry:(document.getElementById('edit-badge-expiry')?.value||null)||null,
   };
   const np=document.getElementById('edit-new-pwd').value.trim();
   if(np){base.password=np;base.password_hash=btoa(np);}
@@ -3907,17 +3909,21 @@ async function saveEdit(){
     const wrap=document.getElementById('edit-badge-upload-progress');if(wrap)wrap.style.display='none';
   }
 
-  // Try full update first (includes optional columns)
+  // Try full update first (includes optional columns like show_lessons)
   const full={...base,
-    badge_expiry:(document.getElementById('edit-badge-expiry')?.value||null)||null,
-    coverage_postcodes:(document.getElementById('edit-coverage')?.value||'').toUpperCase().trim(),
     show_lessons:document.getElementById('edit-show-lessons')?.checked!==false,
   };
   let{error}=await sb.from('instructors').update(full).eq('id',id);
 
-  // If that fails (column may not exist yet), retry with just the core fields
+  // If that fails, retry without show_lessons (column may not exist yet)
   if(error){
-    const{error:e2}=await sb.from('instructors').update(base).eq('id',id);
+    const{coverage_postcodes:cp,badge_expiry:be,...coreBase}=base;
+    const retry={...coreBase};
+    // Re-add coverage_postcodes and badge_expiry individually — if these columns
+    // also don't exist the error message will say so explicitly
+    if(cp!==null)retry.coverage_postcodes=cp;
+    if(be!==null)retry.badge_expiry=be;
+    const{error:e2}=await sb.from('instructors').update(retry).eq('id',id);
     if(e2){
       showToast('Failed to save: '+e2.message,'error',6000);
       console.error('saveEdit error:',e2);
