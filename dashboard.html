@@ -946,6 +946,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
             <span style="font-size:.63rem;color:var(--txt5)">JPG / PNG / WEBP · max 5MB</span>
           </label>
           <input type="file" id="badgeInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleBadgePhoto(event)"/>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bdr)">
+            <label class="dsq-lbl" style="margin-bottom:4px">Badge Expiry Date</label>
+            <input class="dsq-inp" id="pBadgeExpiry" type="date" oninput="updateDashBadgeExpiry(this.value)" style="margin-bottom:6px"/>
+            <div id="pBadgeExpiryStatus" style="font-size:.72rem;padding:5px 10px;border-radius:6px;display:none;text-align:center"></div>
+          </div>
         </div>
       </div>
       <div class="col-12 col-md-6">
@@ -3379,6 +3384,20 @@ async function loadProfileData(){
   if(data.profile_photo_url){document.getElementById('profileAvatar').src=data.profile_photo_url+ts;document.getElementById('navAvatar').src=data.profile_photo_url+ts;}
   if(data.badge_photo_url){const p=document.getElementById('badgePreview');p.src=data.badge_photo_url+ts;p.style.display='block';}
   if(data.car_photo_url){const img=document.getElementById('carPhotoImg');img.src=data.car_photo_url+ts;img.style.display='block';document.getElementById('carPhotoPlch').style.display='none';}
+  const expEl=document.getElementById('pBadgeExpiry');if(expEl)expEl.value=data.badge_expiry||'';
+  if(data.badge_expiry)updateDashBadgeExpiry(data.badge_expiry);
+}
+function updateDashBadgeExpiry(expiry){
+  const el=document.getElementById('pBadgeExpiryStatus');if(!el)return;
+  if(!expiry){el.style.display='none';return;}
+  el.style.display='block';
+  const today=new Date();today.setHours(0,0,0,0);
+  const exp=new Date(expiry);const diff=Math.round((exp-today)/(1000*60*60*24));
+  const fmt=exp.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  if(diff<0){el.style.background='rgba(248,113,113,.15)';el.style.color='#f87171';el.style.border='1px solid rgba(248,113,113,.3)';el.textContent='⛔ EXPIRED — Renew your badge immediately';}
+  else if(diff<=30){el.style.background='rgba(245,197,24,.15)';el.style.color='var(--gold)';el.style.border='1px solid rgba(245,197,24,.3)';el.textContent='⚠️ Expires '+fmt+' · '+diff+' days left';}
+  else if(diff<=90){el.style.background='rgba(251,146,60,.12)';el.style.color='#fb923c';el.style.border='1px solid rgba(251,146,60,.25)';el.textContent='🕐 Expires '+fmt+' · '+diff+' days left';}
+  else{el.style.background='rgba(37,211,102,.1)';el.style.color='#4ade80';el.style.border='1px solid rgba(37,211,102,.25)';el.textContent='✅ Valid until '+fmt;}
 }
 function validateFile(file,maxMB){if(!file)return false;const allowed=['image/jpeg','image/png','image/webp'];if(!allowed.includes(file.type)){showToast('Please use JPG, PNG, or WebP images.');return false;}if(file.size>maxMB*1024*1024){showToast('File too large (max '+maxMB+'MB).');return false;}return true;}
 function handleProfilePhoto(e){const f=e.target.files[0];if(!validateFile(f,5))return;document.getElementById('profileAvatar').src=URL.createObjectURL(f);showToast('Photo selected — click Save to upload.');}
@@ -3419,7 +3438,8 @@ async function saveProfile(){
     if(newPwd!==confirmPwd){showToast('Passwords do not match.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
     if(newPwd.length<6){showToast('Password must be at least 6 characters.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
   }
-  const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value};
+  const badgeExpiry=document.getElementById('pBadgeExpiry')?.value||null;
+  const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null};
   if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
   try{
     const pFile=document.getElementById('profilePhotoInput').files[0];
