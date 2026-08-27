@@ -1989,10 +1989,14 @@ async function loadInstrs(){
   allInstrs=data||[];
   // Compute weekly hours per instructor
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const{data:wkLessons}=await sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun));
-  const hrsMap={},earnMap={};
+  const[{data:wkLessons},{data:rosterRows}]=await Promise.all([
+    sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
+    sb.from('student_profiles').select('instructor_id')
+  ]);
+  const hrsMap={},earnMap={},rosterMap={};
   (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
-  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;});
+  (rosterRows||[]).forEach(r=>{rosterMap[r.instructor_id]=(rosterMap[r.instructor_id]||0)+1;});
+  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;i._rosterCount=rosterMap[i.id]||0;});
   renderInstrsTable(allInstrs);
   renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
   const pc=allInstrs.filter(i=>i.status==='pending').length;
@@ -2077,7 +2081,7 @@ function renderInstrsTable(list){
       <td class="hide-xs">${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
       <td class="hide-xs" style="font-size:.74rem;color:var(--txt3)">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}" style="cursor:pointer" title="Click to change status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span></td>
-      <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--blue);cursor:pointer" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Click to view students">${(allStudentsCache||[]).filter(s=>s.instrId===i.id).length}</td>
+      <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--blue);cursor:pointer" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Click to view students">${i._rosterCount||0}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
@@ -5994,7 +5998,12 @@ function waitlistAssign(id,name,postcode,type,phone,notes){
   },300);
 }
 async function updateWaitlistStatus(id,status,instrId=null){
-  await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
+  if(status==='cancelled'){
+    await sb.from('waiting_list').delete().eq('id',id).catch(()=>{});
+    showToast('Entry removed','warn',3000);
+  } else {
+    await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
+  }
   loadWaitlist();
 }
 
@@ -6096,8 +6105,13 @@ function openWbDetail(id){
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
-  await sb.from('waiting_list').update({status}).eq('id',id);
-  showToast(status==='cancelled'?'Booking declined':'Status updated','warn');
+  if(status==='cancelled'){
+    await sb.from('waiting_list').delete().eq('id',id);
+    showToast('Booking removed','warn',3000);
+  } else {
+    await sb.from('waiting_list').update({status}).eq('id',id);
+    showToast('Status updated','warn');
+  }
   await loadWebBookings();
 }
 async function openWbCreateStudent(wbId){
