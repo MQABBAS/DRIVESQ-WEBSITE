@@ -1511,8 +1511,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="modal-sub">Changes update lessons, roster and account</div>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="es-name" placeholder="Student full name"/></div>
     <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="es-phone" type="tel" placeholder="07xxx xxx xxx"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Email Address</label><input class="dsq-inp" id="es-email" type="email" placeholder="student@email.com"/></div>
     <div class="mb-2"><label class="dsq-lbl">Address / Postcode</label><input class="dsq-inp" id="es-address" placeholder="Full pickup address or postcode"/></div>
-    <div class="mb-3"><label class="dsq-lbl">Lesson Type</label>
+    <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="es-type">
         <option value="Manual">Manual</option>
         <option value="Automatic">Automatic</option>
@@ -1522,6 +1523,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <option value="Mock Test">Mock Test</option>
       </select>
     </div>
+    <div class="mb-3"><label class="dsq-lbl">Notes <span style="color:var(--txt4);font-weight:400;text-transform:none">(internal, not visible to student)</span></label><textarea class="dsq-inp" id="es-notes" rows="2" placeholder="Any internal notes…" style="resize:vertical"></textarea></div>
     <button class="btn-p w-100 mb-2" id="esSubmitBtn" onclick="saveStudentEdit()"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
     <button class="btn-s w-100" onclick="closeModal('editStudentModal')">Cancel</button>
   </div>
@@ -2678,29 +2680,59 @@ async function adminReassignStudent(idx){
   const{instrId:picked,reason}=result;
   const newInstr=allInstrs.find(i=>i.id===picked);
   if(!newInstr){showToast('Instructor not found.','error');return;}
+  if(picked===s.instrId){showToast('Student is already with this instructor.','warn');return;}
   const oldInstr=allInstrs.find(i=>i.id===s.instrId);
-  showToast('Reassigning…','warn');
-  // Update student_profiles
-  const pid=s.profileId||s.rosterId||null;
-  let ok=false,errMsg='';
-  if(pid){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('id',pid);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  if(!ok&&s.instrId){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).eq('instructor_id',s.instrId).ilike('name',s.name);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  if(!ok){
-    const{error}=await sb.from('student_profiles').update({instructor_id:picked}).ilike('name',s.name);
-    ok=!error;if(error)errMsg=error.message;
-  }
-  // Also update student_accounts
-  if(s.accId){
-    await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).catch(()=>{});
-  }
-  if(ok){
-    // Notify old instructor via admin_messages — marked as reassignment
+  showToast('<i class="bi bi-arrow-left-right me-1"></i>Reassigning…','warn',60000);
+
+  try{
+    // Step 1: Fetch the existing student_profiles row so we can copy its data
+    const pid=s.profileId||s.rosterId||null;
+    let existingProfile=null;
+    if(pid){
+      const{data}=await sb.from('student_profiles').select('*').eq('id',pid).maybeSingle();
+      existingProfile=data;
+    }
+    // Fallback: find by name + old instructor
+    if(!existingProfile&&s.instrId){
+      const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',s.instrId).ilike('name',s.name).maybeSingle();
+      existingProfile=data;
+    }
+    if(!existingProfile){
+      showToast('Could not find student profile row to reassign.','error',6000);
+      return;
+    }
+
+    // Step 2: Check new instructor doesn't already have this student
+    const{data:dupCheck}=await sb.from('student_profiles').select('id').eq('instructor_id',picked).ilike('name',s.name).maybeSingle();
+    if(dupCheck){
+      showToast(`${s.name} is already on ${newInstr.full_name}'s roster.`,'warn',5000);
+      return;
+    }
+
+    // Step 3: INSERT fresh row for new instructor (exact copy of existing profile but new instructor_id)
+    const{id:_oldId,created_at:_oldCat,...profileData}=existingProfile;
+    const{error:insertErr}=await sb.from('student_profiles').insert([{
+      ...profileData,
+      instructor_id:picked,
+      created_at:new Date().toISOString()
+    }]);
+    if(insertErr)throw new Error('Insert failed: '+insertErr.message);
+
+    // Step 4: DELETE the old profile row
+    const{error:deleteErr}=await sb.from('student_profiles').delete().eq('id',existingProfile.id);
+    if(deleteErr)throw new Error('Delete old row failed: '+deleteErr.message);
+
+    // Step 5: Update student_accounts.instructor_id
+    if(s.accId){
+      await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).catch(()=>{});
+    } else if(s.phone){
+      const normPhone=normalizePhone(s.phone);
+      if(normPhone){
+        await sb.from('student_accounts').update({instructor_id:picked}).eq('phone',normPhone).catch(()=>{});
+      }
+    }
+
+    // Step 6: Notify old instructor
     if(oldInstr){
       const msg=`🔄 REASSIGNMENT NOTICE\n\nStudent: ${s.name}\nReassigned to: ${newInstr.full_name}${reason?'\nReason: '+reason:''}\n\nThis student has been moved to a different instructor and is no longer on your roster.`;
       await sb.from('admin_messages').insert([{
@@ -2712,12 +2744,14 @@ async function adminReassignStudent(idx){
         created_at:new Date().toISOString()
       }]).catch(()=>{});
     }
-    showToast(`✅ ${s.name} reassigned to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
+
+    showToast(`✅ ${s.name} moved to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
     document.getElementById('studentDetailModal')?.classList.remove('open');
+    _adminStudentCtx=null;
     loadAllStudents();
-  } else {
-    showToast(`Reassign failed: ${errMsg||'Check Supabase UPDATE policy on student_profiles'}`,'error',6000);
-    console.error('Reassign error:',errMsg);
+  }catch(e){
+    showToast(`Reassign failed: ${e.message}`,'error',7000);
+    console.error('Reassign error:',e);
   }
 }
 
@@ -3292,16 +3326,20 @@ function openStudentEditModal(){
   const sd=s||{name:document.getElementById('sdTitle').textContent,phone:'',address:'',lesson_type:'Manual'};
   document.getElementById('es-name').value=sd.name||'';
   document.getElementById('es-phone').value=sd.phone||'';
+  document.getElementById('es-email').value=sd.acctEmail||sd.email||_adminStudentCtx?.email||'';
   document.getElementById('es-address').value=sd.address||'';
   document.getElementById('es-type').value=sd.lesson_type||(sd.types?[...sd.types][0]:'Manual')||'Manual';
+  document.getElementById('es-notes').value=sd.notes||_adminStudentCtx?.notes||'';
   openModal('editStudentModal');
 }
 async function saveStudentEdit(){
   const btn=document.getElementById('esSubmitBtn');
   const newName=document.getElementById('es-name').value.trim();
   const newPhone=document.getElementById('es-phone').value.trim();
+  const newEmail=document.getElementById('es-email').value.trim();
   const newAddr=document.getElementById('es-address').value.trim();
   const newType=document.getElementById('es-type').value;
+  const newNotes=document.getElementById('es-notes').value.trim();
   if(!newName){showToast('Name is required.','error');return;}
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';
 
@@ -3336,7 +3374,8 @@ async function saveStudentEdit(){
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
       ...(newAddr?{address:newAddr}:{}),
-      lesson_type:newType
+      lesson_type:newType,
+      notes:newNotes
     }).eq('id',profileId));
   } else if(instrId) {
     // Try matching by name + instructor
@@ -3344,15 +3383,17 @@ async function saveStudentEdit(){
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
       ...(newAddr?{address:newAddr}:{}),
-      lesson_type:newType
+      lesson_type:newType,
+      notes:newNotes
     }).eq('instructor_id',instrId).ilike('name',oldName));
   }
 
-  // 3. Update student_accounts if we have an id
+  // 3. Update student_accounts if we have an id (notes NOT stored here — profiles only)
   if(acctId){
     ops.push(sb.from('student_accounts').update({
       full_name:newName,
       ...(newPhone?{phone:newPhone}:{}),
+      ...(newEmail?{email:newEmail}:{}),
       ...(newAddr?{address:newAddr}:{})
     }).eq('id',acctId));
   } else if(newPhone){
@@ -3360,6 +3401,7 @@ async function saveStudentEdit(){
     if(normOld){
       ops.push(sb.from('student_accounts').update({
         full_name:newName,
+        ...(newEmail?{email:newEmail}:{}),
         ...(newAddr?{address:newAddr}:{})
       }).eq('phone',normOld));
     }
