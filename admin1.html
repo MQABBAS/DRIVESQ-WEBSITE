@@ -2138,7 +2138,7 @@ async function autopilotAssignEntry(entry, weeklyCount={}){
   if(dist>AP_CONFIRM_MILES){
     _apLog.unshift({ts:new Date(),student:stuName,action:`❌ No coverage — ${dist.toFixed(1)} mi (>14 mi limit)`});
     renderApLog();
-    await sb.from('waiting_list').update({status:'rejected',notes:(entry.notes||'')+'\n[AP: No coverage >14mi]'}).eq('id',entry.id).catch(()=>{});
+    await sb.from('waiting_list').update({status:'rejected',notes:(entry.notes||'')+'\n[AP: No coverage >14mi]'}).eq('id',entry.id);
     await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,distance_miles:dist,action:'rejected_no_coverage',source,waiting_list_id:entry.id});
     if(stuPhone){
       await sendWhatsAppAP(stuPhone,`Hi${stuName?' '+stuName.split(' ')[0]:''}! 👋\n\nThank you for contacting DriveSQ.\n\nUnfortunately, we don't currently have any instructors available in your area. We are continuously expanding our coverage.\n\nIf you'd like to be notified when we cover your area, please reply with *NOTIFY* and we'll be in touch.\n\n— DriveSQ 🚗`);
@@ -2168,7 +2168,7 @@ async function autopilotAssignEntry(entry, weeklyCount={}){
     confirm_expires_at:expiresAt,
     distance_miles:dist,
     next_candidates:nextCandidates
-  }).eq('id',entry.id).catch(()=>{});
+  }).eq('id',entry.id);
 
   const confirmMsg=`Hi ${instrName}! 👋\n\nWe have a student in *${rawPc}*, approximately *${dist.toFixed(1)} miles* from you.\n\nCan you take this student?\n\nReply *YES* to confirm or *NO* to decline.\n\n(This request expires in 5 hours)\n\n— DriveSQ 🤖`;
   await sendWhatsAppAP(instrPhone, confirmMsg);
@@ -2205,14 +2205,14 @@ async function apDoAssign({entry,instrId,instrName,instrPhone,rawPc,stuName,stuP
   await sb.from('waiting_list').update({
     status:'assigned',instructor_id:instrId,confirm_status:'confirmed',
     next_candidates:nextCandidates,distance_miles:dist
-  }).eq('id',entry.id).catch(()=>{});
+  }).eq('id',entry.id);
 
   // Audit trail
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:stuName,student_phone:stuPhone||null,
     postcode:rawPc,lesson_type:lessonType,notes:entry.notes||null,
     status:'approved',created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]);
 
   await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,instructor_id:instrId,instructor_name:instrName,distance_miles:dist,action:requireConfirm?'assigned_after_confirm':'auto_assigned',source,waiting_list_id:entry.id,notes:`Weekly assignments for instructor: ${entry._weeklyCount||0}`});
 
@@ -2413,8 +2413,8 @@ async function waManualProcess(msgId,fromNumber,action){
   if(!entry){showToast('No pending confirmation found for '+instr.full_name+'.','error');return;}
 
   const newStatus=action==='accept'?'accepted':'declined';
-  await sb.from('waiting_list').update({confirm_status:newStatus,confirm_responded_at:new Date().toISOString()}).eq('id',entry.id).catch(()=>{});
-  await sb.from('whatsapp_messages').update({processed:true}).eq('id',msgId).catch(()=>{});
+  await sb.from('waiting_list').update({confirm_status:newStatus,confirm_responded_at:new Date().toISOString()}).eq('id',entry.id);
+  await sb.from('whatsapp_messages').update({processed:true}).eq('id',msgId);
 
   showToast(`<i class="bi bi-check2-all me-1"></i>${instr.full_name} marked as <strong>${newStatus}</strong> for ${esc(entry.student_name||'student')}`,'success',5000);
   loadWaInbox();
@@ -2567,7 +2567,7 @@ async function sendPushToInstructor(instrId,instrName,title,body,url){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
       body:JSON.stringify({instructor_id:instrId,title,body,url:url||'/dashboard.html'})
-    }).catch(()=>{});
+    });
   }catch(e){console.warn('sendPushToInstructor:',e.message);}
 }
 
@@ -2911,12 +2911,12 @@ async function loadGlobalStats(){
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
-  }).catch(()=>{});
+  });
   // New students this week (created_at in last 7 days)
   const weekAgo=new Date(Date.now()-7*24*60*60*1000).toISOString();
   sb.from('student_accounts').select('id',{count:'exact',head:true}).gte('created_at',weekAgo).then(r=>{
     document.getElementById('sNewThisWeek').textContent=r.count||0;
-  }).catch(()=>{});
+  });
 }
 
 function populateDropdowns(){
@@ -3608,7 +3608,7 @@ async function adminReassignStudent(idx){
   }
   // Also update student_accounts
   if(s.accId){
-    await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId).catch(()=>{});
+    await sb.from('student_accounts').update({instructor_id:picked}).eq('id',s.accId);
   }
   if(ok){
     // Notify old instructor via admin_messages — marked as reassignment
@@ -3621,7 +3621,7 @@ async function adminReassignStudent(idx){
         type:'reassignment',
         read:false,
         created_at:new Date().toISOString()
-      }]).catch(()=>{});
+      }]);
     }
     showToast(`✅ ${s.name} reassigned to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
     document.getElementById('studentDetailModal')?.classList.remove('open');
@@ -4053,7 +4053,7 @@ async function confirmCreateStudent(){
     sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New Student: '+name,'Tap to view '+name+'\'s details in your Students tab','/dashboard.html');
     const _iName=instrObj?.full_name||'Instructor';
     const _csMsg='Hi '+_iName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+name+'\n📞 Phone: '+(phone||'Not provided')+'\n🚗 Lesson Type: '+(lessonType||'Manual')+'\n📍 Address: '+(addr||'Not provided')+(notes?'\n📝 Notes: '+notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
-    await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+    await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
   }
   if(allStudentsCache.length)loadAllStudents();
   // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
@@ -4061,7 +4061,7 @@ async function confirmCreateStudent(){
     const wbId=window._pendingWbId;
     window._pendingWbId=null;
     // Mark as assigned in waiting_list
-    sb.from('waiting_list').update({status:'assigned'}).eq('id',wbId).then(()=>{loadWebBookingsBadge();}).catch(()=>{});
+    sb.from('waiting_list').update({status:'assigned'}).eq('id',wbId).then(()=>{loadWebBookingsBadge();});
     // Show WhatsApp buttons for both student and instructor
     const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
@@ -4501,8 +4501,8 @@ async function mergeStudentGroup(gi){
     if(d.acctId){
       // Transfer messages to keeper account if keeper has an account
       if(keep.acctId){
-        await sb.from('student_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId).catch(()=>{});
-        await sb.from('student_admin_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId).catch(()=>{});
+        await sb.from('student_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId);
+        await sb.from('student_admin_messages').update({student_account_id:keep.acctId}).eq('student_account_id',d.acctId);
       }
       const{error}=await sb.from('student_accounts').delete().eq('id',d.acctId);
       if(error)errs.push('account: '+error.message);
@@ -5401,7 +5401,7 @@ async function confirmAssign(){
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
     pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]);
 
   // 4. Push notification to instructor device
   await sendPushToInstructor(instrId,instrName,
@@ -5424,13 +5424,13 @@ async function confirmAssign(){
     subject:'👤 New Student Assigned: '+s.name,
     message_type:'general',body:_msg,
     is_read:false,dismissed:false,created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]);
 
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
   // If this assignment came from the waiting list, mark it assigned
   if(window._waitlistIdToAssign){
-    updateWaitlistStatus(window._waitlistIdToAssign,'assigned',instrId).catch(()=>{});
+    updateWaitlistStatus(window._waitlistIdToAssign,'assigned',instrId);
     window._waitlistIdToAssign=null;
   }
 
@@ -6714,7 +6714,7 @@ async function toggleGuideMode(instrId, instrName){
     message_type:'general',
     body:'Hi '+instrName+',\n\nThe DriveSQ admin team has activated Guide Mode on your account.\n\nThis means you will see step-by-step tutorials the next time you open your dashboard, helping you get the most out of the platform.\n\nIf you have any questions about using the portal, the guide covers:\n📅 How to manage lessons and your calendar\n👥 How to add and manage students\n💬 How to send messages\n📊 How to track student progress\n🗺️ How to use the Smart Map\n\nTap "Guide" on your dashboard to see the full walkthrough at any time.',
     is_read:false,dismissed:false,created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]);
   sendPushToInstructor(instrId,instrName,'📚 Guide Mode Activated','Your admin has shared a platform guide. Tap to view it.','/dashboard.html');
   showToast('Guide mode activated — '+instrName+' notified ✓','success');
 }
@@ -6836,7 +6836,7 @@ function waitlistAssign(id,name,postcode,type,phone,notes){
   },300);
 }
 async function updateWaitlistStatus(id,status,instrId=null){
-  await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
+  await sb.from('waiting_list').update({status}).eq('id',id);
   loadWaitlist();
 }
 
@@ -7290,15 +7290,15 @@ async function sendBulkMessages(){
   let sent=0;
   if(target==='instructors'){
     await Promise.all(selected.map(async it=>{
-      await sb.from('admin_messages').insert([{instructor_id:it.id,subject:subject||'Message from Admin',body,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
-      await sendPushToInstructor(it.id,it.name,subject||'Message from Admin',body.slice(0,80),'/dashboard.html').catch(()=>{});
+      await sb.from('admin_messages').insert([{instructor_id:it.id,subject:subject||'Message from Admin',body,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+      await sendPushToInstructor(it.id,it.name,subject||'Message from Admin',body.slice(0,80),'/dashboard.html');
       sent++;
     }));
   } else {
     // For students: send via student_messages table
     await Promise.all(selected.map(async it=>{
       if(!it.id)return;
-      await sb.from('student_messages').insert([{student_account_id:it.id,instructor_id:it.instrId||null,sender:'admin',subject:subject||'Message from Admin',message:body,sent_at:new Date().toISOString(),is_read:false}]).catch(()=>{});
+      await sb.from('student_messages').insert([{student_account_id:it.id,instructor_id:it.instrId||null,sender:'admin',subject:subject||'Message from Admin',message:body,sent_at:new Date().toISOString(),is_read:false}]);
       sent++;
     }));
   }
