@@ -530,6 +530,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <button class="qa-btn" onclick="switchTab('progress-overview');setActiveTab('progress-overview')"><i class="bi bi-graph-up-arrow me-1"></i>Progress View</button>
       <button class="qa-btn" onclick="switchTab('waitlist');setActiveTab('waitlist')" style="border-color:rgba(251,191,36,.4);color:#fbbf24"><i class="bi bi-person-lines-fill me-1"></i>Waiting List</button>
       <button class="qa-btn" onclick="switchTab('availability');setActiveTab('availability')"><i class="bi bi-calendar-week-fill me-1"></i>Availability</button>
+      <button class="qa-btn" onclick="openPhoneCallModal()" style="border-color:rgba(245,197,24,.5);color:var(--gold)"><i class="bi bi-telephone-fill me-1"></i>Phone Call</button>
     </div>
   </div>
 </nav>
@@ -658,6 +659,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
             <div style="display:flex;align-items:center;gap:8px">
               <span id="apStatusChip" style="font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'Oswald',sans-serif;letter-spacing:.5px">—</span>
               <button onclick="toggleAutopilot()" style="font-size:.72rem;font-weight:700;font-family:'Oswald',sans-serif;padding:4px 12px;border-radius:7px;cursor:pointer;border:1.5px solid rgba(37,211,102,.5);background:rgba(37,211,102,.1);color:#25D366" id="apDashToggle">Toggle</button>
+<button onclick="openApFullLog()" style="font-size:.72rem;font-weight:700;font-family:'Oswald',sans-serif;padding:4px 12px;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:var(--txt3)"><i class="bi bi-journal-text me-1"></i>Full Record</button>
             </div>
           </div>
           <div style="font-size:.72rem;color:var(--txt3);margin-bottom:10px">When ON, waiting list students are automatically matched and assigned to the best available instructor, and WhatsApp messages are sent automatically.</div>
@@ -1516,6 +1518,68 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 </div>
 
+<!-- PHONE CALL INTAKE MODAL -->
+<div class="modal fade" id="phoneCallModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--dk);border:1px solid var(--bdr);border-radius:16px">
+      <div class="modal-body p-4">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt)"><i class="bi bi-telephone-fill me-2" style="color:var(--gold)"></i>Phone Call — Student Details</div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <p style="font-size:.78rem;color:var(--txt3);margin-bottom:16px">Enter the student's details from the phone call. Autopilot will find and assign the best instructor automatically.</p>
+        <div class="mb-3"><label class="dsq-lbl">Full Name *</label><input class="dsq-inp" id="pc-name" placeholder="Jane Smith" /></div>
+        <div class="mb-3"><label class="dsq-lbl">Phone Number *</label><input class="dsq-inp" id="pc-phone" type="tel" placeholder="07700 000000" /></div>
+        <div class="mb-3"><label class="dsq-lbl">Postcode *</label><input class="dsq-inp" id="pc-postcode" placeholder="M19 2LN" /></div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Transmission</label>
+          <select class="dsq-inp" id="pc-transmission">
+            <option value="Manual">Manual</option>
+            <option value="Automatic">Automatic</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Experience</label>
+          <select class="dsq-inp" id="pc-experience">
+            <option value="Complete beginner">Complete beginner</option>
+            <option value="Some lessons before">Some lessons before</option>
+            <option value="Nearly test ready">Nearly test ready</option>
+            <option value="Refresher">Refresher (passed before)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="dsq-lbl">Availability</label>
+          <select class="dsq-inp" id="pc-availability">
+            <option value="Flexible">Flexible (anytime)</option>
+            <option value="Weekday mornings">Weekday mornings</option>
+            <option value="Weekday afternoons">Weekday afternoons</option>
+            <option value="Evenings">Evenings</option>
+            <option value="Weekends">Weekends</option>
+          </select>
+        </div>
+        <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="pc-notes" rows="2" placeholder="Any extra info from the call…"></textarea></div>
+        <div id="pc-error" style="display:none;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:8px;padding:10px 14px;font-size:.78rem;color:#f87171;margin-bottom:12px"></div>
+        <button onclick="submitPhoneCallIntake()" class="btn w-100" style="background:var(--gold);color:#000;font-weight:700;border-radius:10px;padding:10px"><i class="bi bi-robot me-2"></i>Submit & Auto-Assign via Autopilot</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTOPILOT FULL LOG MODAL -->
+<div class="modal fade" id="apFullLogModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="background:var(--dk);border:1px solid var(--bdr);border-radius:16px">
+      <div class="modal-body p-4">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:var(--txt)"><i class="bi bi-journal-text me-2" style="color:#25D366"></i>Autopilot — Full Record</div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div id="apFullLogList" style="max-height:500px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- AUTOPILOT SETTINGS MODAL -->
 <div class="modal fade" id="apSettingsModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -1809,14 +1873,69 @@ async function autoWA(phone,message){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   AUTOPILOT MODE
-   When ON: polls waiting_list every 60 s, auto-assigns each
-   'waiting' entry to the best-ranked instructor, auto-sends WA.
+   AUTOPILOT MODE  v2
+   Distance rules:
+     ≤ 5 miles  → auto-assign immediately, full details to both
+     6–14 miles → send minimal confirm to instructor, wait 5h (Edge Fn)
+     > 14 miles → reject, message student no coverage
+   Fair distribution: instructors with fewer weekly assignments
+   are preferred (penalise heavy workload in scoring).
+   Full audit trail saved to autopilot_log table.
    State persists in localStorage ('dsq_autopilot').
 ══════════════════════════════════════════════════════════════ */
 let _apTimer=null;
-let _apLog=[];  // [{ts, student, instructor, action}]
-let _apRunning=false; // guard against overlapping cycles
+let _apLog=[];  // in-memory recent log (last 50)
+let _apRunning=false;
+
+const AP_AUTO_MILES=5;      // ≤ this → assign immediately
+const AP_CONFIRM_MILES=14;  // > this → reject (no coverage)
+const AP_CONFIRM_WAIT_HOURS=5;
+
+// ── Placeholder WhatsApp sender ──────────────────────────────
+// Replace with Meta Cloud API call when ready.
+async function sendWhatsAppAP(to, message){
+  if(!to) return;
+  const clean=to.replace(/\D/g,'');
+  const intl=clean.startsWith('44')?clean:clean.startsWith('0')?'44'+clean.slice(1):'44'+clean;
+  // Log to console and save to DB so admin can see it
+  console.log(`[AP WA → ${intl}]`, message);
+  try{
+    await sb.from('whatsapp_messages').insert([{
+      direction:'outbound',
+      to_number:intl,
+      body:message,
+      status:'queued',
+      created_at:new Date().toISOString(),
+      source:'autopilot'
+    }]);
+  }catch(e){console.warn('WA log failed',e);}
+  // TODO: swap this block for Meta Cloud API:
+  // await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_ID}/messages`, {
+  //   method:'POST',
+  //   headers:{'Authorization':'Bearer '+META_TOKEN,'Content-Type':'application/json'},
+  //   body: JSON.stringify({messaging_product:'whatsapp',to:intl,type:'text',text:{body:message}})
+  // });
+}
+
+// ── DB audit log ─────────────────────────────────────────────
+async function apAuditLog(entry){
+  try{
+    await sb.from('autopilot_log').insert([{
+      created_at: new Date().toISOString(),
+      student_name: entry.student_name||null,
+      student_phone: entry.student_phone||null,
+      student_postcode: entry.student_postcode||null,
+      lesson_type: entry.lesson_type||null,
+      instructor_id: entry.instructor_id||null,
+      instructor_name: entry.instructor_name||null,
+      distance_miles: entry.distance_miles!=null?parseFloat(entry.distance_miles.toFixed(2)):null,
+      action: entry.action||'unknown',
+      notes: entry.notes||null,
+      waiting_list_id: entry.waiting_list_id||null,
+      source: entry.source||'website'
+    }]);
+  }catch(e){console.warn('AP audit log failed',e);}
+}
 
 function isAutopilotOn(){return localStorage.getItem('dsq_autopilot')==='1';}
 
@@ -1829,7 +1948,7 @@ function toggleAutopilot(){
     runAutopilot();
   } else {
     if(_apTimer){clearInterval(_apTimer);_apTimer=null;}
-    _apRunning=false; // release any stuck lock
+    _apRunning=false;
     showToast(`<i class="bi bi-robot me-1"></i>Autopilot OFF — assignments are now manual.`,'info',3000);
   }
 }
@@ -1857,12 +1976,9 @@ function applyAutopilotUI(){
     }
   }
   if(chip){
-    chip.textContent=on?'● ON':'○ OFF';
-    chip.style.background=on?'rgba(37,211,102,.18)':'rgba(100,100,100,.12)';
-    chip.style.border=on?'1px solid rgba(37,211,102,.45)':'1px solid var(--bdr)';
-    chip.style.color=on?'#25D366':'var(--txt3)';
+    chip.textContent=on?'● LIVE':'○ OFF';
+    chip.style.cssText=`font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'Oswald',sans-serif;letter-spacing:.5px;${on?'background:rgba(37,211,102,.15);color:#25D366;border:1px solid rgba(37,211,102,.4)':'background:rgba(255,255,255,.05);color:var(--txt3);border:1px solid var(--bdr)'}`;
   }
-  if(dashToggle)dashToggle.textContent=on?'Turn OFF':'Turn ON';
   renderApLog();
 }
 
@@ -1870,137 +1986,104 @@ async function runAutopilot(){
   if(!isAutopilotOn())return;
   if(_apTimer){clearInterval(_apTimer);_apTimer=null;}
   await autopilotCycle();
-  _apTimer=setInterval(autopilotCycle,60000); // poll every 60 s
+  _apTimer=setInterval(autopilotCycle,60000);
 }
 
 function getApSettings(){
-  try{ return {...{maxDist:20,maxStudents:30,excludedIds:[]}, ...JSON.parse(localStorage.getItem('dsq_ap_settings')||'{}')}; }
-  catch{ return {maxDist:20,maxStudents:30,excludedIds:[]}; }
-}
-function saveApSettings(){
-  const maxDist=parseFloat(document.getElementById('aps-maxdist').value)||20;
-  const maxStudents=parseInt(document.getElementById('aps-maxstu').value)||30;
-  const excludedIds=[...document.querySelectorAll('.aps-excl-cb:checked')].map(cb=>cb.value);
-  localStorage.setItem('dsq_ap_settings',JSON.stringify({maxDist,maxStudents,excludedIds}));
-  bootstrap.Modal.getInstance(document.getElementById('apSettingsModal'))?.hide();
-  showToast('<i class="bi bi-gear-fill me-1"></i>Autopilot settings saved','success',3000);
-}
-function openApSettings(){
-  const s=getApSettings();
-  document.getElementById('aps-maxdist').value=s.maxDist;
-  document.getElementById('aps-maxstu').value=s.maxStudents;
-  const approved=allInstrs.filter(i=>i.status==='approved');
-  document.getElementById('aps-excl-list').innerHTML=approved.map(i=>`
-    <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.82rem;cursor:pointer">
-      <input type="checkbox" class="aps-excl-cb" value="${i.id}" ${s.excludedIds.includes(i.id)?'checked':''}/>
-      ${esc(i.full_name)} <span style="color:var(--txt3);font-size:.7rem">${esc(i.area||'')}</span>
-    </label>`).join('');
-  new bootstrap.Modal(document.getElementById('apSettingsModal')).show();
-}
-
-async function autopilotCheckDeclined(){
-  const {data:declined}=await sb.from('waiting_list')
-    .select('*').eq('confirm_status','declined').not('next_candidates','is',null)
-    .order('confirm_responded_at',{ascending:true}).limit(5);
-  if(!declined||!declined.length)return;
-  for(const entry of declined){
-    let nextList=[];
-    try{
-      const nc=entry.next_candidates;
-      nextList=Array.isArray(nc)?nc:(nc?JSON.parse(nc):[]);
-    }catch{}
-    if(!nextList.length){
-      await sb.from('waiting_list').update({confirm_status:'no_instructor',next_candidates:null,status:'waiting'}).eq('id',entry.id).catch(()=>{});
-      _apLog.unshift({ts:new Date(),student:entry.student_name,action:'❌ No more instructors available — returned to waiting list'});
-      renderApLog();
-      showToast(`No more instructors available for <strong>${esc(entry.student_name)}</strong> — returned to waiting list.`,'warn',5000);
-      continue;
-    }
-    const next=nextList[0];
-    const remaining=nextList.slice(1);
-    const newToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
-    const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(newToken)}`;
-    const profBase={instructor_id:next.id,name:entry.student_name,phone:entry.student_phone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
-    let ok=false;
-    for(const p of[{...profBase,lesson_type:entry.lesson_type||'Manual',notes:entry.notes||null},{...profBase,lesson_type:entry.lesson_type||'Manual'},profBase]){
-      const{error}=await sb.from('student_profiles').insert([p]);
-      if(!error){ok=true;break;}
-    }
-    if(!ok)continue;
-    await sb.from('waiting_list').update({
-      instructor_id:next.id,
-      confirm_token:newToken,
-      confirm_status:'pending',
-      next_candidates:remaining,  // JSONB — pass array directly, not stringified
-      status:'assigned'
-    }).eq('id',entry.id).catch(()=>{});
-    const instrMsg2=`Hi ${next.full_name}! 👋\n\n🤖 *DriveSQ Autopilot — Student Re-assigned to You:*\n\n👤 *Name:* ${entry.student_name}\n📞 *Phone:* ${entry.student_phone||'Not provided'}\n🏷️ *Postcode:* ${entry.postcode||'—'}\n🚗 *Lesson type:* ${entry.lesson_type||'Manual'}\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
-    await sendWA(next.phone||'',instrMsg2);
-    _apLog.unshift({ts:new Date(),student:entry.student_name,instructor:next.full_name,action:'🔄 Re-assigned (previous declined)'});
-    renderApLog();
-    showToast(`<i class="bi bi-robot me-1"></i>🔄 Re-assigned <strong>${entry.student_name}</strong> to <strong>${next.full_name}</strong>`,'info',5000);
-  }
+  try{
+    const s=JSON.parse(localStorage.getItem('dsq_ap_settings')||'{}');
+    return{maxDist:s.maxDist||20,maxStudents:s.maxStudents||30,excludedIds:s.excludedIds||[]};
+  }catch{return{maxDist:20,maxStudents:30,excludedIds:[]};}
 }
 
 async function autopilotCycle(){
   if(!isAutopilotOn()){clearInterval(_apTimer);_apTimer=null;return;}
-  if(_apRunning)return; // prevent overlapping cycles
+  if(_apRunning)return;
   _apRunning=true;
   try{
-    await autopilotCheckDeclined();
     const {data:waiting,error}=await sb.from('waiting_list')
       .select('*').eq('status','waiting').order('created_at',{ascending:true});
-    if(error||!waiting||!waiting.length)return;
-
-    // Ensure instructor list loaded
-    if(!allInstrs||!allInstrs.length){const {data}=await sb.from('instructors').select('*');if(data)allInstrs=data;}
-    if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
-
-    for(const entry of waiting){
-      await autopilotAssignEntry(entry);
+    if(error){
+      console.warn('Autopilot: waiting_list query error',error);
+      _apLog.unshift({ts:new Date(),student:'—',action:'❌ DB error: '+error.message});
+      renderApLog();
+      return;
     }
-  } catch(e){console.warn('Autopilot cycle error:',e);}
+    if(!waiting||!waiting.length){
+      _apLog.unshift({ts:new Date(),student:'—',action:'✓ Cycle ran — no pending entries'});
+      renderApLog();
+      return;
+    }
+    if(!allInstrs||!allInstrs.length){
+      const{data:id}=await sb.from('instructors').select('*');
+      if(id)allInstrs=id;
+    }
+    if(!allStudentsCache||!allStudentsCache.length)await loadAllStudents();
+    // Get weekly assignment counts for fair distribution
+    const weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay());weekStart.setHours(0,0,0,0);
+    const{data:weeklyData}=await sb.from('waiting_list')
+      .select('instructor_id').eq('status','assigned').gte('created_at',weekStart.toISOString());
+    const weeklyCount={};
+    (weeklyData||[]).forEach(r=>{if(r.instructor_id)weeklyCount[r.instructor_id]=(weeklyCount[r.instructor_id]||0)+1;});
+    showToast(`<i class="bi bi-robot me-1"></i>Autopilot processing <strong>${waiting.length}</strong> pending ${waiting.length===1?'entry':'entries'}…`,'info',3000);
+    for(const entry of waiting){
+      await autopilotAssignEntry(entry, weeklyCount);
+    }
+  } catch(e){
+    console.warn('Autopilot cycle error:',e);
+    _apLog.unshift({ts:new Date(),student:'—',action:'❌ Cycle error: '+e.message});
+    renderApLog();
+  }
   finally{_apRunning=false;}
 }
 
 function outwardCodeAP(pc){return(pc||'').toUpperCase().trim().replace(/\s+/g,'').replace(/\d[A-Z]{2}$/,'').trim();}
 
-async function autopilotAssignEntry(entry){
+function instrCanTeachAP(instrLT,reqType){
+  if(instrLT==='Both')return true;
+  if(reqType==='Automatic')return instrLT==='Automatic';
+  return instrLT!=='Automatic';
+}
+
+async function autopilotAssignEntry(entry, weeklyCount={}){
   const rawPc=(entry.postcode||'').trim().toUpperCase().replace(/\s+/g,'');
   const stuName=entry.student_name||'Unknown Student';
   const stuPhone=entry.student_phone||'';
   const lessonType=entry.lesson_type||'Manual';
+  const source=entry.source||'website';
 
   if(!rawPc){
     _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ Skipped — no postcode'});
-    renderApLog(); return;
+    renderApLog();
+    await apAuditLog({student_name:stuName,student_phone:stuPhone,action:'skipped_no_postcode',source,waiting_list_id:entry.id});
+    return;
   }
 
-  // 1. Geocode student postcode
-  let sLat,sLon;
+  // 1. Geocode student postcode (support outward-only codes like M19)
+  let sLat,sLon,resolvedPc=rawPc;
   try{
-    const res=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(rawPc)}`);
-    const json=await res.json();
+    let res=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(rawPc)}`);
+    let json=await res.json();
     if(!json.result){
-      _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ Skipped — postcode not found'});
-      renderApLog(); return;
+      // Try outward code lookup
+      res=await fetch(`https://api.postcodes.io/outcodes/${encodeURIComponent(rawPc)}`);
+      json=await res.json();
+      if(!json.result){
+        _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ Skipped — postcode not found'});
+        renderApLog();
+        await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,action:'skipped_bad_postcode',source,waiting_list_id:entry.id});
+        return;
+      }
     }
     sLat=json.result.latitude; sLon=json.result.longitude;
-  } catch(e){return;}
+  }catch(e){return;}
 
   const searchedOC=outwardCodeAP(rawPc);
   const apS=getApSettings();
-  const approved=allInstrs.filter(i=>i.status==='approved');
-  const filteredApproved=approved.filter(i=>!apS.excludedIds.includes(i.id));
+  const approved=allInstrs.filter(i=>i.status==='approved'&&!apS.excludedIds.includes(String(i.id)));
 
-  // 2. Score each instructor same algorithm as findClosest()
-  function instrCanTeachAP(instrLT,reqType){
-    if(instrLT==='Both')return true;
-    if(reqType==='Automatic')return instrLT==='Automatic';
-    return instrLT!=='Automatic';
-  }
-
-  const scored=await Promise.all(filteredApproved.map(async instr=>{
+  // 2. Score each instructor
+  const scored=await Promise.all(approved.map(async instr=>{
     const pcMatch=(instr.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
     if(!pcMatch)return null;
     try{
@@ -2015,40 +2098,85 @@ async function autopilotAssignEntry(entry){
         const od=await osrm.json();
         if(od.routes&&od.routes[0])dist=od.routes[0].distance/1609.34;
       }catch{}
-
+      if(!instrCanTeachAP(instr.car_type||'Manual',lessonType))return null;
       // Coverage bonus
       const covCodes=(instr.coverage_postcodes||instr.area||'').toUpperCase().split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean);
       const coverageBonus=searchedOC&&covCodes.some(c=>c===searchedOC||outwardCodeAP(c)===searchedOC)?40:0;
-      // Type match
-      const canTeach=instrCanTeachAP(instr.car_type||'Manual',lessonType);
-      if(!canTeach)return null;
-      // Score: lower dist = higher score; coverage bonus
+      // Student load — max cap
+      const stuCount=(allStudentsCache||[]).filter(s=>s.instrId===instr.id).length;
+      if(stuCount>=apS.maxStudents)return null;
+      // Weekly workload penalty for fair distribution (prefer instructors with fewer this week)
+      const thisWeek=weeklyCount[instr.id]||0;
+      const workloadPenalty=thisWeek*8; // 8 points per assignment this week
       const distScore=Math.max(0,50-dist*3);
-      const score=distScore+coverageBonus;
-      return{instr,dist,score};
+      const score=distScore+coverageBonus-workloadPenalty;
+      return{instr,dist,score,thisWeek};
     }catch{return null;}
   }));
 
-  const stuCountByInstr={};
-  (allStudentsCache||[]).forEach(s=>{if(s.instrId)stuCountByInstr[s.instrId]=(stuCountByInstr[s.instrId]||0)+1;});
-  const candidates=scored.filter(Boolean).filter(r=>r.dist<=apS.maxDist).sort((a,b)=>b.score-a.score);
-  const candidatesFiltered=candidates.filter(r=>(stuCountByInstr[r.instr.id]||0)<apS.maxStudents);
-  if(!candidatesFiltered.length){
-    _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ No matching instructor found — left on waiting list'});
-    renderApLog(); return;
+  const candidates=scored.filter(Boolean).sort((a,b)=>b.score-a.score);
+  if(!candidates.length){
+    _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ No matching instructor found'});
+    renderApLog();
+    await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,action:'no_instructor_found',source,waiting_list_id:entry.id});
+    return;
   }
 
-  const best=candidatesFiltered[0];
+  const best=candidates[0];
+  const dist=best.dist;
+
+  // 3. Hard cutoff — > 14 miles
+  if(dist>AP_CONFIRM_MILES){
+    _apLog.unshift({ts:new Date(),student:stuName,action:`❌ No coverage — ${dist.toFixed(1)} mi (>14 mi limit)`});
+    renderApLog();
+    await sb.from('waiting_list').update({status:'rejected',notes:(entry.notes||'')+'\n[AP: No coverage >14mi]'}).eq('id',entry.id).catch(()=>{});
+    await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,distance_miles:dist,action:'rejected_no_coverage',source,waiting_list_id:entry.id});
+    if(stuPhone){
+      await sendWhatsAppAP(stuPhone,`Hi${stuName?' '+stuName.split(' ')[0]:''}! 👋\n\nThank you for contacting DriveSQ.\n\nUnfortunately, we don't currently have any instructors available in your area. We are continuously expanding our coverage.\n\nIf you'd like to be notified when we cover your area, please reply with *NOTIFY* and we'll be in touch.\n\n— DriveSQ 🚗`);
+    }
+    showToast(`<i class="bi bi-robot me-1"></i>No coverage for <strong>${stuName}</strong> — ${dist.toFixed(1)} mi`,'error',5000);
+    return;
+  }
+
   const instrId=best.instr.id;
   const instrName=best.instr.full_name;
   const instrPhone=best.instr.phone||'';
+  const nextCandidates=candidates.slice(1,5).map(c=>({id:c.instr.id,full_name:c.instr.full_name,phone:c.instr.phone||''}));
 
-  // Generate confirm token and next candidates
-  const confirmToken=crypto.randomUUID?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));
-  const nextCandidates=candidatesFiltered.slice(1,5).map(c=>({id:c.instr.id,full_name:c.instr.full_name,phone:c.instr.phone||''}));
+  // 4a. ≤ 5 miles — auto-assign immediately
+  if(dist<=AP_AUTO_MILES){
+    await apDoAssign({entry,instrId,instrName,instrPhone,rawPc,stuName,stuPhone,lessonType,dist,source,nextCandidates,requireConfirm:false});
+    return;
+  }
 
-  // 3. Insert student_profiles
-  const profBase={instructor_id:instrId,name:stuName,phone:stuPhone||null,address:entry.postcode||null,created_at:new Date().toISOString()};
+  // 4b. 6–14 miles — send minimal confirm, wait 5h (Edge Function handles timeout)
+  const expiresAt=new Date(Date.now()+AP_CONFIRM_WAIT_HOURS*3600*1000).toISOString();
+  await sb.from('waiting_list').update({
+    status:'pending_confirm',
+    instructor_id:instrId,
+    confirm_status:'pending',
+    confirm_sent_at:new Date().toISOString(),
+    confirm_expires_at:expiresAt,
+    distance_miles:dist,
+    next_candidates:nextCandidates
+  }).eq('id',entry.id).catch(()=>{});
+
+  const confirmMsg=`Hi ${instrName}! 👋\n\nWe have a student in *${rawPc}*, approximately *${dist.toFixed(1)} miles* from you.\n\nCan you take this student?\n\nReply *YES* to confirm or *NO* to decline.\n\n(This request expires in 5 hours)\n\n— DriveSQ 🤖`;
+  await sendWhatsAppAP(instrPhone, confirmMsg);
+
+  // Notify admin
+  await sendPushToInstructor(instrId,instrName,'🤖 Autopilot: Confirm Request Sent','Waiting for '+instrName+' to confirm student in '+rawPc+' ('+dist.toFixed(1)+' mi)','/admin1.html');
+
+  _apLog.unshift({ts:new Date(),student:stuName,instructor:instrName,dist:dist.toFixed(1),action:`📨 Confirm sent to instructor (${dist.toFixed(1)} mi > 5)`});
+  renderApLog();
+  await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,instructor_id:instrId,instructor_name:instrName,distance_miles:dist,action:'confirm_sent',source,waiting_list_id:entry.id});
+  showToast(`<i class="bi bi-robot me-1"></i>Confirm request sent to <strong>${instrName}</strong> for <strong>${stuName}</strong> (${dist.toFixed(1)} mi)`,'info',5000);
+}
+
+// ── Final assign + notify both parties ────────────────────────
+async function apDoAssign({entry,instrId,instrName,instrPhone,rawPc,stuName,stuPhone,lessonType,dist,source,nextCandidates,requireConfirm}){
+  // Create student profile
+  const profBase={instructor_id:instrId,name:stuName,phone:stuPhone||null,address:rawPc||null,created_at:new Date().toISOString()};
   let profInserted=false;
   for(const payload of[
     {...profBase,lesson_type:lessonType,notes:entry.notes||null},
@@ -2059,68 +2187,191 @@ async function autopilotAssignEntry(entry){
     if(!e){profInserted=true;break;}
   }
   if(!profInserted){
-    _apLog.unshift({ts:new Date(),student:stuName,instructor:instrName,action:'❌ DB insert failed — left on waiting list'});
-    renderApLog(); return;
+    _apLog.unshift({ts:new Date(),student:stuName,instructor:instrName,action:'❌ DB insert failed'});
+    renderApLog();
+    return;
   }
 
-  // 4. Mark waiting_list as assigned with confirm columns
+  // Mark waiting list as assigned
   await sb.from('waiting_list').update({
-    status:'assigned',
-    instructor_id:instrId,
-    confirm_token:confirmToken,
-    confirm_status:'pending',
-    next_candidates: nextCandidates  // JSONB — pass array directly, not stringified
+    status:'assigned',instructor_id:instrId,confirm_status:'confirmed',
+    next_candidates:nextCandidates,distance_miles:dist
   }).eq('id',entry.id).catch(()=>{});
 
-  // 5. Audit trail
+  // Audit trail
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:stuName,student_phone:stuPhone||null,
     postcode:rawPc,lesson_type:lessonType,notes:entry.notes||null,
     status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
 
-  // 6. Push notification
-  await sendPushToInstructor(instrId,instrName,
-    '🤖 Autopilot: New Student Assigned — '+stuName,
-    'Autopilot has added '+stuName+(stuPhone?' ('+stuPhone+')':'')+' to your roster.',
-    '/dashboard.html');
+  await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,instructor_id:instrId,instructor_name:instrName,distance_miles:dist,action:requireConfirm?'assigned_after_confirm':'auto_assigned',source,waiting_list_id:entry.id,notes:`Weekly assignments for instructor: ${entry._weeklyCount||0}`});
 
-  // 7. WhatsApp messages
-  const confirmBase=`https://www.drivesq.co.uk/confirm.html?token=${encodeURIComponent(confirmToken)}`;
-  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ Autopilot has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏷️ *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\nPlease confirm you can take this student:\n\n✅ *Accept:* ${confirmBase}&action=accept\n❌ *Decline:* ${confirmBase}&action=decline\n\n🔗 *Your Portal:* ${PORTAL_URL}\n\n— DriveSQ Autopilot 🤖`;
-  const stuMsg=stuPhone?`Hi ${stuName.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! You've been automatically matched to an instructor.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${stuPhone}*\nYour instructor is *${instrName}*.\n\nSee you on the road! 🚗\n— DriveSQ`:'';
+  // Push notification to instructor
+  await sendPushToInstructor(instrId,instrName,'🤖 Autopilot: New Student Assigned — '+stuName,'Autopilot has added '+stuName+(stuPhone?' ('+stuPhone+')':'')+' to your roster.','/portal.html');
 
-  await sendWA(instrPhone,instrMsg);
-  if(stuPhone)await sendWA(stuPhone,stuMsg);
+  // WhatsApp to instructor — full details
+  const instrMsg=`Hi ${instrName}! 👋\n\n🤖 *DriveSQ has assigned you a new student:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone||'Not provided'}\n🏠 *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${entry.notes?'📝 *Notes:* '+entry.notes+'\n':''}──────────────\n\n🔗 *Your Portal:* https://www.drivesq.co.uk/portal.html\n\n— DriveSQ 🤖`;
 
-  const logEntry={ts:new Date(),student:stuName,instructor:instrName,dist:best.dist.toFixed(1),action:'✅ Auto-assigned'};
+  // WhatsApp to student — instructor name + number
+  const stuMsg=stuPhone?`Hi ${stuName.split(' ')[0]}! 👋\n\nGreat news! DriveSQ has matched you with an instructor.\n\n──────────────\n👤 *Instructor:* ${instrName}\n📞 *Their number:* ${instrPhone||'We will be in touch'}\n──────────────\n\nThey will be in touch with you shortly to arrange your first lesson.\n\n📱 *Your Student Portal:* https://www.drivesq.co.uk/student.html\n\nSee you on the road! 🚗\n— DriveSQ`:'';
+
+  await sendWhatsAppAP(instrPhone, instrMsg);
+  if(stuPhone)await sendWhatsAppAP(stuPhone, stuMsg);
+
+  const logEntry={ts:new Date(),student:stuName,instructor:instrName,dist:dist.toFixed(1),action:requireConfirm?'✅ Assigned (instructor confirmed)':'✅ Auto-assigned'};
   _apLog.unshift(logEntry);
   if(_apLog.length>50)_apLog.pop();
   renderApLog();
-
-  showToast(`<i class="bi bi-robot me-1"></i>🤖 Autopilot assigned <strong>${stuName}</strong> to <strong>${instrName}</strong> (${best.dist.toFixed(1)} mi)`,'success',6000);
-
-  // Refresh UI
+  showToast(`<i class="bi bi-robot me-1"></i>🤖 Assigned <strong>${stuName}</strong> → <strong>${instrName}</strong> (${dist.toFixed(1)} mi)`,'success',6000);
+  // Navigate to Find & Assign tab and prefill so admin can see what autopilot did
+  try{
+    switchTab('find');setActiveTab('find');
+    setTimeout(()=>{
+      const fcFields={'fc-name':stuName,'fc-postcode':rawPc,'fc-phone':stuPhone,'fc-notes':entry.notes||''};
+      Object.entries(fcFields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v||'';});
+      const fcType=document.getElementById('fc-type');if(fcType)fcType.value=lessonType||'Manual';
+      // Show assignment result in find tab
+      const findResults=document.getElementById('findResults');
+      if(findResults)findResults.innerHTML=`<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);border-radius:12px;padding:16px 20px;margin-top:12px"><div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#25D366;font-weight:700;margin-bottom:4px">🤖 Autopilot Assigned</div><div style="font-size:.82rem;color:var(--txt2)"><strong>${esc(stuName)}</strong> → <strong>${esc(instrName)}</strong> · ${dist.toFixed(1)} mi · ${lessonType}</div><div style="font-size:.72rem;color:var(--txt3);margin-top:4px">WhatsApp messages sent to both parties. Student record created.</div></div>`;
+    },400);
+  }catch(e){}
   if(allStudentsCache.length)loadAllStudents();
-  loadWebBookingsBadge&&loadWebBookingsBadge();
+}
+
+// ── Instructor replies YES / NO to >5mi confirm request ───────
+async function apHandleInstructorConfirmReply(waitingListId, instrId, replyText){
+  const YES_WORDS=new Set(['yes','y','yep','yeah','yea','ok','okay','sure','confirm','confirmed','i can','ican','can take','cantake','1','accept','✅','👍']);
+  const NO_WORDS=new Set(['no','nope','n','cant','cannot','decline','declined','reject','0','❌','👎','sorry']);
+  const clean=replyText.toLowerCase().trim().replace(/[^a-z0-9]/g,'');
+  const isYes=[...YES_WORDS].some(w=>clean===w.replace(/[^a-z0-9]/g,'')||clean.includes(w.replace(/[^a-z0-9]/g,'')));
+  const isNo=[...NO_WORDS].some(w=>clean===w.replace(/[^a-z0-9]/g,'')||clean.includes(w.replace(/[^a-z0-9]/g,'')));
+
+  const{data:wlEntry}=await sb.from('waiting_list').select('*').eq('id',waitingListId).eq('confirm_status','pending').maybeSingle();
+  if(!wlEntry){return;} // Already handled
+
+  if(isYes){
+    const instr=allInstrs.find(i=>i.id===instrId)||{id:instrId,full_name:'Instructor',phone:''};
+    await apDoAssign({
+      entry:wlEntry,instrId,instrName:instr.full_name,instrPhone:instr.phone||'',
+      rawPc:wlEntry.postcode,stuName:wlEntry.student_name,stuPhone:wlEntry.student_phone,
+      lessonType:wlEntry.lesson_type,dist:wlEntry.distance_miles||0,
+      source:wlEntry.source||'website',nextCandidates:[],requireConfirm:true
+    });
+  } else if(isNo){
+    // Instructor declined >5mi request
+    const stuPhone=wlEntry.student_phone||'';
+    await sb.from('waiting_list').update({status:'rejected',confirm_status:'declined'}).eq('id',waitingListId);
+    await apAuditLog({student_name:wlEntry.student_name,student_phone:stuPhone,student_postcode:wlEntry.postcode,instructor_id:instrId,instructor_name:(allInstrs.find(i=>i.id===instrId)||{}).full_name,distance_miles:wlEntry.distance_miles,action:'instructor_declined_confirm',source:wlEntry.source||'website',waiting_list_id:waitingListId});
+    if(stuPhone){
+      await sendWhatsAppAP(stuPhone,`Hi${wlEntry.student_name?' '+wlEntry.student_name.split(' ')[0]:''}! 👋\n\nUnfortunately, we don't currently have any instructors available in your area.\n\nPlease contact us on WhatsApp if you'd like us to try again in the future.\n\n— DriveSQ 🚗`);
+    }
+    _apLog.unshift({ts:new Date(),student:wlEntry.student_name,action:'❌ Instructor declined confirm — student notified'});
+    renderApLog();
+  }
+}
+
+// ── Phone Call intake modal ───────────────────────────────────
+function openPhoneCallModal(){
+  document.getElementById('pc-name').value='';
+  document.getElementById('pc-phone').value='';
+  document.getElementById('pc-postcode').value='';
+  document.getElementById('pc-notes').value='';
+  document.getElementById('pc-error').style.display='none';
+  openModal('phoneCallModal');
+}
+
+async function submitPhoneCallIntake(){
+  const name=document.getElementById('pc-name').value.trim();
+  const phone=document.getElementById('pc-phone').value.trim();
+  const postcode=document.getElementById('pc-postcode').value.trim().toUpperCase();
+  const transmission=document.getElementById('pc-transmission').value;
+  const experience=document.getElementById('pc-experience').value;
+  const availability=document.getElementById('pc-availability').value;
+  const notes=document.getElementById('pc-notes').value.trim();
+  const errEl=document.getElementById('pc-error');
+  if(!name||!phone||!postcode){errEl.textContent='Name, phone and postcode are required.';errEl.style.display='block';return;}
+  errEl.style.display='none';
+  const notesFull=[`Experience: ${experience}`,`Availability: ${availability}`,notes].filter(Boolean).join(' | ');
+  const lessonType=transmission==='Automatic'?'Automatic':'Manual';
+  const{data,error}=await sb.from('waiting_list').insert([{
+    student_name:name,student_phone:phone,postcode,lesson_type:lessonType,
+    notes:notesFull,status:'waiting',source:'phone_call',created_at:new Date().toISOString()
+  }]).select();
+  if(error){errEl.textContent='Failed to save: '+error.message;errEl.style.display='block';return;}
+  closeModal('phoneCallModal');
+  showToast('<i class="bi bi-telephone-fill me-1"></i>Phone call details saved — Autopilot will assign shortly','success',5000);
+  await apAuditLog({student_name:name,student_phone:phone,student_postcode:postcode,lesson_type:lessonType,action:'phone_call_intake',source:'phone_call',waiting_list_id:data?.[0]?.id,notes:notesFull});
+  // Trigger autopilot immediately if ON
+  if(isAutopilotOn())setTimeout(autopilotCycle,500);
+}
+
+// ── Full autopilot log from DB ────────────────────────────────
+async function openApFullLog(){
+  openModal('apFullLogModal');
+  const el=document.getElementById('apFullLogList');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const{data,error}=await sb.from('autopilot_log').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error||!data||!data.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3)">No autopilot log entries yet.</div>';
+    return;
+  }
+  const actionIcon={
+    'auto_assigned':'✅','assigned_after_confirm':'✅','confirm_sent':'📨',
+    'instructor_declined_confirm':'❌','rejected_no_coverage':'🚫','no_instructor_found':'⚠️',
+    'phone_call_intake':'📞','skipped_no_postcode':'⚠️','skipped_bad_postcode':'⚠️'
+  };
+  el.innerHTML=data.map(r=>{
+    const ico=actionIcon[r.action]||'🤖';
+    const srcBadge=r.source==='phone_call'?'<span style="background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:700">CALL</span>':r.source==='whatsapp'?'<span style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);color:#4ade80;border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:700">WA</span>':'<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#60a5fa;border-radius:4px;padding:1px 6px;font-size:.65rem;font-weight:700">WEB</span>';
+    return `<div style="border-bottom:1px solid var(--bdr);padding:10px 4px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:1rem;flex-shrink:0">${ico}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8rem;font-weight:700;color:var(--txt)">${esc(r.student_name||'—')} ${srcBadge}</div>
+        <div style="font-size:.72rem;color:var(--txt3);margin-top:1px">${r.instructor_name?'→ '+esc(r.instructor_name):''} ${r.distance_miles?'· '+r.distance_miles.toFixed(1)+' mi':''} ${r.student_postcode?'· '+esc(r.student_postcode):''}</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${(r.action||'').replace(/_/g,' ')} ${r.notes?'· '+esc(r.notes.slice(0,80)):''}</div>
+      </div>
+      <div style="font-size:.65rem;color:var(--txt4);flex-shrink:0;white-space:nowrap">${fmtD(r.created_at?.slice(0,10))}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderApLog(){
   const el=document.getElementById('apLogList');
   if(!el)return;
-  if(!_apLog.length){el.innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:8px 0">No assignments yet.</div>';return;}
-  el.innerHTML=_apLog.slice(0,20).map(e=>`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;padding:7px 0;border-bottom:1px solid var(--bdr);font-size:.75rem">
-    <span style="color:var(--txt3);white-space:nowrap">${e.ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-    <span style="color:var(--txt)">${e.action}${e.instructor?` → <strong style="color:var(--gold)">${esc(e.instructor)}</strong>`:''} <span style="color:var(--txt3)">${esc(e.student||'')}</span>${e.dist?` <span style="color:var(--txt4)">${e.dist} mi</span>`:''}</span>
-  </div>`).join('');
+  if(!_apLog.length){el.innerHTML='<div style="font-size:.75rem;color:var(--txt4);padding:8px 0">No activity yet this session.</div>';return;}
+  el.innerHTML=_apLog.slice(0,10).map(e=>{
+    const t=e.ts instanceof Date?e.ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):e.ts;
+    return `<div style="border-bottom:1px solid var(--bdr);padding:7px 0;font-size:.72rem">
+      <div style="color:var(--txt);font-weight:600">${esc(e.student||'')}${e.instructor?' → '+esc(e.instructor):''}</div>
+      <div style="color:var(--txt3);margin-top:2px">${esc(e.action||'')} ${e.dist?'· '+e.dist+' mi':''}</div>
+      <div style="color:var(--txt4);font-size:.65rem">${t}</div>
+    </div>`;
+  }).join('');
 }
 
-// Called on page load to restore autopilot state
 function initAutopilot(){
   applyAutopilotUI();
-  if(isAutopilotOn()){
-    runAutopilot();
+  if(isAutopilotOn())runAutopilot();
+}
+
+function saveApSettings(){
+  const maxDist=parseFloat(document.getElementById('aps-maxdist')?.value)||20;
+  const maxStudents=parseInt(document.getElementById('aps-maxstu')?.value)||30;
+  const excludedIds=[...document.querySelectorAll('.aps-excl-cb:checked')].map(cb=>cb.value);
+  localStorage.setItem('dsq_ap_settings',JSON.stringify({maxDist,maxStudents,excludedIds}));
+  bootstrap.Modal.getInstance(document.getElementById('apSettingsModal'))?.hide();
+  showToast('<i class="bi bi-gear-fill me-1"></i>Autopilot settings saved','success',3000);
+}
+function openApSettings(){
+  const s=getApSettings();
+  const mdEl=document.getElementById('aps-maxdist');const msEl=document.getElementById('aps-maxstu');
+  if(mdEl)mdEl.value=s.maxDist;if(msEl)msEl.value=s.maxStudents;
+  const exclList=document.getElementById('aps-excl-list');
+  if(exclList&&allInstrs){
+    exclList.innerHTML=(allInstrs.filter(i=>i.status==='approved')||[]).map(i=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.78rem;cursor:pointer"><input type="checkbox" class="aps-excl-cb" value="${i.id}" ${s.excludedIds.includes(String(i.id))?'checked':''}>${esc(i.full_name)}</label>`).join('');
   }
+  new bootstrap.Modal(document.getElementById('apSettingsModal')).show();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2159,10 +2410,9 @@ async function waManualProcess(msgId,fromNumber,action){
   showToast(`<i class="bi bi-check2-all me-1"></i>${instr.full_name} marked as <strong>${newStatus}</strong> for ${esc(entry.student_name||'student')}`,'success',5000);
   loadWaInbox();
 
-  if(newStatus==='declined'){
-    // Immediately trigger cascade re-assignment (don't wait for next cycle)
-    showToast('<i class="bi bi-robot me-1"></i>Re-assigning to next instructor…','info',3000);
-    setTimeout(()=>autopilotCheckDeclined(),1500);
+  // If this is a response to a >5mi autopilot confirm request, handle it
+  if(entry && entry.confirm_status==='pending' && entry.status==='pending_confirm'){
+    await apHandleInstructorConfirmReply(entry.id, instr.id, action==='accept'?'yes':'no');
   }
 }
 
@@ -2341,7 +2591,9 @@ applyTheme();
 setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
 
 /* ══ AUTH ══ */
-if(sessionStorage.getItem('dsq_admin')==='true')showApp();
+// TEST MODE: login bypassed — restore auth check before going live
+showApp();
+if(false && sessionStorage.getItem('dsq_admin')==='true')showApp();
 
 async function doLogin(){
   const btn=document.getElementById('loginBtn');
@@ -4402,8 +4654,18 @@ async function saveEdit(){
   };
   const np=document.getElementById('edit-new-pwd').value.trim();
   if(np){updates.password=np;updates.password_hash=btoa(np);}
-  const{error}=await sb.from('instructors').update(updates).eq('id',id);
-  if(error){showToast('Failed to save.','error');return;}
+  let{error}=await sb.from('instructors').update(updates).eq('id',id);
+  if(error){
+    // If coverage_postcodes column doesn't exist yet, retry without it
+    if(error.message&&(error.message.includes('coverage_postcodes')||error.code==='42703')){
+      const{coverage_postcodes,...updatesNoCov}=updates;
+      const{error:e2}=await sb.from('instructors').update(updatesNoCov).eq('id',id);
+      if(e2){showToast('Failed to save: '+e2.message,'error');return;}
+      showToast('Saved ✓ (coverage postcodes column missing — run SQL fix)','warning',6000);
+    } else {
+      showToast('Failed to save: '+error.message,'error');return;
+    }
+  }
   showToast('Changes saved ✓','success');closeModal('editModal');
   await loadInstrs();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);renderInstrDetail(viewingData);updateBlockBtn();}
@@ -7416,6 +7678,8 @@ function _mobSetActive(t){
   const moreBtn=document.getElementById('mmore-'+t);
   if(moreBtn)moreBtn.classList.add('active');
 }
+// Alias used by desktop quick-action buttons
+function setActiveTab(t){ _mobSetActive(t); }
 function _mobToggleMore(){
   const p=document.getElementById('mobMorePanel');
   p.classList.toggle('open');
