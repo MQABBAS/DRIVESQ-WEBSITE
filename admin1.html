@@ -6937,38 +6937,20 @@ async function openWbCreateStudent(wbId){
   const r=_webBookingsData.find(x=>x.id===wbId);
   if(!r){showToast('Booking not found','error');return;}
   closeModal('webBookingsModal');closeModal('wbDetailModal');
-  // Store wbId so confirmCreateStudent can mark it as assigned when done
+  // Store wbId so confirmCreateStudent / confirmAssign can mark it assigned when done
   window._pendingWbId=wbId;
-  // Open the standard Create Student modal pre-filled with booking details
-  openCreateStudentModal();
+  // Navigate to Find & Assign tab and prefill all fields, then auto-search
+  switchTab('find');setActiveTab('find');
   setTimeout(()=>{
-    const nm=document.getElementById('cs-name');if(nm)nm.value=r.student_name||'';
-    const ph=document.getElementById('cs-phone');if(ph)ph.value=r.student_phone||'';
-    const ad=document.getElementById('cs-addr');if(ad)ad.value=r.area||r.postcode||'';
-    const lt=document.getElementById('cs-type');if(lt)lt.value=r.lesson_type||'Manual';
-    const no=document.getElementById('cs-notes');if(no){
-      const existing=no.value?no.value+'\n':'';
-      no.value=existing+(r.notes||'')+(r.notes&&r.postcode?'\n':'')+(r.postcode?'Postcode: '+r.postcode:'');
-    }
-    // Also pre-fill Find tab in background so instructor search works
-    if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode||'';
-    if(document.getElementById('fc-type'))document.getElementById('fc-type').value=r.lesson_type||'Manual';
-    // Pre-run nearest instructor finder to populate cs-instr dropdown
-    if(r.postcode&&typeof findClosest==='function'){
-      if(document.getElementById('fc-postcode'))document.getElementById('fc-postcode').value=r.postcode;
-      if(document.getElementById('fc-name'))document.getElementById('fc-name').value=r.student_name||'';
-      if(document.getElementById('fc-phone'))document.getElementById('fc-phone').value=r.student_phone||'';
-    }
-    // Show note about contacting student
-    const msgEl=document.getElementById('createStudentMsg');
-    if(msgEl){
-      msgEl.className='mb-2';
-      msgEl.style.cssText='background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.3);border-radius:8px;padding:9px 12px;font-size:.77rem;color:#fde68a';
-      msgEl.innerHTML='<i class="bi bi-telephone-fill me-2"></i><strong>Contact required:</strong> Once assigned, contact the student on <strong>'+(r.student_phone||'their number')+'</strong> to confirm their instructor and first lesson.';
-      msgEl.classList.remove('hidden');
-    }
-  },100);
-  showToast(`Assign ${r.student_name} to an instructor below`,'success');
+    const pc=document.getElementById('fc-postcode');if(pc)pc.value=r.postcode||'';
+    const nm=document.getElementById('fc-name');if(nm)nm.value=r.student_name||'';
+    const ph=document.getElementById('fc-phone');if(ph)ph.value=r.student_phone||'';
+    const lt=document.getElementById('fc-type');if(lt)lt.value=r.lesson_type||'Manual';
+    const no=document.getElementById('fc-notes');if(no)no.value=r.notes||'';
+    // Auto-run the closest instructor search
+    if(r.postcode&&typeof findClosest==='function')findClosest();
+    showToast(`<i class="bi bi-geo-alt-fill me-1"></i>Finding closest instructor for <strong>${r.student_name||'student'}</strong>…`,'info',4000);
+  },200);
 }
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
