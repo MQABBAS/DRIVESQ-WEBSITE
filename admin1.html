@@ -2015,8 +2015,16 @@ async function autopilotCycle(){
       return;
     }
     if(!allInstrs||!allInstrs.length){
-      const{data:id}=await sb.from('instructors').select('*');
+      const{data:id,error:iErr}=await sb.from('instructors').select('*');
+      if(iErr){
+        _apLog.unshift({ts:new Date(),student:'—',action:'❌ Cannot load instructors: '+iErr.message});
+        renderApLog();return;
+      }
       if(id)allInstrs=id;
+    }
+    if(!allInstrs||!allInstrs.length){
+      _apLog.unshift({ts:new Date(),student:'—',action:'❌ No instructors in database'});
+      renderApLog();return;
     }
     if(!allStudentsCache||!allStudentsCache.length)await loadAllStudents();
     // Get weekly assignment counts for fair distribution
@@ -2025,7 +2033,7 @@ async function autopilotCycle(){
       .select('instructor_id').eq('status','assigned').gte('created_at',weekStart.toISOString());
     const weeklyCount={};
     (weeklyData||[]).forEach(r=>{if(r.instructor_id)weeklyCount[r.instructor_id]=(weeklyCount[r.instructor_id]||0)+1;});
-    showToast(`<i class="bi bi-robot me-1"></i>Autopilot processing <strong>${waiting.length}</strong> pending ${waiting.length===1?'entry':'entries'}…`,'info',3000);
+    showToast(`<i class="bi bi-robot me-1"></i>Autopilot processing <strong>${waiting.length}</strong> pending ${waiting.length===1?'entry':'entries'} (${allInstrs.length} instructors loaded)…`,'info',4000);
     for(const entry of waiting){
       await autopilotAssignEntry(entry, weeklyCount);
     }
@@ -2116,7 +2124,8 @@ async function autopilotAssignEntry(entry, weeklyCount={}){
 
   const candidates=scored.filter(Boolean).sort((a,b)=>b.score-a.score);
   if(!candidates.length){
-    _apLog.unshift({ts:new Date(),student:stuName,action:'⚠️ No matching instructor found'});
+    const approvedCount=approved.length;
+    _apLog.unshift({ts:new Date(),student:stuName,action:`⚠️ No matching instructor found (checked ${approvedCount} approved instructors for ${lessonType} in ${rawPc})`});
     renderApLog();
     await apAuditLog({student_name:stuName,student_phone:stuPhone,student_postcode:rawPc,lesson_type:lessonType,action:'no_instructor_found',source,waiting_list_id:entry.id});
     return;
