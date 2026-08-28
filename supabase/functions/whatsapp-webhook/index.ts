@@ -1,254 +1,250 @@
-/**
- * DriveSQ — Meta WhatsApp Business API Webhook
- *
- * SETUP (when ready to go live):
- * 1. In Meta Developer Console → WhatsApp → Configuration → Webhook:
- *    Callback URL: https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/whatsapp-webhook
- *    Verify Token: set to whatever you put in WA_VERIFY_TOKEN secret
- * 2. Subscribe to: messages
- * 3. In Supabase → Edge Functions → Secrets, add:
- *    WA_TOKEN        = your Meta permanent access token
- *    WA_PHONE_ID     = your WhatsApp phone number ID
- *    WA_VERIFY_TOKEN = any secret string you choose (used for verification)
- *    SB_SERVICE_KEY  = your Supabase service role key (for webhook DB writes)
- *
- * WHAT THIS DOES:
- * - GET  → Meta webhook verification handshake
- * - POST → Receives inbound WhatsApp messages, stores in whatsapp_messages table,
- *           processes confirmation replies (YES/NO → updates waiting_list confirm_status),
- *           and sends automatic replies where appropriate.
- */
+// DriveSQ WhatsApp Webhook — Supabase Edge Function
+// Handles: Meta webhook verification + inbound message processing
+// Replace META_PHONE_NUMBER_ID and META_ACCESS_TOKEN with real values
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const VERIFY_TOKEN = 'drivesq_webhook_2024';
+const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SB_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const META_ACCESS_TOKEN = Deno.env.get('META_ACCESS_TOKEN') ?? '';
+const META_PHONE_NUMBER_ID = Deno.env.get('META_PHONE_NUMBER_ID') ?? '';
 
-const SB_URL = Deno.env.get('SUPABASE_URL') || 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
+const sb = createClient(SB_URL, SB_SERVICE_KEY);
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── Send WhatsApp message via Meta Cloud API ──────────────────
+async function sendWA(to: string, body: string) {
+  const clean = to.replace(/\D/g, '');
+  const intl = clean.startsWith('44') ? clean : clean.startsWith('0') ? '44' + clean.slice(1) : '44' + clean;
+  if (!META_ACCESS_TOKEN || !META_PHONE_NUMBER_ID) {
+    console.log(`[WA PLACEHOLDER → ${intl}]`, body);
+    return;
+  }
+  await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: intl, type: 'text', text: { body } })
+  });
+}
 
-function sbHeaders() {
-  const key = Deno.env.get('SB_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  return {
-    'apikey': key,
-    'Authorization': `Bearer ${key}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=minimal',
+// ── Yes/No word sets ──────────────────────────────────────────
+const YES_WORDS = new Set(['yes','y','yep','yeah','yea','ok','okay','sure','confirm','confirmed','icancover','ican','cantake','1','accept','✅','👍']);
+const NO_WORDS  = new Set(['no','nope','n','cant','cannot','decline','declined','reject','0','❌','👎','sorry']);
+
+function isYes(text: string) {
+  const c = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return [...YES_WORDS].some(w => c === w.replace(/[^a-z0-9]/g,'') || c.includes(w.replace(/[^a-z0-9]/g,'')));
+}
+function isNo(text: string) {
+  const c = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return [...NO_WORDS].some(w => c === w.replace(/[^a-z0-9]/g,'') || c.includes(w.replace(/[^a-z0-9]/g,'')));
+}
+
+// ── Handle inbound message ────────────────────────────────────
+async function handleInbound(from: string, messageText: string) {
+  const text = (messageText || '').trim();
+
+  // Check if this number matches an instructor who has a pending confirm request
+  const { data: instrData } = await sb
+    .from('instructors')
+    .select('id, full_name, phone')
+    .ilike('phone', `%${from.slice(-10)}%`)
+    .maybeSingle();
+
+  if (instrData) {
+    // Check for pending confirm entry assigned to this instructor
+    const { data: wlEntry } = await sb
+      .from('waiting_list')
+      .select('*')
+      .eq('instructor_id', instrData.id)
+      .eq('confirm_status', 'pending')
+      .eq('status', 'pending_confirm')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (wlEntry) {
+      if (isYes(text)) {
+        // Assign the student
+        await assignStudent(wlEntry, instrData);
+        return;
+      } else if (isNo(text)) {
+        // Instructor declined
+        await sb.from('waiting_list').update({
+          status: 'rejected',
+          confirm_status: 'declined'
+        }).eq('id', wlEntry.id);
+
+        // Message student
+        if (wlEntry.student_phone) {
+          const firstName = (wlEntry.student_name || '').split(' ')[0];
+          await sendWA(wlEntry.student_phone,
+            `Hi ${firstName}! 👋\n\nUnfortunately, we don't currently have any instructors available in your area.\n\nPlease contact us if you'd like us to try again in the future.\n\n— DriveSQ 🚗`
+          );
+        }
+
+        // Log it
+        await sb.from('autopilot_log').insert([{
+          created_at: new Date().toISOString(),
+          student_name: wlEntry.student_name,
+          student_phone: wlEntry.student_phone,
+          student_postcode: wlEntry.postcode,
+          instructor_id: instrData.id,
+          instructor_name: instrData.full_name,
+          distance_miles: wlEntry.distance_miles,
+          action: 'instructor_declined_confirm',
+          source: wlEntry.source || 'website',
+          waiting_list_id: wlEntry.id
+        }]);
+        return;
+      }
+    }
+  }
+
+  // Save inbound message to DB for WA inbox view
+  await sb.from('whatsapp_messages').upsert([{
+    direction: 'inbound',
+    from_number: from,
+    body: text,
+    status: 'received',
+    created_at: new Date().toISOString()
+  }]).catch(() => {});
+}
+
+// ── Assign student after instructor confirms ──────────────────
+async function assignStudent(wlEntry: any, instr: any) {
+  const stuName = wlEntry.student_name || 'Student';
+  const stuPhone = wlEntry.student_phone || '';
+  const rawPc = wlEntry.postcode || '';
+  const lessonType = wlEntry.lesson_type || 'Manual';
+  const dist = wlEntry.distance_miles || 0;
+
+  // Create student profile
+  const profBase = {
+    instructor_id: instr.id,
+    name: stuName,
+    phone: stuPhone || null,
+    address: rawPc || null,
+    created_at: new Date().toISOString()
   };
-}
+  for (const payload of [
+    { ...profBase, lesson_type: lessonType, notes: wlEntry.notes || null },
+    { ...profBase, lesson_type: lessonType },
+    profBase
+  ]) {
+    const { error } = await sb.from('student_profiles').insert([payload]);
+    if (!error) break;
+  }
 
-async function sbGet(path: string) {
-  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: sbHeaders() });
-  return res.json();
-}
+  // Update waiting list
+  await sb.from('waiting_list').update({
+    status: 'assigned',
+    confirm_status: 'confirmed'
+  }).eq('id', wlEntry.id);
 
-async function sbPatch(table: string, filter: string, body: Record<string, unknown>) {
-  await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
-    method: 'PATCH',
-    headers: sbHeaders(),
-    body: JSON.stringify(body),
-  });
-}
+  // Audit log
+  await sb.from('autopilot_log').insert([{
+    created_at: new Date().toISOString(),
+    student_name: stuName,
+    student_phone: stuPhone,
+    student_postcode: rawPc,
+    lesson_type: lessonType,
+    instructor_id: instr.id,
+    instructor_name: instr.full_name,
+    distance_miles: dist,
+    action: 'assigned_after_confirm',
+    source: wlEntry.source || 'website',
+    waiting_list_id: wlEntry.id
+  }]);
 
-async function sbInsert(table: string, row: Record<string, unknown>) {
-  await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: sbHeaders(),
-    body: JSON.stringify(row),
-  });
-}
-
-async function sendWA(to: string, message: string) {
-  const token = Deno.env.get('WA_TOKEN');
-  const phoneId = Deno.env.get('WA_PHONE_ID');
-  if (!token || !phoneId) return;
-  const num = String(to).replace(/\D/g, '');
-  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: num,
-      type: 'text',
-      text: { body: message },
-    }),
-  }).catch(() => {});
-}
-
-// ── confirmation processing ───────────────────────────────────────────────────
-
-const ACCEPT_WORDS = new Set(['1', 'yes', 'y', 'yep', 'yup', 'yeah', 'yea', 'ya', 'accept', 'accepted', 'ok', 'okay', 'sure', 'sounds good', 'soundsgood', 'great', 'perfect', 'absolutely', 'definitely', 'confirm', 'confirmed', 'agreed', 'deal', 'fine', 'happy', 'ill do it', 'illdo', 'ill take', 'illtake', '✅', '👍']);
-const DECLINE_WORDS = new Set(['2', 'no', 'n', 'nope', 'nah', 'nay', 'decline', 'declined', 'reject', 'rejected', 'pass', 'cant', "can't", 'cannot', 'unable', 'sorry', 'unavailable', 'busy', 'full', 'no thanks', 'nothanks', 'not interested', '❌', '👎']);
-
-async function processConfirmationReply(fromNumber: string, bodyText: string) {
-  const word = bodyText.trim().toLowerCase().replace(/[^a-z0-9✅❌]/g, '');
-  const isAccept = ACCEPT_WORDS.has(word);
-  const isDecline = DECLINE_WORDS.has(word);
-  if (!isAccept && !isDecline) return false; // not a confirmation reply
-
-  // Find a pending confirmation for this instructor's phone number
-  const num = fromNumber.replace(/\D/g, '');
-  // Try matching last 9 digits (handles country code variants)
-  const suffix = num.slice(-9);
-
-  // Look up instructor by phone
-  const instrs = await sbGet(`instructors?select=id,full_name,phone&status=eq.approved`);
-  const instr = (instrs || []).find((i: { phone?: string }) => {
-    const iNum = (i.phone || '').replace(/\D/g, '');
-    return iNum.endsWith(suffix) || iNum === num;
-  });
-  if (!instr) return false;
-
-  // Find their pending waiting_list confirmation
-  const rows = await sbGet(
-    `waiting_list?instructor_id=eq.${instr.id}&confirm_status=eq.pending&select=*&order=created_at.desc&limit=1`
+  // Message instructor — full details
+  await sendWA(instr.phone,
+    `Hi ${instr.full_name}! 👋\n\n✅ *Confirmed! Here are the full student details:*\n\n──────────────\n👤 *Name:* ${stuName}\n📞 *Phone:* ${stuPhone || 'Not provided'}\n🏠 *Postcode:* ${rawPc}\n🚗 *Lesson type:* ${lessonType}\n${wlEntry.notes ? '📝 *Notes:* ' + wlEntry.notes + '\n' : ''}──────────────\n\n🔗 *Your Portal:* https://www.drivesq.co.uk/portal.html\n\n— DriveSQ 🤖`
   );
-  const entry = rows?.[0];
-  if (!entry) return false;
 
-  if (isAccept) {
-    await sbPatch('waiting_list', `confirm_token=eq.${entry.confirm_token}`, {
-      confirm_status: 'accepted',
-      confirm_responded_at: new Date().toISOString(),
-    });
-    await sendWA(fromNumber,
-      `✅ *Confirmed!* ${entry.student_name || 'The student'} is now on your roster.\n\nThey'll be in touch to arrange the first lesson.\n\n🔗 View your roster: https://www.drivesq.co.uk/dashboard.html\n\n— DriveSQ 🤖`
+  // Message student — instructor details
+  if (stuPhone) {
+    await sendWA(stuPhone,
+      `Hi ${stuName.split(' ')[0]}! 👋\n\nGreat news! DriveSQ has matched you with an instructor.\n\n──────────────\n👤 *Instructor:* ${instr.full_name}\n📞 *Their number:* ${instr.phone || 'We will be in touch'}\n──────────────\n\nThey will be in touch shortly to arrange your first lesson.\n\n📱 *Your Student Portal:* https://www.drivesq.co.uk/student.html\n\nSee you on the road! 🚗\n— DriveSQ`
     );
-    return true;
   }
-
-  if (isDecline) {
-    await sbPatch('waiting_list', `confirm_token=eq.${entry.confirm_token}`, {
-      confirm_status: 'declined',
-      confirm_responded_at: new Date().toISOString(),
-    });
-    await sendWA(fromNumber,
-      `❌ *Understood.* We'll find ${entry.student_name || 'the student'} another instructor right away.\n\nThanks for letting us know!\n\n— DriveSQ 🤖`
-    );
-    return true;
-  }
-
-  return false;
 }
 
-// ── match sender to instructor / student ──────────────────────────────────────
+// ── Autopilot timeout check (Deno cron — runs every 30 min) ──
+Deno.cron('autopilot-timeout-check', '*/30 * * * *', async () => {
+  const now = new Date().toISOString();
+  const { data: expired } = await sb
+    .from('waiting_list')
+    .select('*, instructors(full_name, phone)')
+    .eq('confirm_status', 'pending')
+    .eq('status', 'pending_confirm')
+    .lt('confirm_expires_at', now);
 
-async function matchContact(fromNumber: string) {
-  const num = fromNumber.replace(/\D/g, '');
-  const suffix = num.slice(-9);
+  if (!expired?.length) return;
 
-  // Try instructors first
-  const instrs = await sbGet(`instructors?select=id,full_name,phone&limit=200`);
-  for (const i of (instrs || [])) {
-    const iNum = (i.phone || '').replace(/\D/g, '');
-    if (iNum && (iNum === num || iNum.endsWith(suffix))) {
-      return { name: i.full_name, type: 'instructor', id: i.id };
+  await Promise.all(expired.map(async (entry: any) => {
+    // Instructor didn't reply in 5 hours — reject and notify student
+    await sb.from('waiting_list').update({
+      status: 'rejected',
+      confirm_status: 'expired'
+    }).eq('id', entry.id);
+
+    await sb.from('autopilot_log').insert([{
+      created_at: new Date().toISOString(),
+      student_name: entry.student_name,
+      student_phone: entry.student_phone,
+      student_postcode: entry.postcode,
+      instructor_id: entry.instructor_id,
+      instructor_name: entry.instructors?.full_name,
+      distance_miles: entry.distance_miles,
+      action: 'confirm_expired_no_reply',
+      source: entry.source || 'website',
+      waiting_list_id: entry.id
+    }]);
+
+    if (entry.student_phone) {
+      const firstName = (entry.student_name || '').split(' ')[0];
+      await sendWA(entry.student_phone,
+        `Hi ${firstName}! 👋\n\nUnfortunately, we don't currently have any instructors available in your area.\n\nPlease contact us if you'd like us to try again.\n\n— DriveSQ 🚗`
+      );
     }
-  }
+  }));
+});
 
-  // Try student_accounts
-  const stus = await sbGet(`student_accounts?select=id,full_name,phone&limit=500`);
-  for (const s of (stus || [])) {
-    const sNum = (s.phone || '').replace(/\D/g, '');
-    if (sNum && (sNum === num || sNum.endsWith(suffix))) {
-      return { name: s.full_name, type: 'student', id: s.id };
-    }
-  }
+// ── Main request handler ──────────────────────────────────────
+Deno.serve(async (req: Request) => {
+  const url = new URL(req.url);
 
-  return { name: null, type: 'unknown', id: null };
-}
-
-// ── main handler ──────────────────────────────────────────────────────────────
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-
-  // ── GET: Meta webhook verification ──
+  // GET — Meta webhook verification
   if (req.method === 'GET') {
-    const url = new URL(req.url);
     const mode      = url.searchParams.get('hub.mode');
     const token     = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
-
-    const verifyToken = Deno.env.get('WA_VERIFY_TOKEN');
-
-    // ── PLACEHOLDER: until you set WA_VERIFY_TOKEN, always return 403 ──
-    if (!verifyToken) {
-      console.log('WA_VERIFY_TOKEN not set — webhook not yet configured');
-      return new Response('Webhook not yet configured. Set WA_VERIFY_TOKEN secret.', { status: 403 });
-    }
-
-    if (mode === 'subscribe' && token === verifyToken) {
-      console.log('Webhook verified ✅');
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       return new Response(challenge, { status: 200 });
     }
-
     return new Response('Forbidden', { status: 403 });
   }
 
-  // ── POST: incoming messages ──
+  // POST — inbound message
   if (req.method === 'POST') {
-    let payload: Record<string, unknown>;
     try {
-      payload = await req.json();
-    } catch {
-      return new Response('Bad JSON', { status: 400 });
-    }
-
-    try {
-      // Extract messages from Meta's webhook structure
-      const entry = (payload?.entry as Array<Record<string, unknown>>)?.[0];
-      const changes = (entry?.changes as Array<Record<string, unknown>>)?.[0];
-      const value = changes?.value as Record<string, unknown>;
-      const messages = value?.messages as Array<Record<string, unknown>>;
-
+      const body = await req.json();
+      const entry = body?.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const messages = changes?.value?.messages;
       if (messages?.length) {
         for (const msg of messages) {
-          const waId    = String(msg.id || '');
-          const from    = String(msg.from || '');
-          const bodyText = (msg.text as Record<string, string>)?.body || '';
-          const ts      = msg.timestamp ? new Date(Number(msg.timestamp) * 1000).toISOString() : new Date().toISOString();
-
-          // Look up contact
-          const contact = await matchContact(from);
-
-          // Store in whatsapp_messages (ignore duplicate wa_message_id)
-          await sbInsert('whatsapp_messages', {
-            wa_message_id: waId,
-            from_number:   from,
-            to_number:     Deno.env.get('WA_PHONE_ID') || '',
-            body:          bodyText,
-            direction:     'inbound',
-            contact_name:  contact.name,
-            contact_type:  contact.type,
-            contact_id:    contact.id,
-            processed:     false,
-            raw_payload:   payload,
-            created_at:    ts,
-          }).catch(() => {}); // ignore duplicate key errors
-
-          // Process confirmation replies (YES / NO)
-          const wasConfirm = await processConfirmationReply(from, bodyText);
-
-          // Mark as processed if we acted on it
-          if (wasConfirm) {
-            await sbPatch('whatsapp_messages', `wa_message_id=eq.${encodeURIComponent(waId)}`, { processed: true });
-          }
+          const from = msg.from;
+          const text = msg.text?.body || msg.button?.text || '';
+          if (from && text) await handleInbound(from, text);
         }
       }
     } catch (e) {
-      console.error('Webhook processing error:', e);
+      console.error('Webhook error:', e);
     }
-
-    // Always return 200 to Meta — otherwise they retry endlessly
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...CORS, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    return new Response('OK', { status: 200 });
   }
 
-  return new Response('Method not allowed', { status: 405 });
+  return new Response('Method Not Allowed', { status: 405 });
 });
