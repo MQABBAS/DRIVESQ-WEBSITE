@@ -1,4 +1,4 @@
-// DriveSQ WhatsApp Webhook + Autopilot — Supabase Edge Function
+// DriveSQ WhatsApp Webhook + Autopilot — Supabase Edge Function v2
 // Endpoints:
 //   GET  /                  — Meta webhook verification
 //   POST /                  — Meta inbound WhatsApp messages
