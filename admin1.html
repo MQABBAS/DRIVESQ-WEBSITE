@@ -6835,7 +6835,7 @@ async function updateWaitlistStatus(id,status,instrId=null){
 let _webBookingsData=[];
 async function loadWebBookingsBadge(){
   try{
-    const{data}=await sb.from('waiting_list').select('id').ilike('notes','%[WEB]%').eq('status','waiting');
+    const{data}=await sb.from('waiting_list').select('id').eq('status','waiting');
     const count=(data||[]).length;
     const badge=document.getElementById('webBookingsBadge');
     if(badge){badge.textContent=count;badge.style.display=count>0?'inline-flex':'none';}
@@ -6850,7 +6850,7 @@ async function loadWebBookings(){
   if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   const statusF=document.getElementById('wbStatusFilter')?.value||'waiting';
-  let q=sb.from('waiting_list').select('*').ilike('notes','%[WEB]%').order('created_at',{ascending:false});
+  let q=sb.from('waiting_list').select('*').order('created_at',{ascending:false});
   if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">'+error.message+'</div>';return;}
