@@ -2003,8 +2003,21 @@ async function autopilotCycle(){
   try{
     const {data:waiting,error}=await sb.from('waiting_list')
       .select('*').eq('status','waiting').order('created_at',{ascending:true});
-    if(error||!waiting||!waiting.length)return;
-    if(!allInstrs||!allInstrs.length){const{data}=await sb.from('instructors').select('*');if(data)allInstrs=data;}
+    if(error){
+      console.warn('Autopilot: waiting_list query error',error);
+      _apLog.unshift({ts:new Date(),student:'—',action:'❌ DB error: '+error.message});
+      renderApLog();
+      return;
+    }
+    if(!waiting||!waiting.length){
+      _apLog.unshift({ts:new Date(),student:'—',action:'✓ Cycle ran — no pending entries'});
+      renderApLog();
+      return;
+    }
+    if(!allInstrs||!allInstrs.length){
+      const{data:id}=await sb.from('instructors').select('*');
+      if(id)allInstrs=id;
+    }
     if(!allStudentsCache||!allStudentsCache.length)await loadAllStudents();
     // Get weekly assignment counts for fair distribution
     const weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay());weekStart.setHours(0,0,0,0);
@@ -2012,10 +2025,15 @@ async function autopilotCycle(){
       .select('instructor_id').eq('status','assigned').gte('created_at',weekStart.toISOString());
     const weeklyCount={};
     (weeklyData||[]).forEach(r=>{if(r.instructor_id)weeklyCount[r.instructor_id]=(weeklyCount[r.instructor_id]||0)+1;});
+    showToast(`<i class="bi bi-robot me-1"></i>Autopilot processing <strong>${waiting.length}</strong> pending ${waiting.length===1?'entry':'entries'}…`,'info',3000);
     for(const entry of waiting){
       await autopilotAssignEntry(entry, weeklyCount);
     }
-  } catch(e){console.warn('Autopilot cycle error:',e);}
+  } catch(e){
+    console.warn('Autopilot cycle error:',e);
+    _apLog.unshift({ts:new Date(),student:'—',action:'❌ Cycle error: '+e.message});
+    renderApLog();
+  }
   finally{_apRunning=false;}
 }
 
@@ -2206,6 +2224,18 @@ async function apDoAssign({entry,instrId,instrName,instrPhone,rawPc,stuName,stuP
   if(_apLog.length>50)_apLog.pop();
   renderApLog();
   showToast(`<i class="bi bi-robot me-1"></i>🤖 Assigned <strong>${stuName}</strong> → <strong>${instrName}</strong> (${dist.toFixed(1)} mi)`,'success',6000);
+  // Navigate to Find & Assign tab and prefill so admin can see what autopilot did
+  try{
+    switchTab('find');setActiveTab('find');
+    setTimeout(()=>{
+      const fcFields={'fc-name':stuName,'fc-postcode':rawPc,'fc-phone':stuPhone,'fc-notes':entry.notes||''};
+      Object.entries(fcFields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v||'';});
+      const fcType=document.getElementById('fc-type');if(fcType)fcType.value=lessonType||'Manual';
+      // Show assignment result in find tab
+      const findResults=document.getElementById('findResults');
+      if(findResults)findResults.innerHTML=`<div style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);border-radius:12px;padding:16px 20px;margin-top:12px"><div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#25D366;font-weight:700;margin-bottom:4px">🤖 Autopilot Assigned</div><div style="font-size:.82rem;color:var(--txt2)"><strong>${esc(stuName)}</strong> → <strong>${esc(instrName)}</strong> · ${dist.toFixed(1)} mi · ${lessonType}</div><div style="font-size:.72rem;color:var(--txt3);margin-top:4px">WhatsApp messages sent to both parties. Student record created.</div></div>`;
+    },400);
+  }catch(e){}
   if(allStudentsCache.length)loadAllStudents();
 }
 
