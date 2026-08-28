@@ -1942,6 +1942,8 @@ function isAutopilotOn(){return localStorage.getItem('dsq_autopilot')==='1';}
 function toggleAutopilot(){
   const next=!isAutopilotOn();
   localStorage.setItem('dsq_autopilot',next?'1':'0');
+  // Persist to DB so server-side Edge Function respects the toggle
+  sb.from('app_settings').upsert([{key:'autopilot_enabled',value:next?'true':'false',updated_at:new Date().toISOString()}],{onConflict:'key'});
   applyAutopilotUI();
   if(next){
     showToast(`<i class="bi bi-robot me-1"></i><strong>Autopilot ON</strong> — checking waiting list now…`,'success',4000);
