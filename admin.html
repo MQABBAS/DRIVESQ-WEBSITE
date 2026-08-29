@@ -678,7 +678,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <table>
           <thead><tr>
             <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Transmission</th>
-            <th class="hide-xs">Postcode</th><th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th>Actions</th>
+            <th class="hide-xs">Postcode</th><th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th class="hide-xs" title="Students assigned this week">Assigned/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -2003,14 +2003,17 @@ async function loadInstrs(){
   allInstrs=data||[];
   // Compute weekly hours per instructor
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-  const[{data:wkLessons},{data:rosterRows}]=await Promise.all([
+  const weekStart=new Date(mon);weekStart.setHours(0,0,0,0);
+  const[{data:wkLessons},{data:rosterRows},{data:wkAssigned}]=await Promise.all([
     sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-    sb.from('student_profiles').select('instructor_id')
+    sb.from('student_profiles').select('instructor_id'),
+    sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString())
   ]);
-  const hrsMap={},earnMap={},rosterMap={};
+  const hrsMap={},earnMap={},rosterMap={},weekAssignMap={};
   (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
   (rosterRows||[]).forEach(r=>{rosterMap[r.instructor_id]=(rosterMap[r.instructor_id]||0)+1;});
-  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;i._rosterCount=rosterMap[i.id]||0;});
+  (wkAssigned||[]).forEach(r=>{weekAssignMap[r.instructor_id]=(weekAssignMap[r.instructor_id]||0)+1;});
+  allInstrs.forEach(i=>{i._weekHrs=hrsMap[i.id]||0;i._weekEarn=earnMap[i.id]||0;i._rosterCount=rosterMap[i.id]||0;i._weekAssigned=weekAssignMap[i.id]||0;});
   renderInstrsTable(allInstrs);
   renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
   const pc=allInstrs.filter(i=>i.status==='pending').length;
@@ -2129,6 +2132,7 @@ function renderInstrsTable(list){
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
+      <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:${(i._weekAssigned||0)>0?'var(--purple)':'var(--txt4)'}" title="Students assigned this week">${i._weekAssigned||0}</td>
       <td style="white-space:nowrap;min-width:0">
         <button class="abtn view" onclick="viewInstr('${i.id}')" title="View schedule"><i class="bi bi-calendar-week me-1"></i><span class="btn-lbl-md">View</span></button>
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Students"><i class="bi bi-people me-1"></i><span class="btn-lbl-md">Students</span></button>
@@ -2881,6 +2885,11 @@ async function adminDeleteStudent(skipConfirm){
   document.getElementById('studentDetailModal')?.classList.remove('open');
   const totEl=document.getElementById('sTotalStudents');
   if(totEl){const cur=parseInt(totEl.textContent)||0;if(cur>0)totEl.textContent=cur-1;}
+  // Decrement weekly assigned count for the instructor in local cache
+  if(instrId){
+    const instr=allInstrs.find(i=>i.id===instrId);
+    if(instr&&instr._weekAssigned>0){instr._weekAssigned--;renderInstrsTable(allInstrs);}
+  }
   // Re-render the student table immediately so they're gone from the list
   if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache);
   _adminStudentCtx=null;
@@ -4280,6 +4289,8 @@ async function findClosest(){
       const areaNote=ic.areaMatch>0
         ?`<div style="font-size:.68rem;color:var(--green,#4ade80);margin-top:3px;font-weight:600"><i class="bi bi-people-fill me-1"></i>This instructor has ${ic.areaMatch} student${ic.areaMatch!==1?'s':''} in ${searchedOC||'this area'}</div>`
         :(ic.total>0?`<div style="font-size:.68rem;color:var(--txt4);margin-top:3px"><i class="bi bi-people me-1"></i>${ic.total} student${ic.total!==1?'s':''} on roster (none in ${searchedOC||'this area'})</div>`:'');
+      const wkAsgn=r.instr._weekAssigned||0;
+      const weekAssignNote=`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:${wkAsgn>0?'var(--purple)':'var(--txt4)'}"><i class="bi bi-calendar-week me-1"></i>${wkAsgn} student${wkAsgn!==1?'s':''} assigned this week</div>`;
       return`<div class="dist-card mb-2" data-instr-search="${(r.instr.full_name+' '+(r.instr.area||'')).toLowerCase()}"${!canTeach?' style="opacity:.65"':''}>
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
           <div class="d-flex align-items-center gap-3">
@@ -4293,6 +4304,7 @@ async function findClosest(){
               ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
               ${coversBadge}
               ${areaNote}
+              ${weekAssignNote}
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
