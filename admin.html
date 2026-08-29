@@ -537,6 +537,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')" title="View, manage, approve and message all instructors"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')" title="View all students across all instructors; click a student to see their full profile"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')" title="Live map showing instructor locations and student pickup areas"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
+    <button class="dsq-tab" id="tab-referrals" onclick="switchTab('referrals')" title="Referral fees — track what each instructor owes and what has been paid"><i class="bi bi-cash-coin"></i><span class="d-none d-sm-inline ms-1">Referrals</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" title="Register a new instructor onto the platform" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')" title="Browse all lessons across all instructors"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')" title="Instructor applications awaiting approval"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
@@ -1094,6 +1095,50 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 </div>
 
+<!-- REFERRALS PANEL -->
+<div id="panel-referrals" class="hidden" style="padding:10px 0">
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-cash-coin me-2" style="color:var(--gold)"></i>Referral Fees</h5>
+    <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+      <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+        <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
+        <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
+        <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
+      </div>
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadReferrals()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
+    </div>
+  </div>
+  <!-- Summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px">
+    <div class="stat-card r"><div class="stat-lbl">Total Due</div><div class="stat-num r" id="refTotalDue">£0</div></div>
+    <div class="stat-card gr"><div class="stat-lbl">Total Paid</div><div class="stat-num gr" id="refTotalPaid">£0</div></div>
+    <div class="stat-card b"><div class="stat-lbl">Referrals</div><div class="stat-num b" id="refTotalCount">0</div></div>
+    <div class="stat-card p"><div class="stat-lbl">Instructors Owing</div><div class="stat-num p" id="refInstrOwing">0</div></div>
+  </div>
+  <!-- Instructor list -->
+  <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<!-- REFERRAL DETAIL MODAL -->
+<div class="dsq-overlay" id="refDetailModal">
+  <div class="dsq-modal wide" style="max-width:680px">
+    <button class="modal-x" onclick="closeModal('refDetailModal')"><i class="bi bi-x-lg"></i></button>
+    <div id="refDetailInstrName" style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
+    <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:14px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:9px;padding:10px 14px">
+        <div style="font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Outstanding</div>
+        <div id="refDetailDue" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#f87171">£0</div>
+      </div>
+      <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:9px;padding:10px 14px">
+        <div style="font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Paid</div>
+        <div id="refDetailPaid" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#4ade80">£0</div>
+      </div>
+    </div>
+    <div id="refDetailRows" style="overflow-y:auto;max-height:55vh"></div>
+  </div>
+</div>
+
 <!-- NOTES PANEL -->
 <div id="panel-notes" class="hidden" style="padding:10px 0">
   <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-journal-text me-2" style="color:#c084fc"></i>Admin Notes & Diary</h5>
@@ -1439,6 +1484,20 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <i class="bi bi-whatsapp me-1"></i>Open WhatsApp — Send Student Portal Link
       </a>
     </div>
+    <div style="margin-bottom:12px;padding:10px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:10px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px"><i class="bi bi-currency-pound me-1"></i>Referral Fee</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="position:relative;flex-shrink:0">
+          <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:.85rem;pointer-events:none">£</span>
+          <input type="number" id="assign-referral-amount" min="0" step="0.01" placeholder="0.00" class="dsq-inp" style="width:90px;padding-left:22px" value="0"/>
+        </div>
+        <select id="assign-referral-status" class="dsq-inp" style="flex:1">
+          <option value="unpaid">Unpaid — due from instructor</option>
+          <option value="paid">Already paid</option>
+        </select>
+      </div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:5px"><i class="bi bi-info-circle me-1"></i>Enter £0 for franchise instructors. Unpaid referrals are tracked in the Referrals tab.</div>
+    </div>
     <button class="btn-p w-100 mb-2" onclick="confirmAssign()"><i class="bi bi-check-lg me-1"></i>Assign Student</button>
     <button class="btn-s w-100" onclick="closeModal('assignModal')">Cancel</button>
   </div>
@@ -1596,6 +1655,20 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     </div>
     <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="cs-addr" placeholder="Default pickup address" autocomplete="off"/></div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="cs-notes" rows="2" placeholder="Any notes about this student (optional)" style="resize:vertical"></textarea></div>
+    <div class="mb-3" style="padding:10px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:10px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px"><i class="bi bi-currency-pound me-1"></i>Referral Fee</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="position:relative;flex-shrink:0">
+          <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:.85rem;pointer-events:none">£</span>
+          <input type="number" id="cs-referral-amount" min="0" step="0.01" placeholder="0.00" class="dsq-inp" style="width:90px;padding-left:22px" value="0"/>
+        </div>
+        <select id="cs-referral-status" class="dsq-inp" style="flex:1">
+          <option value="unpaid">Unpaid — due from instructor</option>
+          <option value="paid">Already paid</option>
+        </select>
+      </div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:5px"><i class="bi bi-info-circle me-1"></i>Enter £0 for franchise instructors.</div>
+    </div>
     <div id="createStudentResult" class="hidden mb-3" style="background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:14px;font-size:.82rem">
       <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#4ade80;margin-bottom:8px"><i class="bi bi-check-circle-fill me-2"></i>Account Created!</div>
       <div style="font-size:.78rem;color:var(--txt2);margin-bottom:6px">Student logs in at <strong>drivesq.co.uk/student.html</strong> using their phone number — no code or PIN needed.</div>
@@ -1925,6 +1998,7 @@ function showApp(){
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
   startAdminRealtime();
+  setTimeout(_buildUnpaidRefIndex,4000); // load unpaid ref index for student badges
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
@@ -1992,7 +2066,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','referrals','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2021,6 +2095,7 @@ function switchTab(t){
   if(t==='waitlist')loadWaitlist();
   if(t==='availability')loadAvailabilityView();
   if(t==='coverage')loadCoverageTab();
+  if(t==='referrals')loadReferrals();
   if(t==='find')showAllInstructors();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
@@ -2555,7 +2630,7 @@ async function loadInstrRoster(){
       <div class="d-flex align-items-start gap-2">
         <div class="s-init">${(p.name||'?').charAt(0).toUpperCase()}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}${_refDueBadge(p.instructor_id,p.name)}</div>
           ${p.phone?`<div style="font-size:.7rem;color:var(--txt3)"><i class="bi bi-telephone me-1"></i>${esc(p.phone)}</div>`:''}
           ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
           <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
@@ -2743,7 +2818,7 @@ function renderStudentsTable(students){
       <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}
+        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -3306,6 +3381,17 @@ async function confirmCreateStudent(){
     const profPayload={instructor_id:instrId,name:name,phone:phone||null,address:addr||null,lesson_type:lessonType,notes:notes||null,status:'active',created_at:new Date().toISOString()};
     const{error:profErr}=await sb.from('student_profiles').insert([profPayload]);
     if(profErr)console.warn('student_profiles insert:',profErr.message);
+  }
+  // Record referral fee
+  if(instrId){
+    const _csRefAmt=parseFloat(document.getElementById('cs-referral-amount')?.value||'0')||0;
+    const _csRefPaid=document.getElementById('cs-referral-status')?.value==='paid';
+    await sb.from('referrals').insert([{
+      instructor_id:instrId,student_name:name,student_phone:phone||null,
+      amount:_csRefAmt,is_paid:_csRefPaid,
+      paid_at:_csRefPaid?new Date().toISOString():null,
+      notes:'Created via Create Student',created_at:new Date().toISOString()
+    }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
   }
   // Store for WhatsApp buttons
   window._csLastCreated={name,phone,email,lessonType,addr,notes,instrObj};
@@ -4742,6 +4828,16 @@ async function confirmAssign(){
     pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
     notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
+
+  // 3b. Record referral fee
+  const _refAmt=parseFloat(document.getElementById('assign-referral-amount')?.value||'0')||0;
+  const _refPaid=document.getElementById('assign-referral-status')?.value==='paid';
+  await sb.from('referrals').insert([{
+    instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
+    amount:_refAmt,is_paid:_refPaid,
+    paid_at:_refPaid?new Date().toISOString():null,
+    notes:'Assigned via Find & Assign',created_at:new Date().toISOString()
+  }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
 
   // 4. Push notification to instructor device
   await sendPushToInstructor(instrId,instrName,
@@ -6250,8 +6346,8 @@ function renderWebBookings(){
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
       <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
-        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
-        ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="wbMarkStatus(${r.id},'cancelled')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline(${r.id},this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -6280,9 +6376,9 @@ function openWbDetail(id){
       <i class="bi bi-telephone-fill" style="flex-shrink:0;margin-top:1px"></i>
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
     </div>`;
-  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
+  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
     +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
-    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="wbMarkStatus(${r.id},'cancelled');closeModal('wbDetailModal')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
+    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline(${r.id},null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
@@ -6291,20 +6387,42 @@ async function wbMarkStatus(id,status){
   showToast(status==='cancelled'?'Booking declined ✓':'Status updated',status==='cancelled'?'warn':'success');
   await loadWebBookings();
 }
+
+// Optimistic decline — removes card from DOM immediately, then persists to DB
+function wbDecline(id,btn){
+  // Remove from local data immediately so UI feels instant
+  _webBookingsData=(_webBookingsData||[]).filter(x=>x.id!==id);
+  // Remove card from DOM
+  const card=document.querySelector(`[data-wb-id="${id}"]`);
+  if(card){card.style.transition='opacity .2s';card.style.opacity='0';setTimeout(()=>card.remove(),200);}
+  showToast('Booking declined ✓','warn');
+  // Update badge count
+  loadWebBookingsBadge();
+  // Persist to DB in background
+  sb.from('waiting_list').update({status:'cancelled'}).eq('id',id)
+    .then(({error})=>{if(error)console.warn('wbDecline DB error:',error.message);});
+}
+
 async function openWbCreateStudent(wbId){
   const r=_webBookingsData.find(x=>x.id===wbId);
-  if(!r){showToast('Booking not found','error');return;}
-  closeModal('webBookingsModal');closeModal('wbDetailModal');
-  // Store wbId so confirmAssign (Find tab flow) marks it assigned when done
+  if(!r){showToast('Booking not found — please refresh','error');return;}
+
+  // Close all modals first
+  closeModal('webBookingsModal');
+  closeModal('wbDetailModal');
+
+  // Store wbId so confirmAssign marks it assigned when done
   window._waitlistIdToAssign=wbId;
-  window._pendingWbId=wbId; // also kept for confirmCreateStudent fallback
+  window._pendingWbId=wbId;
+
+  // Switch to Find tab immediately
+  switchTab('find');
 
   // Parse email out of notes (website form saves it as "Email: xxx")
   const email=_extractEmailFromNotes(r.notes||'');
   const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
 
-  // Go to Find & Assign tab — pre-fill all fields — then auto-search
-  switchTab('find');if(typeof setActiveTab==='function')setActiveTab('find');
+  // Fill form fields — use a longer delay so the Find tab panel is fully visible
   setTimeout(()=>{
     const fields={
       'fc-name': r.student_name||'',
@@ -6316,9 +6434,197 @@ async function openWbCreateStudent(wbId){
     };
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     const lt=document.getElementById('fc-type');if(lt)lt.value=r.lesson_type||'Manual';
-    showToast(`<i class="bi bi-geo-alt-fill me-1"></i>Finding closest instructor for ${r.student_name}…`,'info',4000);
+    showToast('Finding closest instructor for '+r.student_name+'…','info');
+    // Auto-run the search
     findClosest();
-  },300);
+  },400);
+}
+
+/* ══ REFERRALS ══ */
+let _refData=[];        // flat array of all referral rows
+let _refPeriod='week';  // 'week' | 'month' | 'all'
+
+// Lightweight unpaid referral index — keyed by `instrId:studentNameLower`
+// Used to show "REFERRAL DUE" badge on student cards without loading full referrals
+let _unpaidRefIndex={};  // { "instrId:nameLower": amount }
+
+async function _buildUnpaidRefIndex(){
+  try{
+    const{data}=await sb.from('referrals').select('instructor_id,student_name,amount').eq('is_paid',false).gt('amount',0);
+    const idx={};
+    (data||[]).forEach(r=>{
+      const k=`${r.instructor_id}:${(r.student_name||'').toLowerCase().trim()}`;
+      idx[k]=(idx[k]||0)+(parseFloat(r.amount)||0);
+    });
+    _unpaidRefIndex=idx;
+  }catch(e){console.warn('_buildUnpaidRefIndex:',e.message);}
+}
+
+function _refDueBadge(instrId,studentName){
+  if(!instrId||!studentName)return'';
+  const k=`${instrId}:${(studentName||'').toLowerCase().trim()}`;
+  const amt=_unpaidRefIndex[k];
+  if(!amt)return'';
+  return`<span style="font-size:.5rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;white-space:nowrap">£${(+amt).toFixed(2)} DUE</span>`;
+}
+
+function setRefPeriod(p){
+  _refPeriod=p;
+  ['week','month','all'].forEach(k=>{
+    const btn=document.getElementById('refPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(btn){btn.style.background=k===p?'var(--purple)':'transparent';btn.style.color=k===p?'#fff':'var(--txt3)';}
+  });
+  renderReferrals();
+}
+
+function _refPeriodStart(){
+  const now=new Date();
+  if(_refPeriod==='week'){const d=getMonday(0);d.setHours(0,0,0,0);return d;}
+  if(_refPeriod==='month'){return new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);}
+  return new Date(0);
+}
+
+async function loadReferrals(){
+  const el=document.getElementById('refInstrList');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  try{
+    const{data,error}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
+    if(error)throw error;
+    _refData=data||[];
+    _buildUnpaidRefIndex(); // keep badge index fresh
+    renderReferrals();
+  }catch(e){
+    if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true);</code></div>';
+  }
+}
+
+function renderReferrals(){
+  const start=_refPeriodStart();
+  const rows=_refData.filter(r=>new Date(r.created_at)>=start);
+
+  // Group by instructor
+  const byInstr={};
+  rows.forEach(r=>{
+    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,rows:[],due:0,paid:0};
+    byInstr[r.instructor_id].rows.push(r);
+    if(r.is_paid)byInstr[r.instructor_id].paid+=parseFloat(r.amount)||0;
+    else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
+  });
+
+  let totalDue=0,totalPaid=0,totalCount=rows.length,instrOwing=0;
+  Object.values(byInstr).forEach(g=>{totalDue+=g.due;totalPaid+=g.paid;if(g.due>0)instrOwing++;});
+
+  // Update summary cards
+  const fmt=v=>'£'+v.toFixed(2);
+  document.getElementById('refTotalDue').textContent=fmt(totalDue);
+  document.getElementById('refTotalPaid').textContent=fmt(totalPaid);
+  document.getElementById('refTotalCount').textContent=totalCount;
+  document.getElementById('refInstrOwing').textContent=instrOwing;
+
+  // Sort instructors: most due first
+  const groups=Object.values(byInstr).sort((a,b)=>b.due-a.due);
+
+  const el=document.getElementById('refInstrList');
+  if(!groups.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No referrals in this period.</div>';
+    return;
+  }
+
+  el.innerHTML=groups.map(g=>{
+    const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown Instructor',area:''};
+    const total=g.due+g.paid;
+    const paidPct=total>0?Math.round(g.paid/total*100):0;
+    const dueCol=g.due>0?'#f87171':'#4ade80';
+    return`<div style="background:var(--card-bg);border:1px solid ${g.due>0?'rgba(248,113,113,.25)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openRefDetail('${g.id}')">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}</div>
+          <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${g.due>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">${fmt(g.due)}</div></div>`:''}
+          ${g.paid>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Paid</div><div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">${fmt(g.paid)}</div></div>`:''}
+          <div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(#4ade80 ${paidPct*3.6}deg,rgba(248,113,113,.3) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <div style="width:30px;height:30px;border-radius:50%;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:var(--txt)">${paidPct}%</div>
+          </div>
+          <i class="bi bi-chevron-right" style="color:var(--txt4)"></i>
+        </div>
+      </div>
+      ${g.due>0?`<div style="margin-top:8px;height:4px;background:var(--bdr);border-radius:2px;overflow:hidden"><div style="height:100%;width:${paidPct}%;background:#4ade80;transition:width .4s"></div></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function openRefDetail(instrId){
+  const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Unknown Instructor',area:''};
+  document.getElementById('refDetailInstrName').textContent=instr.full_name;
+  document.getElementById('refDetailSub').textContent=(instr.area||'')+(instr.phone?' · '+instr.phone:'');
+
+  const start=_refPeriodStart();
+  const rows=_refData.filter(r=>r.instructor_id===instrId&&new Date(r.created_at)>=start)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  const due=rows.filter(r=>!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const paid=rows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  document.getElementById('refDetailDue').textContent='£'+due.toFixed(2);
+  document.getElementById('refDetailPaid').textContent='£'+paid.toFixed(2);
+
+  const tbody=document.getElementById('refDetailRows');
+  if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
+
+  tbody.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+    <thead>
+      <tr style="border-bottom:1px solid var(--bdr)">
+        <th style="padding:6px 8px;text-align:left;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Student</th>
+        <th style="padding:6px 8px;text-align:right;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Amount</th>
+        <th style="padding:6px 8px;text-align:center;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Status</th>
+        <th style="padding:6px 8px;text-align:right;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Date</th>
+        <th style="padding:6px 8px;text-align:center;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r=>{
+        const isPaid=r.is_paid;
+        const dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+        const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+        return`<tr style="border-bottom:1px solid var(--bdr)">
+          <td style="padding:8px 8px">
+            <div style="font-weight:600;color:var(--txt)">${esc(r.student_name)}</div>
+            ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
+          </td>
+          <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isPaid?'#4ade80':'#f87171'};white-space:nowrap">
+            £${(parseFloat(r.amount)||0).toFixed(2)}
+          </td>
+          <td style="padding:8px 8px;text-align:center">
+            <span style="background:${isPaid?'rgba(74,222,128,.12)':'rgba(248,113,113,.12)'};border:1px solid ${isPaid?'rgba(74,222,128,.3)':'rgba(248,113,113,.3)'};color:${isPaid?'#4ade80':'#f87171'};border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">
+              ${isPaid?'✓ PAID'+(paidDateStr?' '+paidDateStr:''):'UNPAID'}
+            </span>
+          </td>
+          <td style="padding:8px 8px;text-align:right;font-size:.72rem;color:var(--txt3);white-space:nowrap" title="${new Date(r.created_at).toLocaleString('en-GB')}">${dateStr}</td>
+          <td style="padding:8px 8px;text-align:center">
+            ${!isPaid&&(parseFloat(r.amount)||0)>0?`<button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>`:'<span style="color:var(--txt4);font-size:.68rem">—</span>'}
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+  openModal('refDetailModal');
+}
+
+async function markRefPaid(refId){
+  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:new Date().toISOString()}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  // Update local cache
+  const r=_refData.find(x=>x.id===refId);
+  if(r){r.is_paid=true;r.paid_at=new Date().toISOString();}
+  showToast('Referral marked as paid ✓','success');
+  // Refresh the unpaid badge index so student cards reflect the change
+  _buildUnpaidRefIndex();
+  // Re-render the modal (still open) and the background list
+  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
 }
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
