@@ -1702,6 +1702,11 @@ async function sendPushToInstructor(instrId,instrName,title,body,url){
   }catch(e){console.warn('sendPushToInstructor:',e.message);}
 }
 
+/* ══ COMPAT STUB ══ */
+// setActiveTab exists in admin1.html but not here; guard against ReferenceError
+// from quick-action buttons that call both switchTab() and setActiveTab() together.
+function setActiveTab(tab){/* no-op in admin.html — switchTab() handles activation */}
+
 /* ══ THEME ══ */
 let manualTheme=localStorage.getItem('dsq_admin_theme')||'auto';
 function applyTheme(){
@@ -1928,14 +1933,21 @@ function startAdminRealtime(){
   if(_realtimeChannel) return; // already subscribed
   _realtimeChannel=sb.channel('admin-student-profiles')
     .on('postgres_changes',{event:'*',schema:'public',table:'student_profiles'},async()=>{
-      // Refresh instructor roster counts + student cache on any change
-      allStudentsCache=[];
-      await loadInstrs();
-      if(document.getElementById('tab-students')?.classList.contains('active')){
-        await loadAllStudents();
-        renderStudentsTable(allStudentsCache);
-      }
-      if(viewingId) viewInstrStudents(viewingId,viewingName);
+      // Refresh instructor roster counts on any student_profiles change
+      try{
+        await loadInstrs();
+        // If Students tab is open, also refresh the student list
+        if(document.getElementById('tab-students')?.classList.contains('active')){
+          allStudentsCache=[];
+          await loadAllStudents();
+          renderStudentsTable(allStudentsCache);
+        } else {
+          // Invalidate cache so next open gets fresh data
+          allStudentsCache=[];
+        }
+        // Refresh open instructor students panel
+        if(viewingId) viewInstrStudents(viewingId,viewingName);
+      }catch(e){console.warn('Realtime update error:',e.message);}
     })
     .subscribe();
 }
@@ -2035,11 +2047,15 @@ async function loadInstrs(){
   // Compute weekly hours per instructor
   const mon=getMonday(0),sun=new Date(mon);sun.setDate(sun.getDate()+6);
   const weekStart=new Date(mon);weekStart.setHours(0,0,0,0);
-  const[{data:wkLessons},{data:rosterRows},{data:wkAssigned}]=await Promise.all([
-    sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-    sb.from('student_profiles').select('instructor_id').neq('status','inactive'),
-    sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive')
-  ]);
+  let wkLessons=[],rosterRows=[],wkAssigned=[];
+  try{
+    const res=await Promise.all([
+      sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
+      sb.from('student_profiles').select('instructor_id').neq('status','inactive'),
+      sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive')
+    ]);
+    wkLessons=res[0].data||[];rosterRows=res[1].data||[];wkAssigned=res[2].data||[];
+  }catch(e){console.warn('loadInstrs stats fetch:',e.message);}
   const hrsMap={},earnMap={},rosterMap={},weekAssignMap={};
   (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
   (rosterRows||[]).forEach(r=>{rosterMap[r.instructor_id]=(rosterMap[r.instructor_id]||0)+1;});
@@ -2557,16 +2573,23 @@ async function loadInstrRoster(){
 /* ══ STUDENTS TAB ══ */
 async function loadAllStudents(){
   // Show skeleton immediately so the tab feels instant
-  const el=document.getElementById('studentTbody');
+  const el=document.getElementById('studentsTbody');
   if(el&&!allStudentsCache.length)el.innerHTML='<tr><td colspan="12" style="text-align:center;padding:28px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading students…</td></tr>';
 
-  const[lessonsR,accountsR,progressR,rosterR]=await Promise.all([
-    // Only fetch columns we actually use — avoids pulling large unused fields
-    sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
-    sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
-    sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
-    sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,created_at,instructor_id')
-  ]);
+  let lessonsR,accountsR,progressR,rosterR;
+  try{
+    [lessonsR,accountsR,progressR,rosterR]=await Promise.all([
+      // Only fetch columns we actually use — avoids pulling large unused fields
+      sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
+      sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
+      sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
+      sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,created_at,instructor_id')
+    ]);
+  }catch(e){
+    console.error('loadAllStudents fetch failed:',e.message);
+    if(el)el.innerHTML='<tr><td colspan="12" style="text-align:center;padding:28px;color:#f87171">Failed to load students. Please refresh.</td></tr>';
+    return;
+  }
   // Populate instructor filter dropdown
   const instrFilterSel=document.getElementById('studentInstrFilter');
   if(instrFilterSel){
@@ -2918,16 +2941,22 @@ async function adminDeleteStudent(skipConfirm){
   // ── STEP 1: Remove from all local caches and UI immediately ──────────────
   // This makes the student vanish from admin and dashboard even if DB RLS blocks the actual row delete.
   const nameLower=name.toLowerCase().trim();
+  // Capture before filtering so we can check assignedAt below
+  const _deletedStudent=allStudentsCache.find(s=>(s.name||'').toLowerCase().trim()===nameLower&&(!instrId||s.instrId===instrId));
   allStudentsCache=(allStudentsCache||[]).filter(s=>(s.name||'').toLowerCase().trim()!==nameLower);
   _recentlyDeletedNames.add(nameLower);
   document.getElementById('adminStudentProfileModal')?.classList.remove('open');
   document.getElementById('studentDetailModal')?.classList.remove('open');
   const totEl=document.getElementById('sTotalStudents');
   if(totEl){const cur=parseInt(totEl.textContent)||0;if(cur>0)totEl.textContent=cur-1;}
-  // Decrement weekly assigned count for the instructor in local cache
+  // Decrement weekly assigned count only if student was assigned this week
   if(instrId){
     const instr=allInstrs.find(i=>i.id===instrId);
-    if(instr&&instr._weekAssigned>0){instr._weekAssigned--;renderInstrsTable(allInstrs);}
+    if(instr&&instr._weekAssigned>0){
+      const wkStart=getMonday(0);wkStart.setHours(0,0,0,0);
+      const assignedAt=_deletedStudent?.assignedAt||_deletedStudent?.created_at||null;
+      if(!assignedAt||new Date(assignedAt)>=wkStart){instr._weekAssigned--;renderInstrsTable(allInstrs);}
+    }
   }
   // Re-render the student table immediately so they're gone from the list
   if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache);
@@ -3312,8 +3341,8 @@ async function confirmCreateStudent(){
       if(!res)return;
       let waHtml='<div style="margin-top:10px;display:flex;flex-direction:column;gap:7px">';
       waHtml+='<div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:2px"><i class="bi bi-telephone-fill me-1"></i>Contact both parties now:</div>';
-      if(stuWaNum)waHtml+=`<a href="${stuWaNum}?text=${encodeURIComponent(stuMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Student: ${esc(name.split(' ')[0])}</a>`;
-      if(instrWaNum)waHtml+=`<a href="${instrWaNum}?text=${encodeURIComponent(instrMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Instructor: ${esc(instrObj?.full_name||'')}</a>`;
+      if(stuWaNum)waHtml+=`<a href="https://wa.me/${stuWaNum}?text=${encodeURIComponent(stuMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Student: ${esc(name.split(' ')[0])}</a>`;
+      if(instrWaNum)waHtml+=`<a href="https://wa.me/${instrWaNum}?text=${encodeURIComponent(instrMsg)}" target="_blank" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:8px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:6px"><i class="bi bi-whatsapp"></i>WhatsApp Instructor: ${esc(instrObj?.full_name||'')}</a>`;
       waHtml+='</div>';
       res.insertAdjacentHTML('beforeend',waHtml);
     },200);
@@ -3330,11 +3359,12 @@ function showCreateStudentMsg(type,msg){
 }
 window._csCredentials={};
 function copyStudentCredentials(){
-  const code=document.getElementById('cs-result-code').textContent;
-  const pin=document.getElementById('cs-result-pin').textContent;
-  const name=document.getElementById('cs-name').value.trim();
-  const text=`DriveSQ Student Portal — Login Details\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n👤 Name: ${name}\n🔑 Student Code: ${code}\n🔒 PIN: ${pin}\n📱 App: https://www.drivesq.co.uk/student.html\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nWith your free DriveSQ Student Portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests\n🗺️ See test routes for your local test centre\n💬 Message your instructor directly\n🏆 Earn XP and badges as you progress\n\nWorks on any device — phone, tablet or laptop.\nYou can install it as a free app too! 📲\n\nSee you on the road! 🚗\n— DriveSQ Driving School`;
-  navigator.clipboard.writeText(text).then(()=>showToast('Credentials copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
+  // Login is phone-number-only — no code/PIN displayed; use stored _csLastCreated data
+  const c=window._csLastCreated||{};
+  const name=document.getElementById('cs-name')?.value.trim()||c.name||'';
+  const phone=document.getElementById('cs-phone')?.value.trim()||c.phone||'';
+  const text=`DriveSQ Student Portal — Login Details\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n👤 Name: ${name}\n📞 Log in with phone: ${phone}\n📱 App: https://www.drivesq.co.uk/student.html\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nWith your free DriveSQ Student Portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests\n🗺️ See test routes for your local test centre\n💬 Message your instructor directly\n🏆 Earn XP and badges as you progress\n\nWorks on any device — phone, tablet or laptop.\nYou can install it as a free app too! 📲\n\nSee you on the road! 🚗\n— DriveSQ Driving School`;
+  navigator.clipboard.writeText(text).then(()=>showToast('Details copied to clipboard ✓','success')).catch(()=>showToast('Could not copy — please write it down manually.'));
 }
 function waStudentCredentials(){
   const c=window._csLastCreated||{};
@@ -4911,7 +4941,7 @@ async function loadDashboard(){
   const dashI=document.getElementById('dashInstructors');
   dashI.innerHTML=approved.slice(0,6).map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
     ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr)"/>`:`<div style="width:28px;height:28px;border-radius:50%;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--red)">${(i.full_name||'?').charAt(0)}</div>`}
-    <div style="flex:1;min-width:0"><div style="font-size:.8rem;font-weight:600;color:var(--txt)">${esc(i.full_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${esc(i.area||'—')} · ${i._weekHrs.toFixed(1)}h this week</div></div>
+    <div style="flex:1;min-width:0"><div style="font-size:.8rem;font-weight:600;color:var(--txt)">${esc(i.full_name)}</div><div style="font-size:.65rem;color:var(--txt3)">${esc(i.area||'—')} · ${(i._weekHrs||0).toFixed(1)}h this week</div></div>
     <div style="font-size:.75rem;color:var(--green);font-weight:700;font-family:'Oswald',sans-serif">£${(i._weekEarn||0).toFixed(0)}</div>
   </div>`).join('')+(approved.length>6?`<div style="font-size:.72rem;color:var(--txt4);padding:8px 0;text-align:center">+${approved.length-6} more instructors</div>`:'');
 
@@ -5006,7 +5036,7 @@ async function loadReEngagementAlerts(){
   const rows=inactive.map((s,idx)=>{
     const waNum=buildWaNum(s.phone||'');
     const chaseMsg=encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 We noticed it\'s been a while since your last driving lesson with DriveSQ. We\'d love to help you continue your progress — want to book your next session? Reply here or visit https://www.drivesq.co.uk/student.html 🚗');
-    return`<div class="re-alert-row" style="${idx>=5?'display:none':''};display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+    return`<div class="re-alert-row" style="display:${idx>=5?'none':'flex'};align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bdr)">
       <div style="flex:1;min-width:0">
         <div style="font-size:.8rem;font-weight:600;color:var(--txt)">${esc(s.name)}</div>
         <div style="font-size:.65rem;color:var(--txt4)">${s.phone||'No phone'} · ${s.instrId?(allInstrs.find(i=>i.id===s.instrId)?.full_name||'Unknown instructor'):'Unassigned'}</div>
@@ -5661,10 +5691,10 @@ async function openInstrAreaMap(instrId,instrName){
   document.getElementById('instrAreaMapStats').textContent='Loading student locations…';
   // Load Leaflet
   if(!document.getElementById('leaflet-css')){
-    const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
+    const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
   if(!window.L){
-    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   if(window._instrAreaMap){window._instrAreaMap.remove();window._instrAreaMap=null;}
   const el=document.getElementById('instrAreaMapEl');
@@ -5714,10 +5744,10 @@ window.addEventListener('beforeunload',()=>{if(window._instrAreaMap){window._ins
 
 async function initAdminMap(){
   if(!document.getElementById('leaflet-css')){
-    const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
+    const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
   if(!window.L){
-    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const el=document.getElementById('adminMapEl');if(!el)return;
   if(!_adminMap){
@@ -6215,7 +6245,7 @@ function renderWebBookings(){
         <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
           <div style="background:rgba(245,197,24,.1);border-radius:6px;padding:2px 8px;font-size:.67rem;color:var(--gold)">${esc(r.lesson_type||'Manual')}</div>
           <div style="font-size:.65rem;color:var(--txt4)">${daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+' days ago'}</div>
-          ${waNum?`<a href="${waNum}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:8px;padding:3px 9px;font-size:.66rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
+          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:8px;padding:3px 9px;font-size:.66rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
         </div>
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
@@ -6251,14 +6281,14 @@ function openWbDetail(id){
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
     </div>`;
   actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
-    +(waNum?`<a href="${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
+    +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
     +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="wbMarkStatus(${r.id},'cancelled');closeModal('wbDetailModal')"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
   const{error}=await sb.from('waiting_list').update({status}).eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
-  showToast(status==='cancelled'?'Booking declined ✓':'Status updated','warn',3000);
+  showToast(status==='cancelled'?'Booking declined ✓':'Status updated',status==='cancelled'?'warn':'success');
   await loadWebBookings();
 }
 async function openWbCreateStudent(wbId){
