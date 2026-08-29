@@ -1919,6 +1919,25 @@ function showApp(){
   setTimeout(loadWebBookingsBadge,3000);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
+  startAdminRealtime();
+}
+
+/* ══ REALTIME — live roster + student sync ══ */
+let _realtimeChannel=null;
+function startAdminRealtime(){
+  if(_realtimeChannel) return; // already subscribed
+  _realtimeChannel=sb.channel('admin-student-profiles')
+    .on('postgres_changes',{event:'*',schema:'public',table:'student_profiles'},async()=>{
+      // Refresh instructor roster counts + student cache on any change
+      allStudentsCache=[];
+      await loadInstrs();
+      if(document.getElementById('tab-students')?.classList.contains('active')){
+        await loadAllStudents();
+        renderStudentsTable(allStudentsCache);
+      }
+      if(viewingId) viewInstrStudents(viewingId,viewingName);
+    })
+    .subscribe();
 }
 function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reload();}
 
@@ -2018,8 +2037,8 @@ async function loadInstrs(){
   const weekStart=new Date(mon);weekStart.setHours(0,0,0,0);
   const[{data:wkLessons},{data:rosterRows},{data:wkAssigned}]=await Promise.all([
     sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-    sb.from('student_profiles').select('instructor_id'),
-    sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString())
+    sb.from('student_profiles').select('instructor_id').neq('status','inactive'),
+    sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive')
   ]);
   const hrsMap={},earnMap={},rosterMap={},weekAssignMap={};
   (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
