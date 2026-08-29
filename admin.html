@@ -6354,13 +6354,15 @@ function renderWebBookings(){
     const isUrgent=daysAgo>=3&&r.status==='waiting';
     const waNum=buildWaNum(r.student_phone||'');
     const statusCol=r.status==='assigned'?'#4ade80':'#fbbf24';
-    return `<div style="background:var(--card-bg);border:1px solid ${isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail(${r.id})" data-wb-id="${r.id}">
+    const _rid=String(r.id); // always use string for safe onclick and querySelector
+    const _statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
+    return `<div style="background:var(--card-bg);border:1px solid ${isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
       <div class="d-flex align-items-start gap-2 flex-wrap">
         <div style="flex:1;min-width:160px">
           <div class="d-flex align-items-center gap-2 mb-1">
             ${isNew?'<span style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#4ade80;padding:1px 7px">NEW</span>':''}
             ${isUrgent?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">⚠ URGENT</span>':''}
-            <span style="font-family:\'Oswald\',sans-serif;font-size:.75rem;color:${statusCol};font-weight:700;text-transform:uppercase;margin-left:auto">${r.status}</span>
+            <span style="font-family:\'Oswald\',sans-serif;font-size:.75rem;color:${_statusCol};font-weight:700;text-transform:uppercase;margin-left:auto">${r.status}</span>
           </div>
           <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">${esc(r.student_name||'—')}</div>
           <div style="font-size:.73rem;color:var(--txt3);margin-top:2px">${esc(r.student_phone||'—')} · ${esc(r.postcode||'—')}</div>
@@ -6374,8 +6376,8 @@ function renderWebBookings(){
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
       <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
-        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
-        ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline(${r.id},this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline('${_rid}',this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -6404,9 +6406,10 @@ function openWbDetail(id){
       <i class="bi bi-telephone-fill" style="flex-shrink:0;margin-top:1px"></i>
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
     </div>`;
-  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent(${r.id})"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
+  const _wbRid=String(r.id);
+  actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent('${_wbRid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
     +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
-    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline(${r.id},null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
+    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline('${_wbRid}',null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
@@ -7423,6 +7426,7 @@ function renderTheoryList(rows){
       <select id="wbStatusFilter" class="dsq-inp" style="max-width:140px;font-size:.8rem" onchange="loadWebBookings()">
         <option value="waiting">Waiting</option>
         <option value="assigned">Assigned</option>
+        <option value="cancelled">Declined</option>
         <option value="all">All</option>
       </select>
       <input id="wbSearch" class="dsq-inp" style="max-width:200px;font-size:.8rem" placeholder="🔍 Search name or postcode…" oninput="renderWebBookings()"/>
