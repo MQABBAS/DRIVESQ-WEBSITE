@@ -6240,15 +6240,19 @@ async function loadWaitlist(){
   if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">Error: '+error.message+'</div>';return;}
-  // Stats
+  // Stats — always fetch all statuses so counts are accurate regardless of filter
   if(statsEl){
-    const all=data||[];
-    const waiting=all.filter(r=>r.status==='waiting').length;
-    const assigned=all.filter(r=>r.status==='assigned').length;
-    statsEl.innerHTML=`
-      <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
-      <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
-      <div class="stat-card b"><div class="stat-lbl">Total</div><div class="stat-num b">${all.length}</div></div>`;
+    sb.from('waiting_list').select('status').then(({data:allRows})=>{
+      const allData=allRows||[];
+      const waiting=allData.filter(r=>r.status==='waiting').length;
+      const assigned=allData.filter(r=>r.status==='assigned').length;
+      const cancelled=allData.filter(r=>r.status==='cancelled').length;
+      statsEl.innerHTML=`
+        <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
+        <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
+        <div class="stat-card" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2)"><div class="stat-lbl">❌ Cancelled</div><div class="stat-num" style="color:#94a3b8">${cancelled}</div></div>
+        <div class="stat-card b"><div class="stat-lbl">Total</div><div class="stat-num b">${allData.length}</div></div>`;
+    }).catch(()=>{});
   }
   const rows=data||[];
   if(!rows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No entries in this category.</div>';return;}
@@ -6303,12 +6307,8 @@ function waitlistAssign(id,name,postcode,type,phone,notes){
   },300);
 }
 async function updateWaitlistStatus(id,status,instrId=null){
-  if(status==='cancelled'){
-    await sb.from('waiting_list').delete().eq('id',id).catch(()=>{});
-    showToast('Entry removed','warn',3000);
-  } else {
-    await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
-  }
+  await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
+  showToast(status==='cancelled'?'Entry cancelled ✓':status==='assigned'?'Marked as assigned ✓':'Status updated',status==='cancelled'?'warn':'success',3000);
   loadWaitlist();
 }
 
@@ -6353,7 +6353,6 @@ function renderWebBookings(){
     const isNew=daysAgo<=1;
     const isUrgent=daysAgo>=3&&r.status==='waiting';
     const waNum=buildWaNum(r.student_phone||'');
-    const statusCol=r.status==='assigned'?'#4ade80':'#fbbf24';
     const _rid=String(r.id); // always use string for safe onclick and querySelector
     const _statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
     return `<div style="background:var(--card-bg);border:1px solid ${isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
@@ -6400,12 +6399,13 @@ function openWbDetail(id){
       <div class="col-span-2" style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Address</div><div style="color:var(--txt);font-weight:600">${esc(r.area||'—')}</div></div>
       ${r.notes?`<div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Notes / Availability</div><div style="color:var(--txt);font-weight:600;white-space:pre-wrap">${esc(r.notes)}</div></div>`:''}
       <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Submitted</div><div style="color:var(--txt);font-weight:600">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} (${daysAgo===0?'today':daysAgo+' days ago'})</div></div>
-      <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Status</div><div style="color:${r.status==='assigned'?'#4ade80':'#fbbf24'};font-weight:700;text-transform:uppercase">${r.status}</div></div>
+      <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Status</div><div style="color:${r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24'};font-weight:700;text-transform:uppercase">${r.status}</div></div>
     </div>
-    <div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#fde68a;display:flex;gap:8px;align-items:flex-start">
+    ${r.status==='waiting'?`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#fde68a;display:flex;gap:8px;align-items:flex-start">
       <i class="bi bi-telephone-fill" style="flex-shrink:0;margin-top:1px"></i>
       <span><strong>Contact required:</strong> This student must be contacted to confirm their instructor and first lesson time. Use the WhatsApp button below to reach them instantly.</span>
-    </div>`;
+    </div>`:r.status==='assigned'?`<div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#4ade80;display:flex;gap:8px;align-items:flex-start"><i class="bi bi-check-circle-fill" style="flex-shrink:0;margin-top:1px"></i><span>This student has been assigned to an instructor.</span></div>`:
+    `<div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#94a3b8;display:flex;gap:8px;align-items:flex-start"><i class="bi bi-x-circle-fill" style="flex-shrink:0;margin-top:1px"></i><span>This booking was declined.</span></div>`}`;
   const _wbRid=String(r.id);
   actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent('${_wbRid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
     +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
@@ -6421,9 +6421,10 @@ async function wbMarkStatus(id,status){
 
 // Optimistic decline — removes card from DOM immediately, then persists to DB
 function wbDecline(id,btn){
-  // Remove from local data immediately so UI feels instant
-  _webBookingsData=(_webBookingsData||[]).filter(x=>x.id!==id);
-  // Remove card from DOM
+  // Update status in memory so 'Cancelled' filter can still show it
+  const entry=(_webBookingsData||[]).find(x=>x.id===id);
+  if(entry)entry.status='cancelled';
+  // Remove card from DOM (it's filtered out from 'waiting' view)
   const card=document.querySelector(`[data-wb-id="${id}"]`);
   if(card){card.style.transition='opacity .2s';card.style.opacity='0';setTimeout(()=>card.remove(),200);}
   showToast('Booking declined ✓','warn');
@@ -6432,6 +6433,8 @@ function wbDecline(id,btn){
   // Persist to DB in background
   sb.from('waiting_list').update({status:'cancelled'}).eq('id',id)
     .then(({error})=>{if(error)console.warn('wbDecline DB error:',error.message);});
+  // Also update waiting list section badge
+  if(document.getElementById('waitlistList'))loadWaitlist();
 }
 
 async function openWbCreateStudent(wbId){
