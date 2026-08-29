@@ -1695,7 +1695,7 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
 // request text) still breaks out of the surrounding HTML attribute before the browser hands the value
 // to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
   const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
@@ -1780,6 +1780,7 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   setInterval(checkReminders,60000);
   setInterval(loadNotifications,30000);
   setInterval(pollConfirmations,10000);
+  setInterval(pollStudentUpdates,20000);
   checkReminders();
   // Request push permission after a short delay so it doesn't block login
   setTimeout(()=>initPushSubscription(),3000);
@@ -1796,6 +1797,7 @@ function pollConfirmations(){
 }
 
 async function checkSuspended(){
+  if(!instr?.id)return;
   const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instr.id).single();
   if(data&&data.status==='suspended'){
     document.body.innerHTML=`<div class="susp-overlay"><div class="susp-card">
@@ -2924,10 +2926,8 @@ async function loadStudents(){
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k)&&!_recentlyDeletedNames.has(k));
   if(newFromLessons.length){
-    // Save each new student to roster silently
-    for(const[k]of newFromLessons){
-      try{await saveToRoster(k,'','','Manual','',null);}catch(e){}
-    }
+    // Save all new students to roster in parallel (not sequentially — avoids init freeze)
+    await Promise.allSettled(newFromLessons.map(([k])=>saveToRoster(k,'','','Manual','',null)));
     await loadRoster();
     // Add them directly to allStudentsArr without recursing
     newFromLessons.forEach(([k,info])=>{
@@ -3258,6 +3258,7 @@ async function checkReminders(){
   const now=new Date();const tLessons=todayLessons;
   for(const l of tLessons){
     if(shownReminders.has(l.id))continue;
+    if(!l.start_time)continue;
     const[h,m]=l.start_time.split(':').map(Number);const lt=new Date();lt.setHours(h,m,0,0);const diff=(lt-now)/60000;
     if(diff>0&&diff<=65){
       shownReminders.add(l.id);
@@ -3268,7 +3269,7 @@ async function checkReminders(){
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');banner.className='reminder-banner';banner.id='rem-'+l.id;banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
-      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${l.student_name.split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
+      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${(l.student_name||'').split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
         <div class="flex-grow-1">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt);margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
@@ -5398,9 +5399,6 @@ async function pollStudentUpdates(){
     }else if(mb){mb.classList.add('hidden');}
   }
 }
-// Poll every 20s
-setInterval(pollStudentUpdates,20000);
-
 // loadStudents is initialized
 
 /* ── PWA SERVICE WORKER & INSTALL ── */
