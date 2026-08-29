@@ -2055,7 +2055,7 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input still breaks out of
 // the surrounding HTML attribute before the browser ever hands the value to the JS parser. Escape for
 // the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
   const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
@@ -6195,6 +6195,7 @@ async function addToWaitlist(){
   if(wlErr){const r=await sb.from('waiting_list').insert([{student_name:name,student_phone:phone||null,postcode:postcode||null,status:'waiting',created_at:new Date().toISOString()}]);wlErr=r.error;}
   if(wlErr){showToast('Failed to add: '+wlErr.message,'error');return;}
   showToast(`✅ ${name} added to waiting list.`,'success');
+  if(document.getElementById('waitlistList'))loadWaitlist();
 }
 function openAddWaitlistModal(){
   ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -6243,11 +6244,12 @@ async function loadWaitlist(){
   // Stats — always fetch all statuses so counts are accurate regardless of filter
   if(statsEl){
     sb.from('waiting_list').select('status').then(({data:allRows})=>{
+      const _sEl=document.getElementById('waitlistStats');if(!_sEl)return;
       const allData=allRows||[];
       const waiting=allData.filter(r=>r.status==='waiting').length;
       const assigned=allData.filter(r=>r.status==='assigned').length;
       const cancelled=allData.filter(r=>r.status==='cancelled').length;
-      statsEl.innerHTML=`
+      _sEl.innerHTML=`
         <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
         <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
         <div class="stat-card" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2)"><div class="stat-lbl">❌ Cancelled</div><div class="stat-num" style="color:#94a3b8">${cancelled}</div></div>
@@ -6266,7 +6268,7 @@ async function loadWaitlist(){
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-            <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:var(--txt)">${esc(r.student_name)}</span>
+            <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:var(--txt)">${esc(r.student_name||'—')}</span>
             <span class="chip ${r.lesson_type?.replace(/\s/g,'-')}" style="font-size:.56rem">${esc(r.lesson_type||'Manual')}</span>
             <span style="font-size:.6rem;color:${statusCol};background:${statusCol}22;border:1px solid ${statusCol}44;border-radius:3px;padding:1px 5px;font-family:'Oswald',sans-serif;font-weight:700">${r.status.toUpperCase()}</span>
             ${isUrgent?'<span style="font-size:.58rem;color:#f87171;font-weight:700">⚠️ Waiting 7+ days</span>':''}
