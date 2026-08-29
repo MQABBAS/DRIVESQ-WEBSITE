@@ -6217,13 +6217,9 @@ function openWbDetail(id){
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
-  if(status==='cancelled'){
-    await sb.from('waiting_list').delete().eq('id',id);
-    showToast('Booking removed','warn',3000);
-  } else {
-    await sb.from('waiting_list').update({status}).eq('id',id);
-    showToast('Status updated','warn');
-  }
+  const{error}=await sb.from('waiting_list').update({status}).eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  showToast(status==='cancelled'?'Booking declined ✓':'Status updated','warn',3000);
   await loadWebBookings();
 }
 async function openWbCreateStudent(wbId){
@@ -6239,7 +6235,7 @@ async function openWbCreateStudent(wbId){
   const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
 
   // Go to Find & Assign tab — pre-fill all fields — then auto-search
-  switchTab('find');setActiveTab('find');
+  switchTab('find');if(typeof setActiveTab==='function')setActiveTab('find');
   setTimeout(()=>{
     const fields={
       'fc-name': r.student_name||'',
