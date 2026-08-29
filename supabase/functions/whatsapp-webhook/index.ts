@@ -1,4 +1,4 @@
-// DriveSQ WhatsApp Webhook + Autopilot — Supabase Edge Function
+// DriveSQ WhatsApp Webhook + Autopilot — Supabase Edge Function v2
 // Endpoints:
 //   GET  /                  — Meta webhook verification
 //   POST /                  — Meta inbound WhatsApp messages
@@ -9,7 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const VERIFY_TOKEN       = 'drivesq_webhook_2024';
 const SB_URL             = Deno.env.get('SUPABASE_URL') ?? '';
-const SB_SERVICE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SB_SERVICE_KEY     = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
 const META_ACCESS_TOKEN  = Deno.env.get('META_ACCESS_TOKEN') ?? '';
 const META_PHONE_NUMBER_ID = Deno.env.get('META_PHONE_NUMBER_ID') ?? '';
 
