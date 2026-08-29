@@ -498,6 +498,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <img class="nav-logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ"/>
       <div><div class="brand-n">Drive<span>SQ</span></div><div class="brand-s">Admin Panel</div></div>
       <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
+      <div id="adminClock" style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt3);letter-spacing:.03em;display:flex;flex-direction:column;align-items:center;line-height:1.15;user-select:none;min-width:54px;text-align:center" title="Current time"><span id="adminClockTime" style="font-size:1rem;font-weight:700;color:var(--txt)">--:--</span><span id="adminClockDate" style="font-size:.62rem;color:var(--txt4)">---</span></div>
       <div class="ms-auto d-flex align-items-center gap-2">
         <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
@@ -1728,6 +1729,17 @@ function toggleTheme(){
 }
 applyTheme();
 setInterval(()=>{if(manualTheme==='auto')applyTheme();},60000);
+
+/* ══ LIVE CLOCK ══ */
+function tickAdminClock(){
+  const now=new Date();
+  const t=document.getElementById('adminClockTime');
+  const d=document.getElementById('adminClockDate');
+  if(t)t.textContent=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(d)d.textContent=now.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+tickAdminClock();
+setInterval(tickAdminClock,1000);
 
 /* ══ AUTH ══ */
 if(sessionStorage.getItem('dsq_admin')==='true')showApp();
