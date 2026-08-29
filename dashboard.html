@@ -1696,6 +1696,28 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // request text) still breaks out of the surrounding HTML attribute before the browser hands the value
 // to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
 function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _studentAgeBadge(assignedAt){
+  if(!assignedAt)return'';
+  const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
+  if(days<7)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
+  if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">1 WEEK</span>';
+  if(days<21)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2 WEEKS</span>';
+  if(days<28)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3 WEEKS</span>';
+  if(days<90)return`<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.15);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">${Math.floor(days/7)}w</span>`;
+  return`<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">OLD</span>`;
+}
+function _isOldStudent(assignedAt){
+  if(!assignedAt)return false;
+  return(Date.now()-new Date(assignedAt))>=90*86400000;
+}
+async function renewStudentDashboard(studentName, profileId) {
+  if (!profileId) { showToast('Cannot renew — profile not found.', 'error'); return; }
+  const { error } = await sb.from('student_profiles').update({ created_at: new Date().toISOString() }).eq('id', profileId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(studentName + ' renewed ✓', 'success');
+  await loadStudents();
+  renderStudents(allStudentsArr);
+}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -2934,7 +2956,8 @@ function setStudentFilter(mode){
 
 function renderStudentStatsStrip(students){
   const strip=document.getElementById('studentStatsStrip');if(!strip)return;
-  const total=students.length;
+  const nonOldStudents=students.filter(s=>!_isOldStudent(s.created_at));
+  const total=nonOldStudents.length;
   const connected=students.filter(s=>{const _k='name_'+s.name.toLowerCase().trim();const a=(studentAccountMap[_k]?.full_name?studentAccountMap[_k]:null)||Object.values(studentAccountMap).find(x=>x?.full_name?.toLowerCase().trim()===s.name.toLowerCase().trim());return !!(a?.last_login);}).length;
   const withUnread=students.filter(s=>s.unreadMsgs>0).length;
   const totalHrsAll=students.reduce((a,s)=>a+(s.totalHrs||0),0);
@@ -3000,7 +3023,7 @@ function renderStudents(students,emptyOverride){
         </div>
         <div style="flex:1;min-width:0">
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div class="sc-name">${esc(s.name)}</div>
+            <div class="sc-name">${esc(s.name)}</div>${_studentAgeBadge(s.created_at)}
             ${statusHtml}
             ${unread>0?`<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>${unread} new</span>`:''}
             ${readinessHtml}
@@ -3029,12 +3052,14 @@ function renderStudents(students,emptyOverride){
         <i class="bi bi-phone" style="flex-shrink:0"></i>
         <span>Share <strong>drivesq.co.uk/student.html</strong> with them — they log in with their phone number to access theory guides &amp; lesson tracking.</span>
       </div>`:''}
+      ${_isOldStudent(s.created_at)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,158,11,.07);border-radius:8px;border:1px solid rgba(245,158,11,.18);font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:8px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — no longer counted in your student total. Tap <strong>Renew</strong> below to reset.</span></div>`:''}
       <div class="sc-actions">
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
         <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
-        ${phone?`<a href="${waLink(phone,`Hi ${s.name}, this is your DriveSQ instructor. I’ve been assigned to you — let’s get your first lesson booked! 🚗`)}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
+        ${_isOldStudent(s.created_at)?`<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(‘${sn}’,’${jsEsc(s.id||’’)}’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>`:’’}
+        ${phone?`<a href="${waLink(phone,`Hi ${s.name}, this is your DriveSQ instructor. I’ve been assigned to you — let’s get your first lesson booked! 🚗`)}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:’’}
       </div>
     </div>`;
   }).join('');

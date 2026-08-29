@@ -1124,7 +1124,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div class="dsq-modal wide" style="max-width:680px">
     <button class="modal-x" onclick="closeModal('refDetailModal')"><i class="bi bi-x-lg"></i></button>
     <div id="refDetailInstrName" style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
+<<<<<<< HEAD
+    <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:8px"></div>
+    <a id="refDetailWaBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;margin-bottom:14px;width:fit-content" title="Send full referral summary via WhatsApp — includes all student names, phone numbers, and amounts (paid and outstanding)"><i class="bi bi-whatsapp me-2"></i>Send Referral Summary via WhatsApp</a>
+=======
     <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:14px"></div>
+>>>>>>> origin/main
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:9px;padding:10px 14px">
         <div style="font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Outstanding</div>
@@ -2055,6 +2060,29 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // the surrounding HTML attribute before the browser ever hands the value to the JS parser. Escape for
 // the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
 function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _studentAgeBadge(assignedAt){
+  if(!assignedAt)return'';
+  const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
+  if(days<7)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
+  if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">1 WEEK</span>';
+  if(days<21)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2 WEEKS</span>';
+  if(days<28)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3 WEEKS</span>';
+  if(days<90)return`<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.15);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">${Math.floor(days/7)}w</span>`;
+  return`<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">OLD</span>`;
+}
+function _isOldStudent(assignedAt){
+  if(!assignedAt)return false;
+  return(Date.now()-new Date(assignedAt))>=90*86400000;
+}
+async function renewStudent(profileId, studentName, instrId) {
+  if (!profileId) { showToast('Cannot renew — no profile ID found.', 'error'); return; }
+  const { error } = await sb.from('student_profiles').update({ created_at: new Date().toISOString() }).eq('id', profileId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(`${studentName} renewed — now counts as active student ✓`, 'success');
+  await loadInstrs();
+  if (viewingId) loadInstrRoster();
+  allStudentsCache = [];
+}
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const typeColors={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
@@ -2126,7 +2154,7 @@ async function loadInstrs(){
   try{
     const res=await Promise.all([
       sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-      sb.from('student_profiles').select('instructor_id').neq('status','inactive'),
+      sb.from('student_profiles').select('instructor_id').neq('status','inactive').gte('created_at', new Date(Date.now()-90*86400000).toISOString()),
       sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive')
     ]);
     wkLessons=res[0].data||[];rosterRows=res[1].data||[];wkAssigned=res[2].data||[];
@@ -2630,11 +2658,16 @@ async function loadInstrRoster(){
       <div class="d-flex align-items-start gap-2">
         <div class="s-init">${(p.name||'?').charAt(0).toUpperCase()}</div>
         <div style="flex:1;min-width:0">
+<<<<<<< HEAD
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}${_studentAgeBadge(p.created_at)}${_refDueBadge(p.instructor_id,p.name)}</div>
+=======
           <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}${_refDueBadge(p.instructor_id,p.name)}</div>
+>>>>>>> origin/main
           ${p.phone?`<div style="font-size:.7rem;color:var(--txt3)"><i class="bi bi-telephone me-1"></i>${esc(p.phone)}</div>`:''}
           ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
           <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
           ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
+          ${_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — not counted in total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
         </div>
         <button class="abtn edit" style="font-size:.65rem;padding:4px 8px;flex-shrink:0" onclick="event.stopPropagation();${onClickFn}"><i class="bi bi-pencil me-1"></i>Edit</button>
       </div>
@@ -2814,11 +2847,16 @@ function renderStudentsTable(students){
     const readyChip=s.testReadiness==='ready'?'<span class="chip approved" style="font-size:.52rem">Test Ready</span>':s.testReadiness==='nearly_there'?'<span class="chip pending" style="font-size:.52rem">Nearly</span>':'';
     const onlineDot=s.isOnline?`<span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:5px;vertical-align:middle" title="Online now"></span>`:'';
     const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
-    return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':''}">
+    const _isOld=_isOldStudent(s.assignedAt);
+    return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':_isOld?'background:rgba(245,158,11,.02);border-left:2px solid rgba(245,158,11,.2);opacity:.75':''}">
       <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
+<<<<<<< HEAD
+        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}${_studentAgeBadge(s.assignedAt)}
+=======
         <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}
+>>>>>>> origin/main
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -6570,6 +6608,39 @@ async function openRefDetail(instrId){
   document.getElementById('refDetailDue').textContent='£'+due.toFixed(2);
   document.getElementById('refDetailPaid').textContent='£'+paid.toFixed(2);
 
+<<<<<<< HEAD
+  // Build WhatsApp referral summary button
+  const _instrNameForWa = instr.full_name;
+  const _unpaidRows = rows.filter(r => !r.is_paid);
+  const _paidRows = rows.filter(r => r.is_paid);
+  const _waLines = [];
+  _waLines.push(`DriveSQ Referral Summary — ${_instrNameForWa}`);
+  _waLines.push(`Period: ${_refPeriod === 'week' ? 'This Week' : _refPeriod === 'month' ? 'This Month' : 'All Time'}`);
+  _waLines.push('');
+  if (_unpaidRows.length) {
+    _waLines.push('📋 OUTSTANDING (Due from Instructor):');
+    _unpaidRows.forEach(r => { _waLines.push(`• ${r.student_name}${r.student_phone ? ' (' + r.student_phone + ')' : ''} — £${(parseFloat(r.amount) || 0).toFixed(2)}`); });
+    _waLines.push(`Total Due: £${due.toFixed(2)}`);
+    _waLines.push('');
+  }
+  if (_paidRows.length) {
+    _waLines.push('✅ PAID:');
+    _paidRows.forEach(r => { _waLines.push(`• ${r.student_name}${r.student_phone ? ' (' + r.student_phone + ')' : ''} — £${(parseFloat(r.amount) || 0).toFixed(2)}`); });
+    _waLines.push(`Total Paid: £${paid.toFixed(2)}`);
+  }
+  _waLines.push('');
+  _waLines.push('Generated by DriveSQ Admin');
+  const _waText = encodeURIComponent(_waLines.join('\n'));
+  const _instrPhone = instr.phone ? instr.phone.replace(/\D/g, '') : '';
+  const _waHref = _instrPhone ? `https://wa.me/${_instrPhone.startsWith('44') ? '' : '44'}${_instrPhone.replace(/^0/,'')}?text=${_waText}` : `https://wa.me/?text=${_waText}`;
+  const _waBtn = document.getElementById('refDetailWaBtn');
+  if (_waBtn) {
+    _waBtn.href = _waHref;
+    _waBtn.style.display = rows.length ? 'inline-flex' : 'none';
+  }
+
+=======
+>>>>>>> origin/main
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
 
