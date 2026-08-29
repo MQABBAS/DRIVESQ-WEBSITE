@@ -735,7 +735,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <thead><tr>
             <th style="width:36px;text-align:center;color:var(--txt4);font-size:.65rem">#</th>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
-            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th>Actions</th>
+            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th class="hide-xs" title="Date assigned to instructor">Assigned</th><th>Actions</th>
           </tr></thead>
           <tbody id="studentsTbody"></tbody>
         </table>
@@ -2599,7 +2599,7 @@ async function loadAllStudents(){
       count:0,hours:0,lastLesson:null,types:p.lesson_type?new Set([p.lesson_type]):new Set(),lessons:[],
       lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:p.status||'active',
       onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null,
-      rosterOnly:true,rosterId:p.id
+      rosterOnly:true,rosterId:p.id,assignedAt:p.created_at||null
     };
   });
 
@@ -2628,15 +2628,20 @@ async function loadAllStudents(){
   const sTotalEl=document.getElementById('sTotalStudents');
   if(sTotalEl){const cur=parseInt(sTotalEl.textContent)||0;const calc=Math.max(cur,(rosterR.data||[]).length,(accountsR.data||[]).length,allStudentsCache.length);if(calc>0)sTotalEl.textContent=calc;}
 
+  // Build a quick lookup: instrId+name → profile created_at (assignment date)
+  const rosterDateMap={};
+  (rosterR.data||[]).forEach(p=>{if(p.instructor_id&&p.name)rosterDateMap[p.instructor_id+'__'+(p.name||'').toLowerCase().trim()]=p.created_at||null;});
   // Phase 2: enrich with lessons data (may be slower — re-render after)
   (lessonsR.data||[]).forEach(l=>{
     const key=l.student_name+'__'+l.instructor_id;
+    const assignedAt=rosterDateMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()]||null;
     if(!map[key])map[key]={
       name:l.student_name,phone:l.student_phone,address:l.pickup_address,
       instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
       count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[],
       lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:null,
-      onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null
+      onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null,
+      assignedAt
     };
     const s=map[key];
     s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
@@ -2695,6 +2700,7 @@ function renderStudentsTable(students){
       <td class="hide-xs">${pct!=null?`<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:6px;overflow:hidden;min-width:40px"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-size:.65rem;color:var(--txt3)">${pct}%</span></div>${readyChip}`:'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
       <td class="hide-xs">${lastSeenTxt}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${s.lastLesson?fmtD(s.lastLesson):'—'}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)" title="${s.assignedAt?fmtDT(s.assignedAt):''}">${s.assignedAt?fmtD(s.assignedAt):'—'}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
