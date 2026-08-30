@@ -542,7 +542,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <!-- MAIN -->
 <div class="main-pad" style="padding:14px 16px 0">
   <!-- Push notification enable banner — shown every session until notifications are granted -->
-  <div id="pushTopBanner" style="display:none;background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.06));border:1px solid rgba(245,197,24,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <div id="pushTopBanner" style="display:none;background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.06));border:1px solid rgba(245,197,24,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:1.4rem;flex-shrink:0">🔔</span>
     <div style="flex:1;min-width:180px">
       <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--gold);margin-bottom:2px">Enable Push Notifications</div>
@@ -1725,6 +1725,14 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
 
 /* ── INIT ── */
 (async()=>{
+  // ── Visible loading indicator — removed once data loads ──
+  const _ldBar=document.createElement('div');
+  _ldBar.id='_ldBar';
+  _ldBar.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:9998;background:rgba(30,30,35,.92);color:#94a3b8;font-family:Inter,sans-serif;font-size:.72rem;padding:6px 14px;border-radius:20px;border:1px solid rgba(148,163,184,.2);backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap';
+  _ldBar.textContent='⟳ Loading your data…';
+  document.body.appendChild(_ldBar);
+  const _ldDone=()=>{const el=document.getElementById('_ldBar');if(el)el.remove();};
+
   // ── STEP 1: nav + calendar render immediately, before any network calls ──
   try{updateNav();}catch(e){console.warn('updateNav:',e);}
   try{renderCal();}catch(e){console.warn('renderCal (init):',e);}
@@ -1769,6 +1777,7 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   });
 
   // ── STEP 5: final render pass — always runs regardless of which loads succeeded ──
+  _ldDone(); // remove loading indicator
   try{updateStats();}catch(e){console.warn('updateStats (post-load):',e);}
   try{renderCal();}catch(e){console.warn('renderCal (post-load):',e);}
   try{populateInstrDropdowns();}catch(e){console.warn('populateInstrDropdowns:',e);}
@@ -2098,15 +2107,16 @@ function updateStats(){
   const upcomingLessons=allW.filter(l=>l.lesson_date>tk);
   const completedHrs=sum(completedLessons);
   const upcomingHrs=sum(upcomingLessons);
-  document.getElementById('sToday').textContent=tL.length;
-  document.getElementById('sTodayH').textContent=sum(tL).toFixed(1)+' hrs today';
-  document.getElementById('sTom').textContent=tomL.length;
-  document.getElementById('sTomH').textContent=sum(tomL).toFixed(1)+' hrs tomorrow';
-  document.getElementById('sWeek').textContent=allW.length;
-  document.getElementById('sWeekH').textContent=completedHrs.toFixed(1)+'h done · '+upcomingHrs.toFixed(1)+'h upcoming';
-  document.getElementById('sHours').textContent=totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1);
-  document.getElementById('sStudents').textContent=Object.keys(rosterMap).length;
-  document.getElementById('wkHoursLbl').textContent=completedHrs.toFixed(1)+'h done / '+totalHrs.toFixed(1)+'h total';
+  const _set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  _set('sToday',tL.length);
+  _set('sTodayH',sum(tL).toFixed(1)+' hrs today');
+  _set('sTom',tomL.length);
+  _set('sTomH',sum(tomL).toFixed(1)+' hrs tomorrow');
+  _set('sWeek',allW.length);
+  _set('sWeekH',completedHrs.toFixed(1)+'h done · '+upcomingHrs.toFixed(1)+'h upcoming');
+  _set('sHours',totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1));
+  _set('sStudents',Object.keys(rosterMap).length);
+  _set('wkHoursLbl',completedHrs.toFixed(1)+'h done / '+totalHrs.toFixed(1)+'h total');
   // Total payment received this week
   const totalPay=allW.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const payBadge=document.getElementById('totalPayBadge');
