@@ -1,4 +1,4 @@
-var CACHE_NAME='drivesq-dashboard-v5';
+var CACHE_NAME='drivesq-dashboard-v6';
 var PRECACHE=[
   '/dashboard.html',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap',

@@ -4883,7 +4883,8 @@ function copyRouteToClipboard(){
   const centre=TEST_CENTRES[_activeTc];
   const route=centre?centre.routes.find(r=>r.id===_activeRouteId):null;
   if(!route)return;
-  const text=`${route.label} — ${centre.name}\n${route.description}\nDuration: ${route.duration}\n\nKey junctions:\n${route.tips.map((t,i)=>`${i+1}. ${t.spot}: ${t.tip}`).join('\n')}`;
+  const _tipLines=route.tips.map((t,i)=>(i+1)+'. '+t.spot+': '+t.tip).join('\n');
+  const text=route.label+' — '+centre.name+'\n'+route.description+'\nDuration: '+route.duration+'\n\nKey junctions:\n'+_tipLines;
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.querySelector('[onclick="copyRouteToClipboard()"]');
     if(btn){const orig=btn.innerHTML;btn.innerHTML='<i class="bi bi-check-lg"></i> Copied!';btn.style.background='#22c55e';setTimeout(()=>{btn.innerHTML=orig;btn.style.background='';},2000);}
@@ -4899,7 +4900,8 @@ function shareRouteWhatsApp(){
   const dest=`${wps[wps.length-1][0]},${wps[wps.length-1][1]}`;
   const mid=wps.slice(1,-1).map(w=>`${w[0]},${w[1]}`).join('|');
   const mapsUrl=`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${mid?'&waypoints='+encodeURIComponent(mid):''}&travelmode=driving`;
-  const msg=`🗺️ *DVSA Test Route — ${route.label}*\n📍 ${centre.name}\n🕐 ${route.duration}\n\n${route.description}\n\n*Key junctions:*\n${route.tips.map((t,i)=>`${i+1}. *${t.spot}*: ${t.tip}`).join('\n')}\n\n👉 Google Maps route: ${mapsUrl}\n\n_Good luck on your test! — DriveSQ_`;
+  const _waJunctions=route.tips.map((t,i)=>(i+1)+'. *'+t.spot+'*: '+t.tip).join('\n');
+  const msg='🗺️ *DVSA Test Route — '+route.label+'*\n📍 '+centre.name+'\n🕐 '+route.duration+'\n\n'+route.description+'\n\n*Key junctions:*\n'+_waJunctions+'\n\n👉 Google Maps route: '+mapsUrl+'\n\n_Good luck on your test! — DriveSQ_';
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -5115,7 +5117,8 @@ function initLeafletMap(){
     const distBadge=sd.dist<2?'🟢':sd.dist<5?'🟡':'🔴';
     const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:${sd.dist<2?'#4ade80':sd.dist<5?'#facc15':'#f87171'};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.3)">${i+1}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
     const m=L.marker([sd.lat,sd.lng],{icon}).addTo(_instrMap);
-    m.bindPopup(`<div style="min-width:160px"><b>${esc(sd.student.name)}</b><br><span style="font-size:.8em;color:#666">${sd.postcode} · ${sd.dist} mi away</span><br><span style="font-size:.8em">${esc(sd.student.lesson_type||'Manual')}</span>${sd.student.phone?`<br><a href="https://wa.me/44${sd.student.phone.replace(/^0/,'')}" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>`:''}</div>`);
+    const _waPopup=sd.student.phone?'<br><a href="https://wa.me/44'+sd.student.phone.replace(/^0/,'')+'" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>':'';
+    m.bindPopup('<div style="min-width:160px"><b>'+esc(sd.student.name)+'</b><br><span style="font-size:.8em;color:#666">'+sd.postcode+' · '+sd.dist+' mi away</span><br><span style="font-size:.8em">'+esc(sd.student.lesson_type||'Manual')+'</span>'+_waPopup+'</div>');
     _studentMarkers.push({marker:m,student:sd.student,geo:sd});
   });
 
