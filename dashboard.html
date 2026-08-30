@@ -1641,7 +1641,7 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){window.location.href='portal.html';}  // redirect only — no throw, no TDZ
+if(!instr||!instr.id){window.location.href='portal.html';throw new Error('Not authenticated');}  // hard stop — prevents IIFE running with null instr
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
 /* ══════════════════════════════
@@ -1726,14 +1726,14 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
 /* ── INIT ── */
 (async()=>{
   // ── STEP 1: nav + calendar render immediately, before any network calls ──
-  updateNav();
-  renderCal();
-  updateStats();
+  try{updateNav();}catch(e){console.warn('updateNav:',e);}
+  try{renderCal();}catch(e){console.warn('renderCal (init):',e);}
+  try{updateStats();}catch(e){console.warn('updateStats (init):',e);}
 
   // ── STEP 2: connection ping — warn if Supabase is unreachable ──
   let dbOnline=true;
   try{
-    const{error:pingErr}=await sb.from('instructors').select('id',{count:'exact',head:true});
+    const{error:pingErr}=await sb.from('instructors').select('id').eq('id',instr.id).limit(1);
     if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
       dbOnline=false;
       const warn=document.createElement('div');
@@ -1767,8 +1767,8 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   ]);
 
   // ── STEP 5: final render pass — always runs regardless of which loads succeeded ──
-  updateStats();
-  renderCal();
+  try{updateStats();}catch(e){console.warn('updateStats (post-load):',e);}
+  try{renderCal();}catch(e){console.warn('renderCal (post-load):',e);}
   try{populateInstrDropdowns();}catch(e){console.warn('populateInstrDropdowns:',e);}
   try{sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});}catch(e){}
 
@@ -2037,14 +2037,26 @@ async function loadWeek(){
     const days=weekDays(weekStart);
     const from=dateKey(days[0]),to=dateKey(days[6]);
     const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-    if(error){console.error('loadWeek error:',error);}
+    if(error){
+      console.error('loadWeek error:',error);
+      // Show visible error in calendar body so user knows something went wrong
+      const _cb=document.getElementById('calBody');
+      if(_cb&&!_cb.innerHTML.trim())_cb.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#f87171;font-size:.82rem"><i class="bi bi-exclamation-circle me-2"></i>Could not load lessons (${error.message||error.code||'network error'}). Check your connection or try refreshing.</div>`;
+    }
     weekLessons={};dayLessonsCache={};
     (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
     await loadConfirmations();
     if(calView==='week')renderCal();
     else if(calView==='day')renderDayView();
-    updateStats();checkReminders();
-  }catch(e){console.error('loadWeek failed:',e);if(calView==='week')renderCal();updateStats();}
+    try{updateStats();}catch(e2){console.warn('updateStats in loadWeek:',e2);}
+    checkReminders();
+  }catch(e){
+    console.error('loadWeek failed:',e);
+    const _cb=document.getElementById('calBody');
+    if(_cb)_cb.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#f87171;font-size:.82rem"><i class="bi bi-exclamation-circle me-2"></i>Could not load lessons — ${esc(e.message||'unknown error')}. <button onclick="loadWeek()" style="background:transparent;border:1px solid #f87171;color:#f87171;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:.78rem;margin-left:6px">Retry</button></div>`;
+    if(calView==='week')try{renderCal();}catch(_){}
+    try{updateStats();}catch(_){}
+  }
 }
 
 async function loadDayView(dk){
