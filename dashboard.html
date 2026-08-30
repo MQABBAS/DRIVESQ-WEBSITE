@@ -1711,11 +1711,13 @@ function _isOldStudent(assignedAt){
 }
 async function renewStudentDashboard(studentName, profileId) {
   if (!profileId) { showToast('Cannot renew — profile not found.', 'error'); return; }
-  const { error } = await sb.from('student_profiles').update({ created_at: new Date().toISOString() }).eq('id', profileId);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast(studentName + ' renewed ✓', 'success');
-  await loadStudents();
-  renderStudents(allStudentsArr);
+  try{
+    const { error } = await sb.from('student_profiles').update({ created_at: new Date().toISOString() }).eq('id', profileId);
+    if (error) { showToast('Error: ' + error.message, 'error'); return; }
+    showToast(studentName + ' renewed ✓', 'success');
+    await loadStudents();
+    renderStudents(allStudentsArr);
+  }catch(e){showToast('Error renewing: '+esc(e.message),'error');}
 }
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
@@ -1977,6 +1979,7 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
+  try{
   const{data:req}=await sb.from('reschedule_requests').select('*').eq('id',id).maybeSingle();
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
   document.getElementById('resch-banner-'+id)?.remove();
@@ -2003,13 +2006,16 @@ async function acceptReschedule(id){
     if(lesson){detailData=lesson;detailId=lesson.id;editLessonFromDetail();showToast('Pick a new time for this lesson.','success');return;}
   }
   showToast('Reschedule accepted — update the lesson date manually.','success');
+  }catch(e){showToast('Error: '+esc(e.message),'error');}
 }
 async function declineReschedule(id){
-  var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
-  await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
-  if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
-  document.getElementById('resch-banner-'+id)?.remove();
-  showToast('Reschedule declined.');
+  try{
+    var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
+    await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
+    if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
+    document.getElementById('resch-banner-'+id)?.remove();
+    showToast('Reschedule declined.');
+  }catch(e){showToast('Error declining: '+esc(e.message),'error');}
 }
 
 /* ══════════════════════════════
@@ -2097,7 +2103,8 @@ async function loadMonthView(){
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalPayM=allM.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const msb=document.getElementById('monthStatsBar');
-  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>${allM.length} lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>${totalHrsM.toFixed(1)}h</span>${totalPayM>0?`<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPayM.toFixed(2)} received</span>`:''}`;}
+  const _paySpan=totalPayM>0?'<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>'+totalPayM.toFixed(2)+' received</span>':'';
+  if(msb){msb.innerHTML='<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>'+allM.length+' lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>'+totalHrsM.toFixed(1)+'h</span>'+_paySpan;}
   updateStats();
   }catch(e){console.error('loadMonthView:',e);showToast('Error loading month: '+esc(e.message),'error');}
 }
@@ -2404,14 +2411,16 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
-  if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
-  const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
-  if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
-  if(existing?.id){const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);return error;}
-  payload.created_at=new Date().toISOString();
-  const{error}=await sb.from('student_profiles').insert([payload]);
-  return error;
+  try{
+    const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
+    if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
+    const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
+    if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
+    if(existing?.id){const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);return error;}
+    payload.created_at=new Date().toISOString();
+    const{error}=await sb.from('student_profiles').insert([payload]);
+    return error;
+  }catch(e){showToast('Save failed: '+esc(e.message),'error');return e;}
 }
 
 /* ══════════════════════════════
@@ -2465,7 +2474,7 @@ async function openProgressModal(studentName){
   // Load topic ratings
   topicRatingsForModal={};
   if(accId){
-    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',accId);
+    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',accId).eq('instructor_id',instr.id);
     (topics||[]).forEach(t=>{topicRatingsForModal[t.topic_name]={rating:t.rating,id:t.id,notes:t.instructor_notes||''};});
   }
 
@@ -3116,27 +3125,20 @@ function filterStudents(q){
   if(!q||!q.trim()){renderStudents(allStudentsArr);return;}
   _filterStudentsTimer=setTimeout(()=>{
     const raw=(q||'').trim();
-    let list=allStudentsArr;
-    if(!raw){renderStudents(list);return;}
-    if(raw){
-      const lq=raw.toLowerCase();
-      // Normalise phone digits for comparison (strip spaces, dashes, brackets)
-      const digitQ=raw.replace(/\D/g,'');
-      list=list.filter(s=>{
-        if((s.name||'').toLowerCase().includes(lq))return true;
-        const ph=(s.phone||'').replace(/\D/g,'');
-        if(digitQ.length>=3&&ph.includes(digitQ))return true;
-        if((s.address||'').toLowerCase().includes(lq))return true;
-        // Also search email from studentAccountMap
-        const acc=Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
-        if(acc&&(acc.email||'').toLowerCase().includes(lq))return true;
-        if((s.notes||'').toLowerCase().includes(lq))return true;
-        return false;
-      });
-    }
-    // Show a search-specific "no results" message when actively filtering
-    const noResultsMsg=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">${esc(raw)}</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>`;
-    renderStudents(list,raw?noResultsMsg:null);
+    const lq=raw.toLowerCase();
+    const digitQ=raw.replace(/\D/g,'');
+    const list=allStudentsArr.filter(s=>{
+      if((s.name||'').toLowerCase().includes(lq))return true;
+      const ph=(s.phone||'').replace(/\D/g,'');
+      if(digitQ.length>=3&&ph.includes(digitQ))return true;
+      if((s.address||'').toLowerCase().includes(lq))return true;
+      const acc=Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
+      if(acc&&(acc.email||'').toLowerCase().includes(lq))return true;
+      if((s.notes||'').toLowerCase().includes(lq))return true;
+      return false;
+    });
+    const noResultsMsg='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">'+esc(raw)+'</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>';
+    renderStudents(list,noResultsMsg);
   },80);
 }
 
@@ -3346,11 +3348,11 @@ async function loadNotifications(){
   list.innerHTML=msgs.map(m=>{
     const isNewStudent=m.subject&&m.subject.includes('New Student Assigned');
     const viewStudentBtn=isNewStudent?`<button onclick="event.stopPropagation();toggleNotif();switchTab('students');setMobActive('students');loadStudents();markRead('${m.id}')" style="margin-top:6px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:6px;padding:4px 10px;font-size:.7rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;letter-spacing:.3px"><i class="bi bi-people-fill me-1"></i>View Students</button>`:'';
-    return`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')"><div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${(m.message_type||'').replace('_',' ')}</div><div class="ni-subj">${esc(m.subject)}</div><div class="ni-body">${esc(m.body)}</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${viewStudentBtn}</div>`;
+    return`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')"><div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace('_',' '))}</div><div class="ni-subj">${esc(m.subject)}</div><div class="ni-body">${esc(m.body)}</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${viewStudentBtn}</div>`;
   }).join('');
 }
-async function dismissMsg(id){await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);loadNotifications();}
-async function markRead(id){await sb.from('admin_messages').update({is_read:true}).eq('id',id);loadNotifications();}
+async function dismissMsg(id){try{await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);}catch(e){showToast('Error: '+esc(e.message),'error');}loadNotifications();}
+async function markRead(id){try{await sb.from('admin_messages').update({is_read:true}).eq('id',id);}catch(e){showToast('Error: '+esc(e.message),'error');}loadNotifications();}
 function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');_updateDashNotifStrip();}
 document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');if(p&&b&&p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
 
@@ -3579,15 +3581,16 @@ async function verifyForgotPwd(){
   const badge=document.getElementById('fpBadge').value.trim();
   const phone=document.getElementById('fpPhone').value.trim();
   if(!badge||!phone){showToast('Enter badge number and phone.');return;}
-  // Check against instructors table
-  const{data,error}=await sb.from('instructors').select('id,badge_number,phone').ilike('badge_number',badge).maybeSingle();
-  if(error||!data){showToast('Badge number not found. Check and try again.');return;}
-  const strip=p=>p.replace(/\D/g,'');
-  if(strip(data.phone||'')!==strip(phone)){showToast('Phone number does not match our records.');return;}
-  fpVerifiedBadge=badge;fpVerifiedPhone=phone;
-  document.getElementById('fpStep1').classList.add('hidden');
-  document.getElementById('fpStep2').classList.remove('hidden');
-  showToast('Identity verified ✓','success');
+  try{
+    const{data,error}=await sb.from('instructors').select('id,badge_number,phone').ilike('badge_number',badge).maybeSingle();
+    if(error||!data){showToast('Badge number not found. Check and try again.');return;}
+    const strip=p=>p.replace(/\D/g,'');
+    if(strip(data.phone||'')!==strip(phone)){showToast('Phone number does not match our records.');return;}
+    fpVerifiedBadge=badge;fpVerifiedPhone=phone;
+    document.getElementById('fpStep1').classList.add('hidden');
+    document.getElementById('fpStep2').classList.remove('hidden');
+    showToast('Identity verified ✓','success');
+  }catch(e){showToast('Error verifying identity: '+esc(e.message),'error');}
 }
 async function saveForgotPwd(){
   const newPwd=document.getElementById('fpNewPwd').value.trim();
@@ -3885,6 +3888,7 @@ function smUpdateProgBar(){
 // BUG16: progress bar listeners moved to oninput on elements
 
 async function saveSmProfile(){
+  try{
   const name=document.getElementById('smEditName').value.trim();
   if(!name){showToast('Name is required.');return;}
   const phone=document.getElementById('smEditPhone').value.trim();
@@ -3932,6 +3936,7 @@ async function saveSmProfile(){
   else if(calView==='day')await loadDayView(currentDayKey);
   if(smCurrentAccId){notifyStudent(smCurrentAccId,'Profile updated','Your instructor has updated your student profile. Check your portal for the latest details.');}
   showToast('Profile saved ✓ Lessons updated.','success');
+  }catch(e){showToast('Unexpected error: '+esc(e.message),'error');}
 }
 
 async function smRemoveFromRoster(){
@@ -4076,7 +4081,7 @@ async function smLoadTopics(){
   // Load existing ratings from DB
   if(smCurrentAccId){
     try{
-      const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId);
+      const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId).eq('instructor_id',instr.id);
       (topics||[]).forEach(t=>{if(t.topic_name)smTopicState[t.topic_name]={rating:t.rating||0,id:t.id};});
     }catch(e){console.warn('student_topic_ratings not available:',e.message);}
   }
