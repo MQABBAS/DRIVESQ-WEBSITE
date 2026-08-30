@@ -2170,7 +2170,7 @@ async function onDrop(e,toDate){
   const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
   if(error){showToast('Error moving: '+error.message);return;}
   await resetConfirmationOnReschedule(movingId);
-  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg=`Hi ${_movedL.student_name||''}! Your lesson has been rescheduled to ${_rsFmt}${_rsTime?' at '+_rsTime:''}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){const _rsToastEl=document.getElementById('toast');showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);}}}}catch(e){}
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg=`Hi ${_movedL.student_name||''}! Your lesson has been rescheduled to ${_rsFmt}${_rsTime?' at '+_rsTime:''}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){const _rsToastEl=document.getElementById('toast');showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);}}}}catch(e){}
   await loadWeek();
   showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
   // Open edit modal to confirm/change time on new date
@@ -2746,7 +2746,7 @@ async function moveLesson(id,toDate,dayName){
   if(_mvPhone){
     const _mvMsg=`Hi ${_mvName}! Your lesson has been rescheduled to ${_mvFmt}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;
     const _mvUrl=waLink(_mvPhone,_mvMsg);
-    if(_mvUrl){showToast('Moved to '+dayName+' ✓ — <a href="'+_mvUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);return;}
+    if(_mvUrl){showToast('Moved to '+dayName+' ✓ — <a href="'+_mvUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);return;}
   }
   showToast('Moved to '+dayName+' ✓','success');
 }
@@ -2863,7 +2863,7 @@ async function saveEditedLesson(){
       if(_rsPhone){
         const _rsMsg=`Hi ${studentName.split(' ')[0]}! 👋\n\n📅 *Lesson Update*\n\nYour lesson has been rescheduled:\n\n📆 *New date:* ${_rsFmtDate}\n⏰ *New time:* ${newTime}\n📍 Pickup: ${addr||'as agreed'}\n\nPlease confirm this on your student portal:\nhttps://www.drivesq.co.uk/student.html\n\nSorry for any inconvenience. See you then! 🚗\n— ${instr.name}, DriveSQ`;
         const _rsUrl=waLink(_rsPhone,_rsMsg);
-        if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);
+        if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);
         else showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');
       } else {showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');}
     } else {
@@ -3513,9 +3513,11 @@ async function saveProfile(){
     const{error}=await sb.from('instructors').update(updates).eq('id',instr.id);if(error)throw error;
     Object.assign(instr,{name:updates.full_name,phone:updates.phone,email:updates.email,area:updates.area});
     if(updates.profile_photo_url)instr.profile_photo_url=updates.profile_photo_url;
+    if(updates.badge_photo_url){instr.badge_photo_url=updates.badge_photo_url;const _bp=document.getElementById('badgePreview');if(_bp){_bp.src=updates.badge_photo_url;_bp.style.display='block';}}
+    if(updates.car_photo_url)instr.car_photo_url=updates.car_photo_url;
     sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
     updateNav();document.getElementById('profileNameDisp').textContent=updates.full_name||'—';
-    ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{document.getElementById(id).value='';});
+    ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{const _el=document.getElementById(id);if(_el)_el.value='';});
     const _pp=document.getElementById('pNewPwd');const _cp=document.getElementById('pConfirmPwd');if(_pp)_pp.value='';if(_cp)_cp.value='';
     showToast('Profile saved ✓','success');
   }catch(err){console.error(err);showToast('Error: '+err.message);}
@@ -3633,7 +3635,7 @@ function closeModal(id){const el=document.getElementById(id);if(!el){console.war
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
-function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
+function showToast(msg,type='',duration=3200,html=false){const t=document.getElementById('toast');if(!t)return;if(html){t.innerHTML=msg;}else{t.textContent=msg;}t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
 
 
 /* ══════════════════════════════════════════════════════
@@ -3911,6 +3913,7 @@ async function saveSmProfile(){
   renderStudents(allStudentsArr); // force re-render
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
+  if(smCurrentAccId){notifyStudent(smCurrentAccId,'Profile updated','Your instructor has updated your student profile. Check your portal for the latest details.');}
   showToast('Profile saved ✓ Lessons updated.','success');
 }
 
