@@ -14,7 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 :root{
   --red:#D10A11;--red2:#a80008;--gold:#F5C518;--green:#25D366;--blue:#3b82f6;--trans:.2s ease;
@@ -384,7 +385,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .ls-progress-bar{height:100%;border-radius:1px;background:linear-gradient(90deg,rgba(209,10,17,.5),var(--red));transition:width .3s ease}
 
 /* MOBILE NAV INDICATOR */
-/* NOTE: .mob-bot-nav{position:relative} removed — it overwrote position:fixed and broke the sticky nav */
+.mob-bot-nav{position:relative}
 .mob-nav-indicator{position:absolute;top:0;height:2px;background:var(--red);border-radius:0 0 2px 2px;transition:left .25s cubic-bezier(.4,0,.2,1),width .25s cubic-bezier(.4,0,.2,1);pointer-events:none}
 
 /* CARD HOVER CONSISTENCY */
@@ -542,7 +543,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <!-- MAIN -->
 <div class="main-pad" style="padding:14px 16px 0">
   <!-- Push notification enable banner — shown every session until notifications are granted -->
-  <div id="pushTopBanner" style="display:none;background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.06));border:1px solid rgba(245,197,24,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;align-items:center;gap:12px;flex-wrap:wrap">
+  <div id="pushTopBanner" style="display:none;background:linear-gradient(135deg,rgba(245,197,24,.12),rgba(245,197,24,.06));border:1px solid rgba(245,197,24,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:1.4rem;flex-shrink:0">🔔</span>
     <div style="flex:1;min-width:180px">
       <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--gold);margin-bottom:2px">Enable Push Notifications</div>
@@ -1641,7 +1642,7 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){window.location.href='portal.html';throw new Error('Not authenticated');}  // hard stop — prevents IIFE running with null instr
+if(!instr||!instr.id){window.location.href='portal.html';}  // redirect only — no throw, no TDZ
 function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
 
 /* ══════════════════════════════
@@ -1694,31 +1695,7 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
 // request text) still breaks out of the surrounding HTML attribute before the browser hands the value
 // to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function _studentAgeBadge(assignedAt){
-  if(!assignedAt)return'';
-  const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
-  if(days<7)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
-  if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">1 WEEK</span>';
-  if(days<21)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2 WEEKS</span>';
-  if(days<28)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3 WEEKS</span>';
-  if(days<90)return`<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.15);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">${Math.floor(days/7)}w</span>`;
-  return`<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">OLD</span>`;
-}
-function _isOldStudent(assignedAt){
-  if(!assignedAt)return false;
-  return(Date.now()-new Date(assignedAt))>=90*86400000;
-}
-async function renewStudentDashboard(studentName, profileId) {
-  if (!profileId) { showToast('Cannot renew — profile not found.', 'error'); return; }
-  try{
-    const { error } = await sb.from('student_profiles').update({ created_at: new Date().toISOString() }).eq('id', profileId);
-    if (error) { showToast('Error: ' + error.message, 'error'); return; }
-    showToast(studentName + ' renewed ✓', 'success');
-    await loadStudents();
-    renderStudents(allStudentsArr);
-  }catch(e){showToast('Error renewing: '+esc(e.message),'error');}
-}
+function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -1727,21 +1704,34 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
 
 /* ── INIT ── */
 (async()=>{
-  // ── Visible loading indicator — removed once data loads ──
-  const _ldBar=document.createElement('div');
-  _ldBar.id='_ldBar';
-  _ldBar.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:9998;background:rgba(30,30,35,.92);color:#94a3b8;font-family:Inter,sans-serif;font-size:.72rem;padding:6px 14px;border-radius:20px;border:1px solid rgba(148,163,184,.2);backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap';
-  _ldBar.textContent='⟳ Loading your data…';
-  document.body.appendChild(_ldBar);
-  const _ldDone=()=>{const el=document.getElementById('_ldBar');if(el)el.remove();};
-
   // ── STEP 1: nav + calendar render immediately, before any network calls ──
-  try{updateNav();}catch(e){console.warn('updateNav:',e);}
-  try{renderCal();}catch(e){console.warn('renderCal (init):',e);}
-  try{updateStats();}catch(e){console.warn('updateStats (init):',e);}
+  updateNav();
+  renderCal();
+  updateStats();
 
-  // ── STEP 2: load all data in parallel — NO sequential awaits before this point ──
-  // checkSuspended is included here so it runs in parallel with data loads, not before them.
+  // ── STEP 2: connection ping — warn if Supabase is unreachable ──
+  let dbOnline=true;
+  try{
+    const{error:pingErr}=await sb.from('instructors').select('id',{count:'exact',head:true});
+    if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
+      dbOnline=false;
+      const warn=document.createElement('div');
+      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+      warn.innerHTML='⚠️ Database connection issue — some data may not load. Check your Supabase project is active at supabase.com. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+      document.body.prepend(warn);
+    }
+  }catch(pingEx){
+    dbOnline=false;
+    const warn=document.createElement('div');
+    warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+    warn.innerHTML='⚠️ Could not reach the database — go to <a href="https://supabase.com" target="_blank" style="color:#fca5a5">supabase.com</a> and check your project is not paused. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+    document.body.prepend(warn);
+  }
+
+  // ── STEP 3: check suspended (isolated — never blocks the rest) ──
+  try{await checkSuspended();}catch(e){console.warn('checkSuspended error:',e);}
+
+  // ── STEP 4: load all data — each function isolated so one failure never kills the rest ──
   // loadConfirmations() is intentionally not listed — loadWeek() calls it after weekLessons populates.
   await Promise.allSettled([
     loadWeek(),
@@ -1753,35 +1743,11 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
     loadRoster(),
     loadProfileData(),
     loadRescheduleRequests(),
-    checkSuspended(),
   ]);
 
-  // ── STEP 3: non-blocking connection health check (fires after data loads, never blocks init) ──
-  // Runs after data loads so it never delays the calendar. Uses a 5s race so a slow DB never hangs.
-  Promise.race([
-    sb.from('instructors').select('id').eq('id',instr.id).limit(1),
-    new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
-  ]).then(res=>{
-    const pingErr=res?.error;
-    if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
-      const warn=document.createElement('div');
-      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-      warn.innerHTML='⚠️ Database issue — some data may not load. Check your Supabase project at supabase.com. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
-      document.body.prepend(warn);
-    }
-  }).catch(err=>{
-    if(err?.message==='timeout'||err?.name==='TypeError'){
-      const warn=document.createElement('div');
-      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-      warn.innerHTML='⚠️ Could not reach the database — check your Supabase project is not paused at <a href="https://supabase.com" target="_blank" style="color:#fca5a5">supabase.com</a>. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
-      document.body.prepend(warn);
-    }
-  });
-
   // ── STEP 5: final render pass — always runs regardless of which loads succeeded ──
-  _ldDone(); // remove loading indicator
-  try{updateStats();}catch(e){console.warn('updateStats (post-load):',e);}
-  try{renderCal();}catch(e){console.warn('renderCal (post-load):',e);}
+  updateStats();
+  renderCal();
   try{populateInstrDropdowns();}catch(e){console.warn('populateInstrDropdowns:',e);}
   try{sb.from('instructors').update({last_login:new Date().toISOString()}).eq('id',instr.id).then(()=>{});}catch(e){}
 
@@ -1789,12 +1755,9 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
     const phrases=['Welcome back, '+(instr.name?.split(' ')[0]||'Instructor')+' 🚗','Plan your week · DriveSQ ✦','Drive to Succeed ✦','Student app ready ✦'];
     const el=document.getElementById('typeNav');if(el){let pi=0,ci=0,del=false;function tick(){const f=phrases[pi];if(!del){ci++;el.textContent=f.slice(0,ci);if(ci===f.length){del=true;setTimeout(tick,2200);return;}}else{ci--;el.textContent=f.slice(0,ci);if(ci===0){del=false;pi=(pi+1)%phrases.length;}}setTimeout(tick,del?38:75);}tick();}
   }
-  window._dsqTimers=[
-    setInterval(checkReminders,60000),
-    setInterval(loadNotifications,30000),
-    setInterval(pollConfirmations,10000),
-    setInterval(pollStudentUpdates,20000)
-  ];
+  setInterval(checkReminders,60000);
+  setInterval(loadNotifications,30000);
+  setInterval(pollConfirmations,10000);
   checkReminders();
   // Request push permission after a short delay so it doesn't block login
   setTimeout(()=>initPushSubscription(),3000);
@@ -1811,10 +1774,8 @@ function pollConfirmations(){
 }
 
 async function checkSuspended(){
-  if(!instr?.id)return;
   const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instr.id).single();
   if(data&&data.status==='suspended'){
-    (window._dsqTimers||[]).forEach(clearInterval);window._dsqTimers=[];
     document.body.innerHTML=`<div class="susp-overlay"><div class="susp-card">
       <h2 style="color:var(--red);font-family:'Oswald',sans-serif;font-size:1.5rem;margin-bottom:12px">⛔ Account Suspended</h2>
       <p style="font-size:.84rem;color:#666;line-height:1.7;margin-bottom:20px">Your account has been suspended. Contact DriveSQ.</p>
@@ -1979,7 +1940,6 @@ async function loadRescheduleRequests(){
 }
 
 async function acceptReschedule(id){
-  try{
   const{data:req}=await sb.from('reschedule_requests').select('*').eq('id',id).maybeSingle();
   await sb.from('reschedule_requests').update({status:'accepted',responded_at:new Date().toISOString()}).eq('id',id);
   document.getElementById('resch-banner-'+id)?.remove();
@@ -2006,16 +1966,13 @@ async function acceptReschedule(id){
     if(lesson){detailData=lesson;detailId=lesson.id;editLessonFromDetail();showToast('Pick a new time for this lesson.','success');return;}
   }
   showToast('Reschedule accepted — update the lesson date manually.','success');
-  }catch(e){showToast('Error: '+esc(e.message),'error');}
 }
 async function declineReschedule(id){
-  try{
-    var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
-    await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
-    if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
-    document.getElementById('resch-banner-'+id)?.remove();
-    showToast('Reschedule declined.');
-  }catch(e){showToast('Error declining: '+esc(e.message),'error');}
+  var _rReq2=null;try{var{data:_rr2}=await sb.from('reschedule_requests').select('student_account_id').eq('id',id).single();_rReq2=_rr2;}catch(e){}
+  await sb.from('reschedule_requests').update({status:'declined',responded_at:new Date().toISOString()}).eq('id',id);
+  if(_rReq2&&_rReq2.student_account_id){notifyStudent(_rReq2.student_account_id,'Reschedule declined','Your reschedule request has been declined. Please contact your instructor.');}
+  document.getElementById('resch-banner-'+id)?.remove();
+  showToast('Reschedule declined.');
 }
 
 /* ══════════════════════════════
@@ -2057,44 +2014,27 @@ async function loadWeek(){
     const days=weekDays(weekStart);
     const from=dateKey(days[0]),to=dateKey(days[6]);
     const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-    if(error){
-      console.error('loadWeek error:',error);
-      // Show visible error in calendar body so user knows something went wrong
-      const _cb=document.getElementById('calBody');
-      if(_cb&&!_cb.innerHTML.trim())_cb.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#f87171;font-size:.82rem"><i class="bi bi-exclamation-circle me-2"></i>Could not load lessons (${error.message||error.code||'network error'}). Check your connection or try refreshing.</div>`;
-    }
+    if(error){console.error('loadWeek error:',error);}
     weekLessons={};dayLessonsCache={};
     (data||[]).forEach(l=>{if(!weekLessons[l.lesson_date])weekLessons[l.lesson_date]=[];weekLessons[l.lesson_date].push(l);});
     await loadConfirmations();
     if(calView==='week')renderCal();
     else if(calView==='day')renderDayView();
-    try{updateStats();}catch(e2){console.warn('updateStats in loadWeek:',e2);}
-    checkReminders();
-  }catch(e){
-    console.error('loadWeek failed:',e);
-    const _cb=document.getElementById('calBody');
-    if(_cb)_cb.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#f87171;font-size:.82rem"><i class="bi bi-exclamation-circle me-2"></i>Could not load lessons — ${esc(e.message||'unknown error')}. <button onclick="loadWeek()" style="background:transparent;border:1px solid #f87171;color:#f87171;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:.78rem;margin-left:6px">Retry</button></div>`;
-    if(calView==='week')try{renderCal();}catch(_){}
-    try{updateStats();}catch(_){}
-  }
+    updateStats();checkReminders();
+  }catch(e){console.error('loadWeek failed:',e);if(calView==='week')renderCal();updateStats();}
 }
 
 async function loadDayView(dk){
-  try{
-    const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
-    if(error)throw error;
-    dayLessonsCache[dk]=data||[];
-    await loadConfirmations(data||[]);
-    renderDayView();updateStats();
-  }catch(e){console.error('loadDayView:',e);showToast('Error loading day: '+esc(e.message),'error');}
+  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
+  dayLessonsCache[dk]=data||[];
+  await loadConfirmations(data||[]);
+  renderDayView();updateStats();
 }
 
 async function loadMonthView(){
-  try{
   const y=monthStart.getFullYear(),m=monthStart.getMonth();
   const from=dateKey(new Date(y,m,1)),to=dateKey(new Date(y,m+1,0));
-  const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
-  if(error)throw error;
+  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
   await loadConfirmations(data||[]);
@@ -2103,10 +2043,8 @@ async function loadMonthView(){
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalPayM=allM.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const msb=document.getElementById('monthStatsBar');
-  const _paySpan=totalPayM>0?'<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>'+totalPayM.toFixed(2)+' received</span>':'';
-  if(msb){msb.innerHTML='<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>'+allM.length+' lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>'+totalHrsM.toFixed(1)+'h</span>'+_paySpan;}
+  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>${allM.length} lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>${totalHrsM.toFixed(1)}h</span>${totalPayM>0?`<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPayM.toFixed(2)} received</span>`:''}`;} 
   updateStats();
-  }catch(e){console.error('loadMonthView:',e);showToast('Error loading month: '+esc(e.message),'error');}
 }
 
 function updateStats(){
@@ -2123,16 +2061,15 @@ function updateStats(){
   const upcomingLessons=allW.filter(l=>l.lesson_date>tk);
   const completedHrs=sum(completedLessons);
   const upcomingHrs=sum(upcomingLessons);
-  const _set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  _set('sToday',tL.length);
-  _set('sTodayH',sum(tL).toFixed(1)+' hrs today');
-  _set('sTom',tomL.length);
-  _set('sTomH',sum(tomL).toFixed(1)+' hrs tomorrow');
-  _set('sWeek',allW.length);
-  _set('sWeekH',completedHrs.toFixed(1)+'h done · '+upcomingHrs.toFixed(1)+'h upcoming');
-  _set('sHours',totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1));
-  _set('sStudents',Object.keys(rosterMap).length);
-  _set('wkHoursLbl',completedHrs.toFixed(1)+'h done / '+totalHrs.toFixed(1)+'h total');
+  document.getElementById('sToday').textContent=tL.length;
+  document.getElementById('sTodayH').textContent=sum(tL).toFixed(1)+' hrs today';
+  document.getElementById('sTom').textContent=tomL.length;
+  document.getElementById('sTomH').textContent=sum(tomL).toFixed(1)+' hrs tomorrow';
+  document.getElementById('sWeek').textContent=allW.length;
+  document.getElementById('sWeekH').textContent=completedHrs.toFixed(1)+'h done · '+upcomingHrs.toFixed(1)+'h upcoming';
+  document.getElementById('sHours').textContent=totalHrs%1===0?totalHrs.toFixed(0):totalHrs.toFixed(1);
+  document.getElementById('sStudents').textContent=Object.keys(rosterMap).length;
+  document.getElementById('wkHoursLbl').textContent=completedHrs.toFixed(1)+'h done / '+totalHrs.toFixed(1)+'h total';
   // Total payment received this week
   const totalPay=allW.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const payBadge=document.getElementById('totalPayBadge');
@@ -2176,52 +2113,33 @@ async function onDrop(e,toDate){
   dragId=null;dragFromDate=null;
   _wasDragging=true;
   setTimeout(()=>{_wasDragging=false;},300);
-  try{
-    // Save new date to DB immediately
-    const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
-    if(error){showToast('Error moving: '+error.message,'error');return;}
-    await resetConfirmationOnReschedule(movingId);
-    try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg='Hi '+((_movedL.student_name||'').split(' ')[0])+'! Your lesson has been rescheduled to '+_rsFmt+(_rsTime?' at '+_rsTime:'')+'. Please confirm at your portal: https://www.drivesq.co.uk/student.html';const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);}}}}catch(e){}
-    await loadWeek();
-    showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
-    // Open edit modal to confirm/change time on new date
-    const{data:moved}=await sb.from('lessons').select('*').eq('id',movingId).single();
-    if(moved){
-      detailData={...moved};detailId=movingId;
-      document.getElementById('editLsId').value=moved.id;
-      document.getElementById('editLsSubTitle').textContent='📅 Moved to '+toDate+' — confirm or change time';
-      document.getElementById('elStudent').value=moved.student_name||'';
-      document.getElementById('elDate').value=toDate;
-      document.getElementById('elTime').value=moved.start_time||'09:00';
-      document.getElementById('elDur').value=String(moved.duration_hours||2);
-      document.getElementById('elPhone').value=moved.student_phone||'';
-      document.getElementById('elAddr').value=moved.pickup_address||'';
-      document.getElementById('elType').value=moved.lesson_type||'Manual';
-      document.getElementById('elNotes').value=moved.notes||'';
-      const _elp=document.getElementById('elPayment');if(_elp)_elp.value=moved.payment_received||'';
-      openModal('editLessonModal');
-    }
-  }catch(e){showToast('Error moving lesson: '+esc(e.message),'error');}
+  // Save new date to DB immediately
+  const{error}=await sb.from('lessons').update({lesson_date:toDate}).eq('id',movingId);
+  if(error){showToast('Error moving: '+error.message);return;}
+  await resetConfirmationOnReschedule(movingId);
+  try{var{data:_movedL}=await sb.from('lessons').select('student_account_id,student_name,student_phone,start_time').eq('id',movingId).single();if(_movedL&&_movedL.student_account_id){const _rsFmt=new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});notifyStudent(_movedL.student_account_id,'Lesson rescheduled','Your lesson has been rescheduled to '+_rsFmt+'. Please confirm at your portal.');if(_movedL.student_phone){const _rsTime=_movedL.start_time||'';const _rsMsg=`Hi ${_movedL.student_name||''}! Your lesson has been rescheduled to ${_rsFmt}${_rsTime?' at '+_rsTime:''}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;const _rsUrl=waLink(_movedL.student_phone,_rsMsg);if(_rsUrl){const _rsToastEl=document.getElementById('toast');showToast('Lesson moved ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);}}}}catch(e){}
+  await loadWeek();
+  showToast('Moved to '+new Date(toDate+'T12:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' — confirm time below','success');
+  // Open edit modal to confirm/change time on new date
+  const{data:moved}=await sb.from('lessons').select('*').eq('id',movingId).single();
+  if(moved){
+    detailData={...moved};detailId=movingId;
+    document.getElementById('editLsId').value=moved.id;
+    document.getElementById('editLsSubTitle').textContent='📅 Moved to '+toDate+' — confirm or change time';
+    document.getElementById('elStudent').value=moved.student_name||'';
+    document.getElementById('elDate').value=toDate;
+    document.getElementById('elTime').value=moved.start_time||'09:00';
+    document.getElementById('elDur').value=String(moved.duration_hours||2);
+    document.getElementById('elPhone').value=moved.student_phone||'';
+    document.getElementById('elAddr').value=moved.pickup_address||'';
+    document.getElementById('elType').value=moved.lesson_type||'Manual';
+    document.getElementById('elNotes').value=moved.notes||'';
+    const _elp=document.getElementById('elPayment');if(_elp)_elp.value=moved.payment_received||'';
+    openModal('editLessonModal');
+  }
 }
 
 /* ── WEEK RENDER ── */
-// Helper: render lesson progress bar without nested template literals (Safari parser compat)
-function _paymentBadge(l){
-  const _pv=localStorage.getItem('dsq_show_payment')!=='false';
-  if(!_pv)return'';
-  if(l.payment_received&&parseFloat(l.payment_received)>0)
-    return'<div style="font-size:.65rem;color:#4ade80;margin-top:2px"><i class="bi bi-check-circle-fill me-1"></i>£'+parseFloat(l.payment_received).toFixed(2)+' paid</div>';
-  if(l.lesson_date<=todayKey())
-    return'<div style="font-size:.65rem;color:#f87171;margin-top:2px"><i class="bi bi-dash-circle me-1"></i>Unpaid</div>';
-  return'';
-}
-function _lessonProgressBar(studentName){
-  const _sk=allStudentsArr.find(s=>s.name&&s.name.toLowerCase()===(studentName||'').toLowerCase());
-  if(!_sk)return'';
-  const _done=_sk.count||0,_pkg=_sk.package_total||40;
-  const _pct=Math.min(100,Math.round(_done/_pkg*100));
-  return'<div class="ls-progress" title="'+_done+'/'+_pkg+' lessons ('+_pct+'%)"><div class="ls-progress-bar" style="width:'+_pct+'%"></div></div>';
-}
 function renderCal(){
   const days=weekDays(weekStart);
   const tk=todayKey();
@@ -2253,7 +2171,7 @@ function renderCal(){
         <div class="ls-name">${esc(l.student_name)}</div>
         <div class="ls-addr">${esc(l.pickup_address||'')}</div>
         <div class="mt-1">${payTag}</div>
-        ${_lessonProgressBar(l.student_name)}
+        ${(()=>{const _sk=allStudentsArr.find(s=>s.name&&s.name.toLowerCase()===( l.student_name||'').toLowerCase());if(!_sk)return'';const _done=_sk.count||0;const _pkg=_sk.package_total||40;const _pct=Math.min(100,Math.round(_done/_pkg*100));return`<div class="ls-progress" title="${_done}/${_pkg} lessons (${_pct}%)"><div class="ls-progress-bar" style="width:${_pct}%"></div></div>`;})()}
       </div>`;
     }).join('');
     h+=`<div class="add-ls-btn" onclick="openAddModal('${dk}','${DAYS[i]}',${i})"><i class="bi bi-plus-lg"></i></div>`;
@@ -2334,11 +2252,11 @@ function renderDayView(){
           <div class="day-time-lbl">${l.start_time} – ${calcEnd(l.start_time,l.duration_hours)} · ${l.duration_hours}hr${l.duration_hours!=1?'s':''}</div>
           <div class="day-name-lbl">${esc(l.student_name)}</div>
           <div class="day-meta-lbl">${esc(l.lesson_type||'Manual')}${l.pickup_address?' · 📍 '+esc(l.pickup_address):''}</div>
-          ${_paymentBadge(l)}
+          ${(()=>{const _pv=localStorage.getItem('dsq_show_payment')!=='false';if(!_pv)return'';if(l.payment_received&&parseFloat(l.payment_received)>0)return`<div style="font-size:.65rem;color:#4ade80;margin-top:2px"><i class="bi bi-check-circle-fill me-1"></i>£${parseFloat(l.payment_received).toFixed(2)} paid</div>`;if(l.lesson_date<=todayKey())return`<div style="font-size:.65rem;color:#f87171;margin-top:2px"><i class="bi bi-dash-circle me-1"></i>Unpaid</div>`;return'';})()}
           <div class="mt-2">${confBadge}</div>
         </div>
         <div class="d-flex flex-column gap-1 align-items-end ms-2">
-          ${waUrl?'<a href="'+waUrl+'" target="_blank" class="btn-wa-sm" onclick="event.stopPropagation()"><i class="bi bi-whatsapp"></i></a>':''}
+          ${waUrl?`<a href="${waUrl}" target="_blank" class="btn-wa-sm" onclick="event.stopPropagation()"><i class="bi bi-whatsapp"></i></a>`:''}
           <button onclick="event.stopPropagation();quickDel('${l.id}')" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171;border-radius:5px;padding:3px 6px;cursor:pointer;font-size:.7rem">✕</button>
         </div>
       </div>
@@ -2366,8 +2284,8 @@ function renderMonthView(map){
     const visible=ls.slice(0,2),extra=ls.length-2;
     return`<div class="month-cell${other?' other-month':''}${isT?' today-cell':''}${isW?' wknd-cell':''}" onclick="jumpToDayView('${dk}',${d.getDay()===0?6:d.getDay()-1})">
       <div class="month-day-num${isT?' is-today':''}">${d.getDate()}${isT?'<span style="color:var(--red);font-size:.5rem;margin-left:3px">●</span>':''}</div>
-      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return'<div class="month-ls-dot '+lClass(l.lesson_type)+'" onclick="event.stopPropagation();openDetail(\''+l.id+'\')">'+(isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':'')+' '+l.start_time+' '+esc((l.student_name||'').split(' ')[0])+'</div>';}).join('')}
-      ${extra>0?'<div class="month-more">+'+extra+' more</div>':''}
+      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return`<div class="month-ls-dot ${lClass(l.lesson_type)}" onclick="event.stopPropagation();openDetail('${l.id}')">${isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':''} ${l.start_time} ${esc((l.student_name||'').split(' ')[0])}</div>`;}).join('')}
+      ${extra>0?`<div class="month-more">+${extra} more</div>`:''}
     </div>`;
   }).join('');
 }
@@ -2420,16 +2338,14 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  try{
-    const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
-    if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
-    const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
-    if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
-    if(existing?.id){const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);return error;}
-    payload.created_at=new Date().toISOString();
-    const{error}=await sb.from('student_profiles').insert([payload]);
-    return error;
-  }catch(e){showToast('Save failed: '+esc(e.message),'error');return e;}
+  const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
+  if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
+  const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
+  if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
+  if(existing?.id){const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);return error;}
+  payload.created_at=new Date().toISOString();
+  const{error}=await sb.from('student_profiles').insert([payload]);
+  return error;
 }
 
 /* ══════════════════════════════
@@ -2483,7 +2399,7 @@ async function openProgressModal(studentName){
   // Load topic ratings
   topicRatingsForModal={};
   if(accId){
-    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',accId).eq('instructor_id',instr.id);
+    const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',accId);
     (topics||[]).forEach(t=>{topicRatingsForModal[t.topic_name]={rating:t.rating,id:t.id,notes:t.instructor_notes||''};});
   }
 
@@ -2494,12 +2410,12 @@ async function openProgressModal(studentName){
       <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--bdr)">${esc(group)}</div>
       ${topics.map(t=>{
         const cur=topicRatingsForModal[t]||{rating:0,notes:''};
-        return'<div class="topic-rating-row">'
-          +'<div style="flex:1;font-size:.78rem;color:var(--txt2);min-width:0">'+esc(t)+'</div>'
-          +'<div class="d-flex gap-1 flex-shrink-0">'
-          +[0,1,2,3].map(r=>'<button class="rating-btn '+RATING_COLORS[r]+(cur.rating===r?' active':'')+'" onclick="setTopicRating(\''+t.replace(/'/g,"\\'")+"',"+r+',this)">'+r+'</button>').join('')
-          +'</div>'
-          +'</div>';
+        return`<div class="topic-rating-row">
+          <div style="flex:1;font-size:.78rem;color:var(--txt2);min-width:0">${esc(t)}</div>
+          <div class="d-flex gap-1 flex-shrink-0">
+            ${[0,1,2,3].map(r=>`<button class="rating-btn ${RATING_COLORS[r]}${cur.rating===r?' active':''}" onclick="setTopicRating('${t.replace(/'/g,"\\'")}',${r},this)">${r}</button>`).join('')}
+          </div>
+        </div>`;
       }).join('')}
     </div>`).join('');
 
@@ -2608,7 +2524,7 @@ function openAddModal(dk,dayName,idx){
   activeDate=dk;
   const d=new Date(dk+'T12:00:00');
   document.getElementById('addSub').textContent=(dayName||DAYS[idx])+', '+fmtS(d)+' '+d.getFullYear();
-  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';
   const _lp=document.getElementById('lPayment');if(_lp)_lp.value='';
   applyPaymentVisibility();
@@ -2669,7 +2585,7 @@ async function saveLesson(e){
     if(_sAccId){
       const _lTime=document.getElementById('lTime').value;
       const _lType=document.getElementById('lType').value||'Manual';
-      const _lDur=document.getElementById('lDur').value||'1';
+      const _lDur=document.getElementById('lDuration').value||'1';
       notifyStudent(_sAccId,'📅 New Lesson Booked!','Your instructor has booked a lesson for you on '+activeDate+' at '+_lTime+' ('+_lDur+'h '+_lType+'). Open the app to confirm your attendance.');
     }
   }catch(err){console.error(err);showToast('Error: '+err.message);}
@@ -2777,7 +2693,7 @@ async function moveLesson(id,toDate,dayName){
   if(_mvPhone){
     const _mvMsg=`Hi ${_mvName}! Your lesson has been rescheduled to ${_mvFmt}. Please confirm at your portal: https://www.drivesq.co.uk/student.html`;
     const _mvUrl=waLink(_mvPhone,_mvMsg);
-    if(_mvUrl){showToast('Moved to '+dayName+' ✓ — <a href="'+_mvUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);return;}
+    if(_mvUrl){showToast('Moved to '+dayName+' ✓ — <a href="'+_mvUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);return;}
   }
   showToast('Moved to '+dayName+' ✓','success');
 }
@@ -2847,6 +2763,7 @@ async function saveEditedLesson(){
   const wasRescheduled=detailData&&detailData.id===id&&(detailData.lesson_date!==newDate||detailData.start_time!==newTime);
 
   // Save to DB - try with payment_received first, then without if column missing
+  let saveError=null;
   const{error:e1}=await sb.from('lessons').update(updates).eq('id',id);
   if(e1){
     if(e1.message&&(e1.message.includes('payment_received')||e1.message.includes('column'))){
@@ -2893,7 +2810,7 @@ async function saveEditedLesson(){
       if(_rsPhone){
         const _rsMsg=`Hi ${studentName.split(' ')[0]}! 👋\n\n📅 *Lesson Update*\n\nYour lesson has been rescheduled:\n\n📆 *New date:* ${_rsFmtDate}\n⏰ *New time:* ${newTime}\n📍 Pickup: ${addr||'as agreed'}\n\nPlease confirm this on your student portal:\nhttps://www.drivesq.co.uk/student.html\n\nSorry for any inconvenience. See you then! 🚗\n— ${instr.name}, DriveSQ`;
         const _rsUrl=waLink(_rsPhone,_rsMsg);
-        if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000,true);
+        if(_rsUrl)showToast('Lesson updated ✓ — <a href="'+_rsUrl+'" target="_blank" style="color:#4ade80;text-decoration:underline">Tap to notify student via WhatsApp</a>','success',8000);
         else showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');
       } else {showToast('✓ Saved — '+_rsFmtDate+' at '+newTime,'success');}
     } else {
@@ -2985,8 +2902,10 @@ async function loadStudents(){
   const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
   const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k)&&!_recentlyDeletedNames.has(k));
   if(newFromLessons.length){
-    // Save all new students to roster in parallel (not sequentially — avoids init freeze)
-    await Promise.allSettled(newFromLessons.map(([k])=>saveToRoster(k,'','','Manual','',null)));
+    // Save each new student to roster silently
+    for(const[k]of newFromLessons){
+      try{await saveToRoster(k,'','','Manual','',null);}catch(e){}
+    }
     await loadRoster();
     // Add them directly to allStudentsArr without recursing
     newFromLessons.forEach(([k,info])=>{
@@ -3015,8 +2934,7 @@ function setStudentFilter(mode){
 
 function renderStudentStatsStrip(students){
   const strip=document.getElementById('studentStatsStrip');if(!strip)return;
-  const nonOldStudents=students.filter(s=>!_isOldStudent(s.created_at));
-  const total=nonOldStudents.length;
+  const total=students.length;
   const connected=students.filter(s=>{const _k='name_'+s.name.toLowerCase().trim();const a=(studentAccountMap[_k]?.full_name?studentAccountMap[_k]:null)||Object.values(studentAccountMap).find(x=>x?.full_name?.toLowerCase().trim()===s.name.toLowerCase().trim());return !!(a?.last_login);}).length;
   const withUnread=students.filter(s=>s.unreadMsgs>0).length;
   const totalHrsAll=students.reduce((a,s)=>a+(s.totalHrs||0),0);
@@ -3024,7 +2942,7 @@ function renderStudentStatsStrip(students){
     <span class="ss-pill" style="background:rgba(209,10,17,.08);border-color:rgba(209,10,17,.2);color:var(--red)"><i class="bi bi-people-fill me-1"></i>${total} students</span>
     <span class="ss-pill" style="background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.2);color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>${connected} on app</span>
     <span class="ss-pill" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.2);color:#c084fc"><i class="bi bi-clock me-1"></i>${totalHrsAll.toFixed(1)}h total</span>
-    ${withUnread?'<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>'+withUnread+' unread</span>':''}`;
+    ${withUnread?`<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>${withUnread} unread</span>`:''}`;
 }
 
 function renderStudents(students,emptyOverride){
@@ -3073,9 +2991,6 @@ function renderStudents(students,emptyOverride){
     // Show ! only if 0 lessons AND no student account (truly new/uncontacted). If registered, show ✓ badge. Instructor can dismiss ! by clicking it.
     const _dismissed=localStorage.getItem('dsq_badge_dismiss_'+s.name.toLowerCase().trim());
     const _lcBadge=hasLogin?`<div class="s-lesson-badge gold-star" title="Fully registered on app ✓" style="background:#4ade80;color:#080808">✓</div>`:acc?`<div class="s-lesson-badge normal" title="Has account — not logged in yet (${_lc} lessons)">${_lc}</div>`:(_lc===0&&!_dismissed)?`<div class="s-lesson-badge needs-booking" title="No account yet — click to dismiss" onclick="event.stopPropagation();localStorage.setItem('dsq_badge_dismiss_${s.name.toLowerCase().trim()}','1');loadStudents()">!</div>`:_lc>=5?`<div class="s-lesson-badge gold-star" title="${_lc} lessons — great progress!">★</div>`:`<div class="s-lesson-badge normal">${_lc}</div>`;
-    // Pre-compute WA href outside of template literal to avoid triple-nested backtick (breaks Safari parser)
-    const _waMsg='Hi '+s.name+", this is your DriveSQ instructor. I've been assigned to you — let's get your first lesson booked! 🚗";
-    const _waHref=phone?waLink(phone,_waMsg):'';
     return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
       <div class="sc-top" onclick="openStudentMgmt('${sn}')">
         <div class="sc-init ${hasLogin?'registered-init':''}" style="position:relative">
@@ -3085,37 +3000,40 @@ function renderStudents(students,emptyOverride){
         </div>
         <div style="flex:1;min-width:0">
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div class="sc-name">${esc(s.name)}</div>${_studentAgeBadge(s.created_at)}
+            <div class="sc-name">${esc(s.name)}</div>
             ${statusHtml}
-            ${unread>0?'<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>'+unread+' new</span>':''}
+            ${unread>0?`<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>${unread} new</span>`:''}
             ${readinessHtml}
           </div>
           <div class="d-flex gap-2 mt-1 flex-wrap">
-            ${phone?'<span class="sc-meta"><i class="bi bi-telephone me-1"></i>'+esc(phone)+' <span style="font-size:.55rem;color:var(--green);font-weight:600">(login)</span></span>':''}
-            ${s.address?'<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>'+esc(s.address)+'</span>':''}
-            ${acc?.email?'<span class="sc-meta"><i class="bi bi-envelope me-1"></i>'+esc(acc.email)+'</span>':''}
+            ${phone?`<span class="sc-meta"><i class="bi bi-telephone me-1"></i>${esc(phone)} <span style="font-size:.55rem;color:var(--green);font-weight:600">(login)</span></span>`:''}
+            ${s.address?`<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</span>`:''}
+            ${acc?.email?`<span class="sc-meta"><i class="bi bi-envelope me-1"></i>${esc(acc.email)}</span>`:''}
           </div>
           <div class="d-flex gap-1 mt-2 flex-wrap">
             <div class="sc-stat"><span class="sc-stat-val" style="color:var(--blue)">${s.count||0}</span><span class="sc-stat-lbl">lessons</span></div>
             <div class="sc-stat"><span class="sc-stat-val" style="color:#c084fc">${(s.totalHrs||0).toFixed(1)}h</span><span class="sc-stat-lbl">road time</span></div>
-            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?'<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£'+s.totalPaid.toFixed(0)+'</span><span class="sc-stat-lbl">total revenue</span></div>':''}
-            ${s.lastDate?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">'+s.lastDate.slice(5)+'</span><span class="sc-stat-lbl">last lesson</span></div>':''}
-            ${s.created_at?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--txt3)">'+new Date(s.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</span><span class="sc-stat-lbl">assigned</span></div>':''}
-            ${acc?.last_login?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">'+new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span><span class="sc-stat-lbl">last login</span></div>':''}
+            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?`<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£${s.totalPaid.toFixed(0)}</span><span class="sc-stat-lbl">total revenue</span></div>`:''}
+            ${s.lastDate?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">${s.lastDate.slice(5)}</span><span class="sc-stat-lbl">last lesson</span></div>`:''}
+            ${acc?.last_login?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span class="sc-stat-lbl">last login</span></div>`:''}
           </div>
         </div>
         <div style="color:var(--txt4);font-size:.9rem;flex-shrink:0;margin-left:4px"><i class="bi bi-chevron-right"></i></div>
       </div>
-      ${(s.count===0&&!hasLogin)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px"><i class="bi bi-bell-fill" style="flex-shrink:0"></i><span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span></div>':''}
-      ${(s.count===0&&!hasLogin&&phone)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px"><i class="bi bi-phone" style="flex-shrink:0"></i><span>Share <strong>drivesq.co.uk/student.html</strong> with them — they log in with their phone number to access theory guides &amp; lesson tracking.</span></div>':''}
-      ${_isOldStudent(s.created_at)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,158,11,.07);border-radius:8px;border:1px solid rgba(245,158,11,.18);font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:8px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — no longer counted in your student total. Tap <strong>Renew</strong> below to reset.</span></div>':''}
+      ${(s.count===0&&!hasLogin)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px">
+        <i class="bi bi-bell-fill" style="flex-shrink:0"></i>
+        <span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span>
+      </div>`:''}
+      ${(s.count===0&&!hasLogin&&phone)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px">
+        <i class="bi bi-phone" style="flex-shrink:0"></i>
+        <span>Share <strong>drivesq.co.uk/student.html</strong> with them — they log in with their phone number to access theory guides &amp; lesson tracking.</span>
+      </div>`:''}
       <div class="sc-actions">
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
-        <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?'<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">'+unread+'</span>':''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
+        <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
-        ${_isOldStudent(s.created_at)?’<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(\’’+sn+’\’,\’’+jsEsc(s.id||’’)+’\’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>’:’’}
-        ${_waHref?’<a href="’+_waHref+’" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>’:’’}
+        ${phone?`<a href="${waLink(phone,`Hi ${s.name}, this is your DriveSQ instructor. I’ve been assigned to you — let’s get your first lesson booked! 🚗`)}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3128,20 +3046,27 @@ function filterStudents(q){
   if(!q||!q.trim()){renderStudents(allStudentsArr);return;}
   _filterStudentsTimer=setTimeout(()=>{
     const raw=(q||'').trim();
-    const lq=raw.toLowerCase();
-    const digitQ=raw.replace(/\D/g,'');
-    const list=allStudentsArr.filter(s=>{
-      if((s.name||'').toLowerCase().includes(lq))return true;
-      const ph=(s.phone||'').replace(/\D/g,'');
-      if(digitQ.length>=3&&ph.includes(digitQ))return true;
-      if((s.address||'').toLowerCase().includes(lq))return true;
-      const acc=Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
-      if(acc&&(acc.email||'').toLowerCase().includes(lq))return true;
-      if((s.notes||'').toLowerCase().includes(lq))return true;
-      return false;
-    });
-    const noResultsMsg='<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">'+esc(raw)+'</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>';
-    renderStudents(list,noResultsMsg);
+    let list=allStudentsArr;
+    if(!raw){renderStudents(list);return;}
+    if(raw){
+      const lq=raw.toLowerCase();
+      // Normalise phone digits for comparison (strip spaces, dashes, brackets)
+      const digitQ=raw.replace(/\D/g,'');
+      list=list.filter(s=>{
+        if((s.name||'').toLowerCase().includes(lq))return true;
+        const ph=(s.phone||'').replace(/\D/g,'');
+        if(digitQ.length>=3&&ph.includes(digitQ))return true;
+        if((s.address||'').toLowerCase().includes(lq))return true;
+        // Also search email from studentAccountMap
+        const acc=Object.values(studentAccountMap).find(a=>a?.full_name&&a.full_name.toLowerCase().trim()===s.name.toLowerCase().trim());
+        if(acc&&(acc.email||'').toLowerCase().includes(lq))return true;
+        if((s.notes||'').toLowerCase().includes(lq))return true;
+        return false;
+      });
+    }
+    // Show a search-specific "no results" message when actively filtering
+    const noResultsMsg=`<div style="text-align:center;padding:32px;color:var(--txt4);font-size:.84rem"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--txt5)"></i>No students found for "<strong style="color:var(--txt)">${esc(raw)}</strong>"<br><span style="font-size:.76rem;margin-top:6px;display:block">Try searching by name, phone number, address or email</span></div>`;
+    renderStudents(list,raw?noResultsMsg:null);
   },80);
 }
 
@@ -3307,7 +3232,6 @@ async function checkReminders(){
   const now=new Date();const tLessons=todayLessons;
   for(const l of tLessons){
     if(shownReminders.has(l.id))continue;
-    if(!l.start_time)continue;
     const[h,m]=l.start_time.split(':').map(Number);const lt=new Date();lt.setHours(h,m,0,0);const diff=(lt-now)/60000;
     if(diff>0&&diff<=65){
       shownReminders.add(l.id);
@@ -3318,14 +3242,14 @@ async function checkReminders(){
       const ra=document.getElementById('reminderArea');
       const banner=document.createElement('div');banner.className='reminder-banner';banner.id='rem-'+l.id;banner.style.animation='slideDown .4s ease';
       const mapsUrl=l.pickup_address?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.pickup_address)}`:'';
-      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${(l.student_name||'').split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
+      const _remDate=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});const _remInstrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';const waRem=l.student_phone?waLink(l.student_phone,`Hi ${l.student_name.split(' ')[0]}! 👋\n\n📅 *Lesson Reminder*\n\nYou have a driving lesson booked:\n\n📆 Date: ${_remDate}\n⏰ Time: ${l.start_time}\n📍 Pickup: ${l.pickup_address||'as agreed'}\n🚗 Type: ${l.lesson_type||'Manual'}\n\nPlease be ready 5 minutes before your pickup time. Bring your provisional licence.\n\nAny questions? Message me on the app or reply here.\n\nSee you soon! 🚗\n— ${_remInstrName}, DriveSQ`):'';
       banner.innerHTML=`<div style="font-size:1.3rem;flex-shrink:0">⏰</div>
         <div class="flex-grow-1">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--txt);margin-bottom:2px">Lesson in ~${Math.round(diff)} minutes!</div>
           <div style="font-size:.78rem;color:var(--txt3)"><strong style="color:var(--txt)">${esc(l.student_name)}</strong> · ${l.start_time} · ${esc(l.lesson_type||'Manual')}<br>📍 ${esc(l.pickup_address||'No address')}</div>
           <div class="d-flex gap-2 mt-2 flex-wrap">
-            ${mapsUrl?('<a href="'+mapsUrl+'" target="_blank" class="maps-btn" style="display:inline-flex;font-size:.72rem;padding:5px 10px"><i class="bi bi-map-fill me-1"></i>Maps</a>'):''}
-            ${waRem?('<a href="'+waRem+'" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i>Remind Student</a>'):''}
+            ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="maps-btn" style="display:inline-flex;font-size:.72rem;padding:5px 10px"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
+            ${waRem?`<a href="${waRem}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i>Remind Student</a>`:''}
           </div>
         </div>
         <button onclick="document.getElementById('rem-${l.id}').remove()" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:.9rem;flex-shrink:0">✕</button>`;
@@ -3351,13 +3275,13 @@ async function loadNotifications(){
   list.innerHTML=msgs.map(m=>{
     const isNewStudent=m.subject&&m.subject.includes('New Student Assigned');
     const viewStudentBtn=isNewStudent?`<button onclick="event.stopPropagation();toggleNotif();switchTab('students');setMobActive('students');loadStudents();markRead('${m.id}')" style="margin-top:6px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:6px;padding:4px 10px;font-size:.7rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;letter-spacing:.3px"><i class="bi bi-people-fill me-1"></i>View Students</button>`:'';
-    return`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')"><div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace('_',' '))}</div><div class="ni-subj">${esc(m.subject)}</div><div class="ni-body">${esc(m.body)}</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${viewStudentBtn}</div>`;
+    return`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')"><div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${(m.message_type||'').replace('_',' ')}</div><div class="ni-subj">${esc(m.subject)}</div><div class="ni-body">${esc(m.body)}</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${viewStudentBtn}</div>`;
   }).join('');
 }
-async function dismissMsg(id){try{await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);}catch(e){showToast('Error: '+esc(e.message),'error');}loadNotifications();}
-async function markRead(id){try{await sb.from('admin_messages').update({is_read:true}).eq('id',id);}catch(e){showToast('Error: '+esc(e.message),'error');}loadNotifications();}
+async function dismissMsg(id){await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);loadNotifications();}
+async function markRead(id){await sb.from('admin_messages').update({is_read:true}).eq('id',id);loadNotifications();}
 function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');_updateDashNotifStrip();}
-document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');if(p&&b&&p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
+document.addEventListener('click',e=>{const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');if(p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
 
 function _updateDashNotifStrip(){
   const strip=document.getElementById('pushEnableStrip');
@@ -3395,13 +3319,16 @@ async function loadRequests(){
       <div style="flex:1;min-width:0">
         <div style="font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
         <div style="font-size:.76rem;color:var(--txt3);margin-bottom:4px">${esc(r.pickup_address||'')}${r.postcode?' · '+esc(r.postcode):''}</div>
-        ${r.student_phone?'<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-telephone me-1"></i>'+esc(r.student_phone)+'</div>':''}
-        ${r.lesson_type?'<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-car-front me-1"></i>'+esc(r.lesson_type)+'</div>':''}
+        ${r.student_phone?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-telephone me-1"></i>${esc(r.student_phone)}</div>`:''}
+        ${r.lesson_type?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
         <div style="font-size:.63rem;color:var(--txt5);margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
-    ${r.status==='pending'?'<div class="d-flex gap-2 mt-3"><button class="btn-g flex-fill" onclick="openApprove(\''+r.id+'\',\''+jsEsc(r.student_name)+'\',\''+jsEsc(r.pickup_address||r.postcode||'No address given')+'\',\''+jsEsc(r.lesson_type||'Manual')+'\',\''+jsEsc(r.notes||'')+'\')"><i class="bi bi-check-lg me-1"></i>Approve</button><button class="btn-r-sm flex-fill" onclick="declineRequest(\''+r.id+'\')"><i class="bi bi-x-lg me-1"></i>Decline</button></div>':''}
+    ${r.status==='pending'?`<div class="d-flex gap-2 mt-3">
+      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.pickup_address||r.postcode||'No address given')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
+      <button class="btn-r-sm flex-fill" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
+    </div>`:''}
   </div>`).join('');
 }
 function openApprove(id,name,addr,type,notes){document.getElementById('approveReqId').value=id;document.getElementById('approveSub').textContent='Student: '+name+' · '+addr;document.getElementById('approveDate').value=todayKey();document.getElementById('approveNotes').value=notes||'';openModal('approveModal');}
@@ -3437,13 +3364,11 @@ async function loadTransfers(){
   list.innerHTML=items.map(r=>`<div class="tr-card"><div class="d-flex align-items-start justify-content-between gap-2 flex-wrap"><div style="flex:1;min-width:0"><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div><div style="font-size:.75rem;color:var(--txt3)">${esc(r.pickup_address||'')}</div><div style="font-size:.73rem;color:var(--txt4);font-style:italic;margin-top:4px">"${esc(r.reason)}"</div><div style="font-size:.63rem;color:var(--txt5);margin-top:4px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div><span class="status-pill ${r.status}">${r.status}</span></div></div>`).join('');
 }
 async function submitTransfer(){
-  try{
-    const student=document.getElementById('trStudent').value.trim();const reason=document.getElementById('trReason').value.trim();const addr=document.getElementById('trAddr').value.trim();
-    if(!student||!reason||!addr){showToast('Please fill all required fields.');return;}
-    const{error}=await sb.from('transfer_requests').insert([{from_instructor_id:instr.id,to_instructor_id:document.getElementById('trToInstr').value||null,student_name:student,student_phone:document.getElementById('trPhone').value.trim(),pickup_address:addr,lesson_type:document.getElementById('trType').value,reason,status:'pending',created_at:new Date().toISOString()}]);
-    if(error){showToast('Error: '+error.message);return;}
-    closeModal('transferModal');await loadTransfers();showToast('Transfer request submitted ✓','success');
-  }catch(e){showToast('Error submitting transfer: '+esc(e.message),'error');}
+  const student=document.getElementById('trStudent').value.trim();const reason=document.getElementById('trReason').value.trim();const addr=document.getElementById('trAddr').value.trim();
+  if(!student||!reason||!addr){showToast('Please fill all required fields.');return;}
+  const{error}=await sb.from('transfer_requests').insert([{from_instructor_id:instr.id,to_instructor_id:document.getElementById('trToInstr').value||null,student_name:student,student_phone:document.getElementById('trPhone').value.trim(),pickup_address:addr,lesson_type:document.getElementById('trType').value,reason,status:'pending',created_at:new Date().toISOString()}]);
+  if(error){showToast('Error: '+error.message);return;}
+  closeModal('transferModal');await loadTransfers();showToast('Transfer request submitted ✓','success');
 }
 
 /* ── PROFILE ── */
@@ -3518,7 +3443,7 @@ async function saveProfile(){
   const badgeExpiry=document.getElementById('pBadgeExpiry')?.value||null;
   const coveragePostcodes=(document.getElementById('pCoverage')?.value||'').toUpperCase().trim()||null;
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null,coverage_postcodes:coveragePostcodes};
-  if(newPwd){updates.password=newPwd;/* password_hash via server-side only — btoa removed (not secure) */}
+  if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
   try{
     const pFile=document.getElementById('profilePhotoInput').files[0];
     const bFile=document.getElementById('badgeInput').files[0];
@@ -3529,11 +3454,9 @@ async function saveProfile(){
     const{error}=await sb.from('instructors').update(updates).eq('id',instr.id);if(error)throw error;
     Object.assign(instr,{name:updates.full_name,phone:updates.phone,email:updates.email,area:updates.area});
     if(updates.profile_photo_url)instr.profile_photo_url=updates.profile_photo_url;
-    if(updates.badge_photo_url){instr.badge_photo_url=updates.badge_photo_url;const _bp=document.getElementById('badgePreview');if(_bp){_bp.src=updates.badge_photo_url;_bp.style.display='block';}}
-    if(updates.car_photo_url)instr.car_photo_url=updates.car_photo_url;
     sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
     updateNav();document.getElementById('profileNameDisp').textContent=updates.full_name||'—';
-    ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{const _el=document.getElementById(id);if(_el)_el.value='';});
+    ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{document.getElementById(id).value='';});
     const _pp=document.getElementById('pNewPwd');const _cp=document.getElementById('pConfirmPwd');if(_pp)_pp.value='';if(_cp)_cp.value='';
     showToast('Profile saved ✓','success');
   }catch(err){console.error(err);showToast('Error: '+err.message);}
@@ -3541,12 +3464,9 @@ async function saveProfile(){
 }
 
 async function populateInstrDropdowns(){
-  try{
-    const{data,error}=await sb.from('instructors').select('id,full_name').eq('status','approved').neq('id',instr.id);
-    if(error)throw error;
-    const opts=(data||[]).map(i=>'<option value="'+i.id+'">'+esc(i.full_name)+'</option>').join('');
-    const el=document.getElementById('trToInstr');if(el)el.innerHTML='<option value="">Let admin decide</option>'+opts;
-  }catch(e){console.warn('populateInstrDropdowns:',e);}
+  const{data}=await sb.from('instructors').select('id,full_name').eq('status','approved').neq('id',instr.id);
+  const opts=(data||[]).map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  document.getElementById('trToInstr').innerHTML='<option value="">Let admin decide</option>'+opts;
 }
 
 /* ── INSTALL APP (profile button) ── */
@@ -3581,16 +3501,15 @@ async function verifyForgotPwd(){
   const badge=document.getElementById('fpBadge').value.trim();
   const phone=document.getElementById('fpPhone').value.trim();
   if(!badge||!phone){showToast('Enter badge number and phone.');return;}
-  try{
-    const{data,error}=await sb.from('instructors').select('id,badge_number,phone').ilike('badge_number',badge).maybeSingle();
-    if(error||!data){showToast('Badge number not found. Check and try again.');return;}
-    const strip=p=>p.replace(/\D/g,'');
-    if(strip(data.phone||'')!==strip(phone)){showToast('Phone number does not match our records.');return;}
-    fpVerifiedBadge=badge;fpVerifiedPhone=phone;
-    document.getElementById('fpStep1').classList.add('hidden');
-    document.getElementById('fpStep2').classList.remove('hidden');
-    showToast('Identity verified ✓','success');
-  }catch(e){showToast('Error verifying identity: '+esc(e.message),'error');}
+  // Check against instructors table
+  const{data,error}=await sb.from('instructors').select('id,badge_number,phone').ilike('badge_number',badge).maybeSingle();
+  if(error||!data){showToast('Badge number not found. Check and try again.');return;}
+  const strip=p=>p.replace(/\D/g,'');
+  if(strip(data.phone||'')!==strip(phone)){showToast('Phone number does not match our records.');return;}
+  fpVerifiedBadge=badge;fpVerifiedPhone=phone;
+  document.getElementById('fpStep1').classList.add('hidden');
+  document.getElementById('fpStep2').classList.remove('hidden');
+  showToast('Identity verified ✓','success');
 }
 async function saveForgotPwd(){
   const newPwd=document.getElementById('fpNewPwd').value.trim();
@@ -3605,7 +3524,7 @@ async function saveForgotPwd(){
     const strip=p=>p.replace(/\D/g,'');
     const{data:instr2}=await sb.from('instructors').select('id').ilike('badge_number',fpVerifiedBadge).maybeSingle();
     if(instr2){
-      await sb.from('instructors').update({password:newPwd}).eq('id',instr2.id);
+      await sb.from('instructors').update({password:newPwd,password_hash:btoa(newPwd)}).eq('id',instr2.id);
     } else {showToast('Error resetting password. Contact admin.');return;}
   }
   closeModal('forgotPwdModal');
@@ -3655,7 +3574,7 @@ function closeModal(id){const el=document.getElementById(id);if(!el){console.war
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
-function showToast(msg,type='',duration=3200,html=false){const t=document.getElementById('toast');if(!t)return;if(html){t.innerHTML=msg;}else{t.textContent=msg;}t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
+function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
 
 
 /* ══════════════════════════════════════════════════════
@@ -3722,15 +3641,15 @@ async function openStudentMgmt(studentName, tab='profile'){
     const hasNewData=(acc.phone&&acc.phone!==p.phone)||(acc.address&&acc.address!==p.address)||(acc.email);
     document.getElementById('smRegDetails').innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        ${acc.full_name?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Name (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.full_name)+'</div></div>':''}
-        ${acc.phone?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Phone (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.phone)+'</div></div>':''}
-        ${acc.email?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Email</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.email)+'</div></div>':''}
-        ${acc.address?'<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Address (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.address)+'</div></div>':''}
-        ${acc.emergency_contact?'<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Emergency Contact</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.emergency_contact)+'</div></div>':''}
+        ${acc.full_name?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Name (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.full_name)}</div></div>`:''}
+        ${acc.phone?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Phone (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.phone)}</div></div>`:''}
+        ${acc.email?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Email</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.email)}</div></div>`:''}
+        ${acc.address?`<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Address (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.address)}</div></div>`:''}
+        ${acc.emergency_contact?`<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Emergency Contact</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.emergency_contact)}</div></div>`:''}
       </div>
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div style="font-size:.62rem;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>Registered ${new Date(acc.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})} · Last active ${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
-        ${hasNewData?'<button onclick="smSyncFromApp()" class="btn-g" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-down-circle me-1"></i>Use Student\'s Details</button>':''}
+        ${hasNewData?`<button onclick="smSyncFromApp()" class="btn-g" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-down-circle me-1"></i>Use Student's Details</button>`:''}
         <button onclick="smOverrideToApp()" class="btn-blue" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-up-circle me-1"></i>Keep My Details</button>
       </div>`;
     // Also pre-fill email + emergency contact from app registration
@@ -3888,7 +3807,6 @@ function smUpdateProgBar(){
 // BUG16: progress bar listeners moved to oninput on elements
 
 async function saveSmProfile(){
-  try{
   const name=document.getElementById('smEditName').value.trim();
   if(!name){showToast('Name is required.');return;}
   const phone=document.getElementById('smEditPhone').value.trim();
@@ -3906,9 +3824,8 @@ async function saveSmProfile(){
   const error=await saveToRoster(name,phone,addr,ltype,notes,p?.id||null);
   if(error){showToast('Error saving profile: '+error.message);return;}
 
-  // Update lesson records only when relevant fields actually changed
-  const _oldPhone=p?.phone||'';const _oldAddr=p?.address||'';
-  if(oldName.toLowerCase()!==name.toLowerCase()||phone!==_oldPhone||addr!==_oldAddr){
+  // BUG 9: Update ALL lesson records with old name -> new name, phone, address
+  if(oldName.toLowerCase()!==name.toLowerCase()||phone||addr){
     const lessonUpdates={student_phone:phone,pickup_address:addr};
     if(oldName.toLowerCase()!==name.toLowerCase())lessonUpdates.student_name=name;
     const{error:lessonErr}=await sb.from('lessons').update(lessonUpdates).eq('instructor_id',instr.id).ilike('student_name',oldName);
@@ -3934,9 +3851,7 @@ async function saveSmProfile(){
   renderStudents(allStudentsArr); // force re-render
   if(calView==='week')await loadWeek();
   else if(calView==='day')await loadDayView(currentDayKey);
-  if(smCurrentAccId){notifyStudent(smCurrentAccId,'Profile updated','Your instructor has updated your student profile. Check your portal for the latest details.');}
   showToast('Profile saved ✓ Lessons updated.','success');
-  }catch(e){showToast('Unexpected error: '+esc(e.message),'error');}
 }
 
 async function smRemoveFromRoster(){
@@ -4081,7 +3996,7 @@ async function smLoadTopics(){
   // Load existing ratings from DB
   if(smCurrentAccId){
     try{
-      const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId).eq('instructor_id',instr.id);
+      const{data:topics}=await sb.from('student_topic_ratings').select('*').eq('student_account_id',smCurrentAccId);
       (topics||[]).forEach(t=>{if(t.topic_name)smTopicState[t.topic_name]={rating:t.rating||0,id:t.id};});
     }catch(e){console.warn('student_topic_ratings not available:',e.message);}
   }
@@ -4414,8 +4329,7 @@ function smShareLink(){
   if(!phone){showToast('Add a phone number to this student first.');return;}
   const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
   const studentUrl='https://www.drivesq.co.uk/student.html';
-  const _firstName=smCurrentName.split(' ')[0];
-  const msg=`Hi ${_firstName}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${instrName}, DriveSQ Instructor`;
+  const msg=`Hi ${esc(smCurrentName.split(' ')[0])}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${esc(instrName)}, DriveSQ Instructor`;
   const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
   const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
@@ -4858,7 +4772,7 @@ function highlightJunction(idx){
 function openInGoogleMaps(){
   const centre=TEST_CENTRES[_activeTc];
   const route=centre?centre.routes.find(r=>r.id===_activeRouteId):null;
-  if(!route){if(centre)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(centre.address),'_blank');return;}
+  if(!route){window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(centre.address)},'_blank'`);return;}
   // Build directions URL through waypoints
   const wps=route.waypoints;
   const origin=`${wps[0][0]},${wps[0][1]}`;
@@ -4883,8 +4797,7 @@ function copyRouteToClipboard(){
   const centre=TEST_CENTRES[_activeTc];
   const route=centre?centre.routes.find(r=>r.id===_activeRouteId):null;
   if(!route)return;
-  const _tipLines=route.tips.map((t,i)=>(i+1)+'. '+t.spot+': '+t.tip).join('\n');
-  const text=route.label+' — '+centre.name+'\n'+route.description+'\nDuration: '+route.duration+'\n\nKey junctions:\n'+_tipLines;
+  const text=`${route.label} — ${centre.name}\n${route.description}\nDuration: ${route.duration}\n\nKey junctions:\n${route.tips.map((t,i)=>`${i+1}. ${t.spot}: ${t.tip}`).join('\n')}`;
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.querySelector('[onclick="copyRouteToClipboard()"]');
     if(btn){const orig=btn.innerHTML;btn.innerHTML='<i class="bi bi-check-lg"></i> Copied!';btn.style.background='#22c55e';setTimeout(()=>{btn.innerHTML=orig;btn.style.background='';},2000);}
@@ -4900,8 +4813,7 @@ function shareRouteWhatsApp(){
   const dest=`${wps[wps.length-1][0]},${wps[wps.length-1][1]}`;
   const mid=wps.slice(1,-1).map(w=>`${w[0]},${w[1]}`).join('|');
   const mapsUrl=`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${mid?'&waypoints='+encodeURIComponent(mid):''}&travelmode=driving`;
-  const _waJunctions=route.tips.map((t,i)=>(i+1)+'. *'+t.spot+'*: '+t.tip).join('\n');
-  const msg='🗺️ *DVSA Test Route — '+route.label+'*\n📍 '+centre.name+'\n🕐 '+route.duration+'\n\n'+route.description+'\n\n*Key junctions:*\n'+_waJunctions+'\n\n👉 Google Maps route: '+mapsUrl+'\n\n_Good luck on your test! — DriveSQ_';
+  const msg=`🗺️ *DVSA Test Route — ${route.label}*\n📍 ${centre.name}\n🕐 ${route.duration}\n\n${route.description}\n\n*Key junctions:*\n${route.tips.map((t,i)=>`${i+1}. *${t.spot}*: ${t.tip}`).join('\n')}\n\n👉 Google Maps route: ${mapsUrl}\n\n_Good luck on your test! — DriveSQ_`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -5078,7 +4990,7 @@ async function loadAndGeoStudents(){
   const students=Object.values(rosterMap||{});
   if(!students.length){_studentGeoData=[];return;}
   // Extract postcodes
-  const postcodes=students.map(s=>extractPostcode(s.address||'')).filter(Boolean);
+  const postcodes=students.map(s=>extractPostcode(s.address||s.phone||'')).filter(Boolean);
   await bulkGeocodePostcodes(postcodes);
   // Build geodata array
   const results=[];
@@ -5117,8 +5029,7 @@ function initLeafletMap(){
     const distBadge=sd.dist<2?'🟢':sd.dist<5?'🟡':'🔴';
     const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:${sd.dist<2?'#4ade80':sd.dist<5?'#facc15':'#f87171'};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.3)">${i+1}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
     const m=L.marker([sd.lat,sd.lng],{icon}).addTo(_instrMap);
-    const _waPopup=sd.student.phone?'<br><a href="https://wa.me/44'+sd.student.phone.replace(/^0/,'')+'" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>':'';
-    m.bindPopup('<div style="min-width:160px"><b>'+esc(sd.student.name)+'</b><br><span style="font-size:.8em;color:#666">'+sd.postcode+' · '+sd.dist+' mi away</span><br><span style="font-size:.8em">'+esc(sd.student.lesson_type||'Manual')+'</span>'+_waPopup+'</div>');
+    m.bindPopup(`<div style="min-width:160px"><b>${esc(sd.student.name)}</b><br><span style="font-size:.8em;color:#666">${sd.postcode} · ${sd.dist} mi away</span><br><span style="font-size:.8em">${esc(sd.student.lesson_type||'Manual')}</span>${sd.student.phone?`<br><a href="https://wa.me/44${sd.student.phone.replace(/^0/,'')}" target="_blank" style="color:#25D366;font-size:.8em">💬 WhatsApp</a>`:''}</div>`);
     _studentMarkers.push({marker:m,student:sd.student,geo:sd});
   });
 
@@ -5404,7 +5315,15 @@ async function pollStudentUpdates(){
     totalUnread+=s.unreadMsgs;
   });
 
-  // (badge update moved below after unreadMsgs is fully computed on each student)
+  // Update students tab badge if there are unread messages
+  const studTab=document.getElementById('tab-students');
+  if(studTab&&totalUnread>0){
+    let b=studTab.querySelector('.tab-badge');
+    if(!b){b=document.createElement('span');b.className='tab-badge ms-1';studTab.appendChild(b);}
+    b.textContent=totalUnread;
+  } else if(studTab){
+    studTab.querySelector('.tab-badge')?.remove();
+  }
 
   // Check for student instructor change requests
   try{
@@ -5453,6 +5372,9 @@ async function pollStudentUpdates(){
     }else if(mb){mb.classList.add('hidden');}
   }
 }
+// Poll every 20s
+setInterval(pollStudentUpdates,20000);
+
 // loadStudents is initialized
 
 /* ── PWA SERVICE WORKER & INSTALL ── */
@@ -5627,12 +5549,8 @@ async function saveAvailability(){
 async function loadMyFeedback(){
   if(!instr?.id)return;
   const el=document.getElementById('myFeedbackSection');if(!el)return;
-  let fb=[];
-  try{
-    const{data,error}=await sb.from('student_lesson_feedback').select('*').eq('instructor_id',instr.id).order('submitted_at',{ascending:false}).limit(50);
-    if(error)throw error;
-    fb=data||[];
-  }catch(e){el.innerHTML='<div style="color:var(--txt4);font-size:.82rem;padding:16px;text-align:center">Could not load feedback.</div>';return;}
+  const{data}=await sb.from('student_lesson_feedback').select('*').eq('instructor_id',instr.id).order('submitted_at',{ascending:false}).limit(50);
+  const fb=data||[];
   if(!fb.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.82rem;padding:16px">No feedback yet — students rate you after lessons.</div>';return;}
   const avg=fb.reduce((a,f)=>a+(f.rating||0),0)/fb.length;
   const stars=n=>('★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n)));
@@ -5686,7 +5604,5 @@ async function loadMyFeedback(){
   <p class="sqw-founder">Crafted by <a href="https://www.linkedin.com/in/mohammed-qaim-abbas-58699b344" target="_blank" rel="nofollow noopener">Mohammed Qaim Abbas</a></p>
 </div>
 <!-- /SQWEBSITES-CREDIT-V2 -->
-<!-- Leaflet loaded at end of body so it never blocks page load -->
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" crossorigin=""></script>
 </body>
 </html>
