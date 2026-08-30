@@ -2206,6 +2206,15 @@ async function onDrop(e,toDate){
 
 /* ── WEEK RENDER ── */
 // Helper: render lesson progress bar without nested template literals (Safari parser compat)
+function _paymentBadge(l){
+  const _pv=localStorage.getItem('dsq_show_payment')!=='false';
+  if(!_pv)return'';
+  if(l.payment_received&&parseFloat(l.payment_received)>0)
+    return'<div style="font-size:.65rem;color:#4ade80;margin-top:2px"><i class="bi bi-check-circle-fill me-1"></i>£'+parseFloat(l.payment_received).toFixed(2)+' paid</div>';
+  if(l.lesson_date<=todayKey())
+    return'<div style="font-size:.65rem;color:#f87171;margin-top:2px"><i class="bi bi-dash-circle me-1"></i>Unpaid</div>';
+  return'';
+}
 function _lessonProgressBar(studentName){
   const _sk=allStudentsArr.find(s=>s.name&&s.name.toLowerCase()===(studentName||'').toLowerCase());
   if(!_sk)return'';
@@ -2325,7 +2334,7 @@ function renderDayView(){
           <div class="day-time-lbl">${l.start_time} – ${calcEnd(l.start_time,l.duration_hours)} · ${l.duration_hours}hr${l.duration_hours!=1?'s':''}</div>
           <div class="day-name-lbl">${esc(l.student_name)}</div>
           <div class="day-meta-lbl">${esc(l.lesson_type||'Manual')}${l.pickup_address?' · 📍 '+esc(l.pickup_address):''}</div>
-          ${(()=>{const _pv=localStorage.getItem('dsq_show_payment')!=='false';if(!_pv)return'';if(l.payment_received&&parseFloat(l.payment_received)>0)return`<div style="font-size:.65rem;color:#4ade80;margin-top:2px"><i class="bi bi-check-circle-fill me-1"></i>£${parseFloat(l.payment_received).toFixed(2)} paid</div>`;if(l.lesson_date<=todayKey())return`<div style="font-size:.65rem;color:#f87171;margin-top:2px"><i class="bi bi-dash-circle me-1"></i>Unpaid</div>`;return'';})()}
+          ${_paymentBadge(l)}
           <div class="mt-2">${confBadge}</div>
         </div>
         <div class="d-flex flex-column gap-1 align-items-end ms-2">
@@ -3015,7 +3024,7 @@ function renderStudentStatsStrip(students){
     <span class="ss-pill" style="background:rgba(209,10,17,.08);border-color:rgba(209,10,17,.2);color:var(--red)"><i class="bi bi-people-fill me-1"></i>${total} students</span>
     <span class="ss-pill" style="background:rgba(37,211,102,.08);border-color:rgba(37,211,102,.2);color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>${connected} on app</span>
     <span class="ss-pill" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.2);color:#c084fc"><i class="bi bi-clock me-1"></i>${totalHrsAll.toFixed(1)}h total</span>
-    ${withUnread?`<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>${withUnread} unread</span>`:''}`;
+    ${withUnread?'<span class="ss-pill" style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:#60a5fa"><i class="bi bi-chat-fill me-1"></i>'+withUnread+' unread</span>':''}`;
 }
 
 function renderStudents(students,emptyOverride){
@@ -3109,9 +3118,9 @@ function renderStudents(students,emptyOverride){
       <div class="sc-actions">
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
-        <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
+        <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?'<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">'+unread+'</span>':''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
-        ${_isOldStudent(s.created_at)?`<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(‘${sn}’,’${jsEsc(s.id||’’)}’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>`:’’}
+        ${_isOldStudent(s.created_at)?’<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(\’’+sn+’\’,\’’+jsEsc(s.id||’’)+’\’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>’:’’}
         ${_waHref?`<a href="${_waHref}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:’’}
       </div>
     </div>`;
