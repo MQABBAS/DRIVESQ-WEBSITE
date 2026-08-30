@@ -3037,6 +3037,9 @@ function renderStudents(students,emptyOverride){
     // Show ! only if 0 lessons AND no student account (truly new/uncontacted). If registered, show ✓ badge. Instructor can dismiss ! by clicking it.
     const _dismissed=localStorage.getItem('dsq_badge_dismiss_'+s.name.toLowerCase().trim());
     const _lcBadge=hasLogin?`<div class="s-lesson-badge gold-star" title="Fully registered on app ✓" style="background:#4ade80;color:#080808">✓</div>`:acc?`<div class="s-lesson-badge normal" title="Has account — not logged in yet (${_lc} lessons)">${_lc}</div>`:(_lc===0&&!_dismissed)?`<div class="s-lesson-badge needs-booking" title="No account yet — click to dismiss" onclick="event.stopPropagation();localStorage.setItem('dsq_badge_dismiss_${s.name.toLowerCase().trim()}','1');loadStudents()">!</div>`:_lc>=5?`<div class="s-lesson-badge gold-star" title="${_lc} lessons — great progress!">★</div>`:`<div class="s-lesson-badge normal">${_lc}</div>`;
+    // Pre-compute WA href outside of template literal to avoid triple-nested backtick (breaks Safari parser)
+    const _waMsg='Hi '+s.name+", this is your DriveSQ instructor. I've been assigned to you — let's get your first lesson booked! 🚗";
+    const _waHref=phone?waLink(phone,_waMsg):'';
     return`<div class="student-card-v2 ${statusClass}${unread>0?' has-unread':''}">
       <div class="sc-top" onclick="openStudentMgmt('${sn}')">
         <div class="sc-init ${hasLogin?'registered-init':''}" style="position:relative">
@@ -3082,7 +3085,7 @@ function renderStudents(students,emptyOverride){
         <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">${unread}</span>`:''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
         ${_isOldStudent(s.created_at)?`<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(‘${sn}’,’${jsEsc(s.id||’’)}’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>`:’’}
-        ${phone?`<a href="${waLink(phone,`Hi ${s.name}, this is your DriveSQ instructor. I’ve been assigned to you — let’s get your first lesson booked! 🚗`)}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:’’}
+        ${_waHref?`<a href="${_waHref}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:’’}
       </div>
     </div>`;
   }).join('');
