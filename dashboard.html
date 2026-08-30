@@ -2071,16 +2071,21 @@ async function loadWeek(){
 }
 
 async function loadDayView(dk){
-  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
-  dayLessonsCache[dk]=data||[];
-  await loadConfirmations(data||[]);
-  renderDayView();updateStats();
+  try{
+    const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).eq('lesson_date',dk).order('start_time',{ascending:true});
+    if(error)throw error;
+    dayLessonsCache[dk]=data||[];
+    await loadConfirmations(data||[]);
+    renderDayView();updateStats();
+  }catch(e){console.error('loadDayView:',e);showToast('Error loading day: '+esc(e.message),'error');}
 }
 
 async function loadMonthView(){
+  try{
   const y=monthStart.getFullYear(),m=monthStart.getMonth();
   const from=dateKey(new Date(y,m,1)),to=dateKey(new Date(y,m+1,0));
-  const{data}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
+  const{data,error}=await sb.from('lessons').select('*').eq('instructor_id',instr.id).gte('lesson_date',from).lte('lesson_date',to).order('start_time',{ascending:true});
+  if(error)throw error;
   const map={};
   (data||[]).forEach(l=>{if(!map[l.lesson_date])map[l.lesson_date]=[];map[l.lesson_date].push(l);});
   await loadConfirmations(data||[]);
@@ -2089,8 +2094,9 @@ async function loadMonthView(){
   const totalHrsM=allM.reduce((a,l)=>a+(parseFloat(l.duration_hours)||1),0);
   const totalPayM=allM.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   const msb=document.getElementById('monthStatsBar');
-  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>${allM.length} lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>${totalHrsM.toFixed(1)}h</span>${totalPayM>0?`<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPayM.toFixed(2)} received</span>`:''}`;} 
+  if(msb){msb.innerHTML=`<span><i class="bi bi-calendar-check me-1" style="color:var(--red)"></i>${allM.length} lessons</span><span><i class="bi bi-clock me-1" style="color:#c084fc"></i>${totalHrsM.toFixed(1)}h</span>${totalPayM>0?`<span style="color:#4ade80"><i class="bi bi-currency-pound me-1"></i>${totalPayM.toFixed(2)} received</span>`:''}`;}
   updateStats();
+  }catch(e){console.error('loadMonthView:',e);showToast('Error loading month: '+esc(e.message),'error');}
 }
 
 function updateStats(){
@@ -2571,7 +2577,7 @@ function openAddModal(dk,dayName,idx){
   activeDate=dk;
   const d=new Date(dk+'T12:00:00');
   document.getElementById('addSub').textContent=(dayName||DAYS[idx])+', '+fmtS(d)+' '+d.getFullYear();
-  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>document.getElementById(id).value='');
+  ['lStudent','lPhone','lAddr','lNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('lTime').value='09:00';document.getElementById('lDur').value='2';document.getElementById('lType').value='Manual';
   const _lp=document.getElementById('lPayment');if(_lp)_lp.value='';
   applyPaymentVisibility();
@@ -2632,7 +2638,7 @@ async function saveLesson(e){
     if(_sAccId){
       const _lTime=document.getElementById('lTime').value;
       const _lType=document.getElementById('lType').value||'Manual';
-      const _lDur=document.getElementById('lDuration').value||'1';
+      const _lDur=document.getElementById('lDur').value||'1';
       notifyStudent(_sAccId,'📅 New Lesson Booked!','Your instructor has booked a lesson for you on '+activeDate+' at '+_lTime+' ('+_lDur+'h '+_lType+'). Open the app to confirm your attendance.');
     }
   }catch(err){console.error(err);showToast('Error: '+err.message);}
@@ -3496,7 +3502,7 @@ async function saveProfile(){
   const badgeExpiry=document.getElementById('pBadgeExpiry')?.value||null;
   const coveragePostcodes=(document.getElementById('pCoverage')?.value||'').toUpperCase().trim()||null;
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null,coverage_postcodes:coveragePostcodes};
-  if(newPwd){updates.password=newPwd;updates.password_hash=btoa(newPwd);}
+  if(newPwd){updates.password=newPwd;/* password_hash via server-side only — btoa removed (not secure) */}
   try{
     const pFile=document.getElementById('profilePhotoInput').files[0];
     const bFile=document.getElementById('badgeInput').files[0];
@@ -3577,7 +3583,7 @@ async function saveForgotPwd(){
     const strip=p=>p.replace(/\D/g,'');
     const{data:instr2}=await sb.from('instructors').select('id').ilike('badge_number',fpVerifiedBadge).maybeSingle();
     if(instr2){
-      await sb.from('instructors').update({password:newPwd,password_hash:btoa(newPwd)}).eq('id',instr2.id);
+      await sb.from('instructors').update({password:newPwd}).eq('id',instr2.id);
     } else {showToast('Error resetting password. Contact admin.');return;}
   }
   closeModal('forgotPwdModal');
@@ -3627,7 +3633,7 @@ function closeModal(id){const el=document.getElementById(id);if(!el){console.war
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
-function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
+function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
 
 
 /* ══════════════════════════════════════════════════════
@@ -3877,8 +3883,9 @@ async function saveSmProfile(){
   const error=await saveToRoster(name,phone,addr,ltype,notes,p?.id||null);
   if(error){showToast('Error saving profile: '+error.message);return;}
 
-  // BUG 9: Update ALL lesson records with old name -> new name, phone, address
-  if(oldName.toLowerCase()!==name.toLowerCase()||phone||addr){
+  // Update lesson records only when relevant fields actually changed
+  const _oldPhone=p?.phone||'';const _oldAddr=p?.address||'';
+  if(oldName.toLowerCase()!==name.toLowerCase()||phone!==_oldPhone||addr!==_oldAddr){
     const lessonUpdates={student_phone:phone,pickup_address:addr};
     if(oldName.toLowerCase()!==name.toLowerCase())lessonUpdates.student_name=name;
     const{error:lessonErr}=await sb.from('lessons').update(lessonUpdates).eq('instructor_id',instr.id).ilike('student_name',oldName);
@@ -4382,7 +4389,8 @@ function smShareLink(){
   if(!phone){showToast('Add a phone number to this student first.');return;}
   const instrName=instr?.name||instr?.full_name||'Your DriveSQ Instructor';
   const studentUrl='https://www.drivesq.co.uk/student.html';
-  const msg=`Hi ${esc(smCurrentName.split(' ')[0])}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${esc(instrName)}, DriveSQ Instructor`;
+  const _firstName=smCurrentName.split(' ')[0];
+  const msg=`Hi ${_firstName}! 👋\n\nWelcome to DriveSQ! Your *free* student portal is ready.\n\n📱 *App:* https://www.drivesq.co.uk/student.html\n📞 *Log in with:* your phone number\n\nWith your portal you can:\n✅ Track your lesson progress\n📅 View & confirm lesson bookings\n📝 Study theory — 700 DVSA questions + 14 mock tests ⏱️ timed like the real test\n🗺️ See DVSA test routes for your local test centre\n💬 Message me directly\n🏆 Earn XP and badges as you progress\n\n💻 Works on *any device* — phone, tablet or laptop. Install it as a free app too! 📲\n\nSee you on the road! 🚗\n— ${instrName}, DriveSQ Instructor`;
   const waPhone='44'+normalizePhone(phone).replace(/^0/,'');
   const url=`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url,'_blank');
@@ -4825,7 +4833,7 @@ function highlightJunction(idx){
 function openInGoogleMaps(){
   const centre=TEST_CENTRES[_activeTc];
   const route=centre?centre.routes.find(r=>r.id===_activeRouteId):null;
-  if(!route){window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(centre.address)},'_blank'`);return;}
+  if(!route){window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(centre.address)}`,'_blank');return;}
   // Build directions URL through waypoints
   const wps=route.waypoints;
   const origin=`${wps[0][0]},${wps[0][1]}`;
@@ -5043,7 +5051,7 @@ async function loadAndGeoStudents(){
   const students=Object.values(rosterMap||{});
   if(!students.length){_studentGeoData=[];return;}
   // Extract postcodes
-  const postcodes=students.map(s=>extractPostcode(s.address||s.phone||'')).filter(Boolean);
+  const postcodes=students.map(s=>extractPostcode(s.address||'')).filter(Boolean);
   await bulkGeocodePostcodes(postcodes);
   // Build geodata array
   const results=[];
@@ -5368,15 +5376,7 @@ async function pollStudentUpdates(){
     totalUnread+=s.unreadMsgs;
   });
 
-  // Update students tab badge if there are unread messages
-  const studTab=document.getElementById('tab-students');
-  if(studTab&&totalUnread>0){
-    let b=studTab.querySelector('.tab-badge');
-    if(!b){b=document.createElement('span');b.className='tab-badge ms-1';studTab.appendChild(b);}
-    b.textContent=totalUnread;
-  } else if(studTab){
-    studTab.querySelector('.tab-badge')?.remove();
-  }
+  // (badge update moved below after unreadMsgs is fully computed on each student)
 
   // Check for student instructor change requests
   try{
@@ -5599,8 +5599,12 @@ async function saveAvailability(){
 async function loadMyFeedback(){
   if(!instr?.id)return;
   const el=document.getElementById('myFeedbackSection');if(!el)return;
-  const{data}=await sb.from('student_lesson_feedback').select('*').eq('instructor_id',instr.id).order('submitted_at',{ascending:false}).limit(50);
-  const fb=data||[];
+  let fb=[];
+  try{
+    const{data,error}=await sb.from('student_lesson_feedback').select('*').eq('instructor_id',instr.id).order('submitted_at',{ascending:false}).limit(50);
+    if(error)throw error;
+    fb=data||[];
+  }catch(e){el.innerHTML='<div style="color:var(--txt4);font-size:.82rem;padding:16px;text-align:center">Could not load feedback.</div>';return;}
   if(!fb.length){el.innerHTML='<div style="text-align:center;color:var(--txt4);font-size:.82rem;padding:16px">No feedback yet — students rate you after lessons.</div>';return;}
   const avg=fb.reduce((a,f)=>a+(f.rating||0),0)/fb.length;
   const stars=n=>('★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n)));
