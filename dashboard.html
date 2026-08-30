@@ -1730,29 +1730,8 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   try{renderCal();}catch(e){console.warn('renderCal (init):',e);}
   try{updateStats();}catch(e){console.warn('updateStats (init):',e);}
 
-  // ── STEP 2: connection ping — warn if Supabase is unreachable ──
-  let dbOnline=true;
-  try{
-    const{error:pingErr}=await sb.from('instructors').select('id').eq('id',instr.id).limit(1);
-    if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
-      dbOnline=false;
-      const warn=document.createElement('div');
-      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-      warn.innerHTML='⚠️ Database connection issue — some data may not load. Check your Supabase project is active at supabase.com. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
-      document.body.prepend(warn);
-    }
-  }catch(pingEx){
-    dbOnline=false;
-    const warn=document.createElement('div');
-    warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
-    warn.innerHTML='⚠️ Could not reach the database — go to <a href="https://supabase.com" target="_blank" style="color:#fca5a5">supabase.com</a> and check your project is not paused. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
-    document.body.prepend(warn);
-  }
-
-  // ── STEP 3: check suspended (isolated — never blocks the rest) ──
-  try{await checkSuspended();}catch(e){console.warn('checkSuspended error:',e);}
-
-  // ── STEP 4: load all data — each function isolated so one failure never kills the rest ──
+  // ── STEP 2: load all data in parallel — NO sequential awaits before this point ──
+  // checkSuspended is included here so it runs in parallel with data loads, not before them.
   // loadConfirmations() is intentionally not listed — loadWeek() calls it after weekLessons populates.
   await Promise.allSettled([
     loadWeek(),
@@ -1764,7 +1743,30 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
     loadRoster(),
     loadProfileData(),
     loadRescheduleRequests(),
+    checkSuspended(),
   ]);
+
+  // ── STEP 3: non-blocking connection health check (fires after data loads, never blocks init) ──
+  // Runs after data loads so it never delays the calendar. Uses a 5s race so a slow DB never hangs.
+  Promise.race([
+    sb.from('instructors').select('id').eq('id',instr.id).limit(1),
+    new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
+  ]).then(res=>{
+    const pingErr=res?.error;
+    if(pingErr&&pingErr.code!=='PGRST116'&&pingErr.code!=='42P01'){
+      const warn=document.createElement('div');
+      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+      warn.innerHTML='⚠️ Database issue — some data may not load. Check your Supabase project at supabase.com. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+      document.body.prepend(warn);
+    }
+  }).catch(err=>{
+    if(err?.message==='timeout'||err?.name==='TypeError'){
+      const warn=document.createElement('div');
+      warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fca5a5;padding:10px 16px;font-size:.82rem;text-align:center;font-family:Inter,sans-serif';
+      warn.innerHTML='⚠️ Could not reach the database — check your Supabase project is not paused at <a href="https://supabase.com" target="_blank" style="color:#fca5a5">supabase.com</a>. <button onclick="this.parentElement.remove()" style="background:transparent;border:1px solid #fca5a5;color:#fca5a5;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:8px;font-size:.78rem">Dismiss</button>';
+      document.body.prepend(warn);
+    }
+  });
 
   // ── STEP 5: final render pass — always runs regardless of which loads succeeded ──
   try{updateStats();}catch(e){console.warn('updateStats (post-load):',e);}
