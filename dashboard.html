@@ -2338,7 +2338,7 @@ function renderDayView(){
           <div class="mt-2">${confBadge}</div>
         </div>
         <div class="d-flex flex-column gap-1 align-items-end ms-2">
-          ${waUrl?`<a href="${waUrl}" target="_blank" class="btn-wa-sm" onclick="event.stopPropagation()"><i class="bi bi-whatsapp"></i></a>`:''}
+          ${waUrl?'<a href="'+waUrl+'" target="_blank" class="btn-wa-sm" onclick="event.stopPropagation()"><i class="bi bi-whatsapp"></i></a>':''}
           <button onclick="event.stopPropagation();quickDel('${l.id}')" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171;border-radius:5px;padding:3px 6px;cursor:pointer;font-size:.7rem">✕</button>
         </div>
       </div>
@@ -2366,8 +2366,8 @@ function renderMonthView(map){
     const visible=ls.slice(0,2),extra=ls.length-2;
     return`<div class="month-cell${other?' other-month':''}${isT?' today-cell':''}${isW?' wknd-cell':''}" onclick="jumpToDayView('${dk}',${d.getDay()===0?6:d.getDay()-1})">
       <div class="month-day-num${isT?' is-today':''}">${d.getDate()}${isT?'<span style="color:var(--red);font-size:.5rem;margin-left:3px">●</span>':''}</div>
-      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return`<div class="month-ls-dot ${lClass(l.lesson_type)}" onclick="event.stopPropagation();openDetail('${l.id}')">${isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':''} ${l.start_time} ${esc((l.student_name||'').split(' ')[0])}</div>`;}).join('')}
-      ${extra>0?`<div class="month-more">+${extra} more</div>`:''}
+      ${visible.map(l=>{const conf=confirmationMap[l.id];const isConf=conf&&conf.status==='both_confirmed';return'<div class="month-ls-dot '+lClass(l.lesson_type)+'" onclick="event.stopPropagation();openDetail(\''+l.id+'\')">'+(isConf?'<i class="bi bi-check-circle-fill" style="font-size:.55rem"></i> ':'')+' '+l.start_time+' '+esc((l.student_name||'').split(' ')[0])+'</div>';}).join('')}
+      ${extra>0?'<div class="month-more">+'+extra+' more</div>':''}
     </div>`;
   }).join('');
 }
@@ -2494,12 +2494,12 @@ async function openProgressModal(studentName){
       <div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--bdr)">${esc(group)}</div>
       ${topics.map(t=>{
         const cur=topicRatingsForModal[t]||{rating:0,notes:''};
-        return`<div class="topic-rating-row">
-          <div style="flex:1;font-size:.78rem;color:var(--txt2);min-width:0">${esc(t)}</div>
-          <div class="d-flex gap-1 flex-shrink-0">
-            ${[0,1,2,3].map(r=>`<button class="rating-btn ${RATING_COLORS[r]}${cur.rating===r?' active':''}" onclick="setTopicRating('${t.replace(/'/g,"\\'")}',${r},this)">${r}</button>`).join('')}
-          </div>
-        </div>`;
+        return'<div class="topic-rating-row">'
+          +'<div style="flex:1;font-size:.78rem;color:var(--txt2);min-width:0">'+esc(t)+'</div>'
+          +'<div class="d-flex gap-1 flex-shrink-0">'
+          +[0,1,2,3].map(r=>'<button class="rating-btn '+RATING_COLORS[r]+(cur.rating===r?' active':'')+'" onclick="setTopicRating(\''+t.replace(/'/g,"\\'")+"',"+r+',this)">'+r+'</button>').join('')
+          +'</div>'
+          +'</div>';
       }).join('')}
     </div>`).join('');
 
@@ -3087,41 +3087,35 @@ function renderStudents(students,emptyOverride){
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <div class="sc-name">${esc(s.name)}</div>${_studentAgeBadge(s.created_at)}
             ${statusHtml}
-            ${unread>0?`<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>${unread} new</span>`:''}
+            ${unread>0?'<span style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:1px 6px;font-size:.6rem;font-weight:700"><i class="bi bi-chat-fill me-1"></i>'+unread+' new</span>':''}
             ${readinessHtml}
           </div>
           <div class="d-flex gap-2 mt-1 flex-wrap">
-            ${phone?`<span class="sc-meta"><i class="bi bi-telephone me-1"></i>${esc(phone)} <span style="font-size:.55rem;color:var(--green);font-weight:600">(login)</span></span>`:''}
-            ${s.address?`<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>${esc(s.address)}</span>`:''}
-            ${acc?.email?`<span class="sc-meta"><i class="bi bi-envelope me-1"></i>${esc(acc.email)}</span>`:''}
+            ${phone?'<span class="sc-meta"><i class="bi bi-telephone me-1"></i>'+esc(phone)+' <span style="font-size:.55rem;color:var(--green);font-weight:600">(login)</span></span>':''}
+            ${s.address?'<span class="sc-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-geo-alt me-1"></i>'+esc(s.address)+'</span>':''}
+            ${acc?.email?'<span class="sc-meta"><i class="bi bi-envelope me-1"></i>'+esc(acc.email)+'</span>':''}
           </div>
           <div class="d-flex gap-1 mt-2 flex-wrap">
             <div class="sc-stat"><span class="sc-stat-val" style="color:var(--blue)">${s.count||0}</span><span class="sc-stat-lbl">lessons</span></div>
             <div class="sc-stat"><span class="sc-stat-val" style="color:#c084fc">${(s.totalHrs||0).toFixed(1)}h</span><span class="sc-stat-lbl">road time</span></div>
-            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?`<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£${s.totalPaid.toFixed(0)}</span><span class="sc-stat-lbl">total revenue</span></div>`:''}
-            ${s.lastDate?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">${s.lastDate.slice(5)}</span><span class="sc-stat-lbl">last lesson</span></div>`:''}
-            ${s.created_at?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--txt3)">${new Date(s.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</span><span class="sc-stat-lbl">assigned</span></div>`:''}
-            ${acc?.last_login?`<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span class="sc-stat-lbl">last login</span></div>`:''}
+            ${(localStorage.getItem('dsq_show_payment')!=='false'&&s.totalPaid>0)?'<div class="sc-stat"><span class="sc-stat-val" style="color:#4ade80">£'+s.totalPaid.toFixed(0)+'</span><span class="sc-stat-lbl">total revenue</span></div>':''}
+            ${s.lastDate?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.72rem;letter-spacing:0;color:var(--txt3)">'+s.lastDate.slice(5)+'</span><span class="sc-stat-lbl">last lesson</span></div>':''}
+            ${s.created_at?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--txt3)">'+new Date(s.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</span><span class="sc-stat-lbl">assigned</span></div>':''}
+            ${acc?.last_login?'<div class="sc-stat"><span class="sc-stat-val" style="font-size:.68rem;letter-spacing:0;color:var(--green)">'+new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span><span class="sc-stat-lbl">last login</span></div>':''}
           </div>
         </div>
         <div style="color:var(--txt4);font-size:.9rem;flex-shrink:0;margin-left:4px"><i class="bi bi-chevron-right"></i></div>
       </div>
-      ${(s.count===0&&!hasLogin)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px">
-        <i class="bi bi-bell-fill" style="flex-shrink:0"></i>
-        <span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span>
-      </div>`:''}
-      ${(s.count===0&&!hasLogin&&phone)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px">
-        <i class="bi bi-phone" style="flex-shrink:0"></i>
-        <span>Share <strong>drivesq.co.uk/student.html</strong> with them — they log in with their phone number to access theory guides &amp; lesson tracking.</span>
-      </div>`:''}
-      ${_isOldStudent(s.created_at)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,158,11,.07);border-radius:8px;border:1px solid rgba(245,158,11,.18);font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:8px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — no longer counted in your student total. Tap <strong>Renew</strong> below to reset.</span></div>`:''}
+      ${(s.count===0&&!hasLogin)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px"><i class="bi bi-bell-fill" style="flex-shrink:0"></i><span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span></div>':''}
+      ${(s.count===0&&!hasLogin&&phone)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px"><i class="bi bi-phone" style="flex-shrink:0"></i><span>Share <strong>drivesq.co.uk/student.html</strong> with them — they log in with their phone number to access theory guides &amp; lesson tracking.</span></div>':''}
+      ${_isOldStudent(s.created_at)?'<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,158,11,.07);border-radius:8px;border:1px solid rgba(245,158,11,.18);font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:8px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — no longer counted in your student total. Tap <strong>Renew</strong> below to reset.</span></div>':''}
       <div class="sc-actions">
         <button class="btn-blue" style="padding:5px 10px;font-size:.7rem;min-height:30px;flex:1" onclick="openStudentMgmt('${sn}','profile')"><i class="bi bi-person-fill me-1"></i>Profile</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','progress')"><i class="bi bi-graph-up me-1"></i>Progress</button>
         <button class="btn-gold-sm" style="flex:1;position:relative" onclick="openStudentMgmt('${sn}','messages')">${unread>0?'<span style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.55rem;display:flex;align-items:center;justify-content:center">'+unread+'</span>':''}<i class="bi bi-chat-dots-fill me-1"></i>Chat</button>
         <button class="btn-gold-sm" style="flex:1" onclick="openStudentMgmt('${sn}','access')"><i class="bi bi-phone me-1"></i>Login</button>
         ${_isOldStudent(s.created_at)?’<button class="btn-gold-sm" style="flex:1;background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#f59e0b" onclick="renewStudentDashboard(\’’+sn+’\’,\’’+jsEsc(s.id||’’)+’\’)"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>’:’’}
-        ${_waHref?`<a href="${_waHref}" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>`:’’}
+        ${_waHref?’<a href="’+_waHref+’" target="_blank" class="btn-wa-sm"><i class="bi bi-whatsapp"></i></a>’:’’}
       </div>
     </div>`;
   }).join('');
@@ -3401,16 +3395,13 @@ async function loadRequests(){
       <div style="flex:1;min-width:0">
         <div style="font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(r.student_name)}</div>
         <div style="font-size:.76rem;color:var(--txt3);margin-bottom:4px">${esc(r.pickup_address||'')}${r.postcode?' · '+esc(r.postcode):''}</div>
-        ${r.student_phone?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-telephone me-1"></i>${esc(r.student_phone)}</div>`:''}
-        ${r.lesson_type?`<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-car-front me-1"></i>${esc(r.lesson_type)}</div>`:''}
+        ${r.student_phone?'<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-telephone me-1"></i>'+esc(r.student_phone)+'</div>':''}
+        ${r.lesson_type?'<div style="font-size:.73rem;color:var(--txt4)"><i class="bi bi-car-front me-1"></i>'+esc(r.lesson_type)+'</div>':''}
         <div style="font-size:.63rem;color:var(--txt5);margin-top:5px">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <span class="status-pill ${r.status}">${r.status}</span>
     </div>
-    ${r.status==='pending'?`<div class="d-flex gap-2 mt-3">
-      <button class="btn-g flex-fill" onclick="openApprove('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.pickup_address||r.postcode||'No address given')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')"><i class="bi bi-check-lg me-1"></i>Approve</button>
-      <button class="btn-r-sm flex-fill" onclick="declineRequest('${r.id}')"><i class="bi bi-x-lg me-1"></i>Decline</button>
-    </div>`:''}
+    ${r.status==='pending'?'<div class="d-flex gap-2 mt-3"><button class="btn-g flex-fill" onclick="openApprove(\''+r.id+'\',\''+jsEsc(r.student_name)+'\',\''+jsEsc(r.pickup_address||r.postcode||'No address given')+'\',\''+jsEsc(r.lesson_type||'Manual')+'\',\''+jsEsc(r.notes||'')+'\')"><i class="bi bi-check-lg me-1"></i>Approve</button><button class="btn-r-sm flex-fill" onclick="declineRequest(\''+r.id+'\')"><i class="bi bi-x-lg me-1"></i>Decline</button></div>':''}
   </div>`).join('');
 }
 function openApprove(id,name,addr,type,notes){document.getElementById('approveReqId').value=id;document.getElementById('approveSub').textContent='Student: '+name+' · '+addr;document.getElementById('approveDate').value=todayKey();document.getElementById('approveNotes').value=notes||'';openModal('approveModal');}
@@ -3731,15 +3722,15 @@ async function openStudentMgmt(studentName, tab='profile'){
     const hasNewData=(acc.phone&&acc.phone!==p.phone)||(acc.address&&acc.address!==p.address)||(acc.email);
     document.getElementById('smRegDetails').innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        ${acc.full_name?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Name (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.full_name)}</div></div>`:''}
-        ${acc.phone?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Phone (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.phone)}</div></div>`:''}
-        ${acc.email?`<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Email</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.email)}</div></div>`:''}
-        ${acc.address?`<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Address (student)</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.address)}</div></div>`:''}
-        ${acc.emergency_contact?`<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Emergency Contact</div><div style="font-size:.8rem;color:var(--txt)">${esc(acc.emergency_contact)}</div></div>`:''}
+        ${acc.full_name?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Name (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.full_name)+'</div></div>':''}
+        ${acc.phone?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Phone (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.phone)+'</div></div>':''}
+        ${acc.email?'<div><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Email</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.email)+'</div></div>':''}
+        ${acc.address?'<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Address (student)</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.address)+'</div></div>':''}
+        ${acc.emergency_contact?'<div style="grid-column:1/-1"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">Emergency Contact</div><div style="font-size:.8rem;color:var(--txt)">'+esc(acc.emergency_contact)+'</div></div>':''}
       </div>
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div style="font-size:.62rem;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>Registered ${new Date(acc.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})} · Last active ${new Date(acc.last_login).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
-        ${hasNewData?`<button onclick="smSyncFromApp()" class="btn-g" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-down-circle me-1"></i>Use Student's Details</button>`:''}
+        ${hasNewData?'<button onclick="smSyncFromApp()" class="btn-g" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-down-circle me-1"></i>Use Student\'s Details</button>':''}
         <button onclick="smOverrideToApp()" class="btn-blue" style="padding:4px 10px;font-size:.68rem;min-height:26px"><i class="bi bi-arrow-up-circle me-1"></i>Keep My Details</button>
       </div>`;
     // Also pre-fill email + emergency contact from app registration
