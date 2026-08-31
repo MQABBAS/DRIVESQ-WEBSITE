@@ -680,7 +680,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <table>
           <thead><tr>
             <th>Name</th><th>Badge</th><th>Type</th><th class="hide-xs">Transmission</th>
-            <th class="hide-xs">Postcode</th><th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs">Earnings/Wk</th><th class="hide-xs" title="Students assigned this week">Assigned/Wk</th><th>Actions</th>
+            <th class="hide-xs">Postcode</th><th>Status</th><th class="hide-xs">Students</th><th class="hide-xs">Last Login</th><th class="hide-xs">Hours/Wk</th><th class="hide-xs" title="Referrals recorded this week">Referral/Wk</th><th class="hide-xs" title="Students assigned this week">Assigned/Wk</th><th>Actions</th>
           </tr></thead>
           <tbody id="instrTbody"></tbody>
         </table>
@@ -2151,9 +2151,14 @@ async function loadInstrs(){
     const res=await Promise.all([
       sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
       sb.from('student_profiles').select('instructor_id').neq('status','inactive').gte('created_at', new Date(Date.now()-90*86400000).toISOString()),
-      sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive')
+      sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive'),
+      sb.from('referrals').select('instructor_id').gte('created_at',weekStart.toISOString())
     ]);
     wkLessons=res[0].data||[];rosterRows=res[1].data||[];wkAssigned=res[2].data||[];
+    const wkReferrals=res[3].data||[];
+    const refMap={};
+    wkReferrals.forEach(r=>{refMap[r.instructor_id]=(refMap[r.instructor_id]||0)+1;});
+    allInstrs.forEach(i=>{i._weekReferrals=refMap[i.id]||0;});
   }catch(e){console.warn('loadInstrs stats fetch:',e.message);}
   const hrsMap={},earnMap={},rosterMap={},weekAssignMap={};
   (wkLessons||[]).forEach(l=>{hrsMap[l.instructor_id]=(hrsMap[l.instructor_id]||0)+(parseFloat(l.duration_hours)||1);earnMap[l.instructor_id]=(earnMap[l.instructor_id]||0)+(parseFloat(l.payment_received)||0);});
@@ -2192,9 +2197,9 @@ async function loadGlobalStats(){
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
   }).catch(()=>{});
-  // New students this week (created_at in last 7 days)
-  const weekAgo=new Date(Date.now()-7*24*60*60*1000).toISOString();
-  sb.from('student_accounts').select('id',{count:'exact',head:true}).gte('created_at',weekAgo).then(r=>{
+  // New students this week (Mon–Sun calendar week)
+  const _ntwMon=getMonday(0);_ntwMon.setHours(0,0,0,0);
+  sb.from('student_accounts').select('id',{count:'exact',head:true}).gte('created_at',_ntwMon.toISOString()).then(r=>{
     document.getElementById('sNewThisWeek').textContent=r.count||0;
   }).catch(()=>{});
 }
@@ -2277,7 +2282,7 @@ function renderInstrsTable(list){
       <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:var(--blue);cursor:pointer" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Click to view students">${i._rosterCount||0}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${i.last_login?fmtDT(i.last_login):'Never'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt2)">${weekHrs}h</td>
-      <td class="hide-xs" style="font-size:.75rem;color:var(--green);font-weight:600">£${weekEarn}</td>
+      <td class="hide-xs" style="font-size:.75rem;color:var(--gold);font-weight:600;text-align:center">${i._weekReferrals||0}</td>
       <td class="hide-xs" style="font-size:.82rem;font-family:'Oswald',sans-serif;font-weight:700;color:${(i._weekAssigned||0)>0?'var(--purple)':'var(--txt4)'}" title="Students assigned this week">${i._weekAssigned||0}</td>
       <td style="white-space:nowrap;min-width:0">
         <button class="abtn view" onclick="viewInstr('${i.id}')" title="View schedule"><i class="bi bi-calendar-week me-1"></i><span class="btn-lbl-md">View</span></button>
