@@ -1136,6 +1136,10 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div id="refDetailPaid" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#4ade80">£0</div>
       </div>
     </div>
+    <div id="refDetailCreditBanner" style="display:none;margin-bottom:12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:9px;padding:10px 14px">
+      <div style="font-size:.75rem;font-weight:700;color:#f59e0b;margin-bottom:2px"><i class="bi bi-arrow-repeat me-2"></i><span id="refDetailCreditCount">0</span> Replacement Student(s) Owed</div>
+      <div style="font-size:.68rem;color:var(--txt3)">This instructor has unfulfilled credits — when assigning a new student, consider them first. Click <strong>Mark Fulfilled</strong> below once a replacement is assigned.</div>
+    </div>
     <div id="refDetailRows" style="overflow-y:auto;max-height:55vh"></div>
   </div>
 </div>
@@ -2279,7 +2283,7 @@ function renderInstrsTable(list){
     const weekEarn=(i._weekEarn||0).toFixed(0);
     return`<tr>
       <td style="color:var(--txt);font-weight:600">
-        ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>
+        ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>${(_creditIndex[i.id]||0)>0?`<span style="margin-left:5px;font-size:.55rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 5px;vertical-align:middle">⟳${_creditIndex[i.id]} CREDIT</span>`:''}
       </td>
       <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
@@ -4493,6 +4497,10 @@ async function findClosest(){
         :(ic.total>0?`<div style="font-size:.68rem;color:var(--txt4);margin-top:3px"><i class="bi bi-people me-1"></i>${ic.total} student${ic.total!==1?'s':''} on roster (none in ${searchedOC||'this area'})</div>`:'');
       const wkAsgn=r.instr._weekAssigned||0;
       const weekAssignNote=`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:${wkAsgn>0?'var(--purple)':'var(--txt4)'}"><i class="bi bi-calendar-week me-1"></i>${wkAsgn} student${wkAsgn!==1?'s':''} assigned this week</div>`;
+      const instrCredits=_creditIndex[r.instr.id]||0;
+      const creditNote=instrCredits>0
+        ?`<div style="font-size:.7rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px"><i class="bi bi-arrow-repeat"></i>⟳ ${instrCredits} credit${instrCredits!==1?'s':''} owed — consider this instructor first</div>`
+        :'';
       return`<div class="dist-card mb-2" data-instr-search="${(r.instr.full_name+' '+(r.instr.area||'')).toLowerCase()}"${!canTeach?' style="opacity:.65"':''}>
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
           <div class="d-flex align-items-center gap-3">
@@ -4507,6 +4515,7 @@ async function findClosest(){
               ${coversBadge}
               ${areaNote}
               ${weekAssignNote}
+              ${creditNote}
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
@@ -4526,7 +4535,14 @@ async function findClosest(){
     }
 
     // Split into matching and non-matching instructors
-    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type));
+    // Sort: instructors with credits owed come first within each group (same distance otherwise)
+    const _creditSort=(a,b)=>{
+      const ca=_creditIndex[a.instr.id]||0;
+      const cb=_creditIndex[b.instr.id]||0;
+      if(ca!==cb)return cb-ca; // more credits = higher priority
+      return 0; // distance ranking preserved within same credit tier
+    };
+    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type)).sort(_creditSort);
     const nonMatching=ranked.filter(r=>!instrCanTeach(r.instr.car_type||'Manual',type));
 
     // Summary bar
@@ -6504,16 +6520,26 @@ let _refPeriod='week';  // 'week' | 'month' | 'all'
 // Lightweight unpaid referral index — keyed by `instrId:studentNameLower`
 // Used to show "REFERRAL DUE" badge on student cards without loading full referrals
 let _unpaidRefIndex={};  // { "instrId:nameLower": amount }
+let _creditIndex={};     // { instrId: count of unfulfilled credits }
 
 async function _buildUnpaidRefIndex(){
   try{
-    const{data}=await sb.from('referrals').select('instructor_id,student_name,amount').eq('is_paid',false).eq('is_cancelled',false).gt('amount',0);
+    // Fetch unpaid non-cancelled rows (for DUE badge) + all credit rows (for credit badge)
+    const[unpaidR, creditR]=await Promise.all([
+      sb.from('referrals').select('instructor_id,student_name,amount').eq('is_paid',false).eq('is_cancelled',false).eq('is_credit',false).gt('amount',0),
+      sb.from('referrals').select('instructor_id,credit_fulfilled').eq('is_credit',true).eq('credit_fulfilled',false)
+    ]);
     const idx={};
-    (data||[]).forEach(r=>{
+    const cIdx={};
+    (unpaidR.data||[]).forEach(r=>{
       const k=`${r.instructor_id}:${(r.student_name||'').toLowerCase().trim()}`;
       idx[k]=(idx[k]||0)+(parseFloat(r.amount)||0);
     });
+    (creditR.data||[]).forEach(r=>{
+      cIdx[r.instructor_id]=(cIdx[r.instructor_id]||0)+1;
+    });
     _unpaidRefIndex=idx;
+    _creditIndex=cIdx;
   }catch(e){console.warn('_buildUnpaidRefIndex:',e.message);}
 }
 
@@ -6552,7 +6578,7 @@ async function loadReferrals(){
     _buildUnpaidRefIndex(); // keep badge index fresh
     renderReferrals();
   }catch(e){
-    if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false;</code></div>';
+    if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, is_credit boolean not null default false, credit_fulfilled boolean not null default false, credit_fulfilled_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false; alter table referrals add column if not exists is_credit boolean not null default false; alter table referrals add column if not exists credit_fulfilled boolean not null default false; alter table referrals add column if not exists credit_fulfilled_at timestamptz;</code></div>';
   }
 }
 
@@ -6560,11 +6586,12 @@ function renderReferrals(){
   const start=_refPeriodStart();
   const rows=_refData.filter(r=>new Date(r.created_at)>=start);
 
-  // Group by instructor — cancelled rows are still shown but not counted in totals
+  // Group by instructor — cancelled/credit rows are still shown but not counted in totals
   const byInstr={};
   rows.forEach(r=>{
-    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,rows:[],due:0,paid:0};
+    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,rows:[],due:0,paid:0,credits:0};
     byInstr[r.instructor_id].rows.push(r);
+    if(r.is_credit){if(!r.credit_fulfilled)byInstr[r.instructor_id].credits++;return;} // credit — not in financials
     if(r.is_cancelled)return; // voided — skip from financial totals
     if(r.is_paid)byInstr[r.instructor_id].paid+=parseFloat(r.amount)||0;
     else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
@@ -6594,10 +6621,11 @@ function renderReferrals(){
     const total=g.due+g.paid;
     const paidPct=total>0?Math.round(g.paid/total*100):0;
     const dueCol=g.due>0?'#f87171':'#4ade80';
-    return`<div style="background:var(--card-bg);border:1px solid ${g.due>0?'rgba(248,113,113,.25)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openRefDetail('${g.id}')">
+    const cardBorder=g.credits>0?'rgba(245,158,11,.35)':g.due>0?'rgba(248,113,113,.25)':'var(--bdr)';
+    return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openRefDetail('${g.id}')">
       <div class="d-flex align-items-center gap-3 flex-wrap">
         <div style="flex:1;min-width:140px">
-          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}${g.credits>0?`<span style="margin-left:7px;font-size:.6rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''} OWED</span>`:''}</div>
           <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -6623,12 +6651,19 @@ async function openRefDetail(instrId){
   const rows=_refData.filter(r=>r.instructor_id===instrId&&new Date(r.created_at)>=start)
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
-  // Exclude cancelled rows from financial totals
-  const activeRows=rows.filter(r=>!r.is_cancelled);
+  // Exclude cancelled/credit rows from financial totals
+  const activeRows=rows.filter(r=>!r.is_cancelled&&!r.is_credit);
   const due=activeRows.filter(r=>!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const paid=activeRows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   document.getElementById('refDetailDue').textContent='£'+due.toFixed(2);
   document.getElementById('refDetailPaid').textContent='£'+paid.toFixed(2);
+
+  // Credit banner
+  const openCredits=rows.filter(r=>r.is_credit&&!r.credit_fulfilled).length;
+  const creditBanner=document.getElementById('refDetailCreditBanner');
+  const creditCount=document.getElementById('refDetailCreditCount');
+  if(creditBanner){creditBanner.style.display=openCredits>0?'':'none';}
+  if(creditCount)creditCount.textContent=openCredits;
 
   // WhatsApp summary — active rows only
   // Helper: extract the outward postcode (first half) from an address string
@@ -6703,35 +6738,52 @@ async function openRefDetail(instrId){
     </thead>
     <tbody>
       ${rows.map(r=>{
-        const isCancelled=!!r.is_cancelled;
-        const isPaid=r.is_paid&&!isCancelled;
+        const isCancelled=!!r.is_cancelled&&!r.is_credit;
+        const isCredit=!!r.is_credit;
+        const creditFulfilled=!!r.credit_fulfilled;
+        const isPaid=r.is_paid&&!isCancelled&&!isCredit;
         const dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
         const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.45;':''}">
+        const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+        // Determine row background for credit rows
+        const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
+        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.45;':''}${rowBg}">
           <td style="padding:8px 8px">
             <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}</div>
             ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
+            ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
           </td>
-          <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled?'text-decoration:line-through;':''}">
+          <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
             £${(parseFloat(r.amount)||0).toFixed(2)}
           </td>
           <td style="padding:8px 8px;text-align:center">
             ${isCancelled
               ?`<span style="background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);color:#94a3b8;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">CANCELLED</span>`
+              :isCredit
+                ?(creditFulfilled
+                  ?`<span style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">✓ FULFILLED${creditFulfilledStr?' '+creditFulfilledStr:''}</span>`
+                  :`<span style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">⟳ CREDIT OWED</span>`)
               :`<span style="background:${isPaid?'rgba(74,222,128,.12)':'rgba(248,113,113,.12)'};border:1px solid ${isPaid?'rgba(74,222,128,.3)':'rgba(248,113,113,.3)'};color:${isPaid?'#4ade80':'#f87171'};border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">
               ${isPaid?'✓ PAID'+(paidDateStr?' '+paidDateStr:''):'UNPAID'}
             </span>`}
           </td>
           <td style="padding:8px 8px;text-align:right;font-size:.72rem;color:var(--txt3);white-space:nowrap" title="${new Date(r.created_at).toLocaleString('en-GB')}">${dateStr}</td>
           <td style="padding:8px 8px;text-align:center">
-            ${isCancelled?'<span style="color:var(--txt4);font-size:.65rem">Voided</span>':
-              !isPaid&&(parseFloat(r.amount)||0)>0
+            ${isCancelled?'<span style="color:var(--txt4);font-size:.65rem">Voided</span>'
+            :isCredit
+              ?(creditFulfilled?`<span style="color:var(--txt4);font-size:.65rem">Fulfilled</span>`
+                :`<button onclick="fulfillCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Mark this credit as fulfilled — replacement student has been assigned">Mark Fulfilled</button>`)
+              :!isPaid&&(parseFloat(r.amount)||0)>0
                 ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>
+                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — convert to credit. Instructor is owed a replacement student instead of a refund">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
                   </div>`
-                :`<button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>`
+                :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor is owed a replacement student instead of a refund">Issue Credit</button>
+                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
+                  </div>`
             }
           </td>
         </tr>`;
@@ -6766,6 +6818,39 @@ async function cancelRef(refId, studentName){
   const r=_refData.find(x=>x.id===refId);
   if(r)r.is_cancelled=true;
   showToast(`${studentName} — referral voided (student left) ✓`,'warn');
+  _buildUnpaidRefIndex();
+  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
+}
+
+// Mark a referral as a credit — student left but instructor is owed a replacement student
+async function markRefCredit(refId, studentName){
+  if(!confirm(`Issue a credit for "${studentName}"?\n\nInstead of voiding the fee, the instructor will be owed a replacement student. A "CREDIT OWED" badge will appear on their profile and in the Find Instructor tab to remind you when assigning the next student.\n\nThis cannot be undone.`))return;
+  const{error}=await sb.from('referrals').update({is_cancelled:true,is_credit:true}).eq('id',refId);
+  if(error){
+    if(error.message&&(error.message.includes('is_credit')||error.message.includes('credit_fulfilled'))){
+      showToast('Run SQL first:\nalter table referrals add column if not exists is_credit boolean not null default false;\nalter table referrals add column if not exists credit_fulfilled boolean not null default false;\nalter table referrals add column if not exists credit_fulfilled_at timestamptz;','error');
+    }else{showToast('Error: '+error.message,'error');}
+    return;
+  }
+  const r=_refData.find(x=>x.id===refId);
+  if(r){r.is_cancelled=true;r.is_credit=true;}
+  showToast(`Credit issued for ${studentName} — instructor is owed a replacement student 🔄`,'warn');
+  _buildUnpaidRefIndex();
+  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
+}
+
+// Mark a credit as fulfilled — a replacement student has been assigned to the instructor
+async function fulfillCredit(refId, studentName){
+  if(!confirm(`Mark credit for "${studentName}" as fulfilled?\n\nThis means a replacement student has been assigned to the instructor. The credit badge will be removed from their profile.`))return;
+  const{error}=await sb.from('referrals').update({credit_fulfilled:true,credit_fulfilled_at:new Date().toISOString()}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  const r=_refData.find(x=>x.id===refId);
+  if(r){r.credit_fulfilled=true;r.credit_fulfilled_at=new Date().toISOString();}
+  showToast(`Credit fulfilled for ${studentName} ✓`,'success');
   _buildUnpaidRefIndex();
   const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
