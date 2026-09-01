@@ -737,7 +737,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <thead><tr>
             <th style="width:36px;text-align:center;color:var(--txt4);font-size:.65rem">#</th>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
-            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th title="Date student was added to the system">Date Added</th><th>Actions</th>
+            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th class="hide-xs" title="Date assigned to instructor">Assigned</th><th>Actions</th>
           </tr></thead>
           <tbody id="studentsTbody"></tbody>
         </table>
@@ -2059,16 +2059,23 @@ function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replac
 function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
   const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
-  if(days<7)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
-  if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">1 WEEK</span>';
-  if(days<21)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2 WEEKS</span>';
-  if(days<28)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3 WEEKS</span>';
-  if(days<90)return`<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.15);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">${Math.floor(days/7)}w</span>`;
-  return`<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">OLD</span>`;
+  if(days<0)return'';
+  // NEW = first 2 weeks (purple)
+  if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.3);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
+  // 3W = 2–3.5 weeks (blue)
+  if(days<25)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3W</span>';
+  // +1M = ~1 month (green)
+  if(days<55)return'<span style="font-size:.52rem;font-weight:700;color:#34d399;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">+1M</span>';
+  // 2M = ~2 months (grey)
+  if(days<85)return'<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2M</span>';
+  // 3M = ~3 months (grey)
+  if(days<115)return'<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3M</span>';
+  // OLD = 4 months+ (amber) — excluded from active totals
+  return'<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap" title="4+ months old — not counted in active totals">OLD +4M</span>';
 }
 function _isOldStudent(assignedAt){
   if(!assignedAt)return false;
-  return(Date.now()-new Date(assignedAt))>=90*86400000;
+  return(Date.now()-new Date(assignedAt))>=120*86400000;
 }
 async function renewStudent(profileId, studentName, instrId) {
   if (!profileId) { showToast('Cannot renew — no profile ID found.', 'error'); return; }
@@ -2150,7 +2157,7 @@ async function loadInstrs(){
   try{
     const res=await Promise.all([
       sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
-      sb.from('student_profiles').select('instructor_id').neq('status','inactive').gte('created_at', new Date(Date.now()-90*86400000).toISOString()),
+      sb.from('student_profiles').select('instructor_id').neq('status','inactive').gte('created_at', new Date(Date.now()-120*86400000).toISOString()),
       sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive'),
       sb.from('referrals').select('instructor_id').gte('created_at',weekStart.toISOString())
     ]);
@@ -2182,7 +2189,7 @@ async function loadGlobalStats(){
     sb.from('lessons').select('id',{count:'exact',head:true}).eq('lesson_date',tk),
     sb.from('lessons').select('duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
     sb.from('student_accounts').select('id',{count:'exact',head:true}),
-    sb.from('student_profiles').select('id',{count:'exact',head:true})
+    sb.from('student_profiles').select('id',{count:'exact',head:true}).gte('created_at',new Date(Date.now()-120*86400000).toISOString())
   ]);
   document.getElementById('sToday').textContent=todayR.count||0;
   const weekLessons=weekR.data||[];
@@ -2191,7 +2198,7 @@ async function loadGlobalStats(){
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
-  // Roster (student_profiles) is the canonical count — every student an instructor has added
+  // Roster count: only students added within 4 months (120 days) — older ones are excluded
   document.getElementById('sTotalStudents').textContent=rosterR.count||studR.count||0;
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
@@ -2783,9 +2790,14 @@ async function loadAllStudents(){
   window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
-  // Update total students stat card — prefer roster count from DB, fall back to cache
+  // Update total students stat card — only count active students (added within 4 months / 120 days)
+  const _4mCutoff=new Date(Date.now()-120*86400000);
   const sTotalEl=document.getElementById('sTotalStudents');
-  if(sTotalEl){const cur=parseInt(sTotalEl.textContent)||0;const calc=Math.max(cur,(rosterR.data||[]).length,(accountsR.data||[]).length,allStudentsCache.length);if(calc>0)sTotalEl.textContent=calc;}
+  if(sTotalEl){
+    const activeFromCache=allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCutoff).length;
+    const calc=Math.max(parseInt(sTotalEl.textContent)||0,activeFromCache);
+    if(calc>0)sTotalEl.textContent=calc;
+  }
 
   // Build a quick lookup: instrId+name → profile created_at (assignment date)
   const rosterDateMap={};
@@ -2831,8 +2843,9 @@ function renderStudentsTable(students){
   students=[...students].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
-  // Roster total comes from sTotalStudents (set by loadGlobalStats from student_profiles count)
-  const rosterTotal=parseInt(document.getElementById('sTotalStudents')?.textContent)||allStudentsCache.length||students.length;
+  // Active total = students added within 4 months (OLD ones are excluded from count)
+  const _4mCut=new Date(Date.now()-120*86400000);
+  const rosterTotal=parseInt(document.getElementById('sTotalStudents')?.textContent)||allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCut).length||students.length;
   const isFiltered=students.length<rosterTotal;
   document.getElementById('studentCount').textContent=isFiltered
     ?`Showing ${students.length} of ${rosterTotal} student${rosterTotal!==1?'s':''} (filtered)`
@@ -2860,7 +2873,7 @@ function renderStudentsTable(students){
       <td class="hide-xs">${pct!=null?`<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:6px;overflow:hidden;min-width:40px"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-size:.65rem;color:var(--txt3)">${pct}%</span></div>${readyChip}`:'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
       <td class="hide-xs">${lastSeenTxt}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${s.lastLesson?fmtD(s.lastLesson):'—'}</td>
-      <td style="font-size:.72rem;font-weight:600;color:var(--txt2);white-space:nowrap" title="${s.assignedAt?'Added: '+fmtDT(s.assignedAt):'Date not recorded'}">${s.assignedAt?fmtD(s.assignedAt):'<span style="color:var(--txt4)">—</span>'}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)" title="${s.assignedAt?fmtDT(s.assignedAt):''}">${s.assignedAt?fmtD(s.assignedAt):'—'}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
@@ -3526,7 +3539,6 @@ async function openStudentDetail(idx,_directData){
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Full Address / Postcode</div><div class="det-val ${!s.address?'empty':''}">${s.address?esc(s.address):'<span style="color:var(--txt4)">Not provided</span>'}${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="display:block;font-size:.68rem;color:#60a5fa;margin-top:3px"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>`:''}${s.address?`<span style="font-size:.68rem;color:var(--txt4);display:block;margin-top:2px">Postcode: ${extractPostcode(s.address)||'—'}</span>`:''}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName||'—')}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Date Added</div><div class="det-val" style="font-weight:600;color:var(--txt)">${s.assignedAt?fmtDT(s.assignedAt)+'<span style="font-size:.65rem;color:var(--txt3);margin-left:6px">('+Math.floor((Date.now()-new Date(s.assignedAt))/86400000)+'d ago)</span>':'<span style="color:var(--txt4)">Not recorded</span>'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Type</div><div class="det-val">${(s.types&&s.types.size)?[...s.types].map(t=>`<span class="chip ${(t||'').replace(/\s/g,'-')}" style="font-size:.65rem">${esc(t)}</span>`).join(' '):(s.lesson_type?`<span class="chip" style="font-size:.65rem">${esc(s.lesson_type)}</span>`:'<span style="color:var(--txt4)">Not set</span>')}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Login History</div><div class="det-val" style="font-size:.78rem">${s.lastSeen?`<div style="color:#4ade80;font-weight:600"><i class="bi bi-circle-fill me-1" style="font-size:.45rem;vertical-align:middle"></i>Online now</div><div style="font-size:.68rem;color:var(--txt4)">Last seen: ${fmtDT(s.lastSeen)}</div>`:s.lastLogin?`<div style="color:var(--txt2)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</div>`:s.onApp?'<span style="color:#fbbf24">Registered — never logged in</span>':'<span style="color:var(--txt4)">Not on app</span>'}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
