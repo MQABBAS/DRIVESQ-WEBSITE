@@ -2789,7 +2789,8 @@ async function loadAllStudents(){
   }
 
   // Track roster count for map stat
-  window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
+  const _rcCut=new Date(Date.now()-120*86400000);
+  window._rosterCount=(rosterR.data||[]).filter(p=>!p.created_at||new Date(p.created_at)>=_rcCut).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
   // Update total students stat card — only count active students (added within 4 months / 120 days)
@@ -5762,7 +5763,8 @@ async function exportInstrPerformanceReport(){
   const hdr=`Instructor,Badge,Type,Area,Status,Students,Lessons (${monthName}),Hours (${monthName}),Revenue (${monthName}),Avg/Lesson`;
   const rows=allInstrs.map(i=>{
     const r=byInstr[i.id]||{lessons:0,hours:0,revenue:0};
-    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+    const _csvCut=new Date(Date.now()-120*86400000);
+    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&(!s.assignedAt||new Date(s.assignedAt)>=_csvCut)).length;
     const avg=r.lessons?((r.revenue/r.lessons).toFixed(2)):0;
     return[i.full_name,i.badge_number||'',i.badge_type||'ADI',i.area||'',i.status,studs,r.lessons,r.hours.toFixed(1),'£'+r.revenue.toFixed(2),'£'+avg].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
   });
@@ -5931,7 +5933,8 @@ function refreshMapStats(){
 
 function _placeInstrPin(i,coords){
   if(!_adminMap||!window.L)return;
-  const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+  const _pinCut=new Date(Date.now()-120*86400000);
+  const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&(!s.assignedAt||new Date(s.assignedAt)>=_pinCut)).length;
   const initial=(i.full_name||'?').trim()[0].toUpperCase();
   const sz=36;
   const instrIcon=L.divIcon({
@@ -7214,7 +7217,8 @@ async function loadScorecard(){
   _scorecardData=(allInstrs||[]).filter(i=>i.status==='approved').map(i=>{
     const l=lMap[i.id]||{count:0,hours:0,rev:0};
     const f=fMap[i.id]||{sum:0,count:0};
-    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id).length;
+    const _scCut=new Date(Date.now()-120*86400000);
+    const studs=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&(!s.assignedAt||new Date(s.assignedAt)>=_scCut)).length;
     return{id:i.id,name:i.full_name,phone:i.phone,status:i.status,students:studs,lessonsMonth:l.count,hoursMonth:parseFloat(l.hours.toFixed(1)),revenue:parseFloat(l.rev.toFixed(0)),avgRating:f.count?parseFloat((f.sum/f.count).toFixed(1)):null,ratingCount:f.count};
   });
   renderScorecard();
