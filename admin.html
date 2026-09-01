@@ -922,6 +922,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
             <input type="text" id="fcInstrSearch" class="dsq-inp" style="max-width:180px;font-size:.8rem;padding:5px 10px" placeholder="🔍 Search name or area…" oninput="filterFindResults(this.value)"/>
           </div>
           <div style="font-size:.7rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-2-circle me-1" style="color:var(--gold)"></i><strong>Step 2:</strong> Pick the best instructor from the list below and click <em>Assign to Instructor</em> on their card to create the student account.</div>
+          <div id="findNoJobsAlert" style="display:none;margin-bottom:12px"></div>
           <div id="findResults"><div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-arrow-left me-1"></i>Enter a postcode and click Find to rank instructors by distance. All instructors shown below for browsing.</div></div>
         </div>
       </div>
@@ -4496,7 +4497,9 @@ async function findClosest(){
         ?`<div style="font-size:.68rem;color:var(--green,#4ade80);margin-top:3px;font-weight:600"><i class="bi bi-people-fill me-1"></i>This instructor has ${ic.areaMatch} student${ic.areaMatch!==1?'s':''} in ${searchedOC||'this area'}</div>`
         :(ic.total>0?`<div style="font-size:.68rem;color:var(--txt4);margin-top:3px"><i class="bi bi-people me-1"></i>${ic.total} student${ic.total!==1?'s':''} on roster (none in ${searchedOC||'this area'})</div>`:'');
       const wkAsgn=r.instr._weekAssigned||0;
-      const weekAssignNote=`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:${wkAsgn>0?'var(--purple)':'var(--txt4)'}"><i class="bi bi-calendar-week me-1"></i>${wkAsgn} student${wkAsgn!==1?'s':''} assigned this week</div>`;
+      const weekAssignNote=wkAsgn===0
+        ?`<div style="font-size:.68rem;margin-top:3px;font-weight:700;color:#f59e0b"><i class="bi bi-calendar-x me-1"></i>No students assigned this week</div>`
+        :`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:var(--purple)"><i class="bi bi-calendar-week me-1"></i>${wkAsgn} student${wkAsgn!==1?'s':''} assigned this week</div>`;
       const instrCredits=_creditIndex[r.instr.id]||0;
       const creditNote=instrCredits>0
         ?`<div style="font-size:.7rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px"><i class="bi bi-arrow-repeat"></i>⟳ ${instrCredits} credit${instrCredits!==1?'s':''} owed — consider this instructor first</div>`
@@ -4540,7 +4543,11 @@ async function findClosest(){
       const ca=_creditIndex[a.instr.id]||0;
       const cb=_creditIndex[b.instr.id]||0;
       if(ca!==cb)return cb-ca; // more credits = higher priority
-      return 0; // distance ranking preserved within same credit tier
+      // Within same credit tier: instructors with 0 students this week get priority
+      const za=(a.instr._weekAssigned||0)===0?1:0;
+      const zb=(b.instr._weekAssigned||0)===0?1:0;
+      if(za!==zb)return zb-za;
+      return 0; // distance ranking preserved otherwise
     };
     const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type)).sort(_creditSort);
     const nonMatching=ranked.filter(r=>!instrCanTeach(r.instr.car_type||'Manual',type));
@@ -4702,11 +4709,33 @@ async function findClosest(){
     // ── END AREA INTELLIGENCE ─────────────────────────────────────────────────
 
     resultsEl.innerHTML=html;
+    renderNoJobsAlert();
   }catch(e){console.error(e);resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">Error looking up postcodes.</div>';}
   finally{btn.innerHTML='<i class="bi bi-search me-1"></i>Find Closest Instructor';btn.disabled=false;}
 }
 // Also show all instructors in alphabetical order when the panel loads (no postcode needed)
+function renderNoJobsAlert(){
+  const el=document.getElementById('findNoJobsAlert');
+  if(!el)return;
+  const approved=allInstrs.filter(i=>i.status==='approved');
+  const noJobs=approved.filter(i=>(i._weekAssigned||0)===0);
+  if(!noJobs.length){el.style.display='none';el.innerHTML='';return;}
+  const names=noJobs.map(i=>`<button onclick="document.getElementById('fcInstrSearch').value='${jsEsc(i.full_name)}';filterFindResults('${jsEsc(i.full_name)}')" style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:6px;padding:2px 9px;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap"><i class="bi bi-person me-1"></i>${esc(i.full_name)}</button>`).join('');
+  el.style.display='';
+  el.innerHTML=`<div style="background:rgba(168,85,247,.08);border:1.5px solid rgba(168,85,247,.3);border-radius:10px;padding:12px 14px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <i class="bi bi-exclamation-circle-fill" style="color:#c084fc;flex-shrink:0;margin-top:1px;font-size:1rem"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;font-weight:700;color:#c084fc;margin-bottom:4px">${noJobs.length} instructor${noJobs.length!==1?'s':''} without a student this week — give ${noJobs.length===1?'them':'each'} at least one</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${names}</div>
+      </div>
+      <button onclick="this.closest('#findNoJobsAlert').style.display='none'" style="background:none;border:none;color:#c084fc;cursor:pointer;padding:0;font-size:1rem;flex-shrink:0" title="Dismiss">✕</button>
+    </div>
+  </div>`;
+}
+
 async function showAllInstructors(){
+  renderNoJobsAlert();
   const resultsEl=document.getElementById('findResults');
   if(!resultsEl)return;
   const approved=allInstrs.filter(i=>i.status==='approved');
