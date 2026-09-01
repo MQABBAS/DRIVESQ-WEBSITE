@@ -3460,6 +3460,8 @@ async function confirmCreateStudent(){
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
   if(allStudentsCache.length)loadAllStudents();
+  // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
+  if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;}
   // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
   if(window._pendingWbId&&instrId){
     const wbId=window._pendingWbId;
@@ -4544,6 +4546,7 @@ async function findClosest(){
       const cb=_creditIndex[b.instr.id]||0;
       if(ca!==cb)return cb-ca; // more credits = higher priority
       // Within same credit tier: instructors with 0 students this week get priority
+      // If ALL instructors are 0-this-week, za===zb===1 → returns 0 → distance order preserved (stable sort)
       const za=(a.instr._weekAssigned||0)===0?1:0;
       const zb=(b.instr._weekAssigned||0)===0?1:0;
       if(za!==zb)return zb-za;
@@ -4752,6 +4755,7 @@ async function showAllInstructors(){
             <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(i.full_name)}</span>
             <span class="chip ${(i.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(i.badge_type||'ADI')}</span>
             <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(i.area||'—')}</div>
+            ${(i._weekAssigned||0)===0?`<div style="font-size:.65rem;font-weight:700;color:#f59e0b;margin-top:2px"><i class="bi bi-calendar-x me-1"></i>No students this week</div>`:''}
           </div>
         </div>
         <div class="d-flex gap-1 flex-wrap">
@@ -4956,6 +4960,12 @@ async function confirmAssign(){
 
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
+
+  // Update in-memory _weekAssigned count so the no-jobs alert and card refresh immediately
+  const _assignedInstr=allInstrs.find(i=>i.id===instrId);
+  if(_assignedInstr){_assignedInstr._weekAssigned=(_assignedInstr._weekAssigned||0)+1;}
+  renderNoJobsAlert();
+
   // If this assignment came from a waiting list / web booking entry, mark it assigned
   const _wlId=window._waitlistIdToAssign||window._pendingWbId||null;
   if(_wlId){
@@ -4980,6 +4990,7 @@ async function confirmAssign(){
 }
 function resetFindForm(afterAssign){
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderNoJobsAlert(); // refresh alert — counts may have changed after assign
   const fr=document.getElementById('findResults');
   if(fr)fr.innerHTML=afterAssign
     ?'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>'
