@@ -737,7 +737,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <thead><tr>
             <th style="width:36px;text-align:center;color:var(--txt4);font-size:.65rem">#</th>
             <th>Student</th><th>Phone</th><th class="hide-xs">Address</th>
-            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th title="Date student was added to the system">Date Added</th><th>Actions</th>
+            <th>Lesson Type</th><th>Instructor</th><th class="hide-xs">Lessons</th><th class="hide-xs">Hours</th><th class="hide-xs">Progress</th><th class="hide-xs">Last Login</th><th class="hide-xs">Last Lesson</th><th class="hide-xs" title="Date assigned to instructor">Assigned</th><th>Actions</th>
           </tr></thead>
           <tbody id="studentsTbody"></tbody>
         </table>
@@ -1999,7 +1999,7 @@ function showApp(){
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
   startAdminRealtime();
-  setTimeout(_buildUnpaidRefIndex,4000); // load unpaid ref index for student badges
+  setTimeout(_buildUnpaidRefIndex,500); // load unpaid ref index for student badges
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
@@ -2060,18 +2060,18 @@ function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
   const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
   if(days<0)return'';
-  // NEW = first 2 weeks
+  // NEW = first 2 weeks (purple)
   if(days<14)return'<span style="font-size:.52rem;font-weight:700;color:#c084fc;background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.3);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">NEW</span>';
-  // 3W = 2–3.5 weeks
+  // 3W = 2–3.5 weeks (blue)
   if(days<25)return'<span style="font-size:.52rem;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3W</span>';
-  // +1M = ~1 month (25–55 days)
+  // +1M = ~1 month (green)
   if(days<55)return'<span style="font-size:.52rem;font-weight:700;color:#34d399;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">+1M</span>';
-  // 2M = ~2 months (55–85 days)
+  // 2M = ~2 months (grey)
   if(days<85)return'<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">2M</span>';
-  // 3M = ~3 months (85–120 days)
-  if(days<120)return'<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3M</span>';
-  // OLD +4M = 4 months and beyond — excluded from active totals
-  return'<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap" title="4+ months — not counted in active totals">OLD +4M</span>';
+  // 3M = ~3 months (grey)
+  if(days<115)return'<span style="font-size:.52rem;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap">3M</span>';
+  // OLD = 4 months+ (amber) — excluded from active totals
+  return'<span style="font-size:.52rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;white-space:nowrap" title="4+ months old — not counted in active totals">OLD +4M</span>';
 }
 function _isOldStudent(assignedAt){
   if(!assignedAt)return false;
@@ -2159,7 +2159,7 @@ async function loadInstrs(){
       sb.from('lessons').select('instructor_id,duration_hours,payment_received').gte('lesson_date',dateKey(mon)).lte('lesson_date',dateKey(sun)),
       sb.from('student_profiles').select('instructor_id').neq('status','inactive').gte('created_at', new Date(Date.now()-120*86400000).toISOString()),
       sb.from('student_profiles').select('instructor_id').gte('created_at',weekStart.toISOString()).neq('status','inactive'),
-      sb.from('referrals').select('instructor_id').gte('created_at',weekStart.toISOString())
+      sb.from('referrals').select('instructor_id').gte('created_at',weekStart.toISOString()).gt('amount',0).eq('is_cancelled',false)
     ]);
     wkLessons=res[0].data||[];rosterRows=res[1].data||[];wkAssigned=res[2].data||[];
     const wkReferrals=res[3].data||[];
@@ -2198,7 +2198,7 @@ async function loadGlobalStats(){
   document.getElementById('sHours').textContent=hrs%1===0?hrs.toFixed(0):hrs.toFixed(1);
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
-  // Roster (student_profiles) is the canonical count — every student an instructor has added
+  // Roster count: only students added within 4 months (120 days) — older ones are excluded
   document.getElementById('sTotalStudents').textContent=rosterR.count||studR.count||0;
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
@@ -2279,7 +2279,7 @@ function renderInstrsTable(list){
     const weekEarn=(i._weekEarn||0).toFixed(0);
     return`<tr>
       <td style="color:var(--txt);font-weight:600">
-        ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>
+        ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>${i.franchise_amount>0?`<span style="font-size:.5rem;font-weight:700;color:#a78bfa;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:3px;padding:1px 5px;margin-left:5px;vertical-align:middle;white-space:nowrap">FRANCHISE £${parseFloat(i.franchise_amount).toFixed(0)}/wk</span>`:''}
       </td>
       <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
       <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
@@ -2546,6 +2546,7 @@ async function viewInstr(id){
         <button class="abtn msg" onclick="openMsgModal('${id}')"><i class="bi bi-envelope me-1"></i>Message</button>
         ${waBtn}
         <button onclick="toggleGuideMode('${id}','${jsEsc(instr.full_name)}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:8px;padding:7px 14px;font-size:.78rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;display:flex;align-items:center;gap:5px"><i class="bi bi-mortarboard-fill me-1"></i>Guide Mode</button>
+        <button onclick="openFranchiseModal('${id}','${jsEsc(instr.full_name)}',${parseFloat(instr.franchise_amount||0)})" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);color:#a78bfa;border-radius:8px;padding:7px 14px;font-size:.78rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;display:flex;align-items:center;gap:5px"><i class="bi bi-building me-1"></i>${instr.franchise_amount>0?`Franchise £${parseFloat(instr.franchise_amount).toFixed(0)}/wk`:'Set Franchise'}</button>
         ${blockBtnHtml}
         <button class="abtn del" onclick="deleteInstr('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-trash me-1"></i>Remove</button>
       </div>
@@ -2579,6 +2580,7 @@ function renderInstrDetail(instr){
     ['Status',`<span class="chip ${instr.status}">${instr.status}</span>`],
     ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
     ['Joined',fmtD(instr.created_at)],
+    ['Franchise Fee',instr.franchise_amount>0?`<span style="color:#a78bfa;font-family:'Oswald',sans-serif;font-weight:700">£${parseFloat(instr.franchise_amount).toFixed(0)}/week</span>`:'<span style="color:var(--txt4)">Not set</span>'],
     ['Badge Photo',instr.badge_photo_url?`<span style="color:#4ade80">✅ Uploaded</span> <a href="${esc(instr.badge_photo_url)}" target="_blank" style="font-size:.7rem;color:var(--txt4);margin-left:4px"><i class="bi bi-box-arrow-up-right"></i> View</a>`:'<span style="color:#f87171">❌ Not uploaded</span>'],
     ['Badge Expiry',(()=>{if(!instr.badge_expiry)return'<span style="color:var(--txt4)">—</span>';const today=new Date();today.setHours(0,0,0,0);const exp=new Date(instr.badge_expiry);const diff=Math.round((exp-today)/(1000*60*60*24));const fmt=exp.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][exp.getMonth()]+' '+exp.getFullYear();if(diff<0)return`<span style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⛔ EXPIRED — ${fmt}</span>`;if(diff<=30)return`<span style="background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⚠️ ${fmt} · ${diff}d left</span>`;if(diff<=90)return`<span style="background:rgba(251,146,60,.12);color:#fb923c;border:1px solid rgba(251,146,60,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">🕐 ${fmt} · ${diff}d left</span>`;return`<span style="background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">✅ ${fmt}</span>`;})()],
     ...(carInfo?[['Vehicle',esc(carInfo)]]:[]),
@@ -2671,7 +2673,7 @@ async function loadInstrRoster(){
           ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
           <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
           ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
-          ${_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 4+ months ago — not counted in active total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
+          ${_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 3+ months ago — not counted in total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
         </div>
         <button class="abtn edit" style="font-size:.65rem;padding:4px 8px;flex-shrink:0" onclick="event.stopPropagation();${onClickFn}"><i class="bi bi-pencil me-1"></i>Edit</button>
       </div>
@@ -2790,13 +2792,12 @@ async function loadAllStudents(){
   window._rosterCount=(rosterR.data||[]).length+(accountsR.data||[]).length;
   // Phase 1: render immediately from accounts + roster (fast)
   sortAndRender();
-  // Update total students stat card — only count active students (added within 4 months)
+  // Update total students stat card — only count active students (added within 4 months / 120 days)
   const _4mCutoff=new Date(Date.now()-120*86400000);
   const sTotalEl=document.getElementById('sTotalStudents');
   if(sTotalEl){
-    const activeCache=allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCutoff).length;
-    const cur=parseInt(sTotalEl.textContent)||0;
-    const calc=Math.max(cur,activeCache);
+    const activeFromCache=allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCutoff).length;
+    const calc=Math.max(parseInt(sTotalEl.textContent)||0,activeFromCache);
     if(calc>0)sTotalEl.textContent=calc;
   }
 
@@ -2844,9 +2845,9 @@ function renderStudentsTable(students){
   students=[...students].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   _renderedStudents=students;
   const tb=document.getElementById('studentsTbody');
-  // Roster total comes from sTotalStudents (set by loadGlobalStats from student_profiles count)
+  // Active total = students added within 4 months (OLD ones are excluded from count)
   const _4mCut=new Date(Date.now()-120*86400000);
-  const rosterTotal=parseInt(document.getElementById('sTotalStudents')?.textContent)||allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCut).length||students.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCut).length;
+  const rosterTotal=parseInt(document.getElementById('sTotalStudents')?.textContent)||allStudentsCache.filter(s=>!s.assignedAt||new Date(s.assignedAt)>=_4mCut).length||students.length;
   const isFiltered=students.length<rosterTotal;
   document.getElementById('studentCount').textContent=isFiltered
     ?`Showing ${students.length} of ${rosterTotal} student${rosterTotal!==1?'s':''} (filtered)`
@@ -2874,7 +2875,7 @@ function renderStudentsTable(students){
       <td class="hide-xs">${pct!=null?`<div style="display:flex;align-items:center;gap:5px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:6px;overflow:hidden;min-width:40px"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-size:.65rem;color:var(--txt3)">${pct}%</span></div>${readyChip}`:'<span style="color:var(--txt4);font-size:.7rem">—</span>'}</td>
       <td class="hide-xs">${lastSeenTxt}</td>
       <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)">${s.lastLesson?fmtD(s.lastLesson):'—'}</td>
-      <td style="font-size:.72rem;font-weight:600;color:var(--txt2);white-space:nowrap" title="${s.assignedAt?'Added: '+fmtDT(s.assignedAt):'Date not recorded'}">${s.assignedAt?fmtD(s.assignedAt):'<span style="color:var(--txt4)">—</span>'}</td>
+      <td class="hide-xs" style="font-size:.72rem;color:var(--txt3)" title="${s.assignedAt?fmtDT(s.assignedAt):''}">${s.assignedAt?fmtD(s.assignedAt):'—'}</td>
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
@@ -3377,6 +3378,8 @@ function openCreateStudentModal(){
   const msg=document.getElementById('createStudentMsg');if(msg)msg.className='hidden';
   const res=document.getElementById('createStudentResult');if(res)res.classList.add('hidden');
   const btn=document.getElementById('createStudentBtn');if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';}
+  const _craEl=document.getElementById('cs-referral-amount');if(_craEl)_craEl.value='0';
+  const _crsEl=document.getElementById('cs-referral-status');if(_crsEl)_crsEl.value='unpaid';
   openModal('createStudentModal');
 }
 function gen5Code(){return Math.random().toString(36).slice(2,7).toUpperCase();}
@@ -3431,12 +3434,15 @@ async function confirmCreateStudent(){
   if(instrId){
     const _csRefAmt=parseFloat(document.getElementById('cs-referral-amount')?.value||'0')||0;
     const _csRefPaid=document.getElementById('cs-referral-status')?.value==='paid';
-    await sb.from('referrals').insert([{
-      instructor_id:instrId,student_name:name,student_phone:phone||null,
-      amount:_csRefAmt,is_paid:_csRefPaid,
-      paid_at:_csRefPaid?new Date().toISOString():null,
-      notes:'Created via Create Student',created_at:new Date().toISOString()
-    }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+    if(_csRefAmt>0){
+      await sb.from('referrals').insert([{
+        instructor_id:instrId,student_name:name,student_phone:phone||null,
+        address:addr||null,
+        amount:_csRefAmt,is_paid:_csRefPaid,
+        paid_at:_csRefPaid?new Date().toISOString():null,
+        notes:'Created via Create Student',created_at:new Date().toISOString()
+      }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+    }
   }
   // Store for WhatsApp buttons
   window._csLastCreated={name,phone,email,lessonType,addr,notes,instrObj};
@@ -3539,7 +3545,6 @@ async function openStudentDetail(idx,_directData){
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Phone</div><div class="det-val">${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'Not provided'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Full Address / Postcode</div><div class="det-val ${!s.address?'empty':''}">${s.address?esc(s.address):'<span style="color:var(--txt4)">Not provided</span>'}${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="display:block;font-size:.68rem;color:#60a5fa;margin-top:3px"><i class="bi bi-map-fill me-1"></i>Open in Maps</a>`:''}${s.address?`<span style="font-size:.68rem;color:var(--txt4);display:block;margin-top:2px">Postcode: ${extractPostcode(s.address)||'—'}</span>`:''}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Instructor</div><div class="det-val">${esc(s.instrName||'—')}</div></div></div>
-      <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Date Added</div><div class="det-val" style="font-weight:600;color:var(--txt)">${s.assignedAt?fmtDT(s.assignedAt)+'<span style="font-size:.65rem;color:var(--txt3);margin-left:6px">('+Math.floor((Date.now()-new Date(s.assignedAt))/86400000)+'d ago)</span>':'<span style="color:var(--txt4)">Not recorded</span>'}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Lesson Type</div><div class="det-val">${(s.types&&s.types.size)?[...s.types].map(t=>`<span class="chip ${(t||'').replace(/\s/g,'-')}" style="font-size:.65rem">${esc(t)}</span>`).join(' '):(s.lesson_type?`<span class="chip" style="font-size:.65rem">${esc(s.lesson_type)}</span>`:'<span style="color:var(--txt4)">Not set</span>')}</div></div></div>
       <div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Login History</div><div class="det-val" style="font-size:.78rem">${s.lastSeen?`<div style="color:#4ade80;font-weight:600"><i class="bi bi-circle-fill me-1" style="font-size:.45rem;vertical-align:middle"></i>Online now</div><div style="font-size:.68rem;color:var(--txt4)">Last seen: ${fmtDT(s.lastSeen)}</div>`:s.lastLogin?`<div style="color:var(--txt2)"><i class="bi bi-clock me-1"></i>Last login: ${fmtDT(s.lastLogin)}</div>`:s.onApp?'<span style="color:#fbbf24">Registered — never logged in</span>':'<span style="color:var(--txt4)">Not on app</span>'}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Lessons</div><div class="det-val" style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.count}</div></div></div>
@@ -3554,7 +3559,8 @@ async function openStudentDetail(idx,_directData){
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
-    <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
+    <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>
+    <button class="abtn" onclick="openAddReferralForStudent()" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer" title="Record a referral fee for this student"><i class="bi bi-cash-coin me-1"></i>Add Referral</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
   document.getElementById('sdLessons').innerHTML=recentLessons.map(l=>`
@@ -4796,6 +4802,8 @@ function openAssignModal(instrId,instrName,instrPhone){
       stuSec.style.display='none';
     }
   } else if(stuSec){stuSec.style.display='none';}
+  const _raEl=document.getElementById('assign-referral-amount');if(_raEl)_raEl.value='0';
+  const _rsEl=document.getElementById('assign-referral-status');if(_rsEl)_rsEl.value='unpaid';
   openModal('assignModal');
 }
 async function confirmAssign(){
@@ -4878,12 +4886,15 @@ async function confirmAssign(){
   // 3b. Record referral fee
   const _refAmt=parseFloat(document.getElementById('assign-referral-amount')?.value||'0')||0;
   const _refPaid=document.getElementById('assign-referral-status')?.value==='paid';
-  await sb.from('referrals').insert([{
-    instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
-    amount:_refAmt,is_paid:_refPaid,
-    paid_at:_refPaid?new Date().toISOString():null,
-    notes:'Assigned via Find & Assign',created_at:new Date().toISOString()
-  }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+  if(_refAmt>0){
+    await sb.from('referrals').insert([{
+      instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
+      address:s.address||null,
+      amount:_refAmt,is_paid:_refPaid,
+      paid_at:_refPaid?new Date().toISOString():null,
+      notes:'Assigned via Find & Assign',created_at:new Date().toISOString()
+    }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+  }
 
   // 4. Push notification to instructor device
   await sendPushToInstructor(instrId,instrName,
@@ -6567,7 +6578,7 @@ function renderReferrals(){
     else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
   });
 
-  let totalDue=0,totalPaid=0,totalCount=rows.length,instrOwing=0;
+  let totalDue=0,totalPaid=0,totalCount=rows.filter(r=>!r.is_cancelled).length,instrOwing=0;
   Object.values(byInstr).forEach(g=>{totalDue+=g.due;totalPaid+=g.paid;if(g.due>0)instrOwing++;});
 
   // Update summary cards
@@ -6745,8 +6756,7 @@ async function markRefPaid(refId){
   if(r){r.is_paid=true;r.paid_at=new Date().toISOString();}
   showToast('Referral marked as paid ✓','success');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
-  if(instrId)openRefDetail(instrId);
+  if(r?.instructor_id)openRefDetail(r.instructor_id);
   renderReferrals();
 }
 
@@ -6764,9 +6774,77 @@ async function cancelRef(refId, studentName){
   if(r)r.is_cancelled=true;
   showToast(`${studentName} — referral voided (student left) ✓`,'warn');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
-  if(instrId)openRefDetail(instrId);
+  if(r?.instructor_id)openRefDetail(r.instructor_id);
   renderReferrals();
+}
+
+function openAddReferralForStudent(){
+  const ctx=_adminStudentCtx;
+  if(!ctx||!ctx.name){showToast('No student loaded','error');return;}
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:var(--dk2,#161616);border:1px solid var(--bdr,#2a2a2a);border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+    <h5 style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-cash-coin me-2" style="color:var(--gold)"></i>Add Referral Fee</h5>
+    <div style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">Student: <strong style="color:var(--txt)">${esc(ctx.name)}</strong></div>
+    <label style="font-size:.7rem;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+    <input id="_arfAmt" type="number" min="0" step="0.01" value="0" placeholder="0.00" style="width:100%;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:9px 12px;font-size:.9rem;margin-bottom:10px"/>
+    <label style="font-size:.7rem;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Status</label>
+    <select id="_arfStatus" style="width:100%;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:9px 12px;font-size:.84rem;margin-bottom:14px">
+      <option value="unpaid">Unpaid</option>
+      <option value="paid">Paid</option>
+    </select>
+    <div style="display:flex;gap:8px">
+      <button id="_arfOk" style="flex:1;background:linear-gradient(135deg,#F5C518,#d4a800);color:#000;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer"><i class="bi bi-check-lg me-1"></i>Save Referral</button>
+      <button id="_arfCancel" style="flex:1;background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_arfCancel').onclick=()=>overlay.remove();
+  overlay.querySelector('#_arfOk').onclick=async()=>{
+    const amt=parseFloat(document.getElementById('_arfAmt')?.value||'0')||0;
+    if(amt<=0){showToast('Enter an amount greater than £0','error');return;}
+    const isPaid=document.getElementById('_arfStatus')?.value==='paid';
+    const instrId=ctx.instrId||null;
+    if(!instrId){showToast('No instructor linked to this student','error');return;}
+    const{error}=await sb.from('referrals').insert([{
+      instructor_id:instrId,student_name:ctx.name,student_phone:ctx.phone||null,
+      amount:amt,is_paid:isPaid,paid_at:isPaid?new Date().toISOString():null,
+      notes:'Added from student profile',created_at:new Date().toISOString()
+    }]);
+    if(error){showToast('Error: '+error.message,'error');return;}
+    overlay.remove();
+    showToast('Referral saved ✓','success');
+    _buildUnpaidRefIndex();
+  };
+}
+
+function openFranchiseModal(instrId,instrName,currentAmount){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:var(--dk2,#161616);border:1px solid var(--bdr,#2a2a2a);border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+    <h5 style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:4px"><i class="bi bi-building me-2" style="color:#a78bfa"></i>Franchise Fee</h5>
+    <div style="font-size:.78rem;color:var(--txt3);margin-bottom:14px">Instructor: <strong style="color:var(--txt)">${esc(instrName)}</strong></div>
+    <label style="font-size:.7rem;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Weekly Franchise Amount (£)</label>
+    <input id="_franchiseAmt" type="number" min="0" step="1" value="${parseFloat(currentAmount||0).toFixed(0)}" placeholder="0" style="width:100%;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:9px 12px;font-size:1.1rem;font-family:'Oswald',sans-serif;font-weight:700;margin-bottom:6px"/>
+    <div style="font-size:.68rem;color:var(--txt4);margin-bottom:14px">Set to £0 to remove franchise status. Weeks are auto-marked paid — mark individual weeks unpaid manually.</div>
+    <div style="display:flex;gap:8px">
+      <button id="_franchiseOk" style="flex:1;background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer"><i class="bi bi-check-lg me-1"></i>Save</button>
+      <button id="_franchiseCancel" style="flex:1;background:transparent;border:1px solid var(--bdr);color:var(--txt3);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_franchiseCancel').onclick=()=>overlay.remove();
+  overlay.querySelector('#_franchiseOk').onclick=async()=>{
+    const amt=parseFloat(document.getElementById('_franchiseAmt')?.value||'0')||0;
+    const{error}=await sb.from('instructors').update({franchise_amount:amt||null}).eq('id',instrId);
+    if(error){showToast('Error: '+error.message+' — Run in Supabase: ALTER TABLE instructors ADD COLUMN IF NOT EXISTS franchise_amount numeric(10,2);','error');return;}
+    overlay.remove();
+    const instr=allInstrs.find(i=>i.id===instrId);
+    if(instr)instr.franchise_amount=amt||null;
+    renderInstrsTable(allInstrs);
+    showToast(amt>0?`Franchise set to £${amt.toFixed(0)}/wk ✓`:'Franchise removed ✓','success');
+    if(viewingId===instrId)viewInstr(instrId);
+  };
 }
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
