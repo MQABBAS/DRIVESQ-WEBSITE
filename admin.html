@@ -1152,7 +1152,17 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <input class="dsq-inp" id="notesTitle" placeholder="Note title (optional)…" style="flex:1;font-size:.85rem"/>
     <button class="btn-p" onclick="addAdminNote()" style="white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add Note</button>
   </div>
-  <textarea class="dsq-inp" id="notesBody" placeholder="Type your note here…" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:12px"></textarea>
+  <!-- Emoji / symbol toolbar -->
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:8px;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px">
+    <span style="font-size:.62rem;color:var(--txt4);width:100%;margin-bottom:4px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Quick insert</span>
+    <script>
+    (function(){
+      const syms=['✅','❌','⚠️','📅','📞','💬','💰','🚗','👤','📝','🔴','🟡','🟢','⭐','🏆','📌','🔒','✔️','➡️','⏰','📊','💡','🎯','🔔','✏️','🗒️','📋'];
+      document.write(syms.map(s=>`<button type="button" onclick="insertNoteSymbol('${s}')" title="${s}" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 7px;font-size:1rem;cursor:pointer;line-height:1;transition:background .15s" onmouseover="this.style.background='var(--dk1)'" onmouseout="this.style.background='var(--dk2)'">${s}</button>`).join(''));
+    })();
+    </script>
+  </div>
+  <textarea class="dsq-inp" id="notesBody" placeholder="Type your note here… use the toolbar above for emojis and symbols" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:12px"></textarea>
   <div id="notesList" style="display:flex;flex-direction:column;gap:10px"></div>
 </div>
 
@@ -7453,39 +7463,120 @@ function renderProgressOverview(list){
 }
 
 /* ══ ADMIN NOTES ══ */
-function loadAdminNotes(){
+function insertNoteSymbol(sym){
+  const ta=document.getElementById('notesBody');if(!ta)return;
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+[...sym].length;
+  ta.focus();
+}
+
+let _editingNoteId=null;
+
+async function loadAdminNotes(){
   const nl=document.getElementById('notesList');if(!nl)return;
-  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+  nl.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const{data,error}=await sb.from('admin_notes').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){
+    // Fallback: localStorage
+    let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+    if(!notes.length){nl.innerHTML='<div style="text-align:center;padding:30px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-journal me-2"></i>No notes yet.</div>';return;}
+    nl.innerHTML=notes.map((n,i)=>_noteCard(n,i,true)).join('');
+    return;
+  }
+  const notes=data||[];
   if(!notes.length){nl.innerHTML='<div style="text-align:center;padding:30px;font-size:.82rem;color:var(--txt4)"><i class="bi bi-journal me-2"></i>No notes yet. Add your first note above.</div>';return;}
-  nl.innerHTML=notes.map((n,i)=>`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;position:relative">
+  nl.innerHTML=notes.map(n=>_noteCard(n,n.id,false)).join('');
+}
+
+function _noteCard(n,ref,isLs){
+  const dateStr=n.created_at?new Date(n.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):n.date||'';
+  const updStr=(!isLs&&n.updated_at&&n.updated_at!==n.created_at)?`<span style="font-size:.6rem;color:var(--txt4);font-style:italic"> · edited</span>`:'';
+  return `<div id="notecard-${ref}" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;position:relative">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
       <div style="font-family:'Oswald',sans-serif;font-weight:700;color:#c084fc;font-size:.9rem">${esc(n.title||'Note')}</div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <span style="font-size:.65rem;color:var(--txt4)">${n.date||''}</span>
-        <button onclick="deleteAdminNote(${i})" style="background:none;border:none;color:#f87171;cursor:pointer;padding:0;font-size:.8rem" title="Delete"><i class="bi bi-trash3-fill"></i></button>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:.65rem;color:var(--txt4)">${dateStr}${updStr}</span>
+        ${!isLs?`<button onclick="startEditNote('${ref}','${esc(n.title||'')}',this)" style="background:none;border:none;color:var(--txt4);cursor:pointer;padding:0;font-size:.8rem" title="Edit"><i class="bi bi-pencil-square"></i></button>`:''}
+        <button onclick="deleteAdminNote('${ref}',${isLs})" style="background:none;border:none;color:#f87171;cursor:pointer;padding:0;font-size:.8rem" title="Delete"><i class="bi bi-trash3-fill"></i></button>
       </div>
     </div>
-    <div style="font-size:.82rem;color:var(--txt2);white-space:pre-wrap;line-height:1.5">${esc(n.body)}</div>
-  </div>`).join('');
+    <div id="notebody-${ref}" style="font-size:.82rem;color:var(--txt2);white-space:pre-wrap;line-height:1.6">${esc(n.body)}</div>
+  </div>`;
 }
-function addAdminNote(){
+
+function startEditNote(id,title,btn){
+  if(_editingNoteId&&_editingNoteId!==id){showToast('Finish editing the current note first.','warn');return;}
+  _editingNoteId=id;
+  const bodyDiv=document.getElementById('notebody-'+id);
+  const card=document.getElementById('notecard-'+id);
+  if(!bodyDiv||!card)return;
+  const currentBody=bodyDiv.innerText;
+  bodyDiv.innerHTML=`<textarea id="noteedit-${id}" style="width:100%;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:8px;font-size:.82rem;resize:vertical;line-height:1.6;min-height:80px">${currentBody}</textarea>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      ${['✅','❌','⚠️','📅','📞','💬','💰','🚗','👤','📝','🔴','🟡','🟢','⭐','✔️','📌'].map(s=>`<button type="button" onclick="insertEditSymbol('${id}','${s}')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:6px;padding:3px 6px;font-size:.9rem;cursor:pointer">${s}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="saveNoteEdit('${id}')" style="background:rgba(192,132,252,.15);border:1px solid rgba(192,132,252,.3);color:#c084fc;border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer;font-weight:700"><i class="bi bi-floppy me-1"></i>Save</button>
+      <button onclick="cancelNoteEdit('${id}','${currentBody.replace(/'/g,"\\'")}','${esc(title)}')" style="background:none;border:1px solid var(--bdr);color:var(--txt4);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer">Cancel</button>
+    </div>`;
+}
+
+function insertEditSymbol(id,sym){
+  const ta=document.getElementById('noteedit-'+id);if(!ta)return;
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+[...sym].length;
+  ta.focus();
+}
+
+async function saveNoteEdit(id){
+  const ta=document.getElementById('noteedit-'+id);if(!ta)return;
+  const newBody=ta.value.trim();
+  if(!newBody){showToast('Note cannot be empty.','warn');return;}
+  const{error}=await sb.from('admin_notes').update({body:newBody,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){showToast('Failed to save.','error');return;}
+  _editingNoteId=null;
+  showToast('Note updated ✓','success');
+  loadAdminNotes();
+}
+
+function cancelNoteEdit(id,body,title){
+  _editingNoteId=null;
+  const bodyDiv=document.getElementById('notebody-'+id);
+  if(bodyDiv)bodyDiv.innerHTML=esc(body).replace(/\\n/g,'\n');
+}
+
+async function addAdminNote(){
   const title=(document.getElementById('notesTitle').value||'').trim();
   const body=(document.getElementById('notesBody').value||'').trim();
   if(!body){showToast('Write something first!','warn');return;}
-  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
-  const now=new Date();
-  const date=now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  notes.unshift({title:title||'Note',body,date});
-  try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
+  const{error}=await sb.from('admin_notes').insert([{title:title||'Note',body,created_at:new Date().toISOString()}]);
+  if(error){
+    // Fallback to localStorage
+    let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+    const date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    notes.unshift({title:title||'Note',body,date});
+    try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
+    showToast('Saved locally (run: create admin_notes table in Supabase)','warn');
+  } else {
+    showToast('Note saved ✓','success');
+  }
   document.getElementById('notesTitle').value='';document.getElementById('notesBody').value='';
-  loadAdminNotes();showToast('Note saved ✓','success');
-}
-function deleteAdminNote(idx){
-  if(!confirm('Delete this note?'))return;
-  let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
-  notes.splice(idx,1);
-  try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
   loadAdminNotes();
+}
+
+async function deleteAdminNote(ref,isLs){
+  if(!confirm('Delete this note?'))return;
+  if(isLs){
+    let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
+    notes.splice(Number(ref),1);
+    try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
+    loadAdminNotes();return;
+  }
+  const{error}=await sb.from('admin_notes').delete().eq('id',ref);
+  if(error)showToast('Failed to delete note.','error');
+  else{showToast('Note deleted','success');loadAdminNotes();}
 }
 
 /* ══ THEORY PROGRESS MODAL ══ */
