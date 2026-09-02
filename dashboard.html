@@ -1611,6 +1611,116 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div id="hsContent"></div>
   </div>
 </div>
+<!-- ── LOGIN OVERLAY (replaces portal.html) ── -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#060608;overflow-y:auto;font-family:'Inter',sans-serif">
+  <div style="position:fixed;inset:0;background-image:radial-gradient(circle,rgba(209,10,17,.04) 1px,transparent 1px);background-size:32px 32px;pointer-events:none"></div>
+  <div style="position:fixed;top:0;left:0;right:0;height:600px;background:radial-gradient(ellipse 80% 40% at 50% -10%,rgba(209,10,17,.08),transparent);pointer-events:none"></div>
+  <nav style="background:rgba(6,6,8,.97);border-bottom:1px solid rgba(209,10,17,.3);padding:0;position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)">
+    <div style="max-width:1100px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;justify-content:space-between">
+      <a href="https://www.drivesq.co.uk/index" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+        <img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:40px;height:40px;border-radius:50%;border:2px solid #D10A11;object-fit:cover" alt="DriveSQ"/>
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.35rem;font-weight:700;color:#fff;letter-spacing:1px;line-height:1">Drive<span style="color:#D10A11">SQ</span></div>
+          <div style="font-size:.5rem;color:#333;letter-spacing:2px;text-transform:uppercase;margin-top:1px">Instructor Portal</div>
+        </div>
+      </a>
+    </div>
+  </nav>
+  <div style="text-align:center;padding:48px 20px 28px;position:relative;z-index:1">
+    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(209,10,17,.08);border:1px solid rgba(209,10,17,.2);color:rgba(240,128,128,.8);font-size:.63rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:18px">🚗 Instructor-Only Platform</div>
+    <h1 style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:clamp(2.4rem,7vw,4rem);font-weight:800;color:#fff;line-height:.95;margin-bottom:12px;letter-spacing:-1px">DriveSQ<br><span style="color:#D10A11">Instructor</span> Portal</h1>
+    <p style="color:#444;font-size:.86rem;max-width:360px;margin:0 auto;line-height:1.75">Plan your week, manage your students, and track your lessons — all in one place.</p>
+  </div>
+  <!-- TABS -->
+  <div style="display:flex;justify-content:center;margin:0 20px 24px;max-width:460px;margin-left:auto;margin-right:auto;background:#16161c;border-radius:11px;padding:4px;border:1px solid #252530;position:relative;z-index:1">
+    <button id="lo-tabLogin" onclick="loShowTab('login')" style="flex:1;background:#D10A11;border:none;color:#fff;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:.4px;box-shadow:0 4px 18px rgba(209,10,17,.35)">🔑 Sign In</button>
+    <button id="lo-tabReg" onclick="loShowTab('register')" style="flex:1;background:transparent;border:none;color:#444;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:.4px">📝 Register</button>
+  </div>
+  <div style="max-width:440px;margin:0 auto;padding:0 20px 60px;position:relative;z-index:1">
+    <!-- LOGIN CARD -->
+    <div id="lo-loginCard" style="background:linear-gradient(160deg,#141420,#0e0e14);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <div style="width:42px;height:42px;border-radius:11px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0">🔑</div>
+        <div><div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff">Welcome Back</div><div style="font-size:.72rem;color:#333;margin-top:1px">Sign in with your badge number</div></div>
+      </div>
+      <div id="lo-loginMsg" style="display:none;padding:10px 14px;border-radius:9px;font-size:.82rem;margin-bottom:12px;line-height:1.5"></div>
+      <form onsubmit="loHandleLogin(event)">
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">ADI/PDI Badge Number <span style="color:#D10A11">*</span></label>
+          <input id="lo-badge" class="lo-inp" placeholder="e.g. A12345 or P67890" required autocomplete="off" style="text-transform:uppercase;width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s"/>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Password <span style="color:#D10A11">*</span></label>
+          <div style="position:relative">
+            <input id="lo-pass" type="password" class="lo-inp" placeholder="Your password" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 42px 11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s"/>
+            <button type="button" onclick="loTogglePw('lo-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#333;cursor:pointer;padding:4px 6px;font-size:1rem"><i class="bi bi-eye"></i></button>
+          </div>
+        </div>
+        <button type="submit" id="lo-loginBtn" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#D10A11,#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.8rem;letter-spacing:.5px;cursor:pointer;box-shadow:0 4px 20px rgba(209,10,17,.3);margin-top:4px">Sign In to Portal →</button>
+        <a href="https://wa.me/447352932003?text=Hi%20DriveSQ!%20I%20need%20to%20reset%20my%20instructor%20portal%20password.%20My%20badge%20number%20is%3A%20" target="_blank" style="display:block;text-align:center;margin-top:10px;font-size:.72rem;color:#333;text-decoration:none">Forgot your password? WhatsApp DriveSQ →</a>
+      </form>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 14px;margin-top:14px;padding:10px 0 4px;border-top:1px solid rgba(255,255,255,.05)">
+        <span style="font-size:.65rem;color:#333;display:flex;align-items:center;gap:4px"><em style="color:#2a7a4f;font-style:normal">🔐</em> 256-bit encrypted</span>
+        <span style="font-size:.65rem;color:#333;display:flex;align-items:center;gap:4px"><em style="color:#2a7a4f;font-style:normal">✅</em> DVSA-verified only</span>
+        <span style="font-size:.65rem;color:#333;display:flex;align-items:center;gap:4px"><em style="color:#2a7a4f;font-style:normal">🔒</em> SSL secured</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;color:#222;font-size:.7rem;margin:14px 0;letter-spacing:.5px"><div style="flex:1;height:1px;background:#1e1e28"></div>new instructor?<div style="flex:1;height:1px;background:#1e1e28"></div></div>
+      <button onclick="loShowTab('register')" style="display:flex;align-items:center;justify-content:center;width:100%;background:transparent;border:1px solid #252530;color:#444;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.8rem;cursor:pointer;transition:all .2s">Create an Account →</button>
+    </div>
+    <!-- REGISTER CARD -->
+    <div id="lo-regCard" style="display:none;background:linear-gradient(160deg,#141420,#0e0e14);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <div style="width:42px;height:42px;border-radius:11px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.2);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0">📝</div>
+        <div><div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff">Create Account</div><div style="font-size:.72rem;color:#333;margin-top:1px">New DriveSQ instructors</div></div>
+      </div>
+      <div id="lo-regMsg" style="display:none;padding:10px 14px;border-radius:9px;font-size:.82rem;margin-bottom:12px;line-height:1.5"></div>
+      <div id="lo-pendingView" style="display:none">
+        <div style="background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.18);border-radius:14px;padding:24px 20px;text-align:center">
+          <h3 style="font-family:'Oswald',sans-serif;color:#F5C518;font-size:1.2rem;margin-bottom:10px">⏳ Application Submitted!</h3>
+          <p style="font-size:.82rem;color:#555;line-height:1.7">Your account is <strong style="color:#F5C518">pending approval</strong> by DriveSQ admin.<br><br>You'll be able to sign in once approved — usually within 24 hours.<br><br><a href="https://wa.me/447352932003?text=Hi!%20I%20just%20registered%20on%20the%20DriveSQ%20Instructor%20Portal." target="_blank" style="color:#25D366;font-weight:700">💬 WhatsApp DriveSQ to confirm →</a></p>
+        </div>
+      </div>
+      <form id="lo-regForm" onsubmit="loHandleRegister(event)">
+        <div style="height:3px;background:#1e1e28;border-radius:999px;margin-bottom:14px;overflow:hidden"><div id="lo-stepFill" style="height:100%;background:#D10A11;border-radius:999px;transition:width .35s ease;width:33%"></div></div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-bottom:22px">
+          <div id="lo-d1" style="width:7px;height:7px;border-radius:50%;background:#D10A11;box-shadow:0 0 8px rgba(209,10,17,.5)"></div>
+          <div id="lo-d2" style="width:7px;height:7px;border-radius:50%;background:#1e1e28"></div>
+          <div id="lo-d3" style="width:7px;height:7px;border-radius:50%;background:#1e1e28"></div>
+        </div>
+        <div id="lo-step1">
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Full Name <span style="color:#D10A11">*</span></label><input id="lo-rName" class="lo-inp" placeholder="Jane Smith" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/></div>
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">ADI/PDI Badge Number <span style="color:#D10A11">*</span></label><input id="lo-rBadge" class="lo-inp" placeholder="e.g. A12345 or P67890" required style="text-transform:uppercase;width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/></div>
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Badge Type <span style="color:#D10A11">*</span></label><select id="lo-rType" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"><option value="">Select…</option><option value="ADI">ADI — Fully Qualified</option><option value="PDI">PDI — In Training</option></select></div>
+          <div style="margin-bottom:14px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Lesson Types <span style="color:#D10A11">*</span></label><select id="lo-rCarType" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"><option value="">Select…</option><option value="Manual">Manual Only</option><option value="Automatic">Automatic Only</option><option value="Both">Manual &amp; Automatic</option></select></div>
+          <button type="button" onclick="loNextStep(2)" style="display:flex;align-items:center;justify-content:center;width:100%;background:linear-gradient(135deg,#D10A11,#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.8rem;cursor:pointer;box-shadow:0 4px 20px rgba(209,10,17,.3)">Continue →</button>
+        </div>
+        <div id="lo-step2" style="display:none">
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Phone Number <span style="color:#D10A11">*</span></label><input id="lo-rPhone" class="lo-inp" placeholder="07xxx xxx xxx" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/></div>
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Email Address <span style="color:#D10A11">*</span></label><input id="lo-rEmail" type="email" class="lo-inp" placeholder="you@email.com" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/></div>
+          <div style="margin-bottom:14px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Postcode / Area <span style="color:#D10A11">*</span></label><input id="lo-rArea" class="lo-inp" placeholder="e.g. M19, Didsbury, Stockport" required style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/></div>
+          <div style="display:flex;gap:10px">
+            <button type="button" onclick="loNextStep(1)" style="flex:1;background:transparent;border:1px solid #252530;color:#444;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.75rem;cursor:pointer">← Back</button>
+            <button type="button" onclick="loNextStep(3)" style="flex:1;background:linear-gradient(135deg,#D10A11,#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.75rem;cursor:pointer">Continue →</button>
+          </div>
+        </div>
+        <div id="lo-step3" style="display:none">
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Create Password <span style="color:#D10A11">*</span></label><div style="position:relative"><input id="lo-rPass" type="password" class="lo-inp" placeholder="Min 8 characters" required minlength="8" style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 42px 11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/><button type="button" onclick="loTogglePw('lo-rPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#333;cursor:pointer;padding:4px 6px;font-size:1rem"><i class="bi bi-eye"></i></button></div></div>
+          <div style="margin-bottom:12px"><label style="display:block;font-size:.72rem;color:#444;margin-bottom:5px;font-weight:500">Confirm Password <span style="color:#D10A11">*</span></label><div style="position:relative"><input id="lo-rPass2" type="password" class="lo-inp" placeholder="Repeat password" required minlength="8" style="width:100%;background:#13131a;border:1px solid #252530;color:#f0f0f0;border-radius:9px;padding:11px 42px 11px 14px;font-size:.88rem;font-family:'Inter',sans-serif;outline:none"/><button type="button" onclick="loTogglePw('lo-rPass2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#333;cursor:pointer;padding:4px 6px;font-size:1rem"><i class="bi bi-eye"></i></button></div></div>
+          <div style="background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.12);border-radius:9px;padding:11px 14px;font-size:.76rem;color:#555;margin-bottom:14px;line-height:1.6">⚠️ Your account will need <strong style="color:#F5C518">admin approval</strong> before you can log in. Usually within 24 hours.</div>
+          <div style="display:flex;gap:10px">
+            <button type="button" onclick="loNextStep(2)" style="flex:1;background:transparent;border:1px solid #252530;color:#444;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.75rem;cursor:pointer">← Back</button>
+            <button type="submit" id="lo-regBtn" style="flex:1;background:linear-gradient(135deg,#D10A11,#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.75rem;cursor:pointer">Submit for Approval ✓</button>
+          </div>
+        </div>
+      </form>
+      <div style="display:flex;align-items:center;gap:8px;color:#222;font-size:.7rem;margin:14px 0;letter-spacing:.5px"><div style="flex:1;height:1px;background:#1e1e28"></div>already have an account?<div style="flex:1;height:1px;background:#1e1e28"></div></div>
+      <button onclick="loShowTab('login')" style="display:flex;align-items:center;justify-content:center;width:100%;background:transparent;border:1px solid #252530;color:#444;border-radius:9px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;padding:.8rem;cursor:pointer">← Back to Sign In</button>
+    </div>
+  </div>
+</div>
+<style>
+.lo-inp:focus{border-color:#D10A11!important;box-shadow:0 0 0 3px rgba(209,10,17,.12)!important;}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -1642,9 +1752,149 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){window.location.href='portal.html';}  // redirect only — no throw, no TDZ
-function logout(){sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html';}
+if(!instr||!instr.id){showLoginOverlay();}  // show in-page login — no redirect
+function logout(){sessionStorage.removeItem('dsq_instructor');showLoginOverlay();}
 
+/* ── LOGIN OVERLAY LOGIC ── */
+function showLoginOverlay(){
+  document.getElementById('loginOverlay').style.display='block';
+  document.body.style.overflow='hidden';
+  // ping Supabase
+  (async function(){
+    try{
+      const{error}=await sb.from('instructors').select('id',{count:'exact',head:true});
+      if(error&&error.code!=='PGRST116'&&error.code!=='42P01'){
+        const w=document.getElementById('lo-connWarn')||(() => {
+          const d=document.createElement('div');d.id='lo-connWarn';
+          d.style.cssText='background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.25);border-radius:10px;padding:10px 14px;font-size:.76rem;color:#999;margin-bottom:14px;line-height:1.5;max-width:440px;margin-left:auto;margin-right:auto';
+          document.getElementById('lo-loginCard').prepend(d);return d;
+        })();
+        w.textContent='⚠️ Database connection issue. If login fails, please try again shortly.';
+      }
+    }catch(e){}
+  })();
+}
+function hideLoginOverlay(){
+  document.getElementById('loginOverlay').style.display='none';
+  document.body.style.overflow='';
+}
+function loShowTab(t){
+  const isLogin=t==='login';
+  document.getElementById('lo-loginCard').style.display=isLogin?'block':'none';
+  document.getElementById('lo-regCard').style.display=isLogin?'none':'block';
+  document.getElementById('lo-tabLogin').style.background=isLogin?'#D10A11':'transparent';
+  document.getElementById('lo-tabLogin').style.color=isLogin?'#fff':'#444';
+  document.getElementById('lo-tabReg').style.background=isLogin?'transparent':'#D10A11';
+  document.getElementById('lo-tabReg').style.color=isLogin?'#444':'#fff';
+}
+function loTogglePw(id,btn){
+  const inp=document.getElementById(id);
+  const ico=btn.querySelector('i');
+  if(inp.type==='password'){inp.type='text';ico.className='bi bi-eye-slash';}
+  else{inp.type='password';ico.className='bi bi-eye';}
+}
+let loStep=1;
+const loFillW=['33%','67%','100%'];
+function loNextStep(n){
+  if(n>loStep){
+    if(loStep===1){
+      if(!document.getElementById('lo-rName').value.trim()){loShowRegMsg('error','Please enter your full name.');return;}
+      if(!document.getElementById('lo-rBadge').value.trim()){loShowRegMsg('error','Please enter your badge number.');return;}
+      if(!document.getElementById('lo-rType').value){loShowRegMsg('error','Please select your badge type.');return;}
+      if(!document.getElementById('lo-rCarType').value){loShowRegMsg('error','Please select your lesson type.');return;}
+    }
+    if(loStep===2){
+      if(!document.getElementById('lo-rPhone').value.trim()){loShowRegMsg('error','Please enter your phone number.');return;}
+      if(!document.getElementById('lo-rEmail').value.trim()){loShowRegMsg('error','Please enter your email.');return;}
+      if(!document.getElementById('lo-rArea').value.trim()){loShowRegMsg('error','Please enter your area/postcode.');return;}
+    }
+  }
+  document.getElementById('lo-regMsg').style.display='none';
+  ['lo-step1','lo-step2','lo-step3'].forEach(function(s,i){document.getElementById(s).style.display=i+1===n?'block':'none';});
+  ['lo-d1','lo-d2','lo-d3'].forEach(function(d,i){
+    const el=document.getElementById(d);
+    el.style.background=i+1===n?'#D10A11':'#1e1e28';
+    el.style.boxShadow=i+1===n?'0 0 8px rgba(209,10,17,.5)':'none';
+  });
+  loStep=n;
+  document.getElementById('lo-stepFill').style.width=loFillW[n-1];
+}
+function loShowRegMsg(type,text){
+  const el=document.getElementById('lo-regMsg');
+  el.style.display='block';
+  el.style.background=type==='error'?'rgba(209,10,17,.07)':'rgba(37,211,102,.07)';
+  el.style.border=type==='error'?'1px solid rgba(209,10,17,.2)':'1px solid rgba(37,211,102,.2)';
+  el.style.color=type==='error'?'#f87171':'#4ade80';
+  el.textContent=text;
+}
+async function loHandleLogin(e){
+  e.preventDefault();
+  const btn=document.getElementById('lo-loginBtn');
+  btn.innerHTML='<i class="bi bi-arrow-repeat" style="animation:spin .6s linear infinite;display:inline-block"></i> Signing in…';
+  btn.disabled=true;
+  const msg=document.getElementById('lo-loginMsg');
+  msg.style.display='none';
+  const badge=document.getElementById('lo-badge').value.trim().toUpperCase();
+  const pass=document.getElementById('lo-pass').value;
+  try{
+    const{data,error}=await sb.from('instructors').select('*').eq('badge_number',badge).maybeSingle();
+    if(error){showMsg('Connection error. Please try again.');return;}
+    if(!data){showMsg('Badge number not found.');return;}
+    if(data.status==='pending'){showMsg('⏳ Your account is pending admin approval. Usually within 24 hours.','info');return;}
+    if(data.status==='rejected'){showMsg('Your application was not approved. Please WhatsApp DriveSQ.');return;}
+    if(data.status==='suspended'){showMsg('🚫 Your account has been suspended. Please contact DriveSQ.');return;}
+    let hashPass;try{hashPass=btoa(pass);}catch(ex){hashPass=btoa(encodeURIComponent(pass));}
+    if(data.password_hash!==hashPass){showMsg('Incorrect password. Please try again.');return;}
+    sessionStorage.setItem('dsq_instructor',JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
+    btn.textContent='✓ Signed in…';
+    btn.style.background='linear-gradient(135deg,#16a34a,#15803d)';
+    setTimeout(function(){ location.reload(); },600);
+  }catch(err){
+    showMsg('Connection error. Please try again.');
+  }finally{
+    if(!btn.textContent.includes('Signed')){btn.innerHTML='Sign In to Portal →';btn.disabled=false;}
+  }
+  function showMsg(text,type){
+    type=type||'error';
+    msg.style.display='block';
+    msg.style.background=type==='error'?'rgba(209,10,17,.07)':type==='info'?'rgba(245,197,24,.06)':'rgba(37,211,102,.07)';
+    msg.style.border=type==='error'?'1px solid rgba(209,10,17,.2)':type==='info'?'1px solid rgba(245,197,24,.18)':'1px solid rgba(37,211,102,.2)';
+    msg.style.color=type==='error'?'#f87171':type==='info'?'#F5C518':'#4ade80';
+    msg.textContent=text;
+    btn.innerHTML='Sign In to Portal →';btn.disabled=false;
+  }
+}
+async function loHandleRegister(e){
+  e.preventDefault();
+  const pass=document.getElementById('lo-rPass').value;
+  const pass2=document.getElementById('lo-rPass2').value;
+  if(pass!==pass2){loShowRegMsg('error','Passwords do not match.');return;}
+  const btn=document.getElementById('lo-regBtn');
+  btn.textContent='Submitting…';btn.disabled=true;
+  document.getElementById('lo-regMsg').style.display='none';
+  const badge=document.getElementById('lo-rBadge').value.trim().toUpperCase();
+  try{
+    const{data:existing}=await sb.from('instructors').select('id').eq('badge_number',badge).maybeSingle();
+    if(existing){loShowRegMsg('error','This badge number is already registered.');return;}
+    const{error}=await sb.from('instructors').insert([{
+      full_name:document.getElementById('lo-rName').value.trim(),
+      badge_number:badge,
+      badge_type:document.getElementById('lo-rType').value,
+      car_type:document.getElementById('lo-rCarType').value,
+      phone:document.getElementById('lo-rPhone').value.trim(),
+      email:document.getElementById('lo-rEmail').value.trim().toLowerCase(),
+      area:document.getElementById('lo-rArea').value.trim(),
+      password_hash:(()=>{try{return btoa(pass);}catch(ex){return btoa(encodeURIComponent(pass));}})(),
+      status:'pending',
+      created_at:new Date().toISOString()
+    }]);
+    if(error)throw error;
+    document.getElementById('lo-regForm').style.display='none';
+    document.getElementById('lo-pendingView').style.display='block';
+  }catch(err){
+    loShowRegMsg('error','Something went wrong. Please try again or WhatsApp DriveSQ.');
+  }finally{btn.textContent='Submit for Approval ✓';btn.disabled=false;}
+}
 /* ══════════════════════════════
    3-WAY THEME SWITCHER
 ══════════════════════════════ */
@@ -1780,7 +2030,7 @@ async function checkSuspended(){
       <h2 style="color:var(--red);font-family:'Oswald',sans-serif;font-size:1.5rem;margin-bottom:12px">⛔ Account Suspended</h2>
       <p style="font-size:.84rem;color:#666;line-height:1.7;margin-bottom:20px">Your account has been suspended. Contact DriveSQ.</p>
       <a href="https://wa.me/447352932003" target="_blank" style="display:inline-block;background:#25D366;color:#fff;border-radius:8px;padding:10px 20px;font-family:Oswald,sans-serif;font-weight:600;font-size:.9rem;text-decoration:none;margin-bottom:12px"><i class="bi bi-whatsapp me-1"></i>WhatsApp DriveSQ</a><br>
-      <button onclick="sessionStorage.removeItem('dsq_instructor');window.location.href='portal.html'" style="background:transparent;border:1px solid #333;color:#555;border-radius:7px;padding:7px 16px;font-size:.74rem;cursor:pointer;margin-top:8px">Sign Out</button>
+      <button onclick="logout()" style="background:transparent;border:1px solid #333;color:#555;border-radius:7px;padding:7px 16px;font-size:.74rem;cursor:pointer;margin-top:8px">Sign Out</button>
     </div></div>`;
   }
 }
