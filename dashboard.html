@@ -1612,7 +1612,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   </div>
 </div>
 <!-- ── LOGIN OVERLAY (replaces portal.html) ── -->
-<div id="loginOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#060608;overflow-y:auto;font-family:'Inter',sans-serif">
+<div id="loginOverlay" style="display:block;position:fixed;inset:0;z-index:9999;background:#060608;overflow-y:auto;font-family:'Inter',sans-serif">
   <div style="position:fixed;inset:0;background-image:radial-gradient(circle,rgba(209,10,17,.04) 1px,transparent 1px);background-size:32px 32px;pointer-events:none"></div>
   <div style="position:fixed;top:0;left:0;right:0;height:600px;background:radial-gradient(ellipse 80% 40% at 50% -10%,rgba(209,10,17,.08),transparent);pointer-events:none"></div>
   <nav style="background:rgba(6,6,8,.97);border-bottom:1px solid rgba(209,10,17,.3);padding:0;position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)">
@@ -1752,8 +1752,14 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 /* ── AUTH ── */
 let instr=null;
 try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
-if(!instr||!instr.id){showLoginOverlay();}  // show in-page login — no redirect
-function logout(){sessionStorage.removeItem('dsq_instructor');showLoginOverlay();}
+if(instr&&instr.id){
+  // Already logged in — hide overlay immediately so dashboard shows without flash
+  const _ov=document.getElementById('loginOverlay');
+  if(_ov)_ov.style.display='none';
+}else{
+  showLoginOverlay();
+}
+function logout(){sessionStorage.removeItem('dsq_instructor');location.reload();}
 
 /* ── LOGIN OVERLAY LOGIC ── */
 function showLoginOverlay(){
