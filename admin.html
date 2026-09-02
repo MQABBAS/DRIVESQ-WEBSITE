@@ -1150,21 +1150,57 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-journal-text me-2" style="color:#c084fc"></i>Admin Notes & Diary</h5>
   <div style="display:flex;gap:8px;margin-bottom:10px">
     <input class="dsq-inp" id="notesTitle" placeholder="Note title (optional)…" style="flex:1;font-size:.85rem"/>
-    <button class="btn-p" onclick="addAdminNote()" style="white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add Note</button>
+    <button class="btn-p" onclick="addAdminNote()" style="white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Save Note</button>
   </div>
-  <!-- Emoji / symbol toolbar -->
-  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:8px;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px">
-    <span style="font-size:.62rem;color:var(--txt4);width:100%;margin-bottom:4px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Quick insert</span>
+
+  <!-- Rich text toolbar -->
+  <div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px 10px 0 0;padding:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+    <!-- Format -->
+    <button type="button" onclick="nFmt('bold')" title="Bold" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 9px;color:var(--txt);cursor:pointer;font-weight:900;font-size:.85rem">B</button>
+    <button type="button" onclick="nFmt('italic')" title="Italic" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 9px;color:var(--txt);cursor:pointer;font-style:italic;font-size:.85rem">I</button>
+    <button type="button" onclick="nFmt('underline')" title="Underline" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 9px;color:var(--txt);cursor:pointer;text-decoration:underline;font-size:.85rem">U</button>
+    <button type="button" onclick="nFmt('strikeThrough')" title="Strikethrough" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 9px;color:var(--txt);cursor:pointer;text-decoration:line-through;font-size:.85rem">S</button>
+    <div style="width:1px;height:22px;background:var(--bdr);margin:0 2px"></div>
+    <!-- Text colours -->
+    <span style="font-size:.62rem;color:var(--txt4);font-weight:700;letter-spacing:.05em">COLOR:</span>
+    <button type="button" onclick="nColor('#ffffff')" title="White" style="background:#fff;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#f87171')" title="Red" style="background:#f87171;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#fbbf24')" title="Yellow" style="background:#fbbf24;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#4ade80')" title="Green" style="background:#4ade80;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#60a5fa')" title="Blue" style="background:#60a5fa;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#c084fc')" title="Purple" style="background:#c084fc;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <button type="button" onclick="nColor('#fb923c')" title="Orange" style="background:#fb923c;border:2px solid var(--bdr);border-radius:4px;width:22px;height:22px;cursor:pointer"></button>
+    <input type="color" id="noteCustomColor" value="#ffffff" onchange="nColor(this.value)" title="Custom colour" style="width:22px;height:22px;padding:0;border:2px solid var(--bdr);border-radius:4px;cursor:pointer;background:none">
+    <div style="width:1px;height:22px;background:var(--bdr);margin:0 2px"></div>
+    <!-- Lists & structure -->
+    <button type="button" onclick="nFmt('insertUnorderedList')" title="Bullet list" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt);cursor:pointer;font-size:.85rem"><i class="bi bi-list-ul"></i></button>
+    <button type="button" onclick="nFmt('insertOrderedList')" title="Numbered list" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt);cursor:pointer;font-size:.85rem"><i class="bi bi-list-ol"></i></button>
+    <button type="button" onclick="nFmt('formatBlock','blockquote')" title="Quote" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt);cursor:pointer;font-size:.85rem"><i class="bi bi-blockquote-left"></i></button>
+    <button type="button" onclick="nFmt('removeFormat')" title="Clear formatting" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;color:var(--txt4);cursor:pointer;font-size:.85rem"><i class="bi bi-eraser"></i></button>
+    <div style="width:1px;height:22px;background:var(--bdr);margin:0 2px"></div>
+    <!-- Emojis -->
+    <span style="font-size:.62rem;color:var(--txt4);font-weight:700;letter-spacing:.05em">EMOJI:</span>
     <script>
     (function(){
-      const syms=['✅','❌','⚠️','📅','📞','💬','💰','🚗','👤','📝','🔴','🟡','🟢','⭐','🏆','📌','🔒','✔️','➡️','⏰','📊','💡','🎯','🔔','✏️','🗒️','📋'];
-      document.write(syms.map(s=>`<button type="button" onclick="insertNoteSymbol('${s}')" title="${s}" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:4px 7px;font-size:1rem;cursor:pointer;line-height:1;transition:background .15s" onmouseover="this.style.background='var(--dk1)'" onmouseout="this.style.background='var(--dk2)'">${s}</button>`).join(''));
+      const syms=['✅','❌','⚠️','📅','📞','💬','💰','🚗','👤','📝','🔴','🟡','🟢','⭐','🏆','📌','🔒','✔️','➡️','⏰','🎯','🔔'];
+      document.write(syms.map(s=>`<button type="button" onmousedown="event.preventDefault();insertNoteEmoji('${s}')" title="${s}" style="background:var(--dk2);border:1px solid var(--bdr);border-radius:6px;padding:3px 6px;font-size:.95rem;cursor:pointer;line-height:1">${s}</button>`).join(''));
     })();
     </script>
   </div>
-  <textarea class="dsq-inp" id="notesBody" placeholder="Type your note here… use the toolbar above for emojis and symbols" rows="4" style="width:100%;resize:vertical;font-size:.85rem;margin-bottom:12px"></textarea>
+
+  <!-- Contenteditable editor -->
+  <div id="notesBody" contenteditable="true" spellcheck="true"
+    style="width:100%;min-height:110px;background:var(--dk2);border:1px solid var(--bdr);border-top:none;border-radius:0 0 10px 10px;padding:12px;font-size:.85rem;color:var(--txt);line-height:1.7;outline:none;margin-bottom:12px;word-break:break-word"
+    data-placeholder="Type your note here…"
+    onfocus="this.classList.add('note-focused')" onblur="this.classList.remove('note-focused')"></div>
+
   <div id="notesList" style="display:flex;flex-direction:column;gap:10px"></div>
 </div>
+<style>
+#notesBody:empty:before{content:attr(data-placeholder);color:var(--txt4);pointer-events:none}
+#notesBody.note-focused{border-color:rgba(192,132,252,.5)}
+#notesBody blockquote{border-left:3px solid #c084fc;margin:6px 0;padding-left:10px;color:var(--txt3)}
+</style>
 
 <!-- ACTION QUEUE PANEL -->
 <div id="panel-actions" class="hidden" style="padding:10px 0">
@@ -7463,13 +7499,15 @@ function renderProgressOverview(list){
 }
 
 /* ══ ADMIN NOTES ══ */
-function insertNoteSymbol(sym){
-  const ta=document.getElementById('notesBody');if(!ta)return;
-  const s=ta.selectionStart,e=ta.selectionEnd;
-  ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e);
-  ta.selectionStart=ta.selectionEnd=s+[...sym].length;
-  ta.focus();
+function nFmt(cmd,val){document.execCommand(cmd,false,val||null);document.getElementById('notesBody').focus();}
+function nColor(c){document.execCommand('foreColor',false,c);document.getElementById('notesBody').focus();}
+function insertNoteEmoji(sym){
+  const el=document.getElementById('notesBody');if(!el)return;
+  el.focus();
+  document.execCommand('insertText',false,sym);
 }
+// Legacy symbol insert (kept for edit-in-place textareas)
+function insertNoteSymbol(sym){insertNoteEmoji(sym);}
 
 let _editingNoteId=null;
 
@@ -7492,77 +7530,84 @@ async function loadAdminNotes(){
 function _noteCard(n,ref,isLs){
   const dateStr=n.created_at?new Date(n.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):n.date||'';
   const updStr=(!isLs&&n.updated_at&&n.updated_at!==n.created_at)?`<span style="font-size:.6rem;color:var(--txt4);font-style:italic"> · edited</span>`:'';
+  // Body may be HTML (rich) or plain text — render as HTML directly
+  const bodyHtml=n.body||'';
   return `<div id="notecard-${ref}" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:14px;position:relative">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
       <div style="font-family:'Oswald',sans-serif;font-weight:700;color:#c084fc;font-size:.9rem">${esc(n.title||'Note')}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:.65rem;color:var(--txt4)">${dateStr}${updStr}</span>
-        ${!isLs?`<button onclick="startEditNote('${ref}','${esc(n.title||'')}',this)" style="background:none;border:none;color:var(--txt4);cursor:pointer;padding:0;font-size:.8rem" title="Edit"><i class="bi bi-pencil-square"></i></button>`:''}
+        ${!isLs?`<button onclick="startEditNote('${ref}')" style="background:none;border:none;color:var(--txt4);cursor:pointer;padding:0;font-size:.8rem" title="Edit"><i class="bi bi-pencil-square"></i></button>`:''}
         <button onclick="deleteAdminNote('${ref}',${isLs})" style="background:none;border:none;color:#f87171;cursor:pointer;padding:0;font-size:.8rem" title="Delete"><i class="bi bi-trash3-fill"></i></button>
       </div>
     </div>
-    <div id="notebody-${ref}" style="font-size:.82rem;color:var(--txt2);white-space:pre-wrap;line-height:1.6">${esc(n.body)}</div>
+    <div id="notebody-${ref}" style="font-size:.82rem;color:var(--txt2);line-height:1.6">${bodyHtml}</div>
   </div>`;
 }
 
-function startEditNote(id,title,btn){
+function startEditNote(id){
   if(_editingNoteId&&_editingNoteId!==id){showToast('Finish editing the current note first.','warn');return;}
   _editingNoteId=id;
   const bodyDiv=document.getElementById('notebody-'+id);
-  const card=document.getElementById('notecard-'+id);
-  if(!bodyDiv||!card)return;
-  const currentBody=bodyDiv.innerText;
-  bodyDiv.innerHTML=`<textarea id="noteedit-${id}" style="width:100%;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:8px;font-size:.82rem;resize:vertical;line-height:1.6;min-height:80px">${currentBody}</textarea>
-    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-      ${['✅','❌','⚠️','📅','📞','💬','💰','🚗','👤','📝','🔴','🟡','🟢','⭐','✔️','📌'].map(s=>`<button type="button" onclick="insertEditSymbol('${id}','${s}')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:6px;padding:3px 6px;font-size:.9rem;cursor:pointer">${s}</button>`).join('')}
+  if(!bodyDiv)return;
+  const currentHTML=bodyDiv.innerHTML;
+  bodyDiv.innerHTML=`
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:6px;background:var(--dk2);border:1px solid var(--bdr);border-radius:8px 8px 0 0;align-items:center">
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','bold')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;color:var(--txt);cursor:pointer;font-weight:900;font-size:.8rem">B</button>
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','italic')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;color:var(--txt);cursor:pointer;font-style:italic;font-size:.8rem">I</button>
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','underline')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;color:var(--txt);cursor:pointer;text-decoration:underline;font-size:.8rem">U</button>
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','strikeThrough')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;color:var(--txt);cursor:pointer;text-decoration:line-through;font-size:.8rem">S</button>
+      <div style="width:1px;height:18px;background:var(--bdr);margin:0 2px"></div>
+      ${['#ffffff','#f87171','#fbbf24','#4ade80','#60a5fa','#c084fc','#fb923c'].map(c=>`<button type="button" onmousedown="event.preventDefault();nEditColor('${id}','${c}')" style="background:${c};border:2px solid var(--bdr);border-radius:3px;width:18px;height:18px;cursor:pointer"></button>`).join('')}
+      <div style="width:1px;height:18px;background:var(--bdr);margin:0 2px"></div>
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','insertUnorderedList')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 7px;color:var(--txt);cursor:pointer;font-size:.8rem"><i class="bi bi-list-ul"></i></button>
+      <button type="button" onmousedown="event.preventDefault();nEditFmt('${id}','removeFormat')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:3px 7px;color:var(--txt4);cursor:pointer;font-size:.8rem"><i class="bi bi-eraser"></i></button>
+      <div style="width:1px;height:18px;background:var(--bdr);margin:0 2px"></div>
+      ${['✅','❌','⚠️','📅','📞','💬','🚗','👤','⭐','📌'].map(s=>`<button type="button" onmousedown="event.preventDefault();nEditEmoji('${id}','${s}')" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:5px;padding:2px 5px;font-size:.85rem;cursor:pointer">${s}</button>`).join('')}
     </div>
+    <div id="noteedit-${id}" contenteditable="true" style="min-height:80px;background:var(--dk2);border:1px solid var(--bdr);border-top:none;border-radius:0 0 8px 8px;padding:10px;font-size:.82rem;color:var(--txt);line-height:1.6;outline:none;word-break:break-word">${currentHTML}</div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button onclick="saveNoteEdit('${id}')" style="background:rgba(192,132,252,.15);border:1px solid rgba(192,132,252,.3);color:#c084fc;border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer;font-weight:700"><i class="bi bi-floppy me-1"></i>Save</button>
-      <button onclick="cancelNoteEdit('${id}','${currentBody.replace(/'/g,"\\'")}','${esc(title)}')" style="background:none;border:1px solid var(--bdr);color:var(--txt4);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer">Cancel</button>
+      <button onclick="cancelNoteEdit('${id}')" data-orig="${encodeURIComponent(currentHTML)}" style="background:none;border:1px solid var(--bdr);color:var(--txt4);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer">Cancel</button>
     </div>`;
+  document.getElementById('noteedit-'+id)?.focus();
 }
 
-function insertEditSymbol(id,sym){
-  const ta=document.getElementById('noteedit-'+id);if(!ta)return;
-  const s=ta.selectionStart,e=ta.selectionEnd;
-  ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e);
-  ta.selectionStart=ta.selectionEnd=s+[...sym].length;
-  ta.focus();
-}
+function nEditFmt(id,cmd){const el=document.getElementById('noteedit-'+id);if(el){el.focus();document.execCommand(cmd,false,null);}}
+function nEditColor(id,c){const el=document.getElementById('noteedit-'+id);if(el){el.focus();document.execCommand('foreColor',false,c);}}
+function nEditEmoji(id,sym){const el=document.getElementById('noteedit-'+id);if(el){el.focus();document.execCommand('insertText',false,sym);}}
 
 async function saveNoteEdit(id){
-  const ta=document.getElementById('noteedit-'+id);if(!ta)return;
-  const newBody=ta.value.trim();
-  if(!newBody){showToast('Note cannot be empty.','warn');return;}
+  const el=document.getElementById('noteedit-'+id);if(!el)return;
+  const newBody=el.innerHTML.trim();
+  const newText=el.innerText.trim();
+  if(!newText){showToast('Note cannot be empty.','warn');return;}
   const{error}=await sb.from('admin_notes').update({body:newBody,updated_at:new Date().toISOString()}).eq('id',id);
-  if(error){showToast('Failed to save.','error');return;}
+  if(error){showToast('Failed to save: '+error.message,'error');return;}
   _editingNoteId=null;
   showToast('Note updated ✓','success');
   loadAdminNotes();
 }
 
-function cancelNoteEdit(id,body,title){
+function cancelNoteEdit(id){
   _editingNoteId=null;
-  const bodyDiv=document.getElementById('notebody-'+id);
-  if(bodyDiv)bodyDiv.innerHTML=esc(body).replace(/\\n/g,'\n');
+  loadAdminNotes();
 }
 
 async function addAdminNote(){
   const title=(document.getElementById('notesTitle').value||'').trim();
-  const body=(document.getElementById('notesBody').value||'').trim();
-  if(!body){showToast('Write something first!','warn');return;}
+  const el=document.getElementById('notesBody');
+  const body=(el.innerHTML||'').trim();
+  const bodyText=(el.innerText||'').trim();
+  if(!bodyText){showToast('Write something first!','warn');return;}
   const{error}=await sb.from('admin_notes').insert([{title:title||'Note',body,created_at:new Date().toISOString()}]);
   if(error){
-    // Fallback to localStorage
-    let notes=[];try{notes=JSON.parse(localStorage.getItem('dsq_admin_notes')||'[]');}catch(e){}
-    const date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    notes.unshift({title:title||'Note',body,date});
-    try{localStorage.setItem('dsq_admin_notes',JSON.stringify(notes));}catch(e){}
-    showToast('Saved locally (run: create admin_notes table in Supabase)','warn');
-  } else {
-    showToast('Note saved ✓','success');
+    showToast('Error saving note: '+error.message,'error');
+    return;
   }
-  document.getElementById('notesTitle').value='';document.getElementById('notesBody').value='';
+  showToast('Note saved ✓','success');
+  document.getElementById('notesTitle').value='';
+  el.innerHTML='';
   loadAdminNotes();
 }
 
