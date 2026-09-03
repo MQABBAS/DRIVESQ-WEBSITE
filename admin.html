@@ -538,6 +538,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')" title="View all students across all instructors; click a student to see their full profile"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')" title="Live map showing instructor locations and student pickup areas"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-referrals" onclick="switchTab('referrals')" title="Referral fees — track what each instructor owes and what has been paid"><i class="bi bi-cash-coin"></i><span class="d-none d-sm-inline ms-1">Referrals</span></button>
+    <button class="dsq-tab" id="tab-expenses" onclick="switchTab('expenses')" title="Track business expenses by category"><i class="bi bi-receipt"></i><span class="d-none d-sm-inline ms-1">Expenses</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" title="Register a new instructor onto the platform" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')" title="Browse all lessons across all instructors"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')" title="Instructor applications awaiting approval"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
@@ -1098,26 +1099,204 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 
 <!-- REFERRALS PANEL -->
 <div id="panel-referrals" class="hidden" style="padding:10px 0">
+
+  <!-- Header row -->
   <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-cash-coin me-2" style="color:var(--gold)"></i>Referral Fees</h5>
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-cash-coin me-2" style="color:var(--gold)"></i>Referral Accounting</h5>
     <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
-      <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
-        <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
-        <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
-        <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
-      </div>
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="exportAllRefCSV()" title="Export all referrals as CSV"><i class="bi bi-download me-1"></i>Export CSV</button>
       <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadReferrals()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
   </div>
-  <!-- Summary cards -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px">
-    <div class="stat-card r"><div class="stat-lbl">Total Due</div><div class="stat-num r" id="refTotalDue">£0</div></div>
-    <div class="stat-card gr"><div class="stat-lbl">Total Paid</div><div class="stat-num gr" id="refTotalPaid">£0</div></div>
-    <div class="stat-card b"><div class="stat-lbl">Referrals</div><div class="stat-num b" id="refTotalCount">0</div></div>
-    <div class="stat-card p"><div class="stat-lbl">Instructors Owing</div><div class="stat-num p" id="refInstrOwing">0</div></div>
+
+  <!-- ═══ ACCOUNTING OVERVIEW — Today / Week / Month / All ═══ -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:18px">
+
+    <!-- TODAY -->
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:14px 16px">
+      <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt4);margin-bottom:10px"><i class="bi bi-calendar-day me-1"></i>Today</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Referrals</span>
+          <span id="acc-today-count" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Collected</span>
+          <span id="acc-today-paid" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">£0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Outstanding</span>
+          <span id="acc-today-due" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">£0</span>
+        </div>
+        <div style="height:1px;background:var(--bdr);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Total value</span>
+          <span id="acc-today-total" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold)">£0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- THIS WEEK -->
+    <div style="background:var(--card-bg);border:1px solid rgba(139,92,246,.3);border-radius:12px;padding:14px 16px">
+      <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:10px"><i class="bi bi-calendar-week me-1"></i>This Week</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Referrals</span>
+          <span id="acc-week-count" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Collected</span>
+          <span id="acc-week-paid" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">£0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Outstanding</span>
+          <span id="acc-week-due" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">£0</span>
+        </div>
+        <div style="height:1px;background:var(--bdr);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Total value</span>
+          <span id="acc-week-total" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold)">£0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- THIS MONTH -->
+    <div style="background:var(--card-bg);border:1px solid rgba(59,130,246,.3);border-radius:12px;padding:14px 16px">
+      <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#60a5fa;margin-bottom:10px"><i class="bi bi-calendar-month me-1"></i>This Month</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Referrals</span>
+          <span id="acc-month-count" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Collected</span>
+          <span id="acc-month-paid" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">£0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Outstanding</span>
+          <span id="acc-month-due" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">£0</span>
+        </div>
+        <div style="height:1px;background:var(--bdr);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Total value</span>
+          <span id="acc-month-total" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold)">£0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALL TIME -->
+    <div style="background:var(--card-bg);border:1px solid rgba(245,197,24,.25);border-radius:12px;padding:14px 16px">
+      <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:10px"><i class="bi bi-infinity me-1"></i>All Time</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Referrals</span>
+          <span id="acc-all-count" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Collected</span>
+          <span id="acc-all-paid" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">£0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Outstanding</span>
+          <span id="acc-all-due" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">£0</span>
+        </div>
+        <div style="height:1px;background:var(--bdr);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.75rem;color:var(--txt3)">Total value</span>
+          <span id="acc-all-total" style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold)">£0</span>
+        </div>
+      </div>
+    </div>
+
   </div>
+
+  <!-- Instructor list filter -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">View by instructor:</div>
+    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+      <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
+      <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
+      <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
+    </div>
+    <!-- legacy IDs kept for renderReferrals compatibility -->
+    <div style="display:none">
+      <span id="refTotalDue"></span><span id="refTotalPaid"></span>
+      <span id="refTotalCount"></span><span id="refInstrOwing"></span>
+    </div>
+  </div>
+
   <!-- Instructor list -->
   <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<!-- EXPENSES PANEL -->
+<div id="panel-expenses" class="hidden" style="padding:10px 0">
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-receipt me-2" style="color:#f87171"></i>Expenses</h5>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="exportExpensesCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadExpenses()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
+    </div>
+  </div>
+
+  <!-- Expense totals -->
+  <div id="expSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px"></div>
+
+  <!-- Add expense form -->
+  <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:18px">
+    <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px"><i class="bi bi-plus-circle me-2" style="color:var(--red)"></i>Add Expense</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Category</label>
+        <select id="expCategory" class="dsq-inp" style="width:100%;font-size:.83rem">
+          <option value="Car">🚗 Car</option>
+          <option value="Insurance">🛡️ Insurance</option>
+          <option value="Marketing">📣 Marketing</option>
+          <option value="Equipment">🔧 Equipment</option>
+          <option value="Software">💻 Software</option>
+          <option value="Office">🏢 Office</option>
+          <option value="Travel">✈️ Travel</option>
+          <option value="Other">📦 Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+        <input id="expAmount" class="dsq-inp" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;font-size:.83rem"/>
+      </div>
+      <div>
+        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Date</label>
+        <input id="expDate" class="dsq-inp" type="date" style="width:100%;font-size:.83rem"/>
+      </div>
+      <div>
+        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Description</label>
+        <input id="expDesc" class="dsq-inp" placeholder="Optional description…" style="width:100%;font-size:.83rem"/>
+      </div>
+    </div>
+    <button onclick="addExpense()" style="margin-top:12px;background:var(--red);border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+  </div>
+
+  <!-- Filter row -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Filter:</div>
+    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+      <button id="expPeriodMonth" onclick="setExpPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--red);color:#fff">Month</button>
+      <button id="expPeriodAll" onclick="setExpPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All Time</button>
+    </div>
+    <select id="expCategoryFilter" onchange="renderExpenses()" class="dsq-inp" style="font-size:.78rem;padding:4px 10px;width:auto">
+      <option value="">All categories</option>
+      <option value="Car">Car</option>
+      <option value="Insurance">Insurance</option>
+      <option value="Marketing">Marketing</option>
+      <option value="Equipment">Equipment</option>
+      <option value="Software">Software</option>
+      <option value="Office">Office</option>
+      <option value="Travel">Travel</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+
+  <!-- Expense list -->
+  <div id="expList" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
 
 <!-- REFERRAL DETAIL MODAL -->
@@ -1126,7 +1305,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="modal-x" onclick="closeModal('refDetailModal')"><i class="bi bi-x-lg"></i></button>
     <div id="refDetailInstrName" style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
     <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:8px"></div>
-    <a id="refDetailWaBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;margin-bottom:14px;width:fit-content" title="Send full referral summary via WhatsApp — includes all student names, phone numbers, and amounts (paid and outstanding)"><i class="bi bi-whatsapp me-2"></i>Send Referral Summary via WhatsApp</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <a id="refDetailWaBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Send full referral summary via WhatsApp — includes all student names, phone numbers, and amounts (paid and outstanding)"><i class="bi bi-whatsapp me-2"></i>Send Referral Summary via WhatsApp</a>
+      <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
+      <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
+    </div>
+    <input type="hidden" id="refDetailInstrId" value=""/>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:9px;padding:10px 14px">
         <div style="font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Outstanding</div>
@@ -2148,7 +2332,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','referrals','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','referrals','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2178,6 +2362,7 @@ function switchTab(t){
   if(t==='availability')loadAvailabilityView();
   if(t==='coverage')loadCoverageTab();
   if(t==='referrals')loadReferrals();
+  if(t==='expenses')loadExpenses();
   if(t==='find')showAllInstructors();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
@@ -6693,6 +6878,9 @@ function renderReferrals(){
   document.getElementById('refTotalCount').textContent=totalCount;
   document.getElementById('refInstrOwing').textContent=instrOwing;
 
+  // Update accounting overview cards
+  updateAccounting();
+
   // Sort instructors: most due first
   const groups=Object.values(byInstr).sort((a,b)=>b.due-a.due);
 
@@ -6808,6 +6996,12 @@ async function openRefDetail(instrId){
   const _waHref2=_instrPhone2?`https://wa.me/${_instrPhone2.startsWith('44')?'':'44'}${_instrPhone2.replace(/^0/,'')}?text=${_waText}`:`https://wa.me/?text=${_waText}`;
   const _waBtn=document.getElementById('refDetailWaBtn');
   if(_waBtn){_waBtn.href=_waHref2;_waBtn.style.display=activeRows.length?'inline-flex':'none';}
+  const _hiddenId=document.getElementById('refDetailInstrId');
+  if(_hiddenId)_hiddenId.value=instrId;
+  const _mapBtn=document.getElementById('refDetailMarkAllPaidBtn');
+  if(_mapBtn){const _hasDue=activeRows.some(r=>!r.is_paid);_mapBtn.style.display=_hasDue?'inline-flex':'none';}
+  const _expBtn=document.getElementById('refDetailExportBtn');
+  if(_expBtn)_expBtn.style.display='inline-flex';
 
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
@@ -6863,10 +7057,13 @@ async function openRefDetail(instrId){
               :!isPaid&&(parseFloat(r.amount)||0)>0
                 ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>
+                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit this referral">Edit</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — convert to credit. Instructor is owed a replacement student instead of a refund">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
                   </div>`
                 :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+                    <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid — mark as outstanding">Mark Unpaid</button>
+                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit this referral">Edit</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor is owed a replacement student instead of a refund">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
                   </div>`
@@ -6942,6 +7139,299 @@ async function fulfillCredit(refId, studentName){
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
+
+/* ══ REFERRAL ACCOUNTING ══ */
+function updateAccounting(){
+  const fmt=v=>'£'+v.toFixed(2);
+  const now=new Date();
+  const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());weekStart.setHours(0,0,0,0);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const periods=[
+    {key:'today',start:todayStart},
+    {key:'week',start:weekStart},
+    {key:'month',start:monthStart},
+    {key:'all',start:new Date(0)},
+  ];
+  periods.forEach(({key,start})=>{
+    const rows=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
+    const count=rows.length;
+    const paid=rows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const due=rows.filter(r=>!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const total=paid+due;
+    const cEl=document.getElementById(`acc-${key}-count`);
+    const pEl=document.getElementById(`acc-${key}-paid`);
+    const dEl=document.getElementById(`acc-${key}-due`);
+    const tEl=document.getElementById(`acc-${key}-total`);
+    if(cEl)cEl.textContent=count;
+    if(pEl)pEl.textContent=fmt(paid);
+    if(dEl)dEl.textContent=fmt(due);
+    if(tEl)tEl.textContent=fmt(total);
+  });
+}
+
+/* ══ EDIT REFERRAL ══ */
+function editRef(refId){
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  const instrId=r.instructor_id;
+  // Build a simple inline modal
+  const existing=document.getElementById('editRefModal');
+  if(existing)existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='editRefModal';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML=`
+    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;padding:24px;width:100%;max-width:420px;position:relative">
+      <button onclick="document.getElementById('editRefModal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--txt3);font-size:1.1rem;cursor:pointer"><i class="bi bi-x-lg"></i></button>
+      <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:16px"><i class="bi bi-pencil me-2" style="color:#60a5fa"></i>Edit Referral</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Student Name</label>
+          <input id="eRef-name" class="dsq-inp" value="${jsEsc(r.student_name||'')}" style="width:100%;font-size:.85rem"/>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Phone</label>
+          <input id="eRef-phone" class="dsq-inp" value="${jsEsc(r.student_phone||'')}" style="width:100%;font-size:.85rem"/>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+          <input id="eRef-amount" class="dsq-inp" type="number" step="0.01" min="0" value="${parseFloat(r.amount)||0}" style="width:100%;font-size:.85rem"/>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Notes</label>
+          <textarea id="eRef-notes" class="dsq-inp" rows="2" style="width:100%;font-size:.82rem;resize:vertical">${jsEsc(r.notes||'')}</textarea>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="eRef-paid" ${r.is_paid?'checked':''} style="width:16px;height:16px;accent-color:#4ade80"/>
+          <label for="eRef-paid" style="font-size:.82rem;color:var(--txt);cursor:pointer">Paid</label>
+        </div>
+        <div id="eRef-paidDateRow" style="${r.is_paid?'':'display:none'}">
+          <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Paid Date</label>
+          <input id="eRef-paidDate" class="dsq-inp" type="date" value="${r.paid_at?r.paid_at.slice(0,10):new Date().toISOString().slice(0,10)}" style="width:100%;font-size:.85rem"/>
+        </div>
+        <button onclick="saveRefEdit('${refId}','${instrId}')" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
+      </div>
+    </div>`;
+  overlay.querySelector('#eRef-paid').addEventListener('change',function(){
+    document.getElementById('eRef-paidDateRow').style.display=this.checked?'':'none';
+  });
+  document.body.appendChild(overlay);
+}
+
+async function saveRefEdit(refId, instrId){
+  const name=document.getElementById('eRef-name')?.value.trim();
+  const phone=document.getElementById('eRef-phone')?.value.trim();
+  const amount=parseFloat(document.getElementById('eRef-amount')?.value)||0;
+  const notes=document.getElementById('eRef-notes')?.value.trim();
+  const isPaid=document.getElementById('eRef-paid')?.checked||false;
+  const paidDate=isPaid?document.getElementById('eRef-paidDate')?.value:null;
+  const paidAt=paidDate?new Date(paidDate).toISOString():null;
+  const updates={student_name:name,student_phone:phone,amount:amount.toFixed(2),notes,is_paid:isPaid,paid_at:isPaid?paidAt:null};
+  const{error}=await sb.from('referrals').update(updates).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  const r=_refData.find(x=>x.id===refId);
+  if(r)Object.assign(r,updates);
+  showToast('Referral updated ✓','success');
+  document.getElementById('editRefModal')?.remove();
+  _buildUnpaidRefIndex();
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
+}
+
+async function markRefUnpaid(refId){
+  if(!confirm('Mark this referral as unpaid / outstanding?'))return;
+  const{error}=await sb.from('referrals').update({is_paid:false,paid_at:null}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  const r=_refData.find(x=>x.id===refId);
+  if(r){r.is_paid=false;r.paid_at=null;}
+  showToast('Referral marked as unpaid','success');
+  _buildUnpaidRefIndex();
+  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
+}
+
+async function markAllRefPaid(instrId){
+  if(!instrId)return;
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0);
+  if(!unpaid.length){showToast('No outstanding referrals to mark paid','info');return;}
+  const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'this instructor'};
+  if(!confirm(`Mark all ${unpaid.length} outstanding referral(s) for ${instr.full_name} as PAID?\n\nTotal: £${unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0).toFixed(2)}`))return;
+  const now=new Date().toISOString();
+  const ids=unpaid.map(r=>r.id);
+  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).in('id',ids);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  unpaid.forEach(r=>{r.is_paid=true;r.paid_at=now;});
+  showToast(`${unpaid.length} referral(s) marked as paid ✓`,'success');
+  _buildUnpaidRefIndex();
+  openRefDetail(instrId);
+  renderReferrals();
+}
+
+function exportAllRefCSV(){
+  const rows=_refData.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  _downloadRefCSV(rows,'drivesq-referrals-all.csv');
+}
+
+function exportInstrRefCSV(instrId){
+  if(!instrId)return;
+  const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'instructor'};
+  const rows=_refData.filter(r=>r.instructor_id===instrId).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  _downloadRefCSV(rows,`drivesq-referrals-${(instr.full_name||'instructor').toLowerCase().replace(/\s+/g,'-')}.csv`);
+}
+
+function _downloadRefCSV(rows, filename){
+  const instrName=r=>{const i=allInstrs.find(x=>x.id===r.instructor_id);return i?.full_name||r.instructor_id||'';};
+  const q=s=>`"${(s||'').replace(/"/g,'""')}"`;
+  const header=['Date','Instructor','Student Name','Phone','Amount','Status','Paid Date','Notes','Is Credit','Credit Fulfilled'];
+  const csvRows=[header.join(','),...rows.map(r=>[
+    new Date(r.created_at).toLocaleDateString('en-GB'),
+    q(instrName(r)),
+    q(r.student_name||''),
+    q(r.student_phone||''),
+    (parseFloat(r.amount)||0).toFixed(2),
+    r.is_cancelled?'Cancelled':r.is_credit?'Credit':r.is_paid?'Paid':'Unpaid',
+    r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB'):'',
+    q(r.notes||''),
+    r.is_credit?'Yes':'No',
+    r.credit_fulfilled?'Yes':'No',
+  ].join(','))];
+  const blob=new Blob([csvRows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+/* ══ EXPENSES ══ */
+let _expData=[];
+let _expPeriod='month';
+
+function setExpPeriod(p){
+  _expPeriod=p;
+  ['month','all'].forEach(k=>{
+    const btn=document.getElementById('expPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(btn){btn.style.background=k===p?'var(--red)':'transparent';btn.style.color=k===p?'#fff':'var(--txt3)';}
+  });
+  renderExpenses();
+}
+
+function _expPeriodStart(){
+  if(_expPeriod==='month'){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),1);}
+  return new Date(0);
+}
+
+async function loadExpenses(){
+  const el=document.getElementById('expList');
+  if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+  if(error){
+    if(el)el.innerHTML=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table first:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
+    return;
+  }
+  _expData=data||[];
+  renderExpenses();
+}
+
+function renderExpenses(){
+  const start=_expPeriodStart();
+  const catFilter=document.getElementById('expCategoryFilter')?.value||'';
+  const rows=_expData.filter(r=>{
+    const d=new Date(r.expense_date+'T00:00:00');
+    if(d<start)return false;
+    if(catFilter&&r.category!==catFilter)return false;
+    return true;
+  });
+
+  // Summary by category
+  const catTotals={};
+  rows.forEach(r=>{catTotals[r.category]=(catTotals[r.category]||0)+(parseFloat(r.amount)||0);});
+  const grandTotal=rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const catColors={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment:'#a78bfa',Software:'#34d399',Office:'#fb923c',Travel:'#e879f9',Other:'#94a3b8'};
+  const sumEl=document.getElementById('expSummary');
+  if(sumEl){
+    const cats=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+    sumEl.innerHTML=`
+      <div style="background:var(--card-bg);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 16px">
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#f87171;margin-bottom:6px"><i class="bi bi-cash-stack me-1"></i>Total</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#f87171">£${grandTotal.toFixed(2)}</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${rows.length} expense${rows.length!==1?'s':''}</div>
+      </div>
+      ${cats.map(([cat,total])=>`
+        <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px">
+          <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${catColors[cat]||'var(--txt3)'};margin-bottom:6px">${esc(cat)}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt)">£${total.toFixed(2)}</div>
+          <div style="height:3px;background:var(--bdr);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.round(total/grandTotal*100)}%;background:${catColors[cat]||'var(--txt3)'}"></div></div>
+        </div>
+      `).join('')}`;
+  }
+
+  const el=document.getElementById('expList');
+  if(!el)return;
+  if(!rows.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No expenses in this period.</div>';
+    return;
+  }
+  el.innerHTML=rows.map(r=>{
+    const col=catColors[r.category]||'var(--txt3)';
+    const dateStr=new Date(r.expense_date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="width:8px;height:40px;background:${col};border-radius:4px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.description||r.category)}</div>
+        <div style="font-size:.7rem;color:var(--txt3);margin-top:2px">${esc(r.category)} · ${dateStr}</div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#f87171;white-space:nowrap">£${(parseFloat(r.amount)||0).toFixed(2)}</div>
+      <button onclick="deleteExpense('${r.id}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Delete this expense"><i class="bi bi-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
+async function addExpense(){
+  const category=document.getElementById('expCategory')?.value;
+  const amount=parseFloat(document.getElementById('expAmount')?.value);
+  const date=document.getElementById('expDate')?.value||new Date().toISOString().slice(0,10);
+  const description=document.getElementById('expDesc')?.value.trim()||'';
+  if(!category||!amount||amount<=0){showToast('Please enter a category and a valid amount','error');return;}
+  const{data,error}=await sb.from('expenses').insert([{category,amount:amount.toFixed(2),expense_date:date,description}]).select().single();
+  if(error){showToast('Error: '+error.message,'error');return;}
+  _expData.unshift(data);
+  showToast('Expense added ✓','success');
+  document.getElementById('expAmount').value='';
+  document.getElementById('expDesc').value='';
+  renderExpenses();
+}
+
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?'))return;
+  const{error}=await sb.from('expenses').delete().eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  _expData=_expData.filter(r=>r.id!==id);
+  showToast('Expense deleted','success');
+  renderExpenses();
+}
+
+function exportExpensesCSV(){
+  const rows=_expData.slice().sort((a,b)=>new Date(b.expense_date)-new Date(a.expense_date));
+  const q=s=>`"${(s||'').replace(/"/g,'""')}"`;
+  const header=['Date','Category','Amount','Description'];
+  const csv=[header.join(','),...rows.map(r=>[
+    r.expense_date,
+    q(r.category),
+    (parseFloat(r.amount)||0).toFixed(2),
+    q(r.description||''),
+  ].join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='drivesq-expenses.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+// Set today's date as default for expense date input
+document.addEventListener('DOMContentLoaded',()=>{
+  const d=document.getElementById('expDate');
+  if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
+});
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
 let _covData=null;
