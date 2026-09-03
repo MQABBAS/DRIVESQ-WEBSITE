@@ -538,7 +538,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')" title="View all students across all instructors; click a student to see their full profile"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')" title="Live map showing instructor locations and student pickup areas"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-referrals" onclick="switchTab('referrals')" title="Referral fees — track what each instructor owes and what has been paid"><i class="bi bi-cash-coin"></i><span class="d-none d-sm-inline ms-1">Referrals</span></button>
-    <button class="dsq-tab" id="tab-expenses" onclick="switchTab('expenses')" title="Track business expenses by category"><i class="bi bi-receipt"></i><span class="d-none d-sm-inline ms-1">Expenses</span></button>
+    <button class="dsq-tab" id="tab-expenses" onclick="switchTab('expenses')" title="Full accounting — P&amp;L, income, expenses, tax summary"><i class="bi bi-bar-chart-line-fill"></i><span class="d-none d-sm-inline ms-1">Accounting</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" title="Register a new instructor onto the platform" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')" title="Browse all lessons across all instructors"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
     <button class="dsq-tab" id="tab-pending" onclick="switchTab('pending')" title="Instructor applications awaiting approval"><i class="bi bi-hourglass-split"></i><span class="d-none d-sm-inline ms-1">Pending</span><span class="tab-badge ms-1 hidden" id="pendingBadge">0</span></button>
@@ -1229,74 +1229,169 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
 
-<!-- EXPENSES PANEL -->
+<!-- ACCOUNTING PANEL -->
 <div id="panel-expenses" class="hidden" style="padding:10px 0">
+
+  <!-- Header -->
   <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-receipt me-2" style="color:#f87171"></i>Expenses</h5>
-    <div class="ms-auto d-flex gap-2">
-      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="exportExpensesCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--gold)"></i>Accounting</h5>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="exportFullPLCSV()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export P&amp;L</button>
       <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadExpenses()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
   </div>
 
-  <!-- Expense totals -->
-  <div id="expSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px"></div>
-
-  <!-- Add expense form -->
-  <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:18px">
-    <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px"><i class="bi bi-plus-circle me-2" style="color:var(--red)"></i>Add Expense</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div>
-        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Category</label>
-        <select id="expCategory" class="dsq-inp" style="width:100%;font-size:.83rem">
-          <option value="Car">🚗 Car</option>
-          <option value="Insurance">🛡️ Insurance</option>
-          <option value="Marketing">📣 Marketing</option>
-          <option value="Equipment">🔧 Equipment</option>
-          <option value="Software">💻 Software</option>
-          <option value="Office">🏢 Office</option>
-          <option value="Travel">✈️ Travel</option>
-          <option value="Other">📦 Other</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
-        <input id="expAmount" class="dsq-inp" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;font-size:.83rem"/>
-      </div>
-      <div>
-        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Date</label>
-        <input id="expDate" class="dsq-inp" type="date" style="width:100%;font-size:.83rem"/>
-      </div>
-      <div>
-        <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Description</label>
-        <input id="expDesc" class="dsq-inp" placeholder="Optional description…" style="width:100%;font-size:.83rem"/>
-      </div>
-    </div>
-    <button onclick="addExpense()" style="margin-top:12px;background:var(--red);border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+  <!-- Period selector -->
+  <div style="display:flex;border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:18px;width:fit-content">
+    <button id="accPeriodMonth"  onclick="setAccPeriod('month')"   style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:var(--gold);color:#000;letter-spacing:.3px">This Month</button>
+    <button id="accPeriodQuarter" onclick="setAccPeriod('quarter')" style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Quarter</button>
+    <button id="accPeriodYear"   onclick="setAccPeriod('year')"    style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Tax Year</button>
+    <button id="accPeriodAll"    onclick="setAccPeriod('all')"     style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All Time</button>
   </div>
 
-  <!-- Filter row -->
-  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Filter:</div>
-    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
-      <button id="expPeriodMonth" onclick="setExpPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--red);color:#fff">Month</button>
-      <button id="expPeriodAll" onclick="setExpPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All Time</button>
+  <!-- ═══ KPI ROW ═══ -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:18px">
+    <div style="background:var(--card-bg);border:1px solid rgba(74,222,128,.3);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4ade80;margin-bottom:8px"><i class="bi bi-arrow-down-circle me-1"></i>Income</div>
+      <div id="kpi-income" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:#4ade80">£0</div>
+      <div id="kpi-income-sub" style="font-size:.65rem;color:var(--txt4);margin-top:3px">referrals collected</div>
     </div>
-    <select id="expCategoryFilter" onchange="renderExpenses()" class="dsq-inp" style="font-size:.78rem;padding:4px 10px;width:auto">
-      <option value="">All categories</option>
-      <option value="Car">Car</option>
-      <option value="Insurance">Insurance</option>
-      <option value="Marketing">Marketing</option>
-      <option value="Equipment">Equipment</option>
-      <option value="Software">Software</option>
-      <option value="Office">Office</option>
-      <option value="Travel">Travel</option>
-      <option value="Other">Other</option>
-    </select>
+    <div style="background:var(--card-bg);border:1px solid rgba(248,113,113,.3);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#f87171;margin-bottom:8px"><i class="bi bi-arrow-up-circle me-1"></i>Expenses</div>
+      <div id="kpi-expenses" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:#f87171">£0</div>
+      <div id="kpi-expenses-sub" style="font-size:.65rem;color:var(--txt4);margin-top:3px">total outgoings</div>
+    </div>
+    <div id="kpi-profit-card" style="background:var(--card-bg);border:1px solid rgba(245,197,24,.3);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:8px"><i class="bi bi-graph-up-arrow me-1"></i>Net Profit</div>
+      <div id="kpi-profit" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:var(--gold)">£0</div>
+      <div id="kpi-margin" style="font-size:.65rem;color:var(--txt4);margin-top:3px">margin —</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid rgba(248,113,113,.2);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#f87171;margin-bottom:8px"><i class="bi bi-hourglass-split me-1"></i>Outstanding</div>
+      <div id="kpi-outstanding" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:#f87171">£0</div>
+      <div id="kpi-outstanding-sub" style="font-size:.65rem;color:var(--txt4);margin-top:3px">accounts receivable</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);margin-bottom:8px"><i class="bi bi-people me-1"></i>Referrals</div>
+      <div id="kpi-refcount" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:var(--txt)">0</div>
+      <div id="kpi-refcount-sub" style="font-size:.65rem;color:var(--txt4);margin-top:3px">total referrals</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);margin-bottom:8px"><i class="bi bi-calculator me-1"></i>Avg / Referral</div>
+      <div id="kpi-avg" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:var(--txt)">£0</div>
+      <div style="font-size:.65rem;color:var(--txt4);margin-top:3px">avg fee charged</div>
+    </div>
   </div>
 
-  <!-- Expense list -->
-  <div id="expList" style="display:flex;flex-direction:column;gap:8px"></div>
+  <!-- ═══ CHART ═══ -->
+  <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:18px;overflow:hidden">
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+      <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px">Income vs Expenses</div>
+      <div style="margin-left:auto;display:flex;gap:14px;font-size:.68rem">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#4ade80;display:inline-block"></span>Income</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:#f87171;display:inline-block"></span>Expenses</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:var(--gold);display:inline-block"></span>Profit</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <canvas id="plChart" height="160" style="width:100%;min-width:320px"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══ ACCOUNTING SUB-TABS ═══ -->
+  <div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px;gap:0">
+    <button id="acctab-pl"       onclick="setAccTab('pl')"       style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--gold);color:var(--gold);margin-bottom:-2px;letter-spacing:.3px">P&amp;L Statement</button>
+    <button id="acctab-income"   onclick="setAccTab('income')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Income</button>
+    <button id="acctab-expenses" onclick="setAccTab('expenses')" style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Expenses</button>
+    <button id="acctab-taxsum"   onclick="setAccTab('taxsum')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Tax Summary</button>
+  </div>
+
+  <!-- P&L STATEMENT SUB-PANEL -->
+  <div id="accpanel-pl">
+    <div style="font-size:.75rem;color:var(--txt4);margin-bottom:10px">Monthly breakdown — income collected, expenses, and net profit per month.</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem" id="plTable">
+        <thead>
+          <tr style="border-bottom:2px solid var(--bdr)">
+            <th style="padding:8px 10px;text-align:left;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Month</th>
+            <th style="padding:8px 10px;text-align:right;font-size:.65rem;color:#4ade80;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Income</th>
+            <th style="padding:8px 10px;text-align:right;font-size:.65rem;color:#f87171;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Expenses</th>
+            <th style="padding:8px 10px;text-align:right;font-size:.65rem;color:var(--gold);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Net Profit</th>
+            <th style="padding:8px 10px;text-align:right;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Margin</th>
+            <th style="padding:8px 10px;text-align:right;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody id="plTableBody"></tbody>
+        <tfoot id="plTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- INCOME SUB-PANEL -->
+  <div id="accpanel-income" style="display:none">
+    <div style="font-size:.75rem;color:var(--txt4);margin-bottom:12px">Referral income broken down by instructor and student.</div>
+    <!-- Instructor income breakdown -->
+    <div id="incomeByInstr" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- EXPENSES SUB-PANEL -->
+  <div id="accpanel-expenses" style="display:none">
+    <!-- Add expense form -->
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:18px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px"><i class="bi bi-plus-circle me-2" style="color:var(--red)"></i>Add Expense</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Category</label>
+          <select id="expCategory" class="dsq-inp" style="width:100%;font-size:.83rem">
+            <option value="Car">🚗 Car</option>
+            <option value="Insurance">🛡️ Insurance</option>
+            <option value="Marketing">📣 Marketing</option>
+            <option value="Equipment">🔧 Equipment</option>
+            <option value="Software">💻 Software</option>
+            <option value="Office">🏢 Office</option>
+            <option value="Travel">✈️ Travel</option>
+            <option value="Fuel">⛽ Fuel</option>
+            <option value="Phone">📱 Phone</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+          <input id="expAmount" class="dsq-inp" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;font-size:.83rem"/>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Date</label>
+          <input id="expDate" class="dsq-inp" type="date" style="width:100%;font-size:.83rem"/>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Description</label>
+          <input id="expDesc" class="dsq-inp" placeholder="Optional description…" style="width:100%;font-size:.83rem"/>
+        </div>
+      </div>
+      <button onclick="addExpense()" style="margin-top:12px;background:var(--red);border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+    </div>
+
+    <!-- Expenses filter + list -->
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <select id="expCategoryFilter" onchange="renderExpenses()" class="dsq-inp" style="font-size:.78rem;padding:5px 10px;width:auto">
+        <option value="">All categories</option>
+        <option value="Car">Car</option><option value="Insurance">Insurance</option>
+        <option value="Marketing">Marketing</option><option value="Equipment">Equipment</option>
+        <option value="Software">Software</option><option value="Office">Office</option>
+        <option value="Travel">Travel</option><option value="Fuel">Fuel</option>
+        <option value="Phone">Phone</option><option value="Other">Other</option>
+      </select>
+      <div id="expSummary" style="display:flex;flex-wrap:wrap;gap:8px;margin-left:auto"></div>
+    </div>
+    <div id="expList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- TAX SUMMARY SUB-PANEL -->
+  <div id="accpanel-taxsum" style="display:none">
+    <div style="font-size:.75rem;color:var(--txt4);margin-bottom:12px">UK tax year (6 Apr → 5 Apr). Use this as a reference when preparing your Self Assessment. Consult an accountant for official figures.</div>
+    <div id="taxSummaryContent"></div>
+  </div>
+
 </div>
 
 <!-- REFERRAL DETAIL MODAL -->
@@ -2362,7 +2457,7 @@ function switchTab(t){
   if(t==='availability')loadAvailabilityView();
   if(t==='coverage')loadCoverageTab();
   if(t==='referrals')loadReferrals();
-  if(t==='expenses')loadExpenses();
+  if(t==='expenses'){loadExpenses();setAccTab(_accTab||'pl');}
   if(t==='find')showAllInstructors();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
   if(t==='calendar'){
@@ -6880,6 +6975,8 @@ function renderReferrals(){
 
   // Update accounting overview cards
   updateAccounting();
+  // If accounting tab is open, refresh it too
+  if(!document.getElementById('panel-expenses')?.classList.contains('hidden'))renderAccounting();
 
   // Sort instructors: most due first
   const groups=Object.values(byInstr).sort((a,b)=>b.due-a.due);
@@ -7303,38 +7400,332 @@ function _downloadRefCSV(rows, filename){
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
-/* ══ EXPENSES ══ */
+/* ══ ACCOUNTING ══ */
 let _expData=[];
-let _expPeriod='month';
+let _accPeriod='month';
+let _accTab='pl';
+const _EXP_CATS={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment:'#a78bfa',Software:'#34d399',Office:'#fb923c',Travel:'#e879f9',Fuel:'#38bdf8',Phone:'#c084fc',Other:'#94a3b8'};
 
-function setExpPeriod(p){
-  _expPeriod=p;
-  ['month','all'].forEach(k=>{
-    const btn=document.getElementById('expPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
-    if(btn){btn.style.background=k===p?'var(--red)':'transparent';btn.style.color=k===p?'#fff':'var(--txt3)';}
+/* Period helpers */
+function setAccPeriod(p){
+  _accPeriod=p;
+  ['month','quarter','year','all'].forEach(k=>{
+    const btn=document.getElementById('accPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(btn){btn.style.background=k===p?'var(--gold)':'transparent';btn.style.color=k===p?'#000':'var(--txt3)';}
   });
-  renderExpenses();
+  renderAccounting();
 }
-
-function _expPeriodStart(){
-  if(_expPeriod==='month'){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),1);}
+function _accPeriodStart(){
+  const n=new Date();
+  if(_accPeriod==='month')return new Date(n.getFullYear(),n.getMonth(),1);
+  if(_accPeriod==='quarter'){const qm=Math.floor(n.getMonth()/3)*3;return new Date(n.getFullYear(),qm,1);}
+  if(_accPeriod==='year'){// UK tax year starts 6 Apr
+    const taxStart=n.getMonth()>=3||(n.getMonth()===3&&n.getDate()>=6)?new Date(n.getFullYear(),3,6):new Date(n.getFullYear()-1,3,6);
+    return taxStart;
+  }
   return new Date(0);
 }
+function _periodLabel(){return{month:'This Month',quarter:'This Quarter',year:'Tax Year',all:'All Time'}[_accPeriod]||'All Time';}
 
+/* Sub-tab */
+function setAccTab(t){
+  _accTab=t;
+  ['pl','income','expenses','taxsum'].forEach(k=>{
+    const panel=document.getElementById('accpanel-'+k);
+    const btn=document.getElementById('acctab-'+k);
+    if(panel)panel.style.display=k===t?'':'none';
+    if(btn){btn.style.borderBottomColor=k===t?'var(--gold)':'transparent';btn.style.color=k===t?'var(--gold)':'var(--txt3)';}
+  });
+}
+
+/* Load */
 async function loadExpenses(){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
   if(error){
-    if(el)el.innerHTML=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table first:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
+    const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
+    if(el)el.innerHTML=msg;
+    _expData=[];
+    renderAccounting();
     return;
   }
   _expData=data||[];
-  renderExpenses();
+  renderAccounting();
 }
 
+/* Main render — updates KPIs, chart, and current sub-tab */
+function renderAccounting(){
+  const start=_accPeriodStart();
+  const fmt=v=>'£'+v.toFixed(2);
+
+  // Income from _refData
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  const incomeRows=refRows.filter(r=>r.is_paid&&new Date(r.created_at)>=start);
+  const outstandingRows=refRows.filter(r=>!r.is_paid&&new Date(r.created_at)>=start);
+  const income=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const outstanding=outstandingRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const refCount=refRows.filter(r=>new Date(r.created_at)>=start).length;
+  const avgFee=refCount>0?(income+outstanding)/refCount:0;
+
+  // Expenses
+  const expRows=_expData.filter(r=>new Date(r.expense_date+'T00:00:00')>=start);
+  const totalExp=expRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+
+  const profit=income-totalExp;
+  const margin=income>0?Math.round(profit/income*100):0;
+
+  // KPI cards
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('kpi-income',fmt(income));
+  set('kpi-income-sub',`${incomeRows.length} referral${incomeRows.length!==1?'s':''} collected`);
+  set('kpi-expenses',fmt(totalExp));
+  set('kpi-expenses-sub',`${expRows.length} expense${expRows.length!==1?'s':''}`);
+  set('kpi-profit',fmt(profit));
+  set('kpi-margin',`${margin}% margin`);
+  set('kpi-outstanding',fmt(outstanding));
+  set('kpi-outstanding-sub',`${outstandingRows.length} referral${outstandingRows.length!==1?'s':''} pending`);
+  set('kpi-refcount',refCount);
+  set('kpi-refcount-sub',`${_periodLabel().toLowerCase()}`);
+  set('kpi-avg',fmt(avgFee));
+  const pc=document.getElementById('kpi-profit-card');
+  if(pc){pc.style.borderColor=profit>=0?'rgba(245,197,24,.3)':'rgba(248,113,113,.3)';}
+  const pp=document.getElementById('kpi-profit');
+  if(pp){pp.style.color=profit>=0?'var(--gold)':'#f87171';}
+
+  // Chart
+  _drawPLChart();
+
+  // Sub-panels
+  if(_accTab==='pl')_renderPLTable();
+  else if(_accTab==='income')_renderIncomeTab();
+  else if(_accTab==='expenses')renderExpenses();
+  else if(_accTab==='taxsum')_renderTaxSummary();
+}
+
+/* ── Chart ── */
+function _drawPLChart(){
+  const canvas=document.getElementById('plChart');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||600;canvas.width=W;canvas.height=160;
+
+  // Build last 12 months of data
+  const months=[];
+  const now=new Date();
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})});
+  }
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&r.is_paid);
+  months.forEach(m=>{
+    const mIncome=refRows.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const mExp=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    m.income=mIncome;m.expenses=mExp;m.profit=mIncome-mExp;
+  });
+
+  const maxVal=Math.max(...months.map(m=>Math.max(m.income,m.expenses,1)),1);
+  const PAD={top:12,right:12,bottom:32,left:48};
+  const chartW=W-PAD.left-PAD.right;
+  const chartH=canvas.height-PAD.top-PAD.bottom;
+  const isDark=!document.body.classList.contains('day-mode');
+  const gridCol=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+  const textCol=isDark?'rgba(255,255,255,.4)':'rgba(0,0,0,.4)';
+
+  ctx.clearRect(0,0,W,canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle=gridCol;ctx.lineWidth=1;
+  [0,.25,.5,.75,1].forEach(f=>{
+    const y=PAD.top+chartH*(1-f);
+    ctx.beginPath();ctx.moveTo(PAD.left,y);ctx.lineTo(PAD.left+chartW,y);ctx.stroke();
+    ctx.fillStyle=textCol;ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText('£'+Math.round(maxVal*f),PAD.left-4,y+3);
+  });
+
+  const n=months.length;
+  const barW=Math.floor(chartW/n);
+  const grpW=barW-4;
+  const bW=Math.max(2,Math.floor(grpW/3)-1);
+
+  months.forEach((m,i)=>{
+    const x=PAD.left+i*barW+2;
+    const draw=(val,col,offset)=>{
+      const h=Math.max(1,Math.round(val/maxVal*chartH));
+      const bx=x+offset*(bW+1);
+      const by=PAD.top+chartH-h;
+      ctx.fillStyle=col;
+      ctx.beginPath();ctx.roundRect(bx,by,bW,h,2);ctx.fill();
+    };
+    draw(m.income,'rgba(74,222,128,.75)',0);
+    draw(m.expenses,'rgba(248,113,113,.75)',1);
+    // profit line dot
+    const py=PAD.top+chartH-Math.max(0,m.profit)/maxVal*chartH;
+    const cx2=x+bW+1;
+    ctx.fillStyle=m.profit>=0?'rgba(245,197,24,.9)':'rgba(248,113,113,.6)';
+    ctx.beginPath();ctx.arc(cx2+bW/2,py,3,0,Math.PI*2);ctx.fill();
+
+    ctx.fillStyle=textCol;ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(m.label,x+grpW/2,PAD.top+chartH+14);
+  });
+
+  // Profit line
+  ctx.strokeStyle='rgba(245,197,24,.6)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+  ctx.beginPath();
+  months.forEach((m,i)=>{
+    const x=PAD.left+i*barW+2+bW+1+bW/2;
+    const y=PAD.top+chartH-Math.max(0,m.profit)/maxVal*chartH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();ctx.setLineDash([]);
+}
+
+/* ── P&L Table ── */
+function _renderPLTable(){
+  const fmt=v=>'£'+Math.abs(v).toFixed(2);
+  // All months that have any data
+  const allDates=[
+    ...(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit).map(r=>new Date(r.created_at)),
+    ..._expData.map(r=>new Date(r.expense_date+'T00:00:00'))
+  ];
+  if(!allDates.length){
+    const tb=document.getElementById('plTableBody');if(tb)tb.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--txt4)">No data yet.</td></tr>';
+    return;
+  }
+  const minDate=new Date(Math.min(...allDates.map(d=>d.getTime())));
+  const now=new Date();
+  const months=[];
+  let cur=new Date(minDate.getFullYear(),minDate.getMonth(),1);
+  while(cur<=now){months.push({year:cur.getFullYear(),month:cur.getMonth()});cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);}
+  months.reverse();
+
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  let cumProfit=0;
+  const rows=months.map(({year,month})=>{
+    const income=refRows.filter(r=>r.is_paid&&new Date(r.created_at).getFullYear()===year&&new Date(r.created_at).getMonth()===month).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const expenses=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===year&&d.getMonth()===month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const outstanding=refRows.filter(r=>!r.is_paid&&new Date(r.created_at).getFullYear()===year&&new Date(r.created_at).getMonth()===month).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const profit=income-expenses;
+    cumProfit+=profit;
+    const margin=income>0?Math.round(profit/income*100):null;
+    const label=new Date(year,month,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    const isThisMonth=year===now.getFullYear()&&month===now.getMonth();
+    return{label,income,expenses,profit,outstanding,margin,cumProfit:cumProfit-profit,isThisMonth};// cumProfit before this month
+  });
+
+  // Totals
+  const totIncome=rows.reduce((s,r)=>s+r.income,0);
+  const totExp=rows.reduce((s,r)=>s+r.expenses,0);
+  const totProfit=totIncome-totExp;
+  const totOuts=rows.reduce((s,r)=>s+r.outstanding,0);
+  const totMargin=totIncome>0?Math.round(totProfit/totIncome*100):null;
+
+  const tb=document.getElementById('plTableBody');
+  const tf=document.getElementById('plTableFoot');
+  if(!tb)return;
+  tb.innerHTML=rows.map(r=>`<tr style="border-bottom:1px solid var(--bdr);${r.isThisMonth?'background:rgba(245,197,24,.04)':''}">
+    <td style="padding:8px 10px;font-size:.8rem;font-weight:${r.isThisMonth?700:400};color:var(--txt);white-space:nowrap">${esc(r.label)}${r.isThisMonth?'<span style="margin-left:6px;font-size:.58rem;background:rgba(245,197,24,.18);color:var(--gold);border-radius:4px;padding:1px 5px;font-weight:700">NOW</span>':''}</td>
+    <td style="padding:8px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:#4ade80;white-space:nowrap">${r.income>0?fmt(r.income):'—'}</td>
+    <td style="padding:8px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:#f87171;white-space:nowrap">${r.expenses>0?fmt(r.expenses):'—'}</td>
+    <td style="padding:8px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${r.profit>=0?'var(--gold)':'#f87171'};white-space:nowrap">${r.profit>=0?'':'-'}${fmt(r.profit)}</td>
+    <td style="padding:8px 10px;text-align:right;font-size:.75rem;color:var(--txt3);white-space:nowrap">${r.margin!=null?r.margin+'%':'—'}</td>
+    <td style="padding:8px 10px;text-align:right;font-size:.75rem;color:#f87171;white-space:nowrap">${r.outstanding>0?fmt(r.outstanding):'—'}</td>
+  </tr>`).join('');
+  if(tf)tf.innerHTML=`<tr style="border-top:2px solid var(--bdr)">
+    <td style="padding:10px 10px;font-family:'Oswald',sans-serif;font-weight:700;color:var(--txt);font-size:.82rem;text-transform:uppercase;letter-spacing:.5px">Total</td>
+    <td style="padding:10px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:#4ade80">${fmt(totIncome)}</td>
+    <td style="padding:10px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:#f87171">${fmt(totExp)}</td>
+    <td style="padding:10px 10px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${totProfit>=0?'var(--gold)':'#f87171'}">${totProfit>=0?'':'-'}${fmt(totProfit)}</td>
+    <td style="padding:10px 10px;text-align:right;font-size:.78rem;color:var(--txt3)">${totMargin!=null?totMargin+'%':'—'}</td>
+    <td style="padding:10px 10px;text-align:right;font-size:.78rem;color:#f87171">${totOuts>0?fmt(totOuts):'—'}</td>
+  </tr>`;
+}
+
+/* ── Income Tab ── */
+function _renderIncomeTab(){
+  const start=_accPeriodStart();
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
+  const byInstr={};
+  refRows.forEach(r=>{
+    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,paid:0,due:0,rows:[]};
+    byInstr[r.instructor_id].rows.push(r);
+    if(r.is_paid)byInstr[r.instructor_id].paid+=parseFloat(r.amount)||0;
+    else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
+  });
+  const groups=Object.values(byInstr).sort((a,b)=>(b.paid+b.due)-(a.paid+a.due));
+  const el=document.getElementById('incomeByInstr');
+  if(!el)return;
+  if(!groups.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)">No income in this period.</div>';return;}
+  el.innerHTML=groups.map(g=>{
+    const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown'};
+    const total=g.paid+g.due;
+    const pct=total>0?Math.round(g.paid/total*100):0;
+    return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div style="flex:1;min-width:130px">
+          <div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}</div>
+          <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">${g.rows.length} referral${g.rows.length!==1?'s':''} · avg £${(total/g.rows.length).toFixed(2)}</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          ${g.paid>0?`<div style="text-align:right"><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Collected</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#4ade80">£${g.paid.toFixed(2)}</div></div>`:''}
+          ${g.due>0?`<div style="text-align:right"><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Outstanding</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#f87171">£${g.due.toFixed(2)}</div></div>`:''}
+          <div style="text-align:right"><div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Total</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--gold)">£${total.toFixed(2)}</div></div>
+        </div>
+      </div>
+      <div style="margin-top:8px;height:4px;background:var(--bdr);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#4ade80,#22c55e);transition:width .4s"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Tax Summary ── */
+function _renderTaxSummary(){
+  const el=document.getElementById('taxSummaryContent');if(!el)return;
+  // Build last 3 UK tax years
+  const now=new Date();
+  const currentTaxYear=now.getMonth()>=3||(now.getMonth()===3&&now.getDate()>=6)?now.getFullYear():now.getFullYear()-1;
+  const years=[];
+  for(let y=currentTaxYear;y>=currentTaxYear-2;y--){
+    years.push({start:new Date(y,3,6),end:new Date(y+1,3,5,23,59,59),label:`${y}–${(y+1).toString().slice(2)}`});
+  }
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  const fmt=v=>'£'+v.toFixed(2);
+  el.innerHTML=years.map(yr=>{
+    const income=refRows.filter(r=>r.is_paid&&new Date(r.created_at)>=yr.start&&new Date(r.created_at)<=yr.end).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const expenses=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=yr.start&&d<=yr.end;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const profit=income-expenses;
+    const isCurrent=yr.start.getFullYear()===currentTaxYear;
+    // Expense by category
+    const catTotals={};
+    _expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=yr.start&&d<=yr.end;}).forEach(r=>{catTotals[r.category]=(catTotals[r.category]||0)+(parseFloat(r.amount)||0);});
+    return`<div style="background:var(--card-bg);border:1px solid ${isCurrent?'rgba(245,197,24,.3)':'var(--bdr)'};border-radius:14px;padding:18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)">Tax Year ${yr.label}</div>
+        ${isCurrent?'<span style="font-size:.6rem;background:rgba(245,197,24,.18);color:var(--gold);border-radius:5px;padding:2px 8px;font-weight:700;letter-spacing:.4px">CURRENT</span>':''}
+        <div style="font-size:.7rem;color:var(--txt4);margin-left:4px">6 Apr ${yr.start.getFullYear()} → 5 Apr ${yr.end.getFullYear()}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+        <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:10px;padding:10px 14px">
+          <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Gross Income</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#4ade80">${fmt(income)}</div>
+        </div>
+        <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:10px 14px">
+          <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Total Expenses</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#f87171">${fmt(expenses)}</div>
+        </div>
+        <div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 14px">
+          <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Net Profit</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:${profit>=0?'var(--gold)':'#f87171'}">${profit>=0?'':'-'}${fmt(profit)}</div>
+        </div>
+      </div>
+      ${Object.keys(catTotals).length?`<div style="font-size:.68rem;color:var(--txt4);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Expenses by category</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>`<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:7px;padding:4px 10px;font-size:.72rem"><span style="color:${_EXP_CATS[cat]||'var(--txt3)'}">●</span> ${esc(cat)} <strong style="color:var(--txt)">£${total.toFixed(2)}</strong></div>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ── Expenses sub-tab render ── */
 function renderExpenses(){
-  const start=_expPeriodStart();
+  const start=_accPeriodStart();
   const catFilter=document.getElementById('expCategoryFilter')?.value||'';
   const rows=_expData.filter(r=>{
     const d=new Date(r.expense_date+'T00:00:00');
@@ -7342,47 +7733,32 @@ function renderExpenses(){
     if(catFilter&&r.category!==catFilter)return false;
     return true;
   });
-
-  // Summary by category
+  // Summary chips
   const catTotals={};
   rows.forEach(r=>{catTotals[r.category]=(catTotals[r.category]||0)+(parseFloat(r.amount)||0);});
   const grandTotal=rows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const catColors={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment:'#a78bfa',Software:'#34d399',Office:'#fb923c',Travel:'#e879f9',Other:'#94a3b8'};
   const sumEl=document.getElementById('expSummary');
   if(sumEl){
-    const cats=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
-    sumEl.innerHTML=`
-      <div style="background:var(--card-bg);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 16px">
-        <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#f87171;margin-bottom:6px"><i class="bi bi-cash-stack me-1"></i>Total</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#f87171">£${grandTotal.toFixed(2)}</div>
-        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${rows.length} expense${rows.length!==1?'s':''}</div>
-      </div>
-      ${cats.map(([cat,total])=>`
-        <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px">
-          <div style="font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${catColors[cat]||'var(--txt3)'};margin-bottom:6px">${esc(cat)}</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt)">£${total.toFixed(2)}</div>
-          <div style="height:3px;background:var(--bdr);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.round(total/grandTotal*100)}%;background:${catColors[cat]||'var(--txt3)'}"></div></div>
-        </div>
-      `).join('')}`;
+    sumEl.innerHTML=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([cat,total])=>
+      `<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:.72rem;white-space:nowrap"><span style="color:${_EXP_CATS[cat]||'var(--txt3)'}">●</span> ${esc(cat)} <strong style="color:var(--txt)">£${total.toFixed(2)}</strong></div>`
+    ).join('')+
+    (Object.keys(catTotals).length?`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:5px 12px;font-size:.72rem;white-space:nowrap;font-weight:700;color:#f87171">Total £${grandTotal.toFixed(2)}</div>`:'');
   }
-
   const el=document.getElementById('expList');
   if(!el)return;
-  if(!rows.length){
-    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No expenses in this period.</div>';
-    return;
-  }
+  if(!rows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No expenses in this period.</div>';return;}
   el.innerHTML=rows.map(r=>{
-    const col=catColors[r.category]||'var(--txt3)';
+    const col=_EXP_CATS[r.category]||'var(--txt3)';
     const dateStr=new Date(r.expense_date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
     return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="width:8px;height:40px;background:${col};border-radius:4px;flex-shrink:0"></div>
+      <div style="width:6px;height:36px;background:${col};border-radius:3px;flex-shrink:0"></div>
       <div style="flex:1;min-width:120px">
         <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.description||r.category)}</div>
-        <div style="font-size:.7rem;color:var(--txt3);margin-top:2px">${esc(r.category)} · ${dateStr}</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">${esc(r.category)} · ${dateStr}</div>
       </div>
       <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#f87171;white-space:nowrap">£${(parseFloat(r.amount)||0).toFixed(2)}</div>
-      <button onclick="deleteExpense('${r.id}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Delete this expense"><i class="bi bi-trash"></i></button>
+      <button onclick="editExpense('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Edit"><i class="bi bi-pencil"></i></button>
+      <button onclick="deleteExpense('${r.id}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Delete"><i class="bi bi-trash"></i></button>
     </div>`;
   }).join('');
 }
@@ -7399,33 +7775,85 @@ async function addExpense(){
   showToast('Expense added ✓','success');
   document.getElementById('expAmount').value='';
   document.getElementById('expDesc').value='';
-  renderExpenses();
+  renderAccounting();
 }
 
 async function deleteExpense(id){
-  if(!confirm('Delete this expense?'))return;
+  if(!confirm('Delete this expense? This cannot be undone.'))return;
   const{error}=await sb.from('expenses').delete().eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
   _expData=_expData.filter(r=>r.id!==id);
   showToast('Expense deleted','success');
-  renderExpenses();
+  renderAccounting();
 }
 
-function exportExpensesCSV(){
-  const rows=_expData.slice().sort((a,b)=>new Date(b.expense_date)-new Date(a.expense_date));
+function editExpense(id){
+  const r=_expData.find(x=>x.id===id);if(!r)return;
+  const existing=document.getElementById('editExpModal');if(existing)existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='editExpModal';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML=`<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;padding:24px;width:100%;max-width:380px;position:relative">
+    <button onclick="document.getElementById('editExpModal').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--txt3);font-size:1.1rem;cursor:pointer"><i class="bi bi-x-lg"></i></button>
+    <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:16px"><i class="bi bi-pencil me-2" style="color:#60a5fa"></i>Edit Expense</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Category</label>
+        <select id="eeCategory" class="dsq-inp" style="width:100%;font-size:.83rem">
+          ${['Car','Insurance','Marketing','Equipment','Software','Office','Travel','Fuel','Phone','Other'].map(c=>`<option value="${c}"${r.category===c?' selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+        <input id="eeAmount" class="dsq-inp" type="number" step="0.01" min="0" value="${parseFloat(r.amount)||0}" style="width:100%;font-size:.83rem"/></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Date</label>
+        <input id="eeDate" class="dsq-inp" type="date" value="${r.expense_date||''}" style="width:100%;font-size:.83rem"/></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Description</label>
+        <input id="eeDesc" class="dsq-inp" value="${jsEsc(r.description||'')}" style="width:100%;font-size:.83rem"/></div>
+      <button onclick="saveExpenseEdit('${id}')" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
+    </div></div>`;
+  document.body.appendChild(overlay);
+}
+
+async function saveExpenseEdit(id){
+  const category=document.getElementById('eeCategory')?.value;
+  const amount=parseFloat(document.getElementById('eeAmount')?.value);
+  const date=document.getElementById('eeDate')?.value;
+  const description=document.getElementById('eeDesc')?.value.trim();
+  if(!category||!amount||amount<=0){showToast('Invalid amount','error');return;}
+  const updates={category,amount:amount.toFixed(2),expense_date:date,description};
+  const{error}=await sb.from('expenses').update(updates).eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  const r=_expData.find(x=>x.id===id);if(r)Object.assign(r,updates);
+  showToast('Expense updated ✓','success');
+  document.getElementById('editExpModal')?.remove();
+  renderAccounting();
+}
+
+function exportFullPLCSV(){
+  const now=new Date();
+  const lines=['DriveSQ — Full P&L Export','Generated: '+now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}),''];
+  lines.push('=== INCOME (Referrals Collected) ===');
+  lines.push(['Date','Instructor','Student','Amount','Status'].join(','));
+  const instrName=r=>{const i=allInstrs.find(x=>x.id===r.instructor_id);return i?.full_name||r.instructor_id||'';};
   const q=s=>`"${(s||'').replace(/"/g,'""')}"`;
-  const header=['Date','Category','Amount','Description'];
-  const csv=[header.join(','),...rows.map(r=>[
-    r.expense_date,
-    q(r.category),
-    (parseFloat(r.amount)||0).toFixed(2),
-    q(r.description||''),
-  ].join(','))].join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  refRows.forEach(r=>lines.push([new Date(r.created_at).toLocaleDateString('en-GB'),q(instrName(r)),q(r.student_name),((parseFloat(r.amount)||0).toFixed(2)),r.is_paid?'Paid':'Unpaid'].join(',')));
+  lines.push('');
+  lines.push('=== EXPENSES ===');
+  lines.push(['Date','Category','Amount','Description'].join(','));
+  _expData.slice().sort((a,b)=>new Date(b.expense_date)-new Date(a.expense_date)).forEach(r=>lines.push([r.expense_date,q(r.category),((parseFloat(r.amount)||0).toFixed(2)),q(r.description||'')].join(',')));
+  lines.push('');
+  const totalIncome=refRows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const totalExp=_expData.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  lines.push('=== SUMMARY ===');
+  lines.push(`Total Income (collected),£${totalIncome.toFixed(2)}`);
+  lines.push(`Total Expenses,£${totalExp.toFixed(2)}`);
+  lines.push(`Net Profit,£${(totalIncome-totalExp).toFixed(2)}`);
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='drivesq-expenses.csv';a.click();
+  const a=document.createElement('a');a.href=url;a.download='drivesq-pl-report.csv';a.click();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
+
+function exportExpensesCSV(){exportFullPLCSV();}// alias kept for compatibility
 
 // Set today's date as default for expense date input
 document.addEventListener('DOMContentLoaded',()=>{
