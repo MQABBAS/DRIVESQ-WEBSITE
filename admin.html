@@ -3763,12 +3763,22 @@ async function confirmCreateStudent(){
   if(instrId){
     const _csRefAmt=parseFloat(document.getElementById('cs-referral-amount')?.value||'0')||0;
     const _csRefPaid=document.getElementById('cs-referral-status')?.value==='paid';
-    await sb.from('referrals').insert([{
+    const _csRefNow=new Date().toISOString();
+    const _csRefRow={
       instructor_id:instrId,student_name:name,student_phone:phone||null,
       amount:_csRefAmt,is_paid:_csRefPaid,
-      paid_at:_csRefPaid?new Date().toISOString():null,
-      notes:'Created via Create Student',created_at:new Date().toISOString()
-    }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+      paid_at:_csRefPaid?_csRefNow:null,
+      is_cancelled:false,is_credit:false,credit_fulfilled:false,
+      notes:'Created via Create Student',created_at:_csRefNow
+    };
+    const{data:_csRefData,error:_csRefErr}=await sb.from('referrals').insert([_csRefRow]).select().single();
+    if(_csRefErr){
+      showToast('Referral fee not saved: '+_csRefErr.message,'warn');
+      console.warn('referral insert:',_csRefErr.message);
+    }else{
+      if(_csRefData)_refData.unshift(_csRefData); // keep in-memory cache current
+      _buildUnpaidRefIndex();
+    }
   }
   // Store for WhatsApp buttons
   window._csLastCreated={name,phone,email,lessonType,addr,notes,instrObj};
@@ -5254,12 +5264,22 @@ async function confirmAssign(){
   // 3b. Record referral fee
   const _refAmt=parseFloat(document.getElementById('assign-referral-amount')?.value||'0')||0;
   const _refPaid=document.getElementById('assign-referral-status')?.value==='paid';
-  await sb.from('referrals').insert([{
+  const _refNow=new Date().toISOString();
+  const _refRow={
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
     amount:_refAmt,is_paid:_refPaid,
-    paid_at:_refPaid?new Date().toISOString():null,
-    notes:'Assigned via Find & Assign',created_at:new Date().toISOString()
-  }]).then(()=>_buildUnpaidRefIndex()).catch(e=>console.warn('referral insert:',e.message));
+    paid_at:_refPaid?_refNow:null,
+    is_cancelled:false,is_credit:false,credit_fulfilled:false,
+    notes:'Assigned via Find & Assign',created_at:_refNow
+  };
+  const{data:_assignRefData,error:_assignRefErr}=await sb.from('referrals').insert([_refRow]).select().single();
+  if(_assignRefErr){
+    showToast('Referral fee not saved: '+_assignRefErr.message,'warn');
+    console.warn('referral insert:',_assignRefErr.message);
+  }else{
+    if(_assignRefData)_refData.unshift(_assignRefData); // keep in-memory cache current
+    _buildUnpaidRefIndex();
+  }
 
   // 4. Push notification to instructor device
   await sendPushToInstructor(instrId,instrName,
@@ -7174,20 +7194,22 @@ async function openRefDetail(instrId){
 }
 
 async function markRefPaid(refId){
-  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:new Date().toISOString()}).eq('id',refId);
-  if(error){showToast('Error: '+error.message,'error');return;}
   const r=_refData.find(x=>x.id===refId);
-  if(r){r.is_paid=true;r.paid_at=new Date().toISOString();}
+  const instrId=r?.instructor_id;
+  const now=new Date().toISOString();
+  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  if(r){r.is_paid=true;r.paid_at=now;}
   showToast('Referral marked as paid ✓','success');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
 
 async function cancelRef(refId, studentName){
   if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee — it will no longer count toward the due or paid total. This cannot be undone.`))return;
-  // Try update with is_cancelled; if column doesn't exist yet, show SQL hint
+  const r=_refData.find(x=>x.id===refId);
+  const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true}).eq('id',refId);
   if(error){
     if(error.message&&error.message.includes('is_cancelled')){
@@ -7195,11 +7217,9 @@ async function cancelRef(refId, studentName){
     }else{showToast('Error: '+error.message,'error');}
     return;
   }
-  const r=_refData.find(x=>x.id===refId);
   if(r)r.is_cancelled=true;
   showToast(`${studentName} — referral voided (student left) ✓`,'warn');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
@@ -7207,6 +7227,8 @@ async function cancelRef(refId, studentName){
 // Mark a referral as a credit — student left but instructor is owed a replacement student
 async function markRefCredit(refId, studentName){
   if(!confirm(`Issue a credit for "${studentName}"?\n\nInstead of voiding the fee, the instructor will be owed a replacement student. A "CREDIT OWED" badge will appear on their profile and in the Find Instructor tab to remind you when assigning the next student.\n\nThis cannot be undone.`))return;
+  const r=_refData.find(x=>x.id===refId);
+  const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true,is_credit:true}).eq('id',refId);
   if(error){
     if(error.message&&(error.message.includes('is_credit')||error.message.includes('credit_fulfilled'))){
@@ -7214,11 +7236,9 @@ async function markRefCredit(refId, studentName){
     }else{showToast('Error: '+error.message,'error');}
     return;
   }
-  const r=_refData.find(x=>x.id===refId);
   if(r){r.is_cancelled=true;r.is_credit=true;}
   showToast(`Credit issued for ${studentName} — instructor is owed a replacement student 🔄`,'warn');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
@@ -7226,13 +7246,14 @@ async function markRefCredit(refId, studentName){
 // Mark a credit as fulfilled — a replacement student has been assigned to the instructor
 async function fulfillCredit(refId, studentName){
   if(!confirm(`Mark credit for "${studentName}" as fulfilled?\n\nThis means a replacement student has been assigned to the instructor. The credit badge will be removed from their profile.`))return;
-  const{error}=await sb.from('referrals').update({credit_fulfilled:true,credit_fulfilled_at:new Date().toISOString()}).eq('id',refId);
-  if(error){showToast('Error: '+error.message,'error');return;}
   const r=_refData.find(x=>x.id===refId);
-  if(r){r.credit_fulfilled=true;r.credit_fulfilled_at=new Date().toISOString();}
+  const instrId=r?.instructor_id;
+  const now=new Date().toISOString();
+  const{error}=await sb.from('referrals').update({credit_fulfilled:true,credit_fulfilled_at:now}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  if(r){r.credit_fulfilled=true;r.credit_fulfilled_at=now;}
   showToast(`Credit fulfilled for ${studentName} ✓`,'success');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
@@ -7242,7 +7263,7 @@ function updateAccounting(){
   const fmt=v=>'£'+v.toFixed(2);
   const now=new Date();
   const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());weekStart.setHours(0,0,0,0);
+  const weekStart=typeof getMonday==='function'?getMonday(0):(()=>{const d=new Date(now);const day=d.getDay();const diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;})();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
   const periods=[
     {key:'today',start:todayStart},
@@ -7300,34 +7321,33 @@ function editRef(refId){
           <textarea id="eRef-notes" class="dsq-inp" rows="2" style="width:100%;font-size:.82rem;resize:vertical">${jsEsc(r.notes||'')}</textarea>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="eRef-paid" ${r.is_paid?'checked':''} style="width:16px;height:16px;accent-color:#4ade80"/>
+          <input type="checkbox" id="eRef-paid" ${r.is_paid?'checked':''} onchange="document.getElementById('eRef-paidDateRow').style.display=this.checked?'':'none'" style="width:16px;height:16px;accent-color:#4ade80"/>
           <label for="eRef-paid" style="font-size:.82rem;color:var(--txt);cursor:pointer">Paid</label>
         </div>
         <div id="eRef-paidDateRow" style="${r.is_paid?'':'display:none'}">
           <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Paid Date</label>
           <input id="eRef-paidDate" class="dsq-inp" type="date" value="${r.paid_at?r.paid_at.slice(0,10):new Date().toISOString().slice(0,10)}" style="width:100%;font-size:.85rem"/>
         </div>
-        <button onclick="saveRefEdit('${refId}','${instrId}')" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
+        <button onclick="saveRefEdit('${refId}')" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
       </div>
     </div>`;
-  overlay.querySelector('#eRef-paid').addEventListener('change',function(){
-    document.getElementById('eRef-paidDateRow').style.display=this.checked?'':'none';
-  });
   document.body.appendChild(overlay);
 }
 
-async function saveRefEdit(refId, instrId){
-  const name=document.getElementById('eRef-name')?.value.trim();
-  const phone=document.getElementById('eRef-phone')?.value.trim();
+async function saveRefEdit(refId){
+  const name=(document.getElementById('eRef-name')?.value||'').trim();
+  const phone=(document.getElementById('eRef-phone')?.value||'').trim();
   const amount=parseFloat(document.getElementById('eRef-amount')?.value)||0;
-  const notes=document.getElementById('eRef-notes')?.value.trim();
+  const notes=(document.getElementById('eRef-notes')?.value||'').trim();
   const isPaid=document.getElementById('eRef-paid')?.checked||false;
   const paidDate=isPaid?document.getElementById('eRef-paidDate')?.value:null;
-  const paidAt=paidDate?new Date(paidDate).toISOString():null;
-  const updates={student_name:name,student_phone:phone,amount:amount.toFixed(2),notes,is_paid:isPaid,paid_at:isPaid?paidAt:null};
+  const paidAt=paidDate?new Date(paidDate+'T12:00:00').toISOString():null;
+  if(!name){showToast('Student name is required','error');return;}
+  const updates={student_name:name,student_phone:phone||null,amount:amount.toFixed(2),notes:notes||null,is_paid:isPaid,paid_at:isPaid?paidAt:null};
   const{error}=await sb.from('referrals').update(updates).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
   const r=_refData.find(x=>x.id===refId);
+  const instrId=r?.instructor_id;
   if(r)Object.assign(r,updates);
   showToast('Referral updated ✓','success');
   document.getElementById('editRefModal')?.remove();
@@ -7338,13 +7358,13 @@ async function saveRefEdit(refId, instrId){
 
 async function markRefUnpaid(refId){
   if(!confirm('Mark this referral as unpaid / outstanding?'))return;
+  const r=_refData.find(x=>x.id===refId);
+  const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_paid:false,paid_at:null}).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
-  const r=_refData.find(x=>x.id===refId);
   if(r){r.is_paid=false;r.paid_at=null;}
   showToast('Referral marked as unpaid','success');
   _buildUnpaidRefIndex();
-  const instrId=_refData.find(x=>x.id===refId)?.instructor_id;
   if(instrId)openRefDetail(instrId);
   renderReferrals();
 }
@@ -7442,6 +7462,11 @@ function setAccTab(t){
 async function loadExpenses(){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  // Ensure referral data is loaded (needed for income/profit figures)
+  if(!_refData.length){
+    const{data:rd}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
+    if(rd)_refData=rd;
+  }
   const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
   if(error){
     const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
