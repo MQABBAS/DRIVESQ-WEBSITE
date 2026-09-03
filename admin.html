@@ -1298,12 +1298,16 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     </div>
   </div>
 
+  <!-- ═══ CASH FLOW TREND ═══ -->
+  <div id="cashFlowRow" style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap"></div>
+
   <!-- ═══ ACCOUNTING SUB-TABS ═══ -->
-  <div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px;gap:0">
+  <div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px;gap:0;overflow-x:auto">
     <button id="acctab-pl"       onclick="setAccTab('pl')"       style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--gold);color:var(--gold);margin-bottom:-2px;letter-spacing:.3px">P&amp;L Statement</button>
     <button id="acctab-income"   onclick="setAccTab('income')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Income</button>
     <button id="acctab-expenses" onclick="setAccTab('expenses')" style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Expenses</button>
     <button id="acctab-taxsum"   onclick="setAccTab('taxsum')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Tax Summary</button>
+    <button id="acctab-overdue"  onclick="setAccTab('overdue')"  style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Overdue <span id="overdueBadge" style="display:none;background:#f87171;color:#fff;border-radius:10px;padding:1px 7px;font-size:.65rem;margin-left:4px">0</span></button>
   </div>
 
   <!-- P&L STATEMENT SUB-PANEL -->
@@ -1368,7 +1372,14 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <input id="expDesc" class="dsq-inp" placeholder="Optional description…" style="width:100%;font-size:.83rem"/>
         </div>
       </div>
-      <button onclick="addExpense()" style="margin-top:12px;background:var(--red);border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button onclick="addExpense()" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+        <div style="font-size:.65rem;color:var(--txt4);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-left:4px">Quick-add:</div>
+        <button onclick="quickAddExpense('Fuel',60,'Weekly fuel')" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:5px 11px;font-size:.7rem;cursor:pointer" title="Add £60 fuel expense">⛽ £60 Fuel</button>
+        <button onclick="quickAddExpense('Insurance',0,'Insurance payment')" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:5px 11px;font-size:.7rem;cursor:pointer" title="Add insurance">🛡️ Insurance</button>
+        <button onclick="quickAddExpense('Car',0,'Car payment/service')" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:5px 11px;font-size:.7rem;cursor:pointer" title="Add car expense">🚗 Car</button>
+        <button onclick="quickAddExpense('Software',0,'Software subscription')" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:8px;padding:5px 11px;font-size:.7rem;cursor:pointer" title="Add software subscription">💻 Software</button>
+      </div>
     </div>
 
     <!-- Expenses filter + list -->
@@ -1390,6 +1401,39 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="accpanel-taxsum" style="display:none">
     <div style="font-size:.75rem;color:var(--txt4);margin-bottom:12px">UK tax year (6 Apr → 5 Apr). Use this as a reference when preparing your Self Assessment. Consult an accountant for official figures.</div>
     <div id="taxSummaryContent"></div>
+  </div>
+
+  <!-- OVERDUE SUB-PANEL -->
+  <div id="accpanel-overdue" style="display:none">
+    <div style="font-size:.75rem;color:var(--txt4);margin-bottom:14px">Referrals that have been unpaid for 30, 60, or 90+ days. Use this to chase outstanding payments.</div>
+    <!-- Overdue buckets -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 14px">
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">30–59 days</div>
+        <div id="od30count" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#fbbf24">0</div>
+        <div id="od30amt" style="font-size:.7rem;color:var(--txt4);margin-top:2px">£0.00</div>
+      </div>
+      <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:12px;padding:12px 14px">
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">60–89 days</div>
+        <div id="od60count" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#f97316">0</div>
+        <div id="od60amt" style="font-size:.7rem;color:var(--txt4);margin-top:2px">£0.00</div>
+      </div>
+      <div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 14px">
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">90+ days</div>
+        <div id="od90count" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#f87171">0</div>
+        <div id="od90amt" style="font-size:.7rem;color:var(--txt4);margin-top:2px">£0.00</div>
+      </div>
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:12px 14px">
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Total Outstanding</div>
+        <div id="odTotalAmt" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#818cf8">£0</div>
+        <div id="odTotalCount" style="font-size:.7rem;color:var(--txt4);margin-top:2px">0 referrals</div>
+      </div>
+    </div>
+    <!-- Export overdue -->
+    <div style="margin-bottom:12px">
+      <button onclick="exportOverdueCSV()" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:9px;padding:7px 16px;font-size:.75rem;font-weight:600;cursor:pointer"><i class="bi bi-download me-1"></i>Export Overdue CSV</button>
+    </div>
+    <div id="overdueList" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
 
 </div>
@@ -6708,6 +6752,7 @@ async function loadWaitlist(){
           ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
           ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
           ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
+          ${r.status==='cancelled'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','waiting')" style="color:#4ade80;border-color:rgba(74,222,128,.3)"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivate</button>`:''}
         </div>
       </div>
     </div>`;
@@ -6732,8 +6777,18 @@ function waitlistAssign(id,name,postcode,type,phone,notes){
   },300);
 }
 async function updateWaitlistStatus(id,status,instrId=null){
-  await sb.from('waiting_list').update({status}).eq('id',id).catch(()=>{});
-  showToast(status==='cancelled'?'Entry cancelled ✓':status==='assigned'?'Marked as assigned ✓':'Status updated',status==='cancelled'?'warn':'success',3000);
+  if(status==='cancelled'&&!confirm('Cancel this waiting list entry? The student will no longer appear in the active waiting list.'))return;
+  if(status==='waiting'&&!confirm('Reactivate this entry? It will appear in the active waiting list again.'))return;
+  const updates={status};
+  if(status==='assigned'&&instrId)updates.instructor_id=instrId;
+  const{error}=await sb.from('waiting_list').update(updates).eq('id',id);
+  if(error){showToast('Error updating status: '+error.message,'error');return;}
+  showToast(
+    status==='cancelled'?'Entry cancelled ✓':
+    status==='assigned'?'Marked as assigned ✓':
+    status==='waiting'?'Entry reactivated ✓':'Status updated',
+    status==='cancelled'?'warn':'success',3000
+  );
   loadWaitlist();
 }
 
@@ -7450,7 +7505,7 @@ function _periodLabel(){return{month:'This Month',quarter:'This Quarter',year:'T
 /* Sub-tab */
 function setAccTab(t){
   _accTab=t;
-  ['pl','income','expenses','taxsum'].forEach(k=>{
+  ['pl','income','expenses','taxsum','overdue'].forEach(k=>{
     const panel=document.getElementById('accpanel-'+k);
     const btn=document.getElementById('acctab-'+k);
     if(panel)panel.style.display=k===t?'':'none';
@@ -7518,14 +7573,18 @@ function renderAccounting(){
   const pp=document.getElementById('kpi-profit');
   if(pp){pp.style.color=profit>=0?'var(--gold)':'#f87171';}
 
-  // Chart
+  // Chart + cash flow
   _drawPLChart();
+  _renderCashFlowTrend();
 
   // Sub-panels
   if(_accTab==='pl')_renderPLTable();
   else if(_accTab==='income')_renderIncomeTab();
   else if(_accTab==='expenses')renderExpenses();
   else if(_accTab==='taxsum')_renderTaxSummary();
+  else if(_accTab==='overdue')_renderOverdueTab();
+  // Always update overdue badge count
+  _updateOverdueBadge();
 }
 
 /* ── Chart ── */
@@ -7748,6 +7807,114 @@ function _renderTaxSummary(){
   }).join('');
 }
 
+/* ── Cash Flow Trend (last 3 months) ── */
+function _renderCashFlowTrend(){
+  const el=document.getElementById('cashFlowRow');if(!el)return;
+  const now=new Date();
+  const months=[];
+  for(let i=2;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})});
+  }
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&r.is_paid);
+  months.forEach(m=>{
+    const inc=refRows.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const exp=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    m.income=inc;m.expenses=exp;m.profit=inc-exp;
+  });
+  el.innerHTML=months.map((m,i)=>{
+    const isNow=i===2;
+    const trend=i>0&&months[i-1].profit!==0?((m.profit-months[i-1].profit)/Math.abs(months[i-1].profit)*100):null;
+    return`<div style="flex:1;min-width:120px;background:var(--card-bg);border:1px solid ${isNow?'rgba(245,197,24,.3)':'var(--bdr)'};border-radius:12px;padding:10px 14px">
+      <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">${m.label}${isNow?'<span style="margin-left:5px;color:var(--gold);font-size:.58rem">▶ now</span>':''}</div>
+      <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+        <div><div style="font-size:.58rem;color:#4ade80;margin-bottom:1px">IN</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#4ade80">£${m.income.toFixed(0)}</div></div>
+        <div><div style="font-size:.58rem;color:#f87171;margin-bottom:1px">OUT</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#f87171">£${m.expenses.toFixed(0)}</div></div>
+        <div><div style="font-size:.58rem;color:var(--gold);margin-bottom:1px">NET</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:${m.profit>=0?'var(--gold)':'#f87171'}">${m.profit>=0?'':'-'}£${Math.abs(m.profit).toFixed(0)}</div></div>
+        ${trend!=null?`<div style="font-size:.65rem;font-weight:700;color:${trend>=0?'#4ade80':'#f87171'};margin-left:auto;white-space:nowrap">${trend>=0?'▲':'▼'}${Math.abs(Math.round(trend))}%</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Overdue badge update ── */
+function _updateOverdueBadge(){
+  const now=new Date();
+  const unpaid=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
+  const overdue=unpaid.filter(r=>{const age=(now-new Date(r.created_at))/(86400000);return age>=30;});
+  const badge=document.getElementById('overdueBadge');
+  if(badge){badge.textContent=overdue.length;badge.style.display=overdue.length?'':'none';}
+}
+
+/* ── Overdue sub-tab render ── */
+function _renderOverdueTab(){
+  const now=new Date();
+  const unpaid=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
+  const withAge=unpaid.map(r=>({...r,ageDays:Math.floor((now-new Date(r.created_at))/86400000)})).filter(r=>r.ageDays>=1);
+  withAge.sort((a,b)=>b.ageDays-a.ageDays);
+
+  const b30=withAge.filter(r=>r.ageDays>=30&&r.ageDays<60);
+  const b60=withAge.filter(r=>r.ageDays>=60&&r.ageDays<90);
+  const b90=withAge.filter(r=>r.ageDays>=90);
+  const all=withAge; // show all outstanding (any age)
+
+  const sum=arr=>arr.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('od30count',b30.length);set('od30amt','£'+sum(b30).toFixed(2));
+  set('od60count',b60.length);set('od60amt','£'+sum(b60).toFixed(2));
+  set('od90count',b90.length);set('od90amt','£'+sum(b90).toFixed(2));
+  set('odTotalAmt','£'+sum(all).toFixed(2));
+  set('odTotalCount',all.length+' referral'+(all.length!==1?'s':''));
+
+  const el=document.getElementById('overdueList');if(!el)return;
+  if(!all.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No unpaid referrals! All clear.</div>';return;}
+  el.innerHTML=all.map(r=>{
+    const instr=allInstrs.find(i=>i.id===r.instructor_id)||{full_name:'Unknown'};
+    const age=r.ageDays;
+    const col=age>=90?'#f87171':age>=60?'#f97316':age>=30?'#fbbf24':'#94a3b8';
+    const label=age>=90?'90+ days':age>=60?'60–89 days':age>=30?'30–59 days':age+' days';
+    const phone=r.student_phone?r.student_phone.replace(/\s/g,''):'';
+    const waLink=phone?`https://wa.me/44${phone.replace(/^0/,'')}`:'';
+    return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-left:3px solid ${col};border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.student_name||'Unknown student')}</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">
+          ${esc(instr.full_name)} · ${esc(r.student_phone||'no phone')}
+          · Created ${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+        </div>
+        ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:2px">${esc(r.notes)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0">
+        <div style="text-align:right">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#f87171">£${(parseFloat(r.amount)||0).toFixed(2)}</div>
+          <div style="font-size:.65rem;font-weight:700;color:${col}">${label}</div>
+        </div>
+        ${waLink?`<a href="${waLink}" target="_blank" title="Chase via WhatsApp" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);border-radius:8px;color:#4ade80;font-size:1rem;text-decoration:none"><i class="bi bi-whatsapp"></i></a>`:''}
+        <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:#4ade80;border-radius:8px;padding:5px 12px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-check me-1"></i>Mark Paid</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Export overdue CSV ── */
+function exportOverdueCSV(){
+  const now=new Date();
+  const unpaid=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
+  const rows=unpaid.map(r=>({...r,ageDays:Math.floor((now-new Date(r.created_at))/86400000)})).sort((a,b)=>b.ageDays-a.ageDays);
+  if(!rows.length){showToast('No outstanding referrals to export','warn');return;}
+  const headers=['Student Name','Phone','Instructor','Amount (£)','Days Outstanding','Created','Notes'];
+  const csvRows=rows.map(r=>{
+    const instr=allInstrs.find(i=>i.id===r.instructor_id)||{full_name:'Unknown'};
+    return[r.student_name||'',r.student_phone||'',instr.full_name,(parseFloat(r.amount)||0).toFixed(2),r.ageDays,new Date(r.created_at).toLocaleDateString('en-GB'),r.notes||''].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+  });
+  const csv=[headers.join(','),...csvRows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='overdue-referrals.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  showToast('Overdue CSV downloaded ✓','success');
+}
+
 /* ── Expenses sub-tab render ── */
 function renderExpenses(){
   const start=_accPeriodStart();
@@ -7786,6 +7953,19 @@ function renderExpenses(){
       <button onclick="deleteExpense('${r.id}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Delete"><i class="bi bi-trash"></i></button>
     </div>`;
   }).join('');
+}
+
+function quickAddExpense(category,amount,desc){
+  const catEl=document.getElementById('expCategory');
+  const amtEl=document.getElementById('expAmount');
+  const descEl=document.getElementById('expDesc');
+  if(catEl)catEl.value=category;
+  if(amtEl&&amount>0)amtEl.value=amount;
+  else if(amtEl)amtEl.value='';
+  if(descEl)descEl.value=desc;
+  if(amtEl)amtEl.focus();
+  // scroll to form
+  document.getElementById('expCategory')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 async function addExpense(){
