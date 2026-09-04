@@ -7019,7 +7019,7 @@ async function loadReferrals(){
     _buildUnpaidRefIndex(); // keep badge index fresh
     renderReferrals();
   }catch(e){
-    if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, is_credit boolean not null default false, credit_fulfilled boolean not null default false, credit_fulfilled_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false; alter table referrals add column if not exists is_credit boolean not null default false; alter table referrals add column if not exists credit_fulfilled boolean not null default false; alter table referrals add column if not exists credit_fulfilled_at timestamptz;</code></div>';
+    if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, is_credit boolean not null default false, credit_fulfilled boolean not null default false, credit_fulfilled_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false; alter table referrals add column if not exists is_credit boolean not null default false; alter table referrals add column if not exists credit_fulfilled boolean not null default false; alter table referrals add column if not exists credit_fulfilled_at timestamptz; alter table referrals add column if not exists is_contacted boolean not null default false;</code></div>';
   }
 }
 
@@ -7194,17 +7194,22 @@ async function openRefDetail(instrId){
         const isCredit=!!r.is_credit;
         const creditFulfilled=!!r.credit_fulfilled;
         const isPaid=r.is_paid&&!isCancelled&&!isCredit;
+        const isContacted=!!r.is_contacted;
         const dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
         const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-        // Determine row background for credit rows
         const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
-        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.45;':''}${rowBg}">
+        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${rowBg}">
           <td style="padding:8px 8px">
             <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}</div>
             ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
+            ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit notes"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
+              :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
+            <button onclick="toggleContacted('${r.id}')" style="margin-top:4px;background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${isContacted?'Mark as not yet contacted':'Mark as contacted'}">
+              ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
+            </button>
           </td>
           <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
             £${(parseFloat(r.amount)||0).toFixed(2)}
@@ -7222,22 +7227,26 @@ async function openRefDetail(instrId){
           </td>
           <td style="padding:8px 8px;text-align:right;font-size:.72rem;color:var(--txt3);white-space:nowrap" title="${new Date(r.created_at).toLocaleString('en-GB')}">${dateStr}</td>
           <td style="padding:8px 8px;text-align:center">
-            ${isCancelled?'<span style="color:var(--txt4);font-size:.65rem">Voided</span>'
+            ${isCancelled
+              ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+                  <span style="color:var(--txt4);font-size:.65rem">Voided</span>
+                  <button onclick="uncancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Restore this referral — undo the Student Left action">Unvoid</button>
+                </div>`
             :isCredit
               ?(creditFulfilled?`<span style="color:var(--txt4);font-size:.65rem">Fulfilled</span>`
                 :`<button onclick="fulfillCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Mark this credit as fulfilled — replacement student has been assigned">Mark Fulfilled</button>`)
               :!isPaid&&(parseFloat(r.amount)||0)>0
                 ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>
-                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit this referral">Edit</button>
-                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — convert to credit. Instructor is owed a replacement student instead of a refund">Issue Credit</button>
-                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
+                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
+                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
+                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
                   </div>`
                 :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-                    <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid — mark as outstanding">Mark Unpaid</button>
-                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit this referral">Edit</button>
-                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor is owed a replacement student instead of a refund">Issue Credit</button>
-                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student is no longer taking lessons — void this referral fee">Student Left</button>
+                    <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">Mark Unpaid</button>
+                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
+                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Issue credit">Issue Credit</button>
+                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
                   </div>`
             }
           </td>
@@ -7277,6 +7286,38 @@ async function cancelRef(refId, studentName){
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
+}
+
+// Restore a voided referral (undo Student Left)
+async function uncancelRef(refId, studentName){
+  if(!confirm(`Restore the referral for "${studentName}"?\n\nThis will re-activate it so the fee counts toward outstanding or paid totals again.`))return;
+  const r=_refData.find(x=>x.id===refId);
+  const instrId=r?.instructor_id;
+  const{error}=await sb.from('referrals').update({is_cancelled:false}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  if(r)r.is_cancelled=false;
+  showToast(`${studentName} — referral restored ✓`,'success');
+  _buildUnpaidRefIndex();
+  if(instrId)openRefDetail(instrId);
+  renderReferrals();
+}
+
+// Toggle contacted status
+async function toggleContacted(refId){
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  const instrId=r.instructor_id;
+  const newVal=!r.is_contacted;
+  const{error}=await sb.from('referrals').update({is_contacted:newVal}).eq('id',refId);
+  if(error){
+    if(error.message&&error.message.includes('is_contacted')){
+      showToast('Run SQL first: alter table referrals add column if not exists is_contacted boolean not null default false;','error');
+    }else{showToast('Error: '+error.message,'error');}
+    return;
+  }
+  r.is_contacted=newVal;
+  showToast(newVal?'Marked as contacted ✓':'Marked as not contacted','success',2000);
+  if(instrId)openRefDetail(instrId);
 }
 
 // Mark a referral as a credit — student left but instructor is owed a replacement student
@@ -7456,7 +7497,7 @@ function exportInstrRefCSV(instrId){
 function _downloadRefCSV(rows, filename){
   const instrName=r=>{const i=allInstrs.find(x=>x.id===r.instructor_id);return i?.full_name||r.instructor_id||'';};
   const q=s=>`"${(s||'').replace(/"/g,'""')}"`;
-  const header=['Date','Instructor','Student Name','Phone','Amount','Status','Paid Date','Notes','Is Credit','Credit Fulfilled'];
+  const header=['Date','Instructor','Student Name','Phone','Amount','Status','Contacted','Paid Date','Notes','Is Credit','Credit Fulfilled'];
   const csvRows=[header.join(','),...rows.map(r=>[
     new Date(r.created_at).toLocaleDateString('en-GB'),
     q(instrName(r)),
@@ -7464,6 +7505,7 @@ function _downloadRefCSV(rows, filename){
     q(r.student_phone||''),
     (parseFloat(r.amount)||0).toFixed(2),
     r.is_cancelled?'Cancelled':r.is_credit?'Credit':r.is_paid?'Paid':'Unpaid',
+    r.is_contacted?'Yes':'No',
     r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB'):'',
     q(r.notes||''),
     r.is_credit?'Yes':'No',
@@ -7875,9 +7917,13 @@ function _renderOverdueTab(){
     const label=age>=90?'90+ days':age>=60?'60–89 days':age>=30?'30–59 days':age+' days';
     const phone=r.student_phone?r.student_phone.replace(/\s/g,''):'';
     const waLink=phone?`https://wa.me/44${phone.replace(/^0/,'')}`:'';
+    const isContacted=!!r.is_contacted;
     return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-left:3px solid ${col};border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:140px">
-        <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.student_name||'Unknown student')}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.student_name||'Unknown student')}</div>
+          <button onclick="toggleContacted('${r.id}');setTimeout(()=>_renderOverdueTab(),300)" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap">${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}</button>
+        </div>
         <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">
           ${esc(instr.full_name)} · ${esc(r.student_phone||'no phone')}
           · Created ${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
@@ -7902,10 +7948,10 @@ function exportOverdueCSV(){
   const unpaid=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
   const rows=unpaid.map(r=>({...r,ageDays:Math.floor((now-new Date(r.created_at))/86400000)})).sort((a,b)=>b.ageDays-a.ageDays);
   if(!rows.length){showToast('No outstanding referrals to export','warn');return;}
-  const headers=['Student Name','Phone','Instructor','Amount (£)','Days Outstanding','Created','Notes'];
+  const headers=['Student Name','Phone','Instructor','Amount (£)','Days Outstanding','Contacted','Created','Notes'];
   const csvRows=rows.map(r=>{
     const instr=allInstrs.find(i=>i.id===r.instructor_id)||{full_name:'Unknown'};
-    return[r.student_name||'',r.student_phone||'',instr.full_name,(parseFloat(r.amount)||0).toFixed(2),r.ageDays,new Date(r.created_at).toLocaleDateString('en-GB'),r.notes||''].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+    return[r.student_name||'',r.student_phone||'',instr.full_name,(parseFloat(r.amount)||0).toFixed(2),r.ageDays,r.is_contacted?'Yes':'No',new Date(r.created_at).toLocaleDateString('en-GB'),r.notes||''].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
   });
   const csv=[headers.join(','),...csvRows].join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
