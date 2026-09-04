@@ -1369,9 +1369,47 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="accpanel-income" style="display:none">
     <!-- Income summary stats row -->
     <div id="incomeSummaryStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px"></div>
+    <!-- Add Income form -->
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:16px;margin-bottom:18px">
+      <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px"><i class="bi bi-plus-circle me-2" style="color:#4ade80"></i>Add Income Entry</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Source / Category</label>
+          <select id="incCategory" class="dsq-inp" style="width:100%;font-size:.83rem">
+            <option value="Referral">📋 Referral</option>
+            <option value="Cash Payment">💵 Cash Payment</option>
+            <option value="Bank Transfer">🏦 Bank Transfer</option>
+            <option value="Gift Voucher">🎁 Gift Voucher</option>
+            <option value="Pass Plus">🏅 Pass Plus</option>
+            <option value="Intensive Course">⚡ Intensive Course</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Amount (£)</label>
+          <input id="incAmount" class="dsq-inp" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;font-size:.83rem"/>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Date</label>
+          <input id="incDate" class="dsq-inp" type="date" style="width:100%;font-size:.83rem"/>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Description</label>
+          <input id="incDesc" class="dsq-inp" placeholder="Optional description…" style="width:100%;font-size:.83rem"/>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <button onclick="addIncome()" style="background:#16a34a;border:none;color:#fff;border-radius:9px;padding:9px 20px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer"><i class="bi bi-plus-lg me-1"></i>Add Income</button>
+      </div>
+    </div>
     <!-- Instructor income breakdown -->
     <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:8px">Revenue by Instructor</div>
-    <div id="incomeByInstr" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div id="incomeByInstr" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px"></div>
+    <!-- Manual income entries list -->
+    <div id="incomeEntriesSection" style="display:none">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:8px">Other Income Entries</div>
+      <div id="incomeList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
   </div>
 
   <!-- EXPENSES SUB-PANEL -->
@@ -7564,9 +7602,11 @@ function _downloadRefCSV(rows, filename){
 
 /* ══ ACCOUNTING ══ */
 let _expData=[];
+let _incData=[];
 let _accPeriod='month';
 let _accTab='pl';
 const _EXP_CATS={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment:'#a78bfa',Software:'#34d399',Office:'#fb923c',Travel:'#e879f9',Fuel:'#38bdf8',Phone:'#c084fc',Other:'#94a3b8'};
+const _INC_CATS={Referral:'#4ade80','Cash Payment':'#fbbf24','Bank Transfer':'#60a5fa','Gift Voucher':'#f472b6','Pass Plus':'#a78bfa','Intensive Course':'#34d399',Other:'#94a3b8'};
 
 /* Period helpers */
 function setAccPeriod(p){
@@ -7601,6 +7641,16 @@ function setAccTab(t){
 }
 
 /* Load */
+async function loadIncome(){
+  const{data,error}=await sb.from('income_entries').select('*').order('income_date',{ascending:false});
+  if(error){
+    // Table may not exist yet — silently ignore, show create hint on income tab
+    _incData=[];
+    return;
+  }
+  _incData=data||[];
+}
+
 async function loadExpenses(){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
@@ -7609,6 +7659,8 @@ async function loadExpenses(){
     const{data:rd}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
     if(rd)_refData=rd;
   }
+  // Load manual income entries too
+  await loadIncome();
   const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
   if(error){
     const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
@@ -7638,14 +7690,19 @@ function renderAccounting(){
   const inPeriod=r=>new Date(r.created_at)>=start;
   const incomeRows=refRows.filter(r=>r.is_paid&&inPeriod(r));
   const outstandingRows=refRows.filter(r=>!r.is_paid&&inPeriod(r));
-  const income=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const incomeFromRefs=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  // Add manual income entries
+  const manualIncRows=(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start);
+  const manualInc=manualIncRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const income=incomeFromRefs+manualInc;
   const outstanding=outstandingRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const refCount=refRows.filter(r=>inPeriod(r)).length;
-  const avgFee=refCount>0?(income+outstanding)/refCount:0;
+  const avgFee=refCount>0?(incomeFromRefs+outstanding)/refCount:0;
 
   // Previous period income
   const prevIncomeRows=refRows.filter(r=>r.is_paid&&new Date(r.created_at)>=prevStart&&new Date(r.created_at)<=prevEnd);
-  const prevIncome=prevIncomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const prevManualInc=(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=prevStart&&d<=prevEnd;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const prevIncome=prevIncomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0)+prevManualInc;
 
   // Expenses
   const expRows=_expData.filter(r=>new Date(r.expense_date+'T00:00:00')>=start);
@@ -7935,10 +7992,20 @@ function _renderIncomeTab(){
     `;
   }
 
+  // Add manual income totals to summary stats
+  const manualInc=(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  if(manualInc>0&&statsEl){
+    statsEl.innerHTML+=`<div style="background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.25);border-radius:11px;padding:10px 14px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Other Income</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#60a5fa">£${manualInc.toFixed(2)}</div>
+      <div style="font-size:.6rem;color:var(--txt4)">${(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).length} entr${(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).length===1?'y':'ies'}</div>
+    </div>`;
+  }
+
   const el=document.getElementById('incomeByInstr');
   if(!el)return;
-  if(!groups.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)">No income in this period.</div>';return;}
-  el.innerHTML=groups.map(g=>{
+  if(!groups.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)">No referral income in this period.</div>';}
+  else el.innerHTML=groups.map(g=>{
     const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown'};
     const total=g.paid+g.due;
     const pct=total>0?Math.round(g.paid/total*100):0;
@@ -7961,6 +8028,7 @@ function _renderIncomeTab(){
       <div style="margin-top:8px;height:5px;background:var(--bdr);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${col},${col}99);transition:width .5s"></div></div>
     </div>`;
   }).join('');
+  _renderIncomeList();
 }
 
 /* ── Tax Summary ── */
@@ -8222,6 +8290,105 @@ function quickAddExpense(category,amount,desc){
   document.getElementById('expCategory')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
+/* ── Income Entry CRUD ── */
+async function addIncome(){
+  const category=document.getElementById('incCategory')?.value;
+  const amount=parseFloat(document.getElementById('incAmount')?.value);
+  const date=document.getElementById('incDate')?.value||new Date().toISOString().slice(0,10);
+  const description=document.getElementById('incDesc')?.value.trim()||'';
+  if(!category||!amount||amount<=0){showToast('Please enter a source and a valid amount','error');return;}
+  const{data,error}=await sb.from('income_entries').insert([{category,amount:amount.toFixed(2),income_date:date,description}]).select().single();
+  if(error){
+    if(error.message&&(error.message.includes('income_entries')||error.message.includes('does not exist'))){
+      showToast('Create the income_entries table first (see console)','error');
+      console.warn('Run this SQL in Supabase:\ncreate table if not exists income_entries (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, income_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table income_entries enable row level security; create policy "admin_all" on income_entries for all using (true) with check (true);');
+    } else {showToast('Error: '+error.message,'error');}
+    return;
+  }
+  _incData.unshift(data);
+  showToast('Income entry added ✓','success');
+  document.getElementById('incAmount').value='';
+  document.getElementById('incDesc').value='';
+  renderAccounting();
+}
+
+async function deleteIncome(id){
+  if(!confirm('Delete this income entry? This cannot be undone.'))return;
+  const{error}=await sb.from('income_entries').delete().eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  _incData=_incData.filter(r=>r.id!==id);
+  showToast('Income entry deleted','success');
+  renderAccounting();
+}
+
+function editIncome(id){
+  const r=_incData.find(x=>x.id===id);if(!r)return;
+  const existing=document.getElementById('editIncModal');if(existing)existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='editIncModal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999';
+  overlay.innerHTML=`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:16px;padding:24px;min-width:320px;max-width:95vw">
+    <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--txt)">Edit Income Entry</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Source</label>
+        <select id="editIncCat" class="dsq-inp" style="width:100%;font-size:.83rem">
+          ${['Referral','Cash Payment','Bank Transfer','Gift Voucher','Pass Plus','Intensive Course','Other'].map(c=>`<option value="${c}"${r.category===c?' selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Amount (£)</label>
+        <input id="editIncAmt" class="dsq-inp" type="number" step="0.01" min="0" value="${parseFloat(r.amount).toFixed(2)}" style="width:100%;font-size:.83rem"/></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Date</label>
+        <input id="editIncDate" class="dsq-inp" type="date" value="${r.income_date}" style="width:100%;font-size:.83rem"/></div>
+      <div><label style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px">Description</label>
+        <input id="editIncDesc" class="dsq-inp" value="${esc(r.description||'')}" placeholder="Optional…" style="width:100%;font-size:.83rem"/></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="saveEditIncome('${id}')" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;cursor:pointer">Save</button>
+      <button onclick="document.getElementById('editIncModal').remove()" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt3);border-radius:9px;padding:10px 16px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+}
+
+async function saveEditIncome(id){
+  const category=document.getElementById('editIncCat')?.value;
+  const amount=parseFloat(document.getElementById('editIncAmt')?.value);
+  const income_date=document.getElementById('editIncDate')?.value;
+  const description=document.getElementById('editIncDesc')?.value.trim()||'';
+  if(!category||!amount||amount<=0){showToast('Please enter a valid amount','error');return;}
+  const{error}=await sb.from('income_entries').update({category,amount:amount.toFixed(2),income_date,description}).eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  const r=_incData.find(x=>x.id===id);
+  if(r){r.category=category;r.amount=amount.toFixed(2);r.income_date=income_date;r.description=description;}
+  document.getElementById('editIncModal')?.remove();
+  showToast('Income entry updated ✓','success');
+  renderAccounting();
+}
+
+function _renderIncomeList(){
+  const start=_accPeriodStart();
+  const rows=_incData.filter(r=>new Date(r.income_date+'T00:00:00')>=start);
+  const section=document.getElementById('incomeEntriesSection');
+  const el=document.getElementById('incomeList');
+  if(!section||!el)return;
+  if(!rows.length){section.style.display='none';return;}
+  section.style.display='';
+  el.innerHTML=rows.map(r=>{
+    const col=_INC_CATS[r.category]||'#94a3b8';
+    const dateStr=new Date(r.income_date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="width:6px;height:36px;background:${col};border-radius:3px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:600;color:var(--txt);font-size:.85rem">${esc(r.description||r.category)}</div>
+        <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">${esc(r.category)} · ${dateStr}</div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#4ade80;white-space:nowrap">£${(parseFloat(r.amount)||0).toFixed(2)}</div>
+      <button onclick="editIncome('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Edit"><i class="bi bi-pencil"></i></button>
+      <button onclick="deleteIncome('${r.id}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Delete"><i class="bi bi-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
 async function addExpense(){
   const category=document.getElementById('expCategory')?.value;
   const amount=parseFloat(document.getElementById('expAmount')?.value);
@@ -8314,10 +8481,13 @@ function exportFullPLCSV(){
 
 function exportExpensesCSV(){exportFullPLCSV();}// alias kept for compatibility
 
-// Set today's date as default for expense date input
+// Set today's date as default for expense and income date inputs
 document.addEventListener('DOMContentLoaded',()=>{
+  const today=new Date().toISOString().slice(0,10);
   const d=document.getElementById('expDate');
-  if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
+  if(d&&!d.value)d.value=today;
+  const di=document.getElementById('incDate');
+  if(di&&!di.value)di.value=today;
 });
 
 /* ══ POSTCODE COVERAGE & AREA INTELLIGENCE ══ */
