@@ -923,7 +923,13 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="dsq-card p-3">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
             <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt3);flex:1"><i class="bi bi-people-fill me-1" style="color:var(--red)"></i>All Instructors — Closest First</div>
-            <input type="text" id="fcInstrSearch" class="dsq-inp" style="max-width:180px;font-size:.8rem;padding:5px 10px" placeholder="🔍 Search name or area…" oninput="filterFindResults(this.value)"/>
+            <input type="text" id="fcInstrSearch" class="dsq-inp" style="max-width:160px;font-size:.8rem;padding:5px 10px" placeholder="🔍 Search name or area…" oninput="filterFindResults(this.value)"/>
+            <select id="fcModelFilter" class="dsq-inp" style="width:auto;font-size:.78rem;padding:5px 10px" onchange="filterFindResults(document.getElementById('fcInstrSearch').value)" title="Filter by instructor model">
+              <option value="">All models</option>
+              <option value="referral">Referral</option>
+              <option value="franchise">Franchise</option>
+              <option value="unsure">Unsure</option>
+            </select>
           </div>
           <div style="font-size:.7rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-2-circle me-1" style="color:var(--gold)"></i><strong>Step 2:</strong> Pick the best instructor from the list below and click <em>Assign to Instructor</em> on their card to create the student account.</div>
           <div id="findNoJobsAlert" style="display:none;margin-bottom:12px"></div>
@@ -1214,8 +1220,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <!-- Instructor list filter -->
-  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">View by instructor:</div>
+  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Period:</div>
     <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
       <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
       <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
@@ -1226,6 +1232,26 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <span id="refTotalDue"></span><span id="refTotalPaid"></span>
       <span id="refTotalCount"></span><span id="refInstrOwing"></span>
     </div>
+  </div>
+
+  <!-- Search + sort + model filter -->
+  <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+    <div style="position:relative;flex:1;min-width:160px">
+      <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt4);font-size:.8rem;pointer-events:none"></i>
+      <input id="refSearch" class="dsq-inp" placeholder="Search instructor…" oninput="renderReferrals()" style="padding-left:28px;font-size:.82rem"/>
+    </div>
+    <select id="refSort" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
+      <option value="due">Most owed first</option>
+      <option value="name">Name A–Z</option>
+      <option value="count">Most referrals</option>
+      <option value="paid">Most paid</option>
+    </select>
+    <select id="refModelFilter" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
+      <option value="">All models</option>
+      <option value="referral">Referral only</option>
+      <option value="franchise">Franchise only</option>
+      <option value="unsure">Unsure only</option>
+    </select>
   </div>
 
   <!-- Instructor list -->
@@ -4976,7 +5002,7 @@ async function findClosest(){
       const creditNote=instrCredits>0
         ?`<div style="font-size:.7rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px"><i class="bi bi-arrow-repeat"></i>⟳ ${instrCredits} credit${instrCredits!==1?'s':''} owed — consider this instructor first</div>`
         :'';
-      return`<div class="dist-card mb-2" data-instr-search="${(r.instr.full_name+' '+(r.instr.area||'')).toLowerCase()}"${!canTeach?' style="opacity:.65"':''}>
+      return`<div class="dist-card mb-2" data-instr-search="${(r.instr.full_name+' '+(r.instr.area||'')).toLowerCase()}" data-instr-model="${(r.instr.instructor_model||'unsure').toLowerCase()}"${!canTeach?' style="opacity:.65"':''}>
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
           <div class="d-flex align-items-center gap-3">
             <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:${displayNum===1?'var(--gold)':'var(--txt4)'};line-height:1;min-width:30px">${displayNum}</div>
@@ -5218,7 +5244,7 @@ async function showAllInstructors(){
   window._fcAllHtml=approved.map((i,idx)=>{
     const waNum=buildWaNum(i.phone||'');
     const instrLT=i.car_type||'Manual';
-    return`<div class="dist-card mb-2" data-instr-search="${(i.full_name+' '+(i.area||'')).toLowerCase()}">
+    return`<div class="dist-card mb-2" data-instr-search="${(i.full_name+' '+(i.area||'')).toLowerCase()}" data-instr-model="${(i.instructor_model||'unsure').toLowerCase()}">
       <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <div class="d-flex align-items-center gap-3">
           <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:900;color:var(--txt4);line-height:1;min-width:30px">${idx+1}</div>
@@ -5243,12 +5269,16 @@ function filterFindResults(q){
   const resultsEl=document.getElementById('findResults');
   if(!resultsEl)return;
   const term=(q||'').toLowerCase().trim();
-  if(!term){if(window._fcAllHtml)resultsEl.innerHTML=window._fcAllHtml;return;}
+  const modelF=(document.getElementById('fcModelFilter')?.value||'').toLowerCase();
+  if(!term&&!modelF){if(window._fcAllHtml)resultsEl.innerHTML=window._fcAllHtml;return;}
   const cards=[...resultsEl.querySelectorAll('.dist-card')];
   if(!cards.length&&window._fcAllHtml){resultsEl.innerHTML=window._fcAllHtml;}
   [...resultsEl.querySelectorAll('.dist-card')].forEach(card=>{
     const hay=card.dataset.instrSearch||card.textContent.toLowerCase();
-    card.style.display=hay.includes(term)?'':'none';
+    const cardModel=(card.dataset.instrModel||'unsure').toLowerCase();
+    const nameMatch=!term||hay.includes(term);
+    const modelMatch=!modelF||cardModel===modelF;
+    card.style.display=(nameMatch&&modelMatch)?'':'none';
   });
 }
 function haversine(lat1,lon1,lat2,lon2){
@@ -7145,30 +7175,58 @@ function renderReferrals(){
   // If accounting tab is open, refresh it too
   if(!document.getElementById('panel-expenses')?.classList.contains('hidden'))renderAccounting();
 
-  // Sort instructors: most due first
-  const groups=Object.values(byInstr).sort((a,b)=>b.due-a.due);
+  // Apply search + model filter
+  const searchQ=(document.getElementById('refSearch')?.value||'').toLowerCase().trim();
+  const modelFilter=document.getElementById('refModelFilter')?.value||'';
+  const sortBy=document.getElementById('refSort')?.value||'due';
+
+  let groups=Object.values(byInstr).map(g=>{
+    g._instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown Instructor',area:''};
+    return g;
+  });
+  if(searchQ)groups=groups.filter(g=>(g._instr.full_name||'').toLowerCase().includes(searchQ)||(g._instr.area||'').toLowerCase().includes(searchQ));
+  if(modelFilter)groups=groups.filter(g=>(g._instr.instructor_model||'unsure')===modelFilter);
+
+  // Sort
+  if(sortBy==='name')groups.sort((a,b)=>(a._instr.full_name||'').localeCompare(b._instr.full_name||''));
+  else if(sortBy==='count')groups.sort((a,b)=>b.rows.length-a.rows.length);
+  else if(sortBy==='paid')groups.sort((a,b)=>b.paid-a.paid);
+  else groups.sort((a,b)=>b.due-a.due); // default: most owed
 
   const el=document.getElementById('refInstrList');
   if(!groups.length){
-    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No referrals in this period.</div>';
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No referrals found.</div>';
     return;
   }
 
   el.innerHTML=groups.map(g=>{
-    const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown Instructor',area:''};
+    const instr=g._instr;
     const total=g.due+g.paid;
     const paidPct=total>0?Math.round(g.paid/total*100):0;
-    const dueCol=g.due>0?'#f87171':'#4ade80';
     const cardBorder=g.credits>0?'rgba(245,158,11,.35)':g.due>0?'rgba(248,113,113,.25)':'var(--bdr)';
+
+    // Model badge
+    const m=instr.instructor_model||'unsure';
+    const mStyles={referral:'background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.45);color:#25d366',franchise:'background:rgba(209,10,17,.15);border:1px solid rgba(209,10,17,.45);color:#ff6b6b',unsure:'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:var(--txt3)'};
+    const modelBadge=`<span style="${mStyles[m]||mStyles.unsure};border-radius:5px;padding:1px 7px;font-size:.58rem;font-weight:700;font-family:'Oswald',sans-serif;margin-left:6px;vertical-align:middle">${m.charAt(0).toUpperCase()+m.slice(1)}</span>`;
+
+    // WhatsApp quick-chase button
+    const phone=(instr.phone||'').replace(/\D/g,'');
+    const waNum=phone?`${phone.startsWith('44')?'':'44'}${phone.replace(/^0/,'')}`:null;
+    const waBtn=waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>Chase</a>`:'';
+
+    // Mark All Paid quick button (only if there's anything due)
+    const markBtn=g.due>0?`<button onclick="event.stopPropagation();markAllRefPaid('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-check-all"></i>Mark Paid</button>`:'';
+
     return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openRefDetail('${g.id}')">
       <div class="d-flex align-items-center gap-3 flex-wrap">
         <div style="flex:1;min-width:140px">
-          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}${g.credits>0?`<span style="margin-left:7px;font-size:.6rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''} OWED</span>`:''}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}${modelBadge}${g.credits>0?`<span style="margin-left:7px;font-size:.6rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''} OWED</span>`:''}</div>
           <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          ${g.due>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#f87171">${fmt(g.due)}</div></div>`:''}
-          ${g.paid>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Paid</div><div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#4ade80">${fmt(g.paid)}</div></div>`:''}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${g.due>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#f87171">${fmt(g.due)}</div></div>`:''}
+          ${g.paid>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Paid</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#4ade80">${fmt(g.paid)}</div></div>`:''}
           <div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(#4ade80 ${paidPct*3.6}deg,rgba(248,113,113,.3) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <div style="width:30px;height:30px;border-radius:50%;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:var(--txt)">${paidPct}%</div>
           </div>
@@ -7176,6 +7234,7 @@ function renderReferrals(){
         </div>
       </div>
       ${g.due>0?`<div style="margin-top:8px;height:4px;background:var(--bdr);border-radius:2px;overflow:hidden"><div style="height:100%;width:${paidPct}%;background:#4ade80;transition:width .4s"></div></div>`:''}
+      ${(waBtn||markBtn)?`<div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">${waBtn}${markBtn}<button onclick="event.stopPropagation();openRefDetail('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);color:#818cf8;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-list-ul"></i>Details</button></div>`:''}
     </div>`;
   }).join('');
 }
