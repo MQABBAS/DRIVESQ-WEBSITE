@@ -4628,19 +4628,22 @@ async function saveEdit(){
   };
   let{error}=await sb.from('instructors').update(full).eq('id',id);
 
-  // If that fails, retry without show_lessons (column may not exist yet)
+  // If that fails, retry stripping optional columns that may not exist yet
   if(error){
-    const{coverage_postcodes:cp,badge_expiry:be,...coreBase}=base;
+    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,...coreBase}=base;
     const retry={...coreBase};
-    // Re-add coverage_postcodes and badge_expiry individually — if these columns
-    // also don't exist the error message will say so explicitly
     if(cp!==null)retry.coverage_postcodes=cp;
     if(be!==null)retry.badge_expiry=be;
+    // Try again with instructor_model
+    retry.instructor_model=im;
     const{error:e2}=await sb.from('instructors').update(retry).eq('id',id);
     if(e2){
-      showToast('Failed to save: '+e2.message,'error',6000);
-      console.error('saveEdit error:',e2);
-      return;
+      // Last resort: drop instructor_model too (column not in DB yet)
+      const{instructor_model:_im2,...safeBase}=retry;
+      const{error:e3}=await sb.from('instructors').update(safeBase).eq('id',id);
+      if(e3){showToast('Failed to save: '+e3.message,'error',6000);console.error('saveEdit error:',e3);return;}
+      showToast('Saved (instructor_model column not in DB yet — add it in Supabase to persist this field)','warn',7000);
+      closeModal('editModal');await loadInstrs();return;
     }
   }
 
@@ -4880,16 +4883,32 @@ async function createInstructor(){
   }]);
   btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;
   if(error){
-    // Retry without coverage_postcodes if column doesn't exist
+    const instrModel=document.getElementById('ai-model').value;
+    // Retry with instructor_model but without coverage_postcodes
     const{error:e2}=await sb.from('instructors').insert([{
       full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
+      instructor_model:instrModel,
       phone:document.getElementById('ai-phone').value.trim(),email,
       area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
       status:document.getElementById('ai-status').value,
       password,password_hash:btoa(password),
       created_at:new Date().toISOString(),show_lessons:true
     }]);
-    if(e2){showToast('Failed. Email or badge may already exist.','error');return;}
+    if(e2){
+      // Last resort: drop instructor_model too
+      const{error:e3}=await sb.from('instructors').insert([{
+        full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
+        phone:document.getElementById('ai-phone').value.trim(),email,
+        area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+        status:document.getElementById('ai-status').value,
+        password,password_hash:btoa(password),
+        created_at:new Date().toISOString(),show_lessons:true
+      }]);
+      if(e3){showToast('Failed. Email or badge may already exist.','error');return;}
+      showToast('Account created (add instructor_model column in Supabase to save the model label)','warn',7000);
+      ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
+      await loadInstrs();populateDropdowns();return;
+    }
   }
   showToast(`✅ Account created for ${name}!`,'success');
   ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
