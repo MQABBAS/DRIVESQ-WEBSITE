@@ -870,6 +870,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Type</label>
           <select class="dsq-inp" id="ai-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select>
         </div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Instructor Model</label>
+          <select class="dsq-inp" id="ai-model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select>
+        </div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-email" type="email" placeholder="instructor@email.com"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
@@ -1774,6 +1777,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="edit-name"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Number</label><input class="dsq-inp" id="edit-badge"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Type</label><select class="dsq-inp" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Instructor Model</label><select class="dsq-inp" id="edit-model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Expiry Date</label><input class="dsq-inp" id="edit-badge-expiry" type="date" oninput="updateBadgeExpiryStatus(this.value)"/></div>
       <div class="col-12 col-sm-6 d-flex align-items-end"><div id="edit-badge-expiry-status" style="font-size:.74rem;padding:6px 10px;border-radius:6px;width:100%;text-align:center"></div></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Lesson Types</label>
@@ -2740,7 +2744,7 @@ function renderInstrsTable(list){
         ${i.profile_photo_url?`<img src="${esc(i.profile_photo_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:''}<span>${esc(i.full_name)}</span>${(_creditIndex[i.id]||0)>0?`<span style="margin-left:5px;font-size:.55rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 5px;vertical-align:middle">⟳${_creditIndex[i.id]} CREDIT</span>`:''}
       </td>
       <td style="font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--txt2)">${esc(i.badge_number||'—')}</td>
-      <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span></td>
+      <td><span class="chip ${(i.badge_type||'ADI').toLowerCase()}">${esc(i.badge_type||'ADI')}</span>${(()=>{const m=i.instructor_model||'unsure';const styles={referral:'background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.45);color:#25d366',franchise:'background:rgba(209,10,17,.15);border-color:rgba(209,10,17,.45);color:#ff6b6b',unsure:'background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);color:var(--txt3)'};return`<span class="chip ms-1" style="font-size:.58rem;${styles[m]||styles.unsure};border:1px solid">${m.charAt(0).toUpperCase()+m.slice(1)}</span>`;})()}</td>
       <td class="hide-xs">${i.car_type==='Both'?`<span class="chip" style="font-size:.6rem;background:rgba(168,85,247,.1);border-color:rgba(168,85,247,.3);color:#c084fc">M&amp;A</span>`:i.car_type==='Automatic'?`<span class="chip Automatic" style="font-size:.6rem">Auto</span>`:`<span class="chip Manual" style="font-size:.6rem">Manual</span>`}</td>
       <td class="hide-xs" style="font-size:.74rem;color:var(--txt3)">${esc(i.area||'—')}</td>
       <td><span class="chip ${i.status}" style="cursor:pointer" title="Click to change status" onclick="toggleInstrStatus('${i.id}','${i.status}','${jsEsc(i.full_name)}')">${i.status}</span></td>
@@ -4503,6 +4507,7 @@ function openEditModal(){
   document.getElementById('edit-name').value=instr.full_name||'';
   document.getElementById('edit-badge').value=instr.badge_number||'';
   document.getElementById('edit-type').value=instr.badge_type||'ADI';
+  document.getElementById('edit-model').value=instr.instructor_model||'unsure';
   document.getElementById('edit-lesson-types').value=instr.car_type||'Manual';
   document.getElementById('edit-phone').value=instr.phone||'';
   document.getElementById('edit-email').value=instr.email||'';
@@ -4570,6 +4575,7 @@ async function saveEdit(){
     full_name:document.getElementById('edit-name').value.trim(),
     badge_number:document.getElementById('edit-badge').value.trim(),
     badge_type:document.getElementById('edit-type').value,
+    instructor_model:document.getElementById('edit-model').value,
     car_type:document.getElementById('edit-lesson-types').value,
     phone:document.getElementById('edit-phone').value.trim(),
     email:document.getElementById('edit-email').value.trim(),
@@ -4838,6 +4844,7 @@ async function createInstructor(){
   const btn=document.getElementById('createBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';btn.disabled=true;
   const{error}=await sb.from('instructors').insert([{
     full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
+    instructor_model:document.getElementById('ai-model').value,
     phone:document.getElementById('ai-phone').value.trim(),email,
     area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
     coverage_postcodes:document.getElementById('ai-coverage').value.toUpperCase().trim(),
@@ -4977,6 +4984,7 @@ async function findClosest(){
               ${r.instr.profile_photo_url?`<img src="${esc(r.instr.profile_photo_url)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);margin-right:6px;vertical-align:middle" alt=""/>`:``}
               <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
               <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(r.instr.badge_type||'ADI')}</span>
+              ${(()=>{const m=r.instr.instructor_model||'unsure';const styles={referral:'background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.45);color:#25d366',franchise:'background:rgba(209,10,17,.15);border-color:rgba(209,10,17,.45);color:#ff6b6b',unsure:'background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);color:var(--txt3)'};return`<span style="display:inline-flex;align-items:center;gap:3px;${styles[m]||styles.unsure};border-radius:5px;padding:1px 8px;font-size:.6rem;font-weight:700;font-family:'Oswald',sans-serif;border:1px solid;vertical-align:middle;margin-left:3px">${m.charAt(0).toUpperCase()+m.slice(1)}</span>`})()}
               ${displayNum===1?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.62rem;font-weight:700;font-family:'Oswald',sans-serif;vertical-align:middle;margin-left:4px"><i class="bi bi-star-fill" style="font-size:.55rem"></i>CLOSEST</span>`:''}
               ${ltChipHtml(instrLT)}
               <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
