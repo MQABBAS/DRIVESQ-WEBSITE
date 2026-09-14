@@ -2793,7 +2793,9 @@ function renderInstrsTable(list){
       ?`<button class="abtn unblock" onclick="unblockInstr('${i.id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
       :`<button class="abtn block" onclick="openBlockModal('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
     const waNum=buildWaNum(i.phone||'');
-    const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:'';
+    const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank" title="Open WhatsApp"><i class="bi bi-whatsapp"></i></a>`:'';
+    const loginMsg=`Hi ${i.full_name}! 👋\n\nWelcome to *DriveSQ*. Here are your Instructor Portal login details:\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🚗 *DriveSQ Instructor Portal*\n━━━━━━━━━━━━━━━━━━━━━━━\n\n🔗 Portal link:\nhttps://www.drivesq.co.uk/portal.html\n\n🔑 *Your login details:*\n   Badge Number: *${i.badge_number||'(see admin)'}*\n   Password:     *${i.password||'(contact admin)'}*\n\n━━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *What you can do on your portal:*\n• View & manage your full student roster\n• See your lesson calendar and week planner\n• Log lessons and track payments\n• Update your availability\n• Message students directly\n• Track student theory & practical progress\n\n💡 Tip: You can install the portal as an app on your phone for quick access.\n\nIf you have any trouble logging in, reply here and we'll sort it straight away.\n\n— DriveSQ Admin ✅`;
+    const loginBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(loginMsg)}" target="_blank" title="Send login details via WhatsApp" style="gap:4px"><i class="bi bi-key-fill"></i><span class="btn-lbl-md">Login</span></a>`:'';
     const weekHrs=(i._weekHrs||0).toFixed(1);
     const weekEarn=(i._weekEarn||0).toFixed(0);
     return`<tr>
@@ -2815,6 +2817,7 @@ function renderInstrsTable(list){
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Students"><i class="bi bi-people me-1"></i><span class="btn-lbl-md">Students</span></button>
         <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
         <button class="abtn msg" onclick="openMsgModal('${i.id}')"><i class="bi bi-envelope"></i></button>
+        ${loginBtn}
         ${waBtn}
         ${blockBtn}
         <button class="abtn del" onclick="deleteInstr('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-trash"></i></button>
@@ -3032,23 +3035,8 @@ async function viewInstr(id){
     ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
     :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
   const waNum=buildWaNum(instr.phone||'');
-  const portalWelcomeMsg=`Hi ${instr.full_name}! 👋 Welcome to the *DriveSQ Instructor Portal*! 🚗\n\n` +
-    `Here's everything you need to know about your portal:\n\n` +
-    `📋 *What you can do:*\n` +
-    `• View & manage your student roster\n` +
-    `• See your lesson calendar and upcoming bookings\n` +
-    `• Log lessons and track payments received\n` +
-    `• Update your availability so admin can match you to new students\n` +
-    `• Receive messages and assignments from DriveSQ admin\n` +
-    `• View your weekly earnings and stats\n\n` +
-    `🔐 *Your login details:*\n` +
-    `📧 Email: ${instr.email||'(contact admin)'}\n` +
-    `🔑 Password: ${instr.password||'(contact admin for password)'}\n\n` +
-    `🔗 *Access your portal here:*\n` +
-    `${PORTAL_URL}\n\n` +
-    `If you have any questions, reply to this message and we'll help you out.\n\n` +
-    `— DriveSQ Admin ✅`;
-  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalWelcomeMsg)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>Send Portal Link</a>`:'';
+  const portalLoginMsg=`Hi ${instr.full_name}! 👋\n\nWelcome to *DriveSQ*. Here are your Instructor Portal login details:\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🚗 *DriveSQ Instructor Portal*\n━━━━━━━━━━━━━━━━━━━━━━━\n\n🔗 Portal link:\n${PORTAL_URL}\n\n🔑 *Your login details:*\n   Badge Number: *${instr.badge_number||'(see admin)'}*\n   Password:     *${instr.password||'(contact admin)'}*\n\n━━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *What you can do on your portal:*\n• View & manage your full student roster\n• See your lesson calendar and week planner\n• Log lessons and track payments\n• Update your availability\n• Message students directly\n• Track student theory & practical progress\n\n💡 Tip: You can install the portal as an app on your phone for quick access.\n\nIf you have any trouble logging in, reply here and we'll sort it straight away.\n\n— DriveSQ Admin ✅`;
+  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalLoginMsg)}" target="_blank"><i class="bi bi-key-fill me-1"></i>Send Login Details</a>`:'';
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
