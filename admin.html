@@ -550,6 +550,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')" title="Charts: hours per instructor, pass rates, lesson trends"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
+    <button class="dsq-tab" id="tab-infoview" onclick="switchTab('infoview')" title="Instructor Info — overview table with totals; click an instructor name to see full detail"><i class="bi bi-info-circle-fill"></i><span class="d-none d-sm-inline ms-1">Info</span></button>
   </div>
 
   <!-- HIDDEN tabs not in main strip -->
@@ -1027,6 +1028,34 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <!-- ══ ACTIVITY LOG ══ -->
+  <!-- INSTRUCTOR INFO PANEL -->
+  <div id="panel-infoview" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-info-circle-fill me-2" style="color:var(--gold)"></i>Instructor Info</div>
+    <div class="dsq-card p-3">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <input id="infoviewSearch" type="text" class="dsq-input" placeholder="Search instructors…" style="max-width:260px" oninput="renderInfoViewTable()"/>
+        <select id="infoviewFilter" class="dsq-input" style="max-width:180px" onchange="renderInfoViewTable()">
+          <option value="all">All statuses</option>
+          <option value="approved">Approved only</option>
+        </select>
+        <button class="dsq-btn" onclick="loadInfoView()" title="Refresh data"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="dsq-table" id="infoviewTable" style="font-size:.78rem;min-width:700px">
+          <thead><tr>
+            <th style="cursor:pointer" onclick="sortInfoView('name')">Name <i class="bi bi-arrow-down-up" id="ivSortIcon-name"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('weekAssigned')">This Week <i class="bi bi-arrow-down-up" id="ivSortIcon-weekAssigned"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('rosterCount')">Total Students <i class="bi bi-arrow-down-up" id="ivSortIcon-rosterCount"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('coverage')">Coverage (Postcodes) <i class="bi bi-arrow-down-up" id="ivSortIcon-coverage"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('weekHrs')">Hrs This Week <i class="bi bi-arrow-down-up" id="ivSortIcon-weekHrs"></i></th>
+            <th style="text-align:center">Status</th>
+          </tr></thead>
+          <tbody id="infoviewBody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt4)">Click Refresh to load data.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div id="panel-activity" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-activity me-2" style="color:var(--blue)"></i>Activity Log</div>
     <div class="row g-3">
@@ -1557,7 +1586,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div id="refDetailInstrName" style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
     <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:8px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <a id="refDetailWaBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Send full referral summary via WhatsApp — includes all student names, phone numbers, and amounts (paid and outstanding)"><i class="bi bi-whatsapp me-2"></i>Send Referral Summary via WhatsApp</a>
+      <a id="refDetailWaFullBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Full statement — includes all paid and outstanding referrals"><i class="bi bi-whatsapp me-2"></i>📋 Full Statement</a>
+      <a id="refDetailWaHalfBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Outstanding only — shows total due with no paid rows"><i class="bi bi-whatsapp me-2"></i>💷 Outstanding Only</a>
       <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
       <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
     </div>
@@ -2605,6 +2635,7 @@ function switchTab(t){
   if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
+  if(t==='infoview')loadInfoView();
   if(t==='notes')loadAdminNotes();
   if(t==='actions')loadActionQueue('all');
   if(t==='scorecard')loadScorecard();
@@ -4929,6 +4960,13 @@ async function findClosest(){
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
   // Ensure student roster is loaded for postcode frequency analysis
   if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
+  // Refresh weekly assignment counts from DB so stale in-memory values never persist across week boundaries
+  try{
+    const _mon=getMonday(0);const _weekStart=new Date(_mon);_weekStart.setHours(0,0,0,0);
+    const{data:_wkRows}=await sb.from('student_profiles').select('instructor_id').gte('created_at',_weekStart.toISOString()).neq('status','inactive');
+    const _wkMap={};(_wkRows||[]).forEach(r=>{_wkMap[r.instructor_id]=(_wkMap[r.instructor_id]||0)+1;});
+    allInstrs.forEach(i=>{i._weekAssigned=_wkMap[i.id]||0;});
+  }catch(e){console.warn('findClosest weekAssigned refresh:',e.message);}
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
@@ -5057,19 +5095,8 @@ async function findClosest(){
     }
 
     // Split into matching and non-matching instructors
-    // Sort: instructors with credits owed come first within each group (same distance otherwise)
-    const _creditSort=(a,b)=>{
-      const ca=_creditIndex[a.instr.id]||0;
-      const cb=_creditIndex[b.instr.id]||0;
-      if(ca!==cb)return cb-ca; // more credits = higher priority
-      // Within same credit tier: instructors with 0 students this week get priority
-      // If ALL instructors are 0-this-week, za===zb===1 → returns 0 → distance order preserved (stable sort)
-      const za=(a.instr._weekAssigned||0)===0?1:0;
-      const zb=(b.instr._weekAssigned||0)===0?1:0;
-      if(za!==zb)return zb-za;
-      return 0; // distance ranking preserved otherwise
-    };
-    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type)).sort(_creditSort);
+    // Order purely by distance — ranked[] is already distance-sorted, preserve that order
+    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type));
     const nonMatching=ranked.filter(r=>!instrCanTeach(r.instr.car_type||'Manual',type));
 
     // Summary bar
@@ -5956,6 +5983,68 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
+
+/* ══ INSTRUCTOR INFO VIEW ══ */
+let _ivSortKey='weekAssigned',_ivSortDir=-1;
+async function loadInfoView(){
+  if(!allInstrs||!allInstrs.length) await loadInstrs();
+  if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
+  // Refresh weekly counts
+  try{
+    const _mon=getMonday(0);const _ws=new Date(_mon);_ws.setHours(0,0,0,0);
+    const{data:_wk}=await sb.from('student_profiles').select('instructor_id').gte('created_at',_ws.toISOString()).neq('status','inactive');
+    const _wkMap={};(_wk||[]).forEach(r=>{_wkMap[r.instructor_id]=(_wkMap[r.instructor_id]||0)+1;});
+    allInstrs.forEach(i=>{i._weekAssigned=_wkMap[i.id]||0;});
+  }catch(e){}
+  renderInfoViewTable();
+}
+function _instrCoverageCount(instr){
+  // Count postcodes from student roster cached data
+  if(!allStudentsCache||!allStudentsCache.length) return 0;
+  const pcs=new Set();
+  allStudentsCache.filter(s=>s.instrId===instr.id).forEach(s=>{
+    const m=(s.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?/i);
+    if(m)pcs.add(m[0].toUpperCase());
+  });
+  return pcs.size;
+}
+function sortInfoView(key){
+  if(_ivSortKey===key)_ivSortDir*=-1;else{_ivSortKey=key;_ivSortDir=-1;}
+  renderInfoViewTable();
+}
+function renderInfoViewTable(){
+  const q=(document.getElementById('infoviewSearch')||{}).value?.toLowerCase()||'';
+  const filt=(document.getElementById('infoviewFilter')||{}).value||'all';
+  let rows=[...allInstrs];
+  if(filt==='approved') rows=rows.filter(i=>i.status==='approved');
+  if(q) rows=rows.filter(i=>(i.full_name||'').toLowerCase().includes(q)||(i.area||'').toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(_ivSortKey==='name'){va=(a.full_name||'').toLowerCase();vb=(b.full_name||'').toLowerCase();return va<vb?-_ivSortDir:va>vb?_ivSortDir:0;}
+    if(_ivSortKey==='weekAssigned'){va=a._weekAssigned||0;vb=b._weekAssigned||0;}
+    else if(_ivSortKey==='rosterCount'){va=a._rosterCount||0;vb=b._rosterCount||0;}
+    else if(_ivSortKey==='coverage'){va=_instrCoverageCount(a);vb=_instrCoverageCount(b);}
+    else if(_ivSortKey==='weekHrs'){va=a._weekHrs||0;vb=b._weekHrs||0;}
+    else{va=0;vb=0;}
+    return(va-vb)*_ivSortDir;
+  });
+  const body=document.getElementById('infoviewBody');
+  if(!body)return;
+  if(!rows.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt4)">No instructors found.</td></tr>`;return;}
+  body.innerHTML=rows.map(i=>{
+    const statusChip=i.status==='approved'?`<span class="chip Automatic" style="font-size:.6rem">Approved</span>`
+      :i.status==='pending'?`<span class="chip" style="font-size:.6rem;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)">Pending</span>`
+      :`<span class="chip Manual" style="font-size:.6rem">${esc(i.status||'—')}</span>`;
+    return`<tr>
+      <td><a href="#" onclick="switchTab('instructors');viewInstr('${esc(i.id)}');return false;" style="color:var(--gold);font-weight:600;text-decoration:none" title="View full instructor detail">${esc(i.full_name||'—')}</a><div style="font-size:.66rem;color:var(--txt4)">${esc(i.area||'')}</div></td>
+      <td style="text-align:center;font-weight:700;color:var(--gold)">${i._weekAssigned||0}</td>
+      <td style="text-align:center">${i._rosterCount||0}</td>
+      <td style="text-align:center">${_instrCoverageCount(i)}</td>
+      <td style="text-align:center">${(i._weekHrs||0).toFixed(1)}</td>
+      <td style="text-align:center">${statusChip}</td>
+    </tr>`;
+  }).join('');
+}
 
 /* ══ ACTIVITY LOG ══ */
 async function loadActivityLog(){
@@ -7335,9 +7424,32 @@ async function openRefDetail(instrId){
   _waLines.push('Generated by DriveSQ Admin');
   const _waText=encodeURIComponent(_waLines.join('\n'));
   const _instrPhone2=instr.phone?instr.phone.replace(/\D/g,''):'';
-  const _waHref2=_instrPhone2?`https://wa.me/${_instrPhone2.startsWith('44')?'':'44'}${_instrPhone2.replace(/^0/,'')}?text=${_waText}`:`https://wa.me/?text=${_waText}`;
-  const _waBtn=document.getElementById('refDetailWaBtn');
+  const _waBase=_instrPhone2?`https://wa.me/${_instrPhone2.startsWith('44')?'':'44'}${_instrPhone2.replace(/^0/,'')}?text=`:`https://wa.me/?text=`;
+  const _waHref2=_waBase+_waText;
+  // Half statement — outstanding only
+  const _halfLines=[];
+  _halfLines.push(_divider);
+  _halfLines.push(`🚗 DriveSQ — Outstanding Statement`);
+  _halfLines.push(`👤 ${instr.full_name}`);
+  _halfLines.push(`📅 Period: ${_periodLabel}`);
+  _halfLines.push(_divider);
+  if(_unpaidRows.length){
+    _halfLines.push('');
+    _halfLines.push(`📋 OUTSTANDING — £${due.toFixed(2)} due`);
+    _halfLines.push('');
+    _unpaidRows.forEach((r,i)=>{_halfLines.push(_fmtStudentBlock(r,i+1));_halfLines.push('');});
+  }else{
+    _halfLines.push('');_halfLines.push('✅ No outstanding balance.');_halfLines.push('');
+  }
+  _halfLines.push(_divider);
+  _halfLines.push(`💷 Total Due: £${due.toFixed(2)}`);
+  _halfLines.push(_divider);
+  _halfLines.push('Generated by DriveSQ Admin');
+  const _waHalfHref=_waBase+encodeURIComponent(_halfLines.join('\n'));
+  const _waBtn=document.getElementById('refDetailWaFullBtn');
   if(_waBtn){_waBtn.href=_waHref2;_waBtn.style.display=activeRows.length?'inline-flex':'none';}
+  const _waHalfBtn=document.getElementById('refDetailWaHalfBtn');
+  if(_waHalfBtn){_waHalfBtn.href=_waHalfHref;_waHalfBtn.style.display=_unpaidRows.length?'inline-flex':'none';}
   const _hiddenId=document.getElementById('refDetailInstrId');
   if(_hiddenId)_hiddenId.value=instrId;
   const _mapBtn=document.getElementById('refDetailMarkAllPaidBtn');
