@@ -7553,7 +7553,7 @@ async function markRefPaid(refId){
 }
 
 async function cancelRef(refId, studentName){
-  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee — it will no longer count toward the due or paid total. This cannot be undone.`))return;
+  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee and removes the student from the instructor dashboard and admin view. This cannot be undone.`))return;
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true}).eq('id',refId);
@@ -7564,7 +7564,22 @@ async function cancelRef(refId, studentName){
     return;
   }
   if(r)r.is_cancelled=true;
-  showToast(`${studentName} — referral voided (student left) ✓`,'warn');
+  // Mark student as inactive in student_profiles so they disappear from instructor dashboard and admin views
+  try{
+    let spQuery=sb.from('student_profiles').update({status:'inactive'}).ilike('name',studentName);
+    if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
+    const{error:spErr}=await spQuery;
+    if(spErr) console.warn('cancelRef: could not set student inactive:',spErr.message);
+    else{
+      // Update local cache too
+      if(allStudentsCache){
+        allStudentsCache.forEach(s=>{
+          if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
+        });
+      }
+    }
+  }catch(e){console.warn('cancelRef student_profiles update:',e.message);}
+  showToast(`${studentName} — student left, removed from dashboard ✓`,'warn');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
@@ -7578,7 +7593,19 @@ async function uncancelRef(refId, studentName){
   const{error}=await sb.from('referrals').update({is_cancelled:false}).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
   if(r)r.is_cancelled=false;
-  showToast(`${studentName} — referral restored ✓`,'success');
+  // Re-activate student in student_profiles
+  try{
+    let spQuery=sb.from('student_profiles').update({status:'active'}).ilike('name',studentName).eq('status','inactive');
+    if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
+    const{error:spErr}=await spQuery;
+    if(spErr) console.warn('uncancelRef: could not re-activate student:',spErr.message);
+    else if(allStudentsCache){
+      allStudentsCache.forEach(s=>{
+        if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId)&&s.status==='inactive')s.status='active';
+      });
+    }
+  }catch(e){console.warn('uncancelRef student_profiles update:',e.message);}
+  showToast(`${studentName} — referral restored, student re-activated ✓`,'success');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
