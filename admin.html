@@ -6561,11 +6561,13 @@ async function geocodePostcode(raw){
 }
 
 let _instrAreaMap=null;
+function _darkTileLayer(){
+  return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:20});
+}
 async function openInstrAreaMap(instrId,instrName){
   openModal('instrAreaMapModal');
-  document.getElementById('instrAreaMapTitle').textContent=instrName+' — Coverage Area';
-  document.getElementById('instrAreaMapStats').textContent='Loading student locations…';
-  // Load Leaflet
+  document.getElementById('instrAreaMapTitle').textContent=instrName;
+  document.getElementById('instrAreaMapStats').innerHTML='<i class="bi bi-hourglass-split me-1"></i>Loading student locations…';
   if(!document.getElementById('leaflet-css')){
     const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
@@ -6574,48 +6576,149 @@ async function openInstrAreaMap(instrId,instrName){
   }
   if(window._instrAreaMap){window._instrAreaMap.remove();window._instrAreaMap=null;}
   const el=document.getElementById('instrAreaMapEl');
-  window._instrAreaMap=L.map(el).setView([53.483,-2.244],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(window._instrAreaMap);
-  // Find instructor home postcode
+  window._instrAreaMap=L.map(el,{zoomControl:true}).setView([53.483,-2.244],12);
+  _darkTileLayer().addTo(window._instrAreaMap);
+
   const instr=(allInstrs||[]).find(i=>i.id===instrId);
+  const waNum=instr?buildWaNum(instr.phone||''):'';
+
+  // Geocode instructor home
   let instrCoords=null;
   if(instr?.area){
     try{
-      const pc=instr.area.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?.[0]||(instr.area.trim().split(/\s+/).slice(-2).join(' '));
+      const pc=extractPostcode(instr.area)||instr.area.trim().split(/\s+/).slice(-2).join(' ');
       const resp=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));
       const j=await resp.json();
       if(j.status===200)instrCoords=[j.result.latitude,j.result.longitude];
     }catch(e){}
   }
+  if(!instrCoords&&instr)instrCoords=manchesterAreaCoords(instr.area||'');
+
   if(instrCoords){
-    const instrIcon=L.divIcon({html:`<div style="width:24px;height:24px;background:#F5C518;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><i class="bi bi-person-fill" style="font-size:10px;color:#000"></i></div>`,iconSize:[24,24],iconAnchor:[12,12],className:''});
-    L.marker(instrCoords,{icon:instrIcon}).addTo(window._instrAreaMap).bindPopup(`<strong>${instrName}</strong><br>Base area: ${instr.area||'—'}`);
+    const initial=(instrName||'?')[0].toUpperCase();
+    const instrIcon=L.divIcon({
+      html:`<div style="width:38px;height:38px;background:#D10A11;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 14px rgba(0,0,0,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">
+        <span style="font-size:15px;color:#fff;line-height:1">${initial}</span>
+        <span style="font-size:8px;color:rgba(255,255,255,.8);line-height:1">HOME</span>
+      </div>`,
+      iconSize:[38,38],iconAnchor:[19,19],className:''
+    });
+    const m=instr.instructor_model||'unsure';
+    const mLabel=m.charAt(0).toUpperCase()+m.slice(1);
+    L.marker(instrCoords,{icon:instrIcon,zIndexOffset:1000})
+      .addTo(window._instrAreaMap)
+      .bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
+        <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1rem;color:#D10A11;margin-bottom:6px">${esc(instrName)}</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.73rem;margin-bottom:8px">
+          <span style="color:#888">Area</span><span>${esc(instr?.area||'—')}</span>
+          <span style="color:#888">Badge</span><span>${esc(instr?.badge_number||'—')} (${esc(instr?.badge_type||'ADI')})</span>
+          <span style="color:#888">Car</span><span>${esc(instr?.car_type||'Manual')}</span>
+          <span style="color:#888">Model</span><span>${mLabel}</span>
+          ${instr?.phone?`<span style="color:#888">Phone</span><span>${esc(instr.phone)}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i>WA</a>`:''}
+          <button onclick="closeModal('instrAreaMapModal');viewInstr('${instrId}')" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View Profile</button>
+        </div>
+      </div>`);
   }
+
   // Get students for this instructor
   const students=(allStudentsCache.length?allStudentsCache:((await loadAllStudents())||[])).filter(s=>s.instrId===instrId||s.instructor_id===instrId);
-  let plotted=0;
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  let plotted=0,newCount=0;
   const bounds=instrCoords?[instrCoords]:[];
-  const postcodeJobs=students.filter(s=>s.address||s.postcode).map(async s=>{
+  const stuCoords=[];
+
+  const postcodeJobs=students.map(async s=>{
     const addr=s.address||s.postcode||'';
-    const pc=addr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?.[0]||addr.trim().split(/\s+/).slice(-2).join(' ');
+    const pc=extractPostcode(addr);
     if(!pc)return;
     try{
       const resp=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));
       const j=await resp.json();
       if(j.status!==200)return;
       const lat=j.result.latitude,lng=j.result.longitude;
-      const dotIcon=L.divIcon({html:`<div style="width:14px;height:14px;background:#D10A11;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5)" title="${s.name||''}"></div>`,iconSize:[14,14],iconAnchor:[7,7],className:''});
-      L.marker([lat,lng],{icon:dotIcon}).addTo(window._instrAreaMap).bindPopup(`<strong>${esc(s.name||'Student')}</strong><br>${esc(addr)}`);
+      const isNew=s.assignedAt&&(new Date(s.assignedAt).getTime()>_sevenDaysAgo);
+      const hasLessons=(s.count||0)>0;
+      const pinCol=isNew?'#F5C518':hasLessons?'#D10A11':'#64748b';
+      const pinSize=isNew?16:14;
+      if(isNew)newCount++;
+      const daysAgo=s.assignedAt?Math.floor((Date.now()-new Date(s.assignedAt).getTime())/(86400000)):null;
+      const assignedLbl=daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo!=null?`${daysAgo}d ago`:'—';
+      const newBadge=isNew?`<span style="background:#F5C518;color:#000;font-size:.58rem;font-weight:800;padding:1px 6px;border-radius:3px;margin-left:6px">🆕 NEW</span>`:'';
+      const stuIcon=L.divIcon({
+        html:`<div style="background:${pinCol};width:${pinSize}px;height:${pinSize}px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.6)${isNew?';animation:mapPulse 1.8s ease-in-out infinite':''}"></div>`,
+        iconSize:[pinSize,pinSize],iconAnchor:[pinSize/2,pinSize/2],className:''
+      });
+      const stuWa=buildWaNum(s.phone||'');
+      L.marker([lat,lng],{icon:stuIcon,zIndexOffset:isNew?50:-100})
+        .addTo(window._instrAreaMap)
+        .bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+          <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name||'Student')}${newBadge}</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:8px">
+            <span style="color:#888">Area</span><span>${esc(pc)}</span>
+            <span style="color:#888">Assigned</span><span style="color:${isNew?'#F5C518':'inherit'}">${assignedLbl}</span>
+            <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
+            ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
+          </div>
+          ${stuWa?`<a href="https://wa.me/${stuWa}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.74rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
+        </div>`);
       bounds.push([lat,lng]);
+      stuCoords.push([lat,lng]);
       plotted++;
     }catch(e){}
   });
   await Promise.allSettled(postcodeJobs);
-  document.getElementById('instrAreaMapStats').textContent=`${students.length} student${students.length!==1?'s':''} · ${plotted} location${plotted!==1?'s':''} mapped`;
-  if(bounds.length>1){window._instrAreaMap.fitBounds(bounds,{padding:[30,30]});}
+
+  // Draw convex-hull coverage polygon if ≥3 student coords
+  if(stuCoords.length>=3){
+    try{
+      const hull=_convexHull(stuCoords);
+      L.polygon(hull,{color:'#D10A11',fillColor:'#D10A11',fillOpacity:.08,weight:1.5,dashArray:'6 4'}).addTo(window._instrAreaMap);
+    }catch(e){}
+  }
+
+  // Fit bounds
+  if(bounds.length>1){window._instrAreaMap.fitBounds(bounds,{padding:[40,40]});}
   else if(bounds.length===1){window._instrAreaMap.setView(bounds[0],13);}
   setTimeout(()=>window._instrAreaMap&&window._instrAreaMap.invalidateSize(),200);
+
+  // Stats bar
+  const noAddr=students.length-plotted;
+  const statsEl=document.getElementById('instrAreaMapStats');
+  if(statsEl){
+    statsEl.innerHTML=`
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <span><strong style="color:var(--txt)">${students.length}</strong> <span style="color:var(--txt4)">students</span></span>
+        <span><strong style="color:var(--txt)">${plotted}</strong> <span style="color:var(--txt4)">mapped</span></span>
+        ${newCount?`<span><strong style="color:#F5C518">${newCount}</strong> <span style="color:var(--txt4)">new this week</span></span>`:''}
+        ${noAddr?`<span style="color:#f87171"><i class="bi bi-exclamation-triangle me-1"></i>${noAddr} no address</span>`:''}
+        ${stuCoords.length>=3?`<span style="color:#D10A11"><i class="bi bi-hexagon me-1"></i>Coverage hull shown</span>`:''}
+      </div>`;
+  }
+
+  // Update legend
+  const legEl=document.getElementById('instrAreaMapLegend');
+  if(legEl) legEl.innerHTML=`
+    <span><span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#D10A11;border:3px solid #fff;margin-right:5px;vertical-align:middle;font-family:Oswald,sans-serif;font-size:9px;color:#fff;line-height:22px;text-align:center">${(instrName||'?')[0].toUpperCase()}</span>Instructor home</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>New student (&lt;7d)</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>Active student</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#64748b;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>No lessons yet</span>
+    <span><span style="display:inline-block;width:22px;height:3px;background:#D10A11;border-radius:2px;margin-right:4px;vertical-align:middle;opacity:.6"></span>Coverage area</span>`;
 }
+
+// Simple gift-wrap convex hull (Graham scan)
+function _convexHull(pts){
+  const p=[...pts].sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
+  const cross=(O,A,B)=>(A[0]-O[0])*(B[1]-O[1])-(A[1]-O[1])*(B[0]-O[0]);
+  const lower=[],upper=[];
+  for(const pt of p){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],pt)<=0)lower.pop();lower.push(pt);}
+  for(let i=p.length-1;i>=0;i--){const pt=p[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],pt)<=0)upper.pop();upper.push(pt);}
+  upper.pop();lower.pop();
+  return lower.concat(upper);
+}
+
 window.addEventListener('beforeunload',()=>{if(window._instrAreaMap){window._instrAreaMap.remove();window._instrAreaMap=null;}});
 
 async function initAdminMap(){
@@ -6628,7 +6731,7 @@ async function initAdminMap(){
   const el=document.getElementById('adminMapEl');if(!el)return;
   if(!_adminMap){
     _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
+    _darkTileLayer().addTo(_adminMap);
   }
   refreshMapStats();
   await plotInstrMarkers();
@@ -6667,21 +6770,33 @@ function _placeInstrPin(i,coords){
   });
   const waNum=buildWaNum(i.phone||'');
   const area=i.area||i.postcode||'';
+  const modelLabel=i.instructor_model==='franchise'?'Franchise':i.instructor_model==='referral'?'Referral':'—';
+  const modelColour=i.instructor_model==='franchise'?'#3b82f6':i.instructor_model==='referral'?'#F5C518':'#64748b';
+  // Count new students (assigned within 7 days) for this instructor
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  const newCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&s.assignedAt&&new Date(s.assignedAt).getTime()>_sevenDaysAgo).length;
   const marker=L.marker(coords,{icon:instrIcon});
   if(_mapShowInstrs)marker.addTo(_adminMap);
-  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
-    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:230px;max-width:270px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="background:#D10A11;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:800;font-size:1.1rem;color:#fff;flex-shrink:0">${initial}</div>
+      <div>
+        <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1rem;color:#D10A11;line-height:1.2">${esc(i.full_name)}</div>
+        <span style="display:inline-block;background:${modelColour};color:${i.instructor_model==='referral'?'#000':'#fff'};font-size:.58rem;font-weight:800;font-family:'Oswald',sans-serif;padding:1px 6px;border-radius:3px;letter-spacing:.05em">${modelLabel}</span>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
-      <span style="color:#888">Area/Postcode</span><span>${esc(area||'—')}</span>
-      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
+      <span style="color:#888">Area</span><span>${esc(area||'—')}</span>
+      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} · ${esc(i.badge_type||'ADI')}</span>
       <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
-      <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
+      <span style="color:#888">Students</span><span><strong>${studCount}</strong>${newCount?` <span style="color:#F5C518;font-weight:700">(${newCount} 🆕 new)</span>`:''}</span>
       ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
-      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
-      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
+      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
+      <button onclick="openInstrAreaMap('${i.id}','${jsEsc(i.full_name)}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Area Map</button>
+      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
     </div>
   </div>`);
   _instrMarkers.push(marker);
