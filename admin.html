@@ -677,6 +677,24 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       </div>
     </div>
     <div id="badgeExpiryAlerts" style="display:none;margin-bottom:12px"></div>
+    <!-- Assignment stats bar -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="instrAssignStatsBar">
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned This Week</div>
+        <div id="iStatWeek" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--gold);line-height:1">—</div>
+        <div id="iStatWeekLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">Mon–Sun</div>
+      </div>
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned This Month</div>
+        <div id="iStatMonth" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#60a5fa;line-height:1">—</div>
+        <div id="iStatMonthLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">Loading…</div>
+      </div>
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned All Time</div>
+        <div id="iStatAll" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#4ade80;line-height:1">—</div>
+        <div id="iStatAllLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">All records</div>
+      </div>
+    </div>
     <p style="font-size:.78rem;color:var(--txt3);margin-bottom:10px;margin-top:-4px"><i class="bi bi-info-circle me-1"></i>Click any instructor row to view their full profile, edit their details, see their students, or send them a message. Use <strong>Approve</strong> to activate a pending instructor. Use <strong>Message All</strong> to send a broadcast to everyone.</p>
     <div class="dsq-card" id="instrTableWrap">
       <div class="tbl-scroll">
@@ -2632,6 +2650,8 @@ function switchTab(t){
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
   });
+  // Start/stop assignment stats auto-refresh when entering/leaving Instructors tab
+  if(t==='instructors')startInstrAssignStatsRefresh();else stopInstrAssignStatsRefresh();
   if(t==='dashboard')loadDashboard();
   if(t==='messages')loadMessages();
   if(t==='analytics'){loadAnalytics();}
@@ -2671,6 +2691,41 @@ async function loadAll(){
   loadGlobalStats();
   populateDropdowns();
   loadDashboard();
+}
+
+let _instrAssignStatsTimer=null;
+async function loadInstrAssignStats(){
+  try{
+    const now=new Date();
+    // Week: Monday 00:00 → now
+    const mon=getMonday(0);const weekStart=new Date(mon);weekStart.setHours(0,0,0,0);
+    // Month: 1st of current month 00:00 → now
+    const monthStart=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+    const[wkRes,moRes,allRes]=await Promise.all([
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).gte('created_at',weekStart.toISOString()).neq('status','inactive'),
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).gte('created_at',monthStart.toISOString()).neq('status','inactive'),
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).neq('status','inactive'),
+    ]);
+    const wk=wkRes.count??'—';
+    const mo=moRes.count??'—';
+    const all=allRes.count??'—';
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const wkLbl=`${days[weekStart.getDay()]} ${weekStart.getDate()}/${weekStart.getMonth()+1} – now`;
+    const moName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    const el_w=document.getElementById('iStatWeek');if(el_w)el_w.textContent=wk;
+    const el_wl=document.getElementById('iStatWeekLbl');if(el_wl)el_wl.textContent=wkLbl;
+    const el_m=document.getElementById('iStatMonth');if(el_m)el_m.textContent=mo;
+    const el_ml=document.getElementById('iStatMonthLbl');if(el_ml)el_ml.textContent=moName;
+    const el_a=document.getElementById('iStatAll');if(el_a)el_a.textContent=all;
+  }catch(e){console.warn('loadInstrAssignStats:',e.message);}
+}
+function startInstrAssignStatsRefresh(){
+  loadInstrAssignStats();
+  if(_instrAssignStatsTimer)clearInterval(_instrAssignStatsTimer);
+  _instrAssignStatsTimer=setInterval(loadInstrAssignStats,60000); // refresh every 60s
+}
+function stopInstrAssignStatsRefresh(){
+  if(_instrAssignStatsTimer){clearInterval(_instrAssignStatsTimer);_instrAssignStatsTimer=null;}
 }
 
 async function loadInstrs(){
