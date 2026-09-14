@@ -457,6 +457,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 @media(max-width:575px){.search-trigger-btn span,.search-trigger-btn kbd{display:none}}
 .qa-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:7px;padding:4px 10px;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
 .qa-btn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+@keyframes mapPulse{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 0 rgba(245,197,24,.6)}60%{box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 6px rgba(245,197,24,0)}}
 .map-filter-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:20px;padding:5px 13px;font-family:'Oswald',sans-serif;font-size:.74rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;}
 .map-filter-btn.active{background:var(--dk3);border-color:var(--red);color:var(--txt);}
 .map-filter-btn:hover{border-color:var(--red);}
@@ -550,6 +551,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')" title="Charts: hours per instructor, pass rates, lesson trends"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
+    <button class="dsq-tab" id="tab-infoview" onclick="switchTab('infoview')" title="Instructor Info — overview table with totals; click an instructor name to see full detail"><i class="bi bi-info-circle-fill"></i><span class="d-none d-sm-inline ms-1">Info</span></button>
   </div>
 
   <!-- HIDDEN tabs not in main strip -->
@@ -675,6 +677,24 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       </div>
     </div>
     <div id="badgeExpiryAlerts" style="display:none;margin-bottom:12px"></div>
+    <!-- Assignment stats bar -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="instrAssignStatsBar">
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned This Week</div>
+        <div id="iStatWeek" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--gold);line-height:1">—</div>
+        <div id="iStatWeekLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">Mon–Sun</div>
+      </div>
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned This Month</div>
+        <div id="iStatMonth" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#60a5fa;line-height:1">—</div>
+        <div id="iStatMonthLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">Loading…</div>
+      </div>
+      <div class="dsq-card p-3" style="text-align:center">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt4);margin-bottom:2px">Assigned All Time</div>
+        <div id="iStatAll" style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:#4ade80;line-height:1">—</div>
+        <div id="iStatAllLbl" style="font-size:.6rem;color:var(--txt4);margin-top:2px">All records</div>
+      </div>
+    </div>
     <p style="font-size:.78rem;color:var(--txt3);margin-bottom:10px;margin-top:-4px"><i class="bi bi-info-circle me-1"></i>Click any instructor row to view their full profile, edit their details, see their students, or send them a message. Use <strong>Approve</strong> to activate a pending instructor. Use <strong>Message All</strong> to send a broadcast to everyone.</p>
     <div class="dsq-card" id="instrTableWrap">
       <div class="tbl-scroll">
@@ -1027,6 +1047,34 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   </div>
 
   <!-- ══ ACTIVITY LOG ══ -->
+  <!-- INSTRUCTOR INFO PANEL -->
+  <div id="panel-infoview" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-info-circle-fill me-2" style="color:var(--gold)"></i>Instructor Info</div>
+    <div class="dsq-card p-3">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <input id="infoviewSearch" type="text" class="dsq-input" placeholder="Search instructors…" style="max-width:260px" oninput="renderInfoViewTable()"/>
+        <select id="infoviewFilter" class="dsq-input" style="max-width:180px" onchange="renderInfoViewTable()">
+          <option value="all">All statuses</option>
+          <option value="approved">Approved only</option>
+        </select>
+        <button class="dsq-btn" onclick="loadInfoView()" title="Refresh data"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="dsq-table" id="infoviewTable" style="font-size:.78rem;min-width:700px">
+          <thead><tr>
+            <th style="cursor:pointer" onclick="sortInfoView('name')">Name <i class="bi bi-arrow-down-up" id="ivSortIcon-name"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('weekAssigned')">This Week <i class="bi bi-arrow-down-up" id="ivSortIcon-weekAssigned"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('rosterCount')">Total Students <i class="bi bi-arrow-down-up" id="ivSortIcon-rosterCount"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('coverage')">Coverage (Postcodes) <i class="bi bi-arrow-down-up" id="ivSortIcon-coverage"></i></th>
+            <th style="cursor:pointer;text-align:center" onclick="sortInfoView('weekHrs')">Hrs This Week <i class="bi bi-arrow-down-up" id="ivSortIcon-weekHrs"></i></th>
+            <th style="text-align:center">Status</th>
+          </tr></thead>
+          <tbody id="infoviewBody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt4)">Click Refresh to load data.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div id="panel-activity" class="hidden">
     <div class="page-title mb-3"><i class="bi bi-activity me-2" style="color:var(--blue)"></i>Activity Log</div>
     <div class="row g-3">
@@ -1067,6 +1115,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <button id="mapFilterInstrs" class="map-filter-btn active" onclick="toggleMapFilter('instructors')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:5px"></span>Instructors</button>
       <button id="mapFilterStudents" class="map-filter-btn active" onclick="toggleMapFilter('students')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Students</button>
+      <span style="font-size:.7rem;color:var(--txt4);display:flex;align-items:center;gap:6px;padding:0 4px">
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;border:1px solid rgba(0,0,0,.2)"></span>New (&lt;7d)</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;border:1px solid rgba(0,0,0,.2)"></span>Online</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;border:1px solid rgba(0,0,0,.2)"></span>App</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#64748b;border:1px solid rgba(0,0,0,.2)"></span>Roster</span>
+      </span>
       <button class="btn-s" onclick="mapReset()" style="font-size:.72rem;padding:5px 10px"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
       <button class="btn-s" id="mapFullscreenBtn" onclick="toggleMapFullscreen()" style="font-size:.72rem;padding:5px 10px" title="Fullscreen map"><i class="bi bi-fullscreen" id="mapFullscreenIcon"></i></button>
     </div>
@@ -1557,7 +1611,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div id="refDetailInstrName" style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt);margin-bottom:4px"></div>
     <div id="refDetailSub" style="font-size:.78rem;color:var(--txt3);margin-bottom:8px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <a id="refDetailWaBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Send full referral summary via WhatsApp — includes all student names, phone numbers, and amounts (paid and outstanding)"><i class="bi bi-whatsapp me-2"></i>Send Referral Summary via WhatsApp</a>
+      <a id="refDetailWaFullBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Full statement — includes all paid and outstanding referrals"><i class="bi bi-whatsapp me-2"></i>📋 Full Statement</a>
+      <a id="refDetailWaHalfBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Outstanding only — shows total due with no paid rows"><i class="bi bi-whatsapp me-2"></i>💷 Outstanding Only</a>
       <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
       <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
     </div>
@@ -2595,6 +2650,8 @@ function switchTab(t){
     document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
     document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
   });
+  // Start/stop assignment stats auto-refresh when entering/leaving Instructors tab
+  if(t==='instructors')startInstrAssignStatsRefresh();else stopInstrAssignStatsRefresh();
   if(t==='dashboard')loadDashboard();
   if(t==='messages')loadMessages();
   if(t==='analytics'){loadAnalytics();}
@@ -2605,6 +2662,7 @@ function switchTab(t){
   if(t==='transfers'){loadTransferRequests();loadInstructorChangeRequests();}
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
+  if(t==='infoview')loadInfoView();
   if(t==='notes')loadAdminNotes();
   if(t==='actions')loadActionQueue('all');
   if(t==='scorecard')loadScorecard();
@@ -2633,6 +2691,41 @@ async function loadAll(){
   loadGlobalStats();
   populateDropdowns();
   loadDashboard();
+}
+
+let _instrAssignStatsTimer=null;
+async function loadInstrAssignStats(){
+  try{
+    const now=new Date();
+    // Week: Monday 00:00 → now
+    const mon=getMonday(0);const weekStart=new Date(mon);weekStart.setHours(0,0,0,0);
+    // Month: 1st of current month 00:00 → now
+    const monthStart=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+    const[wkRes,moRes,allRes]=await Promise.all([
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).gte('created_at',weekStart.toISOString()).neq('status','inactive'),
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).gte('created_at',monthStart.toISOString()).neq('status','inactive'),
+      sb.from('student_profiles').select('id',{count:'exact',head:true}).neq('status','inactive'),
+    ]);
+    const wk=wkRes.count??'—';
+    const mo=moRes.count??'—';
+    const all=allRes.count??'—';
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const wkLbl=`${days[weekStart.getDay()]} ${weekStart.getDate()}/${weekStart.getMonth()+1} – now`;
+    const moName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    const el_w=document.getElementById('iStatWeek');if(el_w)el_w.textContent=wk;
+    const el_wl=document.getElementById('iStatWeekLbl');if(el_wl)el_wl.textContent=wkLbl;
+    const el_m=document.getElementById('iStatMonth');if(el_m)el_m.textContent=mo;
+    const el_ml=document.getElementById('iStatMonthLbl');if(el_ml)el_ml.textContent=moName;
+    const el_a=document.getElementById('iStatAll');if(el_a)el_a.textContent=all;
+  }catch(e){console.warn('loadInstrAssignStats:',e.message);}
+}
+function startInstrAssignStatsRefresh(){
+  loadInstrAssignStats();
+  if(_instrAssignStatsTimer)clearInterval(_instrAssignStatsTimer);
+  _instrAssignStatsTimer=setInterval(loadInstrAssignStats,60000); // refresh every 60s
+}
+function stopInstrAssignStatsRefresh(){
+  if(_instrAssignStatsTimer){clearInterval(_instrAssignStatsTimer);_instrAssignStatsTimer=null;}
 }
 
 async function loadInstrs(){
@@ -2734,9 +2827,14 @@ function renderBadgeExpiryAlerts(allList){
   }).filter(Boolean).sort((a,b)=>a.diff-b.diff);
   if(!alerts.length){el.style.display='none';el.innerHTML='';return;}
   el.style.display='block';
+  const _beCollapsed=el.dataset.collapsed==='1';
   el.innerHTML=`<div style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 14px">
-    <div style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;color:var(--gold);letter-spacing:.5px;margin-bottom:8px"><i class="bi bi-exclamation-triangle-fill me-2"></i>BADGE EXPIRY ALERTS (${alerts.length})</div>
-    <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${_beCollapsed?'0':'8px'}">
+      <span style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;color:var(--gold);letter-spacing:.5px"><i class="bi bi-exclamation-triangle-fill me-2"></i>BADGE EXPIRY ALERTS (${alerts.length})</span>
+      <button onclick="(function(b){const el=document.getElementById('badgeExpiryAlerts');el.dataset.collapsed=el.dataset.collapsed==='1'?'0':'1';renderBadgeExpiryAlerts(window._allInstrsCache||allInstrs);})(this)" style="background:none;border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:6px;padding:2px 10px;font-size:.7rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600">${_beCollapsed?'<i class="bi bi-chevron-down me-1"></i>Show':'<i class="bi bi-chevron-up me-1"></i>Hide'}</button>
+    </div>
+    ${_beCollapsed?'':
+    `<div style="display:flex;flex-direction:column;gap:6px">
       ${alerts.map(({i,diff})=>{
         const fmt=new Date(i.badge_expiry).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
         const isExp=diff<0;const isUrgent=diff<=30;
@@ -2749,10 +2847,11 @@ function renderBadgeExpiryAlerts(allList){
           <button class="abtn" onclick="openEditForId('${i.id}')" style="font-size:.68rem;padding:3px 8px;color:var(--gold);border-color:rgba(245,197,24,.3)"><i class="bi bi-pencil me-1"></i>Edit</button>
         </div>`;
       }).join('')}
-    </div>
+    </div>`}
   </div>`;
 }
 function renderInstrsTable(list){
+  window._allInstrsCache=allInstrs;
   renderBadgeExpiryAlerts(allInstrs);
   const tb=document.getElementById('instrTbody');
   if(!list.length){tb.innerHTML='<tr>'+emptyState('No instructors found','Try adjusting your search or status filter')+'</tr>';return;}
@@ -2762,7 +2861,9 @@ function renderInstrsTable(list){
       ?`<button class="abtn unblock" onclick="unblockInstr('${i.id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
       :`<button class="abtn block" onclick="openBlockModal('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
     const waNum=buildWaNum(i.phone||'');
-    const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:'';
+    const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank" title="Open WhatsApp"><i class="bi bi-whatsapp"></i></a>`:'';
+    const loginMsg=`Hi ${i.full_name}! 👋\n\nWelcome to *DriveSQ*. Here are your Instructor Portal login details:\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🚗 *DriveSQ Instructor Portal*\n━━━━━━━━━━━━━━━━━━━━━━━\n\n🔗 Portal link:\nhttps://www.drivesq.co.uk/portal.html\n\n🔑 *Your login details:*\n   Badge Number: *${i.badge_number||'(see admin)'}*\n   Password:     *${i.password||'(contact admin)'}*\n\n━━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *What you can do on your portal:*\n• View & manage your full student roster\n• See your lesson calendar and week planner\n• Log lessons and track payments\n• Update your availability\n• Message students directly\n• Track student theory & practical progress\n\n💡 Tip: You can install the portal as an app on your phone for quick access.\n\nIf you have any trouble logging in, reply here and we'll sort it straight away.\n\n— DriveSQ Admin ✅`;
+    const loginBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(loginMsg)}" target="_blank" title="Send login details via WhatsApp" style="gap:4px"><i class="bi bi-key-fill"></i><span class="btn-lbl-md">Login</span></a>`:'';
     const weekHrs=(i._weekHrs||0).toFixed(1);
     const weekEarn=(i._weekEarn||0).toFixed(0);
     return`<tr>
@@ -2784,6 +2885,7 @@ function renderInstrsTable(list){
         <button class="abtn students" onclick="viewInstrStudents('${i.id}','${jsEsc(i.full_name)}')" title="Students"><i class="bi bi-people me-1"></i><span class="btn-lbl-md">Students</span></button>
         <button class="abtn edit" onclick="openEditForId('${i.id}')"><i class="bi bi-pencil"></i></button>
         <button class="abtn msg" onclick="openMsgModal('${i.id}')"><i class="bi bi-envelope"></i></button>
+        ${loginBtn}
         ${waBtn}
         ${blockBtn}
         <button class="abtn del" onclick="deleteInstr('${i.id}','${jsEsc(i.full_name)}')"><i class="bi bi-trash"></i></button>
@@ -3001,23 +3103,8 @@ async function viewInstr(id){
     ?`<button class="abtn unblock" id="blockToggleBtn" onclick="unblockInstr('${id}')"><i class="bi bi-unlock me-1"></i>Unblock</button>`
     :`<button class="abtn block" id="blockToggleBtn" onclick="openBlockModal('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-slash-circle me-1"></i>Block</button>`;
   const waNum=buildWaNum(instr.phone||'');
-  const portalWelcomeMsg=`Hi ${instr.full_name}! 👋 Welcome to the *DriveSQ Instructor Portal*! 🚗\n\n` +
-    `Here's everything you need to know about your portal:\n\n` +
-    `📋 *What you can do:*\n` +
-    `• View & manage your student roster\n` +
-    `• See your lesson calendar and upcoming bookings\n` +
-    `• Log lessons and track payments received\n` +
-    `• Update your availability so admin can match you to new students\n` +
-    `• Receive messages and assignments from DriveSQ admin\n` +
-    `• View your weekly earnings and stats\n\n` +
-    `🔐 *Your login details:*\n` +
-    `📧 Email: ${instr.email||'(contact admin)'}\n` +
-    `🔑 Password: ${instr.password||'(contact admin for password)'}\n\n` +
-    `🔗 *Access your portal here:*\n` +
-    `${PORTAL_URL}\n\n` +
-    `If you have any questions, reply to this message and we'll help you out.\n\n` +
-    `— DriveSQ Admin ✅`;
-  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalWelcomeMsg)}" target="_blank"><i class="bi bi-whatsapp me-1"></i>Send Portal Link</a>`:'';
+  const portalLoginMsg=`Hi ${instr.full_name}! 👋\n\nWelcome to *DriveSQ*. Here are your Instructor Portal login details:\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🚗 *DriveSQ Instructor Portal*\n━━━━━━━━━━━━━━━━━━━━━━━\n\n🔗 Portal link:\n${PORTAL_URL}\n\n🔑 *Your login details:*\n   Badge Number: *${instr.badge_number||'(see admin)'}*\n   Password:     *${instr.password||'(contact admin)'}*\n\n━━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *What you can do on your portal:*\n• View & manage your full student roster\n• See your lesson calendar and week planner\n• Log lessons and track payments\n• Update your availability\n• Message students directly\n• Track student theory & practical progress\n\n💡 Tip: You can install the portal as an app on your phone for quick access.\n\nIf you have any trouble logging in, reply here and we'll sort it straight away.\n\n— DriveSQ Admin ✅`;
+  const waBtn=waNum?`<a class="abtn wa" href="https://wa.me/${waNum}?text=${encodeURIComponent(portalLoginMsg)}" target="_blank"><i class="bi bi-key-fill me-1"></i>Send Login Details</a>`:'';
   document.getElementById('calInstrHd').innerHTML=`
     <div class="instr-hd">
       <button class="btn-s" onclick="switchTab('instructors')" style="flex-shrink:0"><i class="bi bi-arrow-left me-1"></i>Back</button>
@@ -4929,6 +5016,13 @@ async function findClosest(){
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
   // Ensure student roster is loaded for postcode frequency analysis
   if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
+  // Refresh weekly assignment counts from DB so stale in-memory values never persist across week boundaries
+  try{
+    const _mon=getMonday(0);const _weekStart=new Date(_mon);_weekStart.setHours(0,0,0,0);
+    const{data:_wkRows}=await sb.from('student_profiles').select('instructor_id').gte('created_at',_weekStart.toISOString()).neq('status','inactive');
+    const _wkMap={};(_wkRows||[]).forEach(r=>{_wkMap[r.instructor_id]=(_wkMap[r.instructor_id]||0)+1;});
+    allInstrs.forEach(i=>{i._weekAssigned=_wkMap[i.id]||0;});
+  }catch(e){console.warn('findClosest weekAssigned refresh:',e.message);}
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
@@ -5057,19 +5151,8 @@ async function findClosest(){
     }
 
     // Split into matching and non-matching instructors
-    // Sort: instructors with credits owed come first within each group (same distance otherwise)
-    const _creditSort=(a,b)=>{
-      const ca=_creditIndex[a.instr.id]||0;
-      const cb=_creditIndex[b.instr.id]||0;
-      if(ca!==cb)return cb-ca; // more credits = higher priority
-      // Within same credit tier: instructors with 0 students this week get priority
-      // If ALL instructors are 0-this-week, za===zb===1 → returns 0 → distance order preserved (stable sort)
-      const za=(a.instr._weekAssigned||0)===0?1:0;
-      const zb=(b.instr._weekAssigned||0)===0?1:0;
-      if(za!==zb)return zb-za;
-      return 0; // distance ranking preserved otherwise
-    };
-    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type)).sort(_creditSort);
+    // Order purely by distance — ranked[] is already distance-sorted, preserve that order
+    const matching=ranked.filter(r=>instrCanTeach(r.instr.car_type||'Manual',type));
     const nonMatching=ranked.filter(r=>!instrCanTeach(r.instr.car_type||'Manual',type));
 
     // Summary bar
@@ -5957,6 +6040,68 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.dsq-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>el.classList.remove('open'));});
 
+/* ══ INSTRUCTOR INFO VIEW ══ */
+let _ivSortKey='weekAssigned',_ivSortDir=-1;
+async function loadInfoView(){
+  if(!allInstrs||!allInstrs.length) await loadInstrs();
+  if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();
+  // Refresh weekly counts
+  try{
+    const _mon=getMonday(0);const _ws=new Date(_mon);_ws.setHours(0,0,0,0);
+    const{data:_wk}=await sb.from('student_profiles').select('instructor_id').gte('created_at',_ws.toISOString()).neq('status','inactive');
+    const _wkMap={};(_wk||[]).forEach(r=>{_wkMap[r.instructor_id]=(_wkMap[r.instructor_id]||0)+1;});
+    allInstrs.forEach(i=>{i._weekAssigned=_wkMap[i.id]||0;});
+  }catch(e){}
+  renderInfoViewTable();
+}
+function _instrCoverageCount(instr){
+  // Count postcodes from student roster cached data
+  if(!allStudentsCache||!allStudentsCache.length) return 0;
+  const pcs=new Set();
+  allStudentsCache.filter(s=>s.instrId===instr.id).forEach(s=>{
+    const m=(s.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?/i);
+    if(m)pcs.add(m[0].toUpperCase());
+  });
+  return pcs.size;
+}
+function sortInfoView(key){
+  if(_ivSortKey===key)_ivSortDir*=-1;else{_ivSortKey=key;_ivSortDir=-1;}
+  renderInfoViewTable();
+}
+function renderInfoViewTable(){
+  const q=(document.getElementById('infoviewSearch')||{}).value?.toLowerCase()||'';
+  const filt=(document.getElementById('infoviewFilter')||{}).value||'all';
+  let rows=[...allInstrs];
+  if(filt==='approved') rows=rows.filter(i=>i.status==='approved');
+  if(q) rows=rows.filter(i=>(i.full_name||'').toLowerCase().includes(q)||(i.area||'').toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(_ivSortKey==='name'){va=(a.full_name||'').toLowerCase();vb=(b.full_name||'').toLowerCase();return va<vb?-_ivSortDir:va>vb?_ivSortDir:0;}
+    if(_ivSortKey==='weekAssigned'){va=a._weekAssigned||0;vb=b._weekAssigned||0;}
+    else if(_ivSortKey==='rosterCount'){va=a._rosterCount||0;vb=b._rosterCount||0;}
+    else if(_ivSortKey==='coverage'){va=_instrCoverageCount(a);vb=_instrCoverageCount(b);}
+    else if(_ivSortKey==='weekHrs'){va=a._weekHrs||0;vb=b._weekHrs||0;}
+    else{va=0;vb=0;}
+    return(va-vb)*_ivSortDir;
+  });
+  const body=document.getElementById('infoviewBody');
+  if(!body)return;
+  if(!rows.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt4)">No instructors found.</td></tr>`;return;}
+  body.innerHTML=rows.map(i=>{
+    const statusChip=i.status==='approved'?`<span class="chip Automatic" style="font-size:.6rem">Approved</span>`
+      :i.status==='pending'?`<span class="chip" style="font-size:.6rem;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)">Pending</span>`
+      :`<span class="chip Manual" style="font-size:.6rem">${esc(i.status||'—')}</span>`;
+    return`<tr>
+      <td><a href="#" onclick="switchTab('instructors');viewInstr('${esc(i.id)}');return false;" style="color:var(--gold);font-weight:600;text-decoration:none" title="View full instructor detail">${esc(i.full_name||'—')}</a><div style="font-size:.66rem;color:var(--txt4)">${esc(i.area||'')}</div></td>
+      <td style="text-align:center;font-weight:700;color:var(--gold)">${i._weekAssigned||0}</td>
+      <td style="text-align:center">${i._rosterCount||0}</td>
+      <td style="text-align:center">${_instrCoverageCount(i)}</td>
+      <td style="text-align:center">${(i._weekHrs||0).toFixed(1)}</td>
+      <td style="text-align:center">${statusChip}</td>
+    </tr>`;
+  }).join('');
+}
+
 /* ══ ACTIVITY LOG ══ */
 async function loadActivityLog(){
   const[instrR,studR,lessonsR,msgsR]=await Promise.all([
@@ -6416,11 +6561,13 @@ async function geocodePostcode(raw){
 }
 
 let _instrAreaMap=null;
+function _darkTileLayer(){
+  return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:20});
+}
 async function openInstrAreaMap(instrId,instrName){
   openModal('instrAreaMapModal');
-  document.getElementById('instrAreaMapTitle').textContent=instrName+' — Coverage Area';
-  document.getElementById('instrAreaMapStats').textContent='Loading student locations…';
-  // Load Leaflet
+  document.getElementById('instrAreaMapTitle').textContent=instrName;
+  document.getElementById('instrAreaMapStats').innerHTML='<i class="bi bi-hourglass-split me-1"></i>Loading student locations…';
   if(!document.getElementById('leaflet-css')){
     const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
   }
@@ -6429,48 +6576,149 @@ async function openInstrAreaMap(instrId,instrName){
   }
   if(window._instrAreaMap){window._instrAreaMap.remove();window._instrAreaMap=null;}
   const el=document.getElementById('instrAreaMapEl');
-  window._instrAreaMap=L.map(el).setView([53.483,-2.244],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(window._instrAreaMap);
-  // Find instructor home postcode
+  window._instrAreaMap=L.map(el,{zoomControl:true}).setView([53.483,-2.244],12);
+  _darkTileLayer().addTo(window._instrAreaMap);
+
   const instr=(allInstrs||[]).find(i=>i.id===instrId);
+  const waNum=instr?buildWaNum(instr.phone||''):'';
+
+  // Geocode instructor home
   let instrCoords=null;
   if(instr?.area){
     try{
-      const pc=instr.area.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?.[0]||(instr.area.trim().split(/\s+/).slice(-2).join(' '));
+      const pc=extractPostcode(instr.area)||instr.area.trim().split(/\s+/).slice(-2).join(' ');
       const resp=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));
       const j=await resp.json();
       if(j.status===200)instrCoords=[j.result.latitude,j.result.longitude];
     }catch(e){}
   }
+  if(!instrCoords&&instr)instrCoords=manchesterAreaCoords(instr.area||'');
+
   if(instrCoords){
-    const instrIcon=L.divIcon({html:`<div style="width:24px;height:24px;background:#F5C518;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><i class="bi bi-person-fill" style="font-size:10px;color:#000"></i></div>`,iconSize:[24,24],iconAnchor:[12,12],className:''});
-    L.marker(instrCoords,{icon:instrIcon}).addTo(window._instrAreaMap).bindPopup(`<strong>${instrName}</strong><br>Base area: ${instr.area||'—'}`);
+    const initial=(instrName||'?')[0].toUpperCase();
+    const instrIcon=L.divIcon({
+      html:`<div style="width:38px;height:38px;background:#D10A11;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 14px rgba(0,0,0,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">
+        <span style="font-size:15px;color:#fff;line-height:1">${initial}</span>
+        <span style="font-size:8px;color:rgba(255,255,255,.8);line-height:1">HOME</span>
+      </div>`,
+      iconSize:[38,38],iconAnchor:[19,19],className:''
+    });
+    const m=instr.instructor_model||'unsure';
+    const mLabel=m.charAt(0).toUpperCase()+m.slice(1);
+    L.marker(instrCoords,{icon:instrIcon,zIndexOffset:1000})
+      .addTo(window._instrAreaMap)
+      .bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
+        <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1rem;color:#D10A11;margin-bottom:6px">${esc(instrName)}</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.73rem;margin-bottom:8px">
+          <span style="color:#888">Area</span><span>${esc(instr?.area||'—')}</span>
+          <span style="color:#888">Badge</span><span>${esc(instr?.badge_number||'—')} (${esc(instr?.badge_type||'ADI')})</span>
+          <span style="color:#888">Car</span><span>${esc(instr?.car_type||'Manual')}</span>
+          <span style="color:#888">Model</span><span>${mLabel}</span>
+          ${instr?.phone?`<span style="color:#888">Phone</span><span>${esc(instr.phone)}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i>WA</a>`:''}
+          <button onclick="closeModal('instrAreaMapModal');viewInstr('${instrId}')" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px;font-size:.75rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View Profile</button>
+        </div>
+      </div>`);
   }
+
   // Get students for this instructor
   const students=(allStudentsCache.length?allStudentsCache:((await loadAllStudents())||[])).filter(s=>s.instrId===instrId||s.instructor_id===instrId);
-  let plotted=0;
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  let plotted=0,newCount=0;
   const bounds=instrCoords?[instrCoords]:[];
-  const postcodeJobs=students.filter(s=>s.address||s.postcode).map(async s=>{
+  const stuCoords=[];
+
+  const postcodeJobs=students.map(async s=>{
     const addr=s.address||s.postcode||'';
-    const pc=addr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?.[0]||addr.trim().split(/\s+/).slice(-2).join(' ');
+    const pc=extractPostcode(addr);
     if(!pc)return;
     try{
       const resp=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));
       const j=await resp.json();
       if(j.status!==200)return;
       const lat=j.result.latitude,lng=j.result.longitude;
-      const dotIcon=L.divIcon({html:`<div style="width:14px;height:14px;background:#D10A11;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5)" title="${s.name||''}"></div>`,iconSize:[14,14],iconAnchor:[7,7],className:''});
-      L.marker([lat,lng],{icon:dotIcon}).addTo(window._instrAreaMap).bindPopup(`<strong>${esc(s.name||'Student')}</strong><br>${esc(addr)}`);
+      const isNew=s.assignedAt&&(new Date(s.assignedAt).getTime()>_sevenDaysAgo);
+      const hasLessons=(s.count||0)>0;
+      const pinCol=isNew?'#F5C518':hasLessons?'#D10A11':'#64748b';
+      const pinSize=isNew?16:14;
+      if(isNew)newCount++;
+      const daysAgo=s.assignedAt?Math.floor((Date.now()-new Date(s.assignedAt).getTime())/(86400000)):null;
+      const assignedLbl=daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo!=null?`${daysAgo}d ago`:'—';
+      const newBadge=isNew?`<span style="background:#F5C518;color:#000;font-size:.58rem;font-weight:800;padding:1px 6px;border-radius:3px;margin-left:6px">🆕 NEW</span>`:'';
+      const stuIcon=L.divIcon({
+        html:`<div style="background:${pinCol};width:${pinSize}px;height:${pinSize}px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.6)${isNew?';animation:mapPulse 1.8s ease-in-out infinite':''}"></div>`,
+        iconSize:[pinSize,pinSize],iconAnchor:[pinSize/2,pinSize/2],className:''
+      });
+      const stuWa=buildWaNum(s.phone||'');
+      L.marker([lat,lng],{icon:stuIcon,zIndexOffset:isNew?50:-100})
+        .addTo(window._instrAreaMap)
+        .bindPopup(`<div style="font-family:Inter,sans-serif;min-width:190px">
+          <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name||'Student')}${newBadge}</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:8px">
+            <span style="color:#888">Area</span><span>${esc(pc)}</span>
+            <span style="color:#888">Assigned</span><span style="color:${isNew?'#F5C518':'inherit'}">${assignedLbl}</span>
+            <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
+            ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
+          </div>
+          ${stuWa?`<a href="https://wa.me/${stuWa}" target="_blank" style="width:100%;display:flex;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:5px 8px;font-size:.74rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
+        </div>`);
       bounds.push([lat,lng]);
+      stuCoords.push([lat,lng]);
       plotted++;
     }catch(e){}
   });
   await Promise.allSettled(postcodeJobs);
-  document.getElementById('instrAreaMapStats').textContent=`${students.length} student${students.length!==1?'s':''} · ${plotted} location${plotted!==1?'s':''} mapped`;
-  if(bounds.length>1){window._instrAreaMap.fitBounds(bounds,{padding:[30,30]});}
+
+  // Draw convex-hull coverage polygon if ≥3 student coords
+  if(stuCoords.length>=3){
+    try{
+      const hull=_convexHull(stuCoords);
+      L.polygon(hull,{color:'#D10A11',fillColor:'#D10A11',fillOpacity:.08,weight:1.5,dashArray:'6 4'}).addTo(window._instrAreaMap);
+    }catch(e){}
+  }
+
+  // Fit bounds
+  if(bounds.length>1){window._instrAreaMap.fitBounds(bounds,{padding:[40,40]});}
   else if(bounds.length===1){window._instrAreaMap.setView(bounds[0],13);}
   setTimeout(()=>window._instrAreaMap&&window._instrAreaMap.invalidateSize(),200);
+
+  // Stats bar
+  const noAddr=students.length-plotted;
+  const statsEl=document.getElementById('instrAreaMapStats');
+  if(statsEl){
+    statsEl.innerHTML=`
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <span><strong style="color:var(--txt)">${students.length}</strong> <span style="color:var(--txt4)">students</span></span>
+        <span><strong style="color:var(--txt)">${plotted}</strong> <span style="color:var(--txt4)">mapped</span></span>
+        ${newCount?`<span><strong style="color:#F5C518">${newCount}</strong> <span style="color:var(--txt4)">new this week</span></span>`:''}
+        ${noAddr?`<span style="color:#f87171"><i class="bi bi-exclamation-triangle me-1"></i>${noAddr} no address</span>`:''}
+        ${stuCoords.length>=3?`<span style="color:#D10A11"><i class="bi bi-hexagon me-1"></i>Coverage hull shown</span>`:''}
+      </div>`;
+  }
+
+  // Update legend
+  const legEl=document.getElementById('instrAreaMapLegend');
+  if(legEl) legEl.innerHTML=`
+    <span><span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#D10A11;border:3px solid #fff;margin-right:5px;vertical-align:middle;font-family:Oswald,sans-serif;font-size:9px;color:#fff;line-height:22px;text-align:center">${(instrName||'?')[0].toUpperCase()}</span>Instructor home</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>New student (&lt;7d)</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>Active student</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#64748b;border:2px solid #fff;margin-right:4px;vertical-align:middle"></span>No lessons yet</span>
+    <span><span style="display:inline-block;width:22px;height:3px;background:#D10A11;border-radius:2px;margin-right:4px;vertical-align:middle;opacity:.6"></span>Coverage area</span>`;
 }
+
+// Simple gift-wrap convex hull (Graham scan)
+function _convexHull(pts){
+  const p=[...pts].sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
+  const cross=(O,A,B)=>(A[0]-O[0])*(B[1]-O[1])-(A[1]-O[1])*(B[0]-O[0]);
+  const lower=[],upper=[];
+  for(const pt of p){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],pt)<=0)lower.pop();lower.push(pt);}
+  for(let i=p.length-1;i>=0;i--){const pt=p[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],pt)<=0)upper.pop();upper.push(pt);}
+  upper.pop();lower.pop();
+  return lower.concat(upper);
+}
+
 window.addEventListener('beforeunload',()=>{if(window._instrAreaMap){window._instrAreaMap.remove();window._instrAreaMap=null;}});
 
 async function initAdminMap(){
@@ -6483,7 +6731,7 @@ async function initAdminMap(){
   const el=document.getElementById('adminMapEl');if(!el)return;
   if(!_adminMap){
     _adminMap=L.map('adminMapEl').setView([53.483,-2.244],11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(_adminMap);
+    _darkTileLayer().addTo(_adminMap);
   }
   refreshMapStats();
   await plotInstrMarkers();
@@ -6522,21 +6770,33 @@ function _placeInstrPin(i,coords){
   });
   const waNum=buildWaNum(i.phone||'');
   const area=i.area||i.postcode||'';
+  const modelLabel=i.instructor_model==='franchise'?'Franchise':i.instructor_model==='referral'?'Referral':'—';
+  const modelColour=i.instructor_model==='franchise'?'#3b82f6':i.instructor_model==='referral'?'#F5C518':'#64748b';
+  // Count new students (assigned within 7 days) for this instructor
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  const newCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&s.assignedAt&&new Date(s.assignedAt).getTime()>_sevenDaysAgo).length;
   const marker=L.marker(coords,{icon:instrIcon});
   if(_mapShowInstrs)marker.addTo(_adminMap);
-  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:220px;max-width:260px">
-    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1.05rem;color:#D10A11;margin-bottom:6px">${esc(i.full_name)}</div>
+  marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:230px;max-width:270px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="background:#D10A11;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-weight:800;font-size:1.1rem;color:#fff;flex-shrink:0">${initial}</div>
+      <div>
+        <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:1rem;color:#D10A11;line-height:1.2">${esc(i.full_name)}</div>
+        <span style="display:inline-block;background:${modelColour};color:${i.instructor_model==='referral'?'#000':'#fff'};font-size:.58rem;font-weight:800;font-family:'Oswald',sans-serif;padding:1px 6px;border-radius:3px;letter-spacing:.05em">${modelLabel}</span>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.75rem;margin-bottom:8px">
-      <span style="color:#888">Area/Postcode</span><span>${esc(area||'—')}</span>
-      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} (${esc(i.badge_type||'ADI')})</span>
+      <span style="color:#888">Area</span><span>${esc(area||'—')}</span>
+      <span style="color:#888">Badge</span><span>${esc(i.badge_number||'—')} · ${esc(i.badge_type||'ADI')}</span>
       <span style="color:#888">Car</span><span>${esc(i.car_type||'Manual')}</span>
-      <span style="color:#888">Students</span><span><strong>${studCount}</strong></span>
+      <span style="color:#888">Students</span><span><strong>${studCount}</strong>${newCount?` <span style="color:#F5C518;font-weight:700">(${newCount} 🆕 new)</span>`:''}</span>
       ${i.phone?`<span style="color:#888">Phone</span><span>${esc(i.phone)}</span>`:''}
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
-      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
-      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:7px;padding:6px 8px;font-size:.76rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+i.full_name+'! This is the DriveSQ admin team.')}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px"><i class="bi bi-whatsapp"></i> WA</a>`:''}
+      <button onclick="viewInstr('${i.id}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#D10A11;color:#fff;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
+      <button onclick="openInstrAreaMap('${i.id}','${jsEsc(i.full_name)}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Area Map</button>
+      <button onclick="openAssignModal('${i.id}','${jsEsc(i.full_name)}','${jsEsc(i.phone||'')}');_adminMap&&_adminMap.closePopup()" style="flex:1;background:#F5C518;color:#000;border:none;border-radius:6px;padding:5px 6px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">Assign</button>
     </div>
   </div>`);
   _instrMarkers.push(marker);
@@ -6567,21 +6827,30 @@ function _placeStuPin(s,coords){
   if(!_adminMap||!window.L)return;
   const jitterSeed=(s.name||'').charCodeAt(0)||0;
   const jitter=[(((jitterSeed*13)%20)-10)*.0008,(((jitterSeed*7)%20)-10)*.0008];
-  const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  // New student = assigned within last 7 days
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  const isNew=s.assignedAt&&(new Date(s.assignedAt).getTime()>_sevenDaysAgo);
+  // Colour priority: new (gold) > online (green) > app (blue) > roster (grey)
+  const pin=isNew?'#F5C518':s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  const pinSize=isNew?16:14;
+  const pinBorder=isNew?'3px solid #fff':'2px solid #fff';
   const sIcon=L.divIcon({
-    html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
-    iconSize:[14,14],iconAnchor:[7,7],className:''
+    html:`<div style="background:${pin};width:${pinSize}px;height:${pinSize}px;border-radius:50%;border:${pinBorder};box-shadow:0 2px 8px rgba(0,0,0,.5)${isNew?';animation:mapPulse 1.8s ease-in-out infinite':''}" title="${esc(s.name)}${isNew?' — New Student':''}"></div>`,
+    iconSize:[pinSize,pinSize],iconAnchor:[pinSize/2,pinSize/2],className:''
   });
-  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
+  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:isNew?50:-100});
   if(_mapShowStudents)marker.addTo(_adminMap);
   const waNum=buildWaNum(s.phone||'');
-  // Store student in a lookup so the popup button can open their full detail
   const _stuKey='_mapStu_'+(s.acctId||s.name||'').replace(/[^a-z0-9]/gi,'_');
   window[_stuKey]=s;
+  const newBadge=isNew?`<span style="display:inline-block;background:#F5C518;color:#000;font-size:.6rem;font-weight:800;font-family:'Oswald',sans-serif;padding:1px 7px;border-radius:4px;margin-left:6px;vertical-align:middle;letter-spacing:.04em">🆕 NEW</span>`:'';
+  const assignedDaysAgo=s.assignedAt?Math.floor((Date.now()-new Date(s.assignedAt).getTime())/(24*60*60*1000)):null;
+  const assignedLabel=assignedDaysAgo===0?'Today':assignedDaysAgo===1?'Yesterday':assignedDaysAgo!=null?`${assignedDaysAgo}d ago`:'—';
   marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
-    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}${newBadge}</div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:8px">
       <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
+      <span style="color:#888">Assigned</span><span style="color:${isNew?'#F5C518':'inherit'}">${assignedLabel}</span>
       <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
       ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
       <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
@@ -7298,46 +7567,94 @@ async function openRefDetail(instrId){
   const _unpaidRows=activeRows.filter(r=>!r.is_paid);
   const _paidRows=activeRows.filter(r=>r.is_paid);
   const _divider='━━━━━━━━━━━━━━━━━━━━━━━';
-  const _fmtStudentBlock=(r,n)=>{
+  const _thin='─────────────────────────';
+  const _thick='═════════════════════════';
+  const _fmtStudentBlock=(r,n,showPaid)=>{
     const pc=_studentAddr(r);
-    const lines=[`${n}. ${r.student_name}`];
-    if(r.student_phone)lines.push(`   📞 ${r.student_phone}`);
-    if(pc)lines.push(`   📍 ${pc}`);
-    lines.push(`   💷 £${(parseFloat(r.amount)||0).toFixed(2)}`);
+    const amt=`£${(parseFloat(r.amount)||0).toFixed(2)}`;
+    const statusTag=showPaid?' ✅':'';
+    const lines=[`  ${n}. ${r.student_name}${statusTag}`];
+    if(r.student_phone) lines.push(`      📞 ${r.student_phone}`);
+    if(pc)             lines.push(`      📍 ${pc}`);
+    lines.push(`      💷 Referral Fee: ${amt}`);
     return lines.join('\n');
   };
+  const _nowStr=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
   const _periodLabel=_refPeriod==='week'?'This Week':_refPeriod==='month'?'This Month':'All Time';
+  const _disclaimer=`⚠️ Please note: If any student listed above has not yet confirmed or booked their first lesson, kindly let us know as soon as possible. The total amount due may be adjusted accordingly.`;
+
+  // ── FULL STATEMENT ──────────────────────────────
   const _waLines=[];
-  _waLines.push(_divider);
-  _waLines.push(`🚗 DriveSQ — Referral Statement`);
-  _waLines.push(`👤 ${instr.full_name}`);
-  _waLines.push(`📅 Period: ${_periodLabel}`);
-  _waLines.push(_divider);
+  _waLines.push(_thick);
+  _waLines.push(`  🚗 DriveSQ — Referral Statement`);
+  _waLines.push(_thick);
+  _waLines.push(`  Instructor:  ${instr.full_name}`);
+  _waLines.push(`  Period:      ${_periodLabel}`);
+  _waLines.push(`  Issued:      ${_nowStr}`);
+  _waLines.push(_thick);
   if(_unpaidRows.length){
     _waLines.push('');
-    _waLines.push(`📋 OUTSTANDING — £${due.toFixed(2)} due`);
+    _waLines.push(`📋 OUTSTANDING  (${_unpaidRows.length} student${_unpaidRows.length!==1?'s':''})`);
+    _waLines.push(_thin);
+    _unpaidRows.forEach((r,i)=>{_waLines.push(_fmtStudentBlock(r,i+1,false));if(i<_unpaidRows.length-1)_waLines.push('');});
     _waLines.push('');
-    _unpaidRows.forEach((r,i)=>{_waLines.push(_fmtStudentBlock(r,i+1));_waLines.push('');});
   }
   if(_paidRows.length){
-    _waLines.push(_divider);
+    _waLines.push(_thin);
     _waLines.push('');
-    _waLines.push(`✅ PAID — £${paid.toFixed(2)}`);
+    _waLines.push(`✅ PAID  (${_paidRows.length} student${_paidRows.length!==1?'s':''})`);
+    _waLines.push(_thin);
+    _paidRows.forEach((r,i)=>{_waLines.push(_fmtStudentBlock(r,i+1,true));if(i<_paidRows.length-1)_waLines.push('');});
     _waLines.push('');
-    _paidRows.forEach((r,i)=>{_waLines.push(_fmtStudentBlock(r,(_unpaidRows.length||0)+i+1));_waLines.push('');});
   }
-  _waLines.push(_divider);
-  _waLines.push('📊 SUMMARY');
-  if(_unpaidRows.length)_waLines.push(`   Outstanding: £${due.toFixed(2)}`);
-  if(_paidRows.length)_waLines.push(`   Paid:        £${paid.toFixed(2)}`);
-  _waLines.push(`   Total:       £${(due+paid).toFixed(2)}`);
-  _waLines.push(_divider);
-  _waLines.push('Generated by DriveSQ Admin');
+  _waLines.push(_thick);
+  _waLines.push(`  📊 SUMMARY`);
+  _waLines.push(_thin);
+  if(_unpaidRows.length) _waLines.push(`  Outstanding:  £${due.toFixed(2)}`);
+  if(_paidRows.length)   _waLines.push(`  Paid to date: £${paid.toFixed(2)}`);
+  _waLines.push(`  Total:        £${(due+paid).toFixed(2)}`);
+  _waLines.push(_thick);
+  _waLines.push('');
+  _waLines.push(_disclaimer);
+  _waLines.push('');
+  _waLines.push(`Thank you — DriveSQ Admin`);
   const _waText=encodeURIComponent(_waLines.join('\n'));
   const _instrPhone2=instr.phone?instr.phone.replace(/\D/g,''):'';
-  const _waHref2=_instrPhone2?`https://wa.me/${_instrPhone2.startsWith('44')?'':'44'}${_instrPhone2.replace(/^0/,'')}?text=${_waText}`:`https://wa.me/?text=${_waText}`;
-  const _waBtn=document.getElementById('refDetailWaBtn');
+  const _waBase=_instrPhone2?`https://wa.me/${_instrPhone2.startsWith('44')?'':'44'}${_instrPhone2.replace(/^0/,'')}?text=`:`https://wa.me/?text=`;
+  const _waHref2=_waBase+_waText;
+
+  // ── OUTSTANDING ONLY STATEMENT ──────────────────
+  const _halfLines=[];
+  _halfLines.push(_thick);
+  _halfLines.push(`  🚗 DriveSQ — Outstanding Balance`);
+  _halfLines.push(_thick);
+  _halfLines.push(`  Instructor:  ${instr.full_name}`);
+  _halfLines.push(`  Period:      ${_periodLabel}`);
+  _halfLines.push(`  Issued:      ${_nowStr}`);
+  _halfLines.push(_thick);
+  if(_unpaidRows.length){
+    _halfLines.push('');
+    _halfLines.push(`📋 OUTSTANDING  (${_unpaidRows.length} student${_unpaidRows.length!==1?'s':''})`);
+    _halfLines.push(_thin);
+    _unpaidRows.forEach((r,i)=>{_halfLines.push(_fmtStudentBlock(r,i+1,false));if(i<_unpaidRows.length-1)_halfLines.push('');});
+    _halfLines.push('');
+  }else{
+    _halfLines.push('');
+    _halfLines.push(`  ✅ No outstanding balance at this time.`);
+    _halfLines.push('');
+  }
+  _halfLines.push(_thick);
+  _halfLines.push(`  💷 Total Due:  £${due.toFixed(2)}`);
+  _halfLines.push(_thick);
+  _halfLines.push('');
+  _halfLines.push(_disclaimer);
+  _halfLines.push('');
+  _halfLines.push(`Thank you — DriveSQ Admin`);
+  const _waHalfHref=_waBase+encodeURIComponent(_halfLines.join('\n'));
+  const _waBtn=document.getElementById('refDetailWaFullBtn');
   if(_waBtn){_waBtn.href=_waHref2;_waBtn.style.display=activeRows.length?'inline-flex':'none';}
+  const _waHalfBtn=document.getElementById('refDetailWaHalfBtn');
+  if(_waHalfBtn){_waHalfBtn.href=_waHalfHref;_waHalfBtn.style.display=_unpaidRows.length?'inline-flex':'none';}
   const _hiddenId=document.getElementById('refDetailInstrId');
   if(_hiddenId)_hiddenId.value=instrId;
   const _mapBtn=document.getElementById('refDetailMarkAllPaidBtn');
@@ -7441,7 +7758,7 @@ async function markRefPaid(refId){
 }
 
 async function cancelRef(refId, studentName){
-  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee — it will no longer count toward the due or paid total. This cannot be undone.`))return;
+  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee and removes the student from the instructor dashboard and admin view. This cannot be undone.`))return;
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true}).eq('id',refId);
@@ -7452,7 +7769,22 @@ async function cancelRef(refId, studentName){
     return;
   }
   if(r)r.is_cancelled=true;
-  showToast(`${studentName} — referral voided (student left) ✓`,'warn');
+  // Mark student as inactive in student_profiles so they disappear from instructor dashboard and admin views
+  try{
+    let spQuery=sb.from('student_profiles').update({status:'inactive'}).ilike('name',studentName);
+    if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
+    const{error:spErr}=await spQuery;
+    if(spErr) console.warn('cancelRef: could not set student inactive:',spErr.message);
+    else{
+      // Update local cache too
+      if(allStudentsCache){
+        allStudentsCache.forEach(s=>{
+          if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
+        });
+      }
+    }
+  }catch(e){console.warn('cancelRef student_profiles update:',e.message);}
+  showToast(`${studentName} — student left, removed from dashboard ✓`,'warn');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
@@ -7466,7 +7798,19 @@ async function uncancelRef(refId, studentName){
   const{error}=await sb.from('referrals').update({is_cancelled:false}).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
   if(r)r.is_cancelled=false;
-  showToast(`${studentName} — referral restored ✓`,'success');
+  // Re-activate student in student_profiles
+  try{
+    let spQuery=sb.from('student_profiles').update({status:'active'}).ilike('name',studentName).eq('status','inactive');
+    if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
+    const{error:spErr}=await spQuery;
+    if(spErr) console.warn('uncancelRef: could not re-activate student:',spErr.message);
+    else if(allStudentsCache){
+      allStudentsCache.forEach(s=>{
+        if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId)&&s.status==='inactive')s.status='active';
+      });
+    }
+  }catch(e){console.warn('uncancelRef student_profiles update:',e.message);}
+  showToast(`${studentName} — referral restored, student re-activated ✓`,'success');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
