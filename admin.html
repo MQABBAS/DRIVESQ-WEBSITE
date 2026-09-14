@@ -457,6 +457,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 @media(max-width:575px){.search-trigger-btn span,.search-trigger-btn kbd{display:none}}
 .qa-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:7px;padding:4px 10px;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
 .qa-btn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+@keyframes mapPulse{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 0 rgba(245,197,24,.6)}60%{box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 6px rgba(245,197,24,0)}}
 .map-filter-btn{background:var(--dk2);border:1px solid var(--bdr);color:var(--txt2);border-radius:20px;padding:5px 13px;font-family:'Oswald',sans-serif;font-size:.74rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;}
 .map-filter-btn.active{background:var(--dk3);border-color:var(--red);color:var(--txt);}
 .map-filter-btn:hover{border-color:var(--red);}
@@ -1096,6 +1097,12 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <button id="mapFilterInstrs" class="map-filter-btn active" onclick="toggleMapFilter('instructors')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D10A11;margin-right:5px"></span>Instructors</button>
       <button id="mapFilterStudents" class="map-filter-btn active" onclick="toggleMapFilter('students')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Students</button>
+      <span style="font-size:.7rem;color:var(--txt4);display:flex;align-items:center;gap:6px;padding:0 4px">
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F5C518;border:1px solid rgba(0,0,0,.2)"></span>New (&lt;7d)</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;border:1px solid rgba(0,0,0,.2)"></span>Online</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;border:1px solid rgba(0,0,0,.2)"></span>App</span>
+        <span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#64748b;border:1px solid rgba(0,0,0,.2)"></span>Roster</span>
+      </span>
       <button class="btn-s" onclick="mapReset()" style="font-size:.72rem;padding:5px 10px"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
       <button class="btn-s" id="mapFullscreenBtn" onclick="toggleMapFullscreen()" style="font-size:.72rem;padding:5px 10px" title="Fullscreen map"><i class="bi bi-fullscreen" id="mapFullscreenIcon"></i></button>
     </div>
@@ -2765,9 +2772,14 @@ function renderBadgeExpiryAlerts(allList){
   }).filter(Boolean).sort((a,b)=>a.diff-b.diff);
   if(!alerts.length){el.style.display='none';el.innerHTML='';return;}
   el.style.display='block';
+  const _beCollapsed=el.dataset.collapsed==='1';
   el.innerHTML=`<div style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 14px">
-    <div style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;color:var(--gold);letter-spacing:.5px;margin-bottom:8px"><i class="bi bi-exclamation-triangle-fill me-2"></i>BADGE EXPIRY ALERTS (${alerts.length})</div>
-    <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${_beCollapsed?'0':'8px'}">
+      <span style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;color:var(--gold);letter-spacing:.5px"><i class="bi bi-exclamation-triangle-fill me-2"></i>BADGE EXPIRY ALERTS (${alerts.length})</span>
+      <button onclick="(function(b){const el=document.getElementById('badgeExpiryAlerts');el.dataset.collapsed=el.dataset.collapsed==='1'?'0':'1';renderBadgeExpiryAlerts(window._allInstrsCache||allInstrs);})(this)" style="background:none;border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:6px;padding:2px 10px;font-size:.7rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600">${_beCollapsed?'<i class="bi bi-chevron-down me-1"></i>Show':'<i class="bi bi-chevron-up me-1"></i>Hide'}</button>
+    </div>
+    ${_beCollapsed?'':
+    `<div style="display:flex;flex-direction:column;gap:6px">
       ${alerts.map(({i,diff})=>{
         const fmt=new Date(i.badge_expiry).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
         const isExp=diff<0;const isUrgent=diff<=30;
@@ -2780,10 +2792,11 @@ function renderBadgeExpiryAlerts(allList){
           <button class="abtn" onclick="openEditForId('${i.id}')" style="font-size:.68rem;padding:3px 8px;color:var(--gold);border-color:rgba(245,197,24,.3)"><i class="bi bi-pencil me-1"></i>Edit</button>
         </div>`;
       }).join('')}
-    </div>
+    </div>`}
   </div>`;
 }
 function renderInstrsTable(list){
+  window._allInstrsCache=allInstrs;
   renderBadgeExpiryAlerts(allInstrs);
   const tb=document.getElementById('instrTbody');
   if(!list.length){tb.innerHTML='<tr>'+emptyState('No instructors found','Try adjusting your search or status filter')+'</tr>';return;}
@@ -6644,21 +6657,30 @@ function _placeStuPin(s,coords){
   if(!_adminMap||!window.L)return;
   const jitterSeed=(s.name||'').charCodeAt(0)||0;
   const jitter=[(((jitterSeed*13)%20)-10)*.0008,(((jitterSeed*7)%20)-10)*.0008];
-  const pin=s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  // New student = assigned within last 7 days
+  const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
+  const isNew=s.assignedAt&&(new Date(s.assignedAt).getTime()>_sevenDaysAgo);
+  // Colour priority: new (gold) > online (green) > app (blue) > roster (grey)
+  const pin=isNew?'#F5C518':s.isOnline?'#22c55e':s.onApp?'#3b82f6':'#64748b';
+  const pinSize=isNew?16:14;
+  const pinBorder=isNew?'3px solid #fff':'2px solid #fff';
   const sIcon=L.divIcon({
-    html:`<div style="background:${pin};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
-    iconSize:[14,14],iconAnchor:[7,7],className:''
+    html:`<div style="background:${pin};width:${pinSize}px;height:${pinSize}px;border-radius:50%;border:${pinBorder};box-shadow:0 2px 8px rgba(0,0,0,.5)${isNew?';animation:mapPulse 1.8s ease-in-out infinite':''}" title="${esc(s.name)}${isNew?' — New Student':''}"></div>`,
+    iconSize:[pinSize,pinSize],iconAnchor:[pinSize/2,pinSize/2],className:''
   });
-  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:-100});
+  const marker=L.marker([coords[0]+jitter[0],coords[1]+jitter[1]],{icon:sIcon,zIndexOffset:isNew?50:-100});
   if(_mapShowStudents)marker.addTo(_adminMap);
   const waNum=buildWaNum(s.phone||'');
-  // Store student in a lookup so the popup button can open their full detail
   const _stuKey='_mapStu_'+(s.acctId||s.name||'').replace(/[^a-z0-9]/gi,'_');
   window[_stuKey]=s;
+  const newBadge=isNew?`<span style="display:inline-block;background:#F5C518;color:#000;font-size:.6rem;font-weight:800;font-family:'Oswald',sans-serif;padding:1px 7px;border-radius:4px;margin-left:6px;vertical-align:middle;letter-spacing:.04em">🆕 NEW</span>`:'';
+  const assignedDaysAgo=s.assignedAt?Math.floor((Date.now()-new Date(s.assignedAt).getTime())/(24*60*60*1000)):null;
+  const assignedLabel=assignedDaysAgo===0?'Today':assignedDaysAgo===1?'Yesterday':assignedDaysAgo!=null?`${assignedDaysAgo}d ago`:'—';
   marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:200px">
-    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}</div>
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:.95rem;margin-bottom:4px">${esc(s.name)}${newBadge}</div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.73rem;margin-bottom:8px">
       <span style="color:#888">Instructor</span><span>${esc(s.instrName||'—')}</span>
+      <span style="color:#888">Assigned</span><span style="color:${isNew?'#F5C518':'inherit'}">${assignedLabel}</span>
       <span style="color:#888">Lessons</span><span>${s.count||0} (${(s.hours||0).toFixed(1)}h)</span>
       ${s.phone?`<span style="color:#888">Phone</span><span>${esc(s.phone)}</span>`:''}
       <span style="color:#888">Status</span><span>${s.isOnline?'🟢 Online':s.onApp?'📱 Has App':'📋 Roster only'}</span>
