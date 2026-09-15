@@ -734,6 +734,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         </select>
         <select class="dsq-inp" style="max-width:140px;padding:6px 10px;font-size:.8rem" onchange="filterAllStudents(document.getElementById('studentSearch').value)" id="studentOnlineFilter">
           <option value="">All students</option>
+          <option value="flagged">🚩 Flagged</option>
           <option value="online">🟢 Online now</option>
           <option value="app">📱 On App</option>
           <option value="registered">✅ Fully Registered</option>
@@ -2935,6 +2936,31 @@ function buildWaNum(phone){
   return'44'+d;
 }
 
+// ── Student flag helpers (stored in localStorage) ────────────────────────
+function _stuFlagKey(s){return'dsq_flag_'+(s.profileId||s.rosterId||s.acctId||s.name||'');}
+function _isStuFlagged(s){try{return!!localStorage.getItem(_stuFlagKey(s));}catch(e){return false;}}
+function toggleStuFlag(idx){
+  const s=_renderedStudents[idx];if(!s)return;
+  const key=_stuFlagKey(s);
+  try{
+    if(localStorage.getItem(key)){localStorage.removeItem(key);showToast('Flag removed','info',1800);}
+    else{localStorage.setItem(key,'1');showToast('Student flagged 🚩','warn',1800);}
+  }catch(e){}
+  filterAllStudents(document.getElementById('studentSearch')?.value||'');
+}
+function toggleStuFlagFromDetail(s){
+  if(!s)return;
+  const key=_stuFlagKey(s);
+  try{
+    if(localStorage.getItem(key)){localStorage.removeItem(key);showToast('Flag removed','info',1800);}
+    else{localStorage.setItem(key,'1');showToast('Student flagged 🚩','warn',1800);}
+  }catch(e){}
+  // Refresh button label
+  const btn=document.getElementById('_sdFlagBtn');
+  if(btn){const flagged=_isStuFlagged(s);btn.innerHTML=flagged?'<i class="bi bi-flag-fill me-1"></i>Unflag Student':'<i class="bi bi-flag me-1"></i>Flag Student';btn.style.background=flagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)';btn.style.borderColor=flagged?'rgba(239,68,68,.35)':'rgba(100,116,139,.25)';btn.style.color=flagged?'#f87171':'var(--txt3)';}
+  filterAllStudents(document.getElementById('studentSearch')?.value||'');
+}
+
 // ── Google Review helpers ─────────────────────────────────────────────────
 function _reviewMsg(firstName){
   const name=firstName||(firstName||'').split(' ')[0]||'there';
@@ -3504,11 +3530,12 @@ function renderStudentsTable(students){
     const onlineDot=s.isOnline?`<span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 1.5s infinite;margin-right:5px;vertical-align:middle" title="Online now"></span>`:'';
     const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
     const _isOld=_isOldStudent(s.assignedAt);
-    return`<tr style="${s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':_isOld?'background:rgba(245,158,11,.02);border-left:2px solid rgba(245,158,11,.2);opacity:.75':''}">
+    const _flagged=_isStuFlagged(s);
+    return`<tr style="${_flagged?'background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.45)':s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':_isOld?'background:rgba(245,158,11,.02);border-left:2px solid rgba(245,158,11,.2);opacity:.75':''}">
       <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}${_studentAgeBadge(s.assignedAt)}
+        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(s.name)}</button>${_flagged?'<span style="font-size:.6rem;color:#f87171;margin-left:5px;vertical-align:middle" title="Flagged">🚩</span>':''}${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}${_studentAgeBadge(s.assignedAt)}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -3524,6 +3551,7 @@ function renderStudentsTable(students){
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
         ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum,'${jsEsc(s.name)}')}" target="_blank" title="Request Google Review via WhatsApp" style="background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.35);color:var(--gold);padding:3px 7px"><i class="bi bi-star-fill"></i></a>`:''}
+        <button class="abtn" onclick="toggleStuFlag(${idx})" title="${_flagged?'Remove flag':'Flag student'}" style="background:${_flagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.08)'};border-color:${_flagged?'rgba(239,68,68,.4)':'rgba(100,116,139,.2)'};color:${_flagged?'#f87171':'var(--txt4)'};padding:3px 7px"><i class="bi bi-flag${_flagged?'-fill':''}"></i></button>
         <button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>
       </td>
     </tr>`;
@@ -3670,7 +3698,8 @@ function filterAllStudents(q){
     const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
     let list=allStudentsCache;
     if(instrId)list=list.filter(s=>s.instrId===instrId);
-    if(onlineF==='online')list=list.filter(s=>s.isOnline);
+    if(onlineF==='flagged')list=list.filter(s=>_isStuFlagged(s));
+    else if(onlineF==='online')list=list.filter(s=>s.isOnline);
     else if(onlineF==='app')list=list.filter(s=>s.onApp);
     else if(onlineF==='registered')list=list.filter(s=>s.onApp&&s.lastLogin);
     else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
@@ -4178,6 +4207,7 @@ function waInstructorNewStudent(){
 let _renderedStudents=[];
 async function openStudentDetail(idx,_directData){
   const s=_directData||_renderedStudents[idx];if(!s)return;
+  window._sdCurrentStudent=s;
   // Set delete context immediately from cached data — enables delete even before progress loads
   _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   const delBtn=document.getElementById('adminDeleteStudentBtn');
@@ -4213,6 +4243,7 @@ async function openStudentDetail(idx,_directData){
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
+    <button id="_sdFlagBtn" class="abtn" onclick="toggleStuFlagFromDetail(window._sdCurrentStudent)" style="background:${_isStuFlagged(s)?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)'};border:1px solid ${_isStuFlagged(s)?'rgba(239,68,68,.35)':'rgba(100,116,139,.25)'};color:${_isStuFlagged(s)?'#f87171':'var(--txt3)'};border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-flag${_isStuFlagged(s)?'-fill':''} me-1"></i>${_isStuFlagged(s)?'Unflag Student':'Flag Student'}</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
   const tc={'Manual':'#3b82f6','Automatic':'#22c55e','Mock Test':'#ef4444','Intensive':'#f97316','Pass Plus':'#a855f7','Refresher':'#eab308'};
   const recentLessons=s.lessons.slice(0,8);
