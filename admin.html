@@ -2992,6 +2992,17 @@ function toggleStuFlagFromDetail(s){
   filterAllStudents(document.getElementById('studentSearch')?.value||'');
 }
 
+let _openRefInstrId=null;
+function toggleRefFlag(name){
+  if(!name)return;
+  const key=_stuFlagKey({name});
+  try{
+    if(localStorage.getItem(key)){localStorage.removeItem(key);showToast('Flag removed','info',1800);}
+    else{localStorage.setItem(key,'1');showToast('Student flagged 🚩','warn',1800);}
+  }catch(e){}
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+}
+
 // ── Follow Up List ───────────────────────────────────────────────────────
 let _followUpData=[];
 let _followUpIdx=0;
@@ -7766,6 +7777,7 @@ function renderReferrals(){
 }
 
 async function openRefDetail(instrId){
+  _openRefInstrId=instrId;
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Unknown Instructor',area:''};
   document.getElementById('refDetailInstrName').textContent=instr.full_name;
   document.getElementById('refDetailSub').textContent=(instr.area||'')+(instr.phone?' · '+instr.phone:'');
@@ -7936,9 +7948,10 @@ async function openRefDetail(instrId){
         const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
-        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${rowBg}">
+        const _rFlagged=_isStuFlagged({name:r.student_name});
+        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${_rFlagged?'background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.45);':rowBg}">
           <td style="padding:8px 8px">
-            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}</div>
+            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}${_rFlagged?'<span style="font-size:.6rem;color:#f87171;margin-left:5px">🚩</span>':''}</div>
             ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
@@ -7946,6 +7959,9 @@ async function openRefDetail(instrId){
               :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
             <button onclick="toggleContacted('${r.id}')" style="margin-top:4px;background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${isContacted?'Mark as not yet contacted':'Mark as contacted'}">
               ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
+            </button>
+            <button onclick="toggleRefFlag('${jsEsc(r.student_name)}')" style="margin-top:2px;margin-left:4px;background:${_rFlagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)'};border:1px solid ${_rFlagged?'rgba(239,68,68,.4)':'rgba(100,116,139,.25)'};color:${_rFlagged?'#f87171':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${_rFlagged?'Remove flag':'Flag student'}">
+              <i class="bi bi-flag${_rFlagged?'-fill':''}"></i>
             </button>
           </td>
           <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
