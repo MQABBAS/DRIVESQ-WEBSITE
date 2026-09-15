@@ -742,6 +742,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <button class="btn-s hide-mob" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
         <button class="btn-s hide-mob" style="font-size:.78rem;background:rgba(245,197,24,.1);border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openMergeModal()"><i class="bi bi-intersect me-1"></i>Merge Duplicates</button>
         <button class="btn-purple hide-mob" style="font-size:.78rem" onclick="openBroadcastStudentsModal()"><i class="bi bi-megaphone-fill me-1"></i>Broadcast</button>
+        <button class="abtn hide-mob" style="font-size:.78rem;background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.35);color:var(--gold)" onclick="openReviewRequestModal()" title="Send Google review request to students"><i class="bi bi-star-fill me-1"></i>Request Reviews</button>
         <button class="btn-p" style="font-size:.78rem" onclick="openCreateStudentModal()"><i class="bi bi-person-plus-fill me-1"></i>Create Student</button>
       </div>
     </div>
@@ -2304,6 +2305,8 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#666">Could not load the database library. Please refresh the page.<br>If this keeps happening, check your internet connection.</p></div>';throw e;}
 const PORTAL_URL='https://www.drivesq.co.uk/portal.html';
+// ── Google Review link — update this whenever your GBP link changes ──
+const GOOGLE_REVIEW_URL='https://g.page/r/YOUR_PLACE_ID/review'; // ← paste your Google review link here
 const PUSH_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push';
 
 // Send a Web Push notification to an instructor via the Edge Function
@@ -2932,6 +2935,72 @@ function buildWaNum(phone){
   return'44'+d;
 }
 
+// ── Google Review helpers ─────────────────────────────────────────────────
+function _reviewMsg(firstName){
+  const name=firstName||(firstName||'').split(' ')[0]||'there';
+  return `Hi ${name}! 👋
+
+We hope you're enjoying your driving lessons with *DriveSQ*! 🚗
+
+If you've had a great experience, we'd really appreciate it if you could take 30 seconds to leave us a Google review — it genuinely helps us grow and helps other learners find us! ⭐
+
+👇 Tap the link below:
+${GOOGLE_REVIEW_URL}
+
+Thank you so much — it means a lot to us! 🙏
+
+— DriveSQ Team`;
+}
+function buildReviewWaLink(waNum,fullName){
+  const firstName=(fullName||'').split(' ')[0]||'there';
+  return `https://wa.me/${waNum}?text=${encodeURIComponent(_reviewMsg(firstName))}`;
+}
+function openReviewRequestModal(){
+  // Build candidate list: students with at least 1 lesson and a phone number
+  const candidates=(allStudentsCache||[])
+    .filter(s=>s.phone&&s.count>0&&s.status!=='inactive')
+    .sort((a,b)=>b.count-a.count);
+  const html=`
+    <div style="font-family:Inter,sans-serif">
+      <div style="margin-bottom:14px">
+        <div style="font-family:Oswald,sans-serif;font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:4px"><i class="bi bi-star-fill me-2"></i>Request Google Reviews</div>
+        <p style="font-size:.78rem;color:var(--txt3);margin:0">Students listed below have had at least one lesson. Click <b style="color:var(--gold)">Send</b> to open a pre-filled WhatsApp message asking them for a review.</p>
+      </div>
+      <div style="background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.76rem;color:var(--txt2)">
+        <div style="font-weight:700;margin-bottom:4px;color:var(--gold)">📋 Review Message Preview:</div>
+        <div style="white-space:pre-wrap;font-size:.72rem;color:var(--txt3);line-height:1.5">${esc(_reviewMsg('[Student Name]'))}</div>
+      </div>
+      <div style="font-size:.72rem;color:var(--txt4);margin-bottom:8px">${candidates.length} student${candidates.length!==1?'s':''} with lessons found</div>
+      <div style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+        ${candidates.map(s=>{
+          const waNum=buildWaNum(s.phone||'');
+          return`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--dk2);border-radius:8px;border:1px solid var(--bdr)">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.82rem;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div>
+              <div style="font-size:.7rem;color:var(--txt3)">${s.instrName||'—'} · ${s.count} lesson${s.count!==1?'s':''}</div>
+            </div>
+            <a href="${buildReviewWaLink(waNum,(s.name||''))}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;border-radius:7px;padding:5px 12px;font-size:.73rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0"><i class="bi bi-whatsapp"></i> Send ⭐</a>
+          </div>`;
+        }).join('')}
+        ${!candidates.length?'<div style="color:var(--txt4);text-align:center;padding:20px;font-size:.8rem">No students with lessons and a phone number found.</div>':''}
+      </div>
+    </div>`;
+  // Use a simple modal overlay
+  let overlay=document.getElementById('_reviewReqOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='_reviewReqOverlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div style="background:var(--dk1);border:1px solid var(--bdr);border-radius:14px;padding:20px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('_reviewReqOverlay').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--txt3);font-size:1.2rem;cursor:pointer;line-height:1">✕</button>
+    ${html}
+  </div>`;
+  overlay.style.display='flex';
+}
+
 async function updateStatus(id,status){
   const{error}=await sb.from('instructors').update({status}).eq('id',id);
   if(error){showToast('Failed to update status.','error');return;}
@@ -3454,6 +3523,7 @@ function renderStudentsTable(students){
       <td style="white-space:nowrap">
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
+        ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum,'${jsEsc(s.name)}')}" target="_blank" title="Request Google Review via WhatsApp" style="background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.35);color:var(--gold);padding:3px 7px"><i class="bi bi-star-fill"></i></a>`:''}
         <button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>
       </td>
     </tr>`;
@@ -4139,6 +4209,7 @@ async function openStudentDetail(idx,_directData){
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
     ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
+    ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum,s.name)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 14px;font-size:.82rem;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-star-fill"></i>Request Google Review</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
     <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
