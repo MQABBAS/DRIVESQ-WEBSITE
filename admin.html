@@ -552,6 +552,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
     <button class="dsq-tab" id="tab-infoview" onclick="switchTab('infoview')" title="Instructor Info — overview table with totals; click an instructor name to see full detail"><i class="bi bi-info-circle-fill"></i><span class="d-none d-sm-inline ms-1">Info</span></button>
+    <button class="dsq-tab" id="tab-followup" onclick="switchTab('followup')" title="Follow Up list — students added for follow-up from referrals"><i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline ms-1">Follow Up</span></button>
   </div>
 
   <!-- HIDDEN tabs not in main strip -->
@@ -1075,6 +1076,35 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         </table>
       </div>
     </div>
+  </div>
+
+  <!-- FOLLOW UP PANEL -->
+  <div id="panel-followup" class="hidden">
+    <div class="page-title mb-3"><i class="bi bi-telephone-fill me-2" style="color:#4ade80"></i>Follow Up List <span id="followupBadge" style="display:none;background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:1px 10px;font-size:.7rem;font-family:Inter,sans-serif;font-weight:700;margin-left:8px;vertical-align:middle"></span></div>
+    <div class="dsq-card p-3 mb-3" style="border:1px solid rgba(74,222,128,.15)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <select id="followupStatusFilter" class="dsq-inp" style="max-width:160px;padding:5px 10px;font-size:.78rem" onchange="renderFollowUpList()">
+          <option value="pending">📋 Pending</option>
+          <option value="done">✅ Done</option>
+          <option value="">All</option>
+        </select>
+        <button onclick="loadFollowUpList()" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:#4ade80;border-radius:7px;padding:5px 12px;font-size:.78rem;cursor:pointer"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+        <span style="font-size:.73rem;color:var(--txt4);margin-left:auto" id="followupCount"></span>
+      </div>
+      <p style="font-size:.75rem;color:var(--txt4);margin:0 0 10px">Students added for follow-up from referrals. Work down the list one by one — call or WhatsApp, then mark as done.</p>
+    </div>
+    <!-- Current card (one-by-one mode) -->
+    <div id="followupCurrentCard" class="hidden dsq-card p-4 mb-3" style="border:1px solid rgba(74,222,128,.3);max-width:520px">
+      <div style="font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">Next to follow up</div>
+      <div id="followupCardName" style="font-family:Oswald,sans-serif;font-size:1.4rem;font-weight:800;color:var(--txt);margin-bottom:2px"></div>
+      <div id="followupCardInstr" style="font-size:.78rem;color:var(--txt3);margin-bottom:12px"></div>
+      <div id="followupCardActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="followupMarkDoneBtn" onclick="markFollowUpDone()" style="flex:1;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.35);color:#4ade80;border-radius:8px;padding:8px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer"><i class="bi bi-check-circle-fill me-2"></i>Done — Next</button>
+        <button onclick="skipFollowUp()" style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.25);color:var(--txt3);border-radius:8px;padding:8px 14px;font-size:.82rem;cursor:pointer" title="Skip for now"><i class="bi bi-skip-forward-fill"></i></button>
+      </div>
+    </div>
+    <div id="followupListEl" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
 
   <div id="panel-activity" class="hidden">
@@ -2643,7 +2673,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','referrals','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','referrals','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2667,6 +2697,7 @@ function switchTab(t){
   if(t==='students')loadAllStudents();
   if(t==='activity')loadActivityLog();
   if(t==='infoview')loadInfoView();
+  if(t==='followup')loadFollowUpList();
   if(t==='notes')loadAdminNotes();
   if(t==='actions')loadActionQueue('all');
   if(t==='scorecard')loadScorecard();
@@ -2959,6 +2990,113 @@ function toggleStuFlagFromDetail(s){
   const btn=document.getElementById('_sdFlagBtn');
   if(btn){const flagged=_isStuFlagged(s);btn.innerHTML=flagged?'<i class="bi bi-flag-fill me-1"></i>Unflag Student':'<i class="bi bi-flag me-1"></i>Flag Student';btn.style.background=flagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)';btn.style.borderColor=flagged?'rgba(239,68,68,.35)':'rgba(100,116,139,.25)';btn.style.color=flagged?'#f87171':'var(--txt3)';}
   filterAllStudents(document.getElementById('studentSearch')?.value||'');
+}
+
+// ── Follow Up List ───────────────────────────────────────────────────────
+let _followUpData=[];
+let _followUpIdx=0;
+
+async function addToFollowUp(studentName,studentPhone,instrId){
+  const instr=allInstrs.find(i=>i.id===instrId)||{};
+  const row={
+    student_name:studentName,
+    student_phone:studentPhone||null,
+    instructor_id:instrId||null,
+    instructor_name:instr.full_name||null,
+    instructor_phone:instr.phone||null,
+    added_at:new Date().toISOString()
+  };
+  const{error}=await sb.from('follow_up_students').insert([row]);
+  if(error){showToast('Could not add to Follow Up: '+error.message,'error');return;}
+  showToast(`${studentName} added to Follow Up list 📋`,'success');
+}
+
+async function loadFollowUpList(){
+  const{data,error}=await sb.from('follow_up_students').select('*').order('added_at',{ascending:true});
+  if(error){showToast('Could not load Follow Up list','error');return;}
+  _followUpData=data||[];
+  _followUpIdx=0;
+  renderFollowUpList();
+}
+
+function renderFollowUpList(){
+  const filter=document.getElementById('followupStatusFilter')?.value||'pending';
+  const badge=document.getElementById('followupBadge');
+  const countEl=document.getElementById('followupCount');
+  const listEl=document.getElementById('followupListEl');
+  const cardEl=document.getElementById('followupCurrentCard');
+
+  // pending = not yet done = all rows (done rows are deleted from DB)
+  const list=_followUpData;
+
+  if(badge){if(list.length){badge.textContent=list.length+' pending';badge.style.display='inline';}else{badge.style.display='none';}}
+  if(countEl)countEl.textContent=list.length+' student'+(list.length!==1?'s':'')+' pending follow-up';
+
+  // Show current card
+  const current=list[_followUpIdx]||null;
+  if(current&&cardEl){
+    cardEl.classList.remove('hidden');
+    const instr=(allInstrs||[]).find(i=>i.id===current.instructor_id)||{};
+    document.getElementById('followupCardName').textContent=current.student_name||'—';
+    document.getElementById('followupCardInstr').textContent=`Instructor: ${current.instructor_name||instr.full_name||'—'}${current.instructor_phone?' · '+current.instructor_phone:''}`;
+    const waNum=buildWaNum(current.student_phone||'');
+    const instrWaNum=buildWaNum(current.instructor_phone||instr.phone||'');
+    document.getElementById('followupCardActions').innerHTML=`
+      ${current.student_phone?`<a href="tel:${current.student_phone}" style="display:inline-flex;align-items:center;gap:6px;background:rgba(209,10,17,.15);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-telephone-fill"></i> Call Student</a>`:''}
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(current.student_name||'').split(' ')[0]+'! 👋 This is DriveSQ admin following up regarding your driving lessons. How are things going? Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-whatsapp"></i> WA Student</a>`:''}
+      ${instrWaNum?`<a href="https://wa.me/${instrWaNum}?text=${encodeURIComponent('Hi '+(current.instructor_name||instr.full_name||'').split(' ')[0]+'! Quick follow-up — how is '+(current.student_name||'the student')+' getting on? — DriveSQ Admin 🚗')}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-whatsapp"></i> WA Instructor</a>`:''}
+    `;
+    // Store current id for markFollowUpDone
+    cardEl.dataset.followupId=current.id;
+  }else if(cardEl){
+    cardEl.classList.add('hidden');
+  }
+
+  // Full list below
+  if(!listEl)return;
+  if(!list.length){
+    listEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4);font-size:.85rem">🎉 No pending follow-ups! All done.</div>';
+    return;
+  }
+  listEl.innerHTML=list.map((fu,i)=>{
+    const waNum=buildWaNum(fu.student_phone||'');
+    const isCurrent=i===_followUpIdx;
+    return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--dk2);border-radius:10px;border:1px solid ${isCurrent?'rgba(74,222,128,.35)':'var(--bdr)'};${isCurrent?'box-shadow:0 0 0 2px rgba(74,222,128,.1)':''}">
+      <div style="font-family:Oswald,sans-serif;font-size:.7rem;color:var(--txt4);font-weight:700;min-width:22px;text-align:center">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.85rem;color:var(--txt)">${esc(fu.student_name||'—')}</div>
+        <div style="font-size:.72rem;color:var(--txt3)">${fu.student_phone||'No phone'} · Instructor: ${esc(fu.instructor_name||'—')}</div>
+        <div style="font-size:.65rem;color:var(--txt4);margin-top:2px">Added ${new Date(fu.added_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;background:#25D366;color:#fff;border-radius:7px;padding:5px 9px;font-size:.75rem;text-decoration:none"><i class="bi bi-whatsapp"></i></a>`:''}
+        <button onclick="_followUpIdx=${i};renderFollowUpList()" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:#4ade80;border-radius:7px;padding:5px 9px;font-size:.75rem;cursor:pointer" title="Set as current">${isCurrent?'▶ Current':'Select'}</button>
+        <button onclick="deleteFollowUp('${fu.id}')" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:7px;padding:5px 9px;font-size:.75rem;cursor:pointer" title="Done — remove from list"><i class="bi bi-check-lg"></i> Done</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function markFollowUpDone(){
+  const cardEl=document.getElementById('followupCurrentCard');
+  const id=cardEl?.dataset?.followupId;
+  if(!id)return;
+  await deleteFollowUp(id);
+}
+
+async function deleteFollowUp(id){
+  const{error}=await sb.from('follow_up_students').delete().eq('id',id);
+  if(error){showToast('Could not remove: '+error.message,'error');return;}
+  _followUpData=_followUpData.filter(f=>f.id!==id);
+  if(_followUpIdx>=_followUpData.length&&_followUpIdx>0)_followUpIdx=_followUpData.length-1;
+  renderFollowUpList();
+  showToast('Removed from Follow Up list ✓','success',1800);
+}
+
+function skipFollowUp(){
+  if(!_followUpData.length)return;
+  _followUpIdx=(_followUpIdx+1)%_followUpData.length;
+  renderFollowUpList();
 }
 
 // ── Google Review helpers ─────────────────────────────────────────────────
@@ -7842,12 +7980,14 @@ async function openRefDetail(instrId){
                     <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
+                    <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
                   </div>`
                 :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">Mark Unpaid</button>
                     <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Issue credit">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
+                    <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
                   </div>`
             }
           </td>
