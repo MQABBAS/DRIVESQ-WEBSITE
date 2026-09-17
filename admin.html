@@ -3010,6 +3010,66 @@ function toggleStuFlagFromDetail(s){
 }
 
 let _openRefInstrId=null;
+
+function openRefStudentDetail(name, phone){
+  const s=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim());
+  const waNum=phone?buildWaNum(phone):(s?.phone?buildWaNum(s.phone):'');
+  const followUpMsg=encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team');
+  const html=`
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt)">${esc(name)}</div>
+          <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="background:none;border:none;color:var(--txt4);font-size:1.2rem;cursor:pointer;padding:0 4px">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:.82rem">
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Phone</span>
+            <span style="color:var(--txt);font-weight:600">${esc(phone||s?.phone||'—')}</span>
+            ${waNum?`<a href="tel:${waNum}" style="color:var(--red);margin-left:auto"><i class="bi bi-telephone-fill"></i></a>`:''}
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Address</span>
+            <span style="color:var(--txt)">${esc(s?.address||'—')}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Email</span>
+            <span style="color:var(--txt)">${esc(s?.email||'—')}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Lesson type</span>
+            <span style="color:var(--txt)">${esc(s?.lessonType||s?.types?[...s.types].join(', '):'—')}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Last login</span>
+            <span style="color:var(--txt)">${s?.lastLogin?fmtDT(s.lastLogin):'—'}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Last seen</span>
+            <span style="color:${s?.isOnline?'#4ade80':'var(--txt)'}">${s?.isOnline?'Online now':s?.lastSeen?fmtDT(s.lastSeen):'—'}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Added</span>
+            <span style="color:var(--txt)">${s?.assignedAt?fmtDT(s.assignedAt):'—'}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Lessons</span>
+            <span style="color:var(--txt)">${s?.count??'—'} lessons · ${s?.hours!=null?s.hours.toFixed(1)+'h':'—'}</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--txt4);min-width:90px">Instructor</span>
+            <span style="color:var(--txt)">${esc(s?.instrName||'—')}</span>
+          </div>
+        </div>
+        ${waNum?`<div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://wa.me/${waNum}" target="_blank" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#25d366;color:#fff;padding:9px 14px;border-radius:8px;font-weight:700;font-size:.82rem;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>WhatsApp</a>
+          <a href="https://wa.me/${waNum}?text=${followUpMsg}" target="_blank" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);color:#4ade80;padding:9px 14px;border-radius:8px;font-weight:700;font-size:.82rem;text-decoration:none;white-space:nowrap"><i class="bi bi-telephone-fill"></i>Follow Up</a>
+        </div>`:''}
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
 function toggleRefFlag(name){
   if(!name)return;
   const key=_stuFlagKey({name});
@@ -3717,7 +3777,6 @@ function renderStudentsTable(students){
         <button class="abtn view" onclick="openStudentDetail(${idx})"><i class="bi bi-eye me-1"></i>View</button>
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
         ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" title="Request Google Review via WhatsApp" style="background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.35);color:var(--gold);padding:3px 7px"><i class="bi bi-star-fill"></i></a>`:''}
-        ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi! We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, feel free to message us here.\n\n— DriveSQ Team')}" target="_blank" title="Follow up — has instructor contacted?" style="background:rgba(37,211,102,.12);border-color:rgba(37,211,102,.35);color:#4ade80;padding:3px 7px"><i class="bi bi-telephone-fill"></i></a>`:''}
         <button class="abtn" onclick="toggleStuFlag(${idx})" title="${_flag?(_flag==='red'?'Switch to green flag':'Remove flag'):'Flag red'}" style="background:${_flag?_flagBg(_flag):'rgba(100,116,139,.08)'};border-color:${_flag?_flagBorder(_flag):'rgba(100,116,139,.2)'};color:${_flag?_flagColour(_flag):'var(--txt4)'};padding:3px 7px"><i class="bi bi-flag${_flag?'-fill':''}"></i></button>
         <button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>
       </td>
@@ -7971,7 +8030,7 @@ async function openRefDetail(instrId){
         const _rFlag=_getStuFlag({name:r.student_name});
         return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${_rFlag?_flagRowBg(_rFlag):rowBg}">
           <td style="padding:8px 8px">
-            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}${_rFlag?`<span style="font-size:.6rem;color:${_flagColour(_rFlag)};margin-left:5px">${_flagEmoji(_rFlag)}</span>`:''}</div>
+            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}"><button onclick="openRefStudentDetail('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}')" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(r.student_name)}</button>${_rFlag?`<span style="font-size:.6rem;color:${_flagColour(_rFlag)};margin-left:5px">${_flagEmoji(_rFlag)}</span>`:''}</div>
             ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
@@ -8015,6 +8074,7 @@ async function openRefDetail(instrId){
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
                     <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
+                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team')}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
                   </div>`
                 :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">Mark Unpaid</button>
@@ -8022,6 +8082,7 @@ async function openRefDetail(instrId){
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Issue credit">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
                     <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
+                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team')}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
                   </div>`
             }
           </td>
