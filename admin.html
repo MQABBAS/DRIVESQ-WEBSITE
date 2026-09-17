@@ -7706,25 +7706,32 @@ let _refPeriod='week';  // 'week' | 'month' | 'all'
 let _unpaidRefIndex={};  // { "instrId:nameLower": amount }
 let _creditIndex={};     // { instrId: count of unfulfilled credits }
 
-async function _buildUnpaidRefIndex(){
-  try{
-    // Fetch unpaid non-cancelled rows (for DUE badge) + all credit rows (for credit badge)
-    const[unpaidR, creditR]=await Promise.all([
-      sb.from('referrals').select('instructor_id,student_name,amount').eq('is_paid',false).eq('is_cancelled',false).eq('is_credit',false).gt('amount',0),
-      sb.from('referrals').select('instructor_id,credit_fulfilled').eq('is_credit',true).eq('credit_fulfilled',false)
-    ]);
-    const idx={};
-    const cIdx={};
-    (unpaidR.data||[]).forEach(r=>{
+function _buildUnpaidRefIndex(){
+  // Build index directly from in-memory _refData — no network call, always in sync with local mutations
+  const idx={};
+  const cIdx={};
+  (_refData||[]).forEach(r=>{
+    if(r.is_credit&&!r.credit_fulfilled){
+      cIdx[r.instructor_id]=(cIdx[r.instructor_id]||0)+1;
+    }else if(!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0){
       const k=`${r.instructor_id}:${(r.student_name||'').toLowerCase().trim()}`;
       idx[k]=(idx[k]||0)+(parseFloat(r.amount)||0);
-    });
-    (creditR.data||[]).forEach(r=>{
-      cIdx[r.instructor_id]=(cIdx[r.instructor_id]||0)+1;
-    });
-    _unpaidRefIndex=idx;
-    _creditIndex=cIdx;
-  }catch(e){console.warn('_buildUnpaidRefIndex:',e.message);}
+    }
+  });
+  _unpaidRefIndex=idx;
+  _creditIndex=cIdx;
+  // Also fire a background Supabase sync to catch any changes from other sessions
+  try{
+    Promise.all([
+      sb.from('referrals').select('instructor_id,student_name,amount').eq('is_paid',false).eq('is_cancelled',false).eq('is_credit',false).gt('amount',0),
+      sb.from('referrals').select('instructor_id,credit_fulfilled').eq('is_credit',true).eq('credit_fulfilled',false)
+    ]).then(([unpaidR,creditR])=>{
+      const idx2={};const cIdx2={};
+      (unpaidR.data||[]).forEach(r=>{const k=`${r.instructor_id}:${(r.student_name||'').toLowerCase().trim()}`;idx2[k]=(idx2[k]||0)+(parseFloat(r.amount)||0);});
+      (creditR.data||[]).forEach(r=>{cIdx2[r.instructor_id]=(cIdx2[r.instructor_id]||0)+1;});
+      _unpaidRefIndex=idx2;_creditIndex=cIdx2;
+    }).catch(()=>{});
+  }catch(e){}
 }
 
 function _refDueBadge(instrId,studentName){
@@ -7781,7 +7788,9 @@ function renderReferrals(){
     else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
   });
 
-  let totalDue=0,totalPaid=0,totalCount=rows.length,instrOwing=0;
+  // Count only active (non-cancelled, non-credit) rows for the totals display
+  const activeRows2=rows.filter(r=>!r.is_cancelled&&!r.is_credit);
+  let totalDue=0,totalPaid=0,totalCount=activeRows2.length,instrOwing=0;
   Object.values(byInstr).forEach(g=>{totalDue+=g.due;totalPaid+=g.paid;if(g.due>0)instrOwing++;});
 
   // Update summary cards
@@ -8249,7 +8258,7 @@ async function toggleContacted(refId){
 
 // Mark a referral as a credit — student left but instructor is owed a replacement student
 async function markRefCredit(refId, studentName){
-  if(!confirm(`Issue a credit for "${studentName}"?\n\nInstead of voiding the fee, the instructor will be owed a replacement student. A "CREDIT OWED" badge will appear on their profile and in the Find Instructor tab to remind you when assigning the next student.\n\nThis cannot be undone.`))return;
+  if(!confirm(`Issue a credit for "${studentName}"?\n\nInstead of voiding the fee, the instructor will be owed a replacement student. A "CREDIT OWED" badge will appear on their profile and in the Find Instructor tab to remind you when assigning the next student.`))return;
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true,is_credit:true}).eq('id',refId);
