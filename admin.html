@@ -8073,6 +8073,7 @@ async function openRefDetail(instrId){
                     <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
+                    <button onclick="reassignRefStudent('${r.id}')" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Mark as left and reassign to a new instructor"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>
                     <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
                     ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team')}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
                   </div>`
@@ -8140,6 +8141,43 @@ async function cancelRef(refId, studentName){
 }
 
 // Restore a voided referral (undo Student Left)
+async function reassignRefStudent(refId){
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  if(!confirm(`Reassign "${r.student_name}"?\n\nThis will:\n• Mark them as "Student Left" on this referral\n• Remove them from the instructor's dashboard\n• Open Find Closest Instructor with their details pre-filled\n\nContinue?`))return;
+  // 1. Cancel the referral row
+  const{error}=await sb.from('referrals').update({is_cancelled:true}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  if(r)r.is_cancelled=true;
+  // 2. Mark student inactive in student_profiles
+  try{
+    let q=sb.from('student_profiles').update({status:'inactive'}).ilike('name',r.student_name);
+    if(r.instructor_id)q=q.eq('instructor_id',r.instructor_id);
+    await q;
+    if(allStudentsCache){
+      allStudentsCache.forEach(s=>{
+        if((s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id))s.status='inactive';
+      });
+    }
+  }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
+  _buildUnpaidRefIndex();
+  renderReferrals();
+  // 3. Pre-fill Find tab and switch to it
+  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id));
+  switchTab('find');setActiveTab('find');
+  setTimeout(()=>{
+    const n=document.getElementById('fc-name');if(n)n.value=r.student_name||'';
+    const p=document.getElementById('fc-phone');if(p)p.value=r.student_phone||cached?.phone||'';
+    const a=document.getElementById('fc-addr');if(a)a.value=cached?.address||'';
+    const pc=document.getElementById('fc-postcode');
+    if(pc){
+      const addr=cached?.address||'';
+      const postcodeMatch=addr.match(/[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2}/i);
+      if(postcodeMatch)pc.value=postcodeMatch[0].toUpperCase();
+    }
+  },150);
+  showToast(`${r.student_name} — marked as left, ready to reassign ✓`,'info',3000);
+}
 async function uncancelRef(refId, studentName){
   if(!confirm(`Restore the referral for "${studentName}"?\n\nThis will re-activate it so the fee counts toward outstanding or paid totals again.`))return;
   const r=_refData.find(x=>x.id===refId);
