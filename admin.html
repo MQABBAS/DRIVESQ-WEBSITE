@@ -8170,20 +8170,25 @@ async function reassignRefStudent(refId){
   }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
   _buildUnpaidRefIndex();
   renderReferrals();
-  // 3. Pre-fill Find tab and switch to it
-  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id));
-  switchTab('find');setActiveTab('find');
+  // Refresh the open referral modal so the row immediately shows as cancelled
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+  // 3. Look up student from cache — only use cache for address/postcode, always prefer r.student_phone for phone
+  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
+  const stuPhone=r.student_phone||cached?.phone||'';
+  const stuAddr=cached?.address||'';
+  // Extract postcode from address
+  const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
+  const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
+  // 4. Switch to find tab (triggers showAllInstructors), then pre-fill fields and auto-run search
+  switchTab('find');
   setTimeout(()=>{
-    const n=document.getElementById('fc-name');if(n)n.value=r.student_name||'';
-    const p=document.getElementById('fc-phone');if(p)p.value=r.student_phone||cached?.phone||'';
-    const a=document.getElementById('fc-addr');if(a)a.value=cached?.address||'';
-    const pc=document.getElementById('fc-postcode');
-    if(pc){
-      const addr=cached?.address||'';
-      const postcodeMatch=addr.match(/[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2}/i);
-      if(postcodeMatch)pc.value=postcodeMatch[0].toUpperCase();
-    }
-  },150);
+    const nEl=document.getElementById('fc-name');if(nEl)nEl.value=r.student_name||'';
+    const pEl=document.getElementById('fc-phone');if(pEl)pEl.value=stuPhone;
+    const aEl=document.getElementById('fc-addr');if(aEl)aEl.value=stuAddr;
+    const pcEl=document.getElementById('fc-postcode');if(pcEl)pcEl.value=stuPostcode;
+    // Auto-run the search so results appear immediately
+    if(stuPostcode||stuAddr)findClosest();
+  },400);
   showToast(`${r.student_name} — marked as left, ready to reassign ✓`,'info',3000);
 }
 async function uncancelRef(refId, studentName){
