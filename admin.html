@@ -3026,7 +3026,7 @@ function openRefStudentDetail(name, phone){
           <div style="display:flex;gap:10px;align-items:center">
             <span style="color:var(--txt4);min-width:90px">Phone</span>
             <span style="color:var(--txt);font-weight:600">${esc(phone||s?.phone||'—')}</span>
-            ${waNum?`<a href="tel:${waNum}" style="color:var(--red);margin-left:auto"><i class="bi bi-telephone-fill"></i></a>`:''}
+            ${(phone||s?.phone)?`<a href="tel:+${(phone||s?.phone||'').replace(/\D/g,'').replace(/^0/,'44').replace(/^(?!44)/,'44')}" style="color:var(--red);margin-left:auto"><i class="bi bi-telephone-fill"></i></a>`:''}
           </div>
           <div style="display:flex;gap:10px;align-items:center">
             <span style="color:var(--txt4);min-width:90px">Address</span>
@@ -7891,12 +7891,12 @@ async function openRefDetail(instrId){
     const m=(addr.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i)||addr.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/i));
     return m?m[1].toUpperCase().trim():'';
   };
-  // Helper: look up student address from allStudentsCache or the referral record
+  // Helper: look up student address from allStudentsCache
   const _studentAddr=r=>{
     const cached=allStudentsCache.find(s=>
-      s.instrId===instrId&&(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim()
+      (s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim()
     );
-    return _extractPostcode(r.address||cached?.address||'');
+    return _extractPostcode(cached?.address||'');
   };
   const _unpaidRows=activeRows.filter(r=>!r.is_paid);
   const _paidRows=activeRows.filter(r=>r.is_paid);
@@ -8011,6 +8011,32 @@ async function openRefDetail(instrId){
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
 
+  // Shared action buttons for referral rows — avoids duplication between paid/unpaid paths
+  const _refRowActions=(r,isPaid,instrName)=>{
+    const waNum=buildWaNum(r.student_phone||'');
+    const waFollowUpMsg=encodeURIComponent(`Hi ${(r.student_name||'').split(' ')[0]}! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team`);
+    const firstName=(r.student_name||'').split(' ')[0];
+    const instrFirst=(instrName||'your instructor').split(' ')[0];
+    const waReviewMsg=encodeURIComponent(`Hi ${firstName}! 😊 Hope you're enjoying your driving lessons with DriveSQ.\n\nHow has your experience been with ${instrFirst}? We'd love to hear from you — it really helps other learners find a great instructor! 🌟\n\nWould you mind leaving a quick Google review? It only takes a minute:\n\n⭐ https://g.page/r/Cf5Ww977kUeEEBM/review\n\nThank you so much — DriveSQ Team 🚗`);
+    const common=`
+      <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit"><i class="bi bi-pencil me-1"></i>Edit</button>
+      <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
+      <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
+      <button onclick="reassignRefStudent('${r.id}')" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Mark as left and reassign to a new instructor"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>
+      <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${waFollowUpMsg}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
+      ${waNum?`<a href="https://wa.me/${waNum}?text=${waReviewMsg}" target="_blank" style="display:block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#F5C518;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="Request Google Review via WhatsApp"><i class="bi bi-star-fill me-1"></i>Google Review</a>`:''}`;
+    if(!isPaid&&(parseFloat(r.amount)||0)>0){
+      return`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+        <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">✓ Mark Paid</button>
+        ${common}</div>`;
+    }else{
+      return`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+        <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">↩ Mark Unpaid</button>
+        ${common}</div>`;
+    }
+  };
+
   tbody.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
     <thead>
       <tr style="border-bottom:1px solid var(--bdr)">
@@ -8033,21 +8059,25 @@ async function openRefDetail(instrId){
         const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
         const _rFlag=_getStuFlag({name:r.student_name});
+        const _rc=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
+        const telHref=r.student_phone?'tel:+'+(r.student_phone.replace(/\D/g,'').startsWith('44')?'':r.student_phone.startsWith('0')?'44':'44')+r.student_phone.replace(/\D/g,'').replace(/^0/,''):'';
         return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${_rFlag?_flagRowBg(_rFlag):rowBg}">
           <td style="padding:8px 8px">
             <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}"><button onclick="openRefStudentDetail('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}')" style="background:none;border:none;color:var(--txt);font-weight:600;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-underline-offset:2px">${esc(r.student_name)}</button>${_rFlag?`<span style="font-size:.6rem;color:${_flagColour(_rFlag)};margin-left:5px">${_flagEmoji(_rFlag)}</span>`:''}</div>
-            ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
-            ${(()=>{const _rc=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());return _rc?`<div style="font-size:.6rem;margin-top:2px;color:${_rc.onApp?'#4ade80':'#f87171'}">${_rc.onApp?'✅ Logged in':'❌ Not on portal'}</div>`:'';})()}
+            ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4);display:flex;align-items:center;gap:4px">${esc(r.student_phone)}${telHref?`<a href="${telHref}" style="color:var(--red);line-height:1"><i class="bi bi-telephone-fill" style="font-size:.7rem"></i></a>`:''}</div>`:''}
+            ${_rc?`<div style="font-size:.6rem;margin-top:2px;color:${_rc.onApp?'#4ade80':'#f87171'}">${_rc.onApp?'✅ Logged in':'❌ Not on portal'}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
             ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit notes"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
               :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
-            <button onclick="toggleContacted('${r.id}')" style="margin-top:4px;background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${isContacted?'Mark as not yet contacted':'Mark as contacted'}">
-              ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
-            </button>
-            <button onclick="toggleRefFlag('${jsEsc(r.student_name)}')" style="margin-top:2px;margin-left:4px;background:${_rFlag?_flagBg(_rFlag):'rgba(100,116,139,.1)'};border:1px solid ${_rFlag?_flagBorder(_rFlag):'rgba(100,116,139,.25)'};color:${_rFlag?_flagColour(_rFlag):'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${_rFlag?(_rFlag==='red'?'Switch to green':'Remove flag'):'Flag red'}">
-              <i class="bi bi-flag${_rFlag?'-fill':''}"></i>
-            </button>
+            <div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap">
+              <button onclick="toggleContacted('${r.id}')" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${isContacted?'Mark as not yet contacted':'Mark as contacted'}">
+                ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
+              </button>
+              <button onclick="toggleRefFlag('${jsEsc(r.student_name)}')" style="background:${_rFlag?_flagBg(_rFlag):'rgba(100,116,139,.1)'};border:1px solid ${_rFlag?_flagBorder(_rFlag):'rgba(100,116,139,.25)'};color:${_rFlag?_flagColour(_rFlag):'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${_rFlag?(_rFlag==='red'?'Switch to green':'Remove flag'):'Flag this student'}">
+                <i class="bi bi-flag${_rFlag?'-fill':''}"></i>${_rFlag?` ${_flagEmoji(_rFlag)}`:''}
+              </button>
+            </div>
           </td>
           <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
             £${(parseFloat(r.amount)||0).toFixed(2)}
@@ -8067,32 +8097,13 @@ async function openRefDetail(instrId){
           <td style="padding:8px 8px;text-align:center">
             ${isCancelled
               ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-                  <span style="color:var(--txt4);font-size:.65rem">Voided</span>
-                  <button onclick="uncancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Restore this referral — undo the Student Left action">Unvoid</button>
+                  <span style="color:var(--txt4);font-size:.65rem;font-style:italic">Voided</span>
+                  <button onclick="uncancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Restore this referral">↩ Restore</button>
                 </div>`
             :isCredit
-              ?(creditFulfilled?`<span style="color:var(--txt4);font-size:.65rem">Fulfilled</span>`
-                :`<button onclick="fulfillCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Mark this credit as fulfilled — replacement student has been assigned">Mark Fulfilled</button>`)
-              :!isPaid&&(parseFloat(r.amount)||0)>0
-                ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-                    <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>
-                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
-                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
-                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
-                    <button onclick="reassignRefStudent('${r.id}')" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Mark as left and reassign to a new instructor"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>
-                    <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
-                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team')}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
-                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! We hope you\'re enjoying your lessons with DriveSQ 😊\n\nWe\'d really appreciate if you could leave us a quick Google review — it only takes a minute and helps us so much!\n\n⭐ https://g.page/r/Cf5Ww977kUeEEBM/review\n\nThank you! — DriveSQ Team')}" target="_blank" style="display:block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#F5C518;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="Request Google Review via WhatsApp"><i class="bi bi-star-fill me-1"></i>Google Review</a>`:''}
-                  </div>`
-                :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-                    <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">Mark Unpaid</button>
-                    <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
-                    <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Issue credit">Issue Credit</button>
-                    <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
-                    <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
-                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team')}" target="_blank" style="display:block;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="WhatsApp: Has instructor contacted you?"><i class="bi bi-whatsapp me-1"></i>WA Follow Up</a>`:''}
-                    ${r.student_phone?`<a href="https://wa.me/${buildWaNum(r.student_phone)}?text=${encodeURIComponent('Hi! We hope you\'re enjoying your lessons with DriveSQ 😊\n\nWe\'d really appreciate if you could leave us a quick Google review — it only takes a minute and helps us so much!\n\n⭐ https://g.page/r/Cf5Ww977kUeEEBM/review\n\nThank you! — DriveSQ Team')}" target="_blank" style="display:block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#F5C518;border-radius:6px;padding:2px 7px;font-size:.6rem;text-decoration:none;white-space:nowrap;text-align:center" title="Request Google Review via WhatsApp"><i class="bi bi-star-fill me-1"></i>Google Review</a>`:''}
-                  </div>`
+              ?(creditFulfilled?`<span style="color:var(--txt4);font-size:.65rem;font-style:italic">Fulfilled</span>`
+                :`<button onclick="fulfillCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Mark credit as fulfilled — replacement assigned">✓ Fulfilled</button>`)
+              :_refRowActions(r,isPaid,instr.full_name)
             }
           </td>
         </tr>`;
@@ -8116,7 +8127,7 @@ async function markRefPaid(refId){
 }
 
 async function cancelRef(refId, studentName){
-  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee and removes the student from the instructor dashboard and admin view. This cannot be undone.`))return;
+  if(!confirm(`Mark "${studentName}" as no longer taking lessons?\n\nThis voids the referral fee and removes the student from the instructor dashboard and admin view. You can restore it later with the Restore button if needed.`))return;
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
   const{error}=await sb.from('referrals').update({is_cancelled:true}).eq('id',refId);
@@ -8170,20 +8181,26 @@ async function reassignRefStudent(refId){
   }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
   _buildUnpaidRefIndex();
   renderReferrals();
-  // 3. Pre-fill Find tab and switch to it
-  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id));
-  switchTab('find');setActiveTab('find');
+  // Refresh the open referral modal so the row immediately shows as cancelled
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+  // 3. Look up student from cache — only use cache for address/postcode, always prefer r.student_phone for phone
+  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
+  const stuPhone=r.student_phone||cached?.phone||'';
+  const stuAddr=cached?.address||'';
+  // Extract postcode from address
+  const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
+  const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
+  // 4. Close referral modal, switch to find tab, pre-fill and auto-search
+  closeModal('refDetailModal');
+  switchTab('find');
   setTimeout(()=>{
-    const n=document.getElementById('fc-name');if(n)n.value=r.student_name||'';
-    const p=document.getElementById('fc-phone');if(p)p.value=r.student_phone||cached?.phone||'';
-    const a=document.getElementById('fc-addr');if(a)a.value=cached?.address||'';
-    const pc=document.getElementById('fc-postcode');
-    if(pc){
-      const addr=cached?.address||'';
-      const postcodeMatch=addr.match(/[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2}/i);
-      if(postcodeMatch)pc.value=postcodeMatch[0].toUpperCase();
-    }
-  },150);
+    const nEl=document.getElementById('fc-name');if(nEl)nEl.value=r.student_name||'';
+    const pEl=document.getElementById('fc-phone');if(pEl)pEl.value=stuPhone;
+    const aEl=document.getElementById('fc-addr');if(aEl)aEl.value=stuAddr;
+    const pcEl=document.getElementById('fc-postcode');if(pcEl)pcEl.value=stuPostcode;
+    // Auto-run the search so results appear immediately
+    if(stuPostcode||stuAddr)findClosest();
+  },400);
   showToast(`${r.student_name} — marked as left, ready to reassign ✓`,'info',3000);
 }
 async function uncancelRef(refId, studentName){
@@ -8227,6 +8244,7 @@ async function toggleContacted(refId){
   r.is_contacted=newVal;
   showToast(newVal?'Marked as contacted ✓':'Marked as not contacted','success',2000);
   if(instrId)openRefDetail(instrId);
+  renderReferrals();
 }
 
 // Mark a referral as a credit — student left but instructor is owed a replacement student
@@ -8333,7 +8351,7 @@ function editRef(refId){
           <label style="font-size:.7rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Paid Date</label>
           <input id="eRef-paidDate" class="dsq-inp" type="date" value="${r.paid_at?r.paid_at.slice(0,10):new Date().toISOString().slice(0,10)}" style="width:100%;font-size:.85rem"/>
         </div>
-        <button onclick="saveRefEdit('${refId}')" style="background:var(--red);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
+        <button onclick="saveRefEdit('${refId}')" style="background:var(--purple);border:none;color:#fff;border-radius:9px;padding:10px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;margin-top:4px">Save Changes</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
