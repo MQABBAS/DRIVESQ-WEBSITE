@@ -4371,7 +4371,7 @@ async function confirmCreateStudent(){
   }
   if(allStudentsCache.length)loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
-  if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;}
+  if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;_adjustRosterCount(instrId,+1);}
   // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
   if(window._pendingWbId&&instrId){
     const wbId=window._pendingWbId;
@@ -5911,6 +5911,7 @@ async function confirmAssign(){
   // Update in-memory _weekAssigned count so the no-jobs alert and card refresh immediately
   const _assignedInstr=allInstrs.find(i=>i.id===instrId);
   if(_assignedInstr){_assignedInstr._weekAssigned=(_assignedInstr._weekAssigned||0)+1;}
+  _adjustRosterCount(instrId,+1);
   renderNoJobsAlert();
 
   // If this assignment came from a waiting list / web booking entry, mark it assigned
@@ -7734,6 +7735,18 @@ function _buildUnpaidRefIndex(){
   }catch(e){}
 }
 
+// Adjust an instructor's in-memory roster count and re-render if the instructors panel is visible
+function _adjustRosterCount(instrId, delta){
+  if(!instrId||!delta)return;
+  const instr=allInstrs.find(i=>i.id===instrId);
+  if(instr){
+    instr._rosterCount=Math.max(0,(instr._rosterCount||0)+delta);
+    if(!document.getElementById('panel-instructors')?.classList.contains('hidden')){
+      filterInstrs(document.getElementById('instrSearch')?.value||'');
+    }
+  }
+}
+
 function _refDueBadge(instrId,studentName){
   if(!instrId||!studentName)return'';
   const k=`${instrId}:${(studentName||'').toLowerCase().trim()}`;
@@ -8160,6 +8173,7 @@ async function cancelRef(refId, studentName){
           if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
         });
       }
+      _adjustRosterCount(instrId,-1);
     }
   }catch(e){console.warn('cancelRef student_profiles update:',e.message);}
   showToast(`${studentName} — student left, removed from dashboard ✓`,'warn');
@@ -8187,6 +8201,7 @@ async function reassignRefStudent(refId){
         if((s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id))s.status='inactive';
       });
     }
+    _adjustRosterCount(r.instructor_id,-1);
   }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
   _buildUnpaidRefIndex();
   renderReferrals();
@@ -8229,6 +8244,7 @@ async function uncancelRef(refId, studentName){
       allStudentsCache.forEach(s=>{
         if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId)&&s.status==='inactive')s.status='active';
       });
+      _adjustRosterCount(instrId,+1);
     }
   }catch(e){console.warn('uncancelRef student_profiles update:',e.message);}
   showToast(`${studentName} — referral restored, student re-activated ✓`,'success');
