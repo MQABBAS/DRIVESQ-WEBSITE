@@ -3015,12 +3015,13 @@ function openRefStudentDetail(name, phone){
   const s=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim());
   const waNum=phone?buildWaNum(phone):(s?.phone?buildWaNum(s.phone):'');
   const followUpMsg=encodeURIComponent('Hi! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team');
+  const _rsdId='refStuDetail_'+Date.now();
   const html=`
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.remove()">
+    <div id="${_rsdId}" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)document.getElementById('${_rsdId}')?.remove()">
       <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
           <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt)">${esc(name)}</div>
-          <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="background:none;border:none;color:var(--txt4);font-size:1.2rem;cursor:pointer;padding:0 4px">✕</button>
+          <button onclick="document.getElementById('${_rsdId}')?.remove()" style="background:none;border:none;color:var(--txt4);font-size:1.2rem;cursor:pointer;padding:0 4px">✕</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;font-size:.82rem">
           <div style="display:flex;gap:10px;align-items:center">
@@ -4371,7 +4372,7 @@ async function confirmCreateStudent(){
   }
   if(allStudentsCache.length)loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
-  if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;}
+  if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;_adjustRosterCount(instrId,+1);}
   // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
   if(window._pendingWbId&&instrId){
     const wbId=window._pendingWbId;
@@ -5911,6 +5912,7 @@ async function confirmAssign(){
   // Update in-memory _weekAssigned count so the no-jobs alert and card refresh immediately
   const _assignedInstr=allInstrs.find(i=>i.id===instrId);
   if(_assignedInstr){_assignedInstr._weekAssigned=(_assignedInstr._weekAssigned||0)+1;}
+  _adjustRosterCount(instrId,+1);
   renderNoJobsAlert();
 
   // If this assignment came from a waiting list / web booking entry, mark it assigned
@@ -7493,7 +7495,7 @@ async function loadWaitlist(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
           ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
-          ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
+          ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}','${jsEsc(r.area||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
           ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
           ${r.status==='cancelled'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','waiting')" style="color:#4ade80;border-color:rgba(74,222,128,.3)"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivate</button>`:''}
         </div>
@@ -7506,13 +7508,13 @@ function _extractEmailFromNotes(notes){
   const m=(notes||'').match(/Email:\s*([^\n,]+)/i);
   return m?m[1].trim():'';
 }
-function waitlistAssign(id,name,postcode,type,phone,notes){
+function waitlistAssign(id,name,postcode,type,phone,notes,area){
   // Pre-fill Find & Assign and switch to it
   switchTab('find');setActiveTab('find');
   setTimeout(()=>{
     const email=_extractEmailFromNotes(notes);
-    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').trim();
-    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-notes']:cleanNotes};
+    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
+    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:area||'',['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=type||'Manual';
     window._waitlistIdToAssign=id;
@@ -7732,6 +7734,18 @@ function _buildUnpaidRefIndex(){
       _unpaidRefIndex=idx2;_creditIndex=cIdx2;
     }).catch(()=>{});
   }catch(e){}
+}
+
+// Adjust an instructor's in-memory roster count and re-render if the instructors panel is visible
+function _adjustRosterCount(instrId, delta){
+  if(!instrId||!delta)return;
+  const instr=allInstrs.find(i=>i.id===instrId);
+  if(instr){
+    instr._rosterCount=Math.max(0,(instr._rosterCount||0)+delta);
+    if(!document.getElementById('panel-instructors')?.classList.contains('hidden')){
+      filterInstrs(document.getElementById('instrSearch')?.value||'');
+    }
+  }
 }
 
 function _refDueBadge(instrId,studentName){
@@ -8160,6 +8174,7 @@ async function cancelRef(refId, studentName){
           if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
         });
       }
+      _adjustRosterCount(instrId,-1);
     }
   }catch(e){console.warn('cancelRef student_profiles update:',e.message);}
   showToast(`${studentName} — student left, removed from dashboard ✓`,'warn');
@@ -8187,15 +8202,20 @@ async function reassignRefStudent(refId){
         if((s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id))s.status='inactive';
       });
     }
+    _adjustRosterCount(r.instructor_id,-1);
   }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
   _buildUnpaidRefIndex();
   renderReferrals();
   // Refresh the open referral modal so the row immediately shows as cancelled
   if(_openRefInstrId)openRefDetail(_openRefInstrId);
-  // 3. Look up student from cache — only use cache for address/postcode, always prefer r.student_phone for phone
+  // 3. Look up student from cache — pull all available details for Find & Assign prefill
   const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
   const stuPhone=r.student_phone||cached?.phone||'';
   const stuAddr=cached?.address||'';
+  const stuEmail=cached?.email||'';
+  const stuAvail=cached?.avail||'';
+  const stuNotes=r.notes||cached?.notes||'';
+  const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'Manual')||'Manual';
   // Extract postcode from address
   const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
   const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
@@ -8203,10 +8223,9 @@ async function reassignRefStudent(refId){
   closeModal('refDetailModal');
   switchTab('find');
   setTimeout(()=>{
-    const nEl=document.getElementById('fc-name');if(nEl)nEl.value=r.student_name||'';
-    const pEl=document.getElementById('fc-phone');if(pEl)pEl.value=stuPhone;
-    const aEl=document.getElementById('fc-addr');if(aEl)aEl.value=stuAddr;
-    const pcEl=document.getElementById('fc-postcode');if(pcEl)pcEl.value=stuPostcode;
+    const fields={'fc-name':r.student_name||'','fc-phone':stuPhone,'fc-email':stuEmail,'fc-addr':stuAddr,'fc-postcode':stuPostcode,'fc-avail':stuAvail,'fc-notes':stuNotes};
+    Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
+    const ltEl=document.getElementById('fc-type');if(ltEl)ltEl.value=stuType;
     // Auto-run the search so results appear immediately
     if(stuPostcode||stuAddr)findClosest();
   },400);
@@ -8229,6 +8248,7 @@ async function uncancelRef(refId, studentName){
       allStudentsCache.forEach(s=>{
         if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId)&&s.status==='inactive')s.status='active';
       });
+      _adjustRosterCount(instrId,+1);
     }
   }catch(e){console.warn('uncancelRef student_profiles update:',e.message);}
   showToast(`${studentName} — referral restored, student re-activated ✓`,'success');
