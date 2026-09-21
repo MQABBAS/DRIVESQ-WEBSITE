@@ -3629,6 +3629,18 @@ async function loadAllStudents(){
     if(p.student_account_id)progMap[p.student_account_id]=p;
   });
   const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
+  // Build roster profile lookup BEFORE Phase 1 so account/lesson entries can merge notes, avail, address
+  const rosterDateMap={};
+  const rosterProfileMap={};
+  (rosterR.data||[]).forEach(p=>{
+    if(!p.instructor_id||!p.name)return;
+    const k=p.instructor_id+'__'+(p.name||'').toLowerCase().trim();
+    rosterDateMap[k]=p.created_at||null;
+    const _availMatch=(p.notes||'').match(/Availability:\s*([^\n]+)/i);
+    const _avail=_availMatch?_availMatch[1].trim():'';
+    const _cleanNotes=(p.notes||'').replace(/Availability:\s*[^\n]*/i,'').replace(/Postcode:\s*[^\n]*/i,'').trim();
+    rosterProfileMap[k]={address:p.address||'',notes:_cleanNotes,avail:_avail,lessonType:p.lesson_type||''};
+  });
   const map={};
   // Phase 1: build map from accounts + roster only (fast — no lessons yet)
   // Also include student accounts with NO lessons (created by admin)
@@ -3641,15 +3653,17 @@ async function loadAllStudents(){
       // No lessons yet — account-only student
       const instrData=allInstrs.find(i=>i.id===a.instructor_id);
       const prog=progMap[a.id];
+      const _aProf=rosterProfileMap?.[a.instructor_id+'__'+(a.full_name||'').toLowerCase().trim()]||{};
       map['acct_'+a.id]={
-        name:a.full_name,phone:a.phone||'',address:a.address||'',
+        name:a.full_name,phone:a.phone||'',address:_aProf.address||a.address||'',
         instrId:a.instructor_id,instrName:instrData?.full_name||'—',
         count:0,hours:0,lastLesson:null,types:new Set(),lessons:[],
         lastLogin:a.last_login||null,lastSeen:a.last_seen||null,
         acctId:a.id,acctEmail:a.email||null,acctStatus:a.status||null,
         onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=fiveMinsAgo),
         targetHours:prog?.target_hours||null,testReadiness:prog?.test_readiness||null,
-        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null
+        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null,
+        notes:_aProf.notes||'',avail:_aProf.avail||''
       };
     }
   });
@@ -3707,20 +3721,18 @@ async function loadAllStudents(){
     if(calc>0)sTotalEl.textContent=calc;
   }
 
-  // Build a quick lookup: instrId+name → profile created_at (assignment date)
-  const rosterDateMap={};
-  (rosterR.data||[]).forEach(p=>{if(p.instructor_id&&p.name)rosterDateMap[p.instructor_id+'__'+(p.name||'').toLowerCase().trim()]=p.created_at||null;});
   // Phase 2: enrich with lessons data (may be slower — re-render after)
   (lessonsR.data||[]).forEach(l=>{
     const key=l.student_name+'__'+l.instructor_id;
     const assignedAt=rosterDateMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()]||null;
+    const _rProf=rosterProfileMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()]||{};
     if(!map[key])map[key]={
-      name:l.student_name,phone:l.student_phone,address:l.pickup_address,
+      name:l.student_name,phone:l.student_phone,address:_rProf.address||l.pickup_address||'',
       instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
       count:0,hours:0,lastLesson:l.lesson_date,types:new Set(),lessons:[],
       lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:null,
       onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null,
-      assignedAt
+      assignedAt,notes:_rProf.notes||'',avail:_rProf.avail||''
     };
     const s=map[key];
     s.count++;s.hours+=(parseFloat(l.duration_hours)||1);
@@ -5863,8 +5875,9 @@ async function confirmAssign(){
   // 3. Audit trail
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
-    pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
-    notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
+    pickup_address:s.addr||null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
+    notes:[s.notes,s.avail?'Availability: '+s.avail:''].filter(Boolean).join('\n')||null,
+    status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
 
   // 3b. Record referral fee
@@ -8218,10 +8231,10 @@ async function reassignRefStudent(refId){
   const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
   const stuPhone=r.student_phone||cached?.phone||'';
   const stuAddr=cached?.address||'';
-  const stuEmail=cached?.email||'';
+  const stuEmail=cached?.acctEmail||cached?.email||'';
   const stuAvail=cached?.avail||'';
   const stuNotes=r.notes||cached?.notes||'';
-  const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'Manual')||'Manual';
+  const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'')||'Manual';
   // Extract postcode from address
   const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
   const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
