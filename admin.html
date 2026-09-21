@@ -901,6 +901,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
         <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes instructor will travel to)</span></label><input class="dsq-inp" id="ai-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
         <div class="col-12"><label class="dsq-lbl">Home Address</label><input class="dsq-inp" id="ai-address" placeholder="Full address"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Car Model <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="ai-car-model" placeholder="e.g. Vauxhall Corsa"/></div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Plate Number <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="ai-car-plate" placeholder="e.g. AB12 CDE" style="text-transform:uppercase"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Password <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-password" type="text" placeholder="Set a password"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Status</label>
           <select class="dsq-inp" id="ai-status"><option value="approved">Approved</option><option value="pending">Pending</option></select>
@@ -5342,12 +5344,15 @@ async function createInstructor(){
   const password=document.getElementById('ai-password').value.trim();
   if(!name||!badge||!email||!password){showToast('Fill all required fields.','error');return;}
   const btn=document.getElementById('createBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';btn.disabled=true;
+  const _aiCarModel=(document.getElementById('ai-car-model')?.value||'').trim()||null;
+  const _aiCarPlate=(document.getElementById('ai-car-plate')?.value||'').toUpperCase().trim()||null;
   const{error}=await sb.from('instructors').insert([{
     full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
     instructor_model:document.getElementById('ai-model').value,
     phone:document.getElementById('ai-phone').value.trim(),email,
     area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
     coverage_postcodes:document.getElementById('ai-coverage').value.toUpperCase().trim(),
+    car_model:_aiCarModel,car_plate:_aiCarPlate,
     status:document.getElementById('ai-status').value,
     password,password_hash:btoa(password),
     created_at:new Date().toISOString(),show_lessons:true
@@ -5361,6 +5366,7 @@ async function createInstructor(){
       instructor_model:instrModel,
       phone:document.getElementById('ai-phone').value.trim(),email,
       area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+      car_model:_aiCarModel,car_plate:_aiCarPlate,
       status:document.getElementById('ai-status').value,
       password,password_hash:btoa(password),
       created_at:new Date().toISOString(),show_lessons:true
@@ -5371,18 +5377,19 @@ async function createInstructor(){
         full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
         phone:document.getElementById('ai-phone').value.trim(),email,
         area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
+        car_model:_aiCarModel,car_plate:_aiCarPlate,
         status:document.getElementById('ai-status').value,
         password,password_hash:btoa(password),
         created_at:new Date().toISOString(),show_lessons:true
       }]);
       if(e3){showToast('Failed. Email or badge may already exist.','error');return;}
       showToast('Account created (add instructor_model column in Supabase to save the model label)','warn',7000);
-      ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
+      ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
       await loadInstrs();populateDropdowns();return;
     }
   }
   showToast(`✅ Account created for ${name}!`,'success');
-  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
+  ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   await loadInstrs();populateDropdowns();
 }
 
