@@ -4434,6 +4434,8 @@ async function confirmCreateStudent(){
   if(allStudentsCache.length)loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
   if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;_adjustRosterCount(instrId,+1);}
+  if(instrId&&typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
+  if(instrId&&typeof plotInstrMarkers==='function'&&_adminMap)plotInstrMarkers();
   // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
   if(window._pendingWbId&&instrId){
     const wbId=window._pendingWbId;
@@ -5996,6 +5998,8 @@ async function confirmAssign(){
   const _assignedInstr=allInstrs.find(i=>i.id===instrId);
   if(_assignedInstr){_assignedInstr._weekAssigned=(_assignedInstr._weekAssigned||0)+1;}
   _adjustRosterCount(instrId,+1);
+  if(typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
+  if(typeof plotInstrMarkers==='function'&&_adminMap)plotInstrMarkers();
   renderNoJobsAlert();
 
   // If this assignment came from a waiting list / web booking entry, mark it assigned
@@ -8125,7 +8129,7 @@ async function openRefDetail(instrId){
   // Shared action buttons for referral rows — avoids duplication between paid/unpaid paths
   const _refRowActions=(r,isPaid,instrName)=>{
     const waNum=buildWaNum(r.student_phone||'');
-    const waFollowUpMsg=encodeURIComponent(`Hi ${(r.student_name||'').split(' ')[0]}! 👋 We just wanted to check in — has your DriveSQ driving instructor contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team`);
+    const waFollowUpMsg=encodeURIComponent(`Hi ${(r.student_name||'').split(' ')[0]}! 👋 We just wanted to check in — has your DriveSQ instructor${instrName?' ('+instrName+')':''} contacted you yet? 😊\n\nIf you have any questions or need anything, just reply here.\n\n— DriveSQ Team`);
     const firstName=(r.student_name||'').split(' ')[0];
     const instrFirst=(instrName||'your instructor').split(' ')[0];
     const waReviewMsg=encodeURIComponent(`Hi ${firstName}! 😊 Hope you're enjoying your driving lessons with DriveSQ.\n\nHow has your experience been with ${instrFirst}? We'd love to hear from you — it really helps other learners find a great instructor! 🌟\n\nWould you mind leaving a quick Google review? It only takes a minute:\n\n⭐ https://g.page/r/Cf5Ww977kUeEEBM/review\n\nThank you so much — DriveSQ Team 🚗`);
@@ -8255,16 +8259,17 @@ async function cancelRef(refId, studentName){
     if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
     const{error:spErr}=await spQuery;
     if(spErr) console.warn('cancelRef: could not set student inactive:',spErr.message);
-    else{
-      // Update local cache too
-      if(allStudentsCache){
-        allStudentsCache.forEach(s=>{
-          if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
-        });
-      }
-      _adjustRosterCount(instrId,-1);
+    // Update local cache regardless of DB error
+    if(allStudentsCache){
+      allStudentsCache.forEach(s=>{
+        if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId))s.status='inactive';
+      });
     }
   }catch(e){console.warn('cancelRef student_profiles update:',e.message);}
+  // Always adjust count and refresh map
+  _adjustRosterCount(instrId,-1);
+  if(typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
+  if(typeof plotInstrMarkers==='function'&&_adminMap)plotInstrMarkers();
   showToast(`${studentName} — student left, removed from dashboard ✓`,'warn');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
@@ -8292,6 +8297,8 @@ async function reassignRefStudent(refId){
     }
     _adjustRosterCount(r.instructor_id,-1);
   }catch(e){console.warn('reassignRefStudent profile update:',e.message);}
+  if(typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
+  if(typeof plotInstrMarkers==='function'&&_adminMap)plotInstrMarkers();
   _buildUnpaidRefIndex();
   renderReferrals();
   // Refresh the open referral modal so the row immediately shows as cancelled
@@ -8332,13 +8339,16 @@ async function uncancelRef(refId, studentName){
     if(instrId) spQuery=spQuery.eq('instructor_id',instrId);
     const{error:spErr}=await spQuery;
     if(spErr) console.warn('uncancelRef: could not re-activate student:',spErr.message);
-    else if(allStudentsCache){
+    if(allStudentsCache){
       allStudentsCache.forEach(s=>{
         if((s.name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&(!instrId||s.instrId===instrId)&&s.status==='inactive')s.status='active';
       });
-      _adjustRosterCount(instrId,+1);
     }
   }catch(e){console.warn('uncancelRef student_profiles update:',e.message);}
+  // Always adjust count and refresh map
+  _adjustRosterCount(instrId,+1);
+  if(typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
+  if(typeof plotInstrMarkers==='function'&&_adminMap)plotInstrMarkers();
   showToast(`${studentName} — referral restored, student re-activated ✓`,'success');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
