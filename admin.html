@@ -1905,6 +1905,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
       <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes the instructor covers)</span></label><input class="dsq-inp" id="edit-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Address</label><input class="dsq-inp" id="edit-address"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Car Model <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="edit-car-model" placeholder="e.g. Vauxhall Corsa"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Plate Number <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="edit-car-plate" placeholder="e.g. AB12 CDE" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Status</label>
         <select class="dsq-inp" id="edit-status">
           <option value="approved">Approved</option><option value="pending">Pending</option>
@@ -5003,6 +5005,8 @@ function openEditModal(){
   document.getElementById('edit-area').value=instr.area||'';
   document.getElementById('edit-coverage').value=instr.coverage_postcodes||'';
   document.getElementById('edit-address').value=instr.address||'';
+  document.getElementById('edit-car-model').value=instr.car_model||'';
+  document.getElementById('edit-car-plate').value=instr.car_plate||'';
   document.getElementById('edit-status').value=instr.status||'approved';
   document.getElementById('edit-show-lessons').checked=instr.show_lessons!==false;
   document.getElementById('edit-new-pwd').value='';
@@ -5073,6 +5077,8 @@ async function saveEdit(){
     status:document.getElementById('edit-status').value,
     coverage_postcodes:(document.getElementById('edit-coverage')?.value||'').toUpperCase().trim()||null,
     badge_expiry:(document.getElementById('edit-badge-expiry')?.value||null)||null,
+    car_model:(document.getElementById('edit-car-model')?.value||'').trim()||null,
+    car_plate:(document.getElementById('edit-car-plate')?.value||'').toUpperCase().trim()||null,
   };
   const np=document.getElementById('edit-new-pwd').value.trim();
   if(np){base.password=np;base.password_hash=btoa(np);}
@@ -5093,10 +5099,12 @@ async function saveEdit(){
 
   // If that fails, retry stripping optional columns that may not exist yet
   if(error){
-    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,...coreBase}=base;
+    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,car_model:cm,car_plate:cpl,...coreBase}=base;
     const retry={...coreBase};
     if(cp!==null)retry.coverage_postcodes=cp;
     if(be!==null)retry.badge_expiry=be;
+    if(cm!==null)retry.car_model=cm;
+    if(cpl!==null)retry.car_plate=cpl;
     // Try again with instructor_model
     retry.instructor_model=im;
     const{error:e2}=await sb.from('instructors').update(retry).eq('id',id);
