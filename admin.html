@@ -3597,7 +3597,7 @@ async function loadAllStudents(){
       sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
       sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
       sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
-      sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,created_at,instructor_id')
+      sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id')
     ]);
   }catch(e){
     console.error('loadAllStudents fetch failed:',e.message);
@@ -3661,13 +3661,17 @@ async function loadAllStudents(){
     const alreadyByName=Object.values(map).find(s=>s.name&&s.name.toLowerCase()===((p.name||'').toLowerCase())&&s.instrId===p.instructor_id);
     if(alreadyByPhone||alreadyByName)return;
     const instrData=allInstrs.find(i=>i.id===p.instructor_id);
+    const _rAvailMatch=(p.notes||'').match(/Availability:\s*([^\n]+)/i);
+    const _rAvail=_rAvailMatch?_rAvailMatch[1].trim():'';
+    const _rCleanNotes=(p.notes||'').replace(/Availability:\s*[^\n]*/i,'').replace(/Postcode:\s*[^\n]*/i,'').trim();
     map['roster_'+p.id]={
       name:p.name||'',phone:p.phone||'',address:p.address||'',
       instrId:p.instructor_id,instrName:instrData?.full_name||'—',
       count:0,hours:0,lastLesson:null,types:p.lesson_type?new Set([p.lesson_type]):new Set(),lessons:[],
       lastLogin:null,lastSeen:null,acctId:null,acctEmail:null,acctStatus:p.status||'active',
       onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null,
-      rosterOnly:true,rosterId:p.id,assignedAt:p.created_at||null
+      rosterOnly:true,rosterId:p.id,assignedAt:p.created_at||null,
+      notes:_rCleanNotes,avail:_rAvail
     };
   });
 
@@ -7513,8 +7517,10 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
   switchTab('find');setActiveTab('find');
   setTimeout(()=>{
     const email=_extractEmailFromNotes(notes);
-    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
-    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:area||'',['fc-notes']:cleanNotes};
+    const availMatch=(notes||'').match(/Availability:\s*([^\n]+)/i);
+    const avail=availMatch?availMatch[1].trim():'';
+    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/Availability:\s*[^\n]*/i,'').trim();
+    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:area||'',['fc-avail']:avail,['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=type||'Manual';
     window._waitlistIdToAssign=id;
