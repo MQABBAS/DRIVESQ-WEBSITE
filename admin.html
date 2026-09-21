@@ -3584,6 +3584,30 @@ async function loadInstrRoster(){
   window._allStudentsCacheRef=allStudentsCache;
 }
 
+// Immediately inject a newly created/assigned student into allStudentsCache so the UI
+// updates without waiting for a full loadAllStudents() round-trip.
+function _injectStudentIntoCache({name,phone,email,addr,lessonType,notes,avail,instrId,acctId}){
+  if(!name)return;
+  const instrData=allInstrs.find(i=>i.id===instrId);
+  const now=new Date().toISOString();
+  const _availMatch=(notes||'').match(/Availability:\s*([^\n]+)/i);
+  const _parsedAvail=avail||(_availMatch?_availMatch[1].trim():'');
+  const _cleanNotes=(notes||'').replace(/Availability:\s*[^\n]*/i,'').replace(/Postcode:\s*[^\n]*/i,'').trim();
+  // Remove any stale entry for same name+instructor
+  allStudentsCache=allStudentsCache.filter(s=>
+    !((s.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim()&&s.instrId===instrId)
+  );
+  allStudentsCache.unshift({
+    name,phone:phone||'',address:addr||'',
+    instrId:instrId||null,instrName:instrData?.full_name||'—',
+    count:0,hours:0,lastLesson:null,types:lessonType?new Set([lessonType]):new Set(),lessons:[],
+    lastLogin:null,lastSeen:null,acctId:acctId||null,acctEmail:email||null,acctStatus:'active',
+    onApp:false,isOnline:false,targetHours:null,testReadiness:null,mockScore:null,
+    rosterOnly:!acctId,assignedAt:now,notes:_cleanNotes,avail:_parsedAvail
+  });
+  filterAllStudents(document.getElementById('studentSearch')?.value||'');
+}
+
 /* ══ STUDENTS TAB ══ */
 async function loadAllStudents(){
   // Show skeleton immediately so the tab feels instant
@@ -4386,6 +4410,8 @@ async function confirmCreateStudent(){
     const _csMsg='Hi '+_iName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+name+'\n📞 Phone: '+(phone||'Not provided')+'\n🚗 Lesson Type: '+(lessonType||'Manual')+'\n📍 Address: '+(addr||'Not provided')+(notes?'\n📝 Notes: '+notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
+  // Inject immediately so student appears in search without waiting for DB round-trip
+  _injectStudentIntoCache({name,phone,email,addr,lessonType,notes,instrId,acctId:data?.id||null});
   if(allStudentsCache.length)loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
   if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;_adjustRosterCount(instrId,+1);}
@@ -5925,6 +5951,9 @@ async function confirmAssign(){
 
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
+
+  // Inject into cache immediately so student appears in search without a full reload
+  _injectStudentIntoCache({name:s.name,phone:s.phone,email:s.email,addr:s.addr,lessonType:s.type,notes:s.notes,avail:s.avail,instrId});
 
   // Update in-memory _weekAssigned count so the no-jobs alert and card refresh immediately
   const _assignedInstr=allInstrs.find(i=>i.id===instrId);
