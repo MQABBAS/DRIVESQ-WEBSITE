@@ -4429,7 +4429,9 @@ async function confirmCreateStudent(){
     const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
     const instrWaNum=instrObj?buildWaNum(instrObj.phone||''):'';
-    const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. They will be in touch shortly to arrange your first lesson. Welcome to DriveSQ! 🚗`;
+    const _wbTrans=instrObj?.car_type||'Manual';
+    const _wbInstrPhone=instrObj?.phone||'';
+    const stuMsg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is being set up.\n\n──────────────\n👨‍🏫 *Instructor Info*\n👤 Name: ${instrObj?.full_name||'your instructor'}\n📞 Phone: ${_wbInstrPhone||'—'}\n🚗 Transmission: ${_wbTrans}\n──────────────\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${phone||''}*\n\nWith the DriveSQ app you can:\n✅ Confirm lessons\n📖 Study theory — 700+ DVSA questions\n📍 Track your progress\n💬 Message your instructor\n🏆 Earn XP as you learn\n\nSee you on the road! 🚗\n— DriveSQ Admin`;
     const instrMsg=`Hi ${instrObj?.full_name||'there'}! 👋\n\n*A new student has been assigned to you from a website booking.*\n\n──────────────\n👤 *Name:* ${name}\n📞 *Phone:* ${phone||'N/A'}\n📍 *Postcode:* ${addr||wbEntry.postcode||'N/A'}\n🚗 *Lesson type:* ${lessonType||'Manual'}\n──────────────\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
     // Add WA buttons to the createStudentResult area
     setTimeout(()=>{
