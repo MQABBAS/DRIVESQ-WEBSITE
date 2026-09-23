@@ -3571,17 +3571,19 @@ function renderAdminCal(){
 /* ══ INSTRUCTOR ROSTER ══ */
 async function loadInstrRoster(){
   if(!viewingId)return;
-  const reqInstr=viewingId;
-  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',viewingId).order('name',{ascending:true});
-  if(reqInstr!==viewingId)return;
+  const reqInstr=viewingId; // snapshot — must stay fixed for the life of this call
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',reqInstr).order('name',{ascending:true});
+  if(reqInstr!==viewingId)return; // instructor changed while we were waiting — discard
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
+  // Snapshot cache ref once so the closures below all read from the same array
+  const _cacheSnap=allStudentsCache;
+  window._allStudentsCacheRef=_cacheSnap;
   el.innerHTML=data.map(p=>{
-    // Try to find this student in allStudentsCache for richer detail
-    const cached=allStudentsCache.find(s=>s.instrId===viewingId&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
+    const cached=_cacheSnap.find(s=>s.instrId===reqInstr&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
     const onClickFn=cached
-      ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${viewingId}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
-      :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${viewingId}')`;
+      ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${reqInstr}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
+      :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${reqInstr}')`;
     return`<div class="col-12 col-sm-6 col-md-4">
     <div class="student-card" style="cursor:pointer" onclick="${onClickFn}">
       <div class="d-flex align-items-start gap-2">
@@ -3599,8 +3601,6 @@ async function loadInstrRoster(){
     </div>
   </div>`;
   }).join('');
-  // Expose cache ref for roster click lookups
-  window._allStudentsCacheRef=allStudentsCache;
 }
 
 // Immediately inject a newly created/assigned student into allStudentsCache so the UI
