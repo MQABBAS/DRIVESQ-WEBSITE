@@ -7500,7 +7500,7 @@ async function addToWaitlist(){
   if(document.getElementById('waitlistList'))loadWaitlist();
 }
 function openAddWaitlistModal(){
-  ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['wl-name','wl-phone','wl-postcode','wl-area','wl-avail','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('wl-type').value='Manual';
   openModal('waitlistAddModal');
 }
@@ -7517,16 +7517,23 @@ async function saveWaitlistEntry(){
     postcode:postcode||null,
     area:(document.getElementById('wl-area').value||'').trim()||null,
     lesson_type:document.getElementById('wl-type').value||'Manual',
-    notes:(document.getElementById('wl-notes').value||'').trim()||null,
+    notes:[
+      (document.getElementById('wl-notes').value||'').trim(),
+      (document.getElementById('wl-avail').value||'').trim() ? 'Availability: '+(document.getElementById('wl-avail').value||'').trim() : ''
+    ].filter(Boolean).join('\n')||null,
     status:'waiting',
     created_at:new Date().toISOString()
   };
   let {error}=await sb.from('waiting_list').insert([full]);
   if(error){
-    // Retry with only the core columns that definitely exist
-    const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,status:'waiting',created_at:full.created_at};
-    const res=await sb.from('waiting_list').insert([minimal]);
-    error=res.error;
+    // Retry dropping optional columns one at a time to find the culprit
+    const withoutArea={...full};delete withoutArea.area;
+    const r2=await sb.from('waiting_list').insert([withoutArea]);
+    if(!r2.error){error=null;}else{
+      const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,notes:full.notes,status:'waiting',created_at:full.created_at};
+      const r3=await sb.from('waiting_list').insert([minimal]);
+      error=r3.error;
+    }
   }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
   if(error){showToast('Failed to save: '+error.message,'error');return;}
@@ -8306,14 +8313,18 @@ async function reassignRefStudent(refId){
   // 3. Look up student from cache — pull all available details for Find & Assign prefill
   const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
   const stuPhone=r.student_phone||cached?.phone||'';
-  const stuAddr=cached?.address||'';
+  // Extract address & postcode — try cache first, then parse from referral notes
+  const _rAddrMatch=(r.notes||'').match(/Address:\s*([^\n]+)/i);
+  const _rPostcodeMatch=(r.notes||'').match(/Postcode:\s*([^\n]+)/i);
+  const _rAvailMatch=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
+  const stuAddr=cached?.address||(_rAddrMatch?_rAddrMatch[1].trim():'')||'';
   const stuEmail=cached?.acctEmail||cached?.email||'';
-  const stuAvail=cached?.avail||'';
-  const stuNotes=r.notes||cached?.notes||'';
+  const stuAvail=cached?.avail||(_rAvailMatch?_rAvailMatch[1].trim():'')||'';
+  const stuNotes=(r.notes||'').replace(/Address:\s*[^\n]*/gi,'').replace(/Postcode:\s*[^\n]*/gi,'').replace(/Availability:\s*[^\n]*/gi,'').replace(/Email:\s*[^\n]*/gi,'').trim()||cached?.notes||'';
   const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'')||'Manual';
-  // Extract postcode from address
+  // Extract postcode from cache address, notes Postcode: field, or inline postcode in address
   const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
-  const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
+  const stuPostcode=(_rPostcodeMatch?_rPostcodeMatch[1].trim():'')||(postcodeMatch?postcodeMatch[0].toUpperCase():'')||r.postcode||'';
   // 4. Close referral modal, switch to find tab, pre-fill and auto-search
   closeModal('refDetailModal');
   switchTab('find');
@@ -10264,7 +10275,8 @@ function renderTheoryList(rows){
     <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="wl-type"><option value="Manual">Manual</option><option value="Automatic">Automatic</option><option value="Intensive">Intensive</option></select>
     </div>
-    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any notes about availability, preferences…"></textarea></div>
+    <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="wl-avail" placeholder="e.g. Weekday mornings, weekends"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any other notes or preferences…"></textarea></div>
     <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
   </div>
 </div>
