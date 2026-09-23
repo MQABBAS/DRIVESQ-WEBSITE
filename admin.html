@@ -3584,7 +3584,7 @@ function renderAdminCal(){
 async function loadInstrRoster(){
   if(!viewingId)return;
   const reqInstr=viewingId; // snapshot — must stay fixed for the life of this call
-  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',reqInstr).order('name',{ascending:true});
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',reqInstr).neq('status','inactive').order('name',{ascending:true});
   if(reqInstr!==viewingId)return; // instructor changed while we were waiting — discard
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
@@ -3652,7 +3652,7 @@ async function loadAllStudents(){
       sb.from('lessons').select('id,student_name,student_phone,pickup_address,instructor_id,lesson_date,start_time,duration_hours,lesson_type,payment_received,instructors(full_name,id)').order('lesson_date',{ascending:false}).limit(2000),
       sb.from('student_accounts').select('id,phone,full_name,email,address,last_login,last_seen,created_at,instructor_id,status'),
       sb.from('student_progress').select('student_id,student_account_id,total_hours_done,target_hours,test_readiness,mock_test_score'),
-      sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id')
+      sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id').neq('status','inactive')
     ]);
   }catch(e){
     console.error('loadAllStudents fetch failed:',e.message);
@@ -7101,7 +7101,14 @@ async function openInstrAreaMap(instrId,instrName){
   }
 
   // Get students for this instructor
-  const students=(allStudentsCache.length?allStudentsCache:((await loadAllStudents())||[])).filter(s=>s.instrId===instrId||s.instructor_id===instrId);
+  // Always fetch fresh from DB for this instructor so the map reflects current state
+  const{data:_freshProfiles}=await sb.from('student_profiles').select('id,name,phone,address,status,lesson_type,notes,created_at,instructor_id').eq('instructor_id',instrId).neq('status','inactive');
+  // Merge with in-memory lesson counts for richer popup data
+  const _cache=allStudentsCache.length?allStudentsCache:(await loadAllStudents())||[];
+  const students=(_freshProfiles||[]).map(p=>{
+    const cached=_cache.find(s=>(s.instrId===instrId||s.instructor_id===instrId)&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
+    return cached||{name:p.name,phone:p.phone,address:p.address,instrId:instrId,assignedAt:p.created_at,count:0,hours:0,status:p.status};
+  });
   const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
   let plotted=0,newCount=0;
   const bounds=instrCoords?[instrCoords]:[];
@@ -7217,7 +7224,7 @@ async function initAdminMap(){
 
 function refreshMapStats(){
   const approved=(allInstrs||[]).filter(i=>i.status==='approved');
-  const studs=allStudentsCache||[];
+  const studs=(allStudentsCache||[]).filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive');
   const areas=new Set(approved.map(i=>(i.area||'').split(/[\s,]+/)[0].toLowerCase()).filter(Boolean));
   const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
   const online=studs.filter(s=>s.isOnline).length+approved.filter(i=>i.last_seen&&i.last_seen>=fiveMinsAgo).length;
@@ -7235,7 +7242,8 @@ function refreshMapStats(){
 function _placeInstrPin(i,coords){
   if(!_adminMap||!window.L)return;
   const _pinCut=new Date(Date.now()-120*86400000);
-  const studCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&(!s.assignedAt||new Date(s.assignedAt)>=_pinCut)).length;
+  const _activeStudents=(allStudentsCache||[]).filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive');
+  const studCount=_activeStudents.filter(s=>s.instrId===i.id&&(!s.assignedAt||new Date(s.assignedAt)>=_pinCut)).length;
   const initial=(i.full_name||'?').trim()[0].toUpperCase();
   const sz=36;
   const instrIcon=L.divIcon({
@@ -7251,7 +7259,7 @@ function _placeInstrPin(i,coords){
   const modelColour=i.instructor_model==='franchise'?'#3b82f6':i.instructor_model==='referral'?'#F5C518':'#64748b';
   // Count new students (assigned within 7 days) for this instructor
   const _sevenDaysAgo=Date.now()-7*24*60*60*1000;
-  const newCount=(allStudentsCache||[]).filter(s=>s.instrId===i.id&&s.assignedAt&&new Date(s.assignedAt).getTime()>_sevenDaysAgo).length;
+  const newCount=_activeStudents.filter(s=>s.instrId===i.id&&s.assignedAt&&new Date(s.assignedAt).getTime()>_sevenDaysAgo).length;
   const marker=L.marker(coords,{icon:instrIcon});
   if(_mapShowInstrs)marker.addTo(_adminMap);
   marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:230px;max-width:270px">
@@ -7343,7 +7351,7 @@ function _placeStuPin(s,coords){
 async function plotStudentMapMarkers(){
   if(!_adminMap||!window.L)return;
   _studentMapMarkers.forEach(m=>m.remove());_studentMapMarkers=[];
-  const students=allStudentsCache||[];
+  const students=(allStudentsCache||[]).filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive');
   const noAddr=[];
   let mapped=0;
   await Promise.all(students.map(async s=>{
