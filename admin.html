@@ -7544,9 +7544,18 @@ async function addToWaitlist(){
   const avail=(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||'');
   const notes=(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'');
   if(!name){showToast('Please enter a student name first.','warn');return;}
-  const wlFull={student_name:name,student_phone:phone||null,postcode:postcode||null,area:addr||null,lesson_type:type||'Manual',notes:[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null,status:'waiting',created_at:new Date().toISOString()};
+  const _wlNotes=[notes,avail?'Availability: '+avail:'',addr?'Address: '+addr:'',postcode?'Postcode: '+postcode:''].filter(Boolean).join('\n')||null;
+  const wlFull={student_name:name,student_phone:phone||null,postcode:postcode||null,area:addr||null,lesson_type:type||'Manual',notes:_wlNotes,status:'waiting',created_at:new Date().toISOString()};
   let{error:wlErr}=await sb.from('waiting_list').insert([wlFull]);
-  if(wlErr){const r=await sb.from('waiting_list').insert([{student_name:name,student_phone:phone||null,postcode:postcode||null,status:'waiting',created_at:new Date().toISOString()}]);wlErr=r.error;}
+  if(wlErr){
+    const withoutArea={...wlFull};delete withoutArea.area;
+    const r2=await sb.from('waiting_list').insert([withoutArea]);
+    if(!r2.error){wlErr=null;}else{
+      const minimal={student_name:name,student_phone:phone||null,postcode:postcode||null,notes:_wlNotes,status:'waiting',created_at:wlFull.created_at};
+      const r3=await sb.from('waiting_list').insert([minimal]);
+      wlErr=r3.error;
+    }
+  }
   if(wlErr){showToast('Failed to add: '+wlErr.message,'error');return;}
   showToast(`✅ ${name} added to waiting list.`,'success');
   if(document.getElementById('waitlistList'))loadWaitlist();
@@ -7664,8 +7673,12 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
     const email=_extractEmailFromNotes(notes);
     const availMatch=(notes||'').match(/Availability:\s*([^\n]+)/i);
     const avail=availMatch?availMatch[1].trim():'';
-    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/Availability:\s*[^\n]*/i,'').trim();
-    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:area||'',['fc-avail']:avail,['fc-notes']:cleanNotes};
+    const addrMatch=(notes||'').match(/Address:\s*([^\n]+)/i);
+    const pcMatch=(notes||'').match(/Postcode:\s*([^\n]+)/i);
+    const resolvedAddr=area||(addrMatch?addrMatch[1].trim():'');
+    const resolvedPostcode=postcode||(pcMatch?pcMatch[1].trim():'');
+    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/gi,'').replace(/\[WEB\]/gi,'').replace(/Availability:\s*[^\n]*/gi,'').replace(/Address:\s*[^\n]*/gi,'').replace(/Postcode:\s*[^\n]*/gi,'').trim();
+    const fields={['fc-name']:name,['fc-postcode']:resolvedPostcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:resolvedAddr,['fc-avail']:avail,['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=type||'Manual';
     window._waitlistIdToAssign=id;
