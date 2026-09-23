@@ -5023,8 +5023,10 @@ function confirmDelLesson(id){
 }
 
 /* ══ EDIT INSTRUCTOR ══ */
-function openEditForId(id){
-  const instr=allInstrs.find(i=>i.id===id);if(!instr)return;
+async function openEditForId(id){
+  let instr=allInstrs.find(i=>i.id===id);if(!instr)return;
+  const{data:fresh}=await sb.from('instructors').select('*').eq('id',id).single();
+  if(fresh){Object.assign(instr,fresh);}
   editingInstr=instr;openEditModal();
 }
 function openEditModal(){
@@ -5070,21 +5072,26 @@ function updateBadgeExpiryStatus(expiry){
   else if(diffDays<=90){el.style.background='rgba(251,146,60,.12)';el.style.color='#fb923c';el.style.border='1px solid rgba(251,146,60,.25)';el.textContent='🕐 Expires in '+diffDays+' days';}
   else{el.style.background='rgba(37,211,102,.1)';el.style.color='#4ade80';el.style.border='1px solid rgba(37,211,102,.25)';el.textContent='✅ Valid for '+diffDays+' days';}
 }
+const _mimeToExt={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+function _badgeStoragePath(instrId,mimeType){
+  return`badges/${instrId}/badge.${_mimeToExt[mimeType]||'jpg'}`;
+}
 function handleAdminBadgePhoto(e){
   const f=e.target.files[0];if(!f)return;
   const allowed=['image/jpeg','image/png','image/webp'];
-  if(!allowed.includes(f.type)){showToast('Please use JPG, PNG, or WebP images.','error');return;}
-  if(f.size>5*1024*1024){showToast('File too large (max 5MB).','error');return;}
+  if(!allowed.includes(f.type)){showToast('Please use JPG, PNG, or WebP images.','error');e.target.value='';return;}
+  if(f.size>5*1024*1024){showToast('File too large (max 5MB).','error');e.target.value='';return;}
   const bp=document.getElementById('edit-badge-preview');
-  bp.src=URL.createObjectURL(f);bp.style.display='block';
+  if(bp._blobUrl)URL.revokeObjectURL(bp._blobUrl);
+  bp._blobUrl=URL.createObjectURL(f);
+  bp.src=bp._blobUrl;bp.style.display='block';
   showToast('Badge photo selected — click Save Changes to upload.','info');
 }
 async function uploadAdminBadgeFile(file,instrId){
   const bar=document.getElementById('edit-badge-upload-bar');
   const wrap=document.getElementById('edit-badge-upload-progress');
   if(wrap)wrap.style.display='block';if(bar)bar.style.width='30%';
-  const ext=file.name.split('.').pop().toLowerCase();
-  const path=`badges/${instrId}/badge.${ext}`;
+  const path=_badgeStoragePath(instrId,file.type);
   const{error}=await sb.storage.from('instructor-files').upload(path,file,{upsert:true,contentType:file.type});
   if(error)throw error;
   if(bar)bar.style.width='100%';
@@ -5222,21 +5229,22 @@ async function requestBadgePhoto(){
   if(error){showToast('Failed.','error');return;}
   showToast('🪪 Badge photo request sent!','success');
 }
+let _badgeDirectUploadInProgress=false;
 async function adminUploadBadgeDirect(e,instrId){
   const file=e.target.files[0];if(!file)return;
+  if(_badgeDirectUploadInProgress){showToast('Upload already in progress…','warn');e.target.value='';return;}
   const allowed=['image/jpeg','image/png','image/webp'];
-  if(!allowed.includes(file.type)){showToast('Use JPG, PNG or WebP.','error');return;}
-  if(file.size>5*1024*1024){showToast('File too large (max 5MB).','error');return;}
+  if(!allowed.includes(file.type)){showToast('Use JPG, PNG or WebP.','error');e.target.value='';return;}
+  if(file.size>5*1024*1024){showToast('File too large (max 5MB).','error');e.target.value='';return;}
+  _badgeDirectUploadInProgress=true;
   showToast('Uploading badge photo…','info',8000);
   try{
-    const ext=file.name.split('.').pop().toLowerCase();
-    const path=`badges/${instrId}/badge.${ext}`;
+    const path=_badgeStoragePath(instrId,file.type);
     const{error:upErr}=await sb.storage.from('instructor-files').upload(path,file,{upsert:true,contentType:file.type});
     if(upErr)throw upErr;
     const{data:{publicUrl}}=sb.storage.from('instructor-files').getPublicUrl(path);
     const{error:dbErr}=await sb.from('instructors').update({badge_photo_url:publicUrl}).eq('id',instrId);
     if(dbErr)throw dbErr;
-    // Update in-memory cache
     const cached=allInstrs.find(i=>i.id===instrId);
     if(cached)cached.badge_photo_url=publicUrl;
     if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
@@ -5244,6 +5252,9 @@ async function adminUploadBadgeDirect(e,instrId){
   }catch(err){
     showToast('Upload failed: '+err.message,'error',8000);
     console.error('adminUploadBadgeDirect:',err);
+  }finally{
+    _badgeDirectUploadInProgress=false;
+    e.target.value='';
   }
 }
 
