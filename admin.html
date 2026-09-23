@@ -896,6 +896,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Instructor Model</label>
           <select class="dsq-inp" id="ai-model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select>
         </div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Transmission</label>
+          <select class="dsq-inp" id="ai-car-type"><option value="Manual">Manual Only</option><option value="Automatic">Automatic Only</option><option value="Both">Manual &amp; Automatic</option></select>
+        </div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-email" type="email" placeholder="instructor@email.com"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
@@ -3290,6 +3293,10 @@ function deleteInstr(id,name){
   showConfirm('Permanently Remove "'+name+'"?','This will delete their instructor account, ALL lessons, admin messages, and all student requests. This CANNOT be undone.',()=>_doDeleteInstr(id,name),{icon:'🗑️',actionLabel:'Yes, Delete Permanently'});
 }
 async function _doDeleteInstr(id,name){
+  // Optimistic: remove from in-memory list and re-render immediately
+  allInstrs=allInstrs.filter(i=>i.id!==id);
+  renderInstrsTable(allInstrs);
+  if(viewingId===id){viewingId=null;switchTab('instructors');}
   showToast('Deleting instructor…','warn');
   try{
     // Step by step — order matters for foreign key constraints. Track failures instead of only
@@ -3332,7 +3339,6 @@ async function _doDeleteInstr(id,name){
       showToast('Instructor "'+name+'" deleted.','success');
     }
     await loadInstrs();
-    if(viewingId===id){viewingId=null;switchTab('instructors');}
   }catch(e){
     console.error('Delete failed:',e);
     showToast('Delete failed. See SQL helper for manual fix.','error');
@@ -3571,17 +3577,19 @@ function renderAdminCal(){
 /* ══ INSTRUCTOR ROSTER ══ */
 async function loadInstrRoster(){
   if(!viewingId)return;
-  const reqInstr=viewingId;
-  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',viewingId).order('name',{ascending:true});
-  if(reqInstr!==viewingId)return;
+  const reqInstr=viewingId; // snapshot — must stay fixed for the life of this call
+  const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',reqInstr).order('name',{ascending:true});
+  if(reqInstr!==viewingId)return; // instructor changed while we were waiting — discard
   const el=document.getElementById('instrRosterList');
   if(!data||!data.length){el.innerHTML='<div class="col-12"><div style="color:var(--txt4);font-size:.8rem;padding:8px">No saved students in roster.</div></div>';return;}
+  // Snapshot cache ref once so the closures below all read from the same array
+  const _cacheSnap=allStudentsCache;
+  window._allStudentsCacheRef=_cacheSnap;
   el.innerHTML=data.map(p=>{
-    // Try to find this student in allStudentsCache for richer detail
-    const cached=allStudentsCache.find(s=>s.instrId===viewingId&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
+    const cached=_cacheSnap.find(s=>s.instrId===reqInstr&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
     const onClickFn=cached
-      ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${viewingId}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
-      :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${viewingId}')`;
+      ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${reqInstr}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
+      :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${reqInstr}')`;
     return`<div class="col-12 col-sm-6 col-md-4">
     <div class="student-card" style="cursor:pointer" onclick="${onClickFn}">
       <div class="d-flex align-items-start gap-2">
@@ -3599,8 +3607,6 @@ async function loadInstrRoster(){
     </div>
   </div>`;
   }).join('');
-  // Expose cache ref for roster click lookups
-  window._allStudentsCacheRef=allStudentsCache;
 }
 
 // Immediately inject a newly created/assigned student into allStudentsCache so the UI
@@ -5367,13 +5373,14 @@ async function createInstructor(){
   const btn=document.getElementById('createBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';btn.disabled=true;
   const _aiCarModel=(document.getElementById('ai-car-model')?.value||'').trim()||null;
   const _aiCarPlate=(document.getElementById('ai-car-plate')?.value||'').toUpperCase().trim()||null;
+  const _aiCarType=document.getElementById('ai-car-type')?.value||'Manual';
   const{error}=await sb.from('instructors').insert([{
     full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
     instructor_model:document.getElementById('ai-model').value,
     phone:document.getElementById('ai-phone').value.trim(),email,
     area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
     coverage_postcodes:document.getElementById('ai-coverage').value.toUpperCase().trim(),
-    car_model:_aiCarModel,car_plate:_aiCarPlate,
+    car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
     status:document.getElementById('ai-status').value,
     password,password_hash:btoa(password),
     created_at:new Date().toISOString(),show_lessons:true
@@ -5387,7 +5394,7 @@ async function createInstructor(){
       instructor_model:instrModel,
       phone:document.getElementById('ai-phone').value.trim(),email,
       area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
-      car_model:_aiCarModel,car_plate:_aiCarPlate,
+      car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
       status:document.getElementById('ai-status').value,
       password,password_hash:btoa(password),
       created_at:new Date().toISOString(),show_lessons:true
@@ -5398,7 +5405,7 @@ async function createInstructor(){
         full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
         phone:document.getElementById('ai-phone').value.trim(),email,
         area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
-        car_model:_aiCarModel,car_plate:_aiCarPlate,
+        car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
         status:document.getElementById('ai-status').value,
         password,password_hash:btoa(password),
         created_at:new Date().toISOString(),show_lessons:true
@@ -5406,11 +5413,13 @@ async function createInstructor(){
       if(e3){showToast('Failed. Email or badge may already exist.','error');return;}
       showToast('Account created (add instructor_model column in Supabase to save the model label)','warn',7000);
       ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      document.getElementById('ai-car-type').value='Manual';
       await loadInstrs();populateDropdowns();return;
     }
   }
   showToast(`✅ Account created for ${name}!`,'success');
   ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ai-car-type').value='Manual';
   await loadInstrs();populateDropdowns();
 }
 
@@ -7500,7 +7509,7 @@ async function addToWaitlist(){
   if(document.getElementById('waitlistList'))loadWaitlist();
 }
 function openAddWaitlistModal(){
-  ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['wl-name','wl-phone','wl-postcode','wl-area','wl-avail','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('wl-type').value='Manual';
   openModal('waitlistAddModal');
 }
@@ -7517,16 +7526,23 @@ async function saveWaitlistEntry(){
     postcode:postcode||null,
     area:(document.getElementById('wl-area').value||'').trim()||null,
     lesson_type:document.getElementById('wl-type').value||'Manual',
-    notes:(document.getElementById('wl-notes').value||'').trim()||null,
+    notes:[
+      (document.getElementById('wl-notes').value||'').trim(),
+      (document.getElementById('wl-avail').value||'').trim() ? 'Availability: '+(document.getElementById('wl-avail').value||'').trim() : ''
+    ].filter(Boolean).join('\n')||null,
     status:'waiting',
     created_at:new Date().toISOString()
   };
   let {error}=await sb.from('waiting_list').insert([full]);
   if(error){
-    // Retry with only the core columns that definitely exist
-    const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,status:'waiting',created_at:full.created_at};
-    const res=await sb.from('waiting_list').insert([minimal]);
-    error=res.error;
+    // Retry dropping optional columns one at a time to find the culprit
+    const withoutArea={...full};delete withoutArea.area;
+    const r2=await sb.from('waiting_list').insert([withoutArea]);
+    if(!r2.error){error=null;}else{
+      const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,notes:full.notes,status:'waiting',created_at:full.created_at};
+      const r3=await sb.from('waiting_list').insert([minimal]);
+      error=r3.error;
+    }
   }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
   if(error){showToast('Failed to save: '+error.message,'error');return;}
@@ -7566,7 +7582,7 @@ async function loadWaitlist(){
     const isUrgent=r.status==='waiting'&&daysWaiting>=7;
     const waNum=buildWaNum(r.student_phone||'');
     const statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
-    return`<div style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
+    return`<div data-wl-id="${r.id}" style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -7616,10 +7632,16 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
 async function updateWaitlistStatus(id,status,instrId=null){
   if(status==='cancelled'&&!confirm('Cancel this waiting list entry? The student will no longer appear in the active waiting list.'))return;
   if(status==='waiting'&&!confirm('Reactivate this entry? It will appear in the active waiting list again.'))return;
+  // Optimistic: hide/update the row immediately
+  const rowEl=document.querySelector(`[data-wl-id="${id}"]`);
+  if(rowEl){
+    const statusF=document.getElementById('wlStatusFilter')?.value||'waiting';
+    if(status!==statusF&&statusF!=='all'){rowEl.style.transition='opacity .25s';rowEl.style.opacity='0';setTimeout(()=>rowEl.remove(),250);}
+  }
   const updates={status};
   if(status==='assigned'&&instrId)updates.instructor_id=instrId;
   const{error}=await sb.from('waiting_list').update(updates).eq('id',id);
-  if(error){showToast('Error updating status: '+error.message,'error');return;}
+  if(error){showToast('Error updating status: '+error.message,'error');loadWaitlist();return;}
   showToast(
     status==='cancelled'?'Entry cancelled ✓':
     status==='assigned'?'Marked as assigned ✓':
@@ -8306,14 +8328,18 @@ async function reassignRefStudent(refId){
   // 3. Look up student from cache — pull all available details for Find & Assign prefill
   const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
   const stuPhone=r.student_phone||cached?.phone||'';
-  const stuAddr=cached?.address||'';
+  // Extract address & postcode — try cache first, then parse from referral notes
+  const _rAddrMatch=(r.notes||'').match(/Address:\s*([^\n]+)/i);
+  const _rPostcodeMatch=(r.notes||'').match(/Postcode:\s*([^\n]+)/i);
+  const _rAvailMatch=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
+  const stuAddr=cached?.address||(_rAddrMatch?_rAddrMatch[1].trim():'')||'';
   const stuEmail=cached?.acctEmail||cached?.email||'';
-  const stuAvail=cached?.avail||'';
-  const stuNotes=r.notes||cached?.notes||'';
+  const stuAvail=cached?.avail||(_rAvailMatch?_rAvailMatch[1].trim():'')||'';
+  const stuNotes=(r.notes||'').replace(/Address:\s*[^\n]*/gi,'').replace(/Postcode:\s*[^\n]*/gi,'').replace(/Availability:\s*[^\n]*/gi,'').replace(/Email:\s*[^\n]*/gi,'').trim()||cached?.notes||'';
   const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'')||'Manual';
-  // Extract postcode from address
+  // Extract postcode from cache address, notes Postcode: field, or inline postcode in address
   const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
-  const stuPostcode=postcodeMatch?postcodeMatch[0].toUpperCase():'';
+  const stuPostcode=(_rPostcodeMatch?_rPostcodeMatch[1].trim():'')||(postcodeMatch?postcodeMatch[0].toUpperCase():'')||r.postcode||'';
   // 4. Close referral modal, switch to find tab, pre-fill and auto-search
   closeModal('refDetailModal');
   switchTab('find');
@@ -10264,7 +10290,8 @@ function renderTheoryList(rows){
     <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="wl-type"><option value="Manual">Manual</option><option value="Automatic">Automatic</option><option value="Intensive">Intensive</option></select>
     </div>
-    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any notes about availability, preferences…"></textarea></div>
+    <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="wl-avail" placeholder="e.g. Weekday mornings, weekends"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any other notes or preferences…"></textarea></div>
     <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
   </div>
 </div>
