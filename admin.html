@@ -3446,8 +3446,13 @@ function updateBlockBtn(){
 
 /* ══ VIEW INSTRUCTOR + CALENDAR ══ */
 async function viewInstr(id){
-  const instr=allInstrs.find(i=>i.id===id);
+  let instr=allInstrs.find(i=>i.id===id);
   if(!instr)return;
+  // Fetch fresh data so badge_photo_url and other recently-updated fields are current
+  const{data:freshInstr}=await sb.from('instructors').select('*').eq('id',id).single();
+  if(freshInstr){
+    Object.assign(instr,freshInstr);
+  }
   viewingId=id;viewingName=instr.full_name;viewingData=instr;
   adminWeekOffset=0;
   const isSusp=instr.status==='suspended';
@@ -5143,7 +5148,9 @@ async function saveEdit(){
       const{error:e3}=await sb.from('instructors').update(safeBase).eq('id',id);
       if(e3){showToast('Failed to save: '+e3.message,'error',6000);console.error('saveEdit error:',e3);return;}
       showToast('Saved (instructor_model column not in DB yet — add it in Supabase to persist this field)','warn',7000);
-      closeModal('editModal');await loadInstrs();return;
+      closeModal('editModal');await loadInstrs();
+      if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);if(viewingData)renderInstrDetail(viewingData);updateBlockBtn();}
+      return;
     }
   }
 
