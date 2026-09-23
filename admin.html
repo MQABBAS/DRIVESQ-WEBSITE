@@ -1910,6 +1910,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
       <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes the instructor covers)</span></label><input class="dsq-inp" id="edit-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Address</label><input class="dsq-inp" id="edit-address"/></div>
+      <div class="col-12"><label class="dsq-lbl">Admin Notes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(internal — shown in Find &amp; Assign and instructor profile)</span></label><textarea class="dsq-inp" id="edit-instr-notes" rows="3" placeholder="e.g. Prefers female students, only does weekday mornings, has a waiting list…"></textarea></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Car Model <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="edit-car-model" placeholder="e.g. Vauxhall Corsa"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Plate Number <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(optional)</span></label><input class="dsq-inp" id="edit-car-plate" placeholder="e.g. AB12 CDE" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Status</label>
@@ -3515,6 +3516,7 @@ function renderInstrDetail(instr){
     ['Badge Photo',instr.badge_photo_url?`<div style="margin-top:4px"><img src="${esc(instr.badge_photo_url)}?t=${Date.now()}" alt="Badge photo" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid rgba(255,255,255,.12);object-fit:contain;background:#111;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;color:#f87171;font-size:.75rem">⚠️ Image failed to load</span><a href="${esc(instr.badge_photo_url)}" target="_blank" style="font-size:.7rem;color:var(--txt4);margin-top:4px;display:inline-block"><i class="bi bi-box-arrow-up-right"></i> Open full size</a></div>`:'<span style="color:#f87171">❌ Not uploaded</span>'],
     ['Badge Expiry',(()=>{if(!instr.badge_expiry)return'<span style="color:var(--txt4)">—</span>';const today=new Date();today.setHours(0,0,0,0);const exp=new Date(instr.badge_expiry);const diff=Math.round((exp-today)/(1000*60*60*24));const fmt=exp.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][exp.getMonth()]+' '+exp.getFullYear();if(diff<0)return`<span style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⛔ EXPIRED — ${fmt}</span>`;if(diff<=30)return`<span style="background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⚠️ ${fmt} · ${diff}d left</span>`;if(diff<=90)return`<span style="background:rgba(251,146,60,.12);color:#fb923c;border:1px solid rgba(251,146,60,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">🕐 ${fmt} · ${diff}d left</span>`;return`<span style="background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">✅ ${fmt}</span>`;})()],
     ...(carInfo?[['Vehicle',esc(carInfo)]]:[]),
+    ...(instr.admin_notes?[['Admin Notes',`<div style="white-space:pre-wrap;font-size:.8rem;color:var(--txt2);background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:7px;padding:7px 10px">${esc(instr.admin_notes)}</div>`]]:[] ),
   ];
   grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${val||'—'}</div></div>`).join('');
 }
@@ -5045,6 +5047,7 @@ function openEditModal(){
   document.getElementById('edit-car-model').value=instr.car_model||'';
   document.getElementById('edit-car-plate').value=instr.car_plate||'';
   document.getElementById('edit-status').value=instr.status||'approved';
+  const niEl=document.getElementById('edit-instr-notes');if(niEl)niEl.value=instr.admin_notes||'';
   document.getElementById('edit-show-lessons').checked=instr.show_lessons!==false;
   document.getElementById('edit-new-pwd').value='';
   const pwdEl=document.getElementById('edit-pwd-txt');
@@ -5121,6 +5124,7 @@ async function saveEdit(){
     badge_expiry:(document.getElementById('edit-badge-expiry')?.value||null)||null,
     car_model:(document.getElementById('edit-car-model')?.value||'').trim()||null,
     car_plate:(document.getElementById('edit-car-plate')?.value||'').toUpperCase().trim()||null,
+    admin_notes:(document.getElementById('edit-instr-notes')?.value||'').trim()||null,
   };
   const np=document.getElementById('edit-new-pwd').value.trim();
   if(np){base.password=np;base.password_hash=btoa(np);}
@@ -5141,12 +5145,13 @@ async function saveEdit(){
 
   // If that fails, retry stripping optional columns that may not exist yet
   if(error){
-    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,car_model:cm,car_plate:cpl,...coreBase}=base;
+    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,car_model:cm,car_plate:cpl,admin_notes:an,...coreBase}=base;
     const retry={...coreBase};
     if(cp!==null)retry.coverage_postcodes=cp;
     if(be!==null)retry.badge_expiry=be;
     if(cm!==null)retry.car_model=cm;
     if(cpl!==null)retry.car_plate=cpl;
+    if(an!==null)retry.admin_notes=an;
     // Try again with instructor_model
     retry.instructor_model=im;
     const{error:e2}=await sb.from('instructors').update(retry).eq('id',id);
@@ -5596,6 +5601,7 @@ async function findClosest(){
               ${areaNote}
               ${weekAssignNote}
               ${creditNote}
+              ${r.instr.admin_notes?`<div style="font-size:.7rem;color:var(--gold);background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.28);border-radius:6px;padding:4px 9px;margin-top:5px;display:flex;align-items:flex-start;gap:5px;white-space:pre-wrap"><i class="bi bi-sticky me-1" style="flex-shrink:0;margin-top:1px"></i>${esc(r.instr.admin_notes)}</div>`:''}
             </div>
           </div>
           <div class="d-flex flex-column align-items-end gap-2">
