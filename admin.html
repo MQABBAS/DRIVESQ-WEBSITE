@@ -896,6 +896,9 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Instructor Model</label>
           <select class="dsq-inp" id="ai-model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select>
         </div>
+        <div class="col-12 col-sm-6"><label class="dsq-lbl">Transmission</label>
+          <select class="dsq-inp" id="ai-car-type"><option value="Manual">Manual Only</option><option value="Automatic">Automatic Only</option><option value="Both">Manual &amp; Automatic</option></select>
+        </div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="ai-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span class="req-mark">*</span></label><input class="dsq-inp" id="ai-email" type="email" placeholder="instructor@email.com"/></div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="ai-area" placeholder="e.g. M19, Didsbury"/></div>
@@ -3290,6 +3293,10 @@ function deleteInstr(id,name){
   showConfirm('Permanently Remove "'+name+'"?','This will delete their instructor account, ALL lessons, admin messages, and all student requests. This CANNOT be undone.',()=>_doDeleteInstr(id,name),{icon:'🗑️',actionLabel:'Yes, Delete Permanently'});
 }
 async function _doDeleteInstr(id,name){
+  // Optimistic: remove from in-memory list and re-render immediately
+  allInstrs=allInstrs.filter(i=>i.id!==id);
+  renderInstrsTable(allInstrs);
+  if(viewingId===id){viewingId=null;switchTab('instructors');}
   showToast('Deleting instructor…','warn');
   try{
     // Step by step — order matters for foreign key constraints. Track failures instead of only
@@ -3332,7 +3339,6 @@ async function _doDeleteInstr(id,name){
       showToast('Instructor "'+name+'" deleted.','success');
     }
     await loadInstrs();
-    if(viewingId===id){viewingId=null;switchTab('instructors');}
   }catch(e){
     console.error('Delete failed:',e);
     showToast('Delete failed. See SQL helper for manual fix.','error');
@@ -5367,13 +5373,14 @@ async function createInstructor(){
   const btn=document.getElementById('createBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';btn.disabled=true;
   const _aiCarModel=(document.getElementById('ai-car-model')?.value||'').trim()||null;
   const _aiCarPlate=(document.getElementById('ai-car-plate')?.value||'').toUpperCase().trim()||null;
+  const _aiCarType=document.getElementById('ai-car-type')?.value||'Manual';
   const{error}=await sb.from('instructors').insert([{
     full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
     instructor_model:document.getElementById('ai-model').value,
     phone:document.getElementById('ai-phone').value.trim(),email,
     area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
     coverage_postcodes:document.getElementById('ai-coverage').value.toUpperCase().trim(),
-    car_model:_aiCarModel,car_plate:_aiCarPlate,
+    car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
     status:document.getElementById('ai-status').value,
     password,password_hash:btoa(password),
     created_at:new Date().toISOString(),show_lessons:true
@@ -5387,7 +5394,7 @@ async function createInstructor(){
       instructor_model:instrModel,
       phone:document.getElementById('ai-phone').value.trim(),email,
       area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
-      car_model:_aiCarModel,car_plate:_aiCarPlate,
+      car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
       status:document.getElementById('ai-status').value,
       password,password_hash:btoa(password),
       created_at:new Date().toISOString(),show_lessons:true
@@ -5398,7 +5405,7 @@ async function createInstructor(){
         full_name:name,badge_number:badge,badge_type:document.getElementById('ai-type').value,
         phone:document.getElementById('ai-phone').value.trim(),email,
         area:document.getElementById('ai-area').value.trim(),address:document.getElementById('ai-address').value.trim(),
-        car_model:_aiCarModel,car_plate:_aiCarPlate,
+        car_type:_aiCarType,car_model:_aiCarModel,car_plate:_aiCarPlate,
         status:document.getElementById('ai-status').value,
         password,password_hash:btoa(password),
         created_at:new Date().toISOString(),show_lessons:true
@@ -5406,11 +5413,13 @@ async function createInstructor(){
       if(e3){showToast('Failed. Email or badge may already exist.','error');return;}
       showToast('Account created (add instructor_model column in Supabase to save the model label)','warn',7000);
       ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      document.getElementById('ai-car-type').value='Manual';
       await loadInstrs();populateDropdowns();return;
     }
   }
   showToast(`✅ Account created for ${name}!`,'success');
   ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password','ai-car-model','ai-car-plate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ai-car-type').value='Manual';
   await loadInstrs();populateDropdowns();
 }
 
@@ -7573,7 +7582,7 @@ async function loadWaitlist(){
     const isUrgent=r.status==='waiting'&&daysWaiting>=7;
     const waNum=buildWaNum(r.student_phone||'');
     const statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
-    return`<div style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
+    return`<div data-wl-id="${r.id}" style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -7623,10 +7632,16 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
 async function updateWaitlistStatus(id,status,instrId=null){
   if(status==='cancelled'&&!confirm('Cancel this waiting list entry? The student will no longer appear in the active waiting list.'))return;
   if(status==='waiting'&&!confirm('Reactivate this entry? It will appear in the active waiting list again.'))return;
+  // Optimistic: hide/update the row immediately
+  const rowEl=document.querySelector(`[data-wl-id="${id}"]`);
+  if(rowEl){
+    const statusF=document.getElementById('wlStatusFilter')?.value||'waiting';
+    if(status!==statusF&&statusF!=='all'){rowEl.style.transition='opacity .25s';rowEl.style.opacity='0';setTimeout(()=>rowEl.remove(),250);}
+  }
   const updates={status};
   if(status==='assigned'&&instrId)updates.instructor_id=instrId;
   const{error}=await sb.from('waiting_list').update(updates).eq('id',id);
-  if(error){showToast('Error updating status: '+error.message,'error');return;}
+  if(error){showToast('Error updating status: '+error.message,'error');loadWaitlist();return;}
   showToast(
     status==='cancelled'?'Entry cancelled ✓':
     status==='assigned'?'Marked as assigned ✓':
