@@ -3484,7 +3484,8 @@ async function viewInstr(id){
     </div>
     <div class="det-grid mt-3 mb-2" id="instrDetailGrid"></div>
     <div class="d-flex gap-2 flex-wrap mb-2">
-      <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request Badge Photo</button>
+      <label class="abtn approve" style="cursor:pointer;margin:0" title="Upload badge photo directly"><i class="bi bi-upload me-1"></i>Upload Badge Photo<input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="adminUploadBadgeDirect(event,'${id}')"/></label>
+      <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request from Instructor</button>
       <button class="abtn approve" onclick="openAddLessonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
       <button class="btn-s" style="font-size:.72rem;padding:4px 10px;min-height:30px" onclick="openSqlModal()"><i class="bi bi-code-slash me-1"></i>SQL Helper</button>
     </div>`;
@@ -5220,6 +5221,30 @@ async function requestBadgePhoto(){
   const{error}=await sb.from('admin_messages').insert([{instructor_id:viewingId,subject:'Badge Photo Required',body:'DriveSQ admin has requested you upload your DVSA ADI/PDI badge photo. Please go to your Profile tab to upload it.',message_type:'badge_request',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
   if(error){showToast('Failed.','error');return;}
   showToast('🪪 Badge photo request sent!','success');
+}
+async function adminUploadBadgeDirect(e,instrId){
+  const file=e.target.files[0];if(!file)return;
+  const allowed=['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type)){showToast('Use JPG, PNG or WebP.','error');return;}
+  if(file.size>5*1024*1024){showToast('File too large (max 5MB).','error');return;}
+  showToast('Uploading badge photo…','info',8000);
+  try{
+    const ext=file.name.split('.').pop().toLowerCase();
+    const path=`badges/${instrId}/badge.${ext}`;
+    const{error:upErr}=await sb.storage.from('instructor-files').upload(path,file,{upsert:true,contentType:file.type});
+    if(upErr)throw upErr;
+    const{data:{publicUrl}}=sb.storage.from('instructor-files').getPublicUrl(path);
+    const{error:dbErr}=await sb.from('instructors').update({badge_photo_url:publicUrl}).eq('id',instrId);
+    if(dbErr)throw dbErr;
+    // Update in-memory cache
+    const cached=allInstrs.find(i=>i.id===instrId);
+    if(cached)cached.badge_photo_url=publicUrl;
+    if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
+    showToast('✅ Badge photo saved!','success');
+  }catch(err){
+    showToast('Upload failed: '+err.message,'error',8000);
+    console.error('adminUploadBadgeDirect:',err);
+  }
 }
 
 /* ══ STUDENT REQUESTS ══ */
