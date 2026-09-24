@@ -8968,9 +8968,14 @@ async function loadIncome(){
 async function loadExpenses(force=false){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const incByInstrEl=document.getElementById('incomeByInstr');
+  const statEl=document.getElementById('incomeSummaryStats');
+  const loadingHtml='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  if(incByInstrEl)incByInstrEl.innerHTML=loadingHtml;
+  if(statEl)statEl.innerHTML='';
   // Parallel fetch — skip cache when force=true or data not yet loaded
   const [refRes,incRes,expRes]=await Promise.all([
-    (!force&&_refData.length)?Promise.resolve({data:_refData,error:null}):sb.from('referrals').select('*').order('created_at',{ascending:false}),
+    (!force&&_refData.length)?Promise.resolve({data:_refData,error:null}):sb.from('referrals').select('id,instructor_id,student_name,amount,is_paid,is_cancelled,is_credit,created_at,paid_at,notes,lesson_type').order('created_at',{ascending:false}),
     (!force&&_incData.length)?Promise.resolve({data:_incData,error:null}):sb.from('income_entries').select('*').order('income_date',{ascending:false}),
     (!force&&_expData.length)?Promise.resolve({data:_expData,error:null}):sb.from('expenses').select('*').order('expense_date',{ascending:false})
   ]);
