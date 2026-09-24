@@ -1857,6 +1857,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button id="covTab-instr" onclick="setCovTab('instr')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-person-workspace me-1"></i>By Instructor</button>
     <button id="covTab-gaps" onclick="setCovTab('gaps')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-exclamation-triangle-fill me-1"></i>Gap Analysis</button>
     <button id="covTab-mismatch" onclick="setCovTab('mismatch')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-shield-exclamation me-1"></i>Coverage Mismatch</button>
+    <button id="covTab-covmap" onclick="setCovTab('covmap')" style="font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;padding:7px 14px;border:none;border-bottom:3px solid transparent;background:none;color:var(--txt3);cursor:pointer;white-space:nowrap"><i class="bi bi-layers-fill me-1"></i>Coverage Map</button>
   </div>
 
   <!-- Tab panels -->
@@ -1875,6 +1876,29 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
   <div id="covPanel-mismatch" style="display:none">
     <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Instructors whose stated coverage postcodes don't match where their students actually are.</div>
     <div id="coverageMismatch"></div>
+  </div>
+  <div id="covPanel-covmap" style="display:none">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <span style="font-size:.72rem;color:var(--txt4)">Show:</span>
+      <button id="covMapToggleManual" class="map-filter-btn active" onclick="toggleCovMapLayer('manual')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#60a5fa;margin-right:5px"></span>Manual</button>
+      <button id="covMapToggleAuto" class="map-filter-btn active" onclick="toggleCovMapLayer('auto')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4ade80;margin-right:5px"></span>Automatic</button>
+      <button id="covMapToggleBoth" class="map-filter-btn active" onclick="toggleCovMapLayer('both')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c084fc;margin-right:5px"></span>Both</button>
+      <button id="covMapToggleWaiting" class="map-filter-btn active" onclick="toggleCovMapLayer('waiting')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fbbf24;margin-right:5px"></span>Waiting List</button>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:4px">
+        <span style="font-size:.7rem;color:var(--txt4)">Radius:</span>
+        <input type="range" id="covMapRadius" min="1000" max="8000" step="500" value="3000" oninput="updateCovMapRadius(this.value)" style="width:90px;accent-color:var(--gold)"/>
+        <span id="covMapRadiusLbl" style="font-size:.7rem;color:var(--gold);min-width:36px">3 km</span>
+      </div>
+      <button class="btn-s" onclick="renderCoverageMap()" style="font-size:.72rem;padding:4px 10px;margin-left:auto"><i class="bi bi-arrow-repeat me-1"></i>Reload</button>
+    </div>
+    <div id="covMapEl" style="height:560px;border-radius:14px;border:1px solid var(--bdr);overflow:hidden;background:var(--dk3)"></div>
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:14px;font-size:.72rem;color:var(--txt3)">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#60a5fa;margin-right:4px"></span>Manual instructor + coverage circle</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4ade80;margin-right:4px"></span>Automatic instructor + coverage circle</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c084fc;margin-right:4px"></span>Both (Manual &amp; Automatic)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fbbf24;margin-right:4px"></span>Waiting list student</span>
+    </div>
+    <div id="covMapStatus" style="font-size:.72rem;color:var(--txt4);margin-top:8px;min-height:18px"></div>
   </div>
 </div>
 
@@ -9615,12 +9639,13 @@ let _covData=null;
 let _covTab='map';
 function setCovTab(t){
   _covTab=t;
-  ['map','instr','gaps','mismatch'].forEach(k=>{
+  ['map','instr','gaps','mismatch','covmap'].forEach(k=>{
     const panel=document.getElementById('covPanel-'+k);
     const btn=document.getElementById('covTab-'+k);
     if(panel)panel.style.display=k===t?'':'none';
     if(btn){btn.style.borderBottomColor=k===t?'var(--gold)':'transparent';btn.style.color=k===t?'var(--gold)':'var(--txt3)';}
   });
+  if(t==='covmap')renderCoverageMap();
 }
 async function loadCoverageTab(){
   const sel=document.getElementById('covInstrFilter');
@@ -9838,6 +9863,119 @@ function extractDistrict(text){
   if(!text)return'';
   const m=(text||'').toUpperCase().match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/);
   return m?m[1]:'';
+}
+
+/* ══ COVERAGE MAP ══ */
+let _covMap=null,_covMapLayers={manual:[],auto:[],both:[],waiting:[]},_covMapRadius=3000;
+const _covMapShow={manual:true,auto:true,both:true,waiting:true};
+
+function toggleCovMapLayer(type){
+  _covMapShow[type]=!_covMapShow[type];
+  document.getElementById('covMapToggle'+type.charAt(0).toUpperCase()+type.slice(1))?.classList.toggle('active',_covMapShow[type]);
+  (_covMapLayers[type]||[]).forEach(l=>_covMapShow[type]?l.addTo(_covMap):_covMap&&l.remove());
+}
+function updateCovMapRadius(val){
+  _covMapRadius=parseInt(val);
+  document.getElementById('covMapRadiusLbl').textContent=(_covMapRadius/1000).toFixed(1).replace('.0','')+' km';
+  if(_covMap)renderCoverageMap();
+}
+async function renderCoverageMap(){
+  const statusEl=document.getElementById('covMapStatus');
+  if(!document.getElementById('covMapEl'))return;
+  if(!document.getElementById('leaflet-css')){
+    const lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';lc.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(lc);
+  }
+  if(!window.L){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  if(_covMap){_covMap.remove();_covMap=null;}
+  _covMapLayers={manual:[],auto:[],both:[],waiting:[]};
+  _covMap=L.map('covMapEl').setView([53.483,-2.244],11);
+  _darkTileLayer().addTo(_covMap);
+
+  const instrs=(allInstrs||[]).filter(i=>i.status==='approved');
+  if(statusEl)statusEl.textContent=`Geocoding ${instrs.length} instructor locations…`;
+  let placed=0,failed=0;
+
+  // Colour helpers per car_type
+  const _typeColor={Manual:'#60a5fa',Automatic:'#4ade80',Both:'#c084fc'};
+  const _typeKey={Manual:'manual',Automatic:'auto',Both:'both'};
+
+  for(const instr of instrs){
+    const raw=instr.area||instr.address||'';
+    const pc=extractPostcode(raw)||raw.trim().split(/\s+/).slice(-2).join(' ');
+    let coords=_geoCache[pc.replace(/\s/g,'').toUpperCase()]||null;
+    if(!coords){
+      try{
+        const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));
+        const d=await r.json();
+        if(d.status===200){coords=[d.result.latitude,d.result.longitude];_geoCache[pc.replace(/\s/g,'').toUpperCase()]=coords;_saveGeoCache();}
+      }catch(e){}
+    }
+    if(!coords)coords=manchesterAreaCoords(raw);
+    if(!coords){failed++;continue;}
+    placed++;
+    const carType=instr.car_type||'Manual';
+    const col=_typeColor[carType]||'#60a5fa';
+    const layerKey=_typeKey[carType]||'manual';
+    const studCount=(allStudentsCache||[]).filter(s=>s.instrId===instr.id&&s.status!=='inactive').length;
+    const initials=(instr.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+    // Coverage circle
+    const circle=L.circle(coords,{radius:_covMapRadius,color:col,fillColor:col,fillOpacity:0.10,weight:2,opacity:0.55,dashArray:'6 4'});
+    // Instructor pin
+    const icon=L.divIcon({
+      html:`<div style="background:${col};border:2.5px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,.6);cursor:pointer">
+        <span style="font-size:11px;font-weight:900;color:#000;font-family:Oswald,sans-serif;line-height:1">${initials}</span>
+        <span style="font-size:7px;color:rgba(0,0,0,.7);line-height:1">${studCount}stu</span>
+      </div>`,
+      iconSize:[34,34],iconAnchor:[17,17],className:''
+    });
+    const waNum=buildWaNum(instr.phone||'');
+    const marker=L.marker(coords,{icon,zIndexOffset:500});
+    marker.bindPopup(`<div style="font-family:Inter,sans-serif;min-width:210px">
+      <div style="font-family:Oswald,sans-serif;font-size:1rem;font-weight:700;color:${col};margin-bottom:6px">${esc(instr.full_name)}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.73rem;margin-bottom:8px">
+        <span style="color:#888">Area</span><span>${esc(instr.area||'—')}</span>
+        <span style="color:#888">Type</span><span style="font-weight:700;color:${col}">${esc(carType)}</span>
+        <span style="color:#888">Students</span><span>${studCount} active</span>
+        <span style="color:#888">Badge</span><span>${esc(instr.badge_type||'ADI')} ${esc(instr.badge_number||'')}</span>
+        ${instr.admin_notes?`<span style="color:#888">Note</span><span style="white-space:pre-wrap;font-size:.68rem">${esc(instr.admin_notes)}</span>`:''}
+      </div>
+      <div style="display:flex;gap:5px">
+        ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" style="flex:1;background:#25D366;color:#fff;text-align:center;border-radius:6px;padding:5px;font-size:.72rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none">WA</a>`:''}
+        <button onclick="closeModal&&closeModal('instrAreaMapModal');viewInstr('${instr.id}')" style="flex:1;background:${col};color:#000;border:none;border-radius:6px;padding:5px;font-size:.72rem;font-family:Oswald,sans-serif;font-weight:700;cursor:pointer">View</button>
+      </div>
+    </div>`);
+    // Name label
+    const label=L.marker(coords,{
+      icon:L.divIcon({html:`<div style="font-family:Oswald,sans-serif;font-size:.65rem;font-weight:700;color:#fff;background:rgba(0,0,0,.72);padding:2px 6px;border-radius:4px;white-space:nowrap;margin-top:20px;pointer-events:none">${esc(instr.full_name)}</div>`,iconAnchor:[-4,-16],className:''}),
+      interactive:false,zIndexOffset:400
+    });
+    if(_covMapShow[layerKey]){circle.addTo(_covMap);marker.addTo(_covMap);label.addTo(_covMap);}
+    _covMapLayers[layerKey].push(circle,marker,label);
+  }
+
+  // Waiting list dots
+  const{data:wl}=await sb.from('waiting_list').select('student_name,postcode,area,notes').eq('status','waiting');
+  let wlPlaced=0;
+  for(const w of(wl||[])){
+    const pc=w.postcode||(w.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?.[0]||'';
+    if(!pc)continue;
+    let coords=_geoCache[pc.replace(/\s/g,'').toUpperCase()]||null;
+    if(!coords){
+      try{const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc));const d=await r.json();if(d.status===200){coords=[d.result.latitude,d.result.longitude];_geoCache[pc.replace(/\s/g,'').toUpperCase()]=coords;_saveGeoCache();}}catch(e){}
+    }
+    if(!coords)continue;
+    wlPlaced++;
+    const wlIcon=L.divIcon({html:`<div style="width:10px;height:10px;border-radius:50%;background:#fbbf24;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,iconSize:[10,10],iconAnchor:[5,5],className:''});
+    const wm=L.marker(coords,{icon:wlIcon,zIndexOffset:100});
+    wm.bindTooltip(`<b>${esc(w.student_name||'?')}</b><br/>${esc(pc)}`,{direction:'top',offset:[0,-6]});
+    if(_covMapShow.waiting)wm.addTo(_covMap);
+    _covMapLayers.waiting.push(wm);
+  }
+
+  if(statusEl)statusEl.textContent=`${placed} instructor${placed!==1?'s':''} plotted${failed?' ('+failed+' no location)':''} · ${wlPlaced} waiting list student${wlPlaced!==1?'s':''} shown`;
 }
 
 /* ══ INSTRUCTOR AVAILABILITY ══ */
