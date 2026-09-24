@@ -1359,7 +1359,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--gold)"></i>Accounting</h5>
     <div class="ms-auto d-flex gap-2 flex-wrap">
       <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="exportFullPLCSV()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export P&amp;L</button>
-      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadExpenses()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadExpenses(true)"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
   </div>
 
@@ -8963,26 +8963,31 @@ async function loadIncome(){
   _incData=data||[];
 }
 
-async function loadExpenses(){
+async function loadExpenses(force=false){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
-  // Parallel fetch of all three data sources
-  const fetches=[
-    _refData.length?Promise.resolve({data:_refData}):sb.from('referrals').select('*').order('created_at',{ascending:false}),
-    _incData.length?Promise.resolve({data:_incData}):sb.from('income_entries').select('*').order('income_date',{ascending:false}),
-    _expData.length?Promise.resolve({data:_expData}):sb.from('expenses').select('*').order('expense_date',{ascending:false})
-  ];
-  const[refRes,incRes,{data,error}]=await Promise.all(fetches);
-  if(refRes.data&&!_refData.length)_refData=refRes.data;
-  if(incRes.data&&!_incData.length)_incData=incRes.data;
-  if(error){
-    const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
+  // Parallel fetch — skip cache when force=true or data not yet loaded
+  const [refRes,incRes,expRes]=await Promise.all([
+    (!force&&_refData.length)?Promise.resolve({data:_refData,error:null}):sb.from('referrals').select('*').order('created_at',{ascending:false}),
+    (!force&&_incData.length)?Promise.resolve({data:_incData,error:null}):sb.from('income_entries').select('*').order('income_date',{ascending:false}),
+    (!force&&_expData.length)?Promise.resolve({data:_expData,error:null}):sb.from('expenses').select('*').order('expense_date',{ascending:false})
+  ]);
+  if(refRes.data)_refData=refRes.data;
+  // income_entries table is optional — fail silently but show hint in income panel
+  if(incRes.error){
+    _incData=[];
+    const incEl=document.getElementById('incomeManualList');
+    if(incEl)incEl.innerHTML=`<div style="color:#fbbf24;padding:12px 0;font-size:.78rem"><i class="bi bi-info-circle me-1"></i>Manual income entries table not found. <code>income_entries</code> table required.</div>`;
+  } else {
+    _incData=incRes.data||[];
+  }
+  if(expRes.error){
+    const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(expRes.error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
     if(el)el.innerHTML=msg;
     _expData=[];
-    renderAccounting();
-    return;
+  } else {
+    _expData=expRes.data||[];
   }
-  _expData=data||[];
   renderAccounting();
 }
 
