@@ -1828,7 +1828,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0"><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Waiting List</h5>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
 
-      <select class="dsq-inp" id="wlStatusFilter" onchange="loadWaitlist()" style="width:auto;font-size:.82rem">
+      <select class="dsq-inp" id="wlStatusFilter" onchange="_wlData.length?renderWaitlist():loadWaitlist()" style="width:auto;font-size:.82rem">
         <option value="waiting">⏳ Waiting</option>
         <option value="all">All</option>
         <option value="assigned">✅ Assigned</option>
@@ -7708,7 +7708,7 @@ async function addToWaitlist(){
   }
   if(wlErr){showToast('Failed to add: '+wlErr.message,'error');return;}
   showToast(`✅ ${name} added to waiting list.`,'success');
-  if(document.getElementById('waitlistList'))loadWaitlist();
+  if(document.getElementById('waitlistList'))loadWaitlist(); // this path doesn't have full data, do full reload
 }
 function openAddWaitlistModal(){
   ['wl-name','wl-phone','wl-postcode','wl-area','wl-avail','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -7748,35 +7748,30 @@ async function saveWaitlistEntry(){
   }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
   if(error){showToast('Failed to save: '+error.message,'error');return;}
+  // Push to cache immediately so UI updates without a round-trip
+  _wlData.push({...full,id:'pending-'+Date.now()});
   closeModal('waitlistAddModal');
   showToast(`✅ ${name} added to waiting list.`,'success');
-  loadWaitlist();
+  renderWaitlist();
+  loadWaitlist(); // sync real id from DB in background
 }
-async function loadWaitlist(){
+function renderWaitlist(){
   const el=document.getElementById('waitlistList');
-  const statsEl=document.getElementById('waitlistStats');
-  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  if(!el)return;
   const statusF=document.getElementById('wlStatusFilter')?.value||'waiting';
-  let q=sb.from('waiting_list').select('*').order('created_at',{ascending:true});
-  if(statusF!=='all')q=q.eq('status',statusF);
-  const{data,error}=await q;
-  if(error){el.innerHTML='<div style="color:#f87171;padding:20px">Error: '+error.message+'</div>';return;}
-  // Stats — always fetch all statuses so counts are accurate regardless of filter
+  const rows=statusF==='all'?_wlData:_wlData.filter(r=>r.status===statusF);
+  // Update stats from full cache
+  const statsEl=document.getElementById('waitlistStats');
   if(statsEl){
-    sb.from('waiting_list').select('status').then(({data:allRows})=>{
-      const _sEl=document.getElementById('waitlistStats');if(!_sEl)return;
-      const allData=allRows||[];
-      const waiting=allData.filter(r=>r.status==='waiting').length;
-      const assigned=allData.filter(r=>r.status==='assigned').length;
-      const cancelled=allData.filter(r=>r.status==='cancelled').length;
-      _sEl.innerHTML=`
-        <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
-        <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
-        <div class="stat-card" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2)"><div class="stat-lbl">❌ Cancelled</div><div class="stat-num" style="color:#94a3b8">${cancelled}</div></div>
-        <div class="stat-card b"><div class="stat-lbl">Total</div><div class="stat-num b">${allData.length}</div></div>`;
-    }).catch(()=>{});
+    const waiting=_wlData.filter(r=>r.status==='waiting').length;
+    const assigned=_wlData.filter(r=>r.status==='assigned').length;
+    const cancelled=_wlData.filter(r=>r.status==='cancelled').length;
+    statsEl.innerHTML=`
+      <div class="stat-card g"><div class="stat-lbl">⏳ Waiting</div><div class="stat-num g">${waiting}</div></div>
+      <div class="stat-card gr"><div class="stat-lbl">✅ Assigned</div><div class="stat-num gr">${assigned}</div></div>
+      <div class="stat-card" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2)"><div class="stat-lbl">❌ Cancelled</div><div class="stat-num" style="color:#94a3b8">${cancelled}</div></div>
+      <div class="stat-card b"><div class="stat-lbl">Total</div><div class="stat-num b">${_wlData.length}</div></div>`;
   }
-  const rows=data||[];
   if(!rows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No entries in this category.</div>';return;}
   const now=new Date();
   el.innerHTML=rows.map(r=>{
@@ -7812,6 +7807,15 @@ async function loadWaitlist(){
       </div>
     </div>`;
   }).join('');
+}
+async function loadWaitlist(){
+  const el=document.getElementById('waitlistList');
+  if(!el)return;
+  if(!_wlData.length)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const{data,error}=await sb.from('waiting_list').select('*').order('created_at',{ascending:true});
+  if(error){el.innerHTML='<div style="color:#f87171;padding:20px">Error: '+error.message+'</div>';return;}
+  _wlData=data||[];
+  renderWaitlist();
 }
 function _extractEmailFromNotes(notes){
   // Parses "Email: xxx@xxx.com" from the notes string saved by the website booking form
@@ -7850,13 +7854,16 @@ async function updateWaitlistStatus(id,status,instrId=null){
   if(status==='assigned'&&instrId)updates.instructor_id=instrId;
   const{error}=await sb.from('waiting_list').update(updates).eq('id',id);
   if(error){showToast('Error updating status: '+error.message,'error');loadWaitlist();return;}
+  // Update cache immediately
+  const cached=_wlData.find(r=>r.id===id);
+  if(cached){Object.assign(cached,updates);}
   showToast(
     status==='cancelled'?'Entry cancelled ✓':
     status==='assigned'?'Marked as assigned ✓':
     status==='waiting'?'Entry reactivated ✓':'Status updated',
     status==='cancelled'?'warn':'success',3000
   );
-  loadWaitlist();
+  renderWaitlist();
 }
 
 function openEditWaitlistModal(id,name,phone,postcode,area,type,notes){
@@ -7888,9 +7895,11 @@ async function saveWaitlistEntryOrEdit(){
     const updates={student_name:name,student_phone:(document.getElementById('wl-phone')?.value||'').trim(),postcode:(document.getElementById('wl-postcode')?.value||'').trim().toUpperCase(),area:(document.getElementById('wl-area')?.value||'').trim(),lesson_type:document.getElementById('wl-type')?.value||'Manual',notes:_wnotes};
     const{error}=await sb.from('waiting_list').update(updates).eq('id',editId);
     if(error){showToast('Error: '+error.message,'error');return;}
+    const cached=_wlData.find(r=>r.id===editId);
+    if(cached)Object.assign(cached,updates);
     showToast('Entry updated ✓','success',3000);
     closeModal('waitlistAddModal');
-    loadWaitlist();
+    renderWaitlist();
   } else {
     saveWaitlistEntry();
   }
@@ -7898,6 +7907,7 @@ async function saveWaitlistEntryOrEdit(){
 
 /* ══ WEBSITE BOOKINGS ══ */
 let _webBookingsData=[];
+let _wlData=[];
 async function loadWebBookingsBadge(){
   try{
     const{data}=await sb.from('waiting_list').select('id').ilike('notes','%[WEB]%').eq('status','waiting');
@@ -8003,8 +8013,13 @@ function openWbDetail(id){
 async function wbMarkStatus(id,status){
   const{error}=await sb.from('waiting_list').update({status}).eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
+  // Update cache immediately
+  const cached=(_webBookingsData||[]).find(r=>r.id===id);
+  if(cached)cached.status=status;
+  const wlCached=_wlData.find(r=>r.id===id);
+  if(wlCached)wlCached.status=status;
   showToast(status==='cancelled'?'Booking declined ✓':'Status updated',status==='cancelled'?'warn':'success');
-  await loadWebBookings();
+  renderWebBookings();
 }
 
 // Optimistic decline — removes card from DOM immediately, then persists to DB
@@ -8021,8 +8036,10 @@ function wbDecline(id,btn){
   // Persist to DB in background
   sb.from('waiting_list').update({status:'cancelled'}).eq('id',id)
     .then(({error})=>{if(error)console.warn('wbDecline DB error:',error.message);});
-  // Also update waiting list section badge
-  if(document.getElementById('waitlistList'))loadWaitlist();
+  // Also update waiting list section if open
+  const wlCachedDecline=_wlData.find(r=>r.id===id);
+  if(wlCachedDecline)wlCachedDecline.status='cancelled';
+  if(document.getElementById('waitlistList'))renderWaitlist();
 }
 
 async function openWbCreateStudent(wbId){
