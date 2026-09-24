@@ -3064,7 +3064,10 @@ function toggleStuFlagFromDetail(s){
 let _openRefInstrId=null;
 
 function openRefStudentDetail(name, phone, refNotes, refInstrId){
-  const s=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim());
+  const s=(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim()&&(!refInstrId||x.instrId===refInstrId))
+    ||(allStudentsCache||[]).find(x=>(x.name||'').toLowerCase().trim()===(name||'').toLowerCase().trim());
+  // If we have a full cached student, use the unified detail modal instead of the custom overlay
+  if(s&&!s.rosterOnly){openStudentDetail(null,s);return;}
   const _refInstr=refInstrId?allInstrs.find(i=>i.id===refInstrId):null;
   const _instrName=s?.instrName||_refInstr?.full_name||'—';
   // Parse address/avail from refNotes if student not in cache
@@ -3657,7 +3660,7 @@ async function loadInstrRoster(){
           <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}${_studentAgeBadge(p.created_at)}${_refDueBadge(p.instructor_id,p.name)}</div>
           ${p.phone?`<div style="font-size:.7rem;color:var(--txt3)"><i class="bi bi-telephone me-1"></i>${esc(p.phone)}</div>`:''}
           ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
-          <span class="chip Manual" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
+          <span class="chip ${(p.lesson_type||'Manual').replace(/\s/g,'-')}" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
           ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
           ${_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 4+ months ago — not counted in active total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
         </div>
@@ -4598,6 +4601,9 @@ async function openStudentDetail(idx,_directData){
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Hours</div><div class="det-val" style="color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">${s.hours.toFixed(1)}h</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Total Paid</div><div class="det-val" style="color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900">£${totalPaid.toFixed(0)}</div></div></div>
       <div class="col-12 col-sm-3"><div class="det-item"><div class="det-lbl">Progress</div><div class="det-val">${pct!=null?`<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:var(--dk3);border-radius:3px;height:8px;overflow:hidden"><div style="height:100%;background:${pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)'};width:${pct}%;border-radius:3px"></div></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900;color:var(--txt2)">${pct}%</span></div>`:'<span style="color:var(--txt4)">—</span>'}</div></div></div>
+      ${s.acctEmail?`<div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Email</div><div class="det-val"><a href="mailto:${esc(s.acctEmail)}" style="color:#60a5fa">${esc(s.acctEmail)}</a></div></div></div>`:''}
+      ${s.avail?`<div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Availability</div><div class="det-val" style="color:var(--gold)">${esc(s.avail)}</div></div></div>`:''}
+      ${s.acctStatus&&s.acctStatus!=='active'?`<div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">Account Status</div><div class="det-val"><span class="chip ${esc(s.acctStatus)}" style="font-size:.65rem">${esc(s.acctStatus)}</span></div></div></div>`:''}
     </div>`;
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
@@ -6136,7 +6142,9 @@ async function confirmAssign(){
     amount:_refAmt,is_paid:_refPaid,
     paid_at:_refPaid?_refNow:null,
     is_cancelled:false,is_credit:false,credit_fulfilled:false,
-    notes:'Assigned via Find & Assign',created_at:_refNow
+    postcode:s.postcode||null,
+    notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.type&&s.type!=='Manual'?'Lesson Type: '+s.type:''].filter(Boolean).join('\n')||'Assigned via Find & Assign',
+    created_at:_refNow
   };
   const{data:_assignRefData,error:_assignRefErr}=await sb.from('referrals').insert([_refRow]).select().single();
   if(_assignRefErr){
@@ -7787,6 +7795,7 @@ async function loadWaitlist(){
             ${r.student_phone?`<span><i class="bi bi-phone me-1"></i>${esc(r.student_phone)}</span>`:''}
             ${r.postcode?`<span><i class="bi bi-geo-alt me-1"></i>${esc(r.postcode)}</span>`:''}
             ${r.area?`<span><i class="bi bi-map me-1"></i>${esc(r.area)}</span>`:''}
+            ${(()=>{const em=_extractEmailFromNotes(r.notes||'');return em?`<span><i class="bi bi-envelope me-1"></i>${esc(em)}</span>`:''})()}
             <span><i class="bi bi-clock me-1"></i>${daysWaiting===0?'Today':daysWaiting+' day'+(daysWaiting!==1?'s':'')+' ago'}</span>
           </div>
           ${r.notes?`<div style="font-size:.72rem;color:var(--txt3);margin-top:4px;font-style:italic">${esc(r.notes)}</div>`:''}
@@ -7794,6 +7803,7 @@ async function loadWaitlist(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
           ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
           ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}','${jsEsc(r.area||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
+          <button class="abtn" onclick="openEditWaitlistModal('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${jsEsc(r.postcode||'')}','${jsEsc(r.area||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}')" style="color:#60a5fa;border-color:rgba(96,165,250,.3)"><i class="bi bi-pencil me-1"></i>Edit</button>
           ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
           ${r.status==='cancelled'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','waiting')" style="color:#4ade80;border-color:rgba(74,222,128,.3)"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivate</button>`:''}
         </div>
@@ -7845,6 +7855,43 @@ async function updateWaitlistStatus(id,status,instrId=null){
     status==='cancelled'?'warn':'success',3000
   );
   loadWaitlist();
+}
+
+function openEditWaitlistModal(id,name,phone,postcode,area,type,notes){
+  const avail=(notes||'').match(/Availability:\s*([^\n]+)/i)?.[1]?.trim()||'';
+  const cleanNotes=(notes||'').replace(/Availability:\s*[^\n]*/gi,'').replace(/Address:\s*[^\n]*/gi,'').replace(/Postcode:\s*[^\n]*/gi,'').replace(/\[WEB\]/gi,'').trim();
+  // Reuse the add modal fields, set a data attribute so save knows we're editing
+  document.getElementById('wl-name').value=name||'';
+  document.getElementById('wl-phone').value=phone||'';
+  document.getElementById('wl-postcode').value=postcode||'';
+  document.getElementById('wl-area').value=area||'';
+  document.getElementById('wl-type').value=type||'Manual';
+  document.getElementById('wl-avail').value=avail;
+  document.getElementById('wl-notes').value=cleanNotes;
+  const modal=document.getElementById('waitlistAddModal');
+  if(modal){modal.dataset.editId=id;const h=modal.querySelector('h6');if(h)h.textContent='Edit Waiting List Entry';}
+  openModal('waitlistAddModal');
+}
+async function saveWaitlistEntryOrEdit(){
+  const modal=document.getElementById('waitlistAddModal');
+  const editId=modal?.dataset?.editId||'';
+  if(editId){
+    modal.dataset.editId='';
+    const h=modal.querySelector('h6');if(h)h.textContent='Add to Waiting List';
+    const name=(document.getElementById('wl-name')?.value||'').trim();
+    if(!name){showToast('Name required','error');return;}
+    const avail=(document.getElementById('wl-avail')?.value||'').trim();
+    const rawNotes=(document.getElementById('wl-notes')?.value||'').trim();
+    const _wnotes=[rawNotes,avail?'Availability: '+avail:''].filter(Boolean).join('\n');
+    const updates={student_name:name,student_phone:(document.getElementById('wl-phone')?.value||'').trim(),postcode:(document.getElementById('wl-postcode')?.value||'').trim().toUpperCase(),area:(document.getElementById('wl-area')?.value||'').trim(),lesson_type:document.getElementById('wl-type')?.value||'Manual',notes:_wnotes};
+    const{error}=await sb.from('waiting_list').update(updates).eq('id',editId);
+    if(error){showToast('Error: '+error.message,'error');return;}
+    showToast('Entry updated ✓','success',3000);
+    closeModal('waitlistAddModal');
+    loadWaitlist();
+  } else {
+    saveWaitlistEntry();
+  }
 }
 
 /* ══ WEBSITE BOOKINGS ══ */
@@ -7905,13 +7952,14 @@ function renderWebBookings(){
         <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
           <div style="background:rgba(245,197,24,.1);border-radius:6px;padding:2px 8px;font-size:.67rem;color:var(--gold)">${esc(r.lesson_type||'Manual')}</div>
           <div style="font-size:.65rem;color:var(--txt4)">${daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+' days ago'}</div>
-          ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:8px;padding:3px 9px;font-size:.66rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
+          ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(r.student_name||'').split(' ')[0]+', this is DriveSQ! We received your booking request and will be in touch shortly. 🚗')}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:8px;padding:3px 9px;font-size:.66rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp</a>`:''}
         </div>
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
       <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
-        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
-        ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline('${_rid}',this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
+        ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>`:''}
+        ${r.status==='waiting'?`<button class="abtn" style="font-size:.72rem;padding:4px 10px;color:#fbbf24;border-color:rgba(251,191,36,.3)" onclick="event.stopPropagation();wbMarkStatus('${_rid}','contacted')"><i class="bi bi-telephone-fill me-1"></i>Contacted</button>`:''}
+        ${r.status==='waiting'||r.status==='contacted'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline('${_rid}',this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -7931,6 +7979,7 @@ function openWbDetail(id){
       <div><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Phone</div><div style="color:var(--txt);font-weight:600">${esc(r.student_phone||'—')}</div></div>
       <div><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Postcode</div><div style="color:var(--txt);font-weight:600">${esc(r.postcode||'—')}</div></div>
       <div><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Lesson Type</div><div style="color:var(--txt);font-weight:600">${esc(r.lesson_type||'Manual')}</div></div>
+      ${(()=>{const em=_extractEmailFromNotes(r.notes||'');return em?`<div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Email</div><div style="color:var(--txt);font-weight:600"><a href="mailto:${esc(em)}" style="color:#60a5fa">${esc(em)}</a></div></div>`:''})()}
       <div class="col-span-2" style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Address</div><div style="color:var(--txt);font-weight:600">${esc(r.area||'—')}</div></div>
       ${r.notes?`<div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Notes / Availability</div><div style="color:var(--txt);font-weight:600;white-space:pre-wrap">${esc(r.notes)}</div></div>`:''}
       <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Submitted</div><div style="color:var(--txt);font-weight:600">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} (${daysAgo===0?'today':daysAgo+' days ago'})</div></div>
@@ -7942,9 +7991,11 @@ function openWbDetail(id){
     </div>`:r.status==='assigned'?`<div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#4ade80;display:flex;gap:8px;align-items:flex-start"><i class="bi bi-check-circle-fill" style="flex-shrink:0;margin-top:1px"></i><span>This student has been assigned to an instructor.</span></div>`:
     `<div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#94a3b8;display:flex;gap:8px;align-items:flex-start"><i class="bi bi-x-circle-fill" style="flex-shrink:0;margin-top:1px"></i><span>This booking was declined.</span></div>`}`;
   const _wbRid=String(r.id);
+  const _wbContactMsg=encodeURIComponent('Hi '+(r.student_name||'').split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗');
   actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent('${_wbRid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
-    +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
-    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline('${_wbRid}',null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
+    +(waNum?`<a href="https://wa.me/${waNum}?text=${_wbContactMsg}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
+    +(r.status==='waiting'?`<button class="abtn" style="font-size:.78rem;color:#fbbf24;border-color:rgba(251,191,36,.3)" onclick="wbMarkStatus('${_wbRid}','contacted');closeModal('wbDetailModal')"><i class="bi bi-telephone-fill me-1"></i>Mark Contacted</button>`:'')
+    +(r.status==='waiting'||r.status==='contacted'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline('${_wbRid}',null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
   openModal('wbDetailModal');
 }
 async function wbMarkStatus(id,status){
@@ -8525,7 +8576,8 @@ async function reassignRefStudent(refId){
   // Refresh the open referral modal so the row immediately shows as cancelled
   if(_openRefInstrId)openRefDetail(_openRefInstrId);
   // 3. Look up student from cache — pull all available details for Find & Assign prefill
-  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
+  const cached=(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim()&&(!r.instructor_id||s.instrId===r.instructor_id))
+    ||(allStudentsCache||[]).find(s=>(s.name||'').toLowerCase().trim()===r.student_name.toLowerCase().trim());
   const stuPhone=r.student_phone||cached?.phone||'';
   // Extract address & postcode — try cache first, then parse from referral notes
   const _rAddrMatch=(r.notes||'').match(/Address:\s*([^\n]+)/i);
@@ -8535,7 +8587,10 @@ async function reassignRefStudent(refId){
   const stuEmail=cached?.acctEmail||cached?.email||'';
   const stuAvail=cached?.avail||(_rAvailMatch?_rAvailMatch[1].trim():'')||'';
   const stuNotes=(r.notes||'').replace(/Address:\s*[^\n]*/gi,'').replace(/Postcode:\s*[^\n]*/gi,'').replace(/Availability:\s*[^\n]*/gi,'').replace(/Email:\s*[^\n]*/gi,'').trim()||cached?.notes||'';
-  const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'')||'Manual';
+  const _rTypeMatch=(r.notes||'').match(/Lesson Type:\s*([^\n]+)/i);
+  const stuType=cached?.lessonType||(cached?.types?[...cached.types][0]:'')
+    ||(_rTypeMatch?_rTypeMatch[1].trim():'')
+    ||(r.lesson_type||'Manual');
   // Extract postcode from cache address, notes Postcode: field, or inline postcode in address
   const postcodeMatch=stuAddr.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
   const stuPostcode=(_rPostcodeMatch?_rPostcodeMatch[1].trim():'')||(postcodeMatch?postcodeMatch[0].toUpperCase():'')||r.postcode||'';
@@ -8915,7 +8970,7 @@ async function loadExpenses(){
   const fetches=[
     _refData.length?Promise.resolve({data:_refData}):sb.from('referrals').select('*').order('created_at',{ascending:false}),
     _incData.length?Promise.resolve({data:_incData}):sb.from('income_entries').select('*').order('income_date',{ascending:false}),
-    sb.from('expenses').select('*').order('expense_date',{ascending:false})
+    _expData.length?Promise.resolve({data:_expData}):sb.from('expenses').select('*').order('expense_date',{ascending:false})
   ];
   const[refRes,incRes,{data,error}]=await Promise.all(fetches);
   if(refRes.data&&!_refData.length)_refData=refRes.data;
@@ -10812,7 +10867,7 @@ function renderTheoryList(rows){
     </div>
     <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="wl-avail" placeholder="e.g. Weekday mornings, weekends"/></div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any other notes or preferences…"></textarea></div>
-    <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
+    <button class="btn-p w-100" onclick="saveWaitlistEntryOrEdit()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
   </div>
 </div>
 
