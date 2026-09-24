@@ -1459,6 +1459,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button id="acctab-expenses" onclick="setAccTab('expenses')" style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Expenses</button>
     <button id="acctab-taxsum"   onclick="setAccTab('taxsum')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Tax Summary</button>
     <button id="acctab-overdue"  onclick="setAccTab('overdue')"  style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Overdue <span id="overdueBadge" style="display:none;background:#f87171;color:#fff;border-radius:10px;padding:1px 7px;font-size:.65rem;margin-left:4px">0</span></button>
+    <button id="acctab-revenue"  onclick="setAccTab('revenue')"  style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Revenue</button>
+    <button id="acctab-forecast" onclick="setAccTab('forecast')" style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Forecast</button>
   </div>
 
   <!-- P&L STATEMENT SUB-PANEL -->
@@ -1605,6 +1607,22 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <!-- UK Tax Deadlines -->
     <div id="taxDeadlines" style="margin-bottom:16px"></div>
     <div id="taxSummaryContent"></div>
+  </div>
+
+  <!-- REVENUE SUB-PANEL -->
+  <div id="accpanel-revenue" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="font-size:.75rem;color:var(--txt4)">Revenue breakdown by instructor — referral income, collection rate, and trend.</div>
+      <button onclick="exportRevenueCSV()" style="margin-left:auto;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:5px 13px;font-size:.7rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
+    </div>
+    <div id="revenueContent" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+
+  <!-- FORECAST SUB-PANEL -->
+  <div id="accpanel-forecast" style="display:none">
+    <div style="font-size:.75rem;color:var(--txt4);margin-bottom:14px">3-month forward projection based on 3-month rolling averages. Indicative only — assumes no seasonal variation.</div>
+    <div id="forecastKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:18px"></div>
+    <div id="forecastMonths" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>
 
   <!-- OVERDUE SUB-PANEL -->
@@ -8777,7 +8795,7 @@ function _periodLabel(){return{month:'This Month',quarter:'This Quarter',year:'T
 /* Sub-tab */
 function setAccTab(t){
   _accTab=t;
-  ['pl','income','expenses','taxsum','overdue'].forEach(k=>{
+  ['pl','income','expenses','taxsum','overdue','revenue','forecast'].forEach(k=>{
     const panel=document.getElementById('accpanel-'+k);
     const btn=document.getElementById('acctab-'+k);
     if(panel)panel.style.display=k===t?'':'none';
@@ -8799,14 +8817,15 @@ async function loadIncome(){
 async function loadExpenses(){
   const el=document.getElementById('expList');
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
-  // Ensure referral data is loaded (needed for income/profit figures)
-  if(!_refData.length){
-    const{data:rd}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
-    if(rd)_refData=rd;
-  }
-  // Load manual income entries too
-  await loadIncome();
-  const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+  // Parallel fetch of all three data sources
+  const fetches=[
+    _refData.length?Promise.resolve({data:_refData}):sb.from('referrals').select('*').order('created_at',{ascending:false}),
+    _incData.length?Promise.resolve({data:_incData}):sb.from('income_entries').select('*').order('income_date',{ascending:false}),
+    sb.from('expenses').select('*').order('expense_date',{ascending:false})
+  ];
+  const[refRes,incRes,{data,error}]=await Promise.all(fetches);
+  if(refRes.data&&!_refData.length)_refData=refRes.data;
+  if(incRes.data&&!_incData.length)_incData=incRes.data;
   if(error){
     const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
     if(el)el.innerHTML=msg;
@@ -8941,6 +8960,8 @@ function renderAccounting(){
   else if(_accTab==='expenses')renderExpenses();
   else if(_accTab==='taxsum')_renderTaxSummary();
   else if(_accTab==='overdue')_renderOverdueTab();
+  else if(_accTab==='revenue')_renderRevenueTab();
+  else if(_accTab==='forecast')_renderForecast();
   _updateOverdueBadge();
 }
 
@@ -9340,6 +9361,149 @@ function _renderOverdueTab(){
       </div>
     </div>`;
   }).join('');
+}
+
+/* ── Revenue by Instructor sub-tab ── */
+function _renderRevenueTab(){
+  const el=document.getElementById('revenueContent');if(!el)return;
+  const now=new Date();
+  // All-time data for revenue tab (not filtered by period)
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  if(!refRows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)">No referral data yet.</div>';return;}
+  const byInstr={};
+  refRows.forEach(r=>{
+    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,paid:0,due:0,rows:[],months:{}};
+    const g=byInstr[r.instructor_id];
+    g.rows.push(r);
+    const key=new Date(r.created_at).toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
+    if(!g.months[key])g.months[key]={income:0,due:0};
+    if(r.is_paid){g.paid+=(parseFloat(r.amount)||0);g.months[key].income+=(parseFloat(r.amount)||0);}
+    else{g.due+=(parseFloat(r.amount)||0);g.months[key].due+=(parseFloat(r.amount)||0);}
+  });
+  const groups=Object.values(byInstr).sort((a,b)=>(b.paid+b.due)-(a.paid+a.due));
+  const maxTotal=Math.max(...groups.map(g=>g.paid+g.due),1);
+  el.innerHTML=groups.map((g,rank)=>{
+    const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown'};
+    const total=g.paid+g.due;
+    const pct=total>0?Math.round(g.paid/total*100):0;
+    const col=pct>=80?'#4ade80':pct>=50?'#fbbf24':'#f87171';
+    const barW=Math.round(total/maxTotal*100);
+    // last 3 months trend
+    const recentMonths=[];
+    for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);recentMonths.push(d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}));}
+    const recentInc=recentMonths.map(k=>(g.months[k]?.income||0));
+    const trendPct=recentInc[0]>0?Math.round((recentInc[2]-recentInc[0])/recentInc[0]*100):null;
+    return`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:14px 18px">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--txt4);min-width:22px;padding-top:2px">#${rank+1}</div>
+        <div style="flex:1;min-width:140px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}</div>
+            ${trendPct!==null?`<span style="font-size:.6rem;font-weight:700;color:${trendPct>=0?'#4ade80':'#f87171'}">${trendPct>=0?'▲':'▼'}${Math.abs(trendPct)}% 3-mo trend</span>`:''}
+          </div>
+          <div style="font-size:.65rem;color:var(--txt4);margin-top:1px">${g.rows.length} referral${g.rows.length!==1?'s':', all'} · avg £${(total/g.rows.length).toFixed(2)} each</div>
+          <div style="margin-top:8px;height:6px;background:var(--bdr);border-radius:3px;overflow:hidden"><div style="height:100%;width:${barW}%;background:linear-gradient(90deg,#4ade80,#4ade8099);border-radius:3px;transition:width .4s"></div></div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;flex-shrink:0">
+          <div style="text-align:right"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Collected</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#4ade80">£${g.paid.toFixed(2)}</div></div>
+          ${g.due>0?`<div style="text-align:right"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Outstanding</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:#f87171">£${g.due.toFixed(2)}</div></div>`:''}
+          <div style="text-align:right"><div style="font-size:.55rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Rate</div><div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:${col}">${pct}%</div></div>
+          <button onclick="openRefDetail('${g.id}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap">Detail →</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Forecast sub-tab ── */
+function _renderForecast(){
+  const kpiEl=document.getElementById('forecastKpis');
+  const monthsEl=document.getElementById('forecastMonths');
+  if(!kpiEl||!monthsEl)return;
+  const now=new Date();
+  // Build last 3 months of actuals for baseline
+  const baseMos=[];
+  for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);baseMos.push({year:d.getFullYear(),month:d.getMonth()});}
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&r.is_paid);
+  baseMos.forEach(m=>{
+    m.income=refRows.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    m.expenses=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    m.profit=m.income-m.expenses;
+  });
+  const avgInc=baseMos.reduce((s,m)=>s+m.income,0)/3;
+  const avgExp=baseMos.reduce((s,m)=>s+m.expenses,0)/3;
+  const avgProfit=avgInc-avgExp;
+  // Collection rate for outstanding uplift
+  const allUnpaid=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  // 3-month forward projection
+  const fwdMos=[];
+  for(let i=1;i<=3;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);fwdMos.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})});}
+  // KPI summary
+  const totalFwdInc=avgInc*3;
+  const totalFwdExp=avgExp*3;
+  const totalFwdProfit=totalFwdInc-totalFwdExp;
+  kpiEl.innerHTML=`
+    <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:12px 16px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Projected 3-Mo Income</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#4ade80">£${totalFwdInc.toFixed(2)}</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px">£${avgInc.toFixed(2)}/mo avg</div>
+    </div>
+    <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:12px;padding:12px 16px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Projected 3-Mo Expenses</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#f87171">£${totalFwdExp.toFixed(2)}</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px">£${avgExp.toFixed(2)}/mo avg</div>
+    </div>
+    <div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:12px;padding:12px 16px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Projected 3-Mo Profit</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:${totalFwdProfit>=0?'var(--gold)':'#f87171'}">${totalFwdProfit>=0?'':'-'}£${Math.abs(totalFwdProfit).toFixed(2)}</div>
+    </div>
+    ${allUnpaid>0?`<div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:12px;padding:12px 16px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Outstanding (collectible)</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fbbf24">£${allUnpaid.toFixed(2)}</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px">if collected adds to forecast</div>
+    </div>`:''}
+  `;
+  monthsEl.innerHTML=fwdMos.map((m,i)=>{
+    const variancePct=i*5; // small month-over-month growth assumption note
+    return`<div style="background:var(--card-bg);border:1px solid rgba(245,197,24,.2);border-radius:14px;padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${m.label}</div>
+        <span style="font-size:.6rem;background:rgba(245,197,24,.12);color:var(--gold);border-radius:5px;padding:2px 8px;font-weight:700;letter-spacing:.4px">FORECAST</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+        <div><div style="font-size:.6rem;color:#4ade80;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Projected Income</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#4ade80">£${avgInc.toFixed(2)}</div></div>
+        <div><div style="font-size:.6rem;color:#f87171;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Projected Expenses</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#f87171">£${avgExp.toFixed(2)}</div></div>
+        <div><div style="font-size:.6rem;color:var(--gold);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Projected Net</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:${avgProfit>=0?'var(--gold)':'#f87171'}">${avgProfit>=0?'':'-'}£${Math.abs(avgProfit).toFixed(2)}</div></div>
+        <div><div style="font-size:.6rem;color:var(--txt4);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Basis</div><div style="font-size:.72rem;color:var(--txt3)">3-mo rolling avg</div></div>
+      </div>
+    </div>`;
+  }).join('')+`<div style="font-size:.68rem;color:var(--txt4);margin-top:10px;padding:10px 14px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--bdr)"><i class="bi bi-info-circle me-1"></i>Forecast uses 3-month rolling averages of actual income and expenses. Seasonal variation and pipeline changes are not modelled. Always review alongside your actual referral pipeline.</div>`;
+}
+
+/* ── Revenue CSV export ── */
+function exportRevenueCSV(){
+  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  if(!refRows.length){showToast('No revenue data to export','warn');return;}
+  const byInstr={};
+  refRows.forEach(r=>{
+    if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,paid:0,due:0,count:0};
+    byInstr[r.instructor_id].count++;
+    if(r.is_paid)byInstr[r.instructor_id].paid+=(parseFloat(r.amount)||0);
+    else byInstr[r.instructor_id].due+=(parseFloat(r.amount)||0);
+  });
+  const headers=['Instructor','Total Referrals','Collected (£)','Outstanding (£)','Total (£)','Collection Rate (%)'];
+  const csvRows=Object.values(byInstr).sort((a,b)=>(b.paid+b.due)-(a.paid+a.due)).map(g=>{
+    const instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown'};
+    const total=g.paid+g.due;
+    const rate=total>0?Math.round(g.paid/total*100):0;
+    return[instr.full_name,g.count,g.paid.toFixed(2),g.due.toFixed(2),total.toFixed(2),rate].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+  });
+  const csv=[headers.join(','),...csvRows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='instructor-revenue.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  showToast('Revenue CSV downloaded ✓','success');
 }
 
 /* ── Export overdue CSV ── */
