@@ -8915,6 +8915,7 @@ function _downloadRefCSV(rows, filename){
 /* ══ ACCOUNTING ══ */
 let _expData=[];
 let _incData=[];
+let _accDataLoaded=false;
 let _accPeriod='month';
 let _accTab='pl';
 const _EXP_CATS={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment:'#a78bfa',Software:'#34d399',Office:'#fb923c',Travel:'#e879f9',Fuel:'#38bdf8',Phone:'#c084fc',Other:'#94a3b8'};
@@ -8950,7 +8951,7 @@ function setAccTab(t){
     if(panel)panel.style.display=k===t?'':'none';
     if(btn){btn.style.borderBottomColor=k===t?'var(--gold)':'transparent';btn.style.color=k===t?'var(--gold)':'var(--txt3)';}
   });
-  renderAccounting();
+  if(_accDataLoaded)renderAccounting();
 }
 
 /* Load */
@@ -8989,6 +8990,7 @@ async function loadExpenses(force=false){
   } else {
     _expData=expRes.data||[];
   }
+  _accDataLoaded=true;
   renderAccounting();
 }
 
