@@ -3485,7 +3485,8 @@ async function viewInstr(id){
     </div>
     <div class="det-grid mt-3 mb-2" id="instrDetailGrid"></div>
     <div class="d-flex gap-2 flex-wrap mb-2">
-      <label class="abtn approve" style="cursor:pointer;margin:0" title="Upload badge photo directly"><i class="bi bi-upload me-1"></i>Upload Badge Photo<input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="adminUploadBadgeDirect(event,'${id}')"/></label>
+      <label class="abtn approve" id="badgeUploadBtn-${id}" style="cursor:pointer;margin:0" title="Upload badge photo directly"><i class="bi bi-upload me-1"></i>Upload Badge Photo<input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="adminUploadBadgeDirect(event,'${id}')"/></label>
+      <label class="abtn" id="carPhotoUploadBtn-${id}" style="cursor:pointer;margin:0;border-color:rgba(96,165,250,.4);color:#60a5fa" title="Upload car photos (up to 10)"><i class="bi bi-car-front me-1"></i>Upload Car Photos<input type="file" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="adminUploadCarPhotos(event,'${id}')"/></label>
       <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request from Instructor</button>
       <button class="abtn approve" onclick="openAddLessonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
       <button class="btn-s" style="font-size:.72rem;padding:4px 10px;min-height:30px" onclick="openSqlModal()"><i class="bi bi-code-slash me-1"></i>SQL Helper</button>
@@ -3516,7 +3517,13 @@ function renderInstrDetail(instr){
     ['Badge Photo',instr.badge_photo_url?`<div style="margin-top:4px"><img src="${esc(instr.badge_photo_url)}?t=${Date.now()}" alt="Badge photo" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid rgba(255,255,255,.12);object-fit:contain;background:#111;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;color:#f87171;font-size:.75rem">⚠️ Image failed to load</span><a href="${esc(instr.badge_photo_url)}" target="_blank" style="font-size:.7rem;color:var(--txt4);margin-top:4px;display:inline-block"><i class="bi bi-box-arrow-up-right"></i> Open full size</a></div>`:'<span style="color:#f87171">❌ Not uploaded</span>'],
     ['Badge Expiry',(()=>{if(!instr.badge_expiry)return'<span style="color:var(--txt4)">—</span>';const today=new Date();today.setHours(0,0,0,0);const exp=new Date(instr.badge_expiry);const diff=Math.round((exp-today)/(1000*60*60*24));const fmt=exp.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][exp.getMonth()]+' '+exp.getFullYear();if(diff<0)return`<span style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⛔ EXPIRED — ${fmt}</span>`;if(diff<=30)return`<span style="background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.3);border-radius:5px;padding:2px 8px;font-size:.72rem">⚠️ ${fmt} · ${diff}d left</span>`;if(diff<=90)return`<span style="background:rgba(251,146,60,.12);color:#fb923c;border:1px solid rgba(251,146,60,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">🕐 ${fmt} · ${diff}d left</span>`;return`<span style="background:rgba(37,211,102,.1);color:#4ade80;border:1px solid rgba(37,211,102,.25);border-radius:5px;padding:2px 8px;font-size:.72rem">✅ ${fmt}</span>`;})()],
     ...(carInfo?[['Vehicle',esc(carInfo)]]:[]),
-    ...(instr.admin_notes?[['Admin Notes',`<div style="white-space:pre-wrap;font-size:.8rem;color:var(--txt2);background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:7px;padding:7px 10px">${esc(instr.admin_notes)}</div>`]]:[] ),
+    ...(instr.admin_notes?[['Admin Notes',`<div style="white-space:pre-wrap;font-size:.8rem;color:var(--txt2);background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:7px;padding:7px 10px">${esc(instr.admin_notes)}</div>`]]:[]),
+    ...(()=>{
+      let urls=[];try{urls=JSON.parse(instr.car_photo_urls||'[]');}catch(e){}
+      if(!urls.length)return[];
+      const thumbs=urls.map((u,i)=>`<a href="${esc(u)}" target="_blank" style="display:inline-block;margin:2px"><img src="${esc(u)}?t=${Date.now()}" alt="Car photo ${i+1}" style="width:90px;height:68px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,.12);cursor:pointer" onerror="this.style.display='none'"/></a>`).join('');
+      return[['Car Photos',`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${thumbs}<div style="font-size:.68rem;color:var(--txt4);align-self:center;margin-left:4px">${urls.length} photo${urls.length!==1?'s':''} — click to open full size</div></div>`]];
+    })(),
   ];
   grid.innerHTML=fields.map(([lbl,val])=>`<div class="det-item"><div class="det-lbl">${lbl}</div><div class="det-val ${!val?'empty':''}">${val||'—'}</div></div>`).join('');
 }
@@ -5145,7 +5152,7 @@ async function saveEdit(){
 
   // If that fails, retry stripping optional columns that may not exist yet
   if(error){
-    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,car_model:cm,car_plate:cpl,admin_notes:an,...coreBase}=base;
+    const{coverage_postcodes:cp,badge_expiry:be,instructor_model:im,car_model:cm,car_plate:cpl,admin_notes:an,car_photo_urls:cpu,...coreBase}=base;
     const retry={...coreBase};
     if(cp!==null)retry.coverage_postcodes=cp;
     if(be!==null)retry.badge_expiry=be;
@@ -5242,6 +5249,8 @@ async function adminUploadBadgeDirect(e,instrId){
   if(!allowed.includes(file.type)){showToast('Use JPG, PNG or WebP.','error');e.target.value='';return;}
   if(file.size>5*1024*1024){showToast('File too large (max 5MB).','error');e.target.value='';return;}
   _badgeDirectUploadInProgress=true;
+  const badgeBtn=document.getElementById('badgeUploadBtn-'+instrId);
+  if(badgeBtn)badgeBtn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Uploading…';
   showToast('Uploading badge photo…','info',8000);
   try{
     const path=_badgeStoragePath(instrId,file.type);
@@ -5253,13 +5262,57 @@ async function adminUploadBadgeDirect(e,instrId){
     const cached=allInstrs.find(i=>i.id===instrId);
     if(cached)cached.badge_photo_url=publicUrl;
     if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
-    showToast('✅ Badge photo saved!','success');
+    showToast('✅ Badge photo uploaded and saved!','success',5000);
   }catch(err){
     showToast('Upload failed: '+err.message,'error',8000);
     console.error('adminUploadBadgeDirect:',err);
   }finally{
     _badgeDirectUploadInProgress=false;
     e.target.value='';
+    if(badgeBtn)badgeBtn.innerHTML='<i class="bi bi-upload me-1"></i>Upload Badge Photo';
+  }
+}
+
+let _carPhotoUploadInProgress=false;
+async function adminUploadCarPhotos(e,instrId){
+  const files=[...e.target.files].slice(0,10);
+  e.target.value='';
+  if(!files.length)return;
+  if(_carPhotoUploadInProgress){showToast('Upload already in progress…','warn');return;}
+  const allowed=['image/jpeg','image/png','image/webp'];
+  for(const f of files){
+    if(!allowed.includes(f.type)){showToast('Use JPG, PNG or WebP only.','error');return;}
+    if(f.size>5*1024*1024){showToast(`${f.name} is too large (max 5MB each).`,'error');return;}
+  }
+  _carPhotoUploadInProgress=true;
+  const btn=document.getElementById('carPhotoUploadBtn-'+instrId);
+  if(btn)btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Uploading…';
+  showToast(`Uploading ${files.length} car photo${files.length!==1?'s':''}…`,'info',15000);
+  try{
+    // Load existing URLs
+    const cached=allInstrs.find(i=>i.id===instrId);
+    let existing=[];try{existing=JSON.parse(cached?.car_photo_urls||'[]');}catch(x){}
+    const newUrls=[];
+    for(const file of files){
+      const ext=_mimeToExt[file.type]||'jpg';
+      const path=`car-photos/${instrId}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.${ext}`;
+      const{error:upErr}=await sb.storage.from('instructor-files').upload(path,file,{upsert:false,contentType:file.type});
+      if(upErr)throw upErr;
+      const{data:{publicUrl}}=sb.storage.from('instructor-files').getPublicUrl(path);
+      newUrls.push(publicUrl);
+    }
+    const merged=[...existing,...newUrls];
+    const{error:dbErr}=await sb.from('instructors').update({car_photo_urls:JSON.stringify(merged)}).eq('id',instrId);
+    if(dbErr)throw dbErr;
+    if(cached)cached.car_photo_urls=JSON.stringify(merged);
+    if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
+    showToast(`✅ ${newUrls.length} car photo${newUrls.length!==1?'s':''} uploaded! (${merged.length} total)`,'success',5000);
+  }catch(err){
+    showToast('Car photo upload failed: '+err.message,'error',8000);
+    console.error('adminUploadCarPhotos:',err);
+  }finally{
+    _carPhotoUploadInProgress=false;
+    if(btn)btn.innerHTML='<i class="bi bi-car-front me-1"></i>Upload Car Photos';
   }
 }
 
