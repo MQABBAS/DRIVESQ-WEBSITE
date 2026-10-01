@@ -4069,7 +4069,7 @@ function filterAllStudents(q){
   _filterAllStudentsTimer=setTimeout(()=>{
     const instrId=document.getElementById('studentInstrFilter').value;
     const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
-    let list=allStudentsCache;
+    let list=allStudentsCache.filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive');
     if(instrId)list=list.filter(s=>s.instrId===instrId);
     if(onlineF==='flagged')list=list.filter(s=>_isStuFlagged(s));
     else if(onlineF==='online')list=list.filter(s=>s.isOnline);
@@ -4127,7 +4127,7 @@ async function adminDeleteStudent(skipConfirm){
     }
   }
   // Re-render the student table immediately so they're gone from the list
-  if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache);
+  if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache.filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive'));
   _adminStudentCtx=null;
 
   // ── STEP 2: Delete from database ─────────────────────────────────────────
@@ -5001,7 +5001,7 @@ async function mergeStudentGroup(gi){
   }
   // Full reload from DB to ensure cache is clean
   await loadAllStudents();
-  renderStudentsTable(allStudentsCache);
+  renderStudentsTable(allStudentsCache.filter(s=>s.status!=='inactive'&&s.acctStatus!=='inactive'));
 }
 
 function exportStudentsCSV(){
