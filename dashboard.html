@@ -2560,7 +2560,7 @@ function jumpToDayView(dk,dowIdx){
    ROSTER
 ══════════════════════════════ */
 async function loadRoster(){
-  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
+  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
   if(error){console.warn('Roster load:',error);rosterMap={};updateStats();return;}
   rosterMap={};
   (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
@@ -3099,7 +3099,7 @@ function saveDetailStudentToRoster(){
 ══════════════════════════════ */
 async function loadStudents(){
   // Core data — these MUST work
-  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).order('name',{ascending:true});
+  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});
   if(profErr){console.error('loadStudents profiles error:',profErr);renderStudents([]);return;}
 
   // Query lessons — handle payment_received column not existing gracefully
@@ -3153,28 +3153,6 @@ async function loadStudents(){
       unreadMsgs:unread
     };
   }).sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
-
-  // Backfill lesson students not yet in profiles
-  const profileNames=new Set((profiles||[]).map(p=>p.name.toLowerCase().trim()));
-  const newFromLessons=Object.entries(lessonMap).filter(([k])=>!profileNames.has(k)&&!_recentlyDeletedNames.has(k));
-  if(newFromLessons.length){
-    // Save each new student to roster silently
-    for(const[k]of newFromLessons){
-      try{await saveToRoster(k,'','','Manual','',null);}catch(e){}
-    }
-    await loadRoster();
-    // Add them directly to allStudentsArr without recursing
-    newFromLessons.forEach(([k,info])=>{
-      if(!allStudentsArr.find(s=>s.name.toLowerCase().trim()===k)){
-        allStudentsArr.push({
-          id:null,name:k,phone:'',address:'',lesson_type:'Manual',notes:'',
-          count:info.count,lastDate:info.last,types:info.types,
-          totalHrs:info.totalHrs||0,totalPaid:0,unreadMsgs:0
-        });
-      }
-    });
-    allStudentsArr.sort((a,b)=>(b.unreadMsgs-a.unreadMsgs)||(b.lastDate||'').localeCompare(a.lastDate||'')||a.name.localeCompare(b.name));
-  }
 
   renderStudents(allStudentsArr);
   updateStats();
