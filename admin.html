@@ -3849,6 +3849,10 @@ async function loadAllStudents(){
     const key=l.student_name+'__'+l.instructor_id;
     const assignedAt=rosterDateMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()]||null;
     const _rProf=rosterProfileMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()]||{};
+    // Only create a new roster entry from a lesson if the student already has a student_profiles
+    // row for this instructor (rosterProfileMap key present) or an account/profile already in map.
+    // This prevents web bookings and test lessons from creating phantom students in the roster.
+    if(!map[key]&&!rosterProfileMap[l.instructor_id+'__'+(l.student_name||'').toLowerCase().trim()])return;
     if(!map[key])map[key]={
       name:l.student_name,phone:l.student_phone,address:_rProf.address||l.pickup_address||'',
       instrId:l.instructor_id,instrName:l.instructors?.full_name||'—',
