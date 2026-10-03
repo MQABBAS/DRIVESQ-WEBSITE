@@ -2801,32 +2801,36 @@ async function saveLesson(e){
     let _sAccId=null;
     try{const{data:_sa}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();_sAccId=_sa?.id||null;}catch(e){}
     const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
-    const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
-    if(lErr){
+    let lessonSaved=false;
+    const tryInsertLesson=async(payload)=>{
+      const{error}=await sb.from('lessons').insert([payload]);
+      if(!error){lessonSaved=true;return null;}
+      // Duplicate key — lesson already exists, treat as success
+      if(error.code==='23505'||error.message?.includes('duplicate')||error.message?.includes('unique')){lessonSaved=true;return null;}
+      return error;
+    };
+    let lErr=await tryInsertLesson(lessonPayload);
+    if(lErr&&!lessonSaved){
       if(lErr.message&&(lErr.message.includes('payment_received')||lErr.message.includes('student_account_id')||lErr.message.includes('column'))){
-        // Column not yet added — retry progressively stripping unknown columns
-        const fallback={...lessonPayload};
-        delete fallback.payment_received;
-        delete fallback.student_account_id;
-        const{error:lErr2}=await sb.from('lessons').insert([fallback]);
-        if(lErr2){
-          // Try with just core fields
-          const minimal={instructor_id:lessonPayload.instructor_id,lesson_date:lessonPayload.lesson_date,start_time:lessonPayload.start_time,duration_hours:lessonPayload.duration_hours,student_name:lessonPayload.student_name,student_phone:lessonPayload.student_phone||'',pickup_address:lessonPayload.pickup_address||'',lesson_type:lessonPayload.lesson_type,notes:lessonPayload.notes||'',created_at:lessonPayload.created_at};
-          const{error:lErr3}=await sb.from('lessons').insert([minimal]);
-          if(lErr3)throw lErr3;
-        }
-      } else {
-        throw lErr;
+        const fallback={...lessonPayload};delete fallback.payment_received;delete fallback.student_account_id;
+        lErr=await tryInsertLesson(fallback);
+      }
+      if(lErr&&!lessonSaved){
+        const minimal={instructor_id:lessonPayload.instructor_id,lesson_date:lessonPayload.lesson_date,start_time:lessonPayload.start_time,duration_hours:lessonPayload.duration_hours,student_name:lessonPayload.student_name,student_phone:lessonPayload.student_phone||'',pickup_address:lessonPayload.pickup_address||'',lesson_type:lessonPayload.lesson_type,notes:lessonPayload.notes||'',created_at:lessonPayload.created_at};
+        lErr=await tryInsertLesson(minimal);
+        if(lErr&&!lessonSaved)throw lErr;
       }
     }
     if(lessonPayload.student_phone&&_sAccId){
       sb.from('student_accounts').update({phone:lessonPayload.student_phone}).eq('id',_sAccId).then(()=>{},()=>{});
     }
-    if(document.getElementById('saveToRoster').checked){
-      const rErr=await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
-      if(rErr)console.warn('Roster:',rErr);
-      await loadRoster();
-    }
+    // Roster save is fire-and-forget — never blocks lesson success
+    try{
+      if(document.getElementById('saveToRoster').checked){
+        await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
+        await loadRoster();
+      }
+    }catch(rEx){console.warn('Roster save (non-blocking):',rEx);}
     closeModal('addModal');
     if(calView==='week')await loadWeek();
     else if(calView==='day')await loadDayView(activeDate);
