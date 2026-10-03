@@ -4416,9 +4416,14 @@ async function loadAdminChatHistory(acctId,instrId){
 async function saveAdminStudentNotes(acctId){
   const ta=document.getElementById('adminStudentNotesTa');
   if(!ta)return;
-  const{error}=await sb.from('student_accounts').update({notes:ta.value.trim(),updated_at:new Date().toISOString()}).eq('id',acctId);
-  if(error)showToast('Failed to save notes.','error');
-  else showToast('Notes saved ✓','success');
+  const note=ta.value.trim();
+  const{error}=await sb.from('student_accounts').update({notes:note,updated_at:new Date().toISOString()}).eq('id',acctId);
+  if(error){showToast('Failed to save notes.','error');}
+  else{
+    showToast('Notes saved ✓','success');
+    (allStudentsCache||[]).forEach(s=>{if(s.acctId===acctId)s.notes=note;});
+    filterAllStudents(document.getElementById('studentSearch')?.value||'');
+  }
 }
 
 /* ── ADMIN NOTES ON STUDENT DETAIL ── */
@@ -4446,6 +4451,7 @@ async function saveAdminStudentNote(){
     showToast('Note saved ✓','success');
     const n=_adminStudentCtx.name.toLowerCase().trim();
     (allStudentsCache||[]).forEach(s=>{if((s.name||'').toLowerCase().trim()===n)s.notes=note;});
+    filterAllStudents(document.getElementById('studentSearch')?.value||'');
   } else {
     console.error('saveAdminStudentNote: all attempts failed',{ctx:_adminStudentCtx,lastErr});
     showToast('Failed to save note: '+(lastErr?.message||'no matching record'),'error');
@@ -4554,7 +4560,7 @@ async function confirmCreateStudent(){
   }
   // Inject immediately so student appears in search without waiting for DB round-trip
   _injectStudentIntoCache({name,phone,email,addr,lessonType,notes,instrId,acctId:data?.id||null});
-  if(allStudentsCache.length)loadAllStudents();
+  loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
   if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;_adjustRosterCount(instrId,+1);}
   if(instrId&&typeof plotStudentMapMarkers==='function'&&_adminMap)plotStudentMapMarkers();
@@ -6282,7 +6288,7 @@ function resetFindForm(afterAssign){
     ?'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>'
     :'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Enter student details and click Find to see nearby instructors ranked by distance.</div>';
   fcStudentData=null;
-  if(afterAssign&&allStudentsCache.length)loadAllStudents();
+  if(afterAssign)loadAllStudents();
 }
 
 /* ══ ANALYTICS ══ */
