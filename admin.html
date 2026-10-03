@@ -2506,7 +2506,13 @@ async function initAdminPush(){
     if(Notification.permission==='granted'){
       await _saveAdminPushSub(reg);
     } else if(Notification.permission==='default'&&!localStorage.getItem('adminPushDeclined')){
-      showAdminPushBanner(reg,false);
+      // Auto-request permission on login — no banner click needed
+      const perm=await Notification.requestPermission();
+      if(perm==='granted'){
+        showToast('🔔 Push notifications enabled!','success');
+        await _saveAdminPushSub(reg);
+      }
+      _updateAdminNotifBtn();
     }
   }catch(e){console.warn('Admin SW error:',e);}
 }
