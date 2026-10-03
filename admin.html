@@ -3391,7 +3391,7 @@ async function _doDeleteInstr(id,name){
     if(failed.length){
       showToast('Instructor removed, but some related data failed to clean up ('+failed.join(', ')+').','warn');
     }else{
-      showToast('Instructor "'+name+'" deleted.','success');
+      _sfx.del();showToast('Instructor "'+name+'" deleted.','success');
     }
     await loadInstrs();
   }catch(e){
@@ -4178,7 +4178,7 @@ async function adminDeleteStudent(skipConfirm){
       console.warn('adminDeleteStudent DB errors (student removed from UI regardless):',errs);
       showToast(`${name} removed from admin view. DB errors: ${errs.join('; ')} — run the RLS SQL in Supabase to fix.`,'warn',8000);
     } else {
-      showToast(`✅ ${name} permanently deleted.`,'success',4000);
+      _sfx.del();showToast(`✅ ${name} permanently deleted.`,'success',4000);
     }
   }catch(err){
     console.error('adminDeleteStudent fatal:',err);
@@ -6884,10 +6884,36 @@ function showBroadcastMsg(type,msg){
 /* ══ TOAST ══ */
 let _tt;
 const _toastIcons={success:'✅',error:'❌',warn:'⚠️',info:'ℹ️',''  :'📋'};
+/* ── SOUND + HAPTIC ENGINE ── */
+const _sfx=(()=>{
+  let ctx=null;
+  const ac=()=>{if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();return ctx;};
+  const vibe=(pat)=>{try{if(navigator.vibrate)navigator.vibrate(pat);}catch(e){}};
+  const bell=(fund,vol,decay,c,offset=0)=>{
+    const t=c.currentTime+offset;
+    const master=c.createGain();master.connect(c.destination);
+    [[1,1.0],[2.756,0.45],[5.404,0.20]].forEach(([ratio,amp])=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(master);
+      o.type='sine';o.frequency.setValueAtTime(fund*ratio,t);
+      g.gain.setValueAtTime(vol*amp,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+decay*(1/ratio*.7+.3));
+      o.start(t);o.stop(t+decay+0.05);
+    });
+    master.gain.setValueAtTime(1,t);
+  };
+  return{
+    success(){try{const c=ac();bell(1318,.20,0.7,c,0);bell(1760,.16,0.6,c,0.13);}catch(e){}vibe([8,40,12]);},
+    error()  {try{const c=ac();bell(330,.12,0.4,c,0);}catch(e){}vibe([60]);},
+    del()    {try{const c=ac();bell(880,.16,0.35,c,0);bell(659,.12,0.3,c,0.09);}catch(e){}vibe([15,30,8]);}
+  };
+})();
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
   const icon=document.getElementById('toastIcon');
   const msgEl=document.getElementById('toastMsg');
+  if(type==='success')_sfx.success();
+  else if(type==='error')_sfx.error();
   if(icon)icon.textContent=_toastIcons[type]||'';
   if(msgEl)msgEl.textContent=msg;else t.textContent=msg;
   t.className='dsq-toast'+(type?' '+type:'');
