@@ -2642,6 +2642,7 @@ function showApp(){
   document.getElementById('mainNav').classList.remove('hidden');
   document.getElementById('quickActionsBar')?.classList.remove('hidden');
   document.getElementById('mainPage').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'instant'});
   // Welcome fanfare — rising three-bell chord after login screen fades
   setTimeout(()=>{try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -4122,6 +4123,13 @@ function filterAllStudents(q){
         if((s.address||'').toLowerCase().includes(lq))return true;
         if((s.instrName||'').toLowerCase().includes(lq))return true;
         if((s.acctEmail||'').toLowerCase().includes(lq))return true;
+        if((s.notes||'').toLowerCase().includes(lq))return true;
+        if((s.avail||'').toLowerCase().includes(lq))return true;
+        // lesson type: any type in the Set
+        if(s.types&&[...s.types].some(t=>(t||'').toLowerCase().includes(lq)))return true;
+        // postcode: extract word tokens ≥3 chars from address and compare
+        const addrWords=(s.address||'').split(/[\s,]+/).filter(w=>w.length>=3);
+        if(addrWords.some(w=>w.toLowerCase().includes(lq)))return true;
         return false;
       });
     }
@@ -7012,6 +7020,10 @@ function runGlobalSearch(q){
     if((s.phone||'').includes(raw))return true;
     if(addr.includes(lq))return true;
     if(inm.includes(lq))return true;
+    if((s.notes||'').toLowerCase().includes(lq))return true;
+    if((s.avail||'').toLowerCase().includes(lq))return true;
+    if((s.acctEmail||'').toLowerCase().includes(lq))return true;
+    if(s.types&&[...s.types].some(t=>(t||'').toLowerCase().includes(lq)))return true;
     return false;
   }).slice(0,8);
   _gsItems=[];
