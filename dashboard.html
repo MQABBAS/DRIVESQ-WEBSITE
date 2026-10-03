@@ -2594,12 +2594,29 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
-  if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
-  // Use upsert so a duplicate (instructor_id, name) never throws — it just updates instead.
-  payload.created_at=new Date().toISOString();
-  const{error}=await sb.from('student_profiles').upsert([payload],{onConflict:'instructor_id,name',ignoreDuplicates:false});
-  return error;
+  // Strip phone to digits only so format never triggers a unique constraint
+  const cleanedPhone=normalizePhone(phone).replace(/\D/g,'')||null;
+  const payload={instructor_id:instr.id,name:name.trim(),phone:cleanedPhone,address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
+  try{
+    if(existingId){
+      const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);
+      if(!error)return null;
+      // If update by id fails, fall through to upsert
+      console.warn('Roster update by id:',error);
+    }
+    // Upsert on (instructor_id, name) — handles duplicate gracefully
+    const upsertPayload={...payload,created_at:new Date().toISOString()};
+    const{error:uErr}=await sb.from('student_profiles').upsert([upsertPayload],{onConflict:'instructor_id,name',ignoreDuplicates:false});
+    if(!uErr)return null;
+    console.warn('Roster upsert failed, trying update by name:',uErr);
+    // Last resort: plain UPDATE matching instructor + name (no INSERT, no constraint risk)
+    const{error:upErr}=await sb.from('student_profiles').update({phone:cleanedPhone,address:payload.address,lesson_type:payload.lesson_type,notes:payload.notes}).eq('instructor_id',instr.id).ilike('name',name.trim());
+    if(upErr)console.warn('Roster update by name:',upErr);
+    return null; // never propagate — lesson save must always succeed
+  }catch(ex){
+    console.warn('saveToRoster exception (swallowed):',ex);
+    return null;
+  }
 }
 
 /* ══════════════════════════════
@@ -2786,6 +2803,7 @@ function openAddModal(dk,dayName,idx){
   document.getElementById('suggestDrop').classList.add('hidden');
   document.getElementById('saveToRoster').checked=true;
   document.getElementById('existingSearch').value='';
+  window._pickedRosterId=null;
   setPickerMode(Object.keys(rosterMap).length>0?'existing':'new');
   openModal('addModal');
 }
@@ -2827,7 +2845,7 @@ async function saveLesson(e){
     // Roster save is fire-and-forget — never blocks lesson success
     try{
       if(document.getElementById('saveToRoster').checked){
-        await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
+        await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,window._pickedRosterId||null);
         await loadRoster();
       }
     }catch(rEx){console.warn('Roster save (non-blocking):',rEx);}
@@ -3337,6 +3355,7 @@ function filterExistingPicker(q){
 }
 function pickExistingStudent(keyName){
   const p=rosterMap[keyName];if(!p)return;
+  window._pickedRosterId=p.id||null;
   setPickerMode('new');
   document.getElementById('lStudent').value=p.name;document.getElementById('lPhone').value=p.phone||'';document.getElementById('lAddr').value=p.address||'';document.getElementById('lType').value=p.lesson_type||'Manual';document.getElementById('lNotes').value=p.notes||'';
   document.getElementById('rosterIndicator').classList.remove('hidden');
@@ -3358,6 +3377,7 @@ function onStudentKeydown(e){
 }
 function pickSuggestion(keyName){
   const p=rosterMap[keyName];if(!p)return;
+  window._pickedRosterId=p.id||null;
   document.getElementById('lStudent').value=p.name;document.getElementById('lPhone').value=p.phone||'';document.getElementById('lAddr').value=p.address||'';document.getElementById('lType').value=p.lesson_type||'Manual';document.getElementById('lNotes').value=p.notes||'';
   document.getElementById('suggestDrop').classList.add('hidden');document.getElementById('rosterIndicator').classList.remove('hidden');suggestOpen=false;
 }
