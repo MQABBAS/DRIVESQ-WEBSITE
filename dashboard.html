@@ -2139,7 +2139,8 @@ async function confirmLessonAsInstructor(lessonId){
         status:'instructor_confirmed',
         created_at:new Date().toISOString()
       }]);
-      if(error)throw error;
+      // Duplicate = already confirmed, treat as success
+      if(error&&error.code!=='23505'&&!error.message?.includes('duplicate'))throw error;
       // Notify student
       if(studentAccId){
         const msgText='📅 Your instructor has confirmed your lesson on '+(lessonData?.lesson_date||'the scheduled date')+' at '+(lessonData?.start_time||'the scheduled time')+'. Please confirm your attendance in the app.';
@@ -2594,12 +2595,29 @@ async function loadRoster(){
 
 async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
-  const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
-  if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
-  // Use upsert so a duplicate (instructor_id, name) never throws — it just updates instead.
-  payload.created_at=new Date().toISOString();
-  const{error}=await sb.from('student_profiles').upsert([payload],{onConflict:'instructor_id,name',ignoreDuplicates:false});
-  return error;
+  // Strip phone to digits only so format never triggers a unique constraint
+  const cleanedPhone=normalizePhone(phone).replace(/\D/g,'')||null;
+  const payload={instructor_id:instr.id,name:name.trim(),phone:cleanedPhone,address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
+  try{
+    if(existingId){
+      const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);
+      if(!error)return null;
+      // If update by id fails, fall through to upsert
+      console.warn('Roster update by id:',error);
+    }
+    // Upsert on (instructor_id, name) — handles duplicate gracefully
+    const upsertPayload={...payload,created_at:new Date().toISOString()};
+    const{error:uErr}=await sb.from('student_profiles').upsert([upsertPayload],{onConflict:'instructor_id,name',ignoreDuplicates:false});
+    if(!uErr)return null;
+    console.warn('Roster upsert failed, trying update by name:',uErr);
+    // Last resort: plain UPDATE matching instructor + name (no INSERT, no constraint risk)
+    const{error:upErr}=await sb.from('student_profiles').update({phone:cleanedPhone,address:payload.address,lesson_type:payload.lesson_type,notes:payload.notes}).eq('instructor_id',instr.id).ilike('name',name.trim());
+    if(upErr)console.warn('Roster update by name:',upErr);
+    return null; // never propagate — lesson save must always succeed
+  }catch(ex){
+    console.warn('saveToRoster exception (swallowed):',ex);
+    return null;
+  }
 }
 
 /* ══════════════════════════════
@@ -2786,6 +2804,7 @@ function openAddModal(dk,dayName,idx){
   document.getElementById('suggestDrop').classList.add('hidden');
   document.getElementById('saveToRoster').checked=true;
   document.getElementById('existingSearch').value='';
+  window._pickedRosterId=null;
   setPickerMode(Object.keys(rosterMap).length>0?'existing':'new');
   openModal('addModal');
 }
@@ -2800,33 +2819,37 @@ async function saveLesson(e){
     // Look up student_account_id so student can find this lesson in their app
     let _sAccId=null;
     try{const{data:_sa}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();_sAccId=_sa?.id||null;}catch(e){}
-    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
-    const{error:lErr}=await sb.from('lessons').insert([lessonPayload]);
-    if(lErr){
+    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()).replace(/\D/g,'')||null,pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
+    let lessonSaved=false;
+    const tryInsertLesson=async(payload)=>{
+      const{error}=await sb.from('lessons').insert([payload]);
+      if(!error){lessonSaved=true;return null;}
+      // Duplicate key — lesson already exists, treat as success
+      if(error.code==='23505'||error.message?.includes('duplicate')||error.message?.includes('unique')){lessonSaved=true;return null;}
+      return error;
+    };
+    let lErr=await tryInsertLesson(lessonPayload);
+    if(lErr&&!lessonSaved){
       if(lErr.message&&(lErr.message.includes('payment_received')||lErr.message.includes('student_account_id')||lErr.message.includes('column'))){
-        // Column not yet added — retry progressively stripping unknown columns
-        const fallback={...lessonPayload};
-        delete fallback.payment_received;
-        delete fallback.student_account_id;
-        const{error:lErr2}=await sb.from('lessons').insert([fallback]);
-        if(lErr2){
-          // Try with just core fields
-          const minimal={instructor_id:lessonPayload.instructor_id,lesson_date:lessonPayload.lesson_date,start_time:lessonPayload.start_time,duration_hours:lessonPayload.duration_hours,student_name:lessonPayload.student_name,student_phone:lessonPayload.student_phone||'',pickup_address:lessonPayload.pickup_address||'',lesson_type:lessonPayload.lesson_type,notes:lessonPayload.notes||'',created_at:lessonPayload.created_at};
-          const{error:lErr3}=await sb.from('lessons').insert([minimal]);
-          if(lErr3)throw lErr3;
-        }
-      } else {
-        throw lErr;
+        const fallback={...lessonPayload};delete fallback.payment_received;delete fallback.student_account_id;
+        lErr=await tryInsertLesson(fallback);
+      }
+      if(lErr&&!lessonSaved){
+        const minimal={instructor_id:lessonPayload.instructor_id,lesson_date:lessonPayload.lesson_date,start_time:lessonPayload.start_time,duration_hours:lessonPayload.duration_hours,student_name:lessonPayload.student_name,student_phone:lessonPayload.student_phone||'',pickup_address:lessonPayload.pickup_address||'',lesson_type:lessonPayload.lesson_type,notes:lessonPayload.notes||'',created_at:lessonPayload.created_at};
+        lErr=await tryInsertLesson(minimal);
+        if(lErr&&!lessonSaved)throw lErr;
       }
     }
     if(lessonPayload.student_phone&&_sAccId){
       sb.from('student_accounts').update({phone:lessonPayload.student_phone}).eq('id',_sAccId).then(()=>{},()=>{});
     }
-    if(document.getElementById('saveToRoster').checked){
-      const rErr=await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,null);
-      if(rErr)console.warn('Roster:',rErr);
-      await loadRoster();
-    }
+    // Roster save is fire-and-forget — never blocks lesson success
+    try{
+      if(document.getElementById('saveToRoster').checked){
+        await saveToRoster(studentName,lessonPayload.student_phone,lessonPayload.pickup_address,lessonPayload.lesson_type,lessonPayload.notes,window._pickedRosterId||null);
+        await loadRoster();
+      }
+    }catch(rEx){console.warn('Roster save (non-blocking):',rEx);}
     closeModal('addModal');
     if(calView==='week')await loadWeek();
     else if(calView==='day')await loadDayView(activeDate);
@@ -3333,6 +3356,7 @@ function filterExistingPicker(q){
 }
 function pickExistingStudent(keyName){
   const p=rosterMap[keyName];if(!p)return;
+  window._pickedRosterId=p.id||null;
   setPickerMode('new');
   document.getElementById('lStudent').value=p.name;document.getElementById('lPhone').value=p.phone||'';document.getElementById('lAddr').value=p.address||'';document.getElementById('lType').value=p.lesson_type||'Manual';document.getElementById('lNotes').value=p.notes||'';
   document.getElementById('rosterIndicator').classList.remove('hidden');
@@ -3354,6 +3378,7 @@ function onStudentKeydown(e){
 }
 function pickSuggestion(keyName){
   const p=rosterMap[keyName];if(!p)return;
+  window._pickedRosterId=p.id||null;
   document.getElementById('lStudent').value=p.name;document.getElementById('lPhone').value=p.phone||'';document.getElementById('lAddr').value=p.address||'';document.getElementById('lType').value=p.lesson_type||'Manual';document.getElementById('lNotes').value=p.notes||'';
   document.getElementById('suggestDrop').classList.add('hidden');document.getElementById('rosterIndicator').classList.remove('hidden');suggestOpen=false;
 }
