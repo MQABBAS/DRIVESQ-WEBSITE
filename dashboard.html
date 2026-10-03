@@ -2139,7 +2139,8 @@ async function confirmLessonAsInstructor(lessonId){
         status:'instructor_confirmed',
         created_at:new Date().toISOString()
       }]);
-      if(error)throw error;
+      // Duplicate = already confirmed, treat as success
+      if(error&&error.code!=='23505'&&!error.message?.includes('duplicate'))throw error;
       // Notify student
       if(studentAccId){
         const msgText='📅 Your instructor has confirmed your lesson on '+(lessonData?.lesson_date||'the scheduled date')+' at '+(lessonData?.start_time||'the scheduled time')+'. Please confirm your attendance in the app.';
@@ -2818,7 +2819,7 @@ async function saveLesson(e){
     // Look up student_account_id so student can find this lesson in their app
     let _sAccId=null;
     try{const{data:_sa}=await sb.from('student_accounts').select('id').eq('instructor_id',instr.id).ilike('full_name',studentName).maybeSingle();_sAccId=_sa?.id||null;}catch(e){}
-    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()),pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
+    const lessonPayload={instructor_id:instr.id,lesson_date:activeDate,start_time:document.getElementById('lTime').value,duration_hours:parseFloat(document.getElementById('lDur').value),student_name:studentName,student_phone:normalizePhone(document.getElementById('lPhone').value.trim()).replace(/\D/g,'')||null,pickup_address:document.getElementById('lAddr').value.trim(),lesson_type:document.getElementById('lType').value,notes:document.getElementById('lNotes').value.trim(),payment_received:_pay,student_account_id:_sAccId,created_at:new Date().toISOString()};
     let lessonSaved=false;
     const tryInsertLesson=async(payload)=>{
       const{error}=await sb.from('lessons').insert([payload]);
