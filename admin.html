@@ -2463,7 +2463,7 @@ tickAdminClock();
 setInterval(tickAdminClock,1000);
 
 /* ══ AUTH ══ */
-if(sessionStorage.getItem('dsq_admin')==='true')showApp();
+if(localStorage.getItem('dsq_admin')==='true'||sessionStorage.getItem('dsq_admin')==='true')showApp();
 
 async function doLogin(){
   const btn=document.getElementById('loginBtn');
@@ -2480,7 +2480,7 @@ async function doLogin(){
     let hash;
     try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
     if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
-    sessionStorage.setItem('dsq_admin','true');showApp();
+    localStorage.setItem('dsq_admin','true');sessionStorage.setItem('dsq_admin','true');showApp();
   }catch(e){showLoginErr('Connection error. Please try again.');}
   finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
 }
@@ -2691,7 +2691,7 @@ function startAdminRealtime(){
     })
     .subscribe();
 }
-function doLogout(){sessionStorage.removeItem('dsq_admin');window.location.reload();}
+function doLogout(){localStorage.removeItem('dsq_admin');sessionStorage.removeItem('dsq_admin');window.location.reload();}
 
 /* ══ STATE ══ */
 let allInstrs=[];
