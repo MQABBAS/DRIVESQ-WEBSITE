@@ -3836,12 +3836,25 @@ let _tt;
 const _sfx=(()=>{
   let ctx=null;
   const ac=()=>{if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();return ctx;};
-  const tone=(freq,type,vol,start,dur,c)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type=type;o.frequency.setValueAtTime(freq,start);g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(vol,start+0.01);g.gain.exponentialRampToValueAtTime(0.0001,start+dur);o.start(start);o.stop(start+dur+0.05);};
+  // Ting: sharp attack, long exponential ring-out — like a triangle or bell
+  const ting=(freq,vol,dur,c)=>{
+    const t=c.currentTime;
+    const o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);
+    o.type='sine';o.frequency.setValueAtTime(freq,t);
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.start(t);o.stop(t+dur+0.02);
+  };
   return{
-    success(){try{const c=ac(),t=c.currentTime;tone(523,'sine',.18,t,.18,c);tone(659,'sine',.14,t+.12,.20,c);}catch(e){}},
-    error()  {try{const c=ac(),t=c.currentTime;tone(180,'sawtooth',.08,t,.22,c);tone(160,'sawtooth',.06,t+.05,.18,c);}catch(e){}},
-    roster() {try{const c=ac(),t=c.currentTime;tone(880,'sine',.12,t,.08,c);tone(1100,'sine',.08,t+.06,.07,c);}catch(e){}},
-    del()    {try{const c=ac(),t=c.currentTime;tone(400,'sine',.12,t,.05,c);tone(260,'sine',.10,t+.04,.12,c);}catch(e){}}
+    // Double ting — high clear bell notes
+    success(){try{const c=ac();ting(1567,.22,.5,c);setTimeout(()=>{try{const c2=ac();ting(2093,.16,.45,c2);}catch(e){}},120);}catch(e){}},
+    // Single low ting — softer, short
+    error()  {try{const c=ac();ting(440,.10,.3,c);}catch(e){}},
+    // Single bright ting
+    roster() {try{const c=ac();ting(1760,.18,.4,c);}catch(e){}},
+    // Descending ting
+    del()    {try{const c=ac();ting(880,.14,.25,c);setTimeout(()=>{try{const c2=ac();ting(659,.10,.2,c2);}catch(e){}},80);}catch(e){}}
   };
 })();
 function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
