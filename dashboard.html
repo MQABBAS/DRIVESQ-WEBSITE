@@ -2596,11 +2596,9 @@ async function saveToRoster(name,phone,address,lesson_type,notes,existingId){
   if(!name||!name.trim())return null;
   const payload={instructor_id:instr.id,name:name.trim(),phone:normalizePhone(phone),address:(address||'').trim(),lesson_type:lesson_type||'Manual',notes:(notes||'').trim()};
   if(existingId){const{error}=await sb.from('student_profiles').update(payload).eq('id',existingId);return error;}
-  const{data:existing,error:fetchErr}=await sb.from('student_profiles').select('id').eq('instructor_id',instr.id).ilike('name',name.trim()).maybeSingle();
-  if(fetchErr&&fetchErr.code!=='PGRST116'){console.warn(fetchErr);}
-  if(existing?.id){const{error}=await sb.from('student_profiles').update(payload).eq('id',existing.id);return error;}
+  // Use upsert so a duplicate (instructor_id, name) never throws — it just updates instead.
   payload.created_at=new Date().toISOString();
-  const{error}=await sb.from('student_profiles').insert([payload]);
+  const{error}=await sb.from('student_profiles').upsert([payload],{onConflict:'instructor_id,name',ignoreDuplicates:false});
   return error;
 }
 
