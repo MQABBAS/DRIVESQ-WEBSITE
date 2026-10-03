@@ -4393,25 +4393,31 @@ async function saveAdminStudentNotes(acctId){
 /* ── ADMIN NOTES ON STUDENT DETAIL ── */
 async function saveAdminStudentNote(){
   const ta=document.getElementById('sdAdminNotesInput');
-  if(!ta||!_adminStudentCtx)return;
+  if(!ta||!_adminStudentCtx){showToast('No student loaded.','error');return;}
   const note=ta.value.trim();
-  // Try saving to student_profiles first (profileId), fallback to student_accounts (acctId)
-  let saved=false;
+  let saved=false;let lastErr=null;
+  // Try student_profiles
   if(_adminStudentCtx.profileId){
     const{error}=await sb.from('student_profiles').update({notes:note}).eq('id',_adminStudentCtx.profileId);
-    if(!error)saved=true;
+    if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote profiles:',error);}
   }
-  if(!saved&&_adminStudentCtx.accId){
+  // Try student_accounts (always attempt, not just if profiles failed)
+  if(_adminStudentCtx.accId){
     const{error}=await sb.from('student_accounts').update({notes:note}).eq('id',_adminStudentCtx.accId);
-    if(!error)saved=true;
+    if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote accounts:',error);}
+  }
+  // Also try acctId alias in case it's stored differently
+  if(!saved&&_adminStudentCtx.acctId&&_adminStudentCtx.acctId!==_adminStudentCtx.accId){
+    const{error}=await sb.from('student_accounts').update({notes:note}).eq('id',_adminStudentCtx.acctId);
+    if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote accounts(acctId):',error);}
   }
   if(saved){
     showToast('Note saved ✓','success');
-    // Update cache
     const n=_adminStudentCtx.name.toLowerCase().trim();
     (allStudentsCache||[]).forEach(s=>{if((s.name||'').toLowerCase().trim()===n)s.notes=note;});
   } else {
-    showToast('Failed to save note.','error');
+    console.error('saveAdminStudentNote: all attempts failed',{ctx:_adminStudentCtx,lastErr});
+    showToast('Failed to save note: '+(lastErr?.message||'no matching record'),'error');
   }
 }
 
