@@ -1276,59 +1276,87 @@ async function doLogin(){
   if(!phone){errEl.textContent='Please enter your phone number.';errEl.classList.remove('hidden');return;}
   const normPhone=normalizePhone(phone);
   let data=null;
-  const attempts=[phone,normPhone];
-  if(normPhone.startsWith('0'))attempts.push('+44'+normPhone.slice(1));
-  if(normPhone.startsWith('+44'))attempts.push('0'+normPhone.slice(3));
-  const phones=[...new Set(attempts)];
+  // Build every format the DB might have stored the number in
+  const digits=phone.replace(/\D/g,'');
+  // Core national digits: strip leading 44 or 0 to get 10-digit base (e.g. 7700123456)
+  const core=digits.startsWith('44')&&digits.length===12?digits.slice(2):digits.startsWith('0')&&digits.length===11?digits.slice(1):digits;
+  const phones=[...new Set([
+    phone,normPhone,
+    // UK formats
+    '0'+core,'07'+core.slice(1),'0'+core,
+    // International formats
+    '+44'+core,'+44 '+core,'44'+core,
+    '0044'+core,'+44(0)'+core,
+    // Spaced variants (common storage formats)
+    '0'+core.slice(0,3)+' '+core.slice(3,6)+' '+core.slice(6),
+    '0'+core.slice(0,3)+' '+core.slice(3),
+    '+44'+core.slice(0,3)+' '+core.slice(3),
+  ].filter(p=>p&&p.length>=7))];
+  // Last 9 digits used for ilike fallback — enough to uniquely identify a UK mobile
+  const tail9=core.slice(-9);
   try{
-    // 1. Check student_accounts by phone
-    for(const p of phones){
-      const{data:rows}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
-      if(rows&&rows.length){data=rows[0];break;}
+    // 1. Check student_accounts — exact match on all known formats
+    const{data:exactRows}=await sb.from('student_accounts').select('*').in('phone',phones).limit(5);
+    if(exactRows&&exactRows.length){
+      // Prefer active accounts; pick one whose digits match
+      data=exactRows.find(r=>r.status!=='suspended'&&r.phone&&r.phone.replace(/\D/g,'').endsWith(core.slice(-9)))||exactRows[0];
+    }
+    // 1b. Fallback: ilike on last 9 digits (catches any spacing/formatting variant)
+    if(!data&&tail9.length>=9){
+      const{data:ilikeRows}=await sb.from('student_accounts').select('*').ilike('phone','%'+tail9+'%').limit(5);
+      if(ilikeRows&&ilikeRows.length){
+        data=ilikeRows.find(r=>r.phone&&r.phone.replace(/\D/g,'').endsWith(tail9))||ilikeRows[0];
+      }
     }
     // 2. Check lessons table — the phone the instructor typed when adding lessons
     if(!data){
-      for(const p of phones){
-        const{data:lessons}=await sb.from('lessons').select('student_name,instructor_id').eq('student_phone',p).limit(1);
-        if(lessons&&lessons[0]){
-          const l=lessons[0];
-          // Find or create the student account
-          const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',l.instructor_id).ilike('full_name',l.student_name).limit(1);
-          if(accs&&accs[0]){
-            await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
-            accs[0].phone=p;data=accs[0];break;
-          } else {
-            // No account exists yet — create one automatically
-            const code=Math.random().toString(36).substring(2,7).toUpperCase();
-            const{data:newAcc}=await sb.from('student_accounts').insert([{
-              instructor_id:l.instructor_id,full_name:l.student_name,phone:p,
-              student_code:code,pin:'',password_hash:'',status:'active',
-              created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-            }]).select('*').single();
-            if(newAcc){data=newAcc;break;}
-          }
+      let lesson=null;
+      const{data:exactLessons}=await sb.from('lessons').select('student_name,instructor_id').in('student_phone',phones).limit(1);
+      if(exactLessons&&exactLessons[0]){lesson=exactLessons[0];}
+      if(!lesson&&tail9.length>=9){
+        const{data:ilikeLessons}=await sb.from('lessons').select('student_name,instructor_id').ilike('student_phone','%'+tail9+'%').limit(1);
+        if(ilikeLessons&&ilikeLessons[0])lesson=ilikeLessons[0];
+      }
+      if(lesson){
+        const p=normPhone;
+        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',lesson.instructor_id).ilike('full_name',lesson.student_name).limit(1);
+        if(accs&&accs[0]){
+          await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
+          accs[0].phone=p;data=accs[0];
+        } else {
+          const code=Math.random().toString(36).substring(2,7).toUpperCase();
+          const{data:newAcc}=await sb.from('student_accounts').insert([{
+            instructor_id:lesson.instructor_id,full_name:lesson.student_name,phone:p,
+            student_code:code,pin:'',password_hash:'',status:'active',
+            created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+          }]).select('*').single();
+          if(newAcc)data=newAcc;
         }
       }
     }
     // 3. Check student_profiles (instructor roster) by phone
     if(!data){
-      for(const p of phones){
-        const{data:profiles}=await sb.from('student_profiles').select('name,instructor_id').eq('phone',p).limit(1);
-        if(profiles&&profiles[0]){
-          const pr=profiles[0];
-          const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',pr.instructor_id).ilike('full_name',pr.name).limit(1);
-          if(accs&&accs[0]){
-            await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
-            accs[0].phone=p;data=accs[0];break;
-          } else {
-            const code=Math.random().toString(36).substring(2,7).toUpperCase();
-            const{data:newAcc}=await sb.from('student_accounts').insert([{
-              instructor_id:pr.instructor_id,full_name:pr.name,phone:p,
-              student_code:code,pin:'',password_hash:'',status:'active',
-              created_at:new Date().toISOString(),updated_at:new Date().toISOString()
-            }]).select('*').single();
-            if(newAcc){data=newAcc;break;}
-          }
+      let profile=null;
+      const{data:exactProfs}=await sb.from('student_profiles').select('name,instructor_id').in('phone',phones).limit(1);
+      if(exactProfs&&exactProfs[0]){profile=exactProfs[0];}
+      if(!profile&&tail9.length>=9){
+        const{data:ilikeProfs}=await sb.from('student_profiles').select('name,instructor_id').ilike('phone','%'+tail9+'%').limit(1);
+        if(ilikeProfs&&ilikeProfs[0])profile=ilikeProfs[0];
+      }
+      if(profile){
+        const p=normPhone;
+        const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',profile.instructor_id).ilike('full_name',profile.name).limit(1);
+        if(accs&&accs[0]){
+          await sb.from('student_accounts').update({phone:p}).eq('id',accs[0].id);
+          accs[0].phone=p;data=accs[0];
+        } else {
+          const code=Math.random().toString(36).substring(2,7).toUpperCase();
+          const{data:newAcc}=await sb.from('student_accounts').insert([{
+            instructor_id:profile.instructor_id,full_name:profile.name,phone:p,
+            student_code:code,pin:'',password_hash:'',status:'active',
+            created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+          }]).select('*').single();
+          if(newAcc)data=newAcc;
         }
       }
     }
