@@ -3832,29 +3832,50 @@ function closeModal(id){const el=document.getElementById(id);if(!el){console.war
 document.querySelectorAll('.dsq-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}}}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.dsq-overlay.open').forEach(el=>{el.classList.remove('open');if(el.id==='studentMgmtModal'&&smMsgInterval){clearInterval(smMsgInterval);smMsgInterval=null;}});});
 let _tt;
-/* ── SOUND ENGINE ── */
+/* ── SOUND + HAPTIC ENGINE ── */
 const _sfx=(()=>{
   let ctx=null;
-  const ac=()=>{if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();return ctx;};
-  // Ting: sharp attack, long exponential ring-out — like a triangle or bell
-  const ting=(freq,vol,dur,c)=>{
-    const t=c.currentTime;
-    const o=c.createOscillator(),g=c.createGain();
-    o.connect(g);g.connect(c.destination);
-    o.type='sine';o.frequency.setValueAtTime(freq,t);
-    g.gain.setValueAtTime(vol,t);
-    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    o.start(t);o.stop(t+dur+0.02);
+  const ac=()=>{
+    if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended')ctx.resume();
+    return ctx;
+  };
+  const vibe=(pat)=>{try{if(navigator.vibrate)navigator.vibrate(pat);}catch(e){}};
+  // Professional bell: fundamental + 2 harmonics, each with independent decay
+  const bell=(fund,vol,decay,c,offset=0)=>{
+    const t=c.currentTime+offset;
+    const master=c.createGain();master.connect(c.destination);
+    [[1,1.0],[2.756,0.45],[5.404,0.20]].forEach(([ratio,amp])=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(master);
+      o.type='sine';o.frequency.setValueAtTime(fund*ratio,t);
+      g.gain.setValueAtTime(vol*amp,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+decay*(1/ratio*.7+.3));
+      o.start(t);o.stop(t+decay+0.05);
+    });
+    master.gain.setValueAtTime(1,t);
   };
   return{
-    // Double ting — high clear bell notes
-    success(){try{const c=ac();ting(1567,.22,.5,c);setTimeout(()=>{try{const c2=ac();ting(2093,.16,.45,c2);}catch(e){}},120);}catch(e){}},
-    // Single low ting — softer, short
-    error()  {try{const c=ac();ting(440,.10,.3,c);}catch(e){}},
-    // Single bright ting
-    roster() {try{const c=ac();ting(1760,.18,.4,c);}catch(e){}},
-    // Descending ting
-    del()    {try{const c=ac();ting(880,.14,.25,c);setTimeout(()=>{try{const c2=ac();ting(659,.10,.2,c2);}catch(e){}},80);}catch(e){}}
+    // Ascending two-bell success — clean, confident
+    success(){
+      try{const c=ac();bell(1318,.20,0.7,c,0);bell(1760,.16,0.6,c,0.13);}catch(e){}
+      vibe([8,40,12]);
+    },
+    // Dull single low bell — understated error
+    error(){
+      try{const c=ac();bell(330,.12,0.4,c,0);}catch(e){}
+      vibe([60]);
+    },
+    // Bright single bell — roster save confirmation
+    roster(){
+      try{const c=ac();bell(1047,.18,0.55,c,0);}catch(e){}
+      vibe([10]);
+    },
+    // Descending two-bell delete — gentle, resolving
+    del(){
+      try{const c=ac();bell(880,.16,0.35,c,0);bell(659,.12,0.3,c,0.09);}catch(e){}
+      vibe([15,30,8]);
+    }
   };
 })();
 function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
