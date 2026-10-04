@@ -2178,37 +2178,16 @@ function loadRefTab(){
   loadRefData(); // always re-fetch for freshness
 }
 
-async function refMarkStudentLeft(studentName){
+function refMarkStudentLeft(studentName){
   const p=rosterMap[studentName.toLowerCase().trim()];
   if(!p?.id){showToast('Student not found in your roster.','warn');return;}
-  const isDropPending=p.status==='drop_pending';
-  if(isDropPending){
-    if(!confirm(`Cancel the drop request for ${studentName}?\n\nThey will be returned to active status.`))return;
-    const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
-    if(error){showToast('Could not update status.','error');return;}
-    p.status='active';
-    showToast(`Drop request cancelled — ${studentName} is back as active.`,'success');
-    _renderRefTab();
+  if(p.status==='drop_pending'){
+    openCancelDropModal(studentName,'referral');
     return;
   }
-  if(!confirm(`Mark ${studentName} as no longer wanting lessons?\n\nThis will notify the DriveSQ admin team to review and action.`))return;
-  const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
-  if(error){showToast('Could not update status.','error');return;}
-  p.status='drop_pending';
-  // Notify admin
-  const instrName=instr?.name||instr?.full_name||'An instructor';
-  const body=`${instrName} has flagged that student "${studentName}"${p.phone?' ('+p.phone+')':''} no longer wants lessons.\n\nPlease review and take appropriate action.`;
-  await sb.from('admin_messages').insert([{
-    instructor_id:instr?.id||null,
-    subject:`⚠️ Student dropped out: ${studentName}`,
-    body,
-    message_type:'drop_request',
-    is_read:false,
-    dismissed:false,
-    created_at:new Date().toISOString()
-  }]).catch(()=>{});
-  showToast(`Admin notified — ${studentName} flagged as pending confirmation.`,'success');
-  _renderRefTab();
+  // Find referral amount
+  const ref=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid);
+  openDropModal(studentName,'referral',ref?.amount||0);
 }
 
 function setRefFilter(f){
@@ -2267,7 +2246,7 @@ function _renderRefTab(){
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
             <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
-            ${isDropPending?`<span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Approval</span>`:''}
+            ${isDropPending?(()=>{let stored={};try{const s=localStorage.getItem('drop_reason_'+(profile?.id||''));if(s)stored=JSON.parse(s);}catch(e){}return `<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${stored.reason?'Reason: '+stored.reason+(stored.notes?'\n'+stored.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${stored.reason?' · '+stored.reason:''}</span>`;})():''}
           </div>
           ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
         </div>
@@ -2780,7 +2759,7 @@ function jumpToDayView(dk,dowIdx){
    ROSTER
 ══════════════════════════════ */
 async function loadRoster(){
-  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
+  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed","deleted_by_instructor")').order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
   if(error){console.warn('Roster load:',error);rosterMap={};updateStats();return;}
   rosterMap={};
   (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
@@ -3340,7 +3319,7 @@ function saveDetailStudentToRoster(){
 ══════════════════════════════ */
 async function loadStudents(){
   // Core data — these MUST work
-  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});
+  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed","deleted_by_instructor")').order('name',{ascending:true});
   if(profErr){console.error('loadStudents profiles error:',profErr);renderStudents([]);return;}
 
   // Query lessons — handle payment_received column not existing gracefully
@@ -3458,7 +3437,7 @@ function renderStudents(students,emptyOverride){
     } else {
       statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App</span>';
     }
-    if(s.status==='drop_pending')statusHtml+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin</span>';
+    if(s.status==='drop_pending'){let _dr={};try{const _s=localStorage.getItem('drop_reason_'+(s.id||''));if(_s)_dr=JSON.parse(_s);}catch(e){}statusHtml+=`<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)" title="${_dr.reason?'Reason: '+_dr.reason+(_dr.notes?'\n'+_dr.notes:''):'Pending admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${_dr.reason?' · '+_dr.reason:''}</span>`;}
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
@@ -3669,14 +3648,16 @@ async function removeStudentFromRoster(){
     const{error:lessonDelErr}=await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',name);
     if(lessonDelErr)console.warn('lessons delete:',lessonDelErr.message);
     if(accId){const{error:accDelErr}=await sb.from('student_accounts').delete().eq('id',accId);if(accDelErr)console.warn('account delete:',accDelErr.message);}
-    // 5. Delete the profile — this is the critical one
-    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',id);
+    // 5. Mark profile as deleted_by_instructor (keep record for admin audit; instructor queries exclude this status)
+    const{error:profDelErr}=await sb.from('student_profiles').update({status:'deleted_by_instructor'}).eq('id',id).eq('instructor_id',instr.id);
     if(profDelErr)throw profDelErr;
-    // 6. Leave an audit note in student_requests so admin can see this deletion
-    sb.from('student_requests').insert([{
-      instructor_id:instr.id,student_name:name,student_phone:null,
-      lesson_type:'Manual',notes:`⚠️ Deleted by instructor ${instr.full_name} on ${new Date().toLocaleDateString('en-GB')}`,
-      status:'deleted_by_instructor',created_at:new Date().toISOString()
+    // 6. Notify admin via admin_messages so they see it in their inbox
+    const instrName=instr?.name||instr?.full_name||'An instructor';
+    sb.from('admin_messages').insert([{
+      instructor_id:instr.id,
+      subject:`🗑️ Student deleted: ${name}`,
+      body:`${instrName} has permanently deleted student "${name}" from their roster.\n\nLesson records, account data and messages have been removed. The student profile is preserved in the database with status "deleted_by_instructor" for your audit records.\n\nDeleted at: ${new Date().toLocaleString('en-GB')}`,
+      message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()
     }]).catch(()=>{});
     // 7. Remove from in-memory arrays immediately so column refreshes at once
     const nk=name.toLowerCase().trim();
@@ -3745,11 +3726,14 @@ async function loadNotifications(){
   // Keep reschedule banners, clear admin message banners
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
-  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
+  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
+  // Auto-reload roster if admin approved a student removal
+  const hasApproval=unread.some(m=>m.message_type==='drop_request_approved');
+  if(hasApproval)loadRoster().catch(()=>{});
   unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
   if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div>';return;}
-  const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa'};
+  const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa',drop_request_approved:'#f87171',drop_request_kept:'#60a5fa'};
   list.innerHTML=msgs.map(m=>{
     const isNewStudent=m.subject&&m.subject.includes('New Student Assigned');
     const viewStudentBtn=isNewStudent?`<button onclick="event.stopPropagation();toggleNotif();switchTab('students');setMobActive('students');loadStudents();markRead('${m.id}')" style="margin-top:6px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:6px;padding:4px 10px;font-size:.7rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;letter-spacing:.3px"><i class="bi bi-people-fill me-1"></i>View Students</button>`:'';
@@ -4389,19 +4373,33 @@ async function smRemoveFromRoster(){
   const nk=smCurrentName.toLowerCase().trim();
   const p=rosterMap[nk];
   if(!p?.id){showToast('No profile to remove.');return;}
-  if(!confirm(`Remove ${smCurrentName} from your roster?\n\nThis will hide them from your student list. Their lesson history is preserved — contact admin if you need their account fully deleted.`))return;
+  if(!confirm(`Remove ${smCurrentName} from your roster?\n\nThey will no longer appear in your student list. Admin will be notified. Their lesson history is preserved.`))return;
 
   showToast('Removing from roster…','warn');
-  // Update: clear instructor_id so they no longer appear in this instructor's roster.
-  // Using UPDATE instead of DELETE avoids RLS permission issues entirely.
-  const{error}=await sb.from('student_profiles').update({instructor_id:null,status:'removed'}).eq('id',p.id);
-  if(error)console.warn('smRemoveFromRoster:',error.message); // best-effort — remove from UI regardless
-  // Remove from in-memory arrays so UI updates immediately
+  // Keep instructor_id intact so admin retains the association — just mark removed
+  const{error}=await sb.from('student_profiles').update({status:'removed'}).eq('id',p.id).eq('instructor_id',instr.id);
+  if(error){
+    console.warn('smRemoveFromRoster DB error:',error.message);
+    showToast('Could not remove student — '+error.message,'error');
+    return;
+  }
+  // Block lesson-backfill from re-adding this student
+  _recentlyDeletedNames.add(nk);
+  // Remove from in-memory arrays
   allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
   delete rosterMap[nk];
   closeModal('studentMgmtModal');
   renderStudents(allStudentsArr);
   showToast(`${smCurrentName} removed from your roster ✓`,'success');
+  // Notify admin so they can see the removal with instructor association intact
+  const instrName=instr?.name||instr?.full_name||'An instructor';
+  sb.from('admin_messages').insert([{
+    instructor_id:instr.id,
+    subject:`🗑️ Student removed from roster: ${smCurrentName}`,
+    body:`${instrName} has removed "${smCurrentName}"${p.phone?' ('+p.phone+')':''} from their student roster.\n\nThe student profile is still in the database with status "removed" and instructor association preserved for your records.\n\nRemoved at: ${new Date().toLocaleString('en-GB')}`,
+    message_type:'drop_request_kept',
+    is_read:false,dismissed:false,created_at:new Date().toISOString()
+  }]).catch(()=>{});
   // Background refresh to stay in sync
   Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
 }
@@ -4420,39 +4418,140 @@ async function smToggleArchive(){
   openStudentMgmt(smCurrentName,'profile');
 }
 
-async function smMarkDroppedOut(){
+function smMarkDroppedOut(){
   const p=rosterMap[smCurrentName.toLowerCase().trim()];
   if(!p?.id){showToast('Save this student to your roster first.');return;}
-  const isDropPending=p.status==='drop_pending';
-  if(isDropPending){
-    // Cancel the request
-    if(!confirm(`Cancel the drop request for ${smCurrentName}?\n\nThey will be returned to active status.`))return;
-    const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
-    if(error){showToast('Could not update status.','error');return;}
-    showToast(`Drop request cancelled — ${smCurrentName} is back as active.`,'success');
-    await Promise.all([loadRoster(),loadStudents()]);
-    openStudentMgmt(smCurrentName,'profile');
+  if(p.status==='drop_pending'){
+    openCancelDropModal(smCurrentName,'student');
     return;
   }
-  if(!confirm(`Mark ${smCurrentName} as no longer wanting lessons?\n\nThis will flag them for admin review and send a notification to the DriveSQ admin team.`))return;
+  const ref=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===smCurrentName.toLowerCase().trim()&&!r.is_paid);
+  openDropModal(smCurrentName,'student',ref?.amount||0);
+}
+
+/* ── DROP MODAL ── */
+let _dropModalSource='referral',_dropModalStudentName='';
+
+function openDropModal(studentName,source,refAmt){
+  _dropModalStudentName=studentName;
+  _dropModalSource=source||'referral';
+  const p=rosterMap[studentName.toLowerCase().trim()];
+  document.getElementById('dropModalTitle').textContent='Student No Longer Wants Lessons';
+  document.getElementById('dropModalName').textContent=studentName;
+  const phone=p?.phone||'';
+  const phoneEl=document.getElementById('dropModalPhone');
+  phoneEl.textContent=phone?'📞 '+phone:'';
+  phoneEl.style.display=phone?'':'none';
+  const amtEl=document.getElementById('dropModalAmt');
+  if(refAmt>0){amtEl.textContent='£'+parseFloat(refAmt).toFixed(0);amtEl.style.color='#f87171';}
+  else{amtEl.textContent='No unpaid referral';amtEl.style.color='var(--txt4)';}
+  document.getElementById('dropModalReason').value='';
+  document.getElementById('dropModalNotes').value='';
+  document.getElementById('dropModalCharNum').textContent='0';
+  document.getElementById('dropModalSubmitBtn').disabled=false;
+  document.getElementById('dropModalSubmitBtn').innerHTML='<i class="bi bi-send-fill"></i> Notify Admin';
+  document.getElementById('dropModalOverlay').style.display='block';
+  document.getElementById('dropModal').style.display='block';
+  requestAnimationFrame(()=>document.getElementById('dropModal').style.transform='translateY(0)');
+}
+
+function closeDropModal(){
+  document.getElementById('dropModal').style.transform='translateY(100%)';
+  setTimeout(()=>{document.getElementById('dropModal').style.display='none';document.getElementById('dropModalOverlay').style.display='none';},280);
+}
+
+function dropModalReasonChanged(){
+  const r=document.getElementById('dropModalReason').value;
+  const notesEl=document.getElementById('dropModalNotes');
+  if(r==='Other'){notesEl.placeholder='Please describe the reason…';notesEl.style.borderColor='rgba(239,68,68,.4)';}
+  else{notesEl.placeholder='Any extra context for admin — last contact date, what the student said, next steps…';notesEl.style.borderColor='';}
+}
+
+function dropModalCharCount(){
+  const n=document.getElementById('dropModalNotes').value.length;
+  document.getElementById('dropModalCharNum').textContent=n;
+}
+
+async function submitDropModal(){
+  const reason=document.getElementById('dropModalReason').value.trim();
+  const notes=document.getElementById('dropModalNotes').value.trim();
+  if(!reason){showToast('Please select a reason.','warn');document.getElementById('dropModalReason').focus();return;}
+  if(reason==='Other'&&!notes){showToast('Please add details for "Other".','warn');document.getElementById('dropModalNotes').focus();return;}
+  const btn=document.getElementById('dropModalSubmitBtn');
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';
+  const p=rosterMap[_dropModalStudentName.toLowerCase().trim()];
+  if(!p?.id){showToast('Student not found.','warn');closeDropModal();return;}
   const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
-  if(error){showToast('Could not update status.','error');console.warn('smMarkDroppedOut:',error.message);return;}
-  // Notify admin via admin_messages
+  if(error){showToast('Could not update status.','error');btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill"></i> Notify Admin';return;}
+  p.status='drop_pending';
+  // Store reason locally so badge can show it
+  try{localStorage.setItem('drop_reason_'+p.id,JSON.stringify({reason,notes,sentAt:new Date().toISOString()}));}catch(e){}
   const instrName=instr?.name||instr?.full_name||'An instructor';
   const phone=p.phone||'';
-  const body=`${instrName} has flagged that student "${smCurrentName}"${phone?' ('+phone+')':''} no longer wants lessons.\n\nPlease review and take the appropriate action (remove from roster, process any refunds, update records).`;
+  const refLine=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===_dropModalStudentName.toLowerCase().trim()&&!r.is_paid);
+  const amtLine=refLine?.amount>0?`\n• Referral fee outstanding: £${parseFloat(refLine.amount).toFixed(0)}`:'';
+  const bodyParts=[
+    `${instrName} has reported that student "${_dropModalStudentName}"${phone?' ('+phone+')':''} no longer wants lessons.`,
+    '',
+    '📋 Details:',
+    `• Reason: ${reason}`,
+    ...(notes?[`• Notes: ${notes}`]:[]),
+    ...(amtLine?[amtLine]:[]),
+    `• Reported at: ${new Date().toLocaleString('en-GB')}`,
+    '',
+    'Please review and take appropriate action (confirm removal, process refunds, update records).'
+  ];
+  const body=bodyParts.join('\n');
   await sb.from('admin_messages').insert([{
     instructor_id:instr?.id||null,
-    subject:`⚠️ Student dropped out: ${smCurrentName}`,
-    body,
+    subject:`⚠️ Student left: ${_dropModalStudentName}`,
+    body:body.trim(),
     message_type:'drop_request',
     is_read:false,
     dismissed:false,
     created_at:new Date().toISOString()
-  }]).catch(e=>console.warn('admin notify:',e.message));
-  showToast(`Admin notified — ${smCurrentName} is flagged pending confirmation.`,'success');
-  await Promise.all([loadRoster(),loadStudents()]);
-  openStudentMgmt(smCurrentName,'profile');
+  }]).catch(()=>{});
+  closeDropModal();
+  showToast(`Admin notified — ${_dropModalStudentName} is pending confirmation.`,'success');
+  if(_dropModalSource==='student'){
+    await Promise.all([loadRoster(),loadStudents()]);
+    openStudentMgmt(_dropModalStudentName,'profile');
+  } else {
+    _renderRefTab();
+  }
+}
+
+/* ── CANCEL DROP MODAL ── */
+let _cancelDropSource='referral',_cancelDropStudentName='';
+
+function openCancelDropModal(studentName,source){
+  _cancelDropStudentName=studentName;
+  _cancelDropSource=source||'referral';
+  document.getElementById('cancelDropStudentName').textContent=studentName;
+  document.getElementById('cancelDropOverlay').style.display='block';
+  document.getElementById('cancelDropModal').style.display='block';
+}
+
+function closeCancelDropModal(){
+  document.getElementById('cancelDropModal').style.display='none';
+  document.getElementById('cancelDropOverlay').style.display='none';
+}
+
+async function confirmCancelDrop(){
+  const p=rosterMap[_cancelDropStudentName.toLowerCase().trim()];
+  if(!p?.id){closeCancelDropModal();return;}
+  const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
+  if(error){showToast('Could not update status.','error');closeCancelDropModal();return;}
+  p.status='active';
+  try{localStorage.removeItem('drop_reason_'+p.id);}catch(e){}
+  closeCancelDropModal();
+  showToast(`Drop request cancelled — ${_cancelDropStudentName} is back as active.`,'success');
+  if(_cancelDropSource==='student'){
+    await Promise.all([loadRoster(),loadStudents()]);
+    openStudentMgmt(_cancelDropStudentName,'profile');
+  } else {
+    _renderRefTab();
+  }
 }
 
 function smWhatsApp(){
@@ -6180,5 +6279,88 @@ if('serviceWorker' in navigator){
 <!-- /SQWEBSITES-CREDIT-V2 -->
 
 <!-- /REFERRALS handled in panel-referrals tab -->
+
+<!-- ══ STUDENT LEFT / DROP MODAL ══ -->
+<div id="dropModalOverlay" onclick="closeDropModal()" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px)"></div>
+<div id="dropModal" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:2001;background:var(--dk2);border-top:1px solid var(--bdr);border-radius:20px 20px 0 0;padding:0;max-height:92vh;overflow-y:auto;font-family:'Inter',sans-serif;transition:transform .3s cubic-bezier(.4,0,.2,1);transform:translateY(100%)">
+  <!-- Handle -->
+  <div style="text-align:center;padding:12px 0 4px"><div style="width:36px;height:4px;border-radius:2px;background:var(--bdr);display:inline-block"></div></div>
+  <!-- Header -->
+  <div style="padding:4px 20px 14px;border-bottom:1px solid var(--bdr)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(239,68,68,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="bi bi-person-x-fill" style="color:#f87171;font-size:1.1rem"></i>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;color:var(--txt1)" id="dropModalTitle">Student No Longer Wants Lessons</div>
+        <div style="font-size:.72rem;color:var(--txt4)">This will notify the DriveSQ admin team immediately</div>
+      </div>
+      <button onclick="closeDropModal()" style="margin-left:auto;background:none;border:none;color:var(--txt3);font-size:1.3rem;cursor:pointer;padding:4px;line-height:1"><i class="bi bi-x-lg"></i></button>
+    </div>
+  </div>
+  <!-- Student info tile -->
+  <div id="dropModalInfo" style="margin:14px 20px 0;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Student</div>
+        <div style="font-weight:700;font-size:.95rem;color:var(--txt1)" id="dropModalName">—</div>
+        <div style="font-size:.75rem;color:var(--txt3);margin-top:2px" id="dropModalPhone"></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Referral Due</div>
+        <div style="font-weight:800;font-size:1.1rem;color:#f87171" id="dropModalAmt">—</div>
+      </div>
+    </div>
+  </div>
+  <!-- Body -->
+  <div style="padding:14px 20px 20px">
+    <!-- Reason -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:.72rem;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px">Reason <span style="color:#f87171">*</span></label>
+      <select id="dropModalReason" style="width:100%;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt1);padding:10px 12px;font-size:.82rem;font-family:Inter,sans-serif;appearance:none;cursor:pointer" onchange="dropModalReasonChanged()">
+        <option value="">— Select a reason —</option>
+        <option value="Cancelled lessons">Cancelled lessons</option>
+        <option value="No-show / stopped responding">No-show / stopped responding</option>
+        <option value="Financial difficulties">Financial difficulties</option>
+        <option value="Found another instructor">Found another instructor</option>
+        <option value="Passed test early">Passed test early</option>
+        <option value="Personal reasons">Personal reasons</option>
+        <option value="Moving area">Moving area</option>
+        <option value="Medical / health reasons">Medical / health reasons</option>
+        <option value="Work / schedule clash">Work / schedule clash</option>
+        <option value="Other">Other (explain below)</option>
+      </select>
+    </div>
+    <!-- Notes -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:.72rem;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px">Additional Details <span style="font-size:.65rem;color:var(--txt4);text-transform:none;letter-spacing:0">(optional unless Other)</span></label>
+      <textarea id="dropModalNotes" maxlength="500" rows="3" placeholder="Any extra context for admin — last contact date, what the student said, next steps…" oninput="dropModalCharCount()" style="width:100%;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt1);padding:10px 12px;font-size:.82rem;font-family:Inter,sans-serif;resize:vertical;min-height:72px"></textarea>
+      <div style="text-align:right;font-size:.65rem;color:var(--txt4);margin-top:3px"><span id="dropModalCharNum">0</span>/500</div>
+    </div>
+    <!-- Info strip -->
+    <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.72rem;color:#f87171;line-height:1.5">
+      <i class="bi bi-info-circle me-1"></i>Admin will be notified instantly. The student will be marked <strong>Awaiting Admin Approval</strong> until admin confirms the removal. You can cancel this request at any time before admin acts.
+    </div>
+    <!-- Buttons -->
+    <div style="display:flex;gap:10px">
+      <button onclick="closeDropModal()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;color:var(--txt2);padding:12px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">Cancel</button>
+      <button id="dropModalSubmitBtn" onclick="submitDropModal()" style="flex:2;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:10px;color:#f87171;padding:12px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px"><i class="bi bi-send-fill"></i>Notify Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL DROP CONFIRMATION (lightweight) -->
+<div id="cancelDropOverlay" onclick="closeCancelDropModal()" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);backdrop-filter:blur(3px)"></div>
+<div id="cancelDropModal" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2001;background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;padding:24px 20px;width:calc(100vw - 40px);max-width:360px;font-family:Inter,sans-serif">
+  <div style="text-align:center;margin-bottom:16px">
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="bi bi-arrow-counterclockwise" style="color:#4ade80;font-size:1.3rem"></i></div>
+    <div style="font-weight:700;font-size:.95rem;color:var(--txt1);margin-bottom:6px">Cancel Drop Request?</div>
+    <div style="font-size:.78rem;color:var(--txt3);line-height:1.5"><span id="cancelDropStudentName" style="font-weight:600;color:var(--txt1)"></span> will be returned to active status and the admin notification will be withdrawn.</div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button onclick="closeCancelDropModal()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt2);padding:10px;font-size:.8rem;font-weight:600;cursor:pointer">Keep Pending</button>
+    <button onclick="confirmCancelDrop()" style="flex:1;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;color:#4ade80;padding:10px;font-size:.8rem;font-weight:700;cursor:pointer">Yes, Cancel</button>
+  </div>
+</div>
 </body>
 </html>
