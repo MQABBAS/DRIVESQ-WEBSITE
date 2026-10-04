@@ -3712,23 +3712,33 @@ async function loadInstrRoster(){
   const _cacheSnap=allStudentsCache;
   window._allStudentsCacheRef=_cacheSnap;
   el.innerHTML=data.map(p=>{
-    const cached=_cacheSnap.find(s=>s.instrId===reqInstr&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
+    const isRemoved=p.status==='removed';
+    const isDeleted=p.status==='deleted_by_instructor';
+    const isGone=isRemoved||isDeleted;
+    const cached=isGone?null:_cacheSnap.find(s=>s.instrId===reqInstr&&(s.name||'').toLowerCase().trim()===(p.name||'').toLowerCase().trim());
     const onClickFn=cached
       ?`openStudentDetail(null,window._allStudentsCacheRef.find(s=>s.instrId==='${reqInstr}'&&(s.name||'').toLowerCase().trim()==='${(p.name||'').toLowerCase().trim().replace(/'/g,"\\'")}'))`
       :`openRosterStudentEdit('${jsEsc(p.id||'')}','${jsEsc(p.name||'')}','${jsEsc(p.phone||'')}','${jsEsc(p.address||'')}','${jsEsc(p.lesson_type||'Manual')}','${reqInstr}')`;
+    const goneBadge=isDeleted
+      ?`<span style="display:inline-block;font-size:.58rem;padding:1px 6px;border-radius:4px;font-weight:700;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);vertical-align:middle;margin-left:4px"><i class="bi bi-trash-fill me-1"></i>Deleted by Instructor</span>`
+      :isRemoved
+      ?`<span style="display:inline-block;font-size:.58rem;padding:1px 6px;border-radius:4px;font-weight:700;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.25);vertical-align:middle;margin-left:4px"><i class="bi bi-person-dash-fill me-1"></i>Removed from Roster</span>`
+      :'';
     return`<div class="col-12 col-sm-6 col-md-4">
-    <div class="student-card" style="cursor:pointer" onclick="${onClickFn}">
+    <div class="student-card" style="cursor:pointer;${isGone?'opacity:.65;':''}${isDeleted?'border-color:rgba(239,68,68,.2);':''}" onclick="${isGone?'':onClickFn}">
       <div class="d-flex align-items-start gap-2">
-        <div class="s-init">${(p.name||'?').charAt(0).toUpperCase()}</div>
+        <div class="s-init" style="${isGone?'background:var(--dk3);color:var(--txt4)':''}">${(p.name||'?').charAt(0).toUpperCase()}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">${esc(p.name)}${_studentAgeBadge(p.created_at)}${_refDueBadge(p.instructor_id,p.name)}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:${isGone?'var(--txt3)':'var(--txt)'}">
+            ${esc(p.name)}${goneBadge}${isGone?'':_studentAgeBadge(p.created_at)+_refDueBadge(p.instructor_id,p.name)}
+          </div>
           ${p.phone?`<div style="font-size:.7rem;color:var(--txt3)"><i class="bi bi-telephone me-1"></i>${esc(p.phone)}</div>`:''}
           ${p.address?`<div style="font-size:.68rem;color:var(--txt4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="bi bi-geo-alt me-1"></i>${esc(p.address)}</div>`:''}
-          <span class="chip ${(p.lesson_type||'Manual').replace(/\s/g,'-')}" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>
-          ${p.notes?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
-          ${_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 4+ months ago — not counted in active total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
+          ${!isGone?`<span class="chip ${(p.lesson_type||'Manual').replace(/\s/g,'-')}" style="margin-top:4px">${esc(p.lesson_type||'Manual')}</span>`:''}
+          ${p.notes&&!isGone?`<div style="font-size:.68rem;color:var(--txt4);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="bi bi-sticky me-1"></i>${esc(p.notes)}</div>`:''}
+          ${!isGone&&_isOldStudent(p.created_at)?`<div style="margin-top:6px;padding:5px 8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-size:.63rem;color:#f59e0b;display:flex;align-items:center;gap:7px"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0"></i><span>Assigned 4+ months ago — not counted in active total.</span><button onclick="event.stopPropagation();renewStudent('${p.id}','${jsEsc(p.name)}','${p.instructor_id}')" style="margin-left:auto;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:5px;padding:2px 8px;font-size:.62rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Renew</button></div>`:''}
         </div>
-        <button class="abtn edit" style="font-size:.65rem;padding:4px 8px;flex-shrink:0" onclick="event.stopPropagation();${onClickFn}"><i class="bi bi-pencil me-1"></i>Edit</button>
+        ${!isGone?`<button class="abtn edit" style="font-size:.65rem;padding:4px 8px;flex-shrink:0" onclick="event.stopPropagation();${onClickFn}"><i class="bi bi-pencil me-1"></i>Edit</button>`:''}
       </div>
     </div>
   </div>`;

@@ -2759,7 +2759,7 @@ function jumpToDayView(dk,dowIdx){
    ROSTER
 ══════════════════════════════ */
 async function loadRoster(){
-  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
+  let data,error;try{const r=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed","deleted_by_instructor")').order('name',{ascending:true});data=r.data;error=r.error;}catch(e){console.warn('loadRoster:',e);rosterMap={};updateStats();return;}
   if(error){console.warn('Roster load:',error);rosterMap={};updateStats();return;}
   rosterMap={};
   (data||[]).forEach(p=>{rosterMap[p.name.toLowerCase().trim()]=p;});
@@ -3319,7 +3319,7 @@ function saveDetailStudentToRoster(){
 ══════════════════════════════ */
 async function loadStudents(){
   // Core data — these MUST work
-  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed")').order('name',{ascending:true});
+  const{data:profiles,error:profErr}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).not('status','in','("inactive","removed","deleted_by_instructor")').order('name',{ascending:true});
   if(profErr){console.error('loadStudents profiles error:',profErr);renderStudents([]);return;}
 
   // Query lessons — handle payment_received column not existing gracefully
@@ -3648,14 +3648,16 @@ async function removeStudentFromRoster(){
     const{error:lessonDelErr}=await sb.from('lessons').delete().eq('instructor_id',instr.id).ilike('student_name',name);
     if(lessonDelErr)console.warn('lessons delete:',lessonDelErr.message);
     if(accId){const{error:accDelErr}=await sb.from('student_accounts').delete().eq('id',accId);if(accDelErr)console.warn('account delete:',accDelErr.message);}
-    // 5. Delete the profile — this is the critical one
-    const{error:profDelErr}=await sb.from('student_profiles').delete().eq('id',id);
+    // 5. Mark profile as deleted_by_instructor (keep record for admin audit; instructor queries exclude this status)
+    const{error:profDelErr}=await sb.from('student_profiles').update({status:'deleted_by_instructor'}).eq('id',id).eq('instructor_id',instr.id);
     if(profDelErr)throw profDelErr;
-    // 6. Leave an audit note in student_requests so admin can see this deletion
-    sb.from('student_requests').insert([{
-      instructor_id:instr.id,student_name:name,student_phone:null,
-      lesson_type:'Manual',notes:`⚠️ Deleted by instructor ${instr.full_name} on ${new Date().toLocaleDateString('en-GB')}`,
-      status:'deleted_by_instructor',created_at:new Date().toISOString()
+    // 6. Notify admin via admin_messages so they see it in their inbox
+    const instrName=instr?.name||instr?.full_name||'An instructor';
+    sb.from('admin_messages').insert([{
+      instructor_id:instr.id,
+      subject:`🗑️ Student deleted: ${name}`,
+      body:`${instrName} has permanently deleted student "${name}" from their roster.\n\nLesson records, account data and messages have been removed. The student profile is preserved in the database with status "deleted_by_instructor" for your audit records.\n\nDeleted at: ${new Date().toLocaleString('en-GB')}`,
+      message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()
     }]).catch(()=>{});
     // 7. Remove from in-memory arrays immediately so column refreshes at once
     const nk=name.toLowerCase().trim();
@@ -4371,19 +4373,33 @@ async function smRemoveFromRoster(){
   const nk=smCurrentName.toLowerCase().trim();
   const p=rosterMap[nk];
   if(!p?.id){showToast('No profile to remove.');return;}
-  if(!confirm(`Remove ${smCurrentName} from your roster?\n\nThis will hide them from your student list. Their lesson history is preserved — contact admin if you need their account fully deleted.`))return;
+  if(!confirm(`Remove ${smCurrentName} from your roster?\n\nThey will no longer appear in your student list. Admin will be notified. Their lesson history is preserved.`))return;
 
   showToast('Removing from roster…','warn');
-  // Update: clear instructor_id so they no longer appear in this instructor's roster.
-  // Using UPDATE instead of DELETE avoids RLS permission issues entirely.
-  const{error}=await sb.from('student_profiles').update({instructor_id:null,status:'removed'}).eq('id',p.id);
-  if(error)console.warn('smRemoveFromRoster:',error.message); // best-effort — remove from UI regardless
-  // Remove from in-memory arrays so UI updates immediately
+  // Keep instructor_id intact so admin retains the association — just mark removed
+  const{error}=await sb.from('student_profiles').update({status:'removed'}).eq('id',p.id).eq('instructor_id',instr.id);
+  if(error){
+    console.warn('smRemoveFromRoster DB error:',error.message);
+    showToast('Could not remove student — '+error.message,'error');
+    return;
+  }
+  // Block lesson-backfill from re-adding this student
+  _recentlyDeletedNames.add(nk);
+  // Remove from in-memory arrays
   allStudentsArr=allStudentsArr.filter(s=>s.name.toLowerCase().trim()!==nk);
   delete rosterMap[nk];
   closeModal('studentMgmtModal');
   renderStudents(allStudentsArr);
   showToast(`${smCurrentName} removed from your roster ✓`,'success');
+  // Notify admin so they can see the removal with instructor association intact
+  const instrName=instr?.name||instr?.full_name||'An instructor';
+  sb.from('admin_messages').insert([{
+    instructor_id:instr.id,
+    subject:`🗑️ Student removed from roster: ${smCurrentName}`,
+    body:`${instrName} has removed "${smCurrentName}"${p.phone?' ('+p.phone+')':''} from their student roster.\n\nThe student profile is still in the database with status "removed" and instructor association preserved for your records.\n\nRemoved at: ${new Date().toLocaleString('en-GB')}`,
+    message_type:'drop_request_kept',
+    is_read:false,dismissed:false,created_at:new Date().toISOString()
+  }]).catch(()=>{});
   // Background refresh to stay in sync
   Promise.all([loadRoster(),loadStudents()]).catch(()=>{});
 }
