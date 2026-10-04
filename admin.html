@@ -2464,7 +2464,7 @@ setInterval(tickAdminClock,1000);
 
 /* ══ AUTH ══ */
 function _setAdminCookie(){
-  try{const exp=new Date(Date.now()+60*24*60*60*1000).toUTCString();document.cookie='dsq_admin=true; expires='+exp+'; path=/; SameSite=Lax';}catch(e){}
+  try{document.cookie='dsq_admin=true; max-age=315360000; path=/; SameSite=Lax';}catch(e){}
 }
 function _clearAdminCookie(){
   try{document.cookie='dsq_admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';}catch(e){}
@@ -2681,6 +2681,15 @@ function showApp(){
   loadAll();
   startAdminRealtime();
   setTimeout(_buildUnpaidRefIndex,4000); // load unpaid ref index for student badges
+  // Reload data when browser restores page from bfcache (back/forward navigation on mobile)
+  window.addEventListener('pageshow',e=>{if(e.persisted&&_isAdminAuthed())loadAll();},{once:false});
+  // Reload data when tab/app becomes visible again after being in background
+  let _lastVisibleReload=0;
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&_isAdminAuthed()){
+      const now=Date.now();if(now-_lastVisibleReload>120000){_lastVisibleReload=now;loadGlobalStats();loadDashboard();}
+    }
+  });
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
