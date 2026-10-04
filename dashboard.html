@@ -2236,7 +2236,7 @@ function _renderRefTab(){
   set('refTabUnpaidCount',unpaid.length);
   set('refTabPaidCount',paidRows.length);
   // Pending drop count
-  const dropCount=_refAllData.filter(r=>!r.is_paid&&rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending').length;
+  const dropCount=_refAllData.filter(r=>!r.is_paid&&(_refIsDropPending(r.id)||rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending')).length;
   const dropEl=document.getElementById('refTabDropCount');
   const dropRow=document.getElementById('refTabDropRow');
   if(dropEl)dropEl.textContent=dropCount;
@@ -2296,15 +2296,16 @@ async function refNotifyNoLesson(studentName, refId){
     const ref=_refAllData.find(r=>r.id===refId||(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim());
     const amt=ref?parseFloat(ref.amount)||0:0;
     const addedDate=ref?.created_at?new Date(ref.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
-    const body=[
+    const bodyLines=[
       `Instructor: ${instr.full_name||'Unknown'}`,
       `Student: ${studentName}`,
       `Referred on: ${addedDate||'unknown date'}`,
-      amt>0?`Referral fee: £${amt.toFixed(2)}`:'',
+      ...(amt>0?[`Referral fee: £${amt.toFixed(2)}`]:[]),
       '',
       'This student has been on the roster but has no lesson booked yet.',
       'Please follow up or reassign if needed.',
-    ].filter(l=>l!==undefined&&!(l===''&&!addedDate)).join('\n').trim();
+    ];
+    const body=bodyLines.join('\n').trim();
     const{error}=await sb.from('admin_messages').insert([{
       instructor_id:instr.id,
       subject:`📅 No Lesson Booked: ${studentName}`,
@@ -3789,13 +3790,39 @@ async function loadNotifications(){
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
   const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
-  // When admin acts on a drop request, clear all referral-level pending flags
-  const hasAdminDecision=unread.some(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
-  if(hasAdminDecision){
-    // Clear all drop_ref_* localStorage keys for this instructor's referrals
-    try{Object.keys(localStorage).filter(k=>k.startsWith('drop_ref_')).forEach(k=>localStorage.removeItem(k));}catch(e){}
-    loadRoster().catch(()=>{});
-    loadRefData().catch(()=>{});
+  // When admin acts on a drop request, clear only the matching referral's pending flags
+  // Use msgs (all undismissed) not unread — markRead() removes from unread but not msgs
+  const decisionMsgs=msgs.filter(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
+  if(decisionMsgs.length){
+    const _processedKey='dsq_drop_decisions_processed';
+    let _processed=[];try{_processed=JSON.parse(localStorage.getItem(_processedKey)||'[]');}catch(e){}
+    let _newDecision=false;
+    decisionMsgs.forEach(m=>{
+      if(_processed.includes(m.id))return;
+      _processed.push(m.id);
+      _newDecision=true;
+      // Extract student name from subject: "✅ Student Removal Confirmed: <name>" or body's first line
+      const subjectMatch=(m.subject||'').match(/:\s*(.+)$/);
+      const studentName=subjectMatch?subjectMatch[1].trim():'';
+      if(studentName){
+        // Clear only drop_ref_* keys for referrals matching this student
+        const matchingRefs=_refAllData.filter(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim());
+        matchingRefs.forEach(r=>{
+          try{localStorage.removeItem('drop_ref_'+r.id);localStorage.removeItem('drop_ref_reason_'+r.id);}catch(e){}
+        });
+        // Also clear roster-level drop reason
+        const rp=rosterMap[studentName.toLowerCase().trim()];
+        if(rp?.id){try{localStorage.removeItem('drop_reason_'+rp.id);}catch(e){}}
+      } else {
+        // Fallback: clear all (old messages without parseable name)
+        try{Object.keys(localStorage).filter(k=>k.startsWith('drop_ref_')).forEach(k=>localStorage.removeItem(k));}catch(e){}
+      }
+    });
+    if(_newDecision){
+      try{localStorage.setItem(_processedKey,JSON.stringify(_processed.slice(-50)));}catch(e){}
+      loadRoster().catch(()=>{});
+      loadRefData().catch(()=>{});
+    }
   }
   unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
@@ -4498,7 +4525,7 @@ function smMarkDroppedOut(){
     return;
   }
   const ref=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===smCurrentName.toLowerCase().trim()&&!r.is_paid);
-  openDropModal(smCurrentName,'student',ref?.amount||0);
+  openDropModal(smCurrentName,'student',ref?.amount||0,ref?.id||null);
 }
 
 /* ── DROP MODAL ── */
@@ -4641,6 +4668,17 @@ async function confirmCancelDrop(){
     p.status='active';
     try{localStorage.removeItem('drop_reason_'+p.id);}catch(e){}
   }
+  // Notify admin that the request was cancelled — so they don't act on the original
+  const instrName=instr?.name||instr?.full_name||'The instructor';
+  await sb.from('admin_messages').insert([{
+    instructor_id:instr?.id||null,
+    subject:`↩ Drop Request Cancelled: ${_cancelDropStudentName}`,
+    body:`${instrName} has cancelled the drop request for "${_cancelDropStudentName}".\n\nThe student is back to active status — please disregard any earlier "Student left" notification for this student.`,
+    message_type:'general',
+    is_read:false,
+    dismissed:false,
+    created_at:new Date().toISOString()
+  }]).catch(()=>{});
   closeCancelDropModal();
   showToast(`Drop request cancelled — ${_cancelDropStudentName} is back as active.`,'success');
   if(_cancelDropSource==='student'){
@@ -6452,7 +6490,7 @@ if('serviceWorker' in navigator){
   <div style="text-align:center;margin-bottom:16px">
     <div style="width:48px;height:48px;border-radius:50%;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="bi bi-arrow-counterclockwise" style="color:#4ade80;font-size:1.3rem"></i></div>
     <div style="font-weight:700;font-size:.95rem;color:var(--txt1);margin-bottom:6px">Cancel Drop Request?</div>
-    <div style="font-size:.78rem;color:var(--txt3);line-height:1.5"><span id="cancelDropStudentName" style="font-weight:600;color:var(--txt1)"></span> will be returned to active status and the admin notification will be withdrawn.</div>
+    <div style="font-size:.78rem;color:var(--txt3);line-height:1.5"><span id="cancelDropStudentName" style="font-weight:600;color:var(--txt1)"></span> will be returned to active status and admin will be sent a cancellation notice so they know not to act on the original request.</div>
   </div>
   <div style="display:flex;gap:10px">
     <button onclick="closeCancelDropModal()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt2);padding:10px;font-size:.8rem;font-weight:600;cursor:pointer">Keep Pending</button>
