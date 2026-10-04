@@ -2127,13 +2127,27 @@ function switchTab(t){
 /* ══════════════════════════════
    REFERRALS TAB
 ══════════════════════════════ */
-let _refAllData=[],_refFilter='unpaid';
+let _refAllData=[],_refFilter='unpaid',_refRealtimeSub=null,_refPollTimer=null;
+
+function _startRefLiveUpdates(){
+  if(!instr?.id||_refRealtimeSub)return;
+  // Realtime subscription — fires immediately when admin marks a referral paid/cancelled
+  try{
+    _refRealtimeSub=sb.channel('ref-live-'+instr.id)
+      .on('postgres_changes',{event:'*',schema:'public',table:'referrals',filter:'instructor_id=eq.'+instr.id},
+        ()=>loadRefData())
+      .subscribe();
+  }catch(e){console.warn('ref realtime:',e.message);}
+  // 60-second polling fallback (catches cases where realtime isn't available)
+  if(_refPollTimer)clearInterval(_refPollTimer);
+  _refPollTimer=setInterval(()=>loadRefData(),60000);
+}
 
 async function loadRefData(){
   if(!instr?.id)return;
   try{
     const{data}=await sb.from('referrals')
-      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,created_at,lesson_type,notes')
+      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,paid_at,created_at,notes')
       .eq('instructor_id',instr.id).eq('is_cancelled',false).eq('is_credit',false)
       .order('created_at',{ascending:false});
     _refAllData=data||[];
@@ -2150,12 +2164,13 @@ async function loadRefData(){
     else{b?.classList.add('hidden');mb?.classList.add('hidden');}
     // Refresh tab if open
     if(!document.getElementById('panel-referrals')?.classList.contains('hidden'))_renderRefTab();
+    // Start realtime + polling after first successful load
+    _startRefLiveUpdates();
   }catch(e){console.warn('loadRefData:',e.message);}
 }
 
 function loadRefTab(){
-  if(!_refAllData.length)loadRefData();
-  else _renderRefTab();
+  loadRefData(); // always re-fetch for freshness
 }
 
 function setRefFilter(f){
@@ -2193,16 +2208,16 @@ function _renderRefTab(){
     return;
   }
   list.innerHTML=rows.map(r=>{
-    const date=r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
+    const addedDate=r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
+    const paidDate=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
     const amt=parseFloat(r.amount)||0;
     const paid=r.is_paid;
     return `<div style="display:flex;align-items:flex-start;justify-content:space-between;background:${paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;gap:12px">
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:3px">${r.student_name||'Unknown'}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          ${r.lesson_type?`<span style="font-size:.65rem;padding:1px 7px;border-radius:4px;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)">${r.lesson_type}</span>`:''}
-          <span style="font-size:.65rem;color:var(--txt4)">${date}</span>
-          <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?'Paid':'Unpaid'}</span>
+          <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
+          <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid ${paidDate?'· '+paidDate:''}`.trim():'Unpaid'}</span>
         </div>
         ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:4px;font-style:italic">${r.notes}</div>`:''}
       </div>
