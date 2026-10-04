@@ -1158,14 +1158,28 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 <!-- REFERRALS TAB -->
 <div id="panel-referrals" class="hidden pb-3">
   <!-- Summary bar -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px" id="refSummaryBar">
-    <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:14px 16px;text-align:center">
-      <div style="font-size:1.5rem;font-weight:800;color:#4ade80;font-family:'Oswald',sans-serif" id="refTabUnpaidCount">—</div>
-      <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">Unpaid referrals</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.22);border-radius:12px;padding:14px 16px;text-align:center">
+      <div style="font-size:1.5rem;font-weight:800;color:#f87171;font-family:'Oswald',sans-serif" id="refTabUnpaidFee">—</div>
+      <div style="font-size:.65rem;color:var(--txt3);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Total Due</div>
     </div>
     <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:14px 16px;text-align:center">
-      <div style="font-size:1.5rem;font-weight:800;color:#4ade80;font-family:'Oswald',sans-serif" id="refTabUnpaidFee">—</div>
-      <div style="font-size:.68rem;color:var(--txt3);margin-top:2px">Amount owed</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#4ade80;font-family:'Oswald',sans-serif" id="refTabPaidFee">—</div>
+      <div style="font-size:.65rem;color:var(--txt3);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Total Paid</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;text-align:center">
+      <div style="font-size:1.1rem;font-weight:800;color:var(--txt1);font-family:'Oswald',sans-serif" id="refTabTotal">—</div>
+      <div style="font-size:.62rem;color:var(--txt3);margin-top:2px">Total</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;text-align:center">
+      <div style="font-size:1.1rem;font-weight:800;color:#f87171;font-family:'Oswald',sans-serif" id="refTabUnpaidCount">—</div>
+      <div style="font-size:.62rem;color:var(--txt3);margin-top:2px">Unpaid</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;text-align:center">
+      <div style="font-size:1.1rem;font-weight:800;color:#4ade80;font-family:'Oswald',sans-serif" id="refTabPaidCount">—</div>
+      <div style="font-size:.62rem;color:var(--txt3);margin-top:2px">Paid</div>
     </div>
   </div>
 
@@ -2159,13 +2173,16 @@ function setRefFilter(f){
 
 function _renderRefTab(){
   const unpaid=_refAllData.filter(r=>!r.is_paid);
-  const totalFee=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
-  const totalPaid=_refAllData.filter(r=>r.is_paid).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
-  // Summary
-  const uc=document.getElementById('refTabUnpaidCount');
-  const uf=document.getElementById('refTabUnpaidFee');
-  if(uc)uc.textContent=unpaid.length;
-  if(uf)uf.textContent=totalFee>0?`£${totalFee.toFixed(0)}`:'£0';
+  const paidRows=_refAllData.filter(r=>r.is_paid);
+  const totalDue=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const totalPaid=paidRows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  // Summary tiles
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('refTabUnpaidFee',`£${totalDue.toFixed(0)}`);
+  set('refTabPaidFee',`£${totalPaid.toFixed(0)}`);
+  set('refTabTotal',_refAllData.length);
+  set('refTabUnpaidCount',unpaid.length);
+  set('refTabPaidCount',paidRows.length);
   // Filter
   const rows=_refFilter==='unpaid'?unpaid:_refFilter==='paid'?_refAllData.filter(r=>r.is_paid):_refAllData;
   const list=document.getElementById('refTabList');
