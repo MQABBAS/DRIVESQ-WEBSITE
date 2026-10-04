@@ -1168,7 +1168,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div style="font-size:.65rem;color:var(--txt3);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Total Paid</div>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
     <div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;text-align:center">
       <div style="font-size:1.1rem;font-weight:800;color:var(--txt1);font-family:'Oswald',sans-serif" id="refTabTotal">—</div>
       <div style="font-size:.62rem;color:var(--txt3);margin-top:2px">Total</div>
@@ -1181,6 +1181,11 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div style="font-size:1.1rem;font-weight:800;color:#4ade80;font-family:'Oswald',sans-serif" id="refTabPaidCount">—</div>
       <div style="font-size:.62rem;color:var(--txt3);margin-top:2px">Paid</div>
     </div>
+  </div>
+  <!-- Drop-pending alert row — hidden when count = 0 -->
+  <div id="refTabDropRow" style="display:none;align-items:center;gap:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:10px 14px;margin-bottom:16px">
+    <i class="bi bi-hourglass-split" style="color:#f87171;font-size:1rem;flex-shrink:0"></i>
+    <div style="flex:1;font-size:.78rem;color:#f87171;font-weight:600"><span id="refTabDropCount">0</span> student(s) flagged as left — <span style="font-weight:400;color:var(--txt3)">awaiting admin confirmation</span></div>
   </div>
 
   <!-- Filter chips -->
@@ -2173,6 +2178,39 @@ function loadRefTab(){
   loadRefData(); // always re-fetch for freshness
 }
 
+async function refMarkStudentLeft(studentName){
+  const p=rosterMap[studentName.toLowerCase().trim()];
+  if(!p?.id){showToast('Student not found in your roster.','warn');return;}
+  const isDropPending=p.status==='drop_pending';
+  if(isDropPending){
+    if(!confirm(`Cancel the drop request for ${studentName}?\n\nThey will be returned to active status.`))return;
+    const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
+    if(error){showToast('Could not update status.','error');return;}
+    p.status='active';
+    showToast(`Drop request cancelled — ${studentName} is back as active.`,'success');
+    _renderRefTab();
+    return;
+  }
+  if(!confirm(`Mark ${studentName} as no longer wanting lessons?\n\nThis will notify the DriveSQ admin team to review and action.`))return;
+  const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
+  if(error){showToast('Could not update status.','error');return;}
+  p.status='drop_pending';
+  // Notify admin
+  const instrName=instr?.name||instr?.full_name||'An instructor';
+  const body=`${instrName} has flagged that student "${studentName}"${p.phone?' ('+p.phone+')':''} no longer wants lessons.\n\nPlease review and take appropriate action.`;
+  await sb.from('admin_messages').insert([{
+    instructor_id:instr?.id||null,
+    subject:`⚠️ Student dropped out: ${studentName}`,
+    body,
+    message_type:'drop_request',
+    is_read:false,
+    dismissed:false,
+    created_at:new Date().toISOString()
+  }]).catch(()=>{});
+  showToast(`Admin notified — ${studentName} flagged as pending confirmation.`,'success');
+  _renderRefTab();
+}
+
 function setRefFilter(f){
   _refFilter=f;
   ['all','unpaid','paid'].forEach(k=>{
@@ -2198,6 +2236,12 @@ function _renderRefTab(){
   set('refTabTotal',_refAllData.length);
   set('refTabUnpaidCount',unpaid.length);
   set('refTabPaidCount',paidRows.length);
+  // Pending drop count
+  const dropCount=_refAllData.filter(r=>!r.is_paid&&rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending').length;
+  const dropEl=document.getElementById('refTabDropCount');
+  const dropRow=document.getElementById('refTabDropRow');
+  if(dropEl)dropEl.textContent=dropCount;
+  if(dropRow)dropRow.style.display=dropCount>0?'flex':'none';
   // Filter
   const rows=_refFilter==='unpaid'?unpaid:_refFilter==='paid'?_refAllData.filter(r=>r.is_paid):_refAllData;
   const list=document.getElementById('refTabList');
@@ -2212,16 +2256,26 @@ function _renderRefTab(){
     const paidDate=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
     const amt=parseFloat(r.amount)||0;
     const paid=r.is_paid;
-    return `<div style="display:flex;align-items:flex-start;justify-content:space-between;background:${paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;gap:12px">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:3px">${r.student_name||'Unknown'}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
-          <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid ${paidDate?'· '+paidDate:''}`.trim():'Unpaid'}</span>
+    const nameKey=(r.student_name||'').toLowerCase().trim();
+    const profile=rosterMap[nameKey];
+    const isDropPending=profile?.status==='drop_pending';
+    const sn=jsEsc(r.student_name||'');
+    return `<div style="background:${isDropPending?'rgba(239,68,68,.05)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${isDropPending?'rgba(239,68,68,.25)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:4px">${r.student_name||'Unknown'}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
+            <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
+            ${isDropPending?`<span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Approval</span>`:''}
+          </div>
+          ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
         </div>
-        ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:4px;font-style:italic">${r.notes}</div>`:''}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
+          ${!paid?`<button onclick="refMarkStudentLeft('${sn}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${isDropPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${isDropPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${isDropPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${isDropPending?'Cancel Request':'Student Left'}</button>`:''}
+        </div>
       </div>
-      <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};white-space:nowrap;font-variant-numeric:tabular-nums;padding-top:2px">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
     </div>`;
   }).join('');
 }
