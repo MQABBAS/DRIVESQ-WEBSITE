@@ -1686,6 +1686,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <a id="refDetailWaHalfBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Outstanding only — shows total due with no paid rows"><i class="bi bi-whatsapp me-2"></i>💷 Outstanding Only</a>
       <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
       <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
+      <button id="refDetailNotifyBtn" onclick="sendBalanceNotification(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);color:#f87171;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Send balance due notification to instructor's dashboard"><i class="bi bi-bell-fill me-1"></i>Notify Instructor</button>
     </div>
     <input type="hidden" id="refDetailInstrId" value=""/>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
@@ -8635,6 +8636,8 @@ async function openRefDetail(instrId){
   if(_mapBtn){const _hasDue=activeRows.some(r=>!r.is_paid);_mapBtn.style.display=_hasDue?'inline-flex':'none';}
   const _expBtn=document.getElementById('refDetailExportBtn');
   if(_expBtn)_expBtn.style.display='inline-flex';
+  const _notifyBtn=document.getElementById('refDetailNotifyBtn');
+  if(_notifyBtn){_notifyBtn.style.display=due>0?'inline-flex':'none';}
 
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
@@ -9125,6 +9128,45 @@ async function markAllRefPaid(instrId){
   renderReferrals();
   // Notify instructor
   sendPushToInstructor(instrId,instr.full_name,'💷 Referral Fees Paid',`Admin has marked all ${unpaid.length} outstanding referral fee${unpaid.length!==1?'s':''} as paid${totalAmt>0?' (£'+totalAmt.toFixed(0)+' total)':''}.`,'/dashboard.html').catch(()=>{});
+}
+
+async function sendBalanceNotification(instrId){
+  if(!instrId){showToast('No instructor selected','error');return;}
+  const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Instructor'};
+  const start=_refPeriodStart();
+  const activeRows=_refData.filter(r=>r.instructor_id===instrId&&!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
+  const unpaid=activeRows.filter(r=>!r.is_paid);
+  const due=unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  if(due<=0){showToast('No outstanding balance to notify about','info');return;}
+  const paid=activeRows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const breakdown=unpaid.map(r=>`• ${r.student_name||'Student'}: £${(parseFloat(r.amount)||0).toFixed(2)}`).join('\n');
+  const msgBody=[
+    `You have an outstanding referral balance of £${due.toFixed(2)}.`,
+    '',
+    'Outstanding referrals:',
+    breakdown,
+    '',
+    `Total paid to date (this period): £${paid.toFixed(2)}`,
+    '',
+    'Please transfer the outstanding amount to:',
+    '  Name:       DriveSQ LTD',
+    '  Acc No:     36786217',
+    '  Sort Code:  01-05-11',
+    '',
+    'Contact admin if you have any questions.',
+  ].join('\n');
+  const{error}=await sb.from('admin_messages').insert([{
+    instructor_id:instrId,
+    subject:`💷 Balance Due: £${due.toFixed(2)} — Referral Fees`,
+    body:msgBody,
+    message_type:'franchise_fee',
+    is_read:false,
+    dismissed:false,
+    created_at:new Date().toISOString(),
+  }]);
+  if(error){showToast('Failed to send notification: '+error.message,'error');return;}
+  sendPushToInstructor(instrId,instr.full_name,'💷 Balance Due',`You have an outstanding referral balance of £${due.toFixed(2)}. Check your messages for details.`,'/dashboard.html').catch(()=>{});
+  showToast(`Balance notification sent to ${instr.full_name} ✓`,'success');
 }
 
 function exportAllRefCSV(){
