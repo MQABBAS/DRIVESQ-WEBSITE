@@ -3724,11 +3724,14 @@ async function loadNotifications(){
   // Keep reschedule banners, clear admin message banners
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
-  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
+  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
+  // Auto-reload roster if admin approved a student removal
+  const hasApproval=unread.some(m=>m.message_type==='drop_request_approved');
+  if(hasApproval)loadRoster().catch(()=>{});
   unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
   if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div>';return;}
-  const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa'};
+  const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa',drop_request_approved:'#f87171',drop_request_kept:'#60a5fa'};
   list.innerHTML=msgs.map(m=>{
     const isNewStudent=m.subject&&m.subject.includes('New Student Assigned');
     const viewStudentBtn=isNewStudent?`<button onclick="event.stopPropagation();toggleNotif();switchTab('students');setMobActive('students');loadStudents();markRead('${m.id}')" style="margin-top:6px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:6px;padding:4px 10px;font-size:.7rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;letter-spacing:.3px"><i class="bi bi-people-fill me-1"></i>View Students</button>`:'';

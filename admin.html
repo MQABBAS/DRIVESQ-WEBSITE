@@ -5362,20 +5362,89 @@ async function sendAll(){
   showToast(`📢 Sent to ${approved.length} instructors!`,'success');closeModal('sendAllModal');loadMessages();
 }
 async function loadMessages(){
-  const{data}=await sb.from('admin_messages').select('*,instructors(full_name)').order('created_at',{ascending:false}).limit(100);
+  const{data}=await sb.from('admin_messages').select('*,instructors(full_name,id)').order('created_at',{ascending:false}).limit(100);
   const list=data||[];const container=document.getElementById('msgList');
   if(!list.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)">No messages sent yet.</div>';return;}
-  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
-  container.innerHTML=list.map(m=>`<div class="msg-row">
-    <div class="msg-dot ${m.is_read?'read':'unread'}"></div>
-    <div style="flex:1;min-width:0">
-      <div class="msg-to">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace('_',' ').toUpperCase())} → ${esc(m.instructors?.full_name||'Unknown')}</div>
-      <div class="msg-subj">${esc(m.subject)}</div>
-      <div class="msg-prev">${esc(m.body)}</div>
-      <div class="msg-meta">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
-    </div>
-    <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${m.is_read?'background:var(--dk3);color:var(--txt4)':'background:rgba(209,10,17,.08);color:#f87171'}">${m.is_read?'Read':'Unread'}</span>
-  </div>`).join('');
+  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request:'🚨'};
+  container.innerHTML=list.map(m=>{
+    const isDropReq=m.message_type==='drop_request';
+    const isDropApproved=m.message_type==='drop_request_approved';
+    const isDropKept=m.message_type==='drop_request_kept';
+    const isDropActioned=isDropApproved||isDropKept;
+    const instrName=esc(m.instructors?.full_name||'Unknown');
+    const instrId=m.instructors?.id||m.instructor_id||'';
+    const subjectMatch=(m.subject||'').match(/Student left:\s*(.+)$/i)||[];
+    const studentName=subjectMatch[1]||'';
+    const dateStr=new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    let actionHtml='';
+    if(isDropReq){
+      const snEsc=studentName.replace(/'/g,"\\'");
+      actionHtml=`<div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="dropRequestAction('${m.id}','${instrId}','${instrName.replace(/'/g,"\\'")}','${snEsc}','approve')" style="flex:1;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:8px;color:#f87171;padding:8px 12px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit"><i class="bi bi-person-x-fill me-1"></i>Approve Removal</button>
+        <button onclick="dropRequestAction('${m.id}','${instrId}','${instrName.replace(/'/g,"\\'")}','${snEsc}','keep')" style="flex:1;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;color:#4ade80;padding:8px 12px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit"><i class="bi bi-arrow-counterclockwise me-1"></i>Keep Active</button>
+      </div>`;
+    } else if(isDropActioned){
+      actionHtml=`<div style="margin-top:8px;font-size:.7rem;padding:6px 10px;border-radius:6px;${isDropApproved?'background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)':'background:rgba(74,222,128,.08);color:#4ade80;border:1px solid rgba(74,222,128,.2)'}"><i class="bi bi-check-circle me-1"></i>${isDropApproved?'Removal approved — student removed':'Kept active — instructor notified'}</div>`;
+    }
+    const needsAction=isDropReq;
+    return `<div class="msg-row" style="${needsAction?'border-left:3px solid #f87171;background:rgba(239,68,68,.04)':''}">
+      <div class="msg-dot ${m.is_read?'read':'unread'}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="msg-to">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace(/_/g,' ').toUpperCase())} → ${instrName}</div>
+        <div class="msg-subj">${esc(m.subject)}</div>
+        <div class="msg-prev" style="white-space:pre-wrap">${esc(m.body)}</div>
+        <div class="msg-meta">${dateStr}</div>
+        ${actionHtml}
+      </div>
+      <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${needsAction?'background:rgba(239,68,68,.15);color:#f87171':m.is_read?'background:var(--dk3);color:var(--txt4)':'background:rgba(209,10,17,.08);color:#f87171'}">${needsAction?'ACTION NEEDED':m.is_read?'Read':'Unread'}</span>
+    </div>`;
+  }).join('');
+}
+
+async function dropRequestAction(msgId,instrId,instrName,studentName,action){
+  const btn=event.target.closest('button');
+  if(btn)btn.disabled=true;
+  const isApprove=action==='approve';
+  // Find student profile by name + instructor
+  let profileId=null;
+  if(studentName&&instrId){
+    const{data:profiles}=await sb.from('student_profiles').select('id,status').eq('instructor_id',instrId).ilike('name',studentName.trim()).limit(1);
+    profileId=profiles?.[0]?.id||null;
+  }
+  if(isApprove){
+    // Mark student removed
+    if(profileId){
+      await sb.from('student_profiles').update({status:'removed'}).eq('id',profileId).catch(()=>{});
+    }
+    // Notify instructor
+    await sb.from('admin_messages').insert([{
+      instructor_id:instrId||null,
+      subject:`✅ Student removal confirmed: ${studentName}`,
+      body:`Admin has approved the removal of "${studentName}" from your roster. Their status has been updated and they will no longer appear in your active students.`,
+      message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()
+    }]).catch(()=>{});
+    sendPushToInstructor(instrId,instrName,'✅ Student Removal Confirmed',
+      `Admin has confirmed the removal of ${studentName} from your roster.`,'/dashboard.html').catch(()=>{});
+    showToast('Student removed & instructor notified.','success');
+  } else {
+    // Keep active — revert drop_pending
+    if(profileId){
+      await sb.from('student_profiles').update({status:'active'}).eq('id',profileId).catch(()=>{});
+    }
+    // Notify instructor
+    await sb.from('admin_messages').insert([{
+      instructor_id:instrId||null,
+      subject:`ℹ️ Student kept active: ${studentName}`,
+      body:`Admin has reviewed your report about "${studentName}" and decided to keep them active. If you have further concerns please contact the DriveSQ team directly.`,
+      message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()
+    }]).catch(()=>{});
+    sendPushToInstructor(instrId,instrName,'ℹ️ Student Kept Active',
+      `Admin has reviewed ${studentName} and kept them active on your roster.`,'/dashboard.html').catch(()=>{});
+    showToast('Student kept active & instructor notified.','success');
+  }
+  // Mark original message as actioned by updating message_type (no schema change needed)
+  await sb.from('admin_messages').update({is_read:true,message_type:isApprove?'drop_request_approved':'drop_request_kept'}).eq('id',msgId).catch(()=>{});
+  loadMessages();
 }
 
 /* ══ BADGE REQUEST ══ */
