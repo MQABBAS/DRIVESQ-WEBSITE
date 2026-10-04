@@ -2178,16 +2178,30 @@ function loadRefTab(){
   loadRefData(); // always re-fetch for freshness
 }
 
-function refMarkStudentLeft(studentName){
-  const p=rosterMap[studentName.toLowerCase().trim()];
-  if(!p?.id){showToast('Student not found in your roster.','warn');return;}
-  if(p.status==='drop_pending'){
-    openCancelDropModal(studentName,'referral');
+function refMarkStudentLeft(studentName,refId){
+  // Check if already pending (keyed by referral ID in localStorage since student may not be in roster)
+  const isPending=refId?_refIsDropPending(refId):false;
+  if(isPending){
+    openCancelDropModal(studentName,'referral',refId);
     return;
   }
-  // Find referral amount
-  const ref=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid);
-  openDropModal(studentName,'referral',ref?.amount||0);
+  const ref=_refAllData.find(r=>r.id===refId||(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid);
+  openDropModal(studentName,'referral',ref?.amount||0,refId||ref?.id||null);
+}
+
+// Track drop_pending per referral ID in localStorage (student may not be in rosterMap)
+function _refIsDropPending(refId){
+  if(!refId)return false;
+  try{const v=localStorage.getItem('drop_ref_'+refId);return v==='1';}catch(e){return false;}
+}
+function _refSetDropPending(refId,val){
+  try{if(val)localStorage.setItem('drop_ref_'+refId,'1');else localStorage.removeItem('drop_ref_'+refId);}catch(e){}
+}
+function _refGetDropReason(refId){
+  try{const v=localStorage.getItem('drop_ref_reason_'+refId);return v?JSON.parse(v):null;}catch(e){return null;}
+}
+function _refSetDropReason(refId,obj){
+  try{if(obj)localStorage.setItem('drop_ref_reason_'+refId,JSON.stringify(obj));else localStorage.removeItem('drop_ref_reason_'+refId);}catch(e){}
 }
 
 function setRefFilter(f){
@@ -2235,24 +2249,28 @@ function _renderRefTab(){
     const paidDate=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
     const amt=parseFloat(r.amount)||0;
     const paid=r.is_paid;
-    const nameKey=(r.student_name||'').toLowerCase().trim();
-    const profile=rosterMap[nameKey];
-    const isDropPending=profile?.status==='drop_pending';
+    // Use per-referral localStorage for pending state (roster profile may not exist)
+    const isDropPending=_refIsDropPending(r.id);
+    const dropReason=isDropPending?_refGetDropReason(r.id):null;
+    // Also check rosterMap as fallback
+    const profileDropPending=rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending';
+    const showPending=isDropPending||profileDropPending;
+    const rid=jsEsc(r.id||'');
     const sn=jsEsc(r.student_name||'');
-    return `<div style="background:${isDropPending?'rgba(239,68,68,.05)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${isDropPending?'rgba(239,68,68,.25)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
+    return `<div style="background:${showPending?'rgba(239,68,68,.05)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:4px">${r.student_name||'Unknown'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
             <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
-            ${isDropPending?(()=>{let stored={};try{const s=localStorage.getItem('drop_reason_'+(profile?.id||''));if(s)stored=JSON.parse(s);}catch(e){}return `<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${stored.reason?'Reason: '+stored.reason+(stored.notes?'\n'+stored.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${stored.reason?' · '+stored.reason:''}</span>`;})():''}
+            ${showPending?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\n'+dropReason.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${dropReason?.reason?' · '+dropReason.reason:''}</span>`:''}
           </div>
           ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
-          ${!paid?`<button onclick="refMarkStudentLeft('${sn}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${isDropPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${isDropPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${isDropPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${isDropPending?'Cancel Request':'Student Left'}</button>`:''}
+          ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${showPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel Request':'Student Left'}</button>`:''}
         </div>
       </div>
     </div>`;
@@ -3727,9 +3745,14 @@ async function loadNotifications(){
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
   const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
-  // Auto-reload roster if admin approved a student removal
-  const hasApproval=unread.some(m=>m.message_type==='drop_request_approved');
-  if(hasApproval)loadRoster().catch(()=>{});
+  // When admin acts on a drop request, clear all referral-level pending flags
+  const hasAdminDecision=unread.some(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
+  if(hasAdminDecision){
+    // Clear all drop_ref_* localStorage keys for this instructor's referrals
+    try{Object.keys(localStorage).filter(k=>k.startsWith('drop_ref_')).forEach(k=>localStorage.removeItem(k));}catch(e){}
+    loadRoster().catch(()=>{});
+    loadRefData().catch(()=>{});
+  }
   unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
   if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div>';return;}
@@ -4397,7 +4420,7 @@ async function smRemoveFromRoster(){
     instructor_id:instr.id,
     subject:`🗑️ Student removed from roster: ${smCurrentName}`,
     body:`${instrName} has removed "${smCurrentName}"${p.phone?' ('+p.phone+')':''} from their student roster.\n\nThe student profile is still in the database with status "removed" and instructor association preserved for your records.\n\nRemoved at: ${new Date().toLocaleString('en-GB')}`,
-    message_type:'drop_request_kept',
+    message_type:'general',
     is_read:false,dismissed:false,created_at:new Date().toISOString()
   }]).catch(()=>{});
   // Background refresh to stay in sync
@@ -4430,11 +4453,12 @@ function smMarkDroppedOut(){
 }
 
 /* ── DROP MODAL ── */
-let _dropModalSource='referral',_dropModalStudentName='';
+let _dropModalSource='referral',_dropModalStudentName='',_dropModalRefId=null;
 
-function openDropModal(studentName,source,refAmt){
+function openDropModal(studentName,source,refAmt,refId){
   _dropModalStudentName=studentName;
   _dropModalSource=source||'referral';
+  _dropModalRefId=refId||null;
   const p=rosterMap[studentName.toLowerCase().trim()];
   document.getElementById('dropModalTitle').textContent='Student No Longer Wants Lessons';
   document.getElementById('dropModalName').textContent=studentName;
@@ -4479,17 +4503,29 @@ async function submitDropModal(){
   if(reason==='Other'&&!notes){showToast('Please add details for "Other".','warn');document.getElementById('dropModalNotes').focus();return;}
   const btn=document.getElementById('dropModalSubmitBtn');
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Sending…';
+
   const p=rosterMap[_dropModalStudentName.toLowerCase().trim()];
-  if(!p?.id){showToast('Student not found.','warn');closeDropModal();return;}
-  const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
-  if(error){showToast('Could not update status.','error');btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill"></i> Notify Admin';return;}
-  p.status='drop_pending';
-  // Store reason locally so badge can show it
-  try{localStorage.setItem('drop_reason_'+p.id,JSON.stringify({reason,notes,sentAt:new Date().toISOString()}));}catch(e){}
+  // Update student_profiles if in roster (optional — don't fail if not)
+  if(p?.id){
+    const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
+    if(!error){
+      p.status='drop_pending';
+      try{localStorage.setItem('drop_reason_'+p.id,JSON.stringify({reason,notes,sentAt:new Date().toISOString()}));}catch(e){}
+    }
+  }
+
+  // Always mark the referral as pending in localStorage (works even without a roster profile)
+  if(_dropModalRefId){
+    _refSetDropPending(_dropModalRefId,true);
+    _refSetDropReason(_dropModalRefId,{reason,notes,sentAt:new Date().toISOString()});
+  }
+
   const instrName=instr?.name||instr?.full_name||'An instructor';
-  const phone=p.phone||'';
-  const refLine=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===_dropModalStudentName.toLowerCase().trim()&&!r.is_paid);
-  const amtLine=refLine?.amount>0?`\n• Referral fee outstanding: £${parseFloat(refLine.amount).toFixed(0)}`:'';
+  const phone=p?.phone||'';
+  const refLine=_dropModalRefId
+    ?_refAllData.find(r=>r.id===_dropModalRefId)
+    :_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===_dropModalStudentName.toLowerCase().trim()&&!r.is_paid);
+  const amtLine=refLine?.amount>0?`• Referral fee outstanding: £${parseFloat(refLine.amount).toFixed(0)}`:'';
   const bodyParts=[
     `${instrName} has reported that student "${_dropModalStudentName}"${phone?' ('+phone+')':''} no longer wants lessons.`,
     '',
@@ -4499,18 +4535,23 @@ async function submitDropModal(){
     ...(amtLine?[amtLine]:[]),
     `• Reported at: ${new Date().toLocaleString('en-GB')}`,
     '',
-    'Please review and take appropriate action (confirm removal, process refunds, update records).'
+    'Please review and take appropriate action (confirm removal, process any outstanding referral fees, update records).'
   ];
-  const body=bodyParts.join('\n');
-  await sb.from('admin_messages').insert([{
+  const{error:msgErr}=await sb.from('admin_messages').insert([{
     instructor_id:instr?.id||null,
     subject:`⚠️ Student left: ${_dropModalStudentName}`,
-    body:body.trim(),
+    body:bodyParts.join('\n').trim(),
     message_type:'drop_request',
     is_read:false,
     dismissed:false,
     created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  }]);
+  if(msgErr){
+    console.warn('submitDropModal insert error:',msgErr.message);
+    showToast('Failed to notify admin: '+msgErr.message,'error');
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill"></i> Notify Admin';
+    return;
+  }
   closeDropModal();
   showToast(`Admin notified — ${_dropModalStudentName} is pending confirmation.`,'success');
   if(_dropModalSource==='student'){
@@ -4522,11 +4563,12 @@ async function submitDropModal(){
 }
 
 /* ── CANCEL DROP MODAL ── */
-let _cancelDropSource='referral',_cancelDropStudentName='';
+let _cancelDropSource='referral',_cancelDropStudentName='',_cancelDropRefId=null;
 
-function openCancelDropModal(studentName,source){
+function openCancelDropModal(studentName,source,refId){
   _cancelDropStudentName=studentName;
   _cancelDropSource=source||'referral';
+  _cancelDropRefId=refId||null;
   document.getElementById('cancelDropStudentName').textContent=studentName;
   document.getElementById('cancelDropOverlay').style.display='block';
   document.getElementById('cancelDropModal').style.display='block';
@@ -4538,12 +4580,18 @@ function closeCancelDropModal(){
 }
 
 async function confirmCancelDrop(){
+  // Clear referral-level pending state
+  if(_cancelDropRefId){
+    _refSetDropPending(_cancelDropRefId,false);
+    _refSetDropReason(_cancelDropRefId,null);
+  }
+  // Also clear roster profile if present
   const p=rosterMap[_cancelDropStudentName.toLowerCase().trim()];
-  if(!p?.id){closeCancelDropModal();return;}
-  const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
-  if(error){showToast('Could not update status.','error');closeCancelDropModal();return;}
-  p.status='active';
-  try{localStorage.removeItem('drop_reason_'+p.id);}catch(e){}
+  if(p?.id){
+    await sb.from('student_profiles').update({status:'active'}).eq('id',p.id).catch(()=>{});
+    p.status='active';
+    try{localStorage.removeItem('drop_reason_'+p.id);}catch(e){}
+  }
   closeCancelDropModal();
   showToast(`Drop request cancelled — ${_cancelDropStudentName} is back as active.`,'success');
   if(_cancelDropSource==='student'){
