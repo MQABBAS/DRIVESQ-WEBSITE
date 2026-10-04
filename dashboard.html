@@ -2263,24 +2263,62 @@ function _renderRefTab(){
     const showPending=isDropPending||profileDropPending;
     const rid=jsEsc(r.id||'');
     const sn=jsEsc(r.student_name||'');
-    return `<div style="background:${showPending?'rgba(239,68,68,.05)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
+    // Detect if student has no lessons booked yet
+    const _stuEntry=allStudentsArr.find(s=>(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
+    const hasNoLesson=!paid&&!showPending&&(_stuEntry?(_stuEntry.count||0)===0:true);
+    const noLessonAlerted=localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1';
+    return `<div style="background:${showPending?'rgba(239,68,68,.05)':hasNoLesson?'rgba(251,191,36,.04)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':hasNoLesson?'rgba(251,191,36,.2)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:4px">${r.student_name||'Unknown'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
             <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
+            ${hasNoLesson?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No Lesson Booked</span>`:''}
             ${showPending?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\n'+dropReason.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${dropReason?.reason?' · '+dropReason.reason:''}</span>`:''}
+            ${noLessonAlerted?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(99,102,241,.08);color:#818cf8;border:1px solid rgba(99,102,241,.2)"><i class="bi bi-bell-fill me-1"></i>Admin Notified</span>`:''}
           </div>
           ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
+          ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600" title="Let admin know this student has no lesson booked yet"><i class="bi bi-bell me-1"></i>Notify Admin</button>`:''}
           ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${showPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel Request':'Student Left'}</button>`:''}
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+async function refNotifyNoLesson(studentName, refId){
+  if(!studentName||!instr?.id)return;
+  try{
+    const ref=_refAllData.find(r=>r.id===refId||(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim());
+    const amt=ref?parseFloat(ref.amount)||0:0;
+    const addedDate=ref?.created_at?new Date(ref.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+    const body=[
+      `Instructor: ${instr.full_name||'Unknown'}`,
+      `Student: ${studentName}`,
+      `Referred on: ${addedDate||'unknown date'}`,
+      amt>0?`Referral fee: £${amt.toFixed(2)}`:'',
+      '',
+      'This student has been on the roster but has no lesson booked yet.',
+      'Please follow up or reassign if needed.',
+    ].filter(l=>l!==undefined&&!(l===''&&!addedDate)).join('\n').trim();
+    const{error}=await sb.from('admin_messages').insert([{
+      instructor_id:instr.id,
+      subject:`📅 No Lesson Booked: ${studentName}`,
+      body,
+      message_type:'general',
+      is_read:false,
+      dismissed:false,
+      created_at:new Date().toISOString(),
+    }]);
+    if(error){showToast('Could not notify admin: '+error.message,'error');return;}
+    try{localStorage.setItem('ref_no_lesson_alerted_'+refId,'1');}catch(e){}
+    showToast('Admin notified ✓','success');
+    _renderRefTab();
+  }catch(err){showToast('Error: '+err.message,'error');}
 }
 
 // Helper — reload students if that tab is currently visible
