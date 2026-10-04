@@ -1454,6 +1454,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Emergency Contact</label><input class="dsq-inp" id="smEditEmergency" placeholder="Name · Phone"/></div>
         <div class="col-12"><label class="dsq-lbl">Instructor Notes</label><textarea class="dsq-inp" id="smEditNotes" rows="2" placeholder="Private notes about this student…"></textarea></div>
+        <div class="col-12" id="smAdminNoteBox" style="display:none">
+          <div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.28);border-radius:8px;padding:9px 12px">
+            <div style="font-size:.6rem;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:5px"><i class="bi bi-shield-lock-fill me-1"></i>Admin Note</div>
+            <div id="smAdminNoteText" style="font-size:.8rem;color:var(--txt2);white-space:pre-wrap;line-height:1.5"></div>
+          </div>
+        </div>
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
@@ -2230,7 +2236,7 @@ function _renderRefTab(){
   set('refTabUnpaidCount',unpaid.length);
   set('refTabPaidCount',paidRows.length);
   // Pending drop count
-  const dropCount=_refAllData.filter(r=>!r.is_paid&&rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending').length;
+  const dropCount=_refAllData.filter(r=>!r.is_paid&&(_refIsDropPending(r.id)||rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending')).length;
   const dropEl=document.getElementById('refTabDropCount');
   const dropRow=document.getElementById('refTabDropRow');
   if(dropEl)dropEl.textContent=dropCount;
@@ -2257,24 +2263,63 @@ function _renderRefTab(){
     const showPending=isDropPending||profileDropPending;
     const rid=jsEsc(r.id||'');
     const sn=jsEsc(r.student_name||'');
-    return `<div style="background:${showPending?'rgba(239,68,68,.05)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
+    // Detect if student has no lessons booked yet
+    const _stuEntry=allStudentsArr.find(s=>(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
+    const hasNoLesson=!paid&&!showPending&&(_stuEntry?(_stuEntry.count||0)===0:true);
+    const noLessonAlerted=localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1';
+    return `<div style="background:${showPending?'rgba(239,68,68,.05)':hasNoLesson?'rgba(251,191,36,.04)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':hasNoLesson?'rgba(251,191,36,.2)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:4px">${r.student_name||'Unknown'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
             <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
+            ${hasNoLesson?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No Lesson Booked</span>`:''}
             ${showPending?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\n'+dropReason.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${dropReason?.reason?' · '+dropReason.reason:''}</span>`:''}
+            ${noLessonAlerted?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(99,102,241,.08);color:#818cf8;border:1px solid rgba(99,102,241,.2)"><i class="bi bi-bell-fill me-1"></i>Admin Notified</span>`:''}
           </div>
           ${r.notes?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
+          ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600" title="Let admin know this student has no lesson booked yet"><i class="bi bi-bell me-1"></i>Notify Admin</button>`:''}
           ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${showPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel Request':'Student Left'}</button>`:''}
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+async function refNotifyNoLesson(studentName, refId){
+  if(!studentName||!instr?.id)return;
+  try{
+    const ref=_refAllData.find(r=>r.id===refId||(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim());
+    const amt=ref?parseFloat(ref.amount)||0:0;
+    const addedDate=ref?.created_at?new Date(ref.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+    const bodyLines=[
+      `Instructor: ${instr.full_name||'Unknown'}`,
+      `Student: ${studentName}`,
+      `Referred on: ${addedDate||'unknown date'}`,
+      ...(amt>0?[`Referral fee: £${amt.toFixed(2)}`]:[]),
+      '',
+      'This student has been on the roster but has no lesson booked yet.',
+      'Please follow up or reassign if needed.',
+    ];
+    const body=bodyLines.join('\n').trim();
+    const{error}=await sb.from('admin_messages').insert([{
+      instructor_id:instr.id,
+      subject:`📅 No Lesson Booked: ${studentName}`,
+      body,
+      message_type:'general',
+      is_read:false,
+      dismissed:false,
+      created_at:new Date().toISOString(),
+    }]);
+    if(error){showToast('Could not notify admin: '+error.message,'error');return;}
+    try{localStorage.setItem('ref_no_lesson_alerted_'+refId,'1');}catch(e){}
+    showToast('Admin notified ✓','success');
+    _renderRefTab();
+  }catch(err){showToast('Error: '+err.message,'error');}
 }
 
 // Helper — reload students if that tab is currently visible
@@ -2784,7 +2829,7 @@ async function loadRoster(){
 
   // Load student accounts — wrapped in try/catch so missing table doesn't break roster
   try{
-    const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email').eq('instructor_id',instr.id);
+    const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email,notes').eq('instructor_id',instr.id);
     studentAccountMap={};
     (accounts||[]).forEach(a=>{
       if(a.student_code)studentAccountMap[a.student_code]=a;
@@ -3456,6 +3501,9 @@ function renderStudents(students,emptyOverride){
       statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App</span>';
     }
     if(s.status==='drop_pending'){let _dr={};try{const _s=localStorage.getItem('drop_reason_'+(s.id||''));if(_s)_dr=JSON.parse(_s);}catch(e){}statusHtml+=`<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)" title="${_dr.reason?'Reason: '+_dr.reason+(_dr.notes?'\n'+_dr.notes:''):'Pending admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${_dr.reason?' · '+_dr.reason:''}</span>`;}
+    // No-lesson-booked flag — show if admin has been notified for any unpaid referral for this student
+    const _noLessonRefEntry=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===s.name.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+    if(_noLessonRefEntry)statusHtml+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin notified — no lesson booked yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
@@ -3745,13 +3793,39 @@ async function loadNotifications(){
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
   const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
-  // When admin acts on a drop request, clear all referral-level pending flags
-  const hasAdminDecision=unread.some(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
-  if(hasAdminDecision){
-    // Clear all drop_ref_* localStorage keys for this instructor's referrals
-    try{Object.keys(localStorage).filter(k=>k.startsWith('drop_ref_')).forEach(k=>localStorage.removeItem(k));}catch(e){}
-    loadRoster().catch(()=>{});
-    loadRefData().catch(()=>{});
+  // When admin acts on a drop request, clear only the matching referral's pending flags
+  // Use msgs (all undismissed) not unread — markRead() removes from unread but not msgs
+  const decisionMsgs=msgs.filter(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
+  if(decisionMsgs.length){
+    const _processedKey='dsq_drop_decisions_processed';
+    let _processed=[];try{_processed=JSON.parse(localStorage.getItem(_processedKey)||'[]');}catch(e){}
+    let _newDecision=false;
+    decisionMsgs.forEach(m=>{
+      if(_processed.includes(m.id))return;
+      _processed.push(m.id);
+      _newDecision=true;
+      // Extract student name from subject: "✅ Student Removal Confirmed: <name>" or body's first line
+      const subjectMatch=(m.subject||'').match(/:\s*(.+)$/);
+      const studentName=subjectMatch?subjectMatch[1].trim():'';
+      if(studentName){
+        // Clear only drop_ref_* keys for referrals matching this student
+        const matchingRefs=_refAllData.filter(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim());
+        matchingRefs.forEach(r=>{
+          try{localStorage.removeItem('drop_ref_'+r.id);localStorage.removeItem('drop_ref_reason_'+r.id);}catch(e){}
+        });
+        // Also clear roster-level drop reason
+        const rp=rosterMap[studentName.toLowerCase().trim()];
+        if(rp?.id){try{localStorage.removeItem('drop_reason_'+rp.id);}catch(e){}}
+      } else {
+        // Fallback: clear all (old messages without parseable name)
+        try{Object.keys(localStorage).filter(k=>k.startsWith('drop_ref_')).forEach(k=>localStorage.removeItem(k));}catch(e){}
+      }
+    });
+    if(_newDecision){
+      try{localStorage.setItem(_processedKey,JSON.stringify(_processed.slice(-50)));}catch(e){}
+      loadRoster().catch(()=>{});
+      loadRefData().catch(()=>{});
+    }
   }
   unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
@@ -4155,6 +4229,9 @@ async function openStudentMgmt(studentName, tab='profile'){
   const isDropPending=p.status==='drop_pending';
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
   if(isDropPending)badges+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Confirmation</span>';
+  // No-lesson-booked alert badge — check if admin has been notified for any referral for this student
+  const _noLessonRef=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+  if(_noLessonRef)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin has been notified that no lesson has been booked for this student yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
   if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">End Break</span>':'<i class="bi bi-moon"></i><span id="smArchiveBtnLbl">On Break</span>';
@@ -4173,6 +4250,11 @@ async function openStudentMgmt(studentName, tab='profile'){
   document.getElementById('smEditNotes').value=p.notes||'';
   document.getElementById('smEditEmail').value=acc?.email||'';
   document.getElementById('smEditEmergency').value=acc?.emergency_contact||'';
+  // Show admin note if visible
+  const _adminNoteParsed=(()=>{if(!acc?.notes)return null;try{const p=JSON.parse(acc.notes);if(p&&typeof p==='object'&&'note' in p&&p.visible&&p.note)return p.note;}catch(e){}return null;})();
+  const _adminNoteBox=document.getElementById('smAdminNoteBox');
+  const _adminNoteText=document.getElementById('smAdminNoteText');
+  if(_adminNoteBox&&_adminNoteText){_adminNoteBox.style.display=_adminNoteParsed?'':'none';if(_adminNoteParsed)_adminNoteText.textContent=_adminNoteParsed;}
 
   // Registered info from student account — show what they entered + sync option
   if(acc&&acc.last_login){
@@ -4449,7 +4531,7 @@ function smMarkDroppedOut(){
     return;
   }
   const ref=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===smCurrentName.toLowerCase().trim()&&!r.is_paid);
-  openDropModal(smCurrentName,'student',ref?.amount||0);
+  openDropModal(smCurrentName,'student',ref?.amount||0,ref?.id||null);
 }
 
 /* ── DROP MODAL ── */
@@ -4592,6 +4674,17 @@ async function confirmCancelDrop(){
     p.status='active';
     try{localStorage.removeItem('drop_reason_'+p.id);}catch(e){}
   }
+  // Notify admin that the request was cancelled — so they don't act on the original
+  const instrName=instr?.name||instr?.full_name||'The instructor';
+  await sb.from('admin_messages').insert([{
+    instructor_id:instr?.id||null,
+    subject:`↩ Drop Request Cancelled: ${_cancelDropStudentName}`,
+    body:`${instrName} has cancelled the drop request for "${_cancelDropStudentName}".\n\nThe student is back to active status — please disregard any earlier "Student left" notification for this student.`,
+    message_type:'general',
+    is_read:false,
+    dismissed:false,
+    created_at:new Date().toISOString()
+  }]).catch(()=>{});
   closeCancelDropModal();
   showToast(`Drop request cancelled — ${_cancelDropStudentName} is back as active.`,'success');
   if(_cancelDropSource==='student'){
@@ -6403,7 +6496,7 @@ if('serviceWorker' in navigator){
   <div style="text-align:center;margin-bottom:16px">
     <div style="width:48px;height:48px;border-radius:50%;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="bi bi-arrow-counterclockwise" style="color:#4ade80;font-size:1.3rem"></i></div>
     <div style="font-weight:700;font-size:.95rem;color:var(--txt1);margin-bottom:6px">Cancel Drop Request?</div>
-    <div style="font-size:.78rem;color:var(--txt3);line-height:1.5"><span id="cancelDropStudentName" style="font-weight:600;color:var(--txt1)"></span> will be returned to active status and the admin notification will be withdrawn.</div>
+    <div style="font-size:.78rem;color:var(--txt3);line-height:1.5"><span id="cancelDropStudentName" style="font-weight:600;color:var(--txt1)"></span> will be returned to active status and admin will be sent a cancellation notice so they know not to act on the original request.</div>
   </div>
   <div style="display:flex;gap:10px">
     <button onclick="closeCancelDropModal()" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt2);padding:10px;font-size:.8rem;font-weight:600;cursor:pointer">Keep Pending</button>
