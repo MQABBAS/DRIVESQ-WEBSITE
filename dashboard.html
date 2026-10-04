@@ -1387,6 +1387,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
         <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as On Break / Deactivate" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px"><i class="bi bi-archive"></i><span id="smArchiveBtnLbl">On Break</span></button>
+        <button class="btn-r-sm" id="smDropBtn" onclick="smMarkDroppedOut()" title="Student no longer wants lessons — notify admin" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#f87171"><i class="bi bi-person-x-fill"></i></button>
         <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
       </div>
     </div>
@@ -3250,6 +3251,7 @@ function renderStudents(students,emptyOverride){
     } else {
       statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App</span>';
     }
+    if(s.status==='drop_pending')statusHtml+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin</span>';
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
@@ -3936,11 +3938,18 @@ async function openStudentMgmt(studentName, tab='profile'){
   else if(lastEvent==='link_opened')badges+='<span class="app-status-pill link_opened"><i class="bi bi-link-45deg me-1"></i>Link Opened</span>';
   else badges+='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App Yet</span>';
   const isArchived=p.status==='inactive';
+  const isDropPending=p.status==='drop_pending';
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
+  if(isDropPending)badges+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Confirmation</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
   if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">End Break</span>':'<i class="bi bi-moon"></i><span id="smArchiveBtnLbl">On Break</span>';
   if(archBtn)archBtn.title=isArchived?'Return student to active roster':'Mark student as On Break (hides from active list)';
+  const dropBtn=document.getElementById('smDropBtn');
+  if(dropBtn){
+    if(isDropPending){dropBtn.title='Awaiting admin confirmation — tap to cancel request';dropBtn.style.background='rgba(239,68,68,.25)';dropBtn.style.borderColor='rgba(239,68,68,.55)';}
+    else{dropBtn.title='Student no longer wants lessons — notify admin';dropBtn.style.background='rgba(239,68,68,.12)';dropBtn.style.borderColor='rgba(239,68,68,.35)';}
+  }
 
   // Populate profile
   document.getElementById('smEditName').value=p.name||'';
@@ -4200,6 +4209,41 @@ async function smToggleArchive(){
   const{error}=await sb.from('student_profiles').update({status:newStatus}).eq('id',p.id);
   if(error){showToast('Could not update status.','error');console.warn('smToggleArchive error:',error.message);return;}
   showToast(newStatus==='inactive'?'Student marked On Break — find them in the On Break filter.':'Student returned to active roster ✓','success');
+  await Promise.all([loadRoster(),loadStudents()]);
+  openStudentMgmt(smCurrentName,'profile');
+}
+
+async function smMarkDroppedOut(){
+  const p=rosterMap[smCurrentName.toLowerCase().trim()];
+  if(!p?.id){showToast('Save this student to your roster first.');return;}
+  const isDropPending=p.status==='drop_pending';
+  if(isDropPending){
+    // Cancel the request
+    if(!confirm(`Cancel the drop request for ${smCurrentName}?\n\nThey will be returned to active status.`))return;
+    const{error}=await sb.from('student_profiles').update({status:'active'}).eq('id',p.id);
+    if(error){showToast('Could not update status.','error');return;}
+    showToast(`Drop request cancelled — ${smCurrentName} is back as active.`,'success');
+    await Promise.all([loadRoster(),loadStudents()]);
+    openStudentMgmt(smCurrentName,'profile');
+    return;
+  }
+  if(!confirm(`Mark ${smCurrentName} as no longer wanting lessons?\n\nThis will flag them for admin review and send a notification to the DriveSQ admin team.`))return;
+  const{error}=await sb.from('student_profiles').update({status:'drop_pending'}).eq('id',p.id);
+  if(error){showToast('Could not update status.','error');console.warn('smMarkDroppedOut:',error.message);return;}
+  // Notify admin via admin_messages
+  const instrName=instr?.name||instr?.full_name||'An instructor';
+  const phone=p.phone||'';
+  const body=`${instrName} has flagged that student "${smCurrentName}"${phone?' ('+phone+')':''} no longer wants lessons.\n\nPlease review and take the appropriate action (remove from roster, process any refunds, update records).`;
+  await sb.from('admin_messages').insert([{
+    instructor_id:instr?.id||null,
+    subject:`⚠️ Student dropped out: ${smCurrentName}`,
+    body,
+    message_type:'drop_request',
+    is_read:false,
+    dismissed:false,
+    created_at:new Date().toISOString()
+  }]).catch(e=>console.warn('admin notify:',e.message));
+  showToast(`Admin notified — ${smCurrentName} is flagged pending confirmation.`,'success');
   await Promise.all([loadRoster(),loadStudents()]);
   openStudentMgmt(smCurrentName,'profile');
 }
