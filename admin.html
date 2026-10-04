@@ -6236,7 +6236,6 @@ async function confirmAssign(){
     amount:_refAmt,is_paid:_refPaid,
     paid_at:_refPaid?_refNow:null,
     is_cancelled:false,is_credit:false,credit_fulfilled:false,
-    postcode:s.postcode||null,
     notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.type&&s.type!=='Manual'?'Lesson Type: '+s.type:''].filter(Boolean).join('\n')||'Assigned via Find & Assign',
     created_at:_refNow
   };
@@ -8642,6 +8641,7 @@ async function openRefDetail(instrId){
 async function markRefPaid(refId){
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
+  const instrName=(allInstrs.find(i=>i.id===instrId)||{}).full_name||'Instructor';
   const now=new Date().toISOString();
   const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
@@ -8652,6 +8652,9 @@ async function markRefPaid(refId){
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
+  // Notify instructor
+  const amt=parseFloat(r?.amount)||0;
+  sendPushToInstructor(instrId,instrName,'💷 Referral Fee Paid',`Your referral fee${amt>0?' of £'+amt.toFixed(0):''}${r?.student_name?' for '+r.student_name:''} has been marked as paid by admin.`,'/dashboard.html').catch(()=>{});
 }
 
 async function cancelRef(refId, studentName){
@@ -9012,10 +9015,13 @@ async function markAllRefPaid(instrId){
   const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).in('id',ids);
   if(error){showToast('Error: '+error.message,'error');return;}
   unpaid.forEach(r=>{r.is_paid=true;r.paid_at=now;});
+  const totalAmt=unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   showToast(`${unpaid.length} referral(s) marked as paid ✓`,'success');
   _buildUnpaidRefIndex();
   openRefDetail(instrId);
   renderReferrals();
+  // Notify instructor
+  sendPushToInstructor(instrId,instr.full_name,'💷 Referral Fees Paid',`Admin has marked all ${unpaid.length} outstanding referral fee${unpaid.length!==1?'s':''} as paid${totalAmt>0?' (£'+totalAmt.toFixed(0)+' total)':''}.`,'/dashboard.html').catch(()=>{});
 }
 
 function exportAllRefCSV(){
