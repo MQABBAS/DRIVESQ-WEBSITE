@@ -1454,6 +1454,12 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         </div>
         <div class="col-12 col-sm-6"><label class="dsq-lbl">Emergency Contact</label><input class="dsq-inp" id="smEditEmergency" placeholder="Name · Phone"/></div>
         <div class="col-12"><label class="dsq-lbl">Instructor Notes</label><textarea class="dsq-inp" id="smEditNotes" rows="2" placeholder="Private notes about this student…"></textarea></div>
+        <div class="col-12" id="smAdminNoteBox" style="display:none">
+          <div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.28);border-radius:8px;padding:9px 12px">
+            <div style="font-size:.6rem;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:5px"><i class="bi bi-shield-lock-fill me-1"></i>Admin Note</div>
+            <div id="smAdminNoteText" style="font-size:.8rem;color:var(--txt2);white-space:pre-wrap;line-height:1.5"></div>
+          </div>
+        </div>
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
@@ -2784,7 +2790,7 @@ async function loadRoster(){
 
   // Load student accounts — wrapped in try/catch so missing table doesn't break roster
   try{
-    const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email').eq('instructor_id',instr.id);
+    const{data:accounts}=await sb.from('student_accounts').select('id,full_name,student_code,pin,last_login,email,notes').eq('instructor_id',instr.id);
     studentAccountMap={};
     (accounts||[]).forEach(a=>{
       if(a.student_code)studentAccountMap[a.student_code]=a;
@@ -4173,6 +4179,11 @@ async function openStudentMgmt(studentName, tab='profile'){
   document.getElementById('smEditNotes').value=p.notes||'';
   document.getElementById('smEditEmail').value=acc?.email||'';
   document.getElementById('smEditEmergency').value=acc?.emergency_contact||'';
+  // Show admin note if visible
+  const _adminNoteParsed=(()=>{if(!acc?.notes)return null;try{const p=JSON.parse(acc.notes);if(p&&typeof p==='object'&&'note' in p&&p.visible&&p.note)return p.note;}catch(e){}return null;})();
+  const _adminNoteBox=document.getElementById('smAdminNoteBox');
+  const _adminNoteText=document.getElementById('smAdminNoteText');
+  if(_adminNoteBox&&_adminNoteText){_adminNoteBox.style.display=_adminNoteParsed?'':'none';if(_adminNoteParsed)_adminNoteText.textContent=_adminNoteParsed;}
 
   // Registered info from student account — show what they entered + sync option
   if(acc&&acc.last_login){

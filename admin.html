@@ -2229,9 +2229,15 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div id="sdMessages" style="max-height:320px;overflow-y:auto;background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;color:var(--txt4);font-size:.78rem;text-align:center"><i class="bi bi-hourglass-split me-1"></i>Loading chat…</div>
     </div>
     <div class="mt-3" id="sdAdminNotesSection">
-      <div class="section-label"><i class="bi bi-sticky-fill me-2" style="color:var(--gold)"></i>Admin Notes <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(private — not visible to instructor or student)</span></div>
+      <div class="section-label"><i class="bi bi-sticky-fill me-2" style="color:var(--gold)"></i>Admin Notes</div>
       <textarea id="sdAdminNotesInput" class="dsq-inp" rows="3" placeholder="Add internal notes about this student…" style="resize:vertical;font-size:.82rem;line-height:1.5"></textarea>
-      <button onclick="saveAdminStudentNote()" class="abtn" style="margin-top:6px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:.8rem;cursor:pointer"><i class="bi bi-floppy me-1"></i>Save Note</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--txt3);cursor:pointer;user-select:none">
+          <input type="checkbox" id="sdAdminNoteVisible" style="accent-color:var(--gold);width:15px;height:15px;cursor:pointer">
+          <span>Visible to instructor</span>
+        </label>
+        <button onclick="saveAdminStudentNote()" class="abtn" style="margin-left:auto;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:8px;padding:5px 14px;font-size:.8rem;cursor:pointer"><i class="bi bi-floppy me-1"></i>Save Note</button>
+      </div>
     </div>
     <button class="btn-s w-100 mt-3" onclick="closeModal('studentDetailModal')">Close</button>
   </div>
@@ -4431,8 +4437,14 @@ async function openAdminStudentProfile(studentName,phone,instrId){
     <!-- Admin Notes -->
     ${acc?`<div style="margin-bottom:4px">
       <div style="font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:700;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Admin Notes</div>
-      <textarea id="adminStudentNotesTa" class="dsq-inp" style="min-height:80px">${esc(acc.notes||'')}</textarea>
-      <button onclick="saveAdminStudentNotes('${acc.id}')" class="btn-p" style="margin-top:6px;font-size:.8rem;padding:7px 16px"><i class="bi bi-save me-1"></i>Save Notes</button>
+      <textarea id="adminStudentNotesTa" class="dsq-inp" style="min-height:80px">${esc(_parseAdminNote(acc.notes).note)}</textarea>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--txt3);cursor:pointer;user-select:none">
+          <input type="checkbox" id="adminStudentNotesVisible" ${_parseAdminNote(acc.notes).visible?'checked':''} style="accent-color:#D10A11;width:15px;height:15px;cursor:pointer">
+          <span>Visible to instructor</span>
+        </label>
+        <button onclick="saveAdminStudentNotes('${acc.id}')" class="btn-p" style="margin-left:auto;font-size:.8rem;padding:7px 16px"><i class="bi bi-save me-1"></i>Save Notes</button>
+      </div>
     </div>`:''}
   `;
   content.innerHTML=html;
@@ -4456,15 +4468,27 @@ async function loadAdminChatHistory(acctId,instrId){
   }catch(e){box.innerHTML='<div style="color:#f87171;font-size:.78rem;padding:8px">Failed to load chat: '+esc(e.message)+'</div>';}
 }
 
+function _parseAdminNote(raw){
+  if(!raw)return{note:'',visible:false};
+  try{const p=JSON.parse(raw);if(p&&typeof p==='object'&&'note' in p)return{note:p.note||'',visible:!!p.visible};}catch(e){}
+  return{note:raw,visible:false};
+}
+function _serializeAdminNote(noteText,visible){
+  return JSON.stringify({note:noteText,visible:!!visible});
+}
+
 async function saveAdminStudentNotes(acctId){
   const ta=document.getElementById('adminStudentNotesTa');
+  const visEl=document.getElementById('adminStudentNotesVisible');
   if(!ta)return;
-  const note=ta.value.trim();
-  const{error}=await sb.from('student_accounts').update({notes:note,updated_at:new Date().toISOString()}).eq('id',acctId);
+  const noteText=ta.value.trim();
+  const visible=visEl?visEl.checked:false;
+  const serialized=_serializeAdminNote(noteText,visible);
+  const{error}=await sb.from('student_accounts').update({notes:serialized,updated_at:new Date().toISOString()}).eq('id',acctId);
   if(error){showToast('Failed to save notes.','error');}
   else{
     showToast('Notes saved ✓','success');
-    (allStudentsCache||[]).forEach(s=>{if(s.acctId===acctId)s.notes=note;});
+    (allStudentsCache||[]).forEach(s=>{if(s.acctId===acctId)s.notes=serialized;});
     filterAllStudents(document.getElementById('studentSearch')?.value||'');
   }
 }
@@ -4472,28 +4496,25 @@ async function saveAdminStudentNotes(acctId){
 /* ── ADMIN NOTES ON STUDENT DETAIL ── */
 async function saveAdminStudentNote(){
   const ta=document.getElementById('sdAdminNotesInput');
+  const visEl=document.getElementById('sdAdminNoteVisible');
   if(!ta||!_adminStudentCtx){showToast('No student loaded.','error');return;}
-  const note=ta.value.trim();
+  const noteText=ta.value.trim();
+  const visible=visEl?visEl.checked:false;
+  const serialized=_serializeAdminNote(noteText,visible);
   let saved=false;let lastErr=null;
-  // Try student_profiles
-  if(_adminStudentCtx.profileId){
-    const{error}=await sb.from('student_profiles').update({notes:note}).eq('id',_adminStudentCtx.profileId);
-    if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote profiles:',error);}
-  }
-  // Try student_accounts (always attempt, not just if profiles failed)
+  // Save to student_accounts only (not student_profiles — that is the instructor's own notes field)
   if(_adminStudentCtx.accId){
-    const{error}=await sb.from('student_accounts').update({notes:note}).eq('id',_adminStudentCtx.accId);
+    const{error}=await sb.from('student_accounts').update({notes:serialized}).eq('id',_adminStudentCtx.accId);
     if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote accounts:',error);}
   }
-  // Also try acctId alias in case it's stored differently
   if(!saved&&_adminStudentCtx.acctId&&_adminStudentCtx.acctId!==_adminStudentCtx.accId){
-    const{error}=await sb.from('student_accounts').update({notes:note}).eq('id',_adminStudentCtx.acctId);
+    const{error}=await sb.from('student_accounts').update({notes:serialized}).eq('id',_adminStudentCtx.acctId);
     if(!error)saved=true;else{lastErr=error;console.warn('saveAdminStudentNote accounts(acctId):',error);}
   }
   if(saved){
-    showToast('Note saved ✓','success');
+    showToast(visible?'Note saved — visible to instructor ✓':'Note saved (private) ✓','success');
     const n=_adminStudentCtx.name.toLowerCase().trim();
-    (allStudentsCache||[]).forEach(s=>{if((s.name||'').toLowerCase().trim()===n)s.notes=note;});
+    (allStudentsCache||[]).forEach(s=>{if((s.name||'').toLowerCase().trim()===n)s.notes=serialized;});
     filterAllStudents(document.getElementById('studentSearch')?.value||'');
   } else {
     console.error('saveAdminStudentNote: all attempts failed',{ctx:_adminStudentCtx,lastErr});
@@ -4732,7 +4753,10 @@ async function openStudentDetail(idx,_directData){
     </div>`).join('');
   // Pre-populate admin notes
   const notesInput=document.getElementById('sdAdminNotesInput');
-  if(notesInput) notesInput.value=s.notes||'';
+  const notesVisible=document.getElementById('sdAdminNoteVisible');
+  const _parsedNote=_parseAdminNote(s.notes||s.acctNotes||'');
+  if(notesInput) notesInput.value=_parsedNote.note;
+  if(notesVisible) notesVisible.checked=_parsedNote.visible;
   // Open modal immediately with cached data — progress/messages load async after
   openModal('studentDetailModal');
   // Load heavier data (progress, messages, theory) asynchronously after modal is visible
