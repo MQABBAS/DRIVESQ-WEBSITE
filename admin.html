@@ -3782,20 +3782,24 @@ function sendStudentListToInstructor(){
   if(!viewingId){showToast('No instructor selected','warning');return;}
   const instrPhone=(viewingData?.phone||'').replace(/\D/g,'');
   if(!instrPhone){showToast('Instructor has no phone number on record','warning');return;}
+  const date=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const lines=checked.map((c,i)=>{
     const name=c.dataset.name||'';
     const phone=c.dataset.phone||'';
     const address=c.dataset.address||'';
     const type=c.dataset.type||'';
     const notes=c.dataset.notes||'';
-    const parts=[`${i+1}. ${name}`];
-    if(phone)parts.push(`   📞 ${phone}`);
-    if(address)parts.push(`   📍 ${address}`);
-    if(type)parts.push(`   🚗 ${type}`);
-    if(notes)parts.push(`   📝 ${notes}`);
-    return parts.join('\n');
+    const rows=[];
+    if(phone)rows.push(`📞 ${phone}`);
+    if(address)rows.push(`📍 ${address}`);
+    if(type)rows.push(`🚗 ${type}`);
+    if(notes)rows.push(`📝 ${notes}`);
+    return `*${i+1}. ${name}*\n`+(rows.length?rows.join('\n'):'No further details');
   });
-  const text=`Student list (${checked.length} student${checked.length!==1?'s':''}):\n\n`+lines.join('\n\n');
+  const divider='─'.repeat(28);
+  const header=`*Student List — ${viewingName}*\n${date} · ${checked.length} student${checked.length!==1?'s':''}\n${divider}`;
+  const footer=`${divider}\n_Sent from DriveSQ Admin_`;
+  const text=[header,...lines,footer].join('\n\n');
   const waPhone=instrPhone.startsWith('44')?instrPhone:instrPhone.startsWith('0')?'44'+instrPhone.slice(1):instrPhone;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
   document.getElementById('rosterSelectAll')&&(document.getElementById('rosterSelectAll').checked=false);
