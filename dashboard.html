@@ -563,7 +563,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <div><div class="stat-card green-c"><div class="stat-lbl">This Week</div><div class="stat-num green-c" id="sWeek">—</div><div class="stat-sub" id="sWeekH"></div></div></div>
     <div><div class="stat-card purple"><div class="stat-lbl">Weekly Hours</div><div class="stat-num purple" id="sHours">—</div><div class="stat-sub">hrs on road</div></div></div>
     <div><div class="stat-card blue"><div class="stat-lbl">Roster</div><div class="stat-num blue" id="sStudents">—</div><div class="stat-sub">saved students</div></div></div>
-    <div><div class="stat-card green-c" style="cursor:pointer" onclick="document.getElementById('refPayModal').style.display='flex'" title="View payment details"><div class="stat-lbl">Referrals<i class="bi bi-question-circle" title="Unpaid referral fees owed to you" style="color:var(--txt3);font-size:.75rem;cursor:help;margin-left:4px"></i></div><div class="stat-num green-c" id="sReferrals" style="font-size:1.5rem">0</div><div class="stat-sub" id="sReferralsSub">unpaid referrals</div><div style="margin-top:6px;font-size:.62rem;color:var(--green);font-weight:600;letter-spacing:.03em"><i class="bi bi-bank me-1"></i>Payment Details</div></div></div>
+    <div><div class="stat-card green-c" style="cursor:pointer" onclick="document.getElementById('refPayModal').style.display='flex';_renderRefModal()" title="View referrals &amp; payment details"><div class="stat-lbl">Referrals<i class="bi bi-question-circle" title="Unpaid referral fees owed to you" style="color:var(--txt3);font-size:.75rem;cursor:help;margin-left:4px"></i></div><div class="stat-num green-c" id="sReferrals" style="font-size:1.5rem">0</div><div class="stat-sub" id="sReferralsSub">unpaid referrals</div><div style="margin-top:6px;font-size:.62rem;color:var(--green);font-weight:600;letter-spacing:.03em"><i class="bi bi-bank me-1"></i>Payment Details</div></div></div>
   </div>
 
   <!-- QUICK ACTIONS -->
@@ -2329,14 +2329,21 @@ function updateStats(){
   document.getElementById('wkHoursLbl').textContent=completedHrs.toFixed(1)+'h done / '+totalHrs.toFixed(1)+'h total';
   // Referrals — unpaid fees for this instructor
   if(instr?.id){
-    sb.from('referrals').select('*',{count:'exact'}).eq('instructor_id',instr.id).eq('paid',false).then(({data:refs,count})=>{
-      const refEl=document.getElementById('sReferrals');
-      const refSub=document.getElementById('sReferralsSub');
-      const n=count||0;
-      const fee=((refs||[]).reduce((a,r)=>a+(parseFloat(r.fee)||0),0));
-      if(refEl)refEl.textContent=n;
-      if(refSub)refSub.textContent=fee>0?`£${fee.toFixed(0)} unpaid`:'unpaid referrals';
-    }).catch(()=>{});
+    sb.from('referrals').select('id,student_name,amount,is_paid,is_cancelled,is_credit,created_at,lesson_type,notes')
+      .eq('instructor_id',instr.id).eq('is_cancelled',false).eq('is_credit',false)
+      .order('created_at',{ascending:false})
+      .then(({data:refs})=>{
+        const all=refs||[];
+        const unpaid=all.filter(r=>!r.is_paid);
+        const totalFee=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+        const refEl=document.getElementById('sReferrals');
+        const refSub=document.getElementById('sReferralsSub');
+        if(refEl)refEl.textContent=unpaid.length;
+        if(refSub)refSub.textContent=totalFee>0?`£${totalFee.toFixed(0)} unpaid`:'unpaid referrals';
+        // Store for modal
+        window._dashReferrals={all,unpaid,totalFee};
+        _renderRefModal();
+      }).catch(()=>{});
   }
 }
 
@@ -5922,38 +5929,77 @@ if('serviceWorker' in navigator){
 <!-- /SQWEBSITES-CREDIT-V2 -->
 
 <!-- REFERRAL PAYMENT DETAILS MODAL -->
-<div id="refPayModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--card);border-radius:16px;border:1px solid var(--bdr);padding:24px 22px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.35)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+<div id="refPayModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;padding:0" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--card);border-radius:20px 20px 0 0;border:1px solid var(--bdr);padding:20px 18px 28px;max-width:480px;width:100%;box-shadow:0 -8px 40px rgba(0,0,0,.35);max-height:90vh;overflow-y:auto">
+    <!-- Handle -->
+    <div style="width:40px;height:4px;background:var(--bdr);border-radius:2px;margin:0 auto 18px"></div>
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;height:36px;border-radius:10px;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="bi bi-bank" style="color:var(--green)"></i></div>
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(74,222,128,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="bi bi-cash-coin" style="color:var(--green)"></i></div>
         <div>
-          <div style="font-weight:700;font-size:1rem;color:var(--txt1)">Payment Details</div>
-          <div style="font-size:.7rem;color:var(--txt3)">Send referral fees here</div>
+          <div style="font-weight:700;font-size:1rem;color:var(--txt1)">Referrals</div>
+          <div id="refModalSubtitle" style="font-size:.7rem;color:var(--txt3)">Loading…</div>
         </div>
       </div>
       <button onclick="document.getElementById('refPayModal').style.display='none'" style="background:none;border:none;color:var(--txt3);font-size:1.2rem;cursor:pointer;padding:4px;line-height:1"><i class="bi bi-x-lg"></i></button>
     </div>
-    <div style="background:var(--bg2,var(--bg));border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+
+    <!-- Student list -->
+    <div id="refStudentList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px"></div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:var(--bdr);margin:12px 0"></div>
+
+    <!-- Payment details -->
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:10px"><i class="bi bi-bank me-1"></i>Payment Details</div>
+    <div style="background:var(--bg2,rgba(255,255,255,.04));border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
       <div>
-        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:3px">Account Name</div>
-        <div style="font-size:.95rem;font-weight:700;color:var(--txt1)">DriveSQ LTD</div>
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Account Name</div>
+        <div style="font-size:.92rem;font-weight:700;color:var(--txt1)">DriveSQ LTD</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:3px">Account No.</div>
-          <div style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">36786217</div>
+          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Account No.</div>
+          <div style="font-size:.92rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">36786217</div>
         </div>
         <div>
-          <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:3px">Sort Code</div>
-          <div style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">01-05-11</div>
+          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Sort Code</div>
+          <div style="font-size:.92rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">01-05-11</div>
         </div>
       </div>
     </div>
-    <div style="margin-top:14px;font-size:.7rem;color:var(--txt4);text-align:center;line-height:1.5">Please use your name as the payment reference so we can match it to your account.</div>
-    <button onclick="document.getElementById('refPayModal').style.display='none'" style="margin-top:16px;width:100%;padding:10px;border-radius:10px;border:1px solid var(--bdr);background:var(--bg2,var(--bg));color:var(--txt2);font-size:.85rem;font-weight:600;cursor:pointer">Close</button>
+    <div style="margin-top:10px;font-size:.68rem;color:var(--txt4);text-align:center;line-height:1.5">Use your name as the payment reference so we can match it to your account.</div>
+    <button onclick="document.getElementById('refPayModal').style.display='none'" style="margin-top:14px;width:100%;padding:10px;border-radius:10px;border:1px solid var(--bdr);background:transparent;color:var(--txt2);font-size:.85rem;font-weight:600;cursor:pointer">Close</button>
   </div>
 </div>
+<script>
+function _renderRefModal(){
+  const d=window._dashReferrals;
+  if(!d)return;
+  const sub=document.getElementById('refModalSubtitle');
+  const list=document.getElementById('refStudentList');
+  if(!sub||!list)return;
+  const{unpaid,totalFee,all}=d;
+  sub.textContent=unpaid.length===0?'All referrals paid up':`${unpaid.length} student${unpaid.length!==1?'s':''} left · £${totalFee.toFixed(0)} owed`;
+  if(unpaid.length===0){
+    list.innerHTML='<div style="text-align:center;padding:18px 0;color:var(--green);font-size:.82rem"><i class="bi bi-check-circle-fill me-2"></i>All referrals paid — nothing outstanding</div>';
+    return;
+  }
+  list.innerHTML=unpaid.map(r=>{
+    const date=r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
+    const amt=parseFloat(r.amount)||0;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);border-radius:10px;padding:10px 12px;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.85rem;color:var(--txt1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.student_name||'Unknown'}</div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${r.lesson_type?r.lesson_type+' · ':''}${date}</div>
+        ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);margin-top:2px;font-style:italic">${r.notes}</div>`:''}
+      </div>
+      <div style="font-size:.95rem;font-weight:700;color:#4ade80;white-space:nowrap;font-variant-numeric:tabular-nums">£${amt.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+}
+</script>
 <!-- /REFERRAL PAYMENT DETAILS MODAL -->
 </body>
 </html>
