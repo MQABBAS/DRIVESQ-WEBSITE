@@ -3501,6 +3501,9 @@ function renderStudents(students,emptyOverride){
       statusHtml='<span class="app-status-pill not_connected"><i class="bi bi-dash-circle me-1"></i>Not on App</span>';
     }
     if(s.status==='drop_pending'){let _dr={};try{const _s=localStorage.getItem('drop_reason_'+(s.id||''));if(_s)_dr=JSON.parse(_s);}catch(e){}statusHtml+=`<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)" title="${_dr.reason?'Reason: '+_dr.reason+(_dr.notes?'\n'+_dr.notes:''):'Pending admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${_dr.reason?' · '+_dr.reason:''}</span>`;}
+    // No-lesson-booked flag — show if admin has been notified for any unpaid referral for this student
+    const _noLessonRefEntry=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===s.name.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+    if(_noLessonRefEntry)statusHtml+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin notified — no lesson booked yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
       readiness==='nearly_there'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(245,197,24,.12);color:var(--gold);border:1px solid rgba(245,197,24,.2)">🟡 Nearly Ready</span>':'';
@@ -4226,6 +4229,9 @@ async function openStudentMgmt(studentName, tab='profile'){
   const isDropPending=p.status==='drop_pending';
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
   if(isDropPending)badges+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Confirmation</span>';
+  // No-lesson-booked alert badge — check if admin has been notified for any referral for this student
+  const _noLessonRef=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+  if(_noLessonRef)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin has been notified that no lesson has been booked for this student yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
   if(archBtn)archBtn.innerHTML=isArchived?'<i class="bi bi-arrow-counterclockwise"></i><span id="smArchiveBtnLbl">End Break</span>':'<i class="bi bi-moon"></i><span id="smArchiveBtnLbl">On Break</span>';
