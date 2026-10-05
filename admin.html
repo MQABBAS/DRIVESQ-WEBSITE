@@ -2601,6 +2601,12 @@ let _realtimeChannel=null;
 function startAdminRealtime(){
   if(_realtimeChannel) return; // already subscribed
   _realtimeChannel=sb.channel('admin-student-profiles')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'student_profiles'},async(payload)=>{
+      try{
+        const name=payload?.new?.name||'New student';
+        pushToAdmin('👤 New Student Added',name+' has been added to the system.','/admin.html');
+      }catch(e){}
+    })
     .on('postgres_changes',{event:'*',schema:'public',table:'student_profiles'},async()=>{
       // Refresh instructor roster counts on any student_profiles change
       try{
@@ -2619,7 +2625,6 @@ function startAdminRealtime(){
       }catch(e){console.warn('Realtime update error:',e.message);}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'waiting_list'},async(payload)=>{
-      // New website booking — play sound, update badge, show toast
       try{
         const notes=(payload?.new?.notes||'');
         if(!notes.includes('[WEB]'))return;
@@ -2627,6 +2632,26 @@ function startAdminRealtime(){
         await loadWebBookingsBadge();
         const name=payload?.new?.student_name||'New student';
         showToast(`📅 New website booking: ${name}`,'success',6000);
+        pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
+      }catch(e){}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_messages'},async(payload)=>{
+      // Instructor → admin messages (drop requests, badge requests, referral alerts, etc.)
+      try{
+        const msg=payload?.new;
+        if(!msg)return;
+        const typeLabels={
+          drop_request:'🚪 Drop Request',
+          badge_request:'🪪 Badge Request',
+          general:'📩 Message from Instructor',
+          warning:'⚠️ Warning',
+          franchise_fee:'💰 Fee Alert',
+        };
+        const label=typeLabels[msg.message_type]||'📩 New Message';
+        const subject=msg.subject||'No subject';
+        const body=msg.body?msg.body.slice(0,80):subject;
+        pushToAdmin(label,body,'/admin.html');
+        showToast(`${label}: ${subject}`,'info',5000);
       }catch(e){}
     })
     .subscribe();
