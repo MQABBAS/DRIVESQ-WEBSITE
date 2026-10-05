@@ -2158,7 +2158,7 @@ async function loadRefData(){
   if(!instr?.id)return;
   try{
     const{data}=await sb.from('referrals')
-      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,paid_at,created_at,notes')
+      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,paid_at,created_at,notes,admin_notified')
       .eq('instructor_id',instr.id).eq('is_cancelled',false).eq('is_credit',false)
       .order('created_at',{ascending:false});
     _refAllData=data||[];
@@ -2266,7 +2266,7 @@ function _renderRefTab(){
     // Detect if student has no lessons booked yet
     const _stuEntry=allStudentsArr.find(s=>(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
     const hasNoLesson=!paid&&!showPending&&(_stuEntry?(_stuEntry.count||0)===0:true);
-    const noLessonAlerted=localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1';
+    const noLessonAlerted=!!r.admin_notified;
     return `<div style="background:${showPending?'rgba(239,68,68,.05)':hasNoLesson?'rgba(251,191,36,.04)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':hasNoLesson?'rgba(251,191,36,.2)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div style="flex:1;min-width:0">
@@ -2316,7 +2316,11 @@ async function refNotifyNoLesson(studentName, refId){
       created_at:new Date().toISOString(),
     }]);
     if(error){showToast('Could not notify admin: '+error.message,'error');return;}
-    try{localStorage.setItem('ref_no_lesson_alerted_'+refId,'1');}catch(e){}
+    // Save flag to database so it persists across devices and logouts
+    await sb.from('referrals').update({admin_notified:true}).eq('id',refId).catch(()=>{});
+    // Update in-memory data so UI reflects immediately without re-fetch
+    const _rIdx=_refAllData.findIndex(r=>r.id===refId);
+    if(_rIdx>=0)_refAllData[_rIdx].admin_notified=true;
     showToast('Admin notified ✓','success');
     _renderRefTab();
   }catch(err){showToast('Error: '+err.message,'error');}
@@ -3502,7 +3506,7 @@ function renderStudents(students,emptyOverride){
     }
     if(s.status==='drop_pending'){let _dr={};try{const _s=localStorage.getItem('drop_reason_'+(s.id||''));if(_s)_dr=JSON.parse(_s);}catch(e){}statusHtml+=`<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)" title="${_dr.reason?'Reason: '+_dr.reason+(_dr.notes?'\n'+_dr.notes:''):'Pending admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${_dr.reason?' · '+_dr.reason:''}</span>`;}
     // No-lesson-booked flag — show if admin has been notified for any unpaid referral for this student
-    const _noLessonRefEntry=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===s.name.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+    const _noLessonRefEntry=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===s.name.toLowerCase().trim()&&!r.is_paid&&r.admin_notified);
     if(_noLessonRefEntry)statusHtml+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin notified — no lesson booked yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
     const readiness=s.test_readiness||'';
     const readinessHtml=readiness==='ready'?'<span style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(37,211,102,.12);color:#4ade80;border:1px solid rgba(37,211,102,.2)">🟢 Test Ready</span>':
@@ -4230,7 +4234,7 @@ async function openStudentMgmt(studentName, tab='profile'){
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
   if(isDropPending)badges+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Confirmation</span>';
   // No-lesson-booked alert badge — check if admin has been notified for any referral for this student
-  const _noLessonRef=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&localStorage.getItem('ref_no_lesson_alerted_'+r.id)==='1');
+  const _noLessonRef=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&r.admin_notified);
   if(_noLessonRef)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin has been notified that no lesson has been booked for this student yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
