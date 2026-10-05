@@ -5743,8 +5743,20 @@ function openCreateAndAssign(instrId,instrName){
 function openAssignModal(instrId,instrName,instrPhone){
   document.getElementById('assign-instr-id').value=instrId;
   document.getElementById('assign-instr-name').value=instrName;
-  document.getElementById('assignSub').textContent=`Assigning to: ${instrName}`;
-  const s=fcStudentData||{};
+  // Always read live form fields so edits made after Find are captured
+  const _live={
+    name:(document.getElementById('fc-name')?.value||'').trim()||(fcStudentData?.name||''),
+    phone:(document.getElementById('fc-phone')?.value||'').trim()||(fcStudentData?.phone||''),
+    email:(document.getElementById('fc-email')?.value||'').trim()||(fcStudentData?.email||''),
+    addr:(document.getElementById('fc-addr')?.value||'').trim()||(fcStudentData?.addr||''),
+    postcode:(document.getElementById('fc-postcode')?.value||'').trim().toUpperCase()||(fcStudentData?.postcode||''),
+    type:document.getElementById('fc-type')?.value||(fcStudentData?.type||'Manual'),
+    avail:(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||''),
+    notes:(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'')
+  };
+  fcStudentData=_live;
+  const s=_live;
+  document.getElementById('assignSub').textContent=`${_live.name||'Student'} → ${instrName}`;
   const rows=[
     ['👤 Name', s.name||'—'],
     ['📞 Phone', s.phone||'Not provided'],
