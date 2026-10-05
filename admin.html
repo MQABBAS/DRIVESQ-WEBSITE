@@ -2598,9 +2598,24 @@ function showApp(){
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
+let _audioCtx=null;
+function _getAudioCtx(){
+  if(!_audioCtx){
+    try{_audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}
+  }
+  // Resume if suspended (browser autoplay policy)
+  if(_audioCtx.state==='suspended'){try{_audioCtx.resume();}catch(e){}}
+  return _audioCtx;
+}
+// Unlock AudioContext on first user gesture so realtime sounds can play
+document.addEventListener('click',function _unlock(){
+  _getAudioCtx();
+  document.removeEventListener('click',_unlock);
+},{once:true});
 function _playBookingSound(){
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const ctx=_getAudioCtx();
+    if(!ctx)return;
     const notes=[523.25,659.25,783.99,1046.5]; // C5 E5 G5 C6
     notes.forEach((freq,i)=>{
       const osc=ctx.createOscillator();
