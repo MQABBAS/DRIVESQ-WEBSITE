@@ -921,21 +921,21 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
         <div class="dsq-card p-3">
           <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--txt2);margin-bottom:12px"><i class="bi bi-person-fill me-2" style="color:var(--gold)"></i>Customer Details</div>
           <div style="font-size:.7rem;color:var(--txt4);background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;margin-bottom:10px"><i class="bi bi-1-circle me-1" style="color:var(--gold)"></i><strong>Step 1:</strong> Enter the new student's details below, then click <em>Find Closest Instructor</em>.</div>
-          <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Customer full name"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="fc-email" type="email" placeholder="customer@email.com"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="fc-addr" placeholder="Full street address"/></div>
-          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')findClosest()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-name" placeholder="Customer full name" oninput="_saveFcDraft()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="fc-phone" placeholder="07xxx xxx xxx" type="tel" oninput="_saveFcDraft()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="fc-email" type="email" placeholder="customer@email.com" oninput="_saveFcDraft()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="fc-addr" placeholder="Full street address" oninput="_saveFcDraft()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')findClosest()" oninput="_saveFcDraft()"/></div>
           <div class="mb-2"><label class="dsq-lbl">Lesson Type <span class="req-mark">*</span></label>
-            <select class="dsq-inp" id="fc-type">
+            <select class="dsq-inp" id="fc-type" onchange="_saveFcDraft()">
               <option value="Manual">🔧 Manual</option>
               <option value="Automatic">⚙️ Automatic</option>
               <option value="Intensive">⚡ Intensive</option>
               <option value="Mock Test">📋 Mock Test</option>
             </select>
           </div>
-          <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="fc-avail" placeholder="e.g. Weekday mornings, Saturdays"/></div>
-          <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…"></textarea></div>
+          <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="fc-avail" placeholder="e.g. Weekday mornings, Saturdays" oninput="_saveFcDraft()"/></div>
+          <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…" oninput="_saveFcDraft()"></textarea></div>
           <div style="display:flex;gap:8px">
             <button class="btn-p" style="flex:1" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
             <button class="btn-s" onclick="resetFindForm()" title="Reset form" style="flex-shrink:0;padding:8px 14px"><i class="bi bi-arrow-counterclockwise"></i></button>
@@ -2564,6 +2564,24 @@ async function triggerPwaInstall(){
   if(outcome==='accepted')showToast('✅ Admin app installed!','success');
 }
 
+function _saveFcDraft(){
+  const d={};
+  ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes'].forEach(id=>{
+    const el=document.getElementById(id);if(el)d[id]=el.value;
+  });
+  const lt=document.getElementById('fc-type');if(lt)d['fc-type']=lt.value;
+  try{localStorage.setItem('dsq_fc_draft',JSON.stringify(d));}catch(e){}
+}
+function _restoreFcDraft(){
+  try{
+    const d=JSON.parse(localStorage.getItem('dsq_fc_draft')||'null');
+    if(!d)return;
+    ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes'].forEach(id=>{
+      const el=document.getElementById(id);if(el&&d[id]!=null)el.value=d[id];
+    });
+    const lt=document.getElementById('fc-type');if(lt&&d['fc-type'])lt.value=d['fc-type'];
+  }catch(e){}
+}
 function showApp(){
   if(localStorage.getItem('adminHelpDismissed')){const b=document.getElementById('adminHelpBanner');if(b)b.style.display='none';}
   document.getElementById('loginScreen').classList.add('hidden');
@@ -2575,14 +2593,39 @@ function showApp(){
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   loadAll();
   startAdminRealtime();
-  setTimeout(_buildUnpaidRefIndex,4000); // load unpaid ref index for student badges
+  setTimeout(_buildUnpaidRefIndex,4000);
+  setTimeout(_restoreFcDraft,500);
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
+function _playBookingSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const notes=[523.25,659.25,783.99,1046.5]; // C5 E5 G5 C6
+    notes.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type='sine';osc.frequency.value=freq;
+      const t=ctx.currentTime+i*0.13;
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.35,t+0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+      osc.start(t);osc.stop(t+0.3);
+    });
+  }catch(e){}
+}
+
 let _realtimeChannel=null;
 function startAdminRealtime(){
   if(_realtimeChannel) return; // already subscribed
   _realtimeChannel=sb.channel('admin-student-profiles')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'student_profiles'},async(payload)=>{
+      try{
+        const name=payload?.new?.name||'New student';
+        pushToAdmin('👤 New Student Added',name+' has been added to the system.','/admin.html');
+      }catch(e){}
+    })
     .on('postgres_changes',{event:'*',schema:'public',table:'student_profiles'},async()=>{
       // Refresh instructor roster counts on any student_profiles change
       try{
@@ -2599,6 +2642,36 @@ function startAdminRealtime(){
         // Refresh open instructor students panel
         if(viewingId) viewInstrStudents(viewingId,viewingName);
       }catch(e){console.warn('Realtime update error:',e.message);}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'waiting_list'},async(payload)=>{
+      try{
+        const notes=(payload?.new?.notes||'');
+        if(!notes.includes('[WEB]'))return;
+        _playBookingSound();
+        await loadWebBookingsBadge();
+        const name=payload?.new?.student_name||'New student';
+        showToast(`📅 New website booking: ${name}`,'success',6000);
+        pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
+      }catch(e){}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_messages'},async(payload)=>{
+      // Instructor → admin messages (drop requests, badge requests, referral alerts, etc.)
+      try{
+        const msg=payload?.new;
+        if(!msg)return;
+        const typeLabels={
+          drop_request:'🚪 Drop Request',
+          badge_request:'🪪 Badge Request',
+          general:'📩 Message from Instructor',
+          warning:'⚠️ Warning',
+          franchise_fee:'💰 Fee Alert',
+        };
+        const label=typeLabels[msg.message_type]||'📩 New Message';
+        const subject=msg.subject||'No subject';
+        const body=msg.body?msg.body.slice(0,80):subject;
+        pushToAdmin(label,body,'/admin.html');
+        showToast(`${label}: ${subject}`,'info',5000);
+      }catch(e){}
     })
     .subscribe();
 }
@@ -5670,8 +5743,20 @@ function openCreateAndAssign(instrId,instrName){
 function openAssignModal(instrId,instrName,instrPhone){
   document.getElementById('assign-instr-id').value=instrId;
   document.getElementById('assign-instr-name').value=instrName;
-  document.getElementById('assignSub').textContent=`Assigning to: ${instrName}`;
-  const s=fcStudentData||{};
+  // Always read live form fields so edits made after Find are captured
+  const _live={
+    name:(document.getElementById('fc-name')?.value||'').trim()||(fcStudentData?.name||''),
+    phone:(document.getElementById('fc-phone')?.value||'').trim()||(fcStudentData?.phone||''),
+    email:(document.getElementById('fc-email')?.value||'').trim()||(fcStudentData?.email||''),
+    addr:(document.getElementById('fc-addr')?.value||'').trim()||(fcStudentData?.addr||''),
+    postcode:(document.getElementById('fc-postcode')?.value||'').trim().toUpperCase()||(fcStudentData?.postcode||''),
+    type:document.getElementById('fc-type')?.value||(fcStudentData?.type||'Manual'),
+    avail:(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||''),
+    notes:(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'')
+  };
+  fcStudentData=_live;
+  const s=_live;
+  document.getElementById('assignSub').textContent=`${_live.name||'Student'} → ${instrName}`;
   const rows=[
     ['👤 Name', s.name||'—'],
     ['📞 Phone', s.phone||'Not provided'],
@@ -5853,6 +5938,7 @@ async function confirmAssign(){
 }
 function resetFindForm(afterAssign){
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  if(afterAssign)try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
   renderNoJobsAlert(); // refresh alert — counts may have changed after assign
   const fr=document.getElementById('findResults');
   if(fr)fr.innerHTML=afterAssign

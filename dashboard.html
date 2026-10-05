@@ -570,6 +570,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <div class="quick-actions" id="quickActions">
     <button class="qa-chip" onclick="openAddModal(todayKey(),'Today',new Date().getDay()===0?6:new Date().getDay()-1)" title="Schedule a new driving lesson for one of your students"><span>📅</span>Book Lesson</button>
     <button class="qa-chip" onclick="switchTab('students');setMobActive('students');setTimeout(()=>document.getElementById('studentSearch')?.focus(),200)" title="Send a message to one of your students"><span>💬</span>Message Student</button>
+    <button class="qa-chip" onclick="switchTab('referrals');setMobActive('referrals')" title="View your referral fees and payment status"><span>💷</span>Referrals</button>
     <button class="qa-chip" onclick="switchTab('cal');setMobActive('cal')"><span>📋</span>View Schedule</button>
     <button class="qa-chip" onclick="switchTab('map');setMobActive('map')"><span>🎯</span>Today's Route</button>
   </div>
@@ -1829,7 +1830,7 @@ let suggestIdx=-1,suggestOpen=false,pickerMode='existing';
 
 /* ── AUTH ── */
 let instr=null;
-try{instr=JSON.parse(sessionStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
+try{instr=JSON.parse(localStorage.getItem('dsq_instructor')||'null');}catch(e){instr=null;}
 if(instr&&instr.id){
   // Already logged in — hide overlay immediately so dashboard shows without flash
   const _ov=document.getElementById('loginOverlay');
@@ -1837,7 +1838,7 @@ if(instr&&instr.id){
 }else{
   showLoginOverlay();
 }
-function logout(){sessionStorage.removeItem('dsq_instructor');location.reload();}
+function logout(){localStorage.removeItem('dsq_instructor');location.reload();}
 
 /* ── LOGIN OVERLAY LOGIC ── */
 function showLoginOverlay(){
@@ -1929,7 +1930,7 @@ async function loHandleLogin(e){
     if(data.status==='suspended'){showMsg('🚫 Your account has been suspended. Please contact DriveSQ.');return;}
     let hashPass;try{hashPass=btoa(pass);}catch(ex){hashPass=btoa(encodeURIComponent(pass));}
     if(data.password_hash!==hashPass){showMsg('Incorrect password. Please try again.');return;}
-    sessionStorage.setItem('dsq_instructor',JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
+    localStorage.setItem('dsq_instructor',JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
     btn.textContent='✓ Signed in…';
     btn.style.background='linear-gradient(135deg,#16a34a,#15803d)';
     setTimeout(function(){ location.reload(); },600);
@@ -3941,7 +3942,7 @@ async function loadProfileData(){
   if(!data)return;
   instr.name=data.full_name;instr.phone=data.phone;instr.email=data.email;instr.area=data.area;
   if(data.profile_photo_url)instr.profile_photo_url=data.profile_photo_url;
-  sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
+  localStorage.setItem('dsq_instructor',JSON.stringify(instr));
   document.getElementById('pName').value=data.full_name||'';document.getElementById('pBadge').value=data.badge_number||'';document.getElementById('pPhone').value=data.phone||'';document.getElementById('pEmail').value=data.email||'';document.getElementById('pArea').value=data.area||'';document.getElementById('pCarModel').value=data.car_model||'';document.getElementById('pCarPlate').value=data.car_plate||'';document.getElementById('pCarType').value=data.car_type||'Manual';
   const covEl=document.getElementById('pCoverage');if(covEl)covEl.value=data.coverage_postcodes||'';
   document.getElementById('profileNameDisp').textContent=data.full_name||'—';document.getElementById('profileBadgeDisp').textContent=data.badge_number||'—';
@@ -3990,7 +3991,7 @@ async function deleteProfilePhoto(){
     await sb.from('instructors').update({profile_photo_url:null}).eq('id',instr.id);
     const fb='https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png';
     document.getElementById('profileAvatar').src=fb;document.getElementById('navAvatar').src=fb;
-    instr.profile_photo_url=null;sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));showToast('Photo removed.','success');
+    instr.profile_photo_url=null;localStorage.setItem('dsq_instructor',JSON.stringify(instr));showToast('Photo removed.','success');
   }catch(e){showToast('Error removing photo.');}
 }
 
@@ -4017,7 +4018,7 @@ async function saveProfile(){
     const{error}=await sb.from('instructors').update(updates).eq('id',instr.id);if(error)throw error;
     Object.assign(instr,{name:updates.full_name,phone:updates.phone,email:updates.email,area:updates.area});
     if(updates.profile_photo_url)instr.profile_photo_url=updates.profile_photo_url;
-    sessionStorage.setItem('dsq_instructor',JSON.stringify(instr));
+    localStorage.setItem('dsq_instructor',JSON.stringify(instr));
     updateNav();document.getElementById('profileNameDisp').textContent=updates.full_name||'—';
     ['profilePhotoInput','badgeInput','carPhotoInput'].forEach(id=>{document.getElementById(id).value='';});
     const _pp=document.getElementById('pNewPwd');const _cp=document.getElementById('pConfirmPwd');if(_pp)_pp.value='';if(_cp)_cp.value='';
