@@ -1204,23 +1204,32 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <!-- Payment details -->
   <div style="border-top:1px solid var(--bdr);padding-top:16px">
     <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:10px"><i class="bi bi-bank me-1"></i>Payment Details</div>
-    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
-      <div>
-        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Account Name</div>
-        <div style="font-size:.95rem;font-weight:700;color:var(--txt1)">DriveSQ LTD</div>
+    <div style="background:var(--card);border:1px solid rgba(74,222,128,.2);border-radius:14px;overflow:hidden">
+      <div style="padding:12px 16px;background:rgba(74,222,128,.05);border-bottom:1px solid rgba(74,222,128,.12)">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt4);font-weight:600;margin-bottom:2px">Account Name</div>
+        <div style="font-size:1rem;font-weight:800;color:var(--txt1);font-family:'Oswald',sans-serif;letter-spacing:.02em">DriveSQ LTD</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div>
-          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Account No.</div>
-          <div style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">36786217</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr">
+        <div style="padding:12px 16px;border-right:1px solid var(--bdr)">
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt4);font-weight:600;margin-bottom:4px">Account No.</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums;font-family:'Oswald',sans-serif" id="refAccNum">36786217</span>
+            <button onclick="navigator.clipboard?.writeText('36786217').then(()=>showToast('Copied!','success'))" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:#4ade80;border-radius:5px;padding:2px 6px;font-size:.6rem;cursor:pointer" title="Copy account number"><i class="bi bi-copy"></i></button>
+          </div>
         </div>
-        <div>
-          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);font-weight:600;margin-bottom:2px">Sort Code</div>
-          <div style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums">01-05-11</div>
+        <div style="padding:12px 16px">
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--txt4);font-weight:600;margin-bottom:4px">Sort Code</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:.95rem;font-weight:700;color:var(--txt1);font-variant-numeric:tabular-nums;font-family:'Oswald',sans-serif">01-05-11</span>
+            <button onclick="navigator.clipboard?.writeText('010511').then(()=>showToast('Copied!','success'))" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:#4ade80;border-radius:5px;padding:2px 6px;font-size:.6rem;cursor:pointer" title="Copy sort code"><i class="bi bi-copy"></i></button>
+          </div>
         </div>
       </div>
     </div>
-    <div style="margin-top:10px;font-size:.7rem;color:var(--txt4);text-align:center;line-height:1.5">Use your name as the payment reference so we can match it to your account.</div>
+    <div style="margin-top:10px;display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:10px">
+      <i class="bi bi-info-circle-fill" style="color:#818cf8;font-size:.8rem;margin-top:1px;flex-shrink:0"></i>
+      <span style="font-size:.7rem;color:var(--txt3);line-height:1.5">Use <strong style="color:var(--txt1)">your full name</strong> as the payment reference so we can match your payment to your account.</span>
+    </div>
   </div>
 </div>
 <!-- /REFERRALS TAB -->
@@ -2169,11 +2178,11 @@ async function loadRefData(){
   if(!instr?.id)return;
   try{
     const{data}=await sb.from('referrals')
-      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,paid_at,created_at,notes,admin_notified,notes_visible')
-      .eq('instructor_id',instr.id).eq('is_cancelled',false).eq('is_credit',false)
+      .select('id,student_name,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,credit_fulfilled_at,paid_at,created_at,notes,admin_notified,notes_visible')
+      .eq('instructor_id',instr.id).eq('is_cancelled',false)
       .order('created_at',{ascending:false});
     _refAllData=data||[];
-    const unpaid=_refAllData.filter(r=>!r.is_paid);
+    const unpaid=_refAllData.filter(r=>!r.is_paid&&!r.is_credit);
     const totalFee=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
     // Update stat card
     const refEl=document.getElementById('sReferrals');
@@ -2182,7 +2191,8 @@ async function loadRefData(){
     if(refSub)refSub.textContent=totalFee>0?`£${totalFee.toFixed(0)} unpaid`:'unpaid referrals';
     // Update tab badge
     const b=document.getElementById('refBadge'),mb=document.getElementById('mobRefBadge');
-    if(unpaid.length>0){b?.classList.remove('hidden');if(b)b.textContent=unpaid.length;mb?.classList.remove('hidden');if(mb)mb.textContent=unpaid.length;}
+    const unpaidCount=unpaid.length;
+    if(unpaidCount>0){b?.classList.remove('hidden');if(b)b.textContent=unpaidCount;mb?.classList.remove('hidden');if(mb)mb.textContent=unpaidCount;}
     else{b?.classList.add('hidden');mb?.classList.add('hidden');}
     // Refresh tab if open
     if(!document.getElementById('panel-referrals')?.classList.contains('hidden'))_renderRefTab();
@@ -2235,66 +2245,95 @@ function setRefFilter(f){
 }
 
 function _renderRefTab(){
-  const unpaid=_refAllData.filter(r=>!r.is_paid);
-  const paidRows=_refAllData.filter(r=>r.is_paid);
+  // Split data: active rows vs credit rows
+  const activeRows=_refAllData.filter(r=>!r.is_credit);
+  const creditRows=_refAllData.filter(r=>r.is_credit);
+  const unpaid=activeRows.filter(r=>!r.is_paid);
+  const paidRows=activeRows.filter(r=>r.is_paid);
   const totalDue=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
   const totalPaid=paidRows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const openCredits=creditRows.filter(r=>!r.credit_fulfilled);
   // Summary tiles
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  set('refTabUnpaidFee',`£${totalDue.toFixed(0)}`);
-  set('refTabPaidFee',`£${totalPaid.toFixed(0)}`);
-  set('refTabTotal',_refAllData.length);
+  set('refTabUnpaidFee',totalDue>0?`£${totalDue.toFixed(0)}`:'£0');
+  set('refTabPaidFee',totalPaid>0?`£${totalPaid.toFixed(0)}`:'£0');
+  set('refTabTotal',activeRows.length);
   set('refTabUnpaidCount',unpaid.length);
   set('refTabPaidCount',paidRows.length);
   // Pending drop count
-  const dropCount=_refAllData.filter(r=>!r.is_paid&&(_refIsDropPending(r.id)||rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending')).length;
+  const dropCount=activeRows.filter(r=>!r.is_paid&&(_refIsDropPending(r.id)||rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending')).length;
   const dropEl=document.getElementById('refTabDropCount');
   const dropRow=document.getElementById('refTabDropRow');
   if(dropEl)dropEl.textContent=dropCount;
   if(dropRow)dropRow.style.display=dropCount>0?'flex':'none';
-  // Filter
-  const rows=_refFilter==='unpaid'?unpaid:_refFilter==='paid'?_refAllData.filter(r=>r.is_paid):_refAllData;
+
   const list=document.getElementById('refTabList');
   if(!list)return;
-  if(!rows.length){
+
+  // Credits section
+  let creditsHtml='';
+  if(openCredits.length>0){
+    creditsHtml=`<div style="margin-bottom:12px">
+      <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#f59e0b;margin-bottom:8px"><i class="bi bi-arrow-repeat me-1"></i>Replacement Students Owed (${openCredits.length})</div>
+      ${openCredits.map(r=>{
+        const addedDate=r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
+        return`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:9px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="bi bi-arrow-repeat" style="color:#f59e0b;font-size:.9rem"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:.88rem;color:var(--txt1)">${r.student_name||'Unknown'}</div>
+            <div style="font-size:.65rem;color:var(--txt4);margin-top:2px">Left on ${addedDate} · DriveSQ owes you a replacement student</div>
+          </div>
+          <span style="font-size:.65rem;padding:2px 9px;border-radius:20px;font-weight:700;background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.35);white-space:nowrap">CREDIT OWED</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // Filter active rows
+  const rows=_refFilter==='unpaid'?unpaid:_refFilter==='paid'?paidRows:activeRows;
+  if(!rows.length&&!creditsHtml){
     const msg=_refFilter==='unpaid'?'<i class="bi bi-check-circle-fill me-2" style="color:var(--green)"></i>All referrals paid — nothing outstanding':_refFilter==='paid'?'No paid referrals yet':'No referrals recorded yet';
-    list.innerHTML=`<div style="text-align:center;padding:30px;color:var(--txt4);font-size:.82rem">${msg}</div>`;
+    list.innerHTML=creditsHtml+`<div style="text-align:center;padding:30px;color:var(--txt4);font-size:.82rem">${msg}</div>`;
     return;
   }
-  list.innerHTML=rows.map(r=>{
+  list.innerHTML=creditsHtml+rows.map(r=>{
     const addedDate=r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
     const paidDate=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
     const amt=parseFloat(r.amount)||0;
     const paid=r.is_paid;
-    // Use per-referral localStorage for pending state (roster profile may not exist)
     const isDropPending=_refIsDropPending(r.id);
     const dropReason=isDropPending?_refGetDropReason(r.id):null;
-    // Also check rosterMap as fallback
     const profileDropPending=rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending';
     const showPending=isDropPending||profileDropPending;
     const rid=jsEsc(r.id||'');
     const sn=jsEsc(r.student_name||'');
-    // Detect if student has no lessons booked yet
     const _stuEntry=allStudentsArr.find(s=>(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
     const hasNoLesson=!paid&&!showPending&&(_stuEntry?(_stuEntry.count||0)===0:true);
     const noLessonAlerted=!!r.admin_notified;
-    return `<div style="background:${showPending?'rgba(239,68,68,.05)':hasNoLesson?'rgba(251,191,36,.04)':paid?'rgba(255,255,255,.03)':'rgba(74,222,128,.05)'};border:1px solid ${showPending?'rgba(239,68,68,.25)':hasNoLesson?'rgba(251,191,36,.2)':paid?'var(--bdr)':'rgba(74,222,128,.18)'};border-radius:12px;padding:12px 14px;margin-bottom:0">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+    // Initials
+    const initials=(r.student_name||'?').split(' ').filter(Boolean).map(w=>w[0].toUpperCase()).slice(0,2).join('');
+    const avatarBg=paid?'rgba(74,222,128,.1)':showPending?'rgba(239,68,68,.1)':hasNoLesson?'rgba(251,191,36,.1)':'rgba(74,222,128,.08)';
+    const avatarColor=paid?'#4ade80':showPending?'#f87171':hasNoLesson?'#fbbf24':'#4ade80';
+    return `<div style="background:${showPending?'rgba(239,68,68,.04)':hasNoLesson?'rgba(251,191,36,.03)':paid?'rgba(255,255,255,.025)':'rgba(74,222,128,.04)'};border:1px solid ${showPending?'rgba(239,68,68,.28)':hasNoLesson?'rgba(251,191,36,.22)':paid?'var(--bdr)':'rgba(74,222,128,.2)'};border-radius:12px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${avatarBg};border:1px solid ${paid?'rgba(74,222,128,.2)':showPending?'rgba(239,68,68,.2)':'rgba(74,222,128,.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:.8rem;color:${avatarColor}">${initials}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9rem;color:var(--txt1);margin-bottom:4px">${r.student_name||'Unknown'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
-            <span style="font-size:.65rem;color:var(--txt4)">Added ${addedDate}</span>
-            <span style="font-size:.65rem;padding:1px 7px;border-radius:4px;font-weight:600;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
-            ${hasNoLesson?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No Lesson Booked</span>`:''}
-            ${showPending?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);cursor:default" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\n'+dropReason.notes:''):'Awaiting admin action'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin${dropReason?.reason?' · '+dropReason.reason:''}</span>`:''}
-            ${noLessonAlerted?`<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;background:rgba(99,102,241,.08);color:#818cf8;border:1px solid rgba(99,102,241,.2)"><i class="bi bi-bell-fill me-1"></i>Admin Notified</span>`:''}
+            <span style="font-size:.62rem;color:var(--txt4)">Added ${addedDate}</span>
+            <span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:700;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">${paid?`✓ Paid${paidDate?' · '+paidDate:''}`:amt>0?'Unpaid':'£0'}</span>
+            ${hasNoLesson?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No lesson yet</span>`:''}
+            ${showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\nNotes: '+dropReason.notes:''):'Awaiting admin confirmation'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin</span>`:''}
+            ${noLessonAlerted&&!showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(99,102,241,.08);color:#818cf8;border:1px solid rgba(99,102,241,.2)"><i class="bi bi-bell-fill me-1"></i>Admin Notified</span>`:''}
           </div>
-          ${r.notes&&r.notes_visible?`<div style="font-size:.68rem;color:var(--txt3);margin-top:5px;font-style:italic;line-height:1.4">${r.notes}</div>`:''}
+          ${r.notes&&r.notes_visible?`<div style="font-size:.68rem;color:var(--txt3);margin-top:6px;font-style:italic;line-height:1.4;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px;border-left:2px solid rgba(99,102,241,.3)">${r.notes}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-          <div style="font-size:1rem;font-weight:800;color:${paid?'var(--txt3)':'#4ade80'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
-          ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600" title="Let admin know this student has no lesson booked yet"><i class="bi bi-bell me-1"></i>Notify Admin</button>`:''}
-          ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.18)':'rgba(239,68,68,.08)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600" title="${showPending?'Cancel drop request':'Mark student as no longer wanting lessons'}"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel Request':'Student Left'}</button>`:''}
+          <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:${paid?'var(--txt3)':'#f87171'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
+          ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-bell me-1"></i>Notify</button>`:''}
+          ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.15)':'rgba(239,68,68,.07)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel':'Student Left'}</button>`:''}
         </div>
       </div>
     </div>`;
