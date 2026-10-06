@@ -3922,7 +3922,8 @@ async function loadAllStudents(){
         acctId:a.id,acctEmail:a.email||null,acctStatus:a.status||null,
         onApp:!!a.last_login,isOnline:!!(a.last_seen&&a.last_seen>=fiveMinsAgo),
         targetHours:prog?.target_hours||null,testReadiness:prog?.test_readiness||null,
-        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null
+        mockScore:prog?.mock_test_score!=null?prog.mock_test_score:null,
+        assignedAt:a.created_at||null
       };
     }
   });
@@ -4004,6 +4005,7 @@ async function loadAllStudents(){
         s.lastLogin=acc.last_login||null;s.lastSeen=acc.last_seen||null;
         s.acctId=acc.id||null;s.acctEmail=acc.email||null;s.acctStatus=acc.status||null;
         s.onApp=!!acc.last_login;
+        if(!s.assignedAt&&acc.created_at)s.assignedAt=acc.created_at;
         const fiveMinsAgo=new Date(Date.now()-5*60*1000).toISOString();
         s.isOnline=!!(acc.last_seen&&acc.last_seen>=fiveMinsAgo);
         const prog=progMap[acc.id];
