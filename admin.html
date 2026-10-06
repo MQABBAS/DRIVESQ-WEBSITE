@@ -2661,6 +2661,8 @@ function showApp(){
   setTimeout(_restoreFcDraft,500);
   // Pre-load students in background so global search works immediately
   setTimeout(()=>loadAllStudents().catch(()=>{}),3000);
+  window.scrollTo({top:0,behavior:'instant'});
+  history.replaceState({tab:'instructors'},'',location.pathname);
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
@@ -2873,7 +2875,18 @@ function switchTab(t){
       sel.innerHTML='<option value="">Choose instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
     } else if(picker){picker.style.display='none';}
   }
+  window.scrollTo({top:0,behavior:'instant'});
+  if(history.state?.tab!==t)history.pushState({tab:t},'',location.pathname+(t==='instructors'?'':'#'+t));
 }
+window.addEventListener('popstate',function(e){
+  const t=(e.state&&e.state.tab)||'instructors';
+  if(t!=='calendar'){viewingId=null;viewingName='';viewingData=null;}
+  TABS.forEach(id=>{
+    document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);
+    document.getElementById('tab-'+id)?.classList.toggle('active',id===t);
+  });
+  window.scrollTo({top:0,behavior:'instant'});
+});
 
 /* ══ LOAD ALL ══ */
 async function loadAll(){
