@@ -1052,6 +1052,50 @@ button:focus:not(:focus-visible) { outline: none !important }
     transition-duration: .01ms !important;
   }
 }
+
+/* ── Test Route Cards ── */
+.tc-card-btn {
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;
+  padding:9px 11px;cursor:pointer;transition:all .22s var(--ease-spring,cubic-bezier(.34,1.56,.64,1));
+  color:var(--txt);text-align:left;width:100%;
+}
+.tc-card-btn:hover { transform:translateY(-2px) scale(1.02); border-color:rgba(168,85,247,.5); box-shadow:0 4px 16px rgba(168,85,247,.18); }
+.tc-card-btn.active { border-color:#a855f7; background:rgba(168,85,247,.12); box-shadow:0 0 0 1px rgba(168,85,247,.3),0 4px 16px rgba(168,85,247,.18); }
+.tc-card-btn .tc-card-name { font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt);line-height:1.2; }
+.tc-card-btn .tc-card-meta { font-size:.65rem;color:var(--txt4); }
+.tc-card-btn.active .tc-card-name { color:#c084fc; }
+
+/* ── Test Route Action Buttons ── */
+.tc-action-btn {
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:700;
+  cursor:pointer;border:1px solid;transition:all .18s var(--ease-spring,cubic-bezier(.34,1.56,.64,1));
+  font-family:'Oswald',sans-serif;letter-spacing:.3px;white-space:nowrap;
+}
+.tc-action-btn:hover { transform:translateY(-2px) scale(1.04); }
+.tc-action-gmaps { background:rgba(66,133,244,.12);border-color:rgba(66,133,244,.3);color:#60a5fa; }
+.tc-action-gmaps:hover { background:rgba(66,133,244,.22);border-color:#4285f4;box-shadow:0 4px 14px rgba(66,133,244,.22); }
+.tc-action-wa { background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80; }
+.tc-action-wa:hover { background:rgba(37,211,102,.2);border-color:#25d366;box-shadow:0 4px 14px rgba(37,211,102,.2); }
+.tc-action-default { background:var(--dk3);border-color:var(--bdr);color:var(--txt3); }
+.tc-action-default:hover { background:var(--dk2);border-color:rgba(168,85,247,.4);color:#c084fc;box-shadow:0 4px 14px rgba(168,85,247,.14); }
+
+/* ── Map Toolbar ── */
+.tc-map-tool {
+  display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);border-radius:7px;
+  color:#fff;font-size:.85rem;cursor:pointer;backdrop-filter:blur(6px);
+  transition:all .15s ease;
+}
+.tc-map-tool:hover { background:rgba(168,85,247,.55);border-color:rgba(168,85,247,.7); }
+
+/* ── Fullscreen map mode ── */
+#tcSection.tc-fullscreen {
+  position:fixed;inset:0;z-index:9999;border-radius:0 !important;margin:0 !important;
+  display:flex;flex-direction:column;
+}
+#tcSection.tc-fullscreen #testRouteMap { height:calc(100vh - 120px) !important; }
 </style>
 </head>
 <body>
@@ -1138,6 +1182,7 @@ button:focus:not(:focus-visible) { outline: none !important }
     <button class="qa-chip" onclick="switchTab('referrals');setMobActive('referrals')" title="View your referral fees and payment status"><span>💷</span>Referrals</button>
     <button class="qa-chip" onclick="switchTab('cal');setMobActive('cal')"><span>📋</span>View Schedule</button>
     <button class="qa-chip" onclick="switchTab('map');setMobActive('map')"><span>🎯</span>Today's Route</button>
+    <button class="qa-chip" onclick="goToTestRoutes()" title="Open DVSA test routes for Manchester test centres" style="border-color:rgba(168,85,247,.3);color:#c084fc;background:rgba(168,85,247,.07)"><i class="bi bi-signpost-2-fill me-1"></i>Test Routes</button>
   </div>
 
   <div class="dsq-tabs mb-3">
@@ -1342,73 +1387,133 @@ button:focus:not(:focus-visible) { outline: none !important }
     </div>
 
     <!-- TEST ROUTES SECTION -->
-    <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:13px;padding:16px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
-        <div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--txt)"><i class="bi bi-signpost-2-fill me-2" style="color:var(--red)"></i>Manchester DVSA Test Routes</div>
-          <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">All known examiner routes from Manchester test centres — study them with your students before test day.</div>
+    <div id="tcSection" style="background:var(--dk2);border:1px solid rgba(168,85,247,.2);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.2)">
+
+      <!-- Section header -->
+      <div style="background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(168,85,247,.04));border-bottom:1px solid rgba(168,85,247,.18);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:42px;height:42px;border-radius:11px;background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🗺️</div>
+          <div>
+            <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt);letter-spacing:.3px">Manchester DVSA Test Routes</div>
+            <div style="font-size:.72rem;color:var(--txt3);margin-top:2px">5 test centres · 16 examiner routes — study them with your students before test day</div>
+          </div>
         </div>
-        <span style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.5px">INSTRUCTOR RESOURCE</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="tcLastViewed" style="display:none;font-size:.65rem;color:var(--txt4);background:var(--dk3);border:1px solid var(--bdr);border-radius:999px;padding:3px 10px"><i class="bi bi-clock-history me-1"></i><span id="tcLastViewedTxt"></span></span>
+          <span style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.28);color:#c084fc;font-size:.66rem;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.5px;text-transform:uppercase">Instructor Resource</span>
+        </div>
       </div>
 
-      <!-- Test centre selector -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px">
-        <button class="tc-btn active" id="tc-didsbury" onclick="selectTestCentre('didsbury')">📍 Didsbury</button>
-        <button class="tc-btn" id="tc-sale" onclick="selectTestCentre('sale')">📍 Sale</button>
-        <button class="tc-btn" id="tc-stockport" onclick="selectTestCentre('stockport')">📍 Stockport</button>
-        <button class="tc-btn" id="tc-ashton" onclick="selectTestCentre('ashton')">📍 Ashton-u-Lyne</button>
-        <button class="tc-btn" id="tc-bolton" onclick="selectTestCentre('bolton')">📍 Bolton</button>
+      <div style="padding:16px 18px">
+
+      <!-- Test centre selector — rich cards -->
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--txt4);font-weight:700;margin-bottom:10px">Select Test Centre</div>
+      <div id="tcCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px">
+        <button class="tc-card-btn active" id="tc-didsbury" onclick="selectTestCentre('didsbury')" data-routes="4" data-dist="S Manchester">
+          <div class="tc-card-ico">🏛️</div>
+          <div class="tc-card-name">Didsbury</div>
+          <div class="tc-card-meta">S Manchester · 4 routes</div>
+        </button>
+        <button class="tc-card-btn" id="tc-sale" onclick="selectTestCentre('sale')" data-routes="3" data-dist="Trafford">
+          <div class="tc-card-ico">🏛️</div>
+          <div class="tc-card-name">Sale</div>
+          <div class="tc-card-meta">Trafford · 3 routes</div>
+        </button>
+        <button class="tc-card-btn" id="tc-stockport" onclick="selectTestCentre('stockport')" data-routes="3" data-dist="Stockport">
+          <div class="tc-card-ico">🏛️</div>
+          <div class="tc-card-name">Stockport</div>
+          <div class="tc-card-meta">Stockport · 3 routes</div>
+        </button>
+        <button class="tc-card-btn" id="tc-ashton" onclick="selectTestCentre('ashton')" data-routes="3" data-dist="Tameside">
+          <div class="tc-card-ico">🏛️</div>
+          <div class="tc-card-name">Ashton</div>
+          <div class="tc-card-meta">Tameside · 3 routes</div>
+        </button>
+        <button class="tc-card-btn" id="tc-bolton" onclick="selectTestCentre('bolton')" data-routes="2" data-dist="Bolton">
+          <div class="tc-card-ico">🏛️</div>
+          <div class="tc-card-name">Bolton</div>
+          <div class="tc-card-meta">Bolton · 2 routes</div>
+        </button>
       </div>
 
       <!-- Test centre info bar -->
-      <div id="tcInfoBar" style="background:var(--dk3);border-radius:10px;padding:10px 14px;font-size:.76rem;color:var(--txt3);margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap"></div>
+      <div id="tcInfoBar" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px;font-size:.76rem;color:var(--txt3);margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center"></div>
 
-      <!-- Route pills + action buttons row -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.72rem;color:var(--txt3);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">Select Route</div>
-          <div id="routePills" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <!-- Route selector + actions in one row -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--txt4);font-weight:700;margin-bottom:8px">Select Route</div>
+          <div id="routePills" style="display:flex;gap:7px;flex-wrap:wrap"></div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:22px">
-          <button id="btnOpenGmaps" onclick="openInGoogleMaps()" style="display:flex;align-items:center;gap:6px;background:#4285f4;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.76rem;font-weight:700;cursor:pointer;transition:.18s ease" title="Open full route in Google Maps">
-            <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#fff" d="M24 0C14.6 0 7 7.6 7 17c0 12.7 17 31 17 31s17-18.3 17-31C41 7.6 33.4 0 24 0z"/><circle fill="#4285f4" cx="24" cy="17" r="7"/><circle fill="#fff" cx="24" cy="17" r="4"/></svg>
-            Open in Google Maps
-          </button>
-          <button onclick="openDirectionsForRoute()" style="display:flex;align-items:center;gap:6px;background:var(--dk3);color:var(--txt);border:1px solid var(--bdr);border-radius:8px;padding:8px 14px;font-size:.76rem;font-weight:600;cursor:pointer;transition:.18s ease" title="Turn-by-turn directions for this route">
-            <i class="bi bi-signpost-split"></i> Directions
-          </button>
-          <button onclick="copyRouteToClipboard()" style="display:flex;align-items:center;gap:6px;background:var(--dk3);color:var(--txt);border:1px solid var(--bdr);border-radius:8px;padding:8px 14px;font-size:.76rem;font-weight:600;cursor:pointer;transition:.18s ease" title="Copy route description to clipboard">
-            <i class="bi bi-clipboard"></i> Copy Route
-          </button>
-          <button onclick="shareRouteWhatsApp()" style="display:flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.76rem;font-weight:700;cursor:pointer;transition:.18s ease" title="Share route with student via WhatsApp">
-            <i class="bi bi-whatsapp"></i> Share with Student
-          </button>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
+          <!-- Practice timer -->
+          <div id="tcTimerRow" style="display:flex;align-items:center;gap:8px;background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:7px 10px">
+            <i class="bi bi-stopwatch" style="color:#c084fc;font-size:.9rem"></i>
+            <span id="tcTimerDisplay" style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt);letter-spacing:2px;min-width:52px">00:00</span>
+            <button id="tcTimerBtn" onclick="tcToggleTimer()" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:6px;padding:3px 8px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Oswald',sans-serif">START</button>
+            <button onclick="tcResetTimer()" style="background:transparent;border:none;color:var(--txt4);cursor:pointer;font-size:.75rem;padding:2px" title="Reset timer"><i class="bi bi-arrow-counterclockwise"></i></button>
+          </div>
+          <!-- Practice progress -->
+          <div id="tcPracticeRow" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:7px 10px;display:flex;align-items:center;gap:8px">
+            <i class="bi bi-check2-circle" style="color:#4ade80;font-size:.9rem"></i>
+            <div style="flex:1">
+              <div style="font-size:.62rem;color:var(--txt4);margin-bottom:3px">Junctions practiced</div>
+              <div style="height:5px;background:var(--bdr);border-radius:3px;overflow:hidden"><div id="tcPracticeBar" style="height:100%;background:linear-gradient(90deg,#4ade80,#22c55e);border-radius:3px;transition:width .4s ease;width:0%"></div></div>
+            </div>
+            <span id="tcPracticeCount" style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:#4ade80">0/0</span>
+          </div>
         </div>
       </div>
 
-      <!-- Map -->
-      <div style="position:relative">
-        <div id="testRouteMap" style="margin-bottom:0;border-radius:11px 11px 0 0"></div>
+      <!-- Action buttons -->
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+        <button id="btnOpenGmaps" onclick="openInGoogleMaps()" class="tc-action-btn tc-action-gmaps" title="Open full route in Google Maps">
+          <svg width="14" height="14" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#fff" d="M24 0C14.6 0 7 7.6 7 17c0 12.7 17 31 17 31s17-18.3 17-31C41 7.6 33.4 0 24 0z"/><circle fill="#4285f4" cx="24" cy="17" r="7"/><circle fill="#fff" cx="24" cy="17" r="4"/></svg>
+          Google Maps
+        </button>
+        <button onclick="openDirectionsForRoute()" class="tc-action-btn tc-action-default" title="Turn-by-turn directions">
+          <i class="bi bi-signpost-split"></i> Directions
+        </button>
+        <button onclick="copyRouteToClipboard()" class="tc-action-btn tc-action-default" title="Copy route to clipboard">
+          <i class="bi bi-clipboard"></i> Copy
+        </button>
+        <button onclick="shareRouteWhatsApp()" class="tc-action-btn tc-action-wa" title="Share with student via WhatsApp">
+          <i class="bi bi-whatsapp"></i> Send to Student
+        </button>
+        <button onclick="tcToggleFullscreen()" id="btnTcFullscreen" class="tc-action-btn tc-action-default" title="Fullscreen map">
+          <i class="bi bi-fullscreen"></i> Fullscreen
+        </button>
+      </div>
+
+      <!-- Map container -->
+      <div id="tcMapWrap" style="position:relative;border-radius:13px;overflow:hidden;border:1px solid var(--bdr);box-shadow:0 4px 20px rgba(0,0,0,.25)">
+        <div id="testRouteMap" style="margin-bottom:0;border-radius:0"></div>
         <!-- Map overlay toolbar -->
-        <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:6px">
-          <button onclick="tcMapZoomIn()" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt);width:34px;height:34px;border-radius:7px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Zoom in">+</button>
-          <button onclick="tcMapZoomOut()" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt);width:34px;height:34px;border-radius:7px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Zoom out">−</button>
-          <button onclick="tcMapFitRoute()" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt);width:34px;height:34px;border-radius:7px;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Fit route to screen"><i class="bi bi-fullscreen"></i></button>
-          <button onclick="toggleMapStyle()" id="btnMapStyle" style="background:var(--dk2);border:1px solid var(--bdr);color:var(--txt);width:34px;height:34px;border-radius:7px;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Switch map style"><i class="bi bi-layers"></i></button>
+        <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:5px">
+          <button onclick="tcMapZoomIn()" class="tc-map-tool" title="Zoom in">+</button>
+          <button onclick="tcMapZoomOut()" class="tc-map-tool" title="Zoom out">−</button>
+          <button onclick="tcMapFitRoute()" class="tc-map-tool" title="Fit to route"><i class="bi bi-fullscreen"></i></button>
+          <button onclick="toggleMapStyle()" id="btnMapStyle" class="tc-map-tool" title="Toggle satellite"><i class="bi bi-layers"></i></button>
         </div>
-        <!-- Distance badge -->
-        <div id="routeDistBadge" style="display:none;position:absolute;bottom:10px;left:10px;z-index:1000;background:rgba(0,0,0,.75);color:#fff;font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:999px;backdrop-filter:blur(4px)"><i class="bi bi-speedometer2 me-1"></i><span id="routeDistText"></span></div>
+        <!-- Distance + time badge -->
+        <div id="routeDistBadge" style="display:none;position:absolute;bottom:10px;left:10px;z-index:1000;background:rgba(0,0,0,.78);color:#fff;font-size:.72rem;font-weight:600;padding:5px 12px;border-radius:999px;backdrop-filter:blur(6px);display:flex;align-items:center;gap:6px">
+          <i class="bi bi-speedometer2"></i><span id="routeDistText"></span>
+        </div>
+        <!-- Route name overlay -->
+        <div id="tcRouteNameOverlay" style="display:none;position:absolute;top:10px;left:10px;z-index:1000;background:rgba(0,0,0,.75);color:#fff;font-size:.75rem;font-weight:700;padding:5px 12px;border-radius:999px;backdrop-filter:blur(6px);font-family:'Oswald',sans-serif;max-width:calc(100% - 80px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
       </div>
 
-      <!-- Route progress bar (junction count indicator) -->
-      <div id="routeProgressBar" style="display:none;background:var(--dk3);border:1px solid var(--bdr);border-radius:0 0 11px 11px;padding:10px 14px;margin-bottom:14px">
-        <div style="font-size:.7rem;color:var(--txt3);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">Route Junctions</div>
+      <!-- Junction trail -->
+      <div id="routeProgressBar" style="display:none;border-top:1px solid var(--bdr);padding:12px 0 4px;margin-top:12px">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--txt4);font-weight:700;margin-bottom:10px">Junction Trail <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--txt4)">— tap to zoom map · tick to mark practiced</span></div>
         <div id="junctionTrail" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap"></div>
       </div>
-      <div style="margin-bottom:14px" id="routeProgressBarSpacer"></div>
+      <div id="routeProgressBarSpacer"></div>
 
       <!-- Route details -->
-      <div id="routeDetails"></div>
+      <div id="routeDetails" style="margin-top:14px"></div>
+
+      </div><!-- /padding -->
     </div>
 
     <!-- Smart Day Builder -->
@@ -6256,6 +6361,14 @@ function selectTestRoute(tc, routeId){
   _currentRouteBounds=bounds;
   _tcMap.fitBounds(bounds,{padding:[36,36]});
 
+  // Route name overlay
+  const overlay=document.getElementById('tcRouteNameOverlay');
+  if(overlay){overlay.style.display='block';overlay.textContent=route.label+' — '+centre.name;}
+
+  // Recently viewed + practice progress
+  _tcUpdateLastViewed(centre.name,route.label);
+  _tcUpdatePracticeProgress();
+
   // Distance estimate
   let distM=0;
   for(let i=1;i<route.waypoints.length;i++){
@@ -6397,6 +6510,112 @@ function toggleMapStyle(){
   if(btn)btn.title=_mapStyleSat?'Switch to street map':'Switch to satellite';
 }
 
+/* ── Navigate to test routes section ── */
+function goToTestRoutes(){
+  // Switch to map tab first
+  const mapTabBtn=document.querySelector('[onclick*="showTab(\'map\'"]') || document.querySelector('[data-tab="map"]');
+  if(mapTabBtn){mapTabBtn.click();}
+  else{showTab('map');}
+  setTimeout(function(){
+    const sec=document.getElementById('tcSection');
+    if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+  },120);
+}
+
+/* ── Practice Timer ── */
+let _tcTimerInterval=null;
+let _tcTimerRunning=false;
+let _tcTimerSecs=0;
+
+function _tcTimerFmt(s){
+  const m=Math.floor(s/60);const ss=s%60;
+  return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;
+}
+function tcToggleTimer(){
+  const btn=document.getElementById('tcTimerBtn');
+  const disp=document.getElementById('tcTimerDisplay');
+  if(!btn||!disp)return;
+  if(_tcTimerRunning){
+    clearInterval(_tcTimerInterval);_tcTimerInterval=null;_tcTimerRunning=false;
+    btn.textContent='RESUME';
+    btn.style.background='rgba(168,85,247,.15)';
+  } else {
+    _tcTimerRunning=true;
+    btn.textContent='STOP';
+    btn.style.background='rgba(209,10,17,.18)';
+    _tcTimerInterval=setInterval(function(){
+      _tcTimerSecs++;
+      disp.textContent=_tcTimerFmt(_tcTimerSecs);
+      // Auto-stop at 1 hour
+      if(_tcTimerSecs>=3600){tcResetTimer();}
+    },1000);
+  }
+}
+function tcResetTimer(){
+  clearInterval(_tcTimerInterval);_tcTimerInterval=null;_tcTimerRunning=false;_tcTimerSecs=0;
+  const btn=document.getElementById('tcTimerBtn');
+  const disp=document.getElementById('tcTimerDisplay');
+  if(btn){btn.textContent='START';btn.style.background='rgba(168,85,247,.15)';}
+  if(disp)disp.textContent='00:00';
+}
+
+/* ── Fullscreen map ── */
+function tcToggleFullscreen(){
+  const sec=document.getElementById('tcSection');
+  const btn=document.getElementById('btnTcFullscreen');
+  if(!sec)return;
+  const isFs=sec.classList.toggle('tc-fullscreen');
+  if(btn){
+    btn.innerHTML=isFs
+      ?'<i class="bi bi-fullscreen-exit"></i> Exit'
+      :'<i class="bi bi-fullscreen"></i> Fullscreen';
+  }
+  // Invalidate Leaflet map size after transition
+  setTimeout(function(){if(_tcMap)_tcMap.invalidateSize();},80);
+  if(isFs){
+    // Press ESC to exit
+    document.addEventListener('keydown',function _fsEsc(e){
+      if(e.key==='Escape'&&sec.classList.contains('tc-fullscreen')){
+        tcToggleFullscreen();document.removeEventListener('keydown',_fsEsc);
+      }
+    });
+  }
+}
+
+/* ── Recently Viewed Route Memory ── */
+function _tcUpdateLastViewed(centreName,routeLabel){
+  try{
+    localStorage.setItem('dsq_tc_last',JSON.stringify({centre:centreName,route:routeLabel,ts:Date.now()}));
+  }catch(e){}
+  _tcRefreshLastViewedBadge();
+}
+function _tcRefreshLastViewedBadge(){
+  try{
+    const d=JSON.parse(localStorage.getItem('dsq_tc_last')||'null');
+    const wrap=document.getElementById('tcLastViewed');
+    const txt=document.getElementById('tcLastViewedTxt');
+    if(!d||!wrap||!txt)return;
+    wrap.style.display='inline-flex';
+    txt.textContent='Last: '+d.route+' ('+d.centre+')';
+  }catch(e){}
+}
+
+/* ── Practice Checklist Progress ── */
+function _tcUpdatePracticeProgress(){
+  const centre=TEST_CENTRES[_activeTc];
+  const route=centre?centre.routes.find(r=>r.id===_activeRouteId):null;
+  if(!route)return;
+  const key='dsq_tc_chk_'+_activeTc+'_'+_activeRouteId;
+  let checked=0;
+  try{checked=parseInt(localStorage.getItem(key)||'0',10)||0;}catch(e){}
+  const total=route.tips.length;
+  const pct=total>0?Math.min(100,Math.round(checked/total*100)):0;
+  const bar=document.getElementById('tcPracticeBar');
+  const cnt=document.getElementById('tcPracticeCount');
+  if(bar)bar.style.width=pct+'%';
+  if(cnt)cnt.textContent=checked+'/'+total+' junctions practised';
+}
+
 /* ══════════════════════════════
    SMART CLUSTER PLANNER — MAP TAB
 ══════════════════════════════ */
@@ -6523,7 +6742,7 @@ async function initMapTab(){
   renderAreaBreakdown();
   updateMapStats();
   // Init test routes section
-  setTimeout(()=>selectTestCentre('didsbury'),150);
+  setTimeout(()=>{selectTestCentre('didsbury');_tcRefreshLastViewedBadge();},150);
 }
 
 async function saveMapPostcode(){
