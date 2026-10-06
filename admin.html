@@ -768,6 +768,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
           <option value="app">📱 On App</option>
           <option value="registered">✅ Fully Registered</option>
           <option value="never">❌ Never logged in</option>
+          <option value="left">🚪 Left / Inactive</option>
         </select>
         <button class="btn-s hide-mob" style="font-size:.78rem" onclick="exportStudentsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
         <button class="btn-s hide-mob" style="font-size:.78rem;background:rgba(245,197,24,.1);border-color:rgba(245,197,24,.3);color:var(--gold)" onclick="openMergeModal()"><i class="bi bi-intersect me-1"></i>Merge Duplicates</button>
@@ -4334,11 +4335,12 @@ function renderStudentsTable(students){
     const lastSeenTxt=s.isOnline?'<span style="color:#4ade80;font-weight:600;font-size:.7rem">Online now</span>':s.lastSeen?`<span style="font-size:.68rem;color:var(--txt3)">${fmtDT(s.lastSeen)}</span>`:s.lastLogin?`<span style="font-size:.68rem;color:var(--txt4)">${fmtDT(s.lastLogin)}</span>`:'<span style="font-size:.65rem;color:var(--txt4)">Never</span>';
     const _isOld=_isOldStudent(s.assignedAt);
     const _flagged=_isStuFlagged(s);
-    return`<tr style="${_flagged?'background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.45)':s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':_isOld?'background:rgba(245,158,11,.02);border-left:2px solid rgba(245,158,11,.2);opacity:.75':''}">
+    const _left=s.acctStatus==='inactive'||s.status==='inactive'||s.acctStatus==='drop_pending'||s.status==='drop_pending'||s.acctStatus==='deleted_by_instructor'||s.status==='deleted_by_instructor';
+    return`<tr style="${_left?'background:rgba(100,116,139,.04);border-left:2px solid rgba(100,116,139,.35);opacity:.82':_flagged?'background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.45)':s.isOnline?'background:rgba(37,211,102,.02);border-left:2px solid rgba(37,211,102,.25)':_isOld?'background:rgba(245,158,11,.02);border-left:2px solid rgba(245,158,11,.2);opacity:.75':''}">
       <td style="text-align:center;font-family:'Oswald',sans-serif;font-size:.72rem;color:var(--txt4);font-weight:600;min-width:28px">${idx+1}</td>
       <td style="color:var(--txt);font-weight:600">
         ${onlineDot}<div style="width:24px;height:24px;border-radius:50%;background:${s.isOnline?'rgba(37,211,102,.15)':s.onApp?'rgba(37,211,102,.08)':'rgba(168,85,247,.1)'};border:1px solid ${s.isOnline?'rgba(37,211,102,.4)':s.onApp?'rgba(37,211,102,.2)':'rgba(168,85,247,.2)'};display:inline-flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.7rem;color:${s.onApp?'#4ade80':'#c084fc'};margin-right:7px;vertical-align:middle">${(s.name||'?').charAt(0).toUpperCase()}</div>
-        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:700;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-decoration-color:rgba(245,197,24,.5);text-underline-offset:2px" title="Click for full profile — date added, lesson type, login history">${esc(s.name)}</button>${_flagged?'<span style="font-size:.6rem;color:#f87171;margin-left:5px;vertical-align:middle" title="Flagged">🚩</span>':''}${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}${_studentAgeBadge(s.assignedAt)}
+        <button onclick="openStudentDetail(${idx})" style="background:none;border:none;color:var(--txt);font-weight:700;cursor:pointer;padding:0;text-align:left;font-size:inherit;text-decoration:underline;text-decoration-color:rgba(245,197,24,.5);text-underline-offset:2px" title="Click for full profile — date added, lesson type, login history">${esc(s.name)}</button>${_left?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.3);border-radius:3px;padding:1px 5px;font-weight:600">LEFT</span>':''}${_flagged?'<span style="font-size:.6rem;color:#f87171;margin-left:5px;vertical-align:middle" title="Flagged">🚩</span>':''}${!s.instrId?'<span style="font-size:.52rem;color:#f87171;margin-left:5px;vertical-align:middle;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:3px;padding:1px 5px;font-weight:600">UNASSIGNED</span>':s.rosterOnly?'<span style="font-size:.52rem;color:#94a3b8;margin-left:5px;vertical-align:middle;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);border-radius:3px;padding:1px 4px">Not Registered</span>':(!s.count?'<span style="font-size:.55rem;color:#c084fc;margin-left:5px;vertical-align:middle">NEW</span>':'')}${_refDueBadge(s.instrId,s.name)}${_studentAgeBadge(s.assignedAt)}
       </td>
       <td>${s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red);font-size:.77rem">${esc(s.phone)}</a>`:'<span style="color:var(--txt4)">—</span>'}</td>
       <td class="hide-xs" style="font-size:.75rem;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.address||'—')}</td>
@@ -4355,7 +4357,7 @@ function renderStudentsTable(students){
         ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
         ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" title="Request Google Review via WhatsApp" style="background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.35);color:var(--gold);padding:3px 7px"><i class="bi bi-star-fill"></i></a>`:''}
         <button class="abtn" onclick="toggleStuFlag(${idx})" title="${_flagged?'Remove flag':'Flag student'}" style="background:${_flagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.08)'};border-color:${_flagged?'rgba(239,68,68,.4)':'rgba(100,116,139,.2)'};color:${_flagged?'#f87171':'var(--txt4)'};padding:3px 7px"><i class="bi bi-flag${_flagged?'-fill':''}"></i></button>
-        <button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>
+        ${_left?`<button class="abtn" onclick="restoreStudent(${idx})" title="Restore student to active" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35);color:#4ade80;padding:3px 8px;font-size:.72rem"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore</button>`:`<button class="abtn" onclick="quickDeleteStudent(${idx})" title="Delete student" style="background:rgba(209,10,17,.12);border-color:rgba(209,10,17,.3);color:#f87171;padding:3px 7px"><i class="bi bi-trash3-fill"></i></button>`}
       </td>
     </tr>`;
   }).join('');
@@ -4366,6 +4368,36 @@ function quickDeleteStudent(idx){
   if(!confirm(`Permanently delete "${s.name}" from the system?\n\nThis removes their profile, lessons, progress, and account. This cannot be undone.`))return;
   _adminStudentCtx={accId:s.acctId||null,profileId:s.profileId||s.rosterId||null,instrId:s.instrId||null,name:s.name||'Unknown'};
   adminDeleteStudent(true);
+}
+
+async function restoreStudent(idx){
+  const s=_renderedStudents[idx];if(!s)return;
+  if(!confirm(`Restore "${s.name}" as an active student?\n\nThis will reactivate their profile.`))return;
+  showToast('Restoring student…','info',4000);
+  const updates=[];
+  // Restore student_profiles row(s)
+  if(s.instrId){
+    updates.push(sb.from('student_profiles').update({status:'active'}).ilike('name',s.name).eq('instructor_id',s.instrId));
+  } else {
+    updates.push(sb.from('student_profiles').update({status:'active'}).ilike('name',s.name));
+  }
+  // Restore student_accounts row if present
+  if(s.acctId){
+    updates.push(sb.from('student_accounts').update({status:'active'}).eq('id',s.acctId));
+  }
+  try{
+    await Promise.all(updates);
+    // Update local cache
+    allStudentsCache.forEach(c=>{
+      if(c===s||(c.name&&c.name.toLowerCase()===s.name.toLowerCase()&&(!s.instrId||c.instrId===s.instrId))){
+        c.status='active';c.acctStatus='active';
+      }
+    });
+    showToast(`${s.name} restored as active student`,'success');
+    filterAllStudents(document.getElementById('studentSearch')?.value||'');
+  }catch(e){
+    showToast('Restore failed: '+e.message,'error');
+  }
 }
 
 function adminDeleteStudentFromDetail(){
@@ -4499,13 +4531,16 @@ function filterAllStudents(q){
   _filterAllStudentsTimer=setTimeout(()=>{
     const instrId=document.getElementById('studentInstrFilter').value;
     const onlineF=document.getElementById('studentOnlineFilter')?.value||'';
+    const _isLeft=s=>(s.acctStatus==='inactive'||s.status==='inactive'||s.acctStatus==='drop_pending'||s.status==='drop_pending'||s.acctStatus==='deleted_by_instructor'||s.status==='deleted_by_instructor');
     let list=allStudentsCache;
     if(instrId)list=list.filter(s=>s.instrId===instrId);
-    if(onlineF==='flagged')list=list.filter(s=>_isStuFlagged(s));
+    if(onlineF==='left')list=list.filter(s=>_isLeft(s));
+    else if(onlineF==='flagged')list=list.filter(s=>_isStuFlagged(s));
     else if(onlineF==='online')list=list.filter(s=>s.isOnline);
     else if(onlineF==='app')list=list.filter(s=>s.onApp);
     else if(onlineF==='registered')list=list.filter(s=>s.onApp&&s.lastLogin);
     else if(onlineF==='never')list=list.filter(s=>!s.lastLogin&&!s.lastSeen);
+    else list=list.filter(s=>!_isLeft(s)); // default: hide left students
     const raw=(q||'').trim();
     if(raw){
       const lq=raw.toLowerCase();
