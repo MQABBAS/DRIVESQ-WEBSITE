@@ -3181,6 +3181,133 @@ function _playFlagSound(color){
     });
   }catch(e){}
 }
+
+/* ══ SOUND EFFECTS ══════════════════════════════════════════════════════════
+   All synthesised via Web Audio API — no external files, zero latency.
+   Volume kept professional (≤0.28). Called by the global click handler
+   and explicit action hooks throughout the codebase.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function _sfx(type){
+  try{
+    const ctx=_getAudioCtx();if(!ctx)return;
+    const now=ctx.currentTime;
+    const _osc=(freq,type,start,dur,vol,attack)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(0,start);
+      g.gain.linearRampToValueAtTime(vol,start+(attack||0.012));
+      g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+      o.start(start);o.stop(start+dur+0.01);
+    };
+    const _noise=(start,dur,vol)=>{
+      const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+      const src=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+      f.type='bandpass';f.frequency.value=1200;f.Q.value=0.8;
+      src.buffer=buf;src.connect(f);f.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(vol,start);g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+      src.start(start);src.stop(start+dur+0.01);
+    };
+    switch(type){
+      // ── UI clicks (lightweight) ──
+      case'click':     _osc(880,'sine',now,0.06,0.12); break;
+      case'click-soft':_osc(660,'sine',now,0.05,0.08); break;
+      case'tab':       _osc(740,'sine',now,0.07,0.09);_osc(1100,'sine',now+0.04,0.05,0.06); break;
+      case'open':      _osc(523,'sine',now,0.12,0.10);_osc(659,'sine',now+0.06,0.12,0.10); break;
+      case'close':     _osc(659,'sine',now,0.08,0.09);_osc(523,'sine',now+0.06,0.1,0.08); break;
+      case'toggle-on': _osc(880,'sine',now,0.09,0.13);_osc(1100,'sine',now+0.07,0.09,0.10); break;
+      case'toggle-off':_osc(600,'sine',now,0.07,0.10);_osc(440,'sine',now+0.06,0.09,0.08); break;
+      // ── Search ──
+      case'search':    _osc(900,'sine',now,0.05,0.08);_osc(1200,'sine',now+0.04,0.06,0.06); break;
+      case'search-select':_osc(523,'triangle',now,0.1,0.12);_osc(783,'triangle',now+0.07,0.1,0.10); break;
+      // ── Positive actions ──
+      case'save':      [523,659,784,1046].forEach((f,i)=>_osc(f,'sine',now+i*0.08,0.15,0.14)); break;
+      case'approve':   [659,784,1046].forEach((f,i)=>_osc(f,'sine',now+i*0.09,0.16,0.18)); break;
+      case'assign':    [523,659,784,1046].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.18,0.20)); break;
+      case'create':    [392,523,659,784].forEach((f,i)=>_osc(f,'sine',now+i*0.08,0.17,0.18)); break;
+      case'send':      _osc(880,'sine',now,0.10,0.14);_osc(1320,'sine',now+0.06,0.14,0.13);_osc(1760,'sine',now+0.12,0.12,0.10); break;
+      case'copy':      _osc(1046,'sine',now,0.07,0.12);_osc(1318,'sine',now+0.06,0.09,0.09); break;
+      case'export':    [523,659,784].forEach((f,i)=>_osc(f,'triangle',now+i*0.07,0.14,0.14)); break;
+      case'refresh':   _osc(880,'triangle',now,0.05,0.08);_osc(1100,'triangle',now+0.06,0.07,0.07);_osc(1320,'triangle',now+0.12,0.09,0.07); break;
+      case'message':   _osc(523,'triangle',now,0.08,0.10);_osc(659,'triangle',now+0.07,0.1,0.10);_osc(784,'triangle',now+0.14,0.12,0.10); break;
+      case'renew':     [392,494,587,784].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.15,0.15)); break;
+      // ── Destructive / warning ──
+      case'delete':    _osc(330,'sawtooth',now,0.06,0.16,0.02);_osc(247,'sawtooth',now+0.08,0.08,0.14,0.02); break;
+      case'reject':    _osc(300,'sawtooth',now,0.08,0.18,0.02);_osc(220,'sawtooth',now+0.09,0.1,0.16,0.02); break;
+      case'block':     [280,220,180].forEach((f,i)=>_osc(f,'sawtooth',now+i*0.07,0.1,0.16,0.02)); break;
+      case'warn':      _osc(440,'triangle',now,0.05,0.14);_osc(440,'triangle',now+0.18,0.07,0.14); break;
+      // ── Neutral / system ──
+      case'filter':    _osc(660,'triangle',now,0.07,0.09);_osc(830,'triangle',now+0.05,0.06,0.07); break;
+      case'sort':      _osc(880,'triangle',now,0.06,0.07);_osc(740,'triangle',now+0.04,0.07,0.07); break;
+      case'nav':       _osc(660,'sine',now,0.06,0.08); break;
+      case'print':     _noise(now,0.06,0.06);_osc(880,'square',now+0.04,0.05,0.06); break;
+      case'wa':        _osc(523,'sine',now,0.07,0.10);_osc(659,'sine',now+0.05,0.08,0.09);_osc(784,'sine',now+0.10,0.1,0.09); break;
+      case'call':      [784,784,0,784,784].forEach((f,i)=>{if(f)_osc(f,'sine',now+i*0.12,0.09,0.12);}); break;
+      case'expand':    _osc(740,'sine',now,0.06,0.08);_osc(880,'sine',now+0.05,0.07,0.07); break;
+      case'collapse':  _osc(880,'sine',now,0.07,0.07);_osc(660,'sine',now+0.05,0.07,0.08); break;
+      case'login':     [392,494,587,740,880].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.16,0.16)); break;
+      case'error':     [300,260,220].forEach((f,i)=>_osc(f,'sawtooth',now+i*0.09,0.1,0.18,0.02)); break;
+      case'info':      _osc(880,'sine',now,0.06,0.08);_osc(1100,'sine',now+0.07,0.07,0.07); break;
+    }
+  }catch(e){}
+}
+
+/* Global click-sound router — reads data-sfx or infers from class/role */
+document.addEventListener('click',function(e){
+  const el=e.target.closest('[data-sfx],[onclick],[href],[type="button"],[type="submit"],button,a.abtn,a.btn-green,a.nav-link,.tab-btn,.filter-btn,.gsearch-filter-btn,.gsearch-item,.gsearch-recent-item');
+  if(!el)return;
+  // Explicit override wins
+  if(el.dataset.sfx){_sfx(el.dataset.sfx);return;}
+  const cls=el.className||'';const txt=(el.textContent||'').toLowerCase().trim();const href=el.getAttribute('href')||'';
+  // Delete / reject / block / remove
+  if(/delete|remove|reject|block|danger|ban/i.test(cls+' '+txt)||el.classList.contains('abtn')&&/delete|remove/i.test(txt)){_sfx('delete');return;}
+  if(/reject/i.test(cls+' '+txt)){_sfx('reject');return;}
+  if(/block/i.test(cls+' '+txt)&&!/unblock/i.test(txt)){_sfx('block');return;}
+  // Approve / assign / create / save / send / export
+  if(/approve/i.test(cls+' '+txt)){_sfx('approve');return;}
+  if(/assign|confirm/i.test(cls+' '+txt)){_sfx('assign');return;}
+  if(/\bcreate\b|\badd\b/i.test(txt)&&el.tagName==='BUTTON'){_sfx('create');return;}
+  if(/save|update/i.test(txt)&&el.tagName==='BUTTON'){_sfx('save');return;}
+  if(/export|download|csv/i.test(cls+' '+txt)){_sfx('export');return;}
+  if(/send|submit/i.test(txt)&&el.tagName==='BUTTON'){_sfx('send');return;}
+  if(/copy|copied/i.test(txt)){_sfx('copy');return;}
+  if(/renew/i.test(cls+' '+txt)){_sfx('renew');return;}
+  if(/refresh|reload/i.test(txt)){_sfx('refresh');return;}
+  if(/print/i.test(txt)){_sfx('print');return;}
+  // WhatsApp / call links
+  if(href.includes('wa.me')||/whatsapp/i.test(cls)){_sfx('wa');return;}
+  if(href.startsWith('tel:')){_sfx('call');return;}
+  // Tab / nav switching
+  if(el.classList.contains('nav-link')||el.classList.contains('tab-btn')||el.closest('.nav-tabs')){_sfx('tab');return;}
+  if(el.classList.contains('gsearch-filter-btn')||el.closest('.gsearch-filter-row')){_sfx('filter');return;}
+  if(el.classList.contains('gsearch-item')){_sfx('search-select');return;}
+  if(el.classList.contains('gsearch-recent-item')){_sfx('search-select');return;}
+  // Filter / sort controls
+  if(/filter|sort/i.test(cls+' '+txt)){_sfx('filter');return;}
+  // Modal open / close
+  if(/close|cancel|dismiss/i.test(txt)||el.classList.contains('btn-close')){_sfx('close');return;}
+  if(el.id==='globalSearchBtn'||/search/i.test(cls+' '+txt)){_sfx('search');return;}
+  // Message / WA buttons on detail views
+  if(/message|msg/i.test(cls+' '+txt)){_sfx('message');return;}
+  // Toggle / switch style buttons
+  if(el.type==='checkbox'||el.role==='switch'||/toggle/i.test(cls)){_sfx(el.checked?'toggle-on':'toggle-off');return;}
+  // Default lightweight click for anything else (abtn, nav links, small controls)
+  if(el.classList.contains('abtn')||el.classList.contains('btn-green')||el.tagName==='BUTTON'||el.tagName==='A'){_sfx('click-soft');return;}
+},true);
+
+// Wire explicit sfx to showToast outcomes — patched after DOM ready
+document.addEventListener('DOMContentLoaded',()=>{
+  const _orig=window.showToast;
+  if(!_orig)return;
+  window.showToast=function(msg,type,...rest){
+    if(type==='success')_sfx('info');
+    else if(type==='error')_sfx('error');
+    else if(type==='warn'||type==='warning')_sfx('warn');
+    return _orig.call(this,msg,type,...rest);
+  };
+});
+
 // Check for unfiled (purple/null) referrals and notify once per day
 function _scheduleUnfiledCheck(){
   const lastCheck=localStorage.getItem('dsq_ref_unfiled_check');
