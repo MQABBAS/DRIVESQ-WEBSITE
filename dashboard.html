@@ -1090,6 +1090,12 @@ button:focus:not(:focus-visible) { outline: none !important }
 }
 .tc-map-tool:hover { background:rgba(168,85,247,.55);border-color:rgba(168,85,247,.7); }
 
+/* ── Reassign banner animation ── */
+@keyframes fadeInDown {
+  from { opacity:0; transform:translateY(-10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
 /* ── Fullscreen map mode ── */
 #tcSection.tc-fullscreen {
   position:fixed;inset:0;z-index:9999;border-radius:0 !important;margin:0 !important;
@@ -2159,6 +2165,7 @@ button:focus:not(:focus-visible) { outline: none !important }
       </div>
       <div class="d-flex gap-2">
         <button class="btn-p flex-fill" onclick="saveSmProfile()"><i class="bi bi-check-lg me-1"></i>Save Profile</button>
+        <button class="btn-gold-sm" id="smReassignBtn" onclick="smReassignStudent()" title="Find closest instructor for this student" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px;background:rgba(168,85,247,.12);border-color:rgba(168,85,247,.35);color:#c084fc"><i class="bi bi-person-up"></i></button>
         <button class="btn-gold-sm" id="smArchiveBtn" onclick="smToggleArchive()" title="Mark as On Break / Deactivate" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px"><i class="bi bi-archive"></i><span id="smArchiveBtnLbl">On Break</span></button>
         <button class="btn-r-sm" id="smDropBtn" onclick="smMarkDroppedOut()" title="Student no longer wants lessons — notify admin" style="display:flex;align-items:center;gap:4px;font-size:.72rem;padding:6px 10px;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#f87171"><i class="bi bi-person-x-fill"></i></button>
         <button class="btn-r-sm" id="smRemoveBtn" onclick="smRemoveFromRoster()" title="Remove from roster"><i class="bi bi-trash"></i></button>
@@ -3020,6 +3027,7 @@ function _renderRefTab(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:${paid?'var(--txt3)':'#f87171'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
           ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-bell me-1"></i>Notify</button>`:''}
+          <button onclick="reassignStudent('${sn}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.1);color:#c084fc;cursor:pointer;white-space:nowrap;font-weight:600" title="Find closest instructor for this student"><i class="bi bi-person-up me-1"></i>Reassign</button>
           ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.15)':'rgba(239,68,68,.07)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel':'Student Left'}</button>`:''}
         </div>
       </div>
@@ -6847,6 +6855,95 @@ function mapToggleRadius(){
 }
 
 /* ── Student distance list ── */
+/* ── Reassign student — navigate to map tab with student highlighted ── */
+let _reassignTarget=null; // name to highlight after map loads
+
+function reassignStudent(studentName){
+  const p=rosterMap[(studentName||'').toLowerCase().trim()];
+  const name=studentName||'Unknown';
+  const address=p?.address||'';
+  const phone=p?.phone||'';
+  const lessonType=p?.lesson_type||'';
+  const notes=p?.notes||'';
+
+  // Store target so map tab can auto-highlight on load
+  _reassignTarget={name,address,phone,lessonType,notes};
+
+  // Close any open modal
+  closeModal('studentMgmtModal');
+  closeModal('detailModal');
+
+  // Switch to map tab
+  switchTab('map');setMobActive('map');
+
+  // After map loads, focus on this student
+  const _doFocus=function(){
+    // Find student in _studentGeoData
+    const idx=_studentGeoData.findIndex(s=>(s.student?.name||'').toLowerCase().trim()===name.toLowerCase().trim());
+    if(idx>=0){
+      mapFocusStudent(idx);
+      // Flash a banner
+      _showReassignBanner(name,address,phone,lessonType);
+    } else {
+      // Student not yet geocoded — show banner with their details anyway
+      _showReassignBanner(name,address,phone,lessonType);
+    }
+    _reassignTarget=null;
+  };
+
+  // If map is already initialised, focus immediately; otherwise wait for init
+  if(_instrMap&&_studentGeoData.length){
+    setTimeout(_doFocus,120);
+  } else {
+    // Try up to 3s for map to init
+    let _tries=0;
+    const _poll=setInterval(function(){
+      _tries++;
+      if((_instrMap&&_studentGeoData.length)||_tries>30){
+        clearInterval(_poll);
+        setTimeout(_doFocus,80);
+      }
+    },100);
+  }
+}
+
+function smReassignStudent(){
+  const name=document.getElementById('smStudentName')?.value||smCurrentName||'';
+  closeModal('studentMgmtModal');
+  reassignStudent(name);
+}
+
+function _showReassignBanner(name,address,phone,lessonType){
+  const existing=document.getElementById('reassignBanner');
+  if(existing)existing.remove();
+  const mapPanel=document.getElementById('panel-map');
+  if(!mapPanel)return;
+  const banner=document.createElement('div');
+  banner.id='reassignBanner';
+  banner.style.cssText='background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.35);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;animation:fadeInDown .3s ease';
+  banner.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <div style="width:38px;height:38px;border-radius:10px;background:rgba(168,85,247,.18);border:1px solid rgba(168,85,247,.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem">👤</div>
+      <div style="min-width:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:700;color:#c084fc;margin-bottom:3px"><i class="bi bi-person-up me-1"></i>Reassigning: <span style="color:#fff">${esc(name)}</span></div>
+        <div style="font-size:.72rem;color:var(--txt3);display:flex;flex-wrap:wrap;gap:10px">
+          ${address?`<span><i class="bi bi-geo-alt me-1" style="color:#c084fc"></i>${esc(address)}</span>`:'<span style="color:var(--txt4)">No address on file</span>'}
+          ${phone?`<span><i class="bi bi-telephone me-1" style="color:#c084fc"></i>${esc(phone)}</span>`:''}
+          ${lessonType?`<span><i class="bi bi-car-front me-1" style="color:#c084fc"></i>${esc(lessonType)}</span>`:''}
+        </div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:5px"><i class="bi bi-info-circle me-1"></i>Use the map below to find the nearest available instructor, then contact admin to complete the reassignment.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
+      ${phone?`<a href="https://wa.me/447352932003?text=${encodeURIComponent('Hi DriveSQ admin — I need to reassign '+name+(address?' ('+address+')':'')+(phone?' · '+phone:'')+'. Can you find the closest instructor?')}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:7px;padding:5px 11px;font-size:.7rem;font-weight:700;text-decoration:none;font-family:'Oswald',sans-serif"><i class="bi bi-whatsapp me-1"></i>Notify Admin</a>`:''}
+      <button onclick="document.getElementById('reassignBanner')?.remove()" style="background:transparent;border:none;color:var(--txt4);cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px" title="Dismiss"><i class="bi bi-x-lg"></i></button>
+    </div>`;
+  // Insert at top of map panel content (before first child with class row/div)
+  const firstRow=mapPanel.querySelector('.row')||mapPanel.firstElementChild;
+  if(firstRow)mapPanel.insertBefore(banner,firstRow);
+  else mapPanel.prepend(banner);
+}
+
 function renderStudentDistList(){
   const maxDist=parseFloat(document.getElementById('mapFilterDist')?.value||'all');
   const filtered=isNaN(maxDist)?_studentGeoData:_studentGeoData.filter(s=>s.dist<=maxDist);
