@@ -2094,6 +2094,8 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   setInterval(loadNotifications,30000);
   setInterval(pollConfirmations,10000);
   checkReminders();
+  window.scrollTo({top:0,behavior:'instant'});
+  history.replaceState({tab:'cal'},'',location.pathname);
   // Request push permission after a short delay so it doesn't block login
   setTimeout(()=>initPushSubscription(),3000);
 })();
@@ -2135,7 +2137,15 @@ function switchTab(t){
   if(t==='map')initMapTab();
   if(t==='profile'){loadMyFeedback();loadAvailability();}
   if(t==='referrals')loadRefTab();
+  window.scrollTo({top:0,behavior:'instant'});
+  // Push history state so back button works
+  if(history.state?.tab!==t)history.pushState({tab:t},'',location.pathname+(t==='cal'?'':'#'+t));
 }
+window.addEventListener('popstate',function(e){
+  const t=(e.state&&e.state.tab)||'cal';
+  TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);setMobActive(t);});
+  window.scrollTo({top:0,behavior:'instant'});
+});
 /* ══════════════════════════════
    REFERRALS TAB
 ══════════════════════════════ */
