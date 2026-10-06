@@ -6985,6 +6985,13 @@ function openGlobalSearch(){
   document.getElementById('globalSearchResults').innerHTML='<div class="gsearch-empty"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px;color:var(--bdr2)"></i>Start typing to search across instructors and students</div>';
   setTimeout(()=>inp.focus(),80);
   _gsIdx=-1;_gsItems=[];
+  // Pre-load students in background so they appear immediately when typed
+  if(!(allStudentsCache||[]).length){
+    loadAllStudents().then(()=>{
+      const cur=(document.getElementById('globalSearchInp')?.value||'').trim();
+      if(cur)runGlobalSearch(cur);
+    }).catch(()=>{});
+  }
 }
 function closeGlobalSearch(){document.getElementById('globalSearchModal').classList.remove('open');}
 function runGlobalSearch(q){
