@@ -2118,8 +2118,16 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="modal-x" onclick="closeModal('reassignModal')"><i class="bi bi-x-lg"></i></button>
     <h5><i class="bi bi-arrow-repeat me-2" style="color:var(--gold)"></i>Reassign Student</h5>
     <div class="modal-sub" id="reassignSub">Select a new instructor for this student</div>
-    <p style="font-size:.74rem;color:var(--txt3);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>This moves the student to a different instructor. The old instructor will be notified via a message in their dashboard. Add a reason so the outgoing instructor understands why.</p>
+    <div id="reassignDataSummary" style="font-size:.7rem;color:var(--txt3);margin-bottom:10px;font-style:italic"></div>
+    <p style="font-size:.74rem;color:var(--txt3);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Name, postcode, transmission, availability and notes will all be saved to the new instructor's student profile and sent to them in a dashboard message.</p>
     <input type="hidden" id="reassign-req-id"/>
+    <input type="hidden" id="reassign-student-name"/>
+    <input type="hidden" id="reassign-student-phone"/>
+    <input type="hidden" id="reassign-student-addr"/>
+    <input type="hidden" id="reassign-student-postcode"/>
+    <input type="hidden" id="reassign-student-type"/>
+    <input type="hidden" id="reassign-student-notes"/>
+    <input type="hidden" id="reassign-student-avail"/>
     <div class="mb-3"><label class="dsq-lbl">Assign To</label>
       <select class="dsq-inp" id="reassign-instr"><option value="">Select instructor…</option></select>
     </div>
@@ -5340,23 +5348,57 @@ async function loadStudentRequests(){
       </div>
       <div class="d-flex flex-column align-items-end gap-1">
         <span class="chip ${r.status}">${r.status}</span>
-        ${r.status==='declined'?`<button class="abtn reassign" onclick="openReassignModal('${r.id}','${jsEsc(r.student_name)}')"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
+        ${r.status==='declined'?`<button class="abtn reassign" onclick="openReassignModal('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${jsEsc(r.pickup_address||'')}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}','${jsEsc(r.availability||'')}')"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
       </div>
     </div>
   </div>`).join('');
 }
-function openReassignModal(reqId,studentName){
+function openReassignModal(reqId,studentName,phone,addr,postcode,lessonType,notes,avail){
   document.getElementById('reassign-req-id').value=reqId;
+  document.getElementById('reassign-student-name').value=studentName||'';
+  document.getElementById('reassign-student-phone').value=phone||'';
+  document.getElementById('reassign-student-addr').value=addr||'';
+  document.getElementById('reassign-student-postcode').value=postcode||'';
+  document.getElementById('reassign-student-type').value=lessonType||'Manual';
+  document.getElementById('reassign-student-notes').value=notes||'';
+  document.getElementById('reassign-student-avail').value=avail||'';
   document.getElementById('reassignSub').textContent=`Reassign: ${studentName}`;
+  // Show summary of student data being carried over
+  const parts=[];
+  if(postcode)parts.push(`📍 ${postcode}`);
+  if(lessonType)parts.push(`🚗 ${lessonType}`);
+  if(avail)parts.push(`🕐 ${avail}`);
+  if(notes)parts.push(`📝 ${notes}`);
+  const summaryEl=document.getElementById('reassignDataSummary');
+  if(summaryEl)summaryEl.textContent=parts.length?parts.join(' · '):'';
   openModal('reassignModal');
 }
 async function confirmReassign(){
   const reqId=document.getElementById('reassign-req-id').value;
   const instrId=document.getElementById('reassign-instr').value;
   if(!instrId){showToast('Select an instructor.','error');return;}
+  const name=document.getElementById('reassign-student-name').value;
+  const phone=document.getElementById('reassign-student-phone').value;
+  const addr=document.getElementById('reassign-student-addr').value;
+  const postcode=document.getElementById('reassign-student-postcode').value;
+  const lessonType=document.getElementById('reassign-student-type').value||'Manual';
+  const notes=document.getElementById('reassign-student-notes').value;
+  const avail=document.getElementById('reassign-student-avail').value;
+  // Update the request row
   const{error}=await sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId);
-  if(error){showToast('Failed.','error');return;}
-  showToast('Reassigned ✓','success');closeModal('reassignModal');loadStudentRequests();
+  if(error){showToast('Failed: '+error.message,'error');return;}
+  // Upsert student profile for new instructor with all data
+  const profilePayload={instructor_id:instrId,name,phone:phone||null,address:addr||null,postcode:postcode||null,lesson_type:lessonType,notes:notes||null,availability:avail||null,status:'active',created_at:new Date().toISOString()};
+  await sb.from('student_profiles').upsert([profilePayload],{onConflict:'instructor_id,name',ignoreDuplicates:false}).catch(e=>console.warn('profile upsert:',e.message));
+  // Notify new instructor
+  const newInstr=allInstrs.find(i=>i.id===instrId);
+  if(newInstr){
+    const msg=`Hi ${newInstr.full_name},\n\nA student has been reassigned to you:\n\n👤 Name: ${name}\n📞 Phone: ${phone||'Not provided'}\n📍 Address: ${addr||'Not provided'}\n📮 Postcode: ${postcode||'Not provided'}\n🚗 Lesson Type: ${lessonType}${avail?'\n🕐 Availability: '+avail:''}${notes?'\n📝 Notes: '+notes:''}\n\nPlease get in touch with them to arrange their first lesson.\n\n— DriveSQ Admin`;
+    await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 Student Reassigned: '+name,body:msg,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+  }
+  showToast('Reassigned ✓ — student data saved to new instructor','success');
+  closeModal('reassignModal');
+  loadStudentRequests();
 }
 
 /* ══ TRANSFERS ══ */
