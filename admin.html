@@ -2121,6 +2121,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div id="reassignDataSummary" style="font-size:.7rem;color:var(--txt3);margin-bottom:10px;font-style:italic"></div>
     <p style="font-size:.74rem;color:var(--txt3);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Name, postcode, transmission, availability and notes will all be saved to the new instructor's student profile and sent to them in a dashboard message.</p>
     <input type="hidden" id="reassign-req-id"/>
+    <input type="hidden" id="reassign-old-instr-id"/>
     <input type="hidden" id="reassign-student-name"/>
     <input type="hidden" id="reassign-student-phone"/>
     <input type="hidden" id="reassign-student-addr"/>
@@ -5348,13 +5349,14 @@ async function loadStudentRequests(){
       </div>
       <div class="d-flex flex-column align-items-end gap-1">
         <span class="chip ${r.status}">${r.status}</span>
-        ${r.status==='declined'?`<button class="abtn reassign" onclick="openReassignModal('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${jsEsc(r.pickup_address||'')}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}','${jsEsc(r.availability||'')}')"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
+        ${r.status==='declined'?`<button class="abtn reassign" onclick="openReassignModal('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${jsEsc(r.pickup_address||'')}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.notes||'')}','${jsEsc(r.availability||'')}','${r.instructor_id||''}')"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
       </div>
     </div>
   </div>`).join('');
 }
-function openReassignModal(reqId,studentName,phone,addr,postcode,lessonType,notes,avail){
+function openReassignModal(reqId,studentName,phone,addr,postcode,lessonType,notes,avail,oldInstrId){
   document.getElementById('reassign-req-id').value=reqId;
+  document.getElementById('reassign-old-instr-id').value=oldInstrId||'';
   document.getElementById('reassign-student-name').value=studentName||'';
   document.getElementById('reassign-student-phone').value=phone||'';
   document.getElementById('reassign-student-addr').value=addr||'';
@@ -5387,6 +5389,17 @@ async function confirmReassign(){
   // Update the request row
   const{error}=await sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId);
   if(error){showToast('Failed: '+error.message,'error');return;}
+  // Mark old instructor's student profile as inactive (student left them)
+  const oldInstrId=document.getElementById('reassign-old-instr-id').value;
+  if(oldInstrId&&oldInstrId!==instrId){
+    await sb.from('student_profiles').update({status:'inactive'}).eq('instructor_id',oldInstrId).ilike('name',name).catch(e=>console.warn('old profile inactive:',e.message));
+    // Notify old instructor
+    const oldInstr=allInstrs.find(i=>i.id===oldInstrId);
+    if(oldInstr){
+      const oldMsg=`Hi ${oldInstr.full_name},\n\nPlease be aware that ${name} has been reassigned to a different instructor by the admin team. They will no longer appear in your active student list.\n\n— DriveSQ Admin`;
+      await sb.from('admin_messages').insert([{instructor_id:oldInstrId,subject:'👤 Student Reassigned Away: '+name,body:oldMsg,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+    }
+  }
   // Upsert student profile for new instructor with all data
   const profilePayload={instructor_id:instrId,name,phone:phone||null,address:addr||null,postcode:postcode||null,lesson_type:lessonType,notes:notes||null,availability:avail||null,status:'active',created_at:new Date().toISOString()};
   await sb.from('student_profiles').upsert([profilePayload],{onConflict:'instructor_id,name',ignoreDuplicates:false}).catch(e=>console.warn('profile upsert:',e.message));
