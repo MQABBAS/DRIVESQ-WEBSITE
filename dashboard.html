@@ -4553,8 +4553,9 @@ async function loadNotifications(){
       if(_processed.includes(m.id))return;
       _processed.push(m.id);
       _newDecision=true;
-      // Extract student name from subject: "✅ Student Removal Confirmed: <name>" or body's first line
-      const subjectMatch=(m.subject||'').match(/:\s*(.+)$/);
+      // Extract student name from subject: "✅ Student left confirmed: <name>" / "ℹ️ Student kept: <name>"
+      // Match last colon + everything after (handles multi-colon subjects)
+      const subjectMatch=(m.subject||'').match(/(?:confirmed|kept):\s*(.+)$/i)||(m.subject||'').match(/:\s*([^:]+)$/);
       const studentName=subjectMatch?subjectMatch[1].trim():'';
       if(studentName){
         // Clear only drop_ref_* keys for referrals matching this student
@@ -5538,7 +5539,7 @@ async function confirmCancelDrop(){
     instructor_id:instr?.id||null,
     subject:`↩ Drop Request Cancelled: ${_cancelDropStudentName}`,
     body:`${instrName} has cancelled the drop request for "${_cancelDropStudentName}".\n\nThe student is back to active status — please disregard any earlier "Student left" notification for this student.`,
-    message_type:'general',
+    message_type:'cancel_drop_request',
     is_read:false,
     dismissed:false,
     created_at:new Date().toISOString()

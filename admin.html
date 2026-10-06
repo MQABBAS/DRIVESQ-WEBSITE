@@ -2840,6 +2840,18 @@ function startAdminRealtime(){
         showToast(`📱 New app signup: ${name}`,'success',4000);
       }catch(e){}
     })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'referrals'},async(payload)=>{
+      try{
+        const r=payload?.new;if(!r)return;
+        const instrObj=allInstrs.find(i=>i.id===r.instructor_id);
+        const iName=instrObj?.full_name||'an instructor';
+        const sName=r.student_name||'A student';
+        pushToAdmin('💰 New Referral',`${sName} referred by ${iName} — £${parseFloat(r.amount||0).toFixed(0)}`,'/admin.html');
+        showToast(`💰 New referral: ${sName} via ${iName}`,'info',4000);
+        // Refresh referrals tab if open
+        if(document.getElementById('tab-referrals')?.classList.contains('active')) loadReferrals?.();
+      }catch(e){}
+    })
     .subscribe();
 }
 function doLogout(){_clearSession();window.location.reload();}
@@ -4403,25 +4415,29 @@ function quickDeleteStudent(idx){
 
 async function restoreStudent(idx){
   const s=_renderedStudents[idx];if(!s)return;
-  if(!confirm(`Restore "${s.name}" as an active student?\n\nThis will reactivate their profile.`))return;
+  if(!confirm(`Restore "${s.name}" as an active student?\n\nThis will reactivate their profile and account.`))return;
   showToast('Restoring student…','info',4000);
-  const updates=[];
-  // Restore student_profiles row(s)
-  if(s.instrId){
-    updates.push(sb.from('student_profiles').update({status:'active'}).ilike('name',s.name).eq('instructor_id',s.instrId));
-  } else {
-    updates.push(sb.from('student_profiles').update({status:'active'}).ilike('name',s.name));
-  }
-  // Restore student_accounts row if present
-  if(s.acctId){
-    updates.push(sb.from('student_accounts').update({status:'active'}).eq('id',s.acctId));
-  }
   try{
-    await Promise.all(updates);
+    // Restore student_profiles
+    const profQ=s.instrId
+      ?sb.from('student_profiles').update({status:'active'}).ilike('name',s.name).eq('instructor_id',s.instrId)
+      :sb.from('student_profiles').update({status:'active'}).ilike('name',s.name);
+    // Restore student_accounts — use cached acctId or fall back to DB lookup
+    let acctId=s.acctId||null;
+    if(!acctId&&s.instrId){
+      try{
+        const{data:accts}=await sb.from('student_accounts').select('id').ilike('full_name',s.name).eq('instructor_id',s.instrId).limit(1);
+        acctId=accts?.[0]?.id||null;
+      }catch(e){}
+    }
+    const dbUpdates=[profQ];
+    if(acctId) dbUpdates.push(sb.from('student_accounts').update({status:'active'}).eq('id',acctId));
+    await Promise.all(dbUpdates);
     // Update local cache
     allStudentsCache.forEach(c=>{
-      if(c===s||(c.name&&c.name.toLowerCase()===s.name.toLowerCase()&&(!s.instrId||c.instrId===s.instrId))){
+      if(c.name&&c.name.toLowerCase()===s.name.toLowerCase()&&(!s.instrId||c.instrId===s.instrId)){
         c.status='active';c.acctStatus='active';
+        if(acctId&&!c.acctId)c.acctId=acctId;
       }
     });
     showToast(`${s.name} restored as active student`,'success');
@@ -5834,13 +5850,13 @@ async function approveDropRequest(msgId,studentName,instrId){
   showToast('Processing…','info',3000);
   const instrObj=allInstrs.find(i=>i.id===instrId);
   const instrName=instrObj?.full_name||'Instructor';
-  // Send confirmation message back to instructor
+  // Subject format: "✅ Student left confirmed: <name>" — parseable by dashboard drop-decision handler
   const confMsg=`Hi ${instrName},\n\nWe've confirmed that ${studentName} has left. Their profile has been updated accordingly. No further action is needed on your part.\n\nIf any referral fees are outstanding, our team will be in touch.\n\n— DriveSQ Admin`;
   await Promise.all([
-    sb.from('admin_messages').insert([{instructor_id:instrId,subject:`✅ Confirmed: ${studentName} has left`,body:confMsg,message_type:'drop_request_approved',is_read:false,dismissed:false,created_at:new Date().toISOString()}]),
+    sb.from('admin_messages').insert([{instructor_id:instrId,subject:`✅ Student left confirmed: ${studentName}`,body:confMsg,message_type:'drop_request_approved',is_read:false,dismissed:false,created_at:new Date().toISOString()}]),
     sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',msgId),
   ]);
-  sendPushToInstructor(instrId,instrName,`✅ ${studentName} — departure confirmed`,'Your student left request has been reviewed and confirmed.','/dashboard.html');
+  sendPushToInstructor(instrId,instrName,`✅ Student left confirmed: ${studentName}`,'Your drop request has been reviewed and confirmed.','/dashboard.html');
   showToast(`Confirmed — ${studentName} marked as left. Instructor notified.`,'success');
   loadInbox();
 }
@@ -5850,24 +5866,29 @@ async function rejectDropRequest(msgId,studentName,instrId){
   showToast('Restoring student…','info',3000);
   const instrObj=allInstrs.find(i=>i.id===instrId);
   const instrName=instrObj?.full_name||'Instructor';
-  // Restore student in DB
-  const updates=[
+  // Restore student_profiles
+  const dbUpdates=[
     sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',msgId),
     sb.from('student_profiles').update({status:'active'}).ilike('name',studentName).eq('instructor_id',instrId).in('status',['drop_pending','inactive','deleted_by_instructor']),
   ];
-  // Also restore student_account if we can find it
-  const cachedStudent=allStudentsCache.find(s=>s.name&&s.name.toLowerCase()===studentName.toLowerCase()&&s.instrId===instrId);
-  if(cachedStudent?.acctId){
-    updates.push(sb.from('student_accounts').update({status:'active'}).eq('id',cachedStudent.acctId));
-    cachedStudent.status='active';cachedStudent.acctStatus='active';
+  // Restore student_accounts — check cache first, then DB fallback
+  let acctId=allStudentsCache.find(s=>s.name&&s.name.toLowerCase()===studentName.toLowerCase()&&s.instrId===instrId)?.acctId||null;
+  if(!acctId){
+    // Cache miss: query DB directly
+    try{
+      const{data:accts}=await sb.from('student_accounts').select('id,status').ilike('full_name',studentName).eq('instructor_id',instrId).limit(1);
+      acctId=accts?.[0]?.id||null;
+    }catch(e){}
   }
-  await Promise.all(updates);
+  if(acctId) dbUpdates.push(sb.from('student_accounts').update({status:'active'}).eq('id',acctId));
+  await Promise.all(dbUpdates);
   // Update local cache
   allStudentsCache.forEach(s=>{if(s.name&&s.name.toLowerCase()===studentName.toLowerCase()&&s.instrId===instrId){s.status='active';s.acctStatus='active';}});
-  // Notify instructor
+  // Subject format: "ℹ️ Student kept: <name>" — parseable by dashboard drop-decision handler
+  // This causes the instructor's dashboard to clear localStorage drop keys for this student
   const keepMsg=`Hi ${instrName},\n\nAfter reviewing the situation, we'd like you to continue working with ${studentName}. Please reach out to them to discuss and rebook lessons.\n\nIf you have any concerns, feel free to contact admin.\n\n— DriveSQ Admin`;
-  await sb.from('admin_messages').insert([{instructor_id:instrId,subject:`ℹ️ Please keep ${studentName} as your student`,body:keepMsg,message_type:'drop_request_kept',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
-  sendPushToInstructor(instrId,instrName,`ℹ️ ${studentName} — please continue lessons`,'Admin has reviewed the drop request and wants you to keep this student.','/dashboard.html');
+  await sb.from('admin_messages').insert([{instructor_id:instrId,subject:`ℹ️ Student kept: ${studentName}`,body:keepMsg,message_type:'drop_request_kept',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+  sendPushToInstructor(instrId,instrName,`ℹ️ Student kept: ${studentName}`,'Admin wants you to continue lessons with this student.','/dashboard.html');
   showToast(`${studentName} restored as active. Instructor notified.`,'success');
   loadInbox();
   filterAllStudents(document.getElementById('studentSearch')?.value||'');
