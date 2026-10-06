@@ -8436,38 +8436,59 @@ function renderReferrals(){
     const instr=g._instr;
     const total=g.due+g.paid;
     const paidPct=total>0?Math.round(g.paid/total*100):0;
-    const cardBorder=g.credits>0?'rgba(245,158,11,.35)':g.due>0?'rgba(248,113,113,.25)':'var(--bdr)';
+    const cardBorder=g.credits>0?'rgba(245,158,11,.4)':g.due>0?'rgba(248,113,113,.3)':'rgba(74,222,128,.2)';
+    const cardAccent=g.credits>0?'#f59e0b':g.due>0?'#f87171':'#4ade80';
 
     // Model badge
     const m=instr.instructor_model||'unsure';
     const mStyles={referral:'background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.45);color:#25d366',franchise:'background:rgba(209,10,17,.15);border:1px solid rgba(209,10,17,.45);color:#ff6b6b',unsure:'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:var(--txt3)'};
     const modelBadge=`<span style="${mStyles[m]||mStyles.unsure};border-radius:5px;padding:1px 7px;font-size:.58rem;font-weight:700;font-family:'Oswald',sans-serif;margin-left:6px;vertical-align:middle">${m.charAt(0).toUpperCase()+m.slice(1)}</span>`;
 
+    // Initials avatar
+    const initials=(instr.full_name||'?').split(' ').filter(Boolean).map(w=>w[0].toUpperCase()).slice(0,2).join('');
+    const avatarColor=g.due>0?'rgba(248,113,113,.12)':g.credits>0?'rgba(245,158,11,.12)':'rgba(74,222,128,.1)';
+
     // WhatsApp quick-chase button
     const phone=(instr.phone||'').replace(/\D/g,'');
     const waNum=phone?`${phone.startsWith('44')?'':'44'}${phone.replace(/^0/,'')}`:null;
-    const waBtn=waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#4ade80;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>Chase</a>`:'';
+    const waBtn=waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:7px;padding:4px 11px;font-size:.72rem;font-weight:600;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>Chase</a>`:'';
 
     // Mark All Paid quick button (only if there's anything due)
-    const markBtn=g.due>0?`<button onclick="event.stopPropagation();markAllRefPaid('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-check-all"></i>Mark Paid</button>`:'';
+    const markBtn=g.due>0?`<button onclick="event.stopPropagation();markAllRefPaid('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.35);color:#4ade80;border-radius:7px;padding:4px 11px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-check-all"></i>Mark All Paid</button>`:'';
 
-    return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openRefDetail('${g.id}')">
-      <div class="d-flex align-items-center gap-3 flex-wrap">
-        <div style="flex:1;min-width:140px">
-          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt)">${esc(instr.full_name)}${modelBadge}${g.credits>0?`<span style="margin-left:7px;font-size:.6rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''} OWED</span>`:''}</div>
-          <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${g.due>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#f87171">${fmt(g.due)}</div></div>`:''}
-          ${g.paid>0?`<div style="text-align:right"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Paid</div><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#4ade80">${fmt(g.paid)}</div></div>`:''}
-          <div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(#4ade80 ${paidPct*3.6}deg,rgba(248,113,113,.3) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <div style="width:30px;height:30px;border-radius:50%;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:var(--txt)">${paidPct}%</div>
+    // Last notified badge
+    const lastNotifiedAt=g.rows.filter(r=>r.instructor_notified_at).map(r=>r.instructor_notified_at).sort().pop();
+    const notifiedBadge=lastNotifiedAt&&g.due>0?`<span style="font-size:.58rem;color:#94a3b8;background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.2);border-radius:5px;padding:1px 7px;white-space:nowrap"><i class="bi bi-bell-fill me-1" style="font-size:.5rem"></i>Notified ${new Date(lastNotifiedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>`:'';
+
+    return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:14px;overflow:hidden;cursor:pointer;transition:all .18s" onclick="openRefDetail('${g.id}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(0,0,0,.18)';this.style.borderColor='${cardAccent}'" onmouseleave="this.style.boxShadow='';this.style.borderColor='${cardBorder}'">
+      <div style="padding:14px 16px">
+        <!-- Header row: avatar + name + amounts -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:10px;background:${avatarColor};border:1px solid ${cardBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:${cardAccent}">${initials}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);line-height:1.25">${esc(instr.full_name)}${modelBadge}${g.credits>0?`<span style="margin-left:7px;font-size:.58rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''}</span>`:''}</div>
+            <div style="font-size:.67rem;color:var(--txt4);margin-top:2px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}${notifiedBadge}</div>
           </div>
-          <i class="bi bi-chevron-right" style="color:var(--txt4)"></i>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
+            ${g.due>0?`<div><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;text-align:right">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#f87171;font-variant-numeric:tabular-nums;line-height:1">${fmt(g.due)}</div></div>`:''}
+            ${g.paid>0?`<div><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;text-align:right">Paid</div><div style="font-family:'Oswald',sans-serif;font-size:${g.due>0?'.85':'1.1'}rem;font-weight:700;color:#4ade80;font-variant-numeric:tabular-nums;line-height:1">${fmt(g.paid)}</div></div>`:''}
+            ${g.due===0&&g.paid===0?`<div style="font-size:.72rem;color:var(--txt4)">—</div>`:''}
+          </div>
+          <i class="bi bi-chevron-right" style="color:var(--txt4);font-size:.8rem;flex-shrink:0"></i>
         </div>
+        <!-- Progress bar -->
+        ${total>0?`<div style="margin-top:10px">
+          <div style="height:5px;background:rgba(248,113,113,.15);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${paidPct}%;background:linear-gradient(90deg,#4ade80,#22d3ee);border-radius:3px;transition:width .5s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            <span style="font-size:.58rem;color:var(--txt4)">${paidPct}% collected</span>
+            <span style="font-size:.58rem;color:var(--txt4)">Total ${fmt(total)}</span>
+          </div>
+        </div>`:''}
+        <!-- Action row -->
+        ${(waBtn||markBtn)?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)">${waBtn}${markBtn}<button onclick="event.stopPropagation();openRefDetail('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.22);color:#818cf8;border-radius:7px;padding:4px 10px;font-size:.7rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-list-ul"></i>Details</button></div>`:''}
       </div>
-      ${g.due>0?`<div style="margin-top:8px;height:4px;background:var(--bdr);border-radius:2px;overflow:hidden"><div style="height:100%;width:${paidPct}%;background:#4ade80;transition:width .4s"></div></div>`:''}
-      ${(waBtn||markBtn)?`<div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">${waBtn}${markBtn}<button onclick="event.stopPropagation();openRefDetail('${g.id}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);color:#818cf8;border-radius:7px;padding:5px 11px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-list-ul"></i>Details</button></div>`:''}
     </div>`;
   }).join('');
 }
