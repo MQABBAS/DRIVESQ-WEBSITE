@@ -2534,8 +2534,25 @@ function _updateAdminNotifBtn(){
 async function adminManualEnableNotifs(){
   const perm=('Notification' in window)?Notification.permission:'unsupported';
   if(perm==='denied'){showToast('Notifications are blocked. Go to browser settings → Notifications → allow this site.','warning');return;}
-  if(perm==='granted'){showToast('Push notifications are already enabled ✓','success');return;}
+  if(perm==='granted'){
+    // Already enabled — offer a test push so admin can verify delivery
+    const doTest=confirm('Push notifications are already enabled ✓\n\nSend a test notification to this device now?');
+    if(doTest)await _testAdminPush();
+    return;
+  }
   await acceptAdminPush();
+}
+
+async function _testAdminPush(){
+  showToast('Sending test push…','info',2000);
+  try{
+    const res=await fetch(PUSH_EDGE_URL,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title:'🔔 DriveSQ Test',body:'Push notifications are working correctly!',url:'/admin.html',tag:'drivesq-test'})});
+    const json=await res.json();
+    if(json.ok||json.sent>0){showToast('Test push sent ✓ — check for the notification','success',5000);}
+    else{showToast('Push failed: '+(json.message||json.error||'No subscription found — try re-enabling notifications'),'error',8000);console.warn('Push test result:',json);}
+  }catch(e){showToast('Push error: '+e.message,'error',6000);}
 }
 
 async function _saveAdminPushSub(reg){
@@ -3149,6 +3166,12 @@ function _scheduleUnfiledCheck(){
     setTimeout(()=>{
       _playBookingSound();
       showToast(`⚠️ ${unfiled.length} referral${unfiled.length!==1?'s':''} with no flag set — please review`,'warn',8000);
+      // Also push to admin device so it arrives even when the tab is closed
+      pushToAdmin(
+        `⚠️ ${unfiled.length} Referral${unfiled.length!==1?'s':''} Need Flagging`,
+        unfiled.slice(0,3).map(r=>r.student_name).join(', ')+(unfiled.length>3?` +${unfiled.length-3} more`:''),
+        '/admin.html#referrals'
+      );
     },2000);
   }
 }
