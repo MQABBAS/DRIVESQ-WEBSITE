@@ -2060,6 +2060,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <div class="modal-sub" id="assignSub">Assigning to instructor</div>
     <input type="hidden" id="assign-instr-id"/>
     <input type="hidden" id="assign-instr-name"/>
+    <input type="hidden" id="assign-instr-phone"/>
+    <input type="hidden" id="assign-instr-cartype"/>
     <div id="assignDetails" class="mb-3" style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:12px;font-size:.8rem;color:var(--txt3);line-height:1.7"></div>
     <div class="mb-3">
       <label class="dsq-lbl">WhatsApp Notification</label>
@@ -4669,8 +4671,11 @@ function waStudentCredentials(){
   const phone=document.getElementById('cs-phone').value.trim()||c.phone||'';
   if(!phone){showToast('No phone number — cannot open WhatsApp.','');return;}
   const waPhone=buildWaNum(phone);
-  const instrName=c.instrObj?.full_name||'your DriveSQ instructor';
-  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nJust log in with your phone number — *${phone}*\n\nYour instructor is *${instrName}*. They will contact you to book your first lesson.\n\nWith the DriveSQ app you can:\n✅ Book & confirm lessons\n📖 Study theory — 700 DVSA questions + mock tests\n🗺️ Practical guides for your local test centre\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nSee you on the road! 🚗\n— DriveSQ`;
+  const instrObj=c.instrObj||null;
+  const instrName=instrObj?.full_name||'your DriveSQ instructor';
+  const instrPhone=instrObj?.phone||null;
+  const instrTransmission=instrObj?.car_type||'Manual';
+  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is ready.\n\n🚗 *Your Instructor:* ${instrName}${instrPhone?'\n📞 *Instructor Phone:* '+instrPhone:''}\n⚙️ *Transmission:* ${instrTransmission}\n\nThey will contact you shortly to book your first lesson.\n\n━━━━━━━━━━━━━━━━━━━━\n📱 *DriveSQ Student App:*\nhttps://www.drivesq.co.uk/student.html\n\nLog in with your phone number — *${phone}*\n\nWith the app you can:\n✅ Confirm & track lessons\n📖 Theory — 700 DVSA questions + mock tests\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP and badges as you go\n\nSee you on the road! 🚗\n— DriveSQ`;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 function waInstructorNewStudent(){
@@ -6076,6 +6081,9 @@ function openCreateAndAssign(instrId,instrName){
 function openAssignModal(instrId,instrName,instrPhone){
   document.getElementById('assign-instr-id').value=instrId;
   document.getElementById('assign-instr-name').value=instrName;
+  const _instrObj=allInstrs.find(i=>i.id===instrId);
+  document.getElementById('assign-instr-phone').value=_instrObj?.phone||instrPhone||'';
+  document.getElementById('assign-instr-cartype').value=_instrObj?.car_type||'Manual';
   // Always read live form fields so edits made after Find are captured
   const _live={
     name:(document.getElementById('fc-name')?.value||'').trim()||(fcStudentData?.name||''),
@@ -6110,7 +6118,9 @@ function openAssignModal(instrId,instrName,instrPhone){
   if(stuSec&&stuLink&&s.phone){
     const stuWaNum=buildWaNum(s.phone);
     if(stuWaNum){
-      const stuMsg=`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is being set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nYour instructor will be *${instrName}*.\n\nWith the DriveSQ app you can:\n✅ Confirm lessons\n📖 Study theory — 700+ DVSA questions\n📍 Track your progress\n💬 Message your instructor\n🏆 Earn XP as you learn\n\nSee you on the road! 🚗\n— DriveSQ Admin`;
+      const _aInstrPhone=document.getElementById('assign-instr-phone')?.value||'';
+      const _aInstrCarType=document.getElementById('assign-instr-cartype')?.value||'Manual';
+      const stuMsg=`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your student account is being set up.\n\n🚗 *Your Instructor:* ${instrName}${_aInstrPhone?'\n📞 *Instructor Phone:* '+_aInstrPhone:''}\n⚙️ *Transmission:* ${_aInstrCarType}\n\nThey will contact you shortly to arrange your first lesson.\n\n━━━━━━━━━━━━━━━━━━━━\n📱 *DriveSQ Student App:*\nhttps://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\n\nWith the app you can:\n✅ Confirm & track lessons\n📖 Study theory — 700+ DVSA questions\n💬 Message your instructor directly\n📍 Track your progress & test readiness\n🏆 Earn XP as you learn\n\nSee you on the road! 🚗\n— DriveSQ Admin`;
       stuLink.href=`https://wa.me/${stuWaNum}?text=${encodeURIComponent(stuMsg)}`;
       stuSec.style.display='block';
     } else {
@@ -6277,7 +6287,10 @@ async function confirmAssign(){
   if(s.phone){
     const _stuWaNum=buildWaNum(s.phone);
     if(_stuWaNum){
-      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your account is all set up.\n\n📱 *Student App:* https://www.drivesq.co.uk/student.html\n\nLog in with your phone number — *${s.phone}*\n\nYour instructor is *${instrName}*. They'll be in touch to book your first lesson.\n\nIn the app you can:\n✅ Confirm & track lessons\n📖 Study theory — 700+ DVSA questions\n💬 Message your instructor\n🏆 Earn XP as you progress\n\nSee you on the road! 🚗\n— DriveSQ`;
+      const _aInstr2=allInstrs.find(i=>i.id===instrId);
+      const _aInstrPhone2=_aInstr2?.phone||document.getElementById('assign-instr-phone')?.value||'';
+      const _aInstrCarType2=_aInstr2?.car_type||document.getElementById('assign-instr-cartype')?.value||'Manual';
+      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nWelcome to DriveSQ! Your account is all set up.\n\n🚗 *Your Instructor:* ${instrName}${_aInstrPhone2?'\n📞 *Instructor Phone:* '+_aInstrPhone2:''}\n⚙️ *Transmission:* ${_aInstrCarType2}\n\nThey'll be in touch to book your first lesson.\n\n━━━━━━━━━━━━━━━━━━━━\n📱 *DriveSQ Student App:*\nhttps://www.drivesq.co.uk/student.html\n\nLog in with your phone number — *${s.phone}*\n\nIn the app you can:\n✅ Confirm & track lessons\n📖 Study theory — 700+ DVSA questions\n💬 Message your instructor\n🏆 Earn XP as you progress\n\nSee you on the road! 🚗\n— DriveSQ`;
       setTimeout(()=>{
         showToast(`<a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Send portal link to ${s.name.split(' ')[0]} via WhatsApp</a>`,'success',15000);
       },1500);
