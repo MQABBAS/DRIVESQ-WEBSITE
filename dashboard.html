@@ -1045,8 +1045,24 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
         <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px">
           <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt2);margin-bottom:6px"><i class="bi bi-phone-fill me-2" style="color:var(--gold)"></i>Install App</div>
           <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Add the DriveSQ dashboard to your home screen for quick access — no app store needed.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-gold-sm" id="profileInstallBtn" onclick="profileInstallApp()" style="font-size:.78rem;padding:8px 14px;min-height:36px"><i class="bi bi-download me-1"></i>📲 Install App</button>
+          <div id="installAppSection">
+            <!-- Android / Desktop: shows install button when beforeinstallprompt fires -->
+            <div id="installNativeWrap" style="display:none;margin-bottom:10px">
+              <button class="btn-gold-sm" id="profileInstallBtn" onclick="profileInstallApp()" style="font-size:.78rem;padding:8px 14px;min-height:36px"><i class="bi bi-download me-1"></i>Install App</button>
+            </div>
+            <!-- iOS: always visible Safari steps -->
+            <div id="installIOSGuide" style="display:none;background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;margin-bottom:10px">
+              <div style="font-size:.72rem;font-weight:600;color:var(--txt2);margin-bottom:8px"><i class="bi bi-apple me-1"></i>iPhone / iPad — Add to Home Screen</div>
+              <div style="font-size:.7rem;color:var(--txt3);line-height:1.8">
+                <div>1. Open this page in <strong style="color:var(--txt)">Safari</strong> (not Chrome)</div>
+                <div>2. Tap <strong style="color:var(--txt)">Share</strong> <i class="bi bi-box-arrow-up"></i> at the bottom of Safari</div>
+                <div>3. Scroll and tap <strong style="color:var(--txt)">"Add to Home Screen"</strong></div>
+                <div>4. Tap <strong style="color:var(--txt)">"Add"</strong> — done!</div>
+              </div>
+            </div>
+            <!-- Already installed -->
+            <div id="installAlreadyDone" style="display:none;font-size:.72rem;color:#4ade80;margin-bottom:8px"><i class="bi bi-check-circle-fill me-1"></i>App is already installed on your device.</div>
+            <!-- Fallback: show manual steps button always -->
             <button class="btn-s" onclick="openHSModal()" style="font-size:.78rem;min-height:36px"><i class="bi bi-info-circle me-1"></i>How to Install</button>
           </div>
         </div>
@@ -4002,6 +4018,7 @@ async function loadProfileData(){
   if(data.car_photo_url){const img=document.getElementById('carPhotoImg');img.src=data.car_photo_url+ts;img.style.display='block';document.getElementById('carPhotoPlch').style.display='none';}
   const expEl=document.getElementById('pBadgeExpiry');if(expEl)expEl.value=data.badge_expiry||'';
   if(data.badge_expiry)updateDashBadgeExpiry(data.badge_expiry);
+  _updateInstallUI();
 }
 function updateDashBadgeExpiry(expiry){
   const el=document.getElementById('pBadgeExpiryStatus');if(!el)return;
@@ -6367,10 +6384,38 @@ if('serviceWorker' in navigator){
 }
 
 var deferredInstall=null;
+
+// Detect iOS Safari
+var _isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+var _isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+
+function _updateInstallUI(){
+  var nativeWrap=document.getElementById('installNativeWrap');
+  var iosGuide=document.getElementById('installIOSGuide');
+  var done=document.getElementById('installAlreadyDone');
+  if(!nativeWrap)return;
+  if(_isStandalone){
+    if(done)done.style.display='block';
+    if(nativeWrap)nativeWrap.style.display='none';
+    if(iosGuide)iosGuide.style.display='none';
+  } else if(_isIOS){
+    if(iosGuide)iosGuide.style.display='block';
+    if(nativeWrap)nativeWrap.style.display='none';
+  } else if(deferredInstall){
+    if(nativeWrap)nativeWrap.style.display='block';
+    if(iosGuide)iosGuide.style.display='none';
+  }
+}
+
 window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();
   deferredInstall=e;
+  _updateInstallUI();
   setTimeout(showDashInstallBanner,8000);
+});
+window.addEventListener('appinstalled',function(){
+  _isStandalone=true;deferredInstall=null;_updateInstallUI();
+  showToast('DriveSQ app installed!','success');
 });
 
 function showDashInstallBanner(){
@@ -6378,7 +6423,7 @@ function showDashInstallBanner(){
   var b=document.createElement('div');
   b.id='dashInstallBanner';
   b.style.cssText='position:fixed;top:70px;right:12px;width:280px;background:linear-gradient(135deg,rgba(209,10,17,.15),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:13px;padding:14px;z-index:1050;box-shadow:0 8px 32px rgba(0,0,0,.6)';
-  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ Pro</div><div style="font-size:.68rem;color:var(--txt3)">Add dashboard to your home screen</div></div></div>'
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><img src="/icon-192.png" style="width:32px;height:32px;border-radius:8px"><div><div style="font-family:\'Oswald\',sans-serif;font-size:.88rem;font-weight:700;color:var(--txt)">Install DriveSQ Pro</div><div style="font-size:.68rem;color:var(--txt3)">Add dashboard to your home screen</div></div></div>'
     +'<div style="display:flex;gap:8px"><button id="dashInstallYes" style="flex:1;background:linear-gradient(135deg,var(--red),#b00007);color:#fff;border:none;border-radius:9px;font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;cursor:pointer"><i class="bi bi-download me-1"></i>Install</button>'
     +'<button id="dashInstallNo" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.75rem;font-weight:600;padding:8px;border-radius:9px;cursor:pointer">Later</button></div>';
   document.body.appendChild(b);
