@@ -1,11 +1,12 @@
-var CACHE_NAME='drivesq-dashboard-v7';
+var CACHE_NAME='drivesq-dashboard-v8';
 var PRECACHE=[
   '/dashboard.html',
+  '/icon-192.png',
+  '/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js',
-  'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png'
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'
 ];
 
 self.addEventListener('install',function(e){
@@ -45,7 +46,7 @@ self.addEventListener('fetch',function(e){
 
 /* ══ PUSH NOTIFICATIONS ══ */
 self.addEventListener('push',function(e){
-  var data={title:'DriveSQ',body:'You have a new notification',url:'/dashboard.html',icon:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',badge:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png'};
+  var data={title:'DriveSQ',body:'You have a new notification',url:'/dashboard.html',icon:'/icon-192.png',badge:'/icon-192.png'};
   try{
     if(e.data){var parsed=e.data.json();data=Object.assign(data,parsed);}
   }catch(err){}
