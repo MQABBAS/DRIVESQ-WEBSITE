@@ -2835,5 +2835,188 @@ function openLocalVideo(src) {
   tick();setInterval(tick,60000);
 })();
 </script>
+
+<!-- ═══════════════════════════════════════
+     PAGE NAVIGATION SIDEBAR
+     Desktop-only scroll spy sidebar
+═══════════════════════════════════════ -->
+<style>
+#page-nav-sidebar {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1040;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .35s ease, visibility .35s ease;
+}
+#page-nav-sidebar.visible {
+  opacity: 1;
+  visibility: visible;
+}
+.pnav-dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  cursor: pointer;
+  padding: 3px 0;
+}
+.pnav-label {
+  position: absolute;
+  right: 22px;
+  background: #111;
+  color: #f0f0f0;
+  font-family: 'Oswald', sans-serif;
+  font-size: .7rem;
+  font-weight: 500;
+  letter-spacing: .5px;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity .18s ease, transform .18s ease;
+  border: 1px solid rgba(255,255,255,.08);
+}
+.pnav-dot:hover .pnav-label,
+.pnav-dot.active .pnav-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+.pnav-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.22);
+  border: 1.5px solid rgba(255,255,255,.18);
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+  flex-shrink: 0;
+}
+.pnav-dot:hover .pnav-pip {
+  background: rgba(209,10,17,.6);
+  border-color: #D10A11;
+  transform: scale(1.25);
+}
+.pnav-dot.active .pnav-pip {
+  background: #D10A11;
+  border-color: #ff2d35;
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 10px rgba(209,10,17,.6);
+}
+/* Hide on mobile / tablet */
+@media (max-width: 991px) {
+  #page-nav-sidebar { display: none !important; }
+}
+</style>
+
+<nav id="page-nav-sidebar" aria-label="Page sections">
+  <div class="pnav-dot" data-target="home">
+    <span class="pnav-label">Home</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="videos">
+    <span class="pnav-label">Pass Videos</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="success">
+    <span class="pnav-label">Happy Learners</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="reviews">
+    <span class="pnav-label">Reviews</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="area-deals">
+    <span class="pnav-label">Local Deals</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="services">
+    <span class="pnav-label">Prices</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="intensive">
+    <span class="pnav-label">Intensive Courses</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="why">
+    <span class="pnav-label">Why DriveSQ</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="compare">
+    <span class="pnav-label">Compare</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="areas">
+    <span class="pnav-label">Areas Covered</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="faq">
+    <span class="pnav-label">FAQ</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="join">
+    <span class="pnav-label">Join as Instructor</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="app">
+    <span class="pnav-label">Our App</span>
+    <span class="pnav-pip"></span>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var sidebar=document.getElementById('page-nav-sidebar');
+  if(!sidebar)return;
+  var dots=Array.from(sidebar.querySelectorAll('.pnav-dot'));
+  var sections=dots.map(function(d){return document.getElementById(d.dataset.target);});
+
+  // Show sidebar only after scrolling past hero
+  var heroH=window.innerHeight*0.6;
+  function checkVisibility(){
+    sidebar.classList.toggle('visible',window.scrollY>heroH);
+  }
+  checkVisibility();
+
+  // Click to scroll
+  dots.forEach(function(dot,i){
+    dot.addEventListener('click',function(){
+      var sec=sections[i];
+      if(!sec)return;
+      var offset=sec.getBoundingClientRect().top+window.scrollY-72;
+      window.scrollTo({top:offset,behavior:'smooth'});
+    });
+  });
+
+  // Scroll spy — mark active dot
+  var ticking=false;
+  function onScroll(){
+    if(ticking)return;
+    ticking=true;
+    requestAnimationFrame(function(){
+      checkVisibility();
+      var scrollMid=window.scrollY+window.innerHeight*0.45;
+      var active=-1;
+      sections.forEach(function(sec,i){
+        if(!sec)return;
+        if(sec.offsetTop<=scrollMid)active=i;
+      });
+      dots.forEach(function(d,i){d.classList.toggle('active',i===active);});
+      ticking=false;
+    });
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll,{passive:true});
+  onScroll();
+})();
+</script>
 </body>
 </html>
