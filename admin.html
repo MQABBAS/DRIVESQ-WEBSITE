@@ -1647,6 +1647,8 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <a id="refDetailWaHalfBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;text-decoration:none;width:fit-content" title="Outstanding only — shows total due with no paid rows"><i class="bi bi-whatsapp me-2"></i>💷 Outstanding Only</a>
       <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
       <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
+      <button id="refDetailNotifyBtn" onclick="notifyInstructorRef(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Send instructor a message about outstanding referral payment"><i class="bi bi-bell-fill me-1"></i>Notify Instructor</button>
+      <button id="refDetailLogBtn" onclick="openInstrLog(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="View all messages, actions and history for this instructor"><i class="bi bi-journal-text me-1"></i>Instructor Log</button>
     </div>
     <input type="hidden" id="refDetailInstrId" value=""/>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
@@ -1878,6 +1880,16 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 <div class="dsq-toast" id="toast"><span class="dsq-toast-icon" id="toastIcon"></span><span id="toastMsg"></span></div>
 
 <!-- ════════════ MODALS ════════════ -->
+
+<!-- INSTRUCTOR LOG MODAL -->
+<div class="dsq-overlay" id="instrLogModal">
+  <div class="dsq-modal wide" style="max-width:640px">
+    <button class="modal-x" onclick="closeModal('instrLogModal')"><i class="bi bi-x-lg"></i></button>
+    <div id="instrLogTitle" style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--txt);margin-bottom:2px"></div>
+    <div style="font-size:.72rem;color:var(--txt4);margin-bottom:14px">Activity log — messages, actions, approvals, referral history</div>
+    <div id="instrLogBody" style="max-height:68vh;overflow-y:auto"></div>
+  </div>
+</div>
 
 <!-- EDIT MODAL -->
 <div class="dsq-overlay" id="editModal">
@@ -3081,6 +3093,54 @@ function toggleStuFlagFromDetail(s){
 }
 
 let _openRefInstrId=null;
+
+// ── Referral flags — stored in DB (flag_color: 'red'|'green'|'purple'|null) ──
+async function setRefFlag(refId,color){
+  // color = 'red'|'green'|'purple'|null (null = remove)
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  const newColor=(r.flag_color===color)?null:color; // toggle off if same
+  const{error}=await sb.from('referrals').update({flag_color:newColor||null}).eq('id',refId);
+  if(error){showToast('Flag save failed: '+error.message,'error');return;}
+  r.flag_color=newColor;
+  const labels={red:'🚩 Red flag set',green:'✅ Green flag set',purple:'🟣 Purple flag set',null:'Flag removed'};
+  showToast(labels[newColor]||'Flag removed','success',1800);
+  _playFlagSound(newColor);
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+  // Schedule daily reminder for purple (unfiled) flags
+  _scheduleUnfiledCheck();
+}
+function _playFlagSound(color){
+  try{
+    const ctx=_getAudioCtx();if(!ctx)return;
+    const freqs={green:[523,659,784],red:[400,320,260],purple:[440,550,660,440]};
+    const notes=(freqs[color]||[500]);
+    notes.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type=color==='green'?'sine':color==='red'?'sawtooth':'triangle';
+      osc.frequency.value=freq;
+      const t=ctx.currentTime+i*0.1;
+      gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(0.25,t+0.03);gain.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+      osc.start(t);osc.stop(t+0.25);
+    });
+  }catch(e){}
+}
+// Check for unfiled (purple/null) referrals and notify once per day
+function _scheduleUnfiledCheck(){
+  const lastCheck=localStorage.getItem('dsq_ref_unfiled_check');
+  const today=new Date().toDateString();
+  if(lastCheck===today)return;
+  localStorage.setItem('dsq_ref_unfiled_check',today);
+  const unfiled=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&!r.flag_color&&(parseFloat(r.amount)||0)>0&&!r.is_paid);
+  if(unfiled.length>0){
+    setTimeout(()=>{
+      _playBookingSound();
+      showToast(`⚠️ ${unfiled.length} referral${unfiled.length!==1?'s':''} with no flag set — please review`,'warn',8000);
+    },2000);
+  }
+}
+// Legacy localStorage flag — kept for backward compat on student cards
 function toggleRefFlag(name){
   if(!name)return;
   const key=_stuFlagKey({name});
@@ -3089,6 +3149,109 @@ function toggleRefFlag(name){
     else{localStorage.setItem(key,'1');showToast('Student flagged 🚩','warn',1800);}
   }catch(e){}
   if(_openRefInstrId)openRefDetail(_openRefInstrId);
+}
+
+// ── Admin notes per referral row ─────────────────────────────────────────
+async function editRefAdminNotes(refId){
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  const cur=r.admin_notes||'';
+  const val=prompt('Private admin note for '+esc(r.student_name)+':\n(Visible only to you unless you toggle visibility)',cur);
+  if(val===null)return; // cancelled
+  const newNote=val.trim();
+  const{error}=await sb.from('referrals').update({admin_notes:newNote||null}).eq('id',refId);
+  if(error){showToast('Note save failed: '+error.message,'error');return;}
+  r.admin_notes=newNote||null;
+  showToast(newNote?'Private note saved 🔒':'Note removed','success',1800);
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+}
+
+async function setRefNotesVisible(refId,visible){
+  const r=_refData.find(x=>x.id===refId);
+  if(!r)return;
+  const{error}=await sb.from('referrals').update({notes_visible:visible}).eq('id',refId);
+  if(error){showToast('Visibility save failed: '+error.message,'error');return;}
+  r.notes_visible=visible;
+  showToast(visible?'Note now visible to instructor 👁':'Note hidden from instructor 🔒','success',1800);
+  if(_openRefInstrId)openRefDetail(_openRefInstrId);
+}
+
+async function notifyInstructorRef(instrId){
+  const instr=allInstrs.find(i=>i.id===instrId);
+  if(!instr){showToast('Instructor not found','error');return;}
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0);
+  const totalDue=unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const names=unpaid.map(r=>r.student_name).join(', ');
+  const body=`Hi ${instr.full_name||'Instructor'},\n\nThis is a reminder that you have ${unpaid.length} outstanding referral fee${unpaid.length!==1?'s':''} totalling £${totalDue.toFixed(2)} due to DriveSQ.\n\nStudents: ${names||'—'}\n\nPlease arrange payment at your earliest convenience.\n\nThank you,\nDriveSQ Admin`;
+  const subject=`💷 Referral Payment Reminder — £${totalDue.toFixed(2)} outstanding`;
+  if(!confirm(`Send payment reminder to ${instr.full_name||'instructor'}?\n\n${body}`))return;
+  const now=new Date().toISOString();
+  const{error}=await sb.from('admin_messages').insert([{instructor_id:instrId,subject,body,message_type:'general',is_read:false,dismissed:false,created_at:now}]);
+  if(error){showToast('Could not send: '+error.message,'error');return;}
+  // Update instructor_notified_at on all unflagged referrals for this instructor
+  await sb.from('referrals').update({instructor_notified_at:now}).eq('instructor_id',instrId).is('instructor_notified_at',null);
+  unpaid.forEach(r=>{if(!r.instructor_notified_at)r.instructor_notified_at=now;});
+  showToast(`Reminder sent to ${instr.full_name} ✓`,'success');
+  // Also push to admin for the record
+  pushToAdmin('Referral reminder sent','Sent to '+instr.full_name+' — £'+totalDue.toFixed(2)+' outstanding');
+}
+
+async function openInstrLog(instrId){
+  if(!instrId)return;
+  const instr=allInstrs.find(i=>i.id===instrId)||{};
+  document.getElementById('instrLogTitle').textContent=(instr.full_name||'Instructor')+' — Activity Log';
+  const el=document.getElementById('instrLogBody');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  openModal('instrLogModal');
+  try{
+    const[{data:msgs},{data:refs}]=await Promise.all([
+      sb.from('admin_messages').select('subject,body,message_type,is_read,created_at').eq('instructor_id',instrId).order('created_at',{ascending:false}).limit(50),
+      sb.from('referrals').select('student_name,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,flag_color,notes,admin_notes,notes_visible,instructor_notified_at,created_at').eq('instructor_id',instrId).order('created_at',{ascending:false})
+    ]);
+    const _fmt=d=>new Date(d).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    // Merge into a timeline
+    const items=[];
+    (msgs||[]).forEach(m=>items.push({type:'msg',date:m.created_at,data:m}));
+    (refs||[]).forEach(r=>items.push({type:'ref',date:r.created_at,data:r}));
+    items.sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(!items.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No activity recorded yet.</div>';return;}
+    el.innerHTML=items.map(item=>{
+      if(item.type==='msg'){
+        const m=item.data;
+        const typeColors={general:'#60a5fa',badge_request:'#f59e0b',approval_request:'#4ade80'};
+        const col=typeColors[m.message_type]||'#94a3b8';
+        return`<div style="border-left:3px solid ${col};padding:10px 14px;margin-bottom:10px;background:rgba(255,255,255,.03);border-radius:0 8px 8px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:.72rem;font-weight:700;color:${col}"><i class="bi bi-envelope-fill me-1"></i>${esc(m.subject||'Message')}</span>
+            <span style="font-size:.62rem;color:var(--txt4)">${_fmt(m.created_at)}</span>
+          </div>
+          <div style="font-size:.7rem;color:var(--txt3);white-space:pre-line">${esc(m.body||'')}</div>
+          <div style="font-size:.6rem;color:var(--txt4);margin-top:4px">${m.is_read?'✓ Read':'Unread'}</div>
+        </div>`;
+      }else{
+        const r=item.data;
+        const fc=r.flag_color;
+        const fcCol={red:'#f87171',green:'#4ade80',purple:'#a855f7'}[fc]||'#94a3b8';
+        const fcEmoji={red:'🚩',green:'✅',purple:'🟣'}[fc]||'—';
+        const status=r.is_cancelled?'Voided':r.is_credit?(r.credit_fulfilled?'Credit Fulfilled':'Credit Owed'):r.is_paid?'Paid':'Unpaid';
+        const statCol=r.is_cancelled?'#94a3b8':r.is_paid?'#4ade80':r.is_credit?'#f59e0b':'#f87171';
+        return`<div style="border-left:3px solid ${fcCol};padding:10px 14px;margin-bottom:10px;background:rgba(255,255,255,.02);border-radius:0 8px 8px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:.72rem;font-weight:700;color:var(--txt)"><i class="bi bi-person-fill me-1"></i>${esc(r.student_name)}</span>
+            <span style="font-size:.62rem;color:var(--txt4)">${_fmt(r.created_at)}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.65rem">
+            <span style="font-weight:700;color:var(--txt2)">£${(parseFloat(r.amount)||0).toFixed(2)}</span>
+            <span style="color:${statCol};font-weight:600">${status}</span>
+            ${fc?`<span style="color:${fcCol}">${fcEmoji} ${fc} flag</span>`:'<span style="color:var(--txt4)">No flag</span>'}
+          </div>
+          ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);margin-top:4px;font-style:italic">${esc(r.notes)}${r.notes_visible?'':' <span style="color:var(--txt4)">(hidden from instructor)</span>'}</div>`:''}
+          ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;margin-top:3px"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes)}</div>`:''}
+          ${r.instructor_notified_at?`<div style="font-size:.6rem;color:#f59e0b;margin-top:3px"><i class="bi bi-bell-fill me-1"></i>Payment reminder sent ${_fmt(r.instructor_notified_at)}</div>`:''}
+        </div>`;
+      }
+    }).join('');
+  }catch(e){el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.8rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'</div>';}
 }
 
 // ── Follow Up List ───────────────────────────────────────────────────────
@@ -7778,6 +7941,7 @@ async function loadReferrals(){
     _refData=data||[];
     _buildUnpaidRefIndex(); // keep badge index fresh
     renderReferrals();
+    _scheduleUnfiledCheck();
   }catch(e){
     if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, is_credit boolean not null default false, credit_fulfilled boolean not null default false, credit_fulfilled_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false; alter table referrals add column if not exists is_credit boolean not null default false; alter table referrals add column if not exists credit_fulfilled boolean not null default false; alter table referrals add column if not exists credit_fulfilled_at timestamptz; alter table referrals add column if not exists is_contacted boolean not null default false;</code></div>';
   }
@@ -8024,6 +8188,8 @@ async function openRefDetail(instrId){
   if(_mapBtn){const _hasDue=activeRows.some(r=>!r.is_paid);_mapBtn.style.display=_hasDue?'inline-flex':'none';}
   const _expBtn=document.getElementById('refDetailExportBtn');
   if(_expBtn)_expBtn.style.display='inline-flex';
+  const _notifyBtn=document.getElementById('refDetailNotifyBtn');
+  if(_notifyBtn){const _hasDue=activeRows.some(r=>!r.is_paid&&(parseFloat(r.amount)||0)>0);_notifyBtn.style.display=_hasDue?'inline-flex':'none';}
 
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
@@ -8049,21 +8215,36 @@ async function openRefDetail(instrId){
         const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
-        const _rFlagged=_isStuFlagged({name:r.student_name});
-        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${_rFlagged?'background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.45);':rowBg}">
+        const fc=r.flag_color||null;
+        const fcStyles={
+          red:'background:rgba(239,68,68,.06);border-left:3px solid #f87171',
+          green:'background:rgba(74,222,128,.06);border-left:3px solid #4ade80',
+          purple:'background:rgba(168,85,247,.06);border-left:3px solid #a855f7'
+        };
+        const fcEmoji={red:'🚩',green:'✅',purple:'🟣'};
+        const notesVisible=!!r.notes_visible;
+        const stuWaNum=r.student_phone?(r.student_phone.replace(/\D/g,'').replace(/^0/,'44').replace(/^(?!44)/,'44')):'';
+        const waFollowUpMsg=`Hi ${(r.student_name||'').split(' ')[0]}! 👋 This is DriveSQ. We wanted to check in — have you managed to book your first driving lesson with your instructor? If not, we're happy to help sort it out for you. 🚗 Just reply here or call us. — DriveSQ`;
+        return`<tr style="border-bottom:1px solid var(--bdr);${isCancelled?'opacity:.5;':''}${fc&&fcStyles[fc]?fcStyles[fc]+';':rowBg}">
           <td style="padding:8px 8px">
-            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}${_rFlagged?'<span style="font-size:.6rem;color:#f87171;margin-left:5px">🚩</span>':''}</div>
+            <div style="font-weight:600;color:var(--txt);${isCancelled?'text-decoration:line-through;':''}">${esc(r.student_name)}${fc?`<span style="margin-left:5px;font-size:.75rem">${fcEmoji[fc]}</span>`:''}</div>
             ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4)">${esc(r.student_phone)}</div>`:''}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
-            ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit notes"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
-              :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
-            <button onclick="toggleContacted('${r.id}')" style="margin-top:4px;background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${isContacted?'Mark as not yet contacted':'Mark as contacted'}">
-              ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
-            </button>
-            <button onclick="toggleRefFlag('${jsEsc(r.student_name)}')" style="margin-top:2px;margin-left:4px;background:${_rFlagged?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)'};border:1px solid ${_rFlagged?'rgba(239,68,68,.4)':'rgba(100,116,139,.25)'};color:${_rFlagged?'#f87171':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${_rFlagged?'Remove flag':'Flag student'}">
-              <i class="bi bi-flag${_rFlagged?'-fill':''}"></i>
-            </button>
+            ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
+              :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
+            ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;font-style:italic;margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Admin-only note (click to edit)"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes)}${notesVisible?'':' <span style="font-size:.55rem;color:var(--txt4)">(hidden)</span>'}</div>`
+              :`<div style="font-size:.58rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Add private admin note"><i class="bi bi-lock me-1"></i>Add private note…</div>`}
+            <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">
+              <button onclick="toggleContacted('${r.id}')" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap">
+                ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
+              </button>
+              <button onclick="setRefFlag('${r.id}','green')" style="background:${fc==='green'?'rgba(74,222,128,.25)':'rgba(74,222,128,.06)'};border:1px solid ${fc==='green'?'rgba(74,222,128,.6)':'rgba(74,222,128,.25)'};color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Green flag — all good">✅</button>
+              <button onclick="setRefFlag('${r.id}','red')" style="background:${fc==='red'?'rgba(239,68,68,.25)':'rgba(239,68,68,.06)'};border:1px solid ${fc==='red'?'rgba(239,68,68,.6)':'rgba(239,68,68,.25)'};color:#f87171;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Red flag — issue / problem">🚩</button>
+              <button onclick="setRefFlag('${r.id}','purple')" style="background:${fc==='purple'?'rgba(168,85,247,.25)':'rgba(168,85,247,.06)'};border:1px solid ${fc==='purple'?'rgba(168,85,247,.6)':'rgba(168,85,247,.25)'};color:#a855f7;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Purple flag — needs review / pending">🟣</button>
+              ${r.notes?`<button onclick="setRefNotesVisible('${r.id}',${!notesVisible})" style="background:${notesVisible?'rgba(96,165,250,.15)':'rgba(100,116,139,.08)'};border:1px solid ${notesVisible?'rgba(96,165,250,.35)':'rgba(100,116,139,.2)'};color:${notesVisible?'#60a5fa':'#94a3b8'};border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${notesVisible?'Hide note from instructor':'Show note to instructor'}"><i class="bi bi-eye${notesVisible?'':'-slash'} me-1"></i>${notesVisible?'Visible':'Hidden'}</button>`:''}
+              ${stuWaNum?`<a href="https://wa.me/${stuWaNum}?text=${encodeURIComponent(waFollowUpMsg)}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#25d366;border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:600;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>Follow Up</a>`:''}
+            </div>
           </td>
           <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
             £${(parseFloat(r.amount)||0).toFixed(2)}
