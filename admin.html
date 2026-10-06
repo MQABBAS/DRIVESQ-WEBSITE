@@ -2689,20 +2689,25 @@ function showApp(){
     const daysLeft=s&&s.ts?Math.ceil((_SESSION_TTL-(Date.now()-s.ts))/86400000):30;
     const sl=document.getElementById('adminSessionDays');if(sl)sl.textContent=daysLeft+'d';
   }catch(e){}
-  // Restore last-viewed tab (skip calendar — it needs state)
+  // Restore last-viewed tab (skip calendar — needs instructor-picker state)
   const lastTab=localStorage.getItem('dsq_admin_last_tab');
-  const safeLastTab=lastTab&&lastTab!=='calendar'?lastTab:'dashboard';
-  // Restore cached data immediately so page isn't blank on refresh
+  const safeLastTab=lastTab&&TABS.includes(lastTab)&&lastTab!=='calendar'?lastTab:'dashboard';
+  // Restore cached data immediately so page shows content before network
   _restoreCachedData();
+  // Visually activate the last tab right away (before data loads)
+  if(safeLastTab!=='dashboard'){
+    TABS.forEach(id=>{
+      document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==safeLastTab);
+      document.getElementById('tab-'+id)?.classList.toggle('active',id===safeLastTab);
+    });
+  }
   setTimeout(()=>{initAdminPush();_updateAdminNotifBtn();},2000);
   setTimeout(loadWebBookingsBadge,3000);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
+  // Load all base data, then trigger the last tab's own data loader
   loadAll().then(()=>{
-    // After fresh load, switch to last tab
-    if(safeLastTab&&safeLastTab!=='dashboard'&&safeLastTab!=='instructors'){
-      switchTab(safeLastTab);
-    }
-  });
+    switchTab(safeLastTab);
+  }).catch(()=>{switchTab('dashboard');});
   startAdminRealtime();
   setTimeout(_buildUnpaidRefIndex,4000);
   setTimeout(_restoreFcDraft,500);
@@ -2986,9 +2991,8 @@ window.addEventListener('popstate',function(e){
 /* ══ LOAD ALL ══ */
 async function loadAll(){
   await loadInstrs();
-  loadGlobalStats();
+  await Promise.all([loadGlobalStats(),loadDashboard()]);
   populateDropdowns();
-  loadDashboard();
 }
 
 let _instrAssignStatsTimer=null;
