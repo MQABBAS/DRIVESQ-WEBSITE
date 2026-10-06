@@ -4997,8 +4997,21 @@ async function initPushSubscription(){
       _showTopPushBanner(true);
       return;
     }
-    // 'default' — show banner every session unless dismissed this session
-    if(!sessionStorage.getItem('pushBannerDismissed'))_showTopPushBanner(false);
+    // 'default' — auto-request after 4s so the browser prompt appears immediately
+    setTimeout(async()=>{
+      try{
+        const p=await Notification.requestPermission();
+        if(p==='granted'){
+          const r=await navigator.serviceWorker.ready;
+          const s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_PUBLIC_KEY)});
+          await savePushSubscription(s);
+          const tb=document.getElementById('pushTopBanner');if(tb)tb.style.display='none';
+          _updateDashNotifStrip();
+        } else if(p==='denied'){
+          _showTopPushBanner(true);
+        }
+      }catch(e){/* user dismissed or unsupported — silently ignore */}
+    },4000);
   }catch(e){console.warn('initPushSubscription:',e);}
 }
 
@@ -6379,13 +6392,7 @@ async function loadMyFeedback(){
   </div>`).join('')}`;
 }
 
-/* ── SERVICE WORKER REGISTRATION ── */
-if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('/sw.js', {scope:'/'})
-      .catch(function(err){ console.warn('SW registration failed:', err); });
-  });
-}
+/* ── /sw.js registration removed — /dashboard-sw.js (above) is the active SW ── */
 </script>
 <!-- SQWEBSITES-CREDIT-V2 -->
 <style>

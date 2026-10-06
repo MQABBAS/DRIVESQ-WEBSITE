@@ -1410,8 +1410,15 @@ async function initApp(){
   ]);
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
-  // Show notification banner every login if not yet granted
+  // Show notification banner and auto-request permission after short delay
   _updateNotifBanner();
+  if('Notification' in window && Notification.permission==='default'){
+    setTimeout(function(){
+      // Only auto-prompt if permission still default and student is logged in
+      if(Notification.permission!=='default'||!currentStudent)return;
+      studentEnableNotifs();
+    },3000);
+  }
   if(!window._pollsStarted){
     window._pollsStarted=true;
     window._msgPoll=setInterval(loadMessages,30000);
@@ -3083,6 +3090,9 @@ if('serviceWorker' in navigator){
 
 var pushPromptShown=false;
 function showPushPrompt(){
+  // Expire decline flag after 7 days
+  var _dec=localStorage.getItem('pushDeclined_student');
+  if(_dec&&(Date.now()-parseInt(_dec))>7*86400000)localStorage.removeItem('pushDeclined_student');
   if(pushPromptShown||!currentStudent||localStorage.getItem('pushDeclined_student'))return;
   pushPromptShown=true;
   var d=document.createElement('div');
@@ -3094,7 +3104,7 @@ function showPushPrompt(){
     +'<button id="notifNoBtn" style="flex:1;background:var(--dk3);border:1px solid var(--bdr);color:var(--txt3);font-family:\'Oswald\',sans-serif;font-size:.78rem;font-weight:600;padding:10px;border-radius:9px;cursor:pointer">Not now</button></div>';
   document.body.appendChild(d);
   document.getElementById('notifYesBtn').addEventListener('click',function(){acceptNotifs();});
-  document.getElementById('notifNoBtn').addEventListener('click',function(){d.remove();localStorage.setItem('pushDeclined_student','1');});
+  document.getElementById('notifNoBtn').addEventListener('click',function(){d.remove();localStorage.setItem('pushDeclined_student',Date.now().toString());});
 }
 
 async function acceptNotifs(){
@@ -3123,7 +3133,11 @@ async function studentEnableNotifs(){
     var perm=await Notification.requestPermission();
     if(perm==='granted'){
       showToast('🔔 Notifications enabled!','success');
-      if(_swReg) await _ensurePushSubscription(_swReg);
+      // Use _swReg if ready, else wait for serviceWorker.ready
+      try{
+        var reg=_swReg||await navigator.serviceWorker.ready;
+        await _ensurePushSubscription(reg);
+      }catch(_e){console.warn('Sub save failed:',_e);}
       _updateNotifBanner();
     } else if(perm==='denied'){
       showToast('Notifications blocked — enable them in your browser/phone settings.','warning',7000);
@@ -3217,9 +3231,12 @@ async function checkPendingNotifs(){
     if(!data||!data.length)return;
     data.forEach(function(n){
       if('Notification' in window && Notification.permission==='granted'){
-        new Notification(n.title||'DriveSQ',{body:n.body||'',icon:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',badge:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',vibrate:[200,100,200]});
+        // Use SW showNotification — new Notification() is unreliable in modern browsers
+        navigator.serviceWorker.ready.then(function(reg){
+          reg.showNotification(n.title||'DriveSQ',{body:n.body||'',icon:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',badge:'https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png',vibrate:[200,100,200],tag:'dsq-student-'+n.id,data:{url:'/student.html'}});
+        }).catch(function(){showToast((n.title||'DriveSQ')+': '+(n.body||''));});
       }else{
-        showToast(n.title+': '+n.body);
+        showToast((n.title||'DriveSQ')+': '+(n.body||''));
       }
       sb.from('pending_notifications').update({is_read:true}).eq('id',n.id).then(function(){});
     });
