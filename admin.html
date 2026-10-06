@@ -571,7 +571,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-feedback" onclick="switchTab('feedback')" title="Student feedback and lesson ratings"><i class="bi bi-star-fill"></i><span class="d-none d-sm-inline ms-1">Feedback</span></button>
     <button class="dsq-tab" id="tab-requests" onclick="switchTab('requests')" title="Student requests to change instructor"><i class="bi bi-person-plus-fill"></i><span class="d-none d-sm-inline ms-1">Requests</span></button>
     <button class="dsq-tab" id="tab-transfers" onclick="switchTab('transfers')" title="Instructor transfer requests"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfers</span></button>
-    <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')" title="Broadcast a message to all instructors at once"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span></button>
+    <button class="dsq-tab" id="tab-messages" onclick="switchTab('messages')" title="Broadcast + Inbox"><i class="bi bi-chat-dots-fill"></i><span class="d-none d-sm-inline ms-1">Messages</span><span id="inboxBadge" style="display:none;background:#f87171;color:#fff;font-size:.6rem;font-family:'Oswald',sans-serif;font-weight:700;border-radius:99px;padding:1px 5px;margin-left:4px;vertical-align:middle"></span></button>
     <button class="dsq-tab" id="tab-analytics" onclick="switchTab('analytics')" title="Charts: hours per instructor, pass rates, lesson trends"><i class="bi bi-bar-chart-fill"></i><span class="d-none d-sm-inline ms-1">Analytics</span></button>
     <button class="dsq-tab" id="tab-calendar" onclick="switchTab('calendar')" title="Full calendar view of all lessons"><i class="bi bi-calendar-week"></i><span class="d-none d-sm-inline ms-1">Calendar</span></button>
     <button class="dsq-tab" id="tab-activity" onclick="switchTab('activity')" title="Recent activity log — new students, lessons booked, messages sent"><i class="bi bi-activity"></i><span class="d-none d-sm-inline ms-1">Activity</span></button>
@@ -902,7 +902,15 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 
   <!-- ══ MESSAGES ══ -->
   <div id="panel-messages" class="hidden">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <!-- INBOX: incoming from instructors -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+      <div class="page-title mb-0"><i class="bi bi-tray-fill me-2" style="color:#f87171"></i>Inbox <span id="inboxCountLabel" style="font-size:.72rem;color:var(--txt4);font-family:'Inter',sans-serif;font-weight:400"></span></div>
+      <button class="btn-s" style="font-size:.75rem" onclick="loadInbox()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+    </div>
+    <div class="dsq-card mb-4"><div id="inboxList"><div style="padding:20px;text-align:center;font-size:.82rem;color:var(--txt4)">Loading…</div></div></div>
+
+    <!-- OUTBOX: sent by admin -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
       <div class="page-title mb-0"><i class="bi bi-chat-dots-fill me-2" style="color:#60a5fa"></i>Sent Messages</div>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn-p hide-mob" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
@@ -2704,6 +2712,7 @@ function showApp(){
   }
   setTimeout(()=>{initAdminPush();_updateAdminNotifBtn();},2000);
   setTimeout(loadWebBookingsBadge,3000);
+  setTimeout(loadInbox,3500);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
   // Load all base data, then trigger the last tab's own data loader
   loadAll().then(()=>{
@@ -2791,22 +2800,44 @@ function startAdminRealtime(){
       }catch(e){}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_messages'},async(payload)=>{
-      // Instructor → admin messages (drop requests, badge requests, referral alerts, etc.)
       try{
         const msg=payload?.new;
         if(!msg)return;
-        const typeLabels={
-          drop_request:'🚪 Drop Request',
-          badge_request:'🪪 Badge Request',
-          general:'📩 Message from Instructor',
-          warning:'⚠️ Warning',
-          franchise_fee:'💰 Fee Alert',
-        };
+        // Only push to admin for inbound messages (from instructor), not our own sent messages
+        const inboundTypes=['drop_request','cancel_drop_request'];
+        if(!inboundTypes.includes(msg.message_type))return;
+        const typeLabels={drop_request:'🚪 Student Left Request',cancel_drop_request:'↩️ Drop Cancelled'};
         const label=typeLabels[msg.message_type]||'📩 New Message';
         const subject=msg.subject||'No subject';
-        const body=msg.body?msg.body.slice(0,80):subject;
-        pushToAdmin(label,body,'/admin.html');
-        showToast(`${label}: ${subject}`,'info',5000);
+        const body=msg.body?msg.body.slice(0,120):subject;
+        pushToAdmin(label+': '+subject.slice(0,60),body,'/admin.html');
+        showToast(`${label}: ${subject}`,'warn',6000);
+        // Refresh inbox if Messages tab is open
+        if(document.getElementById('panel-messages')&&!document.getElementById('panel-messages').classList.contains('hidden')){
+          loadInbox();
+        } else {
+          // Update badge without full reload
+          _inboxCache.push(msg);
+          _updateInboxBadge();
+        }
+      }catch(e){}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lessons'},async(payload)=>{
+      try{
+        const l=payload?.new;if(!l)return;
+        const sName=l.student_name||'A student';
+        const instrObj=allInstrs.find(i=>i.id===l.instructor_id);
+        const iName=instrObj?.full_name||'an instructor';
+        pushToAdmin('📅 New Lesson Booked',`${sName} booked with ${iName} on ${l.lesson_date||'TBC'}`,'/admin.html');
+        showToast(`📅 New lesson: ${sName} → ${iName}`,'info',4000);
+      }catch(e){}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'student_accounts'},async(payload)=>{
+      try{
+        const a=payload?.new;if(!a)return;
+        const name=a.full_name||'A student';
+        pushToAdmin('📱 Student Signed Up on App',`${name} just created an account on the DriveSQ app`,'/admin.html');
+        showToast(`📱 New app signup: ${name}`,'success',4000);
       }catch(e){}
     })
     .subscribe();
@@ -2944,7 +2975,7 @@ function switchTab(t){
   // Start/stop assignment stats auto-refresh when entering/leaving Instructors tab
   if(t==='instructors')startInstrAssignStatsRefresh();else stopInstrAssignStatsRefresh();
   if(t==='dashboard')loadDashboard();
-  if(t==='messages')loadMessages();
+  if(t==='messages'){loadMessages();loadInbox();}
   if(t==='analytics'){loadAnalytics();}
   if(t==='requests'){loadStudentRequests();loadAdminReschedules();}
   if(t==='lessons')loadAllLessons();
@@ -5721,20 +5752,125 @@ async function sendAll(){
   showToast(`📢 Sent to ${approved.length} instructors!`,'success');closeModal('sendAllModal');loadMessages();
 }
 async function loadMessages(){
+  // Outbound: admin → instructor (exclude inbound drop/cancel types)
+  const inboundTypes=['drop_request','cancel_drop_request'];
   const{data}=await sb.from('admin_messages').select('*,instructors(full_name)').order('created_at',{ascending:false}).limit(100);
-  const list=data||[];const container=document.getElementById('msgList');
+  const list=(data||[]).filter(m=>!inboundTypes.includes(m.message_type));
+  const container=document.getElementById('msgList');
   if(!list.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)">No messages sent yet.</div>';return;}
   const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪'};
   container.innerHTML=list.map(m=>`<div class="msg-row">
     <div class="msg-dot ${m.is_read?'read':'unread'}"></div>
     <div style="flex:1;min-width:0">
-      <div class="msg-to">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace('_',' ').toUpperCase())} → ${esc(m.instructors?.full_name||'Unknown')}</div>
+      <div class="msg-to">${icons[m.message_type]||'📢'} ${esc((m.message_type||'').replace(/_/g,' ').toUpperCase())} → ${esc(m.instructors?.full_name||'Unknown')}</div>
       <div class="msg-subj">${esc(m.subject)}</div>
       <div class="msg-prev">${esc(m.body)}</div>
       <div class="msg-meta">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
     </div>
     <span style="font-size:.6rem;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;font-weight:700;flex-shrink:0;${m.is_read?'background:var(--dk3);color:var(--txt4)':'background:rgba(209,10,17,.08);color:#f87171'}">${m.is_read?'Read':'Unread'}</span>
   </div>`).join('');
+}
+
+// Inbound messages (instructor → admin)
+let _inboxCache=[];
+async function loadInbox(){
+  const container=document.getElementById('inboxList');if(!container)return;
+  container.innerHTML='<div style="padding:20px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
+  const{data,error}=await sb.from('admin_messages')
+    .select('*,instructors(full_name)')
+    .in('message_type',['drop_request','cancel_drop_request'])
+    .order('created_at',{ascending:false})
+    .limit(200);
+  if(error){container.innerHTML='<div style="padding:20px;text-align:center;color:#f87171">Failed to load inbox.</div>';return;}
+  _inboxCache=data||[];
+  _updateInboxBadge();
+  const lbl=document.getElementById('inboxCountLabel');
+  const pending=_inboxCache.filter(m=>!m.dismissed);
+  if(lbl)lbl.textContent=`${pending.length} pending, ${_inboxCache.length} total`;
+  if(!_inboxCache.length){container.innerHTML='<div style="padding:24px;text-align:center;font-size:.82rem;color:var(--txt4)"><i class="bi bi-inbox me-2"></i>No incoming messages yet.</div>';return;}
+  container.innerHTML=_inboxCache.map((m,i)=>{
+    const instrName=m.instructors?.full_name||'Unknown instructor';
+    const isDrop=m.message_type==='drop_request';
+    const isCancel=m.message_type==='cancel_drop_request';
+    const isDone=!!m.dismissed;
+    // Parse student name from subject "⚠️ Student left: NAME" or body
+    let studentName='';
+    const subj=m.subject||'';
+    const nameMatch=subj.match(/Student (?:left|left \(cancelled\)|cancelled):\s*(.+)/i)||subj.match(/:\s*(.+)$/);
+    if(nameMatch)studentName=nameMatch[1].trim();
+    const typeIcon=isDrop?'🚪':isCancel?'↩️':'📩';
+    const typeLabel=isDrop?'Student Left Request':isCancel?'Drop Request Cancelled':'Message';
+    const typeCl=isDrop?'rgba(239,68,68,.1)':isCancel?'rgba(245,158,11,.08)':'rgba(96,165,250,.08)';
+    const typeBdr=isDrop?'rgba(239,68,68,.3)':isCancel?'rgba(245,158,11,.25)':'rgba(96,165,250,.2)';
+    const actionBtns=isDrop&&!isDone?`
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <button onclick="approveDropRequest('${m.id}','${jsEsc(studentName)}','${m.instructor_id}')" style="flex:1;min-width:100px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:8px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;padding:7px 10px;cursor:pointer"><i class="bi bi-check-lg me-1"></i>Confirm Left</button>
+        <button onclick="rejectDropRequest('${m.id}','${jsEsc(studentName)}','${m.instructor_id}')" style="flex:1;min-width:100px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;padding:7px 10px;cursor:pointer"><i class="bi bi-arrow-counterclockwise me-1"></i>Keep / Restore</button>
+      </div>` : isDone?`<div style="font-size:.7rem;color:var(--txt4);margin-top:6px;padding:4px 8px;background:var(--dk3);border-radius:6px;display:inline-block"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Actioned</div>`:'';
+    return`<div style="border:1px solid ${typeBdr};background:${typeCl};border-radius:12px;padding:13px 15px;margin-bottom:10px;${isDone?'opacity:.6':''}">
+      <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.72rem;font-weight:700;color:${isDrop?'#f87171':isDone?'var(--txt4)':'var(--gold)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${typeIcon} ${typeLabel}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);margin-bottom:2px">${esc(subj)}</div>
+          <div style="font-size:.73rem;color:var(--txt3);margin-bottom:6px"><i class="bi bi-person-fill me-1"></i>${esc(instrName)} · ${new Date(m.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+          <div style="font-size:.76rem;color:var(--txt2);white-space:pre-line;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;max-height:100px;overflow-y:auto">${esc(m.body||'')}</div>
+          ${actionBtns}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _updateInboxBadge(){
+  const pending=(_inboxCache||[]).filter(m=>m.message_type==='drop_request'&&!m.dismissed).length;
+  const badge=document.getElementById('inboxBadge');
+  if(!badge)return;
+  if(pending>0){badge.textContent=pending;badge.style.display='';}
+  else{badge.style.display='none';}
+}
+
+async function approveDropRequest(msgId,studentName,instrId){
+  if(!confirm(`Confirm that "${studentName}" has left?\n\nThis will notify the instructor that the student's departure is confirmed.`))return;
+  showToast('Processing…','info',3000);
+  const instrObj=allInstrs.find(i=>i.id===instrId);
+  const instrName=instrObj?.full_name||'Instructor';
+  // Send confirmation message back to instructor
+  const confMsg=`Hi ${instrName},\n\nWe've confirmed that ${studentName} has left. Their profile has been updated accordingly. No further action is needed on your part.\n\nIf any referral fees are outstanding, our team will be in touch.\n\n— DriveSQ Admin`;
+  await Promise.all([
+    sb.from('admin_messages').insert([{instructor_id:instrId,subject:`✅ Confirmed: ${studentName} has left`,body:confMsg,message_type:'drop_request_approved',is_read:false,dismissed:false,created_at:new Date().toISOString()}]),
+    sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',msgId),
+  ]);
+  sendPushToInstructor(instrId,instrName,`✅ ${studentName} — departure confirmed`,'Your student left request has been reviewed and confirmed.','/dashboard.html');
+  showToast(`Confirmed — ${studentName} marked as left. Instructor notified.`,'success');
+  loadInbox();
+}
+
+async function rejectDropRequest(msgId,studentName,instrId){
+  if(!confirm(`Keep "${studentName}" as an active student?\n\nThis will restore them as active and notify the instructor to continue with lessons.`))return;
+  showToast('Restoring student…','info',3000);
+  const instrObj=allInstrs.find(i=>i.id===instrId);
+  const instrName=instrObj?.full_name||'Instructor';
+  // Restore student in DB
+  const updates=[
+    sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',msgId),
+    sb.from('student_profiles').update({status:'active'}).ilike('name',studentName).eq('instructor_id',instrId).in('status',['drop_pending','inactive','deleted_by_instructor']),
+  ];
+  // Also restore student_account if we can find it
+  const cachedStudent=allStudentsCache.find(s=>s.name&&s.name.toLowerCase()===studentName.toLowerCase()&&s.instrId===instrId);
+  if(cachedStudent?.acctId){
+    updates.push(sb.from('student_accounts').update({status:'active'}).eq('id',cachedStudent.acctId));
+    cachedStudent.status='active';cachedStudent.acctStatus='active';
+  }
+  await Promise.all(updates);
+  // Update local cache
+  allStudentsCache.forEach(s=>{if(s.name&&s.name.toLowerCase()===studentName.toLowerCase()&&s.instrId===instrId){s.status='active';s.acctStatus='active';}});
+  // Notify instructor
+  const keepMsg=`Hi ${instrName},\n\nAfter reviewing the situation, we'd like you to continue working with ${studentName}. Please reach out to them to discuss and rebook lessons.\n\nIf you have any concerns, feel free to contact admin.\n\n— DriveSQ Admin`;
+  await sb.from('admin_messages').insert([{instructor_id:instrId,subject:`ℹ️ Please keep ${studentName} as your student`,body:keepMsg,message_type:'drop_request_kept',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+  sendPushToInstructor(instrId,instrName,`ℹ️ ${studentName} — please continue lessons`,'Admin has reviewed the drop request and wants you to keep this student.','/dashboard.html');
+  showToast(`${studentName} restored as active. Instructor notified.`,'success');
+  loadInbox();
+  filterAllStudents(document.getElementById('studentSearch')?.value||'');
 }
 
 /* ══ BADGE REQUEST ══ */
