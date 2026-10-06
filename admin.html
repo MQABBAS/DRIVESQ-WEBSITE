@@ -519,6 +519,11 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
       <div class="admin-chip ms-1"><i class="bi bi-shield-fill me-1"></i>ADMIN</div>
       <div id="adminClock" style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt3);letter-spacing:.03em;display:flex;flex-direction:column;align-items:center;line-height:1.15;user-select:none;min-width:54px;text-align:center" title="Current time"><span id="adminClockTime" style="font-size:1rem;font-weight:700;color:var(--txt)">--:--</span><span id="adminClockDate" style="font-size:.62rem;color:var(--txt4)">---</span></div>
       <div class="ms-auto d-flex align-items-center gap-2">
+        <div id="adminSessionInfo" style="display:none;align-items:center;gap:5px;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:4px 10px;font-size:.65rem;color:#4ade80;font-family:'Oswald',sans-serif;letter-spacing:.3px" title="You are signed in — session persists for 30 days">
+          <i class="bi bi-shield-check-fill"></i>
+          <span id="adminSessionLabel">admin</span>
+          <span id="adminSessionDays" style="color:var(--txt4);font-size:.58rem"></span>
+        </div>
         <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
@@ -2444,7 +2449,27 @@ tickAdminClock();
 setInterval(tickAdminClock,1000);
 
 /* ══ AUTH ══ */
-if(localStorage.getItem('dsq_admin')==='true')showApp();
+const _SESSION_TTL=30*24*60*60*1000; // 30 days
+function _isSessionValid(){
+  try{
+    const raw=localStorage.getItem('dsq_admin_session');
+    if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(!s||!s.ts||!s.ok)return false;
+    if(Date.now()-s.ts>_SESSION_TTL){localStorage.removeItem('dsq_admin_session');return false;}
+    return true;
+  }catch(e){return false;}
+}
+function _saveSession(email){
+  try{localStorage.setItem('dsq_admin_session',JSON.stringify({ok:true,ts:Date.now(),email:email||''}));}catch(e){}
+}
+function _clearSession(){
+  localStorage.removeItem('dsq_admin_session');
+  localStorage.removeItem('dsq_admin'); // legacy
+}
+// Migrate legacy flag
+if(localStorage.getItem('dsq_admin')==='true'&&!_isSessionValid()){_saveSession('');localStorage.removeItem('dsq_admin');}
+if(_isSessionValid())showApp();
 
 async function doLogin(){
   const btn=document.getElementById('loginBtn');
@@ -2461,7 +2486,7 @@ async function doLogin(){
     let hash;
     try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
     if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
-    localStorage.setItem('dsq_admin','true');showApp();
+    _saveSession(email);showApp();
   }catch(e){showLoginErr('Connection error. Please try again.');}
   finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
 }
@@ -2652,17 +2677,39 @@ function showApp(){
   document.getElementById('mainNav').classList.remove('hidden');
   document.getElementById('quickActionsBar')?.classList.remove('hidden');
   document.getElementById('mainPage').classList.remove('hidden');
+  // Show session info in nav
+  try{
+    const s=JSON.parse(localStorage.getItem('dsq_admin_session')||'null');
+    const infoWrap=document.getElementById('adminSessionInfo');
+    if(infoWrap)infoWrap.style.display='flex';
+    if(s&&s.email){
+      const el=document.getElementById('adminSessionLabel');
+      if(el)el.textContent=s.email.split('@')[0];
+    }
+    const daysLeft=s&&s.ts?Math.ceil((_SESSION_TTL-(Date.now()-s.ts))/86400000):30;
+    const sl=document.getElementById('adminSessionDays');if(sl)sl.textContent=daysLeft+'d';
+  }catch(e){}
+  // Restore last-viewed tab (skip calendar — it needs state)
+  const lastTab=localStorage.getItem('dsq_admin_last_tab');
+  const safeLastTab=lastTab&&lastTab!=='calendar'?lastTab:'dashboard';
+  // Restore cached data immediately so page isn't blank on refresh
+  _restoreCachedData();
   setTimeout(()=>{initAdminPush();_updateAdminNotifBtn();},2000);
   setTimeout(loadWebBookingsBadge,3000);
   if(_pwaInstallPrompt) setTimeout(_showPwaInstallBtn,3000);
-  loadAll();
+  loadAll().then(()=>{
+    // After fresh load, switch to last tab
+    if(safeLastTab&&safeLastTab!=='dashboard'&&safeLastTab!=='instructors'){
+      switchTab(safeLastTab);
+    }
+  });
   startAdminRealtime();
   setTimeout(_buildUnpaidRefIndex,4000);
   setTimeout(_restoreFcDraft,500);
   // Pre-load students in background so global search works immediately
   setTimeout(()=>loadAllStudents().catch(()=>{}),3000);
   window.scrollTo({top:0,behavior:'instant'});
-  history.replaceState({tab:'instructors'},'',location.pathname);
+  history.replaceState({tab:safeLastTab},'',location.pathname+(safeLastTab==='instructors'?'':'#'+safeLastTab));
 }
 
 /* ══ REALTIME — live roster + student sync ══ */
@@ -2758,7 +2805,54 @@ function startAdminRealtime(){
     })
     .subscribe();
 }
-function doLogout(){localStorage.removeItem('dsq_admin');window.location.reload();}
+function doLogout(){_clearSession();window.location.reload();}
+
+/* ══ DATA CACHE — persist key data across refreshes ══ */
+const _CACHE_KEY='dsq_admin_cache_v2';
+const _CACHE_TTL=5*60*1000; // 5-minute stale-while-revalidate window
+function _saveCache(patch){
+  try{
+    const old=JSON.parse(sessionStorage.getItem(_CACHE_KEY)||'{}');
+    const merged=Object.assign(old,patch,{ts:Date.now()});
+    sessionStorage.setItem(_CACHE_KEY,JSON.stringify(merged));
+  }catch(e){}
+}
+function _getCache(){
+  try{return JSON.parse(sessionStorage.getItem(_CACHE_KEY)||'{}')||{};}catch(e){return {};}
+}
+function _restoreCachedData(){
+  try{
+    const c=_getCache();
+    if(!c.ts)return;
+    const age=Date.now()-c.ts;
+    // Restore instructors list (used immediately by renderInstrsTable)
+    if(c.allInstrs&&c.allInstrs.length){
+      allInstrs=c.allInstrs;
+      renderInstrsTable(allInstrs);
+      renderPendingTable(allInstrs.filter(i=>i.status==='pending'));
+      populateDropdowns();
+      const pc=allInstrs.filter(i=>i.status==='pending').length;
+      const pb=document.getElementById('pendingBadge');
+      if(pb){pb.textContent=pc;pb.classList.toggle('hidden',pc===0);}
+    }
+    // Restore stat numbers from cache (will be overwritten by fresh load shortly)
+    if(c.stats){
+      const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+      if(c.stats.sTotal)set('sTotal',c.stats.sTotal);
+      if(c.stats.sPend)set('sPend',c.stats.sPend);
+      if(c.stats.sApproved)set('sApproved',c.stats.sApproved);
+      if(c.stats.sToday)set('sToday',c.stats.sToday);
+      if(c.stats.sWeek)set('sWeek',c.stats.sWeek);
+      if(c.stats.sHours)set('sHours',c.stats.sHours);
+      if(c.stats.sEarnings)set('sEarnings',c.stats.sEarnings);
+      if(c.stats.sTotalStudents)set('sTotalStudents',c.stats.sTotalStudents);
+    }
+    if(age<_CACHE_TTL){
+      const staleNote=document.getElementById('adminStaleBanner');
+      if(staleNote)staleNote.style.display='none'; // fresh enough
+    }
+  }catch(e){}
+}
 
 /* ══ STATE ══ */
 let allInstrs=[];
@@ -2877,6 +2971,7 @@ function switchTab(t){
   }
   window.scrollTo({top:0,behavior:'instant'});
   if(history.state?.tab!==t)history.pushState({tab:t},'',location.pathname+(t==='instructors'?'':'#'+t));
+  try{localStorage.setItem('dsq_admin_last_tab',t);}catch(e){}
 }
 window.addEventListener('popstate',function(e){
   const t=(e.state&&e.state.tab)||'instructors';
@@ -2964,6 +3059,8 @@ async function loadInstrs(){
   document.getElementById('sTotal').textContent=allInstrs.length;
   document.getElementById('sPend').textContent=pc;
   document.getElementById('sApproved').textContent=allInstrs.filter(i=>i.status==='approved').length;
+  // Cache instructors for fast restore on next refresh
+  _saveCache({allInstrs:allInstrs.map(i=>({id:i.id,full_name:i.full_name,status:i.status,email:i.email,phone:i.phone,badge_number:i.badge_number,postcode:i.postcode,_weekHrs:i._weekHrs,_weekEarnings:i._weekEarnings,_rosterCount:i._rosterCount,_weekReferrals:i._weekReferrals}))});
 }
 
 async function loadGlobalStats(){
@@ -2983,7 +3080,9 @@ async function loadGlobalStats(){
   const earnings=weekLessons.reduce((a,l)=>a+(parseFloat(l.payment_received)||0),0);
   document.getElementById('sEarnings').textContent='£'+earnings.toFixed(0);
   // Roster (student_profiles) is the canonical count — every student an instructor has added
-  document.getElementById('sTotalStudents').textContent=rosterR.count||studR.count||0;
+  const totalStudents=rosterR.count||studR.count||0;
+  document.getElementById('sTotalStudents').textContent=totalStudents;
+  _saveCache({stats:{sToday:todayR.count||0,sWeek:weekLessons.length,sHours:hrs%1===0?hrs.toFixed(0):hrs.toFixed(1),sEarnings:'£'+earnings.toFixed(0),sTotalStudents:totalStudents,sTotal:allInstrs.length,sPend:allInstrs.filter(i=>i.status==='pending').length,sApproved:allInstrs.filter(i=>i.status==='approved').length}});
   // Fully registered = student_accounts with a last_login (they've actually logged in)
   sb.from('student_accounts').select('id',{count:'exact',head:true}).not('last_login','is',null).then(r=>{
     document.getElementById('sFullyReg').textContent=r.count||0;
