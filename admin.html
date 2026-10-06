@@ -7115,7 +7115,7 @@ function runGlobalSearch(q){
     html+=`<div class="gsearch-section">${instrHits.length?'<div class="gsearch-divider"></div>':''}<div class="gsearch-lbl"><span>Students</span><span class="gsearch-lbl-count">${studHits.length}</span></div>`;
     studHits.forEach(s=>{
       _gsItems.push({type:'student',data:s,label:s.name});
-      const onlineBadge=s.isOnline?'<span class="gsearch-item-badge online"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#4ade80;margin-right:3px;vertical-align:middle"></span>Online</span>':s.onApp?'<span class="gsearch-item-badge onapp">On App</span>':'';
+      const onlineBadge=s.isOnline?'<span class="gsearch-item-badge online"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#4ade80;margin-right:3px;vertical-align:middle"></span>Online</span>':s.onApp?'<span class="gsearch-item-badge onapp">On App</span>':'<span class="gsearch-item-badge" style="background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)">Not logged in</span>';
       const typeStr=[...(s.types||[])].slice(0,1).join('')||s.lesson_type||'';
       html+=`<div class="gsearch-item" onclick="gSearchSelect(${_gsItems.length-1})">
         <div class="gsearch-item-icon student">${(s.name||'?').charAt(0).toUpperCase()}</div>
@@ -7126,6 +7126,7 @@ function runGlobalSearch(q){
             ${s.phone?`<span>${esc(s.phone)}</span>`:''}
             ${s.instrName&&s.instrName!=='—'?`<span>· ${esc(s.instrName)}</span>`:''}
             ${typeStr?`<span>· ${esc(typeStr)}</span>`:''}
+            ${(!s.isOnline&&s.onApp&&s.lastLogin)?`<span style="color:var(--txt4)">· Last login: ${fmtD(s.lastLogin)}</span>`:''}
           </div>
         </div>
         <i class="bi bi-chevron-right" style="color:var(--bdr2);font-size:.7rem;flex-shrink:0"></i>
