@@ -4235,6 +4235,114 @@ const _sfx=(()=>{
 })();
 function showToast(msg,type='',duration=3200){const t=document.getElementById('toast');t.innerHTML=msg;t.className='dsq-toast'+(type?' '+type:'');clearTimeout(_tt);requestAnimationFrame(()=>t.classList.add('show'));_tt=setTimeout(()=>t.classList.remove('show'),duration);}
 
+/* ══════════════════════════════════════════════════════
+   SOUND EFFECTS — Web Audio API synthesizer
+══════════════════════════════════════════════════════ */
+let _dAudioCtx=null;
+function _dGetCtx(){if(!_dAudioCtx)try{_dAudioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return _dAudioCtx;}
+function _dsfx(type){
+  try{
+    const ctx=_dGetCtx();if(!ctx)return;
+    const now=ctx.currentTime;
+    const _o=(freq,wt,start,dur,vol,atk)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=wt;o.frequency.value=freq;
+      g.gain.setValueAtTime(0,start);
+      g.gain.linearRampToValueAtTime(vol,start+(atk||0.012));
+      g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+      o.start(start);o.stop(start+dur+0.01);
+    };
+    const _n=(start,dur,vol,freq=1200)=>{
+      const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+      const src=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+      f.type='bandpass';f.frequency.value=freq;f.Q.value=0.8;
+      src.buffer=buf;src.connect(f);f.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(vol,start);g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+      src.start(start);src.stop(start+dur+0.01);
+    };
+    switch(type){
+      // ── UI ──
+      case'click':      _o(880,'sine',now,0.06,0.11); break;
+      case'click-soft': _o(660,'sine',now,0.05,0.07); break;
+      case'tab':        _o(740,'sine',now,0.07,0.09);_o(1100,'sine',now+0.04,0.05,0.06); break;
+      case'open':       _o(523,'sine',now,0.11,0.09);_o(659,'sine',now+0.06,0.11,0.09); break;
+      case'close':      _o(659,'sine',now,0.08,0.09);_o(523,'sine',now+0.06,0.09,0.08); break;
+      case'toggle-on':  _o(880,'sine',now,0.09,0.12);_o(1100,'sine',now+0.07,0.09,0.09); break;
+      case'toggle-off': _o(600,'sine',now,0.07,0.10);_o(440,'sine',now+0.06,0.09,0.08); break;
+      case'pop':        _o(800,'sine',now,0.04,0.13,0.004);_n(now,0.03,0.05); break;
+      // ── Actions ──
+      case'save':       [523,659,784,1046].forEach((f,i)=>_o(f,'sine',now+i*0.08,0.15,0.13)); break;
+      case'send':       _o(880,'sine',now,0.10,0.13);_o(1320,'sine',now+0.06,0.13,0.12);_o(1760,'sine',now+0.12,0.11,0.09); break;
+      case'copy':       _o(1046,'sine',now,0.07,0.11);_o(1318,'sine',now+0.06,0.08,0.08); break;
+      case'refresh':    _o(880,'triangle',now,0.05,0.08);_o(1100,'triangle',now+0.06,0.07,0.07);_o(1320,'triangle',now+0.12,0.09,0.07); break;
+      case'message':    _o(523,'triangle',now,0.08,0.09);_o(659,'triangle',now+0.07,0.09,0.09);_o(784,'triangle',now+0.14,0.11,0.09); break;
+      case'create':     [392,523,659,784].forEach((f,i)=>_o(f,'sine',now+i*0.08,0.16,0.17)); break;
+      case'confirm':    [523,659,784,1046].forEach((f,i)=>_o(f,'sine',now+i*0.07,0.17,0.18)); break;
+      case'notify':     _o(1100,'sine',now,0.05,0.07,0.02);_o(1320,'sine',now+0.07,0.05,0.06,0.02);_o(1100,'sine',now+0.14,0.07,0.08,0.02); break;
+      case'wa':         _o(523,'sine',now,0.07,0.09);_o(659,'sine',now+0.05,0.08,0.08);_o(784,'sine',now+0.10,0.09,0.08); break;
+      case'call':       [784,784,0,784,784].forEach((f,i)=>{if(f)_o(f,'sine',now+i*0.12,0.09,0.11);}); break;
+      case'star':       [1046,1318,1568,1318,1046].forEach((f,i)=>_o(f,'sine',now+i*0.055,0.07,0.09,0.008)); break;
+      case'calendar':   _o(523,'triangle',now,0.06,0.08);_o(659,'triangle',now+0.07,0.07,0.07); break;
+      case'paid':       _o(1046,'sine',now,0.08,0.18,0.008);_o(1318,'sine',now+0.06,0.12,0.15,0.008);_o(1568,'sine',now+0.12,0.13,0.13,0.008);_n(now,0.04,0.035); break;
+      case'transfer':   _o(880,'sine',now,0.06,0.06);_o(1100,'sine',now+0.05,0.07,0.07);_o(880,'sine',now+0.10,0.05,0.06); break;
+      case'award':      [523,659,784,1046,784,1046,1318].forEach((f,i)=>_o(f,'sine',now+i*0.07,0.11,0.15,0.01)); break;
+      // ── Destructive ──
+      case'delete':     _o(330,'sawtooth',now,0.06,0.15,0.02);_o(247,'sawtooth',now+0.08,0.08,0.13,0.02); break;
+      case'cancel':     _o(494,'triangle',now,0.07,0.10);_o(370,'triangle',now+0.08,0.08,0.10); break;
+      // ── System feedback ──
+      case'warn':       _o(440,'triangle',now,0.05,0.13);_o(440,'triangle',now+0.18,0.07,0.13); break;
+      case'error':      [300,260,220].forEach((f,i)=>_o(f,'sawtooth',now+i*0.09,0.09,0.17,0.02)); break;
+      case'info':       _o(880,'sine',now,0.06,0.08);_o(1100,'sine',now+0.07,0.07,0.07); break;
+      case'login':      [392,494,587,740,880].forEach((f,i)=>_o(f,'sine',now+i*0.07,0.15,0.15)); break;
+      case'chime':      [1047,1319,1568].forEach((f,i)=>_o(f,'sine',now+i*0.1,0.17,0.11,0.01)); break;
+      case'ding':       _o(1480,'sine',now,0.11,0.17,0.005);_o(1976,'sine',now+0.01,0.07,0.15,0.005); break;
+      case'filter':     _o(660,'triangle',now,0.07,0.09);_o(830,'triangle',now+0.05,0.06,0.07); break;
+      case'expand':     _o(740,'sine',now,0.06,0.08);_o(880,'sine',now+0.05,0.07,0.07); break;
+      case'collapse':   _o(880,'sine',now,0.07,0.07);_o(660,'sine',now+0.05,0.07,0.08); break;
+    }
+  }catch(e){}
+}
+
+/* Global click-sound router for dashboard */
+document.addEventListener('click',function(e){
+  const el=e.target.closest('[data-sfx],[onclick],button,a[href]');
+  if(!el)return;
+  if(el.dataset.sfx){_dsfx(el.dataset.sfx);return;}
+  const cls=el.className||'';const txt=(el.textContent||'').toLowerCase().trim().slice(0,60);const href=el.getAttribute('href')||'';
+  if(/delete|remove/i.test(cls+' '+txt)){_dsfx('delete');return;}
+  if(/student left|cancel request/i.test(txt)){_dsfx('cancel');return;}
+  if(/notify admin/i.test(txt)){_dsfx('notify');return;}
+  if(/confirm|approve/i.test(txt)){_dsfx('confirm');return;}
+  if(/send|submit/i.test(txt)&&el.tagName==='BUTTON'){_dsfx('send');return;}
+  if(/save|update/i.test(txt)&&el.tagName==='BUTTON'){_dsfx('save');return;}
+  if(/copy/i.test(txt)&&el.tagName==='BUTTON'){_dsfx('copy');return;}
+  if(/refresh|reload/i.test(txt)){_dsfx('refresh');return;}
+  if(/transfer/i.test(txt)){_dsfx('transfer');return;}
+  if(/review/i.test(txt)&&el.tagName==='A'){_dsfx('star');return;}
+  if(href.includes('wa.me')){_dsfx('wa');return;}
+  if(href.startsWith('tel:')){_dsfx('call');return;}
+  if(/close|dismiss/i.test(txt)||el.classList.contains('btn-close')){_dsfx('close');return;}
+  if(/cancel/i.test(txt)&&el.tagName==='BUTTON'){_dsfx('cancel');return;}
+  if(/message|msg/i.test(cls+' '+txt)){_dsfx('message');return;}
+  if(/calendar|schedule/i.test(cls+' '+txt)){_dsfx('calendar');return;}
+  if(el.type==='checkbox'||el.role==='switch'||/toggle/i.test(cls)){_dsfx(el.checked?'toggle-on':'toggle-off');return;}
+  if(el.classList.contains('dsq-tab')||el.closest('.dsq-tabs')||/mob-/i.test(el.id)){_dsfx('tab');return;}
+  if(/filter/i.test(cls+' '+txt)){_dsfx('filter');return;}
+  if(el.tagName==='BUTTON'||el.tagName==='A'){_dsfx('click-soft');return;}
+},true);
+
+/* Patch showToast to play sound feedback */
+(function(){
+  const _orig=window.showToast||function(){};
+  window.showToast=function(msg,type,...rest){
+    if(type==='success')_dsfx('info');
+    else if(type==='error')_dsfx('error');
+    else if(type==='warn'||type==='warning')_dsfx('warn');
+    return _orig.call(this,msg,type,...rest);
+  };
+})();
 
 /* ══════════════════════════════════════════════════════
    STUDENT MANAGEMENT MODAL — openStudentMgmt

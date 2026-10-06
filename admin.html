@@ -3245,11 +3245,38 @@ function _sfx(type){
       case'refresh':   _osc(880,'triangle',now,0.05,0.08);_osc(1100,'triangle',now+0.06,0.07,0.07);_osc(1320,'triangle',now+0.12,0.09,0.07); break;
       case'message':   _osc(523,'triangle',now,0.08,0.10);_osc(659,'triangle',now+0.07,0.1,0.10);_osc(784,'triangle',now+0.14,0.12,0.10); break;
       case'renew':     [392,494,587,784].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.15,0.15)); break;
+      // ── Referral / payment specific ──
+      case'paid':      _osc(1046,'sine',now,0.08,0.20,0.008);_osc(1318,'sine',now+0.06,0.12,0.16,0.008);_osc(1568,'sine',now+0.12,0.14,0.14,0.008);_noise(now,0.04,0.04); break; // cash register ding
+      case'unpaid':    _osc(880,'sine',now,0.06,0.10);_osc(659,'sine',now+0.07,0.09,0.09); break; // gentle undo reverse
+      case'mark-all':  [523,659,784,1046,1318].forEach((f,i)=>_osc(f,'sine',now+i*0.055,0.12,0.18,0.008)); break; // rapid cascade
+      case'credit':    _osc(659,'triangle',now,0.1,0.12);_osc(784,'triangle',now+0.09,0.12,0.12);_osc(659,'triangle',now+0.18,0.1,0.10); break; // credit issued
+      case'fulfill':   [523,659,784,1046,784,880].forEach((f,i)=>_osc(f,'sine',now+i*0.065,0.13,0.16,0.01)); break; // fulfillment fanfare
+      case'unvoid':    _osc(440,'sine',now,0.06,0.08);_osc(523,'sine',now+0.07,0.08,0.10);_osc(659,'sine',now+0.14,0.1,0.12); break; // gentle restore
+      case'notify':    _osc(1100,'sine',now,0.05,0.07,0.02);_osc(1320,'sine',now+0.07,0.05,0.06,0.02);_osc(1100,'sine',now+0.14,0.07,0.08,0.02); break; // bell ping
+      // ── Flag sounds ──
+      case'flag-green':_osc(880,'sine',now,0.07,0.14,0.01);_osc(1100,'sine',now+0.07,0.08,0.12,0.01); break;
+      case'flag-red':  _osc(494,'square',now,0.04,0.12,0.02);_osc(370,'square',now+0.06,0.06,0.12,0.02); break;
+      case'flag-purple':_osc(587,'triangle',now,0.07,0.13);_osc(740,'triangle',now+0.08,0.06,0.11);_osc(932,'triangle',now+0.16,0.05,0.08); break;
+      case'flag-clear':_osc(660,'sine',now,0.05,0.08);_osc(880,'sine',now+0.05,0.04,0.06); break;
+      // ── Notes / annotation ──
+      case'note':      _osc(523,'triangle',now,0.06,0.07);_noise(now+0.02,0.05,0.025); break; // soft paper rustle
+      case'lock':      _osc(330,'square',now,0.04,0.10,0.008);_osc(220,'square',now+0.05,0.04,0.08,0.008); break;
+      case'unlock':    _osc(220,'square',now,0.04,0.08,0.008);_osc(330,'square',now+0.05,0.04,0.09,0.008);_osc(523,'sine',now+0.10,0.06,0.08); break;
+      // ── Navigation / structural ──
+      case'star':      [1046,1318,1568,1318,1046].forEach((f,i)=>_osc(f,'sine',now+i*0.055,0.07,0.10,0.008)); break; // sparkle
+      case'calendar':  _osc(523,'triangle',now,0.06,0.08);_osc(659,'triangle',now+0.07,0.07,0.07); break;
+      case'map':       _osc(440,'sine',now,0.05,0.08);_osc(659,'sine',now+0.09,0.1,0.12,0.015);_noise(now,0.03,0.03); break; // GPS pin drop
+      case'transfer':  _osc(880,'sine',now,0.06,0.06);_osc(1100,'sine',now+0.05,0.07,0.07);_osc(880,'sine',now+0.10,0.05,0.06); break;
+      case'contact':   _osc(784,'sine',now,0.06,0.07);_osc(987,'sine',now+0.06,0.05,0.06); break; // call answered
+      case'upload':    [330,440,523,659,784].forEach((f,i)=>_osc(f,'triangle',now+i*0.05,0.07,0.09)); break; // ascending sweep
+      case'award':     [523,659,784,1046,784,1046,1318].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.12,0.16,0.01)); break;
+      case'swipe':     _osc(880,'sine',now,0.04,0.06);_osc(1100,'sine',now+0.03,0.04,0.06);_osc(1320,'sine',now+0.06,0.03,0.05); break;
       // ── Destructive / warning ──
       case'delete':    _osc(330,'sawtooth',now,0.06,0.16,0.02);_osc(247,'sawtooth',now+0.08,0.08,0.14,0.02); break;
       case'reject':    _osc(300,'sawtooth',now,0.08,0.18,0.02);_osc(220,'sawtooth',now+0.09,0.1,0.16,0.02); break;
       case'block':     [280,220,180].forEach((f,i)=>_osc(f,'sawtooth',now+i*0.07,0.1,0.16,0.02)); break;
       case'warn':      _osc(440,'triangle',now,0.05,0.14);_osc(440,'triangle',now+0.18,0.07,0.14); break;
+      case'cancel':    _osc(494,'triangle',now,0.07,0.10);_osc(370,'triangle',now+0.08,0.08,0.10); break;
       // ── Neutral / system ──
       case'filter':    _osc(660,'triangle',now,0.07,0.09);_osc(830,'triangle',now+0.05,0.06,0.07); break;
       case'sort':      _osc(880,'triangle',now,0.06,0.07);_osc(740,'triangle',now+0.04,0.07,0.07); break;
@@ -3262,6 +3289,11 @@ function _sfx(type){
       case'login':     [392,494,587,740,880].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.16,0.16)); break;
       case'error':     [300,260,220].forEach((f,i)=>_osc(f,'sawtooth',now+i*0.09,0.1,0.18,0.02)); break;
       case'info':      _osc(880,'sine',now,0.06,0.08);_osc(1100,'sine',now+0.07,0.07,0.07); break;
+      case'ping':      _osc(1200,'sine',now,0.04,0.06,0.005);_osc(1500,'sine',now+0.04,0.03,0.05,0.005); break;
+      case'whoosh':    {const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(200,now);o.frequency.exponentialRampToValueAtTime(800,now+0.12);g.gain.setValueAtTime(0.12,now);g.gain.exponentialRampToValueAtTime(0.0001,now+0.18);o.start(now);o.stop(now+0.2);break;}
+      case'pop':       _osc(800,'sine',now,0.04,0.14,0.004);_noise(now,0.03,0.05); break;
+      case'chime':     [1047,1319,1568].forEach((f,i)=>_osc(f,'sine',now+i*0.1,0.18,0.12,0.01)); break;
+      case'ding':      _osc(1480,'sine',now,0.12,0.18,0.005);_osc(1976,'sine',now+0.01,0.08,0.16,0.005); break;
     }
   }catch(e){}
 }
@@ -3277,6 +3309,19 @@ document.addEventListener('click',function(e){
   if(/delete|remove|reject|block|danger|ban/i.test(cls+' '+txt)||el.classList.contains('abtn')&&/delete|remove/i.test(txt)){_sfx('delete');return;}
   if(/reject/i.test(cls+' '+txt)){_sfx('reject');return;}
   if(/block/i.test(cls+' '+txt)&&!/unblock/i.test(txt)){_sfx('block');return;}
+  if(/student left|voided|cancel request/i.test(txt)&&el.tagName==='BUTTON'){_sfx('cancel');return;}
+  if(/unvoid|restore/i.test(txt)){_sfx('unvoid');return;}
+  // Referral / payment actions
+  if(/mark all paid|mark paid/i.test(txt)&&/all/i.test(txt)){_sfx('mark-all');return;}
+  if(/mark paid/i.test(txt)){_sfx('paid');return;}
+  if(/mark unpaid/i.test(txt)){_sfx('unpaid');return;}
+  if(/issue credit/i.test(txt)){_sfx('credit');return;}
+  if(/mark fulfilled|fulfilled/i.test(txt)){_sfx('fulfill');return;}
+  if(/notify|reminder/i.test(txt)&&el.tagName==='BUTTON'){_sfx('notify');return;}
+  if(/contacted/i.test(txt)&&el.tagName==='BUTTON'){_sfx('contact');return;}
+  if(/add note|add private/i.test(txt)){_sfx('note');return;}
+  if(/review/i.test(txt)&&el.tagName==='A'){_sfx('star');return;}
+  if(/follow up/i.test(txt)){_sfx('wa');return;}
   // Approve / assign / create / save / send / export
   if(/approve/i.test(cls+' '+txt)){_sfx('approve');return;}
   if(/assign|confirm/i.test(cls+' '+txt)){_sfx('assign');return;}
@@ -3284,10 +3329,11 @@ document.addEventListener('click',function(e){
   if(/save|update/i.test(txt)&&el.tagName==='BUTTON'){_sfx('save');return;}
   if(/export|download|csv/i.test(cls+' '+txt)){_sfx('export');return;}
   if(/send|submit/i.test(txt)&&el.tagName==='BUTTON'){_sfx('send');return;}
-  if(/copy|copied/i.test(txt)){_sfx('copy');return;}
+  if(/copy/i.test(txt)&&el.tagName==='BUTTON'){_sfx('copy');return;}
   if(/renew/i.test(cls+' '+txt)){_sfx('renew');return;}
   if(/refresh|reload/i.test(txt)){_sfx('refresh');return;}
   if(/print/i.test(txt)){_sfx('print');return;}
+  if(/transfer/i.test(txt)){_sfx('transfer');return;}
   // WhatsApp / call links
   if(href.includes('wa.me')||/whatsapp/i.test(cls)){_sfx('wa');return;}
   if(href.startsWith('tel:')){_sfx('call');return;}
@@ -3298,11 +3344,18 @@ document.addEventListener('click',function(e){
   if(el.classList.contains('gsearch-recent-item')){_sfx('search-select');return;}
   // Filter / sort controls
   if(/filter|sort/i.test(cls+' '+txt)){_sfx('filter');return;}
+  // Expand / collapse
+  if(/expand|show more/i.test(txt)){_sfx('expand');return;}
+  if(/collapse|hide/i.test(txt)){_sfx('collapse');return;}
   // Modal open / close
-  if(/close|cancel|dismiss/i.test(txt)||el.classList.contains('btn-close')){_sfx('close');return;}
+  if(/close|dismiss/i.test(txt)||el.classList.contains('btn-close')){_sfx('close');return;}
+  if(/cancel/i.test(txt)&&el.tagName==='BUTTON'){_sfx('cancel');return;}
   if(el.id==='globalSearchBtn'||/search/i.test(cls+' '+txt)){_sfx('search');return;}
   // Message / WA buttons on detail views
   if(/message|msg/i.test(cls+' '+txt)){_sfx('message');return;}
+  // Calendar / map
+  if(/calendar|schedule/i.test(cls+' '+txt)){_sfx('calendar');return;}
+  if(/\bmap\b|route/i.test(cls+' '+txt)){_sfx('map');return;}
   // Toggle / switch style buttons
   if(el.type==='checkbox'||el.role==='switch'||/toggle/i.test(cls)){_sfx(el.checked?'toggle-on':'toggle-off');return;}
   // Default lightweight click for anything else (abtn, nav links, small controls)
