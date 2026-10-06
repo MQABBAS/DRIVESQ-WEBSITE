@@ -1410,6 +1410,8 @@ async function initApp(){
   ]);
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
+  window.scrollTo({top:0,behavior:'instant'});
+  history.replaceState({tab:'home'},'',location.pathname);
   // Show notification banner and auto-request permission after short delay
   _updateNotifBanner();
   if('Notification' in window && Notification.permission==='default'){
@@ -1551,6 +1553,8 @@ function switchTab(t){
     }
     document.getElementById('dtab-'+id)?.classList.toggle('active',id===t);
   });
+  window.scrollTo({top:0,behavior:'instant'});
+  if(history.state?.tab!==t)history.pushState({tab:t},'',location.pathname+(t==='home'?'':'#'+t));
   if(t==='progress'){
     // Always re-fetch progress data when tab opened
     loadProgress().then(()=>{renderProgress();renderHome();}).catch(()=>{});
@@ -1564,6 +1568,16 @@ function switchTab(t){
   if(t==='profile'){_updateNotifStatusUI();}
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});}
+window.addEventListener('popstate',function(e){
+  const t=(e.state&&e.state.tab)||'home';
+  TABS.forEach(id=>{
+    const panel=document.getElementById('panel-'+id);
+    if(panel)panel.classList.toggle('hidden',id!==t);
+    document.getElementById('dtab-'+id)?.classList.toggle('active',id===t);
+  });
+  setMobActive(t);
+  window.scrollTo({top:0,behavior:'instant'});
+});
 
 /* ── STREAK ── */
 function updateStreak(){
