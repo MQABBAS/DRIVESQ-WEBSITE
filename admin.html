@@ -8717,7 +8717,8 @@ async function openRefDetail(instrId){
         const isPaid=r.is_paid&&!isCancelled&&!isCredit;
         const isContacted=!!r.is_contacted;
         const dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-        const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+        const paidDateStr=r.paid_at?new Date(r.paid_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
+        const dueSinceStr=!r.is_paid&&r.created_at?new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'';
         const creditFulfilledStr=r.credit_fulfilled_at?new Date(r.credit_fulfilled_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
         const rowBg=isCredit&&!creditFulfilled?'background:rgba(245,158,11,.04);':'';
         const fc=r.flag_color||null;
@@ -8765,7 +8766,7 @@ async function openRefDetail(instrId){
                   ?`<span style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">✓ FULFILLED${creditFulfilledStr?' '+creditFulfilledStr:''}</span>`
                   :`<span style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">⟳ CREDIT OWED</span>`)
               :`<span style="background:${isPaid?'rgba(74,222,128,.12)':'rgba(248,113,113,.12)'};border:1px solid ${isPaid?'rgba(74,222,128,.3)':'rgba(248,113,113,.3)'};color:${isPaid?'#4ade80':'#f87171'};border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">
-              ${isPaid?'✓ PAID'+(paidDateStr?' '+paidDateStr:''):'UNPAID'}
+              ${isPaid?`✓ PAID${paidDateStr?' '+paidDateStr:''}`:`UNPAID${dueSinceStr?' · since '+dueSinceStr:''}`}
             </span>`}
           </td>
           <td style="padding:8px 8px;text-align:right;font-size:.72rem;color:var(--txt3);white-space:nowrap" title="${new Date(r.created_at).toLocaleString('en-GB')}">${dateStr}</td>
