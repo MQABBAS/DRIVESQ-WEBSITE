@@ -2119,7 +2119,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <h5><i class="bi bi-arrow-repeat me-2" style="color:var(--gold)"></i>Reassign Student</h5>
     <div class="modal-sub" id="reassignSub">Select a new instructor for this student</div>
     <div id="reassignDataSummary" style="font-size:.7rem;color:var(--txt3);margin-bottom:10px;font-style:italic"></div>
-    <p style="font-size:.74rem;color:var(--txt3);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>Name, postcode, transmission, availability and notes will all be saved to the new instructor's student profile and sent to them in a dashboard message.</p>
+    <p style="font-size:.74rem;color:var(--txt3);margin-bottom:10px"><i class="bi bi-info-circle me-1"></i>All student details will be pre-filled in Find &amp; Assign so you can pick the best available instructor. The old instructor will be notified automatically.</p>
     <input type="hidden" id="reassign-req-id"/>
     <input type="hidden" id="reassign-old-instr-id"/>
     <input type="hidden" id="reassign-student-name"/>
@@ -2129,10 +2129,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <input type="hidden" id="reassign-student-type"/>
     <input type="hidden" id="reassign-student-notes"/>
     <input type="hidden" id="reassign-student-avail"/>
-    <div class="mb-3"><label class="dsq-lbl">Assign To</label>
-      <select class="dsq-inp" id="reassign-instr"><option value="">Select instructor…</option></select>
-    </div>
-    <button class="btn-gold w-100 mb-2" onclick="confirmReassign()"><i class="bi bi-check-lg me-1"></i>Reassign Student</button>
+    <button class="btn-gold w-100 mb-2" onclick="reassignToFind()"><i class="bi bi-geo-alt-fill me-1"></i>Find Closest Instructor</button>
     <button class="btn-s w-100" onclick="closeModal('reassignModal')">Cancel</button>
   </div>
 </div>
@@ -2730,6 +2727,7 @@ let msgTypes={msgModal:'general',sendAllModal:'general'};
 let pwdRevealed=false;
 let activeLessonId=null;
 let fcStudentData=null;
+let _reassignContext=null; // {reqId, oldInstrId} set when reassign→Find flow is active
 let allStudentsCache=[];
 
 /* ══ UTILS ══ */
@@ -5414,6 +5412,34 @@ async function confirmReassign(){
   loadStudentRequests();
 }
 
+function reassignToFind(){
+  const reqId=document.getElementById('reassign-req-id').value;
+  const oldInstrId=document.getElementById('reassign-old-instr-id').value;
+  const name=document.getElementById('reassign-student-name').value;
+  const phone=document.getElementById('reassign-student-phone').value;
+  const addr=document.getElementById('reassign-student-addr').value;
+  const postcode=document.getElementById('reassign-student-postcode').value;
+  const lessonType=document.getElementById('reassign-student-type').value||'Manual';
+  const notes=document.getElementById('reassign-student-notes').value;
+  const avail=document.getElementById('reassign-student-avail').value;
+  closeModal('reassignModal');
+  // Store context so assign completion can finalize the reassign
+  _reassignContext={reqId,oldInstrId,name};
+  // Pre-fill Find & Assign form
+  const _set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  _set('fc-name',name);
+  _set('fc-phone',phone);
+  _set('fc-addr',addr);
+  _set('fc-postcode',postcode);
+  _set('fc-avail',avail);
+  _set('fc-notes',notes);
+  const lt=document.getElementById('fc-type');if(lt)lt.value=lessonType;
+  _saveFcDraft();
+  switchTab('find');setActiveTab('find');
+  showToast('Student data pre-filled — pick closest instructor below','info',3000);
+  if(postcode)setTimeout(()=>findClosest(),400);
+}
+
 /* ══ TRANSFERS ══ */
 async function loadTransferRequests(){
   const{data}=await sb.from('transfer_requests').select('*,from_instructor:from_instructor_id(full_name),to_instructor:to_instructor_id(full_name)').order('created_at',{ascending:false});
@@ -6175,6 +6201,23 @@ async function confirmAssign(){
     window._waitlistIdToAssign=null;
     window._pendingWbId=null;
     loadWebBookingsBadge();
+  }
+
+  // If this assignment came from a reassign flow, finalize: update request + notify old instructor
+  if(_reassignContext){
+    const{reqId,oldInstrId,name:rName}=_reassignContext;
+    _reassignContext=null;
+    if(reqId){
+      sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId).catch(()=>{});
+    }
+    if(oldInstrId&&oldInstrId!==instrId){
+      sb.from('student_profiles').update({status:'inactive'}).eq('instructor_id',oldInstrId).ilike('name',rName).catch(()=>{});
+      const oldInstr=allInstrs.find(i=>i.id===oldInstrId);
+      if(oldInstr){
+        const _oldMsg=`Hi ${oldInstr.full_name},\n\nPlease be aware that ${rName} has been reassigned to a different instructor by the admin team. They will no longer appear in your active student list.\n\n— DriveSQ Admin`;
+        sb.from('admin_messages').insert([{instructor_id:oldInstrId,subject:'👤 Student Reassigned Away: '+rName,body:_oldMsg,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+      }
+    }
   }
 
   // 6. Offer WhatsApp to student
