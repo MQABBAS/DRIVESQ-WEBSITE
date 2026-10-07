@@ -488,6 +488,623 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 .why-t{font-weight:700;font-size:.88rem;margin-bottom:1px;font-family:"Oswald",sans-serif}.why-d{font-size:.76rem;color:#888;line-height:1.5}
 .why-drivesq-inj{background:#f6f6f6;padding:52px 0}
 </style>
+
+<style id="dsq-enhance">
+/* ═══════════════════════════════════════════════
+   DRIVESQ DASHBOARD — ENHANCED VISUAL LAYER
+   Pure additive CSS — overrides polish only.
+   All existing IDs, classes and functions intact.
+═══════════════════════════════════════════════ */
+
+/* ── Custom Properties ── */
+:root {
+  --glow-red: 0 0 20px rgba(209,10,17,.18);
+  --glow-gold: 0 0 20px rgba(245,197,24,.18);
+  --glow-green: 0 0 20px rgba(37,211,102,.15);
+  --radius-card: 16px;
+  --radius-btn: 10px;
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width:5px; height:5px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: rgba(209,10,17,.25); border-radius:4px }
+::-webkit-scrollbar-thumb:hover { background: rgba(209,10,17,.45) }
+
+/* ── Selection ── */
+::selection { background: rgba(209,10,17,.25); color: #fff }
+
+/* ── Body gradient ── */
+body {
+  background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(209,10,17,.04), transparent);
+}
+
+/* ── NAV ── */
+.dsq-nav {
+  border-bottom: 1.5px solid rgba(209,10,17,.35) !important;
+  box-shadow: 0 1px 24px rgba(0,0,0,.5);
+}
+.nav-logo {
+  box-shadow: 0 0 0 0 rgba(209,10,17,.4);
+  animation: navLogoPulse 3s ease infinite;
+  transition: transform .3s var(--ease-spring);
+}
+.nav-logo:hover { transform: scale(1.08) }
+@keyframes navLogoPulse {
+  0%,100%  { box-shadow: 0 0 0 0 rgba(209,10,17,.35) }
+  50%      { box-shadow: 0 0 0 4px rgba(209,10,17,0) }
+}
+.brand-n {
+  font-size: 1.25rem !important;
+  letter-spacing: 1.5px !important;
+}
+.brand-s { letter-spacing: 3px !important; font-size: .52rem !important }
+
+.nav-btn {
+  border-radius: 9px !important;
+  transition: all .2s var(--ease-out) !important;
+}
+.nav-btn:hover {
+  background: rgba(209,10,17,.07) !important;
+  border-color: rgba(209,10,17,.3) !important;
+  color: var(--txt) !important;
+  transform: translateY(-1px);
+}
+.nav-btn:active { transform: translateY(0) scale(.97) }
+.nav-avatar {
+  transition: all .25s var(--ease-spring) !important;
+  box-shadow: 0 0 0 1.5px rgba(209,10,17,.3);
+}
+.nav-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2.5px var(--red), var(--glow-red);
+}
+
+/* ── NOTIFICATION DOT ── */
+.notif-dot {
+  animation: notifPulse 1.6s ease infinite;
+  border: 2px solid var(--nav-bg) !important;
+  width: 8px !important; height: 8px !important;
+}
+@keyframes notifPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(209,10,17,.5) }
+  50%     { box-shadow: 0 0 0 4px rgba(209,10,17,0) }
+}
+
+/* ── STATS CARDS ── */
+.stat-card {
+  border-radius: var(--radius-card) !important;
+  transition: transform .25s var(--ease-spring), box-shadow .25s ease, border-color .25s ease, background .4s ease !important;
+  background: linear-gradient(145deg, var(--dk2) 60%, var(--dk3)) !important;
+  overflow: hidden;
+}
+.stat-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35) !important;
+}
+.stat-card.red:hover   { border-color: rgba(209,10,17,.3) !important; box-shadow: 0 8px 32px rgba(0,0,0,.35), var(--glow-red) !important }
+.stat-card.gold:hover  { border-color: rgba(245,197,24,.3) !important; box-shadow: 0 8px 32px rgba(0,0,0,.35), var(--glow-gold) !important }
+.stat-card.green-c:hover { border-color: rgba(37,211,102,.3) !important; box-shadow: 0 8px 32px rgba(0,0,0,.35), var(--glow-green) !important }
+.stat-card.blue:hover  { border-color: rgba(96,165,250,.3) !important; box-shadow: 0 8px 32px rgba(0,0,0,.35), 0 0 20px rgba(96,165,250,.15) !important }
+.stat-card.purple:hover { border-color: rgba(168,85,247,.3) !important; box-shadow: 0 8px 32px rgba(0,0,0,.35), 0 0 20px rgba(168,85,247,.15) !important }
+.stat-card::before { height: 2.5px !important }
+.stat-num { transition: color .2s ease }
+.stat-lbl {
+  font-size: .62rem !important;
+  letter-spacing: 1.2px !important;
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+/* ── QUICK ACTION CHIPS ── */
+.qa-chip {
+  border-radius: 999px !important;
+  font-size: .77rem !important;
+  letter-spacing: .3px !important;
+  backdrop-filter: blur(4px);
+  transition: all .2s var(--ease-spring) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.qa-chip:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3), 0 0 0 1px rgba(209,10,17,.3) !important;
+  background: rgba(209,10,17,.09) !important;
+  border-color: rgba(209,10,17,.35) !important;
+}
+.qa-chip:active { transform: scale(.97) translateY(0) !important }
+
+/* ── TABS ── */
+.dsq-tabs {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,.05) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 16px rgba(0,0,0,.2);
+}
+.dsq-tab {
+  border-radius: 9px !important;
+  font-size: .83rem !important;
+  letter-spacing: .3px !important;
+  transition: all .2s var(--ease-out) !important;
+}
+.dsq-tab.active {
+  background: linear-gradient(135deg, var(--red), #b00007) !important;
+  box-shadow: 0 3px 16px rgba(209,10,17,.4), 0 1px 4px rgba(0,0,0,.3) !important;
+  color: #fff !important;
+}
+.dsq-tab:not(.active):hover {
+  background: rgba(209,10,17,.07) !important;
+  color: var(--txt) !important;
+  transform: translateY(-1px);
+}
+.tab-badge {
+  font-size: .63rem !important;
+  border-radius: 999px !important;
+  padding: 1px 6px !important;
+  font-weight: 800 !important;
+  animation: badgeBounce .4s var(--ease-spring);
+}
+@keyframes badgeBounce { from{transform:scale(0)} to{transform:scale(1)} }
+
+/* ── MOBILE BOTTOM NAV ── */
+.mob-bot-nav {
+  box-shadow: 0 -1px 32px rgba(0,0,0,.4);
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+}
+.mob-nb {
+  font-size: .6rem !important;
+  transition: color .2s ease, transform .15s var(--ease-spring) !important;
+}
+.mob-nb.active {
+  color: var(--red) !important;
+  transform: translateY(-2px);
+}
+.mob-nb i { font-size: 1.2rem !important }
+
+/* ── BUTTONS ── */
+.btn-p {
+  border-radius: var(--radius-btn) !important;
+  background: linear-gradient(135deg, #e01015, #a80008) !important;
+  box-shadow: 0 4px 18px rgba(209,10,17,.3) !important;
+  transition: all .22s var(--ease-out) !important;
+  letter-spacing: .5px !important;
+}
+.btn-p:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 28px rgba(209,10,17,.45) !important;
+  background: linear-gradient(135deg, #f01218, #c00007) !important;
+}
+.btn-p:active { transform: scale(.97) translateY(0) !important; box-shadow: 0 2px 8px rgba(209,10,17,.3) !important }
+.btn-s {
+  border-radius: var(--radius-btn) !important;
+  transition: all .2s var(--ease-out) !important;
+}
+.btn-s:hover {
+  border-color: rgba(209,10,17,.25) !important;
+  background: rgba(209,10,17,.04) !important;
+  color: var(--txt) !important;
+  transform: translateY(-1px);
+}
+.btn-g, .btn-r-sm, .btn-blue, .btn-wa, .btn-wa-sm, .btn-gold-sm {
+  border-radius: 9px !important;
+  transition: all .2s var(--ease-spring) !important;
+}
+.btn-g:hover   { transform: translateY(-1px); box-shadow: var(--glow-green) }
+.btn-r-sm:hover { transform: translateY(-1px); box-shadow: var(--glow-red) }
+.btn-wa:hover  { transform: translateY(-1px); box-shadow: var(--glow-green) }
+.btn-gold-sm:hover { transform: translateY(-1px); box-shadow: var(--glow-gold) }
+
+/* ── INPUTS ── */
+.dsq-inp {
+  border-radius: 10px !important;
+  transition: border-color .2s ease, box-shadow .2s ease, background .4s ease !important;
+}
+.dsq-inp:focus {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(209,10,17,.1), 0 2px 8px rgba(0,0,0,.2) !important;
+}
+
+/* ── MODALS ── */
+.dsq-overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+.dsq-modal {
+  border-radius: 22px 22px 0 0 !important;
+  border: 1px solid rgba(209,10,17,.18) !important;
+  background: linear-gradient(160deg, var(--dk) 80%, rgba(209,10,17,.02)) !important;
+  box-shadow: 0 -16px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03) !important;
+}
+@media(min-width:576px){
+  .dsq-modal {
+    border-radius: 22px !important;
+    box-shadow: 0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04) !important;
+  }
+}
+.dsq-modal h5 { font-size: 1.25rem !important; letter-spacing: .3px !important }
+.modal-x {
+  border-radius: 9px !important;
+  transition: all .2s ease !important;
+}
+.modal-x:hover {
+  background: rgba(239,68,68,.12) !important;
+  border-color: rgba(239,68,68,.3) !important;
+  color: #f87171 !important;
+  transform: rotate(90deg);
+}
+
+/* ── STUDENT CARDS ── */
+.student-card-v2 {
+  border-radius: 16px !important;
+  transition: border-color .2s ease, transform .2s var(--ease-spring), box-shadow .2s ease, background .4s ease !important;
+}
+.student-card-v2:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.3) !important;
+  border-color: rgba(209,10,17,.28) !important;
+}
+.student-card-v2.registered:hover { border-color: rgba(37,211,102,.35) !important }
+.student-card-v2.has-unread:hover { border-color: rgba(96,165,250,.4) !important }
+
+.sc-init {
+  transition: all .25s var(--ease-spring) !important;
+  box-shadow: 0 0 0 0 rgba(209,10,17,.3);
+}
+.student-card-v2:hover .sc-init {
+  box-shadow: 0 0 0 3px rgba(209,10,17,.15);
+}
+.student-card-v2:hover .sc-init.registered-init {
+  box-shadow: 0 0 0 3px rgba(37,211,102,.15);
+}
+
+/* ── CALENDAR CELLS ── */
+.cal-col {
+  transition: background .15s ease !important;
+}
+.cal-col.drag-over {
+  background: rgba(209,10,17,.1) !important;
+  box-shadow: inset 0 0 0 2px rgba(209,10,17,.4) !important;
+  border-radius: 8px;
+}
+.ls {
+  border-radius: 9px !important;
+  transition: all .18s var(--ease-spring) !important;
+}
+.ls:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+  box-shadow: 0 5px 18px rgba(0,0,0,.4) !important;
+}
+.add-ls-btn {
+  border-radius: 9px !important;
+  transition: all .18s ease !important;
+}
+.add-ls-btn:hover {
+  border-color: rgba(209,10,17,.35) !important;
+  background: rgba(209,10,17,.07) !important;
+  color: var(--txt3) !important;
+  transform: scale(1.02);
+}
+
+/* ── MONTH CALENDAR ── */
+.month-cell {
+  transition: background .15s ease !important;
+}
+.month-cell:hover { background: rgba(209,10,17,.05) !important }
+.month-ls-dot {
+  border-radius: 5px !important;
+  transition: opacity .15s ease !important;
+}
+.month-ls-dot:hover { opacity: .8; transform: scale(1.02) }
+
+/* ── DAY VIEW ── */
+.day-lesson-row {
+  border-radius: 12px !important;
+  transition: all .2s var(--ease-spring) !important;
+}
+.day-lesson-row:hover {
+  transform: translateX(4px) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3) !important;
+}
+
+/* ── TOAST ── */
+.dsq-toast {
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4) !important;
+  font-size: .82rem !important;
+  padding: 11px 18px !important;
+  border-left-width: 3px !important;
+  font-weight: 500 !important;
+}
+.dsq-toast.success { box-shadow: 0 8px 32px rgba(0,0,0,.4), var(--glow-green) !important }
+.dsq-toast.error   { box-shadow: 0 8px 32px rgba(0,0,0,.4), var(--glow-red) !important }
+
+/* ── NOTIFICATIONS PANEL ── */
+.notif-panel {
+  border-radius: 16px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6) !important;
+}
+.notif-item {
+  transition: background .15s ease, border-left-color .2s ease !important;
+}
+.notif-item:hover { background: rgba(209,10,17,.04) !important }
+
+/* ── PULL-TO-REFRESH ── */
+.ptr-indicator {
+  border-radius: 999px !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(209,10,17,.2) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,.4) !important;
+}
+
+/* ── WA FLOAT ── */
+.wa-float {
+  box-shadow: 0 4px 20px rgba(37,211,102,.4), 0 2px 8px rgba(0,0,0,.3) !important;
+  transition: transform .25s var(--ease-spring), box-shadow .25s ease !important;
+}
+.wa-float:hover {
+  transform: scale(1.12) !important;
+  box-shadow: 0 8px 32px rgba(37,211,102,.55), 0 4px 14px rgba(0,0,0,.3) !important;
+}
+
+/* ── REQUEST / TRANSFER CARDS ── */
+.req-card, .tr-card {
+  border-radius: 14px !important;
+  transition: border-color .2s ease, box-shadow .2s ease !important;
+}
+.req-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.25) !important }
+.req-card.pending:hover { border-color: rgba(245,197,24,.35) !important }
+.req-card.approved:hover { border-color: rgba(37,211,102,.35) !important }
+
+/* ── BANNER ── */
+.reminder-banner {
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(209,10,17,.08) !important;
+}
+
+/* ── MAP CARDS ── */
+.student-dist-card {
+  border-radius: 12px !important;
+  transition: border-color .2s ease, transform .2s var(--ease-spring), box-shadow .2s ease !important;
+}
+.student-dist-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 18px rgba(0,0,0,.25) !important;
+}
+
+/* ── SUGGEST DROPDOWN ── */
+.suggest-drop {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  backdrop-filter: blur(8px);
+  animation: dropFadeIn .15s var(--ease-out);
+}
+@keyframes dropFadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+.suggest-item { transition: background .12s ease !important }
+.suggest-item:hover,.suggest-item.active { background: rgba(209,10,17,.09) !important }
+
+/* ── MAIN CONTENT FADE ── */
+@keyframes panelReveal { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+#panel-cal,#panel-students,#panel-requests,#panel-transfer,#panel-map,#panel-referrals,#panel-earnings,#panel-profile {
+  animation: panelReveal .3s var(--ease-out);
+}
+.main-pad { animation: dsqFadeIn .35s var(--ease-out) both !important }
+
+/* ── COLOUR KEY ── */
+.ck-d { width: 10px !important; height: 10px !important; border-radius: 3px !important }
+.ck-i { font-size: .7rem !important }
+
+/* ── SECTION HEADS ── */
+.section-head {
+  font-size: .88rem !important;
+  letter-spacing: 1px !important;
+  color: var(--txt2) !important;
+}
+
+/* ── HOME SCREEN STEPS ── */
+.hs-num {
+  width: 28px !important; height: 28px !important;
+  font-size: .84rem !important;
+}
+
+/* ── REFERRAL STATUS PILLS ── */
+.ref-status-pill {
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  letter-spacing: .3px !important;
+}
+
+/* ── SUSPENDED OVERLAY ── */
+.susp-card {
+  box-shadow: 0 32px 80px rgba(209,10,17,.1), 0 0 0 1px rgba(209,10,17,.25) !important;
+}
+
+/* ── PROGRESS BAR PULSE ── */
+.ls-progress-bar {
+  background: linear-gradient(90deg, rgba(209,10,17,.5), var(--red), rgba(209,10,17,.7)) !important;
+  background-size: 200% 100% !important;
+  animation: progressShimmer 2s linear infinite;
+}
+@keyframes progressShimmer {
+  0% { background-position: 200% 0 }
+  100% { background-position: -200% 0 }
+}
+
+/* ── CODE DISPLAY ── */
+.code-display {
+  letter-spacing: 8px !important;
+  background: linear-gradient(135deg, var(--txt), rgba(240,240,240,.7)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* ── UPLOAD AREA ── */
+.upload-area {
+  border-radius: 12px !important;
+  transition: all .2s var(--ease-out) !important;
+}
+.upload-area:hover {
+  border-color: rgba(209,10,17,.4) !important;
+  background: rgba(209,10,17,.05) !important;
+  transform: scale(1.005);
+}
+
+/* ── AVATAR ── */
+.avatar-lg {
+  border: 2px solid rgba(209,10,17,.4) !important;
+  box-shadow: 0 0 0 4px rgba(209,10,17,.07), 0 4px 18px rgba(0,0,0,.35) !important;
+  transition: all .25s var(--ease-spring) !important;
+}
+.avatar-lg:hover { box-shadow: 0 0 0 4px rgba(209,10,17,.2), 0 6px 24px rgba(0,0,0,.4) !important }
+
+/* ── MESSAGE BANNERS ── */
+.msg-banner {
+  border-radius: 12px !important;
+  animation: slideDown .3s var(--ease-out) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15) !important;
+}
+
+/* ── DAY MODE overrides ── */
+.day-mode .dsq-nav { box-shadow: 0 1px 20px rgba(0,0,0,.1) !important }
+.day-mode .stat-card {
+  background: linear-gradient(145deg, #ffffff 60%, #f8f8fb) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07) !important;
+}
+.day-mode .stat-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.12) !important }
+.day-mode .dsq-modal {
+  background: linear-gradient(160deg, #fff 80%, #fef2f2) !important;
+  border-color: rgba(209,10,17,.12) !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,.18), 0 0 0 1px rgba(209,10,17,.05) !important;
+}
+.day-mode .suggest-drop { backdrop-filter: none; background: #fff !important; border-color: #e5e7eb !important }
+.day-mode .notif-panel { background: #fff !important; backdrop-filter: none }
+
+/* ── Student stats (sc-stat) ── */
+.sc-stat {
+  transition: all .2s var(--ease-spring) !important;
+  border-radius: 9px !important;
+}
+.sc-stat:hover {
+  border-color: rgba(209,10,17,.2) !important;
+  background: rgba(209,10,17,.04) !important;
+  transform: translateY(-1px);
+}
+
+/* ── Chat bubbles ── */
+.chat-bubble {
+  border-radius: 14px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12) !important;
+}
+.chat-bubble.from-me { border-bottom-right-radius: 4px !important }
+.chat-bubble.from-student { border-bottom-left-radius: 4px !important }
+
+/* ── Topic rows ── */
+.r-btn {
+  transition: all .15s var(--ease-spring) !important;
+  border-radius: 7px !important;
+}
+.r-btn:hover { transform: scale(1.08) !important }
+.r-btn.active { transform: scale(1.12) !important }
+
+/* ── Map container ── */
+.map-container {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25) !important;
+}
+#instrMap, #testRouteMap {
+  border-radius: 0 !important;
+}
+
+/* ── Theme panel ── */
+#themePanel {
+  border-radius: 14px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  backdrop-filter: blur(12px) !important;
+  animation: dropFadeIn .15s var(--ease-out);
+}
+.theme-opt-btn { border-radius: 10px !important }
+.t-ico { border-radius: 9px !important }
+
+/* ── Status pills ── */
+.status-pill, .roster-pill, .app-status-pill {
+  border-radius: 6px !important;
+  letter-spacing: .4px !important;
+}
+
+/* ── Section divider animation ── */
+.modal-divider { font-size: .7rem !important; letter-spacing: 1.2px !important }
+
+/* ── Focus visible ── */
+:focus-visible {
+  outline: 2px solid var(--red) !important;
+  outline-offset: 2px !important;
+}
+button:focus:not(:focus-visible) { outline: none !important }
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ── Test Route Cards ── */
+.tc-card-btn {
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;
+  padding:9px 11px;cursor:pointer;transition:all .22s var(--ease-spring,cubic-bezier(.34,1.56,.64,1));
+  color:var(--txt);text-align:left;width:100%;
+}
+.tc-card-btn:hover { transform:translateY(-2px) scale(1.02); border-color:rgba(168,85,247,.5); box-shadow:0 4px 16px rgba(168,85,247,.18); }
+.tc-card-btn.active { border-color:#a855f7; background:rgba(168,85,247,.12); box-shadow:0 0 0 1px rgba(168,85,247,.3),0 4px 16px rgba(168,85,247,.18); }
+.tc-card-btn .tc-card-name { font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:600;color:var(--txt);line-height:1.2; }
+.tc-card-btn .tc-card-meta { font-size:.65rem;color:var(--txt4); }
+.tc-card-btn.active .tc-card-name { color:#c084fc; }
+
+/* ── Test Route Action Buttons ── */
+.tc-action-btn {
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:700;
+  cursor:pointer;border:1px solid;transition:all .18s var(--ease-spring,cubic-bezier(.34,1.56,.64,1));
+  font-family:'Oswald',sans-serif;letter-spacing:.3px;white-space:nowrap;
+}
+.tc-action-btn:hover { transform:translateY(-2px) scale(1.04); }
+.tc-action-gmaps { background:rgba(66,133,244,.12);border-color:rgba(66,133,244,.3);color:#60a5fa; }
+.tc-action-gmaps:hover { background:rgba(66,133,244,.22);border-color:#4285f4;box-shadow:0 4px 14px rgba(66,133,244,.22); }
+.tc-action-wa { background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.25);color:#4ade80; }
+.tc-action-wa:hover { background:rgba(37,211,102,.2);border-color:#25d366;box-shadow:0 4px 14px rgba(37,211,102,.2); }
+.tc-action-default { background:var(--dk3);border-color:var(--bdr);color:var(--txt3); }
+.tc-action-default:hover { background:var(--dk2);border-color:rgba(168,85,247,.4);color:#c084fc;box-shadow:0 4px 14px rgba(168,85,247,.14); }
+
+/* ── Map Toolbar ── */
+.tc-map-tool {
+  display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);border-radius:7px;
+  color:#fff;font-size:.85rem;cursor:pointer;backdrop-filter:blur(6px);
+  transition:all .15s ease;
+}
+.tc-map-tool:hover { background:rgba(168,85,247,.55);border-color:rgba(168,85,247,.7); }
+
+/* ── Reassign banner animation ── */
+@keyframes fadeInDown {
+  from { opacity:0; transform:translateY(-10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── Fullscreen map mode ── */
+#tcSection.tc-fullscreen {
+  position:fixed;inset:0;z-index:9999;border-radius:0 !important;margin:0 !important;
+  display:flex;flex-direction:column;
+}
+#tcSection.tc-fullscreen #testRouteMap { height:calc(100vh - 120px) !important; }
+</style>
+
 </head>
 <body>
 <!-- NAV -->
@@ -582,6 +1199,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
     <button class="dsq-tab" id="tab-transfer" onclick="switchTab('transfer');setMobActive('transfer')"><i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline ms-1">Transfer</span></button>
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map');setMobActive('map')"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-referrals" onclick="switchTab('referrals');setMobActive('referrals')"><i class="bi bi-cash-coin"></i><span class="d-none d-sm-inline ms-1">Referrals</span><span class="tab-badge ms-1 hidden" id="refBadge">0</span></button>
+    <button class="dsq-tab" id="tab-earnings" onclick="switchTab('earnings');setMobActive('earnings')"><i class="bi bi-bank2"></i><span class="d-none d-sm-inline ms-1">Earnings</span><span class="tab-badge ms-1 hidden" id="earningsBadge">!</span></button>
     <button class="dsq-tab" id="tab-profile" onclick="switchTab('profile');setMobActive('profile')" title="Manage your profile, availability, and notification preferences"><i class="bi bi-person-circle"></i><span class="d-none d-sm-inline ms-1">Profile</span></button>
   </div>
 
@@ -1250,6 +1868,84 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
 </div>
 <!-- /REFERRALS TAB -->
 
+<!-- ══ EARNINGS TAB ══ -->
+<div id="panel-earnings" class="hidden pb-3">
+
+  <!-- Header -->
+  <div style="margin-bottom:16px">
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin:0 0 2px;display:flex;align-items:center;gap:8px"><i class="bi bi-bank2" style="color:var(--gold)"></i>My Earnings & Account</h5>
+    <div style="font-size:.68rem;color:var(--txt3)">Pending earnings · Charges owed · Net position · Payout history</div>
+  </div>
+
+  <!-- Net Position Banner -->
+  <div id="earnNetBanner" style="border-radius:14px;padding:18px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px;background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.25)">
+    <i class="bi bi-bank2" style="font-size:1.8rem;color:#60a5fa;flex-shrink:0"></i>
+    <div style="flex:1">
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--txt4);margin-bottom:4px">Net Position</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2.4rem;font-weight:900;line-height:1;color:#60a5fa" id="earnNetAmt">£—</div>
+      <div style="font-size:.72rem;color:var(--txt3);margin-top:2px" id="earnNetDesc">Loading…</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.6rem;color:var(--txt4);margin-bottom:2px">Last updated</div>
+      <div style="font-size:.7rem;color:var(--txt3)" id="earnLastUpdated">—</div>
+    </div>
+  </div>
+
+  <!-- KPI Grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:var(--card-bg);border:1px solid rgba(96,165,250,.25);border-radius:12px;padding:14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#60a5fa"></div>
+      <div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px"><i class="bi bi-hourglass-split me-1"></i>Pending Earnings</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.8rem;font-weight:800;color:#60a5fa" id="earnPending">£0</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px" id="earnPendingSub">from lessons this period</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid rgba(248,113,113,.2);border-radius:12px;padding:14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#f87171"></div>
+      <div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px"><i class="bi bi-receipt me-1"></i>Charges Owed</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.8rem;font-weight:800;color:#f87171" id="earnCharges">£0</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px" id="earnChargesSub">referrals + fees outstanding</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#4ade80"></div>
+      <div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px"><i class="bi bi-check-circle me-1"></i>Total Paid Out</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.8rem;font-weight:800;color:#4ade80" id="earnPaidOut">£0</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px" id="earnPaidOutSub">lifetime payouts received</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid rgba(74,222,128,.2);border-radius:12px;padding:14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--green)"></div>
+      <div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px"><i class="bi bi-cash-coin me-1"></i>Ref Fees Paid</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.8rem;font-weight:800;color:var(--green)" id="earnRefPaid">£0</div>
+      <div style="font-size:.62rem;color:var(--txt4);margin-top:2px">referral fees paid to date</div>
+    </div>
+  </div>
+
+  <!-- Outstanding Charges Section -->
+  <div style="margin-bottom:14px">
+    <div style="font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-receipt" style="color:#f87171"></i>Outstanding Charges</div>
+    <div id="earnChargesList" style="display:flex;flex-direction:column;gap:6px">
+      <div style="text-align:center;padding:20px;color:var(--txt4);font-size:.78rem">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Pending Lesson Earnings -->
+  <div style="margin-bottom:14px">
+    <div style="font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-calendar-check" style="color:#60a5fa"></i>Lessons Awaiting Payout</div>
+    <div id="earnLessonsList" style="display:flex;flex-direction:column;gap:6px">
+      <div style="text-align:center;padding:20px;color:var(--txt4);font-size:.78rem">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Payout History -->
+  <div>
+    <div style="font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="bi bi-clock-history" style="color:var(--gold)"></i>Payout History</div>
+    <div id="earnPayoutHistory" style="display:flex;flex-direction:column;gap:6px">
+      <div style="text-align:center;padding:20px;color:var(--txt4);font-size:.78rem">Loading…</div>
+    </div>
+  </div>
+
+</div>
+<!-- /EARNINGS TAB -->
+
 <!-- MOBILE BOTTOM NAV -->
 <div class="mob-bot-nav" id="mobBotNav">
   <div class="mob-nav-indicator" id="mobNavIndicator"></div>
@@ -1259,6 +1955,7 @@ textarea.dsq-inp{resize:vertical;min-height:65px}
   <button class="mob-nb" id="mob-transfer" onclick="switchTab('transfer');setMobActive('transfer')"><i class="bi bi-arrow-left-right"></i>Transfer</button>
   <button class="mob-nb" id="mob-map" onclick="switchTab('map');setMobActive('map')"><i class="bi bi-map-fill"></i>Map</button>
   <button class="mob-nb" id="mob-referrals" onclick="switchTab('referrals');setMobActive('referrals')"><i class="bi bi-cash-coin"></i>Referrals<span class="mob-nb-badge hidden" id="mobRefBadge">0</span></button>
+  <button class="mob-nb" id="mob-earnings" onclick="switchTab('earnings');setMobActive('earnings')"><i class="bi bi-bank2"></i>Earnings<span class="mob-nb-badge hidden" id="mobEarnBadge">!</span></button>
   <button class="mob-nb" id="mob-profile" onclick="switchTab('profile');setMobActive('profile')"><i class="bi bi-person-circle"></i>Profile</button>
 </div>
 
@@ -2154,7 +2851,7 @@ function updateNav(){
 }
 
 /* ── TABS ── */
-const TABS=['cal','students','requests','transfer','map','referrals','profile'];
+const TABS=['cal','students','requests','transfer','map','referrals','earnings','profile'];
 function switchTab(t){
   TABS.forEach(id=>{document.getElementById('panel-'+id)?.classList.toggle('hidden',id!==t);document.getElementById('tab-'+id)?.classList.toggle('active',id===t);});
   if(t==='students')loadStudents();
@@ -2162,6 +2859,7 @@ function switchTab(t){
   if(t==='map')initMapTab();
   if(t==='profile'){loadMyFeedback();loadAvailability();}
   if(t==='referrals')loadRefTab();
+  if(t==='earnings')loadEarningsTab();
   window.scrollTo({top:0,behavior:'instant'});
   // Push history state so back button works
   if(history.state?.tab!==t)history.pushState({tab:t},'',location.pathname+(t==='cal'?'':'#'+t));
@@ -2398,6 +3096,141 @@ function reloadStudentsIfVisible(){
   if(!document.getElementById('panel-students')?.classList.contains('hidden'))loadStudents();
 }
 function setMobActive(t){TABS.forEach(id=>{document.getElementById('mob-'+id)?.classList.toggle('active',id===t);});if(typeof updateMobNavIndicator==='function')setTimeout(()=>updateMobNavIndicator(t),50);}
+
+/* ══════════════════════════════
+   EARNINGS TAB
+══════════════════════════════ */
+async function loadEarningsTab(){
+  const instrId=instr?.id;
+  if(!instrId){document.getElementById('earnNetAmt').textContent='—';return;}
+  try{
+    const[chargesR,payoutsR,lessonsR,refsR]=await Promise.all([
+      sb.from('instructor_charges').select('*').eq('instructor_id',instrId).order('created_at',{ascending:false}),
+      sb.from('instructor_payouts').select('*').eq('instructor_id',instrId).order('created_at',{ascending:false}),
+      sb.from('lessons').select('id,student_name,lesson_date,duration_hours,instructor_pay,instructor_pay_settled').eq('instructor_id',instrId).order('lesson_date',{ascending:false}).limit(100),
+      sb.from('referrals').select('*').eq('instructor_id',instrId).order('created_at',{ascending:false})
+    ]);
+    const charges=chargesR.data||[];
+    const payouts=payoutsR.data||[];
+    const lessons=lessonsR.data||[];
+    const refs=refsR.data||[];
+
+    // Pending lesson earnings
+    const pendingLessons=lessons.filter(l=>l.instructor_pay&&!l.instructor_pay_settled);
+    const pendingEarnings=pendingLessons.reduce((a,l)=>a+(parseFloat(l.instructor_pay)||0),0);
+
+    // Charges outstanding
+    const outstandingCharges=charges.filter(c=>c.status==='outstanding'||c.status==='partially_settled');
+    const chargesTotal=outstandingCharges.reduce((a,c)=>a+(parseFloat(c.amount)||0)-(parseFloat(c.settled_amount)||0),0);
+
+    // Referral fees outstanding
+    const outstandingRefs=refs.filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit);
+    const refTotal=outstandingRefs.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+    const totalCharges=chargesTotal+refTotal;
+
+    // Net position
+    const net=pendingEarnings-totalCharges;
+
+    // Total paid out
+    const totalPaidOut=payouts.reduce((a,p)=>a+(parseFloat(p.net_amount)||0),0);
+
+    // Ref fees paid
+    const refPaid=refs.filter(r=>r.is_paid).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+
+    // Update KPIs
+    const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    s('earnPending','£'+pendingEarnings.toFixed(0));
+    s('earnPendingSub',`${pendingLessons.length} lesson${pendingLessons.length!==1?'s':''} awaiting payout`);
+    s('earnCharges','£'+totalCharges.toFixed(0));
+    s('earnChargesSub',`${outstandingCharges.length} charge${outstandingCharges.length!==1?'s':''} + ${outstandingRefs.length} referral${outstandingRefs.length!==1?'s':''}`);
+    s('earnPaidOut','£'+totalPaidOut.toFixed(0));
+    s('earnPaidOutSub',`${payouts.length} payout${payouts.length!==1?'s':''} received`);
+    s('earnRefPaid','£'+refPaid.toFixed(0));
+    s('earnNetAmt',(net>=0?'£':'-£')+Math.abs(net).toFixed(0));
+    s('earnNetDesc',net>=0?`DriveSQ owes you £${Math.abs(net).toFixed(0)}`:`You owe DriveSQ £${Math.abs(net).toFixed(0)}`);
+    s('earnLastUpdated',new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+
+    // Net banner colour
+    const banner=document.getElementById('earnNetBanner');
+    const netEl=document.getElementById('earnNetAmt');
+    const netDesc=document.getElementById('earnNetDesc');
+    if(banner){banner.style.background=net>=0?'rgba(37,211,102,.07)':'rgba(248,113,113,.07)';banner.style.borderColor=net>=0?'rgba(37,211,102,.25)':'rgba(248,113,113,.25)';}
+    if(netEl)netEl.style.color=net>=0?'#4ade80':'#f87171';
+    if(netDesc)netDesc.style.color=net>=0?'rgba(74,222,128,.7)':'rgba(248,113,113,.7)';
+    const icon=banner?.querySelector('i');
+    if(icon)icon.style.color=net>=0?'#4ade80':'#f87171';
+
+    // Badge
+    const badge=document.getElementById('earningsBadge');
+    const mobBadge=document.getElementById('mobEarnBadge');
+    if(totalCharges>0){badge?.classList.remove('hidden');mobBadge?.classList.remove('hidden');}
+    else{badge?.classList.add('hidden');mobBadge?.classList.add('hidden');}
+
+    // Outstanding charges list
+    const chargesList=document.getElementById('earnChargesList');
+    const allOutstanding=[
+      ...outstandingCharges.map(c=>({type:c.type,desc:c.description||c.type,amt:(parseFloat(c.amount)||0)-(parseFloat(c.settled_amount)||0),date:c.created_at,col:'#f87171'})),
+      ...outstandingRefs.map(r=>({type:'referral',desc:`Referral — ${r.student_name}`,amt:parseFloat(r.amount)||0,date:r.created_at,col:'#f87171'}))
+    ];
+    if(chargesList){
+      if(!allOutstanding.length)chargesList.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt4);font-size:.78rem"><i class="bi bi-check-circle-fill me-2" style="color:var(--green)"></i>No outstanding charges</div>';
+      else chargesList.innerHTML=allOutstanding.map(c=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.15);border-radius:9px">
+        <i class="bi bi-receipt" style="color:#f87171;font-size:.9rem;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:600;color:var(--txt2)">${c.desc}</div>
+          <div style="font-size:.63rem;color:var(--txt3);margin-top:1px">${c.type.toUpperCase()} · ${new Date(c.date).toLocaleDateString('en-GB')}</div>
+        </div>
+        <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:#f87171;white-space:nowrap">£${c.amt.toFixed(2)}</span>
+      </div>`).join('');
+    }
+
+    // Pending lessons list
+    const lessonsList=document.getElementById('earnLessonsList');
+    if(lessonsList){
+      if(!pendingLessons.length)lessonsList.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt4);font-size:.78rem"><i class="bi bi-check-circle-fill me-2" style="color:var(--green)"></i>No lessons awaiting payout</div>';
+      else lessonsList.innerHTML=pendingLessons.map(l=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.15);border-radius:9px">
+        <i class="bi bi-calendar-check" style="color:#60a5fa;font-size:.9rem;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:600;color:var(--txt2)">${l.student_name||'Student'}</div>
+          <div style="font-size:.63rem;color:var(--txt3);margin-top:1px">${new Date(l.lesson_date).toLocaleDateString('en-GB')} · ${l.duration_hours||1}hr</div>
+        </div>
+        <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:#60a5fa;white-space:nowrap">£${parseFloat(l.instructor_pay).toFixed(2)}</span>
+      </div>`).join('');
+    }
+
+    // Payout history
+    const payoutEl=document.getElementById('earnPayoutHistory');
+    if(payoutEl){
+      if(!payouts.length)payoutEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt4);font-size:.78rem">No payouts yet — payouts appear here when admin processes them</div>';
+      else payoutEl.innerHTML=payouts.map(p=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.15);border-radius:9px">
+        <i class="bi bi-send-fill" style="color:#4ade80;font-size:.9rem;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:600;color:var(--txt2)">Payout — Net £${parseFloat(p.net_amount).toFixed(2)}</div>
+          <div style="font-size:.63rem;color:var(--txt3);margin-top:1px">${new Date(p.created_at).toLocaleDateString('en-GB')} · ${p.method||'bank transfer'}${p.charges_offset>0?' · £'+parseFloat(p.charges_offset).toFixed(2)+' charges deducted':''}${p.notes?' · '+p.notes:''}</div>
+        </div>
+        <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:#4ade80;white-space:nowrap">£${parseFloat(p.net_amount).toFixed(2)}</span>
+      </div>`).join('');
+    }
+
+  }catch(e){
+    // Graceful fallback if tables don't exist yet
+    const isSetupErr=e.message&&(e.message.includes('does not exist')||e.message.includes('relation')||e.message.includes('column'));
+    document.getElementById('earnNetDesc').textContent=isSetupErr?'Finance tables not yet set up — ask admin to run the Finance Centre SQL setup':'Error: '+e.message;
+    document.getElementById('earnNetAmt').textContent='—';
+    // Still show referral data from existing referrals table
+    try{
+      const{data:refs}=await sb.from('referrals').select('*').eq('instructor_id',instrId);
+      const outstanding=(refs||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit);
+      const total=outstanding.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+      document.getElementById('earnCharges').textContent='£'+total.toFixed(0);
+      document.getElementById('earnChargesSub').textContent=outstanding.length+' unpaid referral fees';
+      const refPaid=(refs||[]).filter(r=>r.is_paid).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+      document.getElementById('earnRefPaid').textContent='£'+refPaid.toFixed(0);
+      const chargesList=document.getElementById('earnChargesList');
+      if(chargesList&&outstanding.length){chargesList.innerHTML=outstanding.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.15);border-radius:9px"><i class="bi bi-cash-coin" style="color:#f87171;font-size:.9rem;flex-shrink:0"></i><div style="flex:1;min-width:0"><div style="font-size:.8rem;font-weight:600;color:var(--txt2)">Referral — ${r.student_name}</div><div style="font-size:.63rem;color:var(--txt3);margin-top:1px">REFERRAL · ${new Date(r.created_at).toLocaleDateString('en-GB')}</div></div><span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:#f87171;white-space:nowrap">£${parseFloat(r.amount).toFixed(2)}</span></div>`).join('');}
+    }catch(e2){}
+  }
+}
 
 /* ══════════════════════════════
    LESSON CONFIRMATIONS

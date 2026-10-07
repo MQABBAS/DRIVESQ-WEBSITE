@@ -558,6 +558,7 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
     <button class="dsq-tab" id="tab-map" onclick="switchTab('map')" title="Live map showing instructor locations and student pickup areas"><i class="bi bi-map-fill"></i><span class="d-none d-sm-inline ms-1">Map</span></button>
     <button class="dsq-tab" id="tab-add" onclick="switchTab('add')" title="Register a new instructor onto the platform"><i class="bi bi-person-plus"></i><span class="d-none d-sm-inline ms-1">Add</span></button>
     <button class="dsq-tab" id="tab-referrals" onclick="switchTab('referrals')" title="Referral fees — track what each instructor owes and what has been paid" style="border-left:2px solid var(--bdr);margin-left:2px;padding-left:10px"><i class="bi bi-cash-coin"></i><span class="d-none d-sm-inline ms-1">Referrals</span></button>
+    <button class="dsq-tab" id="tab-finance" onclick="switchTab('finance')" title="Finance Centre — student payments, instructor earnings, charges & payouts"><i class="bi bi-bank2"></i><span class="d-none d-sm-inline ms-1">Finance</span><span class="tab-badge ms-1 hidden" id="financeBadge">0</span></button>
     <button class="dsq-tab" id="tab-followup" onclick="switchTab('followup')" title="Follow Up list — students added for follow-up from referrals"><i class="bi bi-telephone-fill"></i><span class="d-none d-sm-inline ms-1">Follow Up</span></button>
     <button class="dsq-tab" id="tab-expenses" onclick="switchTab('expenses')" title="Full accounting — P&amp;L, income, expenses, tax summary"><i class="bi bi-bar-chart-line-fill"></i><span class="d-none d-sm-inline ms-1">Accounting</span></button>
     <button class="dsq-tab" id="tab-lessons" onclick="switchTab('lessons')" title="Browse all lessons across all instructors"><i class="bi bi-journal-text"></i><span class="d-none d-sm-inline ms-1">Lessons</span></button>
@@ -1365,6 +1366,349 @@ tbody tr:hover td{background:rgba(209,10,17,.035)!important;color:var(--txt)!imp
 
   <!-- Instructor list -->
   <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<!-- ══ FINANCE CENTRE PANEL ══ -->
+<div id="panel-finance" class="hidden" style="padding:10px 0">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <div>
+      <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;margin:0;display:flex;align-items:center;gap:8px"><i class="bi bi-bank2" style="color:var(--gold)"></i>Finance Centre</h5>
+      <div style="font-size:.68rem;color:var(--txt4);margin-top:1px">Student payments · Instructor earnings · Charges · Payouts</div>
+    </div>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <button class="btn-green" style="font-size:.75rem;padding:5px 12px" onclick="openFinPaymentModal()" data-sfx="paid"><i class="bi bi-plus-lg me-1"></i>Log Payment</button>
+      <button class="btn-gold" style="font-size:.75rem;padding:5px 12px" onclick="openFinChargeModal()" data-sfx="credit"><i class="bi bi-plus-lg me-1"></i>Add Charge</button>
+      <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadFinance()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px" id="finKpiRow">
+    <div class="stat-card gr">
+      <div class="stat-lbl"><i class="bi bi-arrow-down-circle me-1"></i>Collected This Week</div>
+      <div class="stat-num gr" id="finKpiCollected">£0</div>
+      <div class="stat-note" id="finKpiCollectedSub">from student payments</div>
+    </div>
+    <div class="stat-card b">
+      <div class="stat-lbl"><i class="bi bi-arrow-up-circle me-1"></i>Owed to Instructors</div>
+      <div class="stat-num b" id="finKpiOwedOut">£0</div>
+      <div class="stat-note" id="finKpiOwedOutSub">pending lesson earnings</div>
+    </div>
+    <div class="stat-card r">
+      <div class="stat-lbl"><i class="bi bi-arrow-down-circle me-1"></i>Owed by Instructors</div>
+      <div class="stat-num r" id="finKpiOwedIn">£0</div>
+      <div class="stat-note" id="finKpiOwedInSub">outstanding charges</div>
+    </div>
+    <div class="stat-card g" id="finKpiNetCard">
+      <div class="stat-lbl"><i class="bi bi-bank2 me-1"></i>Net DriveSQ Position</div>
+      <div class="stat-num g" id="finKpiNet">£0</div>
+      <div class="stat-note" id="finKpiNetSub">charges – earnings owed</div>
+    </div>
+    <div class="stat-card p">
+      <div class="stat-lbl"><i class="bi bi-receipt me-1"></i>Total Paid Out</div>
+      <div class="stat-num p" id="finKpiPaidOut">£0</div>
+      <div class="stat-note" id="finKpiPaidOutSub">all time instructor payouts</div>
+    </div>
+  </div>
+
+  <!-- Setup SQL notice — shown if tables don't exist -->
+  <div id="finSetupNotice" style="display:none;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.25);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <i class="bi bi-database-fill-gear" style="color:var(--gold)"></i>
+      <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--gold)">One-time Database Setup Required</span>
+      <button onclick="document.getElementById('finSqlBlock').style.display=document.getElementById('finSqlBlock').style.display==='none'?'block':'none'" style="margin-left:auto;background:transparent;border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:6px;padding:3px 9px;font-size:.7rem;cursor:pointer">Toggle SQL</button>
+    </div>
+    <p style="font-size:.75rem;color:var(--txt3);margin:0 0 8px">Run the SQL below in your Supabase SQL Editor to create the Finance tables. After running, refresh this tab.</p>
+    <pre id="finSqlBlock" style="display:none;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px;padding:12px;font-size:.65rem;color:#93c5fd;overflow-x:auto;white-space:pre-wrap;line-height:1.6">-- Finance Centre tables for DriveSQ
+-- 1. Student payments (money received from students into DriveSQ)
+create table if not exists student_payments (
+  id uuid primary key default gen_random_uuid(),
+  instructor_id text not null,
+  student_name text,
+  student_account_id text,
+  amount decimal(10,2) not null,
+  method text default 'bank_transfer',
+  reference text,
+  notes text,
+  credit_hours decimal(6,2),
+  created_at timestamptz default now(),
+  created_by text default 'admin'
+);
+alter table student_payments enable row level security;
+create policy "admin_all" on student_payments for all using (true) with check (true);
+
+-- 2. Instructor charges (what instructors owe DriveSQ)
+create table if not exists instructor_charges (
+  id uuid primary key default gen_random_uuid(),
+  instructor_id text not null,
+  type text not null default 'referral',
+  amount decimal(10,2) not null,
+  description text,
+  status text not null default 'outstanding',
+  settled_amount decimal(10,2) default 0,
+  settled_via text,
+  referral_id text,
+  created_at timestamptz default now(),
+  settled_at timestamptz
+);
+alter table instructor_charges enable row level security;
+create policy "admin_all" on instructor_charges for all using (true) with check (true);
+
+-- 3. Instructor payouts (when DriveSQ pays instructors)
+create table if not exists instructor_payouts (
+  id uuid primary key default gen_random_uuid(),
+  instructor_id text not null,
+  gross_amount decimal(10,2) not null,
+  charges_offset decimal(10,2) default 0,
+  net_amount decimal(10,2) not null,
+  method text default 'bank_transfer',
+  notes text,
+  charge_ids jsonb,
+  created_at timestamptz default now()
+);
+alter table instructor_payouts enable row level security;
+create policy "admin_all" on instructor_payouts for all using (true) with check (true);
+
+-- 4. Add instructor_pay column to lessons if not present
+alter table lessons add column if not exists instructor_pay decimal(10,2);
+alter table lessons add column if not exists instructor_pay_settled boolean default false;</pre>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <div style="font-size:.75rem;color:var(--txt3);font-weight:600">Show:</div>
+    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+      <button id="finFilterAll" onclick="setFinFilter('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--blue);color:#fff">All</button>
+      <button id="finFilterOwedIn" onclick="setFinFilter('owed-in')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Owe DriveSQ</button>
+      <button id="finFilterOwedOut" onclick="setFinFilter('owed-out')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">DriveSQ Owes</button>
+      <button id="finFilterSettled" onclick="setFinFilter('settled')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Settled</button>
+    </div>
+    <input id="finSearch" oninput="renderFinanceLedger()" type="text" placeholder="Search instructor…" style="background:var(--input-bg);border:1px solid var(--bdr2);color:var(--txt);border-radius:8px;padding:5px 10px;font-size:.78rem;outline:none;max-width:200px" />
+    <div class="ms-auto" style="font-size:.68rem;color:var(--txt4)" id="finLedgerCount"></div>
+  </div>
+
+  <!-- Instructor Finance Ledger -->
+  <div id="finLedger" style="display:flex;flex-direction:column;gap:8px">
+    <div style="text-align:center;padding:30px;color:var(--txt4);font-size:.82rem"><i class="bi bi-hourglass-split me-2"></i>Loading finance data…</div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div style="margin-top:20px">
+    <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.85rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><i class="bi bi-clock-history" style="color:var(--gold)"></i>Recent Transactions</div>
+    <div id="finRecentTx" class="dsq-card" style="overflow:hidden">
+      <div style="padding:20px;text-align:center;color:var(--txt4);font-size:.8rem">Loading…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ FINANCE MODALS ══ -->
+
+<!-- Log Student Payment Modal -->
+<div class="dsq-overlay" id="finPaymentModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('finPaymentModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-currency-pound me-2" style="color:#4ade80"></i>Log Student Payment</h5>
+    <div class="modal-sub">Record money received from a student into DriveSQ</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label class="dsq-lbl">Instructor <span class="req-mark">*</span></label>
+        <select id="finPayInstr" class="dsq-inp" onchange="finPayInstrChanged()">
+          <option value="">Select instructor…</option>
+        </select>
+      </div>
+      <div id="finPayStudentRow">
+        <label class="dsq-lbl">Student Name <span class="req-mark">*</span></label>
+        <input id="finPayStudent" type="text" class="dsq-inp" placeholder="Full name" list="finPayStudentList" oninput="finPayStudentChanged()"/>
+        <datalist id="finPayStudentList"></datalist>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="dsq-lbl">Amount Paid (£) <span class="req-mark">*</span></label>
+          <input id="finPayAmount" type="number" min="0" step="0.01" class="dsq-inp" placeholder="330.00" oninput="finPayCalcHours()"/>
+        </div>
+        <div>
+          <label class="dsq-lbl">Method</label>
+          <select id="finPayMethod" class="dsq-inp">
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.78rem;color:var(--txt3)">Credit hours added (at £35/hr):</span>
+        <span id="finPayHours" style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.4rem;font-weight:800;color:#4ade80">0.0 hrs</span>
+      </div>
+      <div>
+        <label class="dsq-lbl">Reference / Notes</label>
+        <input id="finPayRef" type="text" class="dsq-inp" placeholder="e.g. Bank ref, receipt number…"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-p flex-fill" onclick="saveFinPayment()" data-sfx="paid"><i class="bi bi-check-lg me-2"></i>Log Payment</button>
+        <button class="btn-s" onclick="closeModal('finPaymentModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Instructor Charge Modal -->
+<div class="dsq-overlay" id="finChargeModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('finChargeModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-receipt me-2" style="color:var(--gold)"></i>Add Instructor Charge</h5>
+    <div class="modal-sub">Record a fee or charge owed by an instructor to DriveSQ</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label class="dsq-lbl">Instructor <span class="req-mark">*</span></label>
+        <select id="finChargeInstr" class="dsq-inp"><option value="">Select instructor…</option></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="dsq-lbl">Type <span class="req-mark">*</span></label>
+          <select id="finChargeType" class="dsq-inp">
+            <option value="referral">Referral Fee</option>
+            <option value="franchise">Franchise Fee</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="dsq-lbl">Amount (£) <span class="req-mark">*</span></label>
+          <input id="finChargeAmt" type="number" min="0" step="0.01" class="dsq-inp" placeholder="0.00"/>
+        </div>
+      </div>
+      <div>
+        <label class="dsq-lbl">Description</label>
+        <input id="finChargeDesc" type="text" class="dsq-inp" placeholder="e.g. Referral — John Smith, Nov franchise fee…"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-gold flex-fill" onclick="saveFinCharge()" data-sfx="credit"><i class="bi bi-plus-lg me-2"></i>Add Charge</button>
+        <button class="btn-s" onclick="closeModal('finChargeModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Process Payout Modal -->
+<div class="dsq-overlay" id="finPayoutModal">
+  <div class="dsq-modal wide">
+    <button class="modal-x" onclick="closeModal('finPayoutModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-send-fill me-2" style="color:#60a5fa"></i>Process Payout</h5>
+    <div class="modal-sub" id="finPayoutSubtitle">Pay out earnings to instructor</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Position summary -->
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div>
+            <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pending Earnings</div>
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:800;color:#60a5fa" id="payoutGrossDisplay">£0</div>
+          </div>
+          <div style="border-left:1px solid var(--bdr);border-right:1px solid var(--bdr)">
+            <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Outstanding Charges</div>
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:800;color:#f87171" id="payoutChargesDisplay">£0</div>
+          </div>
+          <div>
+            <div style="font-size:.6rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Net to Pay</div>
+            <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.6rem;font-weight:800;color:#4ade80" id="payoutNetDisplay">£0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offset toggle -->
+      <div style="background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.2);border-radius:10px;padding:12px 14px">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <input type="checkbox" id="finPayoutOffset" onchange="finPayoutCalcNet()" style="accent-color:var(--gold);width:16px;height:16px;cursor:pointer"/>
+          <label for="finPayoutOffset" style="font-size:.82rem;font-weight:600;color:var(--gold);cursor:pointer">Offset outstanding charges from this payout</label>
+        </div>
+        <div id="finPayoutOffsetDetail" style="display:none;font-size:.75rem;color:var(--txt3);line-height:1.6">
+          The instructor's outstanding charges (<strong id="payoutOffsetAmt" style="color:#f87171">£0</strong>) will be deducted from their earnings. They receive the net amount and all linked charges are marked settled.
+        </div>
+      </div>
+
+      <!-- Gross amount -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="dsq-lbl">Gross Earnings (£) <span class="req-mark">*</span></label>
+          <input id="finPayoutGross" type="number" min="0" step="0.01" class="dsq-inp" oninput="finPayoutCalcNet()" placeholder="0.00"/>
+        </div>
+        <div>
+          <label class="dsq-lbl">Payment Method</label>
+          <select id="finPayoutMethod" class="dsq-inp">
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cash">Cash</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Net payout result -->
+      <div id="finPayoutNetRow" style="background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.2);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:.7rem;color:var(--txt3);margin-bottom:1px">Net Amount to Transfer</div>
+          <div style="font-size:.68rem;color:var(--txt4)" id="finPayoutNetNote">No charges offset</div>
+        </div>
+        <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:2rem;font-weight:900;color:#4ade80" id="finPayoutNetAmt">£0.00</div>
+      </div>
+
+      <div>
+        <label class="dsq-lbl">Notes (optional)</label>
+        <input id="finPayoutNotes" type="text" class="dsq-inp" placeholder="e.g. Week 40 payout, bank ref…"/>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-p flex-fill" onclick="saveFinPayout()" data-sfx="assign"><i class="bi bi-send-fill me-2"></i>Process Payout</button>
+        <button class="btn-s" onclick="closeModal('finPayoutModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Instructor Finance History Modal -->
+<div class="dsq-overlay" id="finHistoryModal">
+  <div class="dsq-modal wide">
+    <button class="modal-x" onclick="closeModal('finHistoryModal')"><i class="bi bi-x-lg"></i></button>
+    <h5 id="finHistoryTitle"><i class="bi bi-clock-history me-2" style="color:var(--purple)"></i>Finance History</h5>
+    <div class="modal-sub" id="finHistorySub">All transactions for this instructor</div>
+    <div id="finHistoryBody" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;margin-top:4px">
+      <div style="text-align:center;padding:20px;color:var(--txt4)">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settle Charge Modal -->
+<div class="dsq-overlay" id="finSettleModal">
+  <div class="dsq-modal">
+    <button class="modal-x" onclick="closeModal('finSettleModal')"><i class="bi bi-x-lg"></i></button>
+    <h5><i class="bi bi-check2-circle me-2" style="color:#4ade80"></i>Settle Charge</h5>
+    <div class="modal-sub" id="finSettleSub">Mark this charge as settled</div>
+    <input type="hidden" id="finSettleChargeId"/>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:8px;padding:12px" id="finSettleChargeDetail">
+        <div style="font-size:.78rem;color:var(--txt3)">Loading charge details…</div>
+      </div>
+      <div>
+        <label class="dsq-lbl">Settlement Method</label>
+        <select id="finSettleMethod" class="dsq-inp">
+          <option value="cash">Cash</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="earnings_offset">Earnings Offset</option>
+          <option value="waived">Waived</option>
+        </select>
+      </div>
+      <div>
+        <label class="dsq-lbl">Amount Settled (£)</label>
+        <input id="finSettleAmt" type="number" min="0" step="0.01" class="dsq-inp" placeholder="Full amount"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-green flex-fill" onclick="confirmSettleCharge()" data-sfx="approve"><i class="bi bi-check-lg me-2"></i>Mark Settled</button>
+        <button class="btn-s" onclick="closeModal('finSettleModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ACCOUNTING PANEL -->
@@ -2830,7 +3174,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','referrals','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','instructors','students','find','map','referrals','finance','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -2864,6 +3208,7 @@ function switchTab(t){
   if(t==='availability')loadAvailabilityView();
   if(t==='coverage')loadCoverageTab();
   if(t==='referrals')loadReferrals();
+  if(t==='finance')loadFinance();
   if(t==='expenses'){loadExpenses();setAccTab(_accTab||'pl');}
   if(t==='find')showAllInstructors();
   if(t==='map'){setTimeout(async()=>{await initAdminMap();if(allStudentsCache.length===0)await loadAllStudents().then(()=>{plotStudentMapMarkers();refreshMapStats();});},100);}
@@ -3294,6 +3639,10 @@ function _sfx(type){
       case'pop':       _osc(800,'sine',now,0.04,0.14,0.004);_noise(now,0.03,0.05); break;
       case'chime':     [1047,1319,1568].forEach((f,i)=>_osc(f,'sine',now+i*0.1,0.18,0.12,0.01)); break;
       case'ding':      _osc(1480,'sine',now,0.12,0.18,0.005);_osc(1976,'sine',now+0.01,0.08,0.16,0.005); break;
+      // ── Finance specific ──
+      case'payout':    [392,523,659,784,1046,1318,1568].forEach((f,i)=>_osc(f,'sine',now+i*0.07,0.15,0.22,0.01));_noise(now+0.3,0.06,0.08); break; // triumphant cash out
+      case'charge-add':_osc(440,'square',now,0.04,0.10,0.01);_osc(330,'square',now+0.07,0.05,0.10,0.01);_osc(494,'triangle',now+0.15,0.07,0.12); break; // billing alert
+      case'settle':    [523,659,784,1046].forEach((f,i)=>_osc(f,'sine',now+i*0.08,0.13,0.16,0.01)); break; // settle success
     }
   }catch(e){}
 }
@@ -9090,6 +9439,493 @@ function _downloadRefCSV(rows, filename){
   setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
+/* ══ FINANCE CENTRE ══ */
+let _finPayments=[];   // student_payments rows
+let _finCharges=[];    // instructor_charges rows
+let _finPayouts=[];    // instructor_payouts rows
+let _finLessons=[];    // lessons with instructor_pay (not yet settled)
+let _finFilter='all';  // 'all' | 'owed-in' | 'owed-out' | 'settled'
+let _finPayoutInstrId=null;
+
+async function loadFinance(){
+  const ledger=document.getElementById('finLedger');
+  if(ledger)ledger.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4);font-size:.82rem"><i class="bi bi-hourglass-split me-2"></i>Loading finance data…</div>';
+  try{
+    const[paymentsR,chargesR,payoutsR,lessonsR]=await Promise.all([
+      sb.from('student_payments').select('*').order('created_at',{ascending:false}).limit(200),
+      sb.from('instructor_charges').select('*').order('created_at',{ascending:false}),
+      sb.from('instructor_payouts').select('*').order('created_at',{ascending:false}).limit(100),
+      sb.from('lessons').select('id,instructor_id,student_name,lesson_date,duration_hours,instructor_pay,instructor_pay_settled,payment_received').order('lesson_date',{ascending:false}).limit(500)
+    ]);
+    document.getElementById('finSetupNotice')?.style&&(document.getElementById('finSetupNotice').style.display='none');
+    _finPayments=paymentsR.data||[];
+    _finCharges=chargesR.data||[];
+    _finPayouts=payoutsR.data||[];
+    _finLessons=lessonsR.data||[];
+    _finBuildKPIs();
+    renderFinanceLedger();
+    renderFinRecentTx();
+  }catch(e){
+    // Show setup notice if tables don't exist
+    const isSetupErr=e.message&&(e.message.includes('does not exist')||e.message.includes('relation')||e.message.includes('column'));
+    if(isSetupErr){
+      const n=document.getElementById('finSetupNotice');
+      if(n){n.style.display='block';n.querySelector('pre').style.display='block';}
+      // Still try to load lessons with existing columns
+      try{
+        const lr=await sb.from('lessons').select('id,instructor_id,student_name,lesson_date,duration_hours,payment_received').order('lesson_date',{ascending:false}).limit(500);
+        _finLessons=lr.data||[];
+        _finPayments=[];_finCharges=[];_finPayouts=[];
+        _finBuildKPIs();renderFinanceLedger();renderFinRecentTx();
+      }catch(e2){}
+    }
+    if(ledger&&!isSetupErr)ledger.innerHTML=`<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>${e.message}</div>`;
+  }
+}
+
+function _finBuildKPIs(){
+  const now=new Date();
+  const weekAgo=new Date(now-7*864e5);
+
+  // Collected this week from student payments
+  const collected=_finPayments.filter(p=>new Date(p.created_at)>=weekAgo).reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
+
+  // Owed to instructors: lessons with instructor_pay set and not settled
+  const owedOut=_finLessons.filter(l=>l.instructor_pay&&!l.instructor_pay_settled).reduce((a,l)=>a+(parseFloat(l.instructor_pay)||0),0);
+
+  // Owed by instructors: outstanding charges (use referrals + instructor_charges)
+  const refOwedIn=(_refData||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const chargeOwedIn=_finCharges.filter(c=>c.status==='outstanding'||c.status==='partially_settled').reduce((a,c)=>a+(parseFloat(c.amount)||0)-(parseFloat(c.settled_amount)||0),0);
+  const owedIn=refOwedIn+chargeOwedIn;
+
+  // Net = charges owed in minus earnings owed out (positive = DriveSQ is up)
+  const net=owedIn-owedOut;
+
+  // Total paid out
+  const totalPaidOut=_finPayouts.reduce((a,p)=>a+(parseFloat(p.net_amount)||0),0);
+
+  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  s('finKpiCollected','£'+collected.toFixed(0));
+  s('finKpiCollectedSub',`${_finPayments.filter(p=>new Date(p.created_at)>=weekAgo).length} payments this week`);
+  s('finKpiOwedOut','£'+owedOut.toFixed(0));
+  s('finKpiOwedOutSub',`${_finLessons.filter(l=>l.instructor_pay&&!l.instructor_pay_settled).length} lessons pending`);
+  s('finKpiOwedIn','£'+owedIn.toFixed(0));
+  const refCt=(_refData||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit).length;
+  const chCt=_finCharges.filter(c=>c.status==='outstanding'||c.status==='partially_settled').length;
+  s('finKpiOwedInSub',`${refCt} referral${refCt!==1?'s':''} + ${chCt} charge${chCt!==1?'s':''}`);
+  s('finKpiNet',(net>=0?'£':'-£')+Math.abs(net).toFixed(0));
+  s('finKpiNetSub',net>=0?'DriveSQ is net positive':'DriveSQ owes more than owed');
+  const netEl=document.getElementById('finKpiNet');
+  if(netEl)netEl.style.color=net>=0?'var(--green)':'#f87171';
+  s('finKpiPaidOut','£'+totalPaidOut.toFixed(0));
+  s('finKpiPaidOutSub',`${_finPayouts.length} payout${_finPayouts.length!==1?'s':''} total`);
+
+  // Badge in tab
+  const badge=document.getElementById('financeBadge');
+  if(badge){
+    const ct=Math.round(owedIn+owedOut);
+    if(ct>0){badge.classList.remove('hidden');badge.textContent='£'+ct;}
+    else badge.classList.add('hidden');
+  }
+}
+
+function setFinFilter(f){
+  _finFilter=f;
+  ['all','owed-in','owed-out','settled'].forEach(k=>{
+    const id='finFilter'+k.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('');
+    const btn=document.getElementById(id);
+    if(btn){
+      const isActive=k===f;
+      const colors={all:['var(--blue)','#fff'],'owed-in':['var(--red)','#fff'],'owed-out':['var(--blue)','#fff'],settled:['#4ade80','#000']};
+      btn.style.background=isActive?(colors[k]||[,''])[0]:'transparent';
+      btn.style.color=isActive?(colors[k]||[,'#fff'])[1]:'var(--txt3)';
+    }
+  });
+  renderFinanceLedger();
+}
+
+function _finGetInstrLedger(){
+  // Build per-instructor ledger from all data sources
+  const map={};
+  const ensure=id=>{if(!map[id])map[id]={instrId:id,pendingEarnings:0,pendingLessons:[],chargesOwed:0,charges:[],payoutsTotal:0,paymentsIn:0};};
+
+  // Pending earnings from lessons
+  _finLessons.filter(l=>l.instructor_pay&&!l.instructor_pay_settled).forEach(l=>{
+    ensure(l.instructor_id);
+    map[l.instructor_id].pendingEarnings+=(parseFloat(l.instructor_pay)||0);
+    map[l.instructor_id].pendingLessons.push(l);
+  });
+
+  // Charges from instructor_charges table
+  _finCharges.filter(c=>c.status==='outstanding'||c.status==='partially_settled').forEach(c=>{
+    ensure(c.instructor_id);
+    const rem=(parseFloat(c.amount)||0)-(parseFloat(c.settled_amount)||0);
+    map[c.instructor_id].chargesOwed+=rem;
+    map[c.instructor_id].charges.push(c);
+  });
+
+  // Referral fees owed (from existing referrals table)
+  (_refData||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0).forEach(r=>{
+    ensure(r.instructor_id);
+    map[r.instructor_id].chargesOwed+=(parseFloat(r.amount)||0);
+    map[r.instructor_id].charges.push({id:r.id,type:'referral',description:`Referral — ${r.student_name}`,amount:r.amount,status:'outstanding',settled_amount:0,_isRef:true});
+  });
+
+  // Payouts
+  _finPayouts.forEach(p=>{
+    ensure(p.instructor_id);
+    map[p.instructor_id].payoutsTotal+=(parseFloat(p.net_amount)||0);
+  });
+
+  // Student payments in
+  _finPayments.forEach(p=>{
+    ensure(p.instructor_id);
+    map[p.instructor_id].paymentsIn+=(parseFloat(p.amount)||0);
+  });
+
+  return map;
+}
+
+function renderFinanceLedger(){
+  const ledger=document.getElementById('finLedger');
+  if(!ledger)return;
+  const q=(document.getElementById('finSearch')?.value||'').toLowerCase().trim();
+  const instrMap=_finGetInstrLedger();
+  const instrIds=Object.keys(instrMap);
+  const cntEl=document.getElementById('finLedgerCount');
+
+  // Filter
+  let filtered=instrIds;
+  if(_finFilter==='owed-in')filtered=instrIds.filter(id=>instrMap[id].chargesOwed>0);
+  else if(_finFilter==='owed-out')filtered=instrIds.filter(id=>instrMap[id].pendingEarnings>0);
+  else if(_finFilter==='settled')filtered=instrIds.filter(id=>instrMap[id].chargesOwed<=0&&instrMap[id].pendingEarnings<=0&&instrMap[id].payoutsTotal>0);
+  if(q)filtered=filtered.filter(id=>{const i=allInstrs.find(x=>x.id===id);return i&&(i.full_name||'').toLowerCase().includes(q);});
+
+  // Also add instructors who have activity but no unsettled items (only if 'all' filter)
+  if(_finFilter==='all'){
+    allInstrs.filter(i=>i.status==='approved').forEach(i=>{
+      if(!instrMap[i.id]&&!q||(q&&(i.full_name||'').toLowerCase().includes(q))){
+        if(!filtered.includes(i.id)){}; // approved instrs with no finance data — skip to keep list clean
+      }
+    });
+  }
+
+  if(cntEl)cntEl.textContent=`${filtered.length} instructor${filtered.length!==1?'s':''}`;
+
+  if(!filtered.length){
+    ledger.innerHTML=`<div style="text-align:center;padding:40px;color:var(--txt4);font-size:.82rem"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No instructors match this filter</div>`;
+    return;
+  }
+
+  // Sort: owed-in first, then owed-out
+  filtered.sort((a,b)=>(instrMap[b]?.chargesOwed||0)-(instrMap[a]?.chargesOwed||0)||(instrMap[b]?.pendingEarnings||0)-(instrMap[a]?.pendingEarnings||0));
+
+  ledger.innerHTML=filtered.map(id=>{
+    const d=instrMap[id];
+    const instr=allInstrs.find(x=>x.id===id)||{full_name:id,instructor_model:'unsure'};
+    const name=instr.full_name||id;
+    const model=instr.instructor_model||'unsure';
+    const net=d.chargesOwed-d.pendingEarnings;
+    const netStr=net>0?`+£${net.toFixed(0)} instructor owes`:net<0?`-£${Math.abs(net).toFixed(0)} DriveSQ owes`:'Balanced';
+    const netCol=net>0?'#4ade80':net<0?'#f87171':'var(--txt3)';
+    const modelStyles={referral:'color:#4ade80;border-color:rgba(37,211,102,.3)',franchise:'color:#f87171;border-color:rgba(209,10,17,.3)',unsure:'color:var(--txt3);border-color:var(--bdr)'};
+    return`<div class="dsq-card" style="overflow:visible">
+  <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:160px">
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1rem;color:var(--txt);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${esc(name)}
+        <span class="chip" style="font-size:.55rem;${modelStyles[model]||modelStyles.unsure}">${model.charAt(0).toUpperCase()+model.slice(1)}</span>
+      </div>
+      <div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${esc(instr.phone||'')} ${instr.coverage_postcodes?'· '+instr.coverage_postcodes.split(',').slice(0,3).join(', ')+(instr.coverage_postcodes.split(',').length>3?'…':''):''}</div>
+    </div>
+    <!-- Earnings pending -->
+    <div style="text-align:center;min-width:100px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Pending Earnings</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.4rem;font-weight:800;color:#60a5fa">£${d.pendingEarnings.toFixed(0)}</div>
+      <div style="font-size:.6rem;color:var(--txt4)">${d.pendingLessons.length} lesson${d.pendingLessons.length!==1?'s':''}</div>
+    </div>
+    <!-- Charges owed -->
+    <div style="text-align:center;min-width:100px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Charges Owed</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.4rem;font-weight:800;color:${d.chargesOwed>0?'#f87171':'var(--txt4)'}">£${d.chargesOwed.toFixed(0)}</div>
+      <div style="font-size:.6rem;color:var(--txt4)">${d.charges.length} item${d.charges.length!==1?'s':''}</div>
+    </div>
+    <!-- Net -->
+    <div style="text-align:center;min-width:130px;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:8px 12px">
+      <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Net Position</div>
+      <div style="font-family:'Barlow Condensed','Oswald',sans-serif;font-size:1.2rem;font-weight:800;color:${netCol}">${netStr}</div>
+    </div>
+    <!-- Actions -->
+    <div style="display:flex;flex-direction:column;gap:5px;min-width:120px">
+      <button class="abtn approve" onclick="openFinPayoutModal('${id}')" style="justify-content:center" data-sfx="paid"><i class="bi bi-send-fill me-1"></i>Pay Out</button>
+      <button class="abtn edit" onclick="openFinAddChargeForInstr('${id}')" style="justify-content:center" data-sfx="credit"><i class="bi bi-plus me-1"></i>Add Charge</button>
+      <button class="abtn view" onclick="openFinHistory('${id}')" style="justify-content:center" data-sfx="expand"><i class="bi bi-clock-history me-1"></i>History</button>
+    </div>
+  </div>
+  ${d.charges.length>0?`<div style="padding:0 16px 14px">
+    <div style="font-size:.65rem;color:var(--txt4);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.8px">Outstanding Charges</div>
+    <div style="display:flex;flex-direction:column;gap:4px">${d.charges.map(c=>`<div style="display:flex;align-items:center;gap:8px;background:rgba(248,113,113,.04);border:1px solid rgba(248,113,113,.12);border-radius:7px;padding:7px 10px">
+      <span class="chip" style="font-size:.55rem;background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.2);color:#f87171">${(c.type||'').toUpperCase()}</span>
+      <span style="flex:1;font-size:.76rem;color:var(--txt2)">${esc(c.description||c.type||'Charge')}</span>
+      <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:#f87171">£${(parseFloat(c.amount)||0).toFixed(2)}</span>
+      ${!c._isRef?`<button class="abtn approve" style="padding:2px 8px;font-size:.6rem" onclick="openSettleCharge('${c.id}','${esc(c.description||c.type)}')" data-sfx="approve">Settle</button>`:`<button class="abtn approve" style="padding:2px 8px;font-size:.6rem" onclick="markRefPaid('${c.id}')" data-sfx="paid">Mark Paid</button>`}
+    </div>`).join('')}</div>
+  </div>`:''}
+</div>`;
+  }).join('');
+}
+
+function renderFinRecentTx(){
+  const el=document.getElementById('finRecentTx');
+  if(!el)return;
+  const combined=[
+    ..._finPayments.map(p=>({type:'payment',date:p.created_at,amount:p.amount,desc:`Payment from student${p.student_name?' — '+p.student_name:''}`,instr:p.instructor_id,method:p.method,dir:'in'})),
+    ..._finCharges.map(c=>({type:'charge',date:c.created_at,amount:c.amount,desc:`${c.type.charAt(0).toUpperCase()+c.type.slice(1)} charge — ${c.description||''}`,instr:c.instructor_id,dir:'owed'})),
+    ..._finPayouts.map(p=>({type:'payout',date:p.created_at,amount:p.net_amount,gross:p.gross_amount,offset:p.charges_offset,desc:`Instructor payout${p.notes?' — '+p.notes:''}`,instr:p.instructor_id,dir:'out'})),
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,25);
+
+  if(!combined.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt4);font-size:.8rem">No transactions recorded yet. Log a student payment or add a charge to get started.</div>';return;}
+
+  el.innerHTML=`<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Type</th><th>Instructor</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>${combined.map(tx=>{
+    const instr=allInstrs.find(x=>x.id===tx.instr)||{full_name:tx.instr};
+    const typeColors={payment:'#4ade80',charge:'#f87171',payout:'#60a5fa'};
+    const typeIcons={payment:'bi-arrow-down-circle-fill',charge:'bi-receipt',payout:'bi-send-fill'};
+    const amt=parseFloat(tx.amount)||0;
+    return`<tr>
+      <td style="font-size:.72rem;color:var(--txt3);white-space:nowrap">${new Date(tx.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+      <td><span class="chip" style="font-size:.55rem;background:${typeColors[tx.type]||'#999'}22;border:1px solid ${typeColors[tx.type]||'#999'}44;color:${typeColors[tx.type]||'#999'}">${tx.type.toUpperCase()}</span></td>
+      <td style="font-size:.76rem;color:var(--txt)">${esc(instr.full_name||tx.instr)}</td>
+      <td style="font-size:.74rem;color:var(--txt3);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(tx.desc)}</td>
+      <td style="text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${typeColors[tx.type]};font-size:.88rem">${tx.dir==='in'?'+':tx.dir==='out'?'-':''}£${amt.toFixed(2)}</td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+/* Finance modal helpers */
+function openFinPaymentModal(){
+  // Populate instructor dropdown
+  const sel=document.getElementById('finPayInstr');
+  if(sel){sel.innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');}
+  document.getElementById('finPayStudent').value='';
+  document.getElementById('finPayAmount').value='';
+  document.getElementById('finPayRef').value='';
+  document.getElementById('finPayHours').textContent='0.0 hrs';
+  document.getElementById('finPaymentModal').classList.add('open');
+}
+
+function finPayInstrChanged(){
+  const instrId=document.getElementById('finPayInstr')?.value;
+  if(!instrId)return;
+  // Populate student datalist from instructor's students
+  const dl=document.getElementById('finPayStudentList');
+  if(!dl)return;
+  const students=allStudentsCache.filter(s=>s.instructor_id===instrId);
+  dl.innerHTML=students.map(s=>`<option value="${esc(s.name||s.student_name||'')}"></option>`).join('');
+}
+
+function finPayStudentChanged(){}
+
+function finPayCalcHours(){
+  const amt=parseFloat(document.getElementById('finPayAmount')?.value)||0;
+  const hrs=(amt/35).toFixed(1);
+  const el=document.getElementById('finPayHours');
+  if(el)el.textContent=hrs+' hrs';
+}
+
+async function saveFinPayment(){
+  const instrId=document.getElementById('finPayInstr')?.value;
+  const student=document.getElementById('finPayStudent')?.value?.trim();
+  const amount=parseFloat(document.getElementById('finPayAmount')?.value)||0;
+  const method=document.getElementById('finPayMethod')?.value||'bank_transfer';
+  const ref=document.getElementById('finPayRef')?.value?.trim();
+  if(!instrId||!student||!amount){showToast('Please fill in instructor, student and amount','warn');return;}
+  const payload={instructor_id:instrId,student_name:student,amount,method,reference:ref,credit_hours:parseFloat((amount/35).toFixed(2)),created_by:'admin'};
+  const btn=document.querySelector('#finPaymentModal .btn-p');
+  if(btn)btn.disabled=true;
+  try{
+    const{error}=await sb.from('student_payments').insert(payload);
+    if(error)throw error;
+    _sfx('paid');
+    showToast(`💰 Payment logged — £${amount.toFixed(2)} from ${student}`,'success');
+    closeModal('finPaymentModal');
+    loadFinance();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+    // If table doesn't exist, show setup notice
+    if(e.message.includes('does not exist')||e.message.includes('relation')){
+      const n=document.getElementById('finSetupNotice');
+      if(n){n.style.display='block';n.querySelector('pre').style.display='block';}
+      closeModal('finPaymentModal');
+    }
+  }finally{if(btn)btn.disabled=false;}
+}
+
+function openFinChargeModal(){
+  const sel=document.getElementById('finChargeInstr');
+  if(sel){sel.innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');}
+  document.getElementById('finChargeAmt').value='';
+  document.getElementById('finChargeDesc').value='';
+  document.getElementById('finChargeModal').classList.add('open');
+}
+
+function openFinAddChargeForInstr(instrId){
+  openFinChargeModal();
+  setTimeout(()=>{const s=document.getElementById('finChargeInstr');if(s)s.value=instrId;},50);
+}
+
+async function saveFinCharge(){
+  const instrId=document.getElementById('finChargeInstr')?.value;
+  const type=document.getElementById('finChargeType')?.value||'referral';
+  const amount=parseFloat(document.getElementById('finChargeAmt')?.value)||0;
+  const desc=document.getElementById('finChargeDesc')?.value?.trim();
+  if(!instrId||!amount){showToast('Please select an instructor and enter an amount','warn');return;}
+  const btn=document.querySelector('#finChargeModal .btn-gold');
+  if(btn)btn.disabled=true;
+  try{
+    const{error}=await sb.from('instructor_charges').insert({instructor_id:instrId,type,amount,description:desc||type,status:'outstanding',settled_amount:0});
+    if(error)throw error;
+    _sfx('credit');
+    const instr=allInstrs.find(x=>x.id===instrId);
+    showToast(`📋 Charge added — £${amount.toFixed(2)} (${type}) for ${instr?.full_name||instrId}`,'info');
+    closeModal('finChargeModal');
+    loadFinance();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+    if(e.message.includes('does not exist')||e.message.includes('relation')){const n=document.getElementById('finSetupNotice');if(n){n.style.display='block';n.querySelector('pre').style.display='block';}closeModal('finChargeModal');}
+  }finally{if(btn)btn.disabled=false;}
+}
+
+function openFinPayoutModal(instrId){
+  _finPayoutInstrId=instrId;
+  const instr=allInstrs.find(x=>x.id===instrId)||{};
+  document.getElementById('finPayoutSubtitle').textContent=`Pay out earnings to ${instr.full_name||instrId}`;
+  const map=_finGetInstrLedger();
+  const d=map[instrId]||{pendingEarnings:0,chargesOwed:0};
+  document.getElementById('payoutGrossDisplay').textContent='£'+d.pendingEarnings.toFixed(2);
+  document.getElementById('payoutChargesDisplay').textContent='£'+d.chargesOwed.toFixed(2);
+  document.getElementById('payoutNetDisplay').textContent='£'+(d.pendingEarnings-d.chargesOwed).toFixed(2);
+  document.getElementById('payoutOffsetAmt').textContent='£'+d.chargesOwed.toFixed(2);
+  document.getElementById('finPayoutGross').value=d.pendingEarnings.toFixed(2);
+  document.getElementById('finPayoutOffset').checked=false;
+  document.getElementById('finPayoutOffsetDetail').style.display='none';
+  document.getElementById('finPayoutNotes').value='';
+  finPayoutCalcNet();
+  document.getElementById('finPayoutModal').classList.add('open');
+}
+
+function finPayoutCalcNet(){
+  const gross=parseFloat(document.getElementById('finPayoutGross')?.value)||0;
+  const useOffset=document.getElementById('finPayoutOffset')?.checked||false;
+  const map=_finGetInstrLedger();
+  const d=_finPayoutInstrId?map[_finPayoutInstrId]||{chargesOwed:0}:{chargesOwed:0};
+  const offset=useOffset?Math.min(d.chargesOwed,gross):0;
+  const net=Math.max(0,gross-offset);
+  const noteEl=document.getElementById('finPayoutNetNote');
+  const amtEl=document.getElementById('finPayoutNetAmt');
+  if(amtEl)amtEl.textContent='£'+net.toFixed(2);
+  if(noteEl)noteEl.textContent=offset>0?`Deducting £${offset.toFixed(2)} charges`:'No charges offset';
+  document.getElementById('finPayoutOffsetDetail').style.display=useOffset?'block':'none';
+}
+
+async function saveFinPayout(){
+  if(!_finPayoutInstrId){showToast('No instructor selected','warn');return;}
+  const gross=parseFloat(document.getElementById('finPayoutGross')?.value)||0;
+  const useOffset=document.getElementById('finPayoutOffset')?.checked||false;
+  const method=document.getElementById('finPayoutMethod')?.value||'bank_transfer';
+  const notes=document.getElementById('finPayoutNotes')?.value?.trim()||'';
+  if(!gross){showToast('Enter the gross earnings amount','warn');return;}
+  const map=_finGetInstrLedger();
+  const d=map[_finPayoutInstrId]||{chargesOwed:0,charges:[]};
+  const offset=useOffset?Math.min(d.chargesOwed,gross):0;
+  const net=Math.max(0,gross-offset);
+  const btn=document.querySelector('#finPayoutModal .btn-p');
+  if(btn)btn.disabled=true;
+  try{
+    const chargeIds=useOffset?d.charges.filter(c=>!c._isRef).map(c=>c.id):[];
+    const{error}=await sb.from('instructor_payouts').insert({instructor_id:_finPayoutInstrId,gross_amount:gross,charges_offset:offset,net_amount:net,method,notes,charge_ids:chargeIds});
+    if(error)throw error;
+    // Mark lesson earnings as settled
+    const lessonIds=d.pendingLessons.map(l=>l.id);
+    if(lessonIds.length){await sb.from('lessons').update({instructor_pay_settled:true}).in('id',lessonIds).catch(()=>{});}
+    // Mark charges as settled if offset used
+    if(useOffset&&chargeIds.length){
+      await sb.from('instructor_charges').update({status:'settled',settled_amount:d.chargesOwed,settled_via:'earnings_offset',settled_at:new Date().toISOString()}).in('id',chargeIds).catch(()=>{});
+    }
+    _sfx('assign');
+    const instr=allInstrs.find(x=>x.id===_finPayoutInstrId);
+    showToast(`💸 Payout processed — £${net.toFixed(2)} to ${instr?.full_name||_finPayoutInstrId}`,'success',5000);
+    closeModal('finPayoutModal');
+    loadFinance();
+  }catch(e){
+    showToast('Error: '+e.message,'error');
+    if(e.message.includes('does not exist')||e.message.includes('relation')){const n=document.getElementById('finSetupNotice');if(n){n.style.display='block';n.querySelector('pre').style.display='block';}closeModal('finPayoutModal');}
+  }finally{if(btn)btn.disabled=false;}
+}
+
+async function openFinHistory(instrId){
+  const instr=allInstrs.find(x=>x.id===instrId)||{};
+  document.getElementById('finHistoryTitle').innerHTML=`<i class="bi bi-clock-history me-2" style="color:var(--purple)"></i>Finance History — ${esc(instr.full_name||instrId)}`;
+  document.getElementById('finHistorySub').textContent='All payments, charges and payouts';
+  document.getElementById('finHistoryModal').classList.add('open');
+  const body=document.getElementById('finHistoryBody');
+  body.innerHTML='<div style="text-align:center;padding:20px;color:var(--txt4)"><i class="bi bi-hourglass-split"></i> Loading…</div>';
+
+  const payments=_finPayments.filter(p=>p.instructor_id===instrId);
+  const charges=_finCharges.filter(c=>c.instructor_id===instrId);
+  const payouts=_finPayouts.filter(p=>p.instructor_id===instrId);
+  const refs=(_refData||[]).filter(r=>r.instructor_id===instrId);
+
+  const items=[
+    ...payments.map(p=>({_date:p.created_at,_type:'payment',_col:'#4ade80',_icon:'bi-arrow-down-circle-fill',_title:`Student Payment — ${p.student_name||'Unknown'}`,_sub:`${p.method} · ${p.credit_hours||'—'} credit hours`,_amt:'£'+parseFloat(p.amount).toFixed(2),_badge:'IN'})),
+    ...charges.map(c=>({_date:c.created_at,_type:'charge',_col:c.status==='settled'?'var(--txt3)':'#f87171',_icon:'bi-receipt',_title:`${c.type.charAt(0).toUpperCase()+c.type.slice(1)} Charge — ${c.description||c.type}`,_sub:`Status: ${c.status}${c.settled_amount>0?' · £'+c.settled_amount+' settled':''}`,_amt:'£'+parseFloat(c.amount).toFixed(2),_badge:c.status.toUpperCase()})),
+    ...refs.map(r=>({_date:r.created_at,_type:'referral',_col:r.is_paid?'var(--txt3)':'#f87171',_icon:'bi-cash-coin',_title:`Referral — ${r.student_name}`,_sub:`£${r.amount} · ${r.is_paid?'Paid':'Outstanding'}`,_amt:'£'+parseFloat(r.amount).toFixed(2),_badge:r.is_paid?'PAID':'DUE'})),
+    ...payouts.map(p=>({_date:p.created_at,_type:'payout',_col:'#60a5fa',_icon:'bi-send-fill',_title:`Payout — Net £${parseFloat(p.net_amount).toFixed(2)}`,_sub:`Gross £${p.gross_amount} · Offset £${p.charges_offset} · ${p.method}`,_amt:'£'+parseFloat(p.net_amount).toFixed(2),_badge:'OUT'})),
+  ].sort((a,b)=>new Date(b._date)-new Date(a._date));
+
+  if(!items.length){body.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No finance history yet for this instructor</div>';return;}
+
+  body.innerHTML=items.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--dk2);border:1px solid var(--bdr);border-radius:10px">
+    <i class="bi ${it._icon}" style="font-size:1.1rem;color:${it._col};flex-shrink:0"></i>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.8rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it._title)}</div>
+      <div style="font-size:.65rem;color:var(--txt4);margin-top:1px">${esc(it._sub)} · ${new Date(it._date).toLocaleDateString('en-GB')}</div>
+    </div>
+    <span class="chip" style="font-size:.55rem;background:${it._col}22;border-color:${it._col}44;color:${it._col}">${it._badge}</span>
+    <span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:${it._col};white-space:nowrap">${it._amt}</span>
+  </div>`).join('');
+}
+
+function openSettleCharge(chargeId,desc){
+  document.getElementById('finSettleChargeId').value=chargeId;
+  document.getElementById('finSettleSub').textContent=desc||'Mark this charge as settled';
+  const charge=_finCharges.find(c=>c.id===chargeId);
+  const detail=document.getElementById('finSettleChargeDetail');
+  if(detail&&charge)detail.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.8rem;color:var(--txt3)">${esc(charge.description||charge.type)} — ${charge.type}</span><span style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#f87171">£${parseFloat(charge.amount).toFixed(2)}</span></div>`;
+  document.getElementById('finSettleAmt').value=charge?.amount||'';
+  document.getElementById('finSettleModal').classList.add('open');
+}
+
+async function confirmSettleCharge(){
+  const chargeId=document.getElementById('finSettleChargeId')?.value;
+  const method=document.getElementById('finSettleMethod')?.value||'cash';
+  const amount=parseFloat(document.getElementById('finSettleAmt')?.value)||0;
+  if(!chargeId||!amount){showToast('Enter settlement amount','warn');return;}
+  const charge=_finCharges.find(c=>c.id===chargeId);
+  const fullAmt=parseFloat(charge?.amount||0);
+  const status=amount>=fullAmt?'settled':'partially_settled';
+  const btn=document.querySelector('#finSettleModal .btn-green');
+  if(btn)btn.disabled=true;
+  try{
+    const{error}=await sb.from('instructor_charges').update({status,settled_amount:amount,settled_via:method,settled_at:new Date().toISOString()}).eq('id',chargeId);
+    if(error)throw error;
+    _sfx('approve');
+    showToast(`✅ Charge settled — £${amount.toFixed(2)} via ${method}`,'success');
+    closeModal('finSettleModal');
+    loadFinance();
+  }catch(e){showToast('Error: '+e.message,'error');}
+  finally{if(btn)btn.disabled=false;}
+}
+
 /* ══ ACCOUNTING ══ */
 let _expData=[];
 let _incData=[];
@@ -10865,6 +11701,7 @@ function renderTheoryList(rows){
     <div class="mob-more-label">Lessons & Finance</div>
     <div class="mob-more-grid">
       <button class="mob-more-btn" id="mmore-referrals" onclick="switchTab('referrals');_mobSetActive('referrals');_mobCloseMore()"><i class="bi bi-cash-coin"></i>Referrals</button>
+      <button class="mob-more-btn" id="mmore-finance" onclick="switchTab('finance');_mobSetActive('finance');_mobCloseMore()"><i class="bi bi-bank2"></i>Finance</button>
       <button class="mob-more-btn" id="mmore-lessons" onclick="switchTab('lessons');_mobSetActive('lessons');_mobCloseMore()"><i class="bi bi-journal-text"></i>Lessons</button>
       <button class="mob-more-btn" id="mmore-revenue" onclick="switchTab('revenue');_mobSetActive('revenue');_mobCloseMore()"><i class="bi bi-currency-pound"></i>Revenue</button>
       <button class="mob-more-btn" id="mmore-calendar" onclick="switchTab('calendar');_mobSetActive('calendar');_mobCloseMore()"><i class="bi bi-calendar-week"></i>Calendar</button>
