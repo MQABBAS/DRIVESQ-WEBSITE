@@ -2050,6 +2050,31 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
   </div>
 </div>
 
+<!-- REFERRAL REASSIGN MODAL -->
+<div class="dsq-overlay" id="refReassignModal">
+  <div class="dsq-modal" style="max-width:420px">
+    <button class="modal-x" onclick="closeModal('refReassignModal')"><i class="bi bi-x-lg"></i></button>
+    <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:4px"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold)"></i>Reassign Student</h5>
+    <p id="refReassignDesc" style="font-size:.8rem;color:var(--txt3);margin-bottom:14px"></p>
+    <input type="hidden" id="refReassignRefId"/>
+    <input type="hidden" id="refReassignOldInstrId"/>
+    <div style="margin-bottom:12px">
+      <label style="font-size:.72rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px">New Instructor</label>
+      <select id="refReassignInstrSel" class="dsq-inp" style="width:100%;font-size:.85rem">
+        <option value="">— select instructor —</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:.72rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px">Reason (optional)</label>
+      <textarea id="refReassignReason" class="dsq-inp" rows="2" placeholder="e.g. Area mismatch, instructor request…" style="width:100%;font-size:.82rem;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-gold" style="flex:1" onclick="confirmRefReassign()"><i class="bi bi-arrow-left-right me-2"></i>Confirm Reassign</button>
+      <button class="abtn" onclick="closeModal('refReassignModal')" style="flex:0 0 auto">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOTES PANEL -->
 <div id="panel-notes" class="hidden" style="padding:10px 0">
   <h5 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:14px"><i class="bi bi-journal-text me-2" style="color:#c084fc"></i>Admin Notes & Diary</h5>
@@ -9424,7 +9449,7 @@ async function openRefDetail(instrId){
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
 
-  tbody.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+  tbody.innerHTML=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:560px">
     <thead>
       <tr style="border-bottom:1px solid var(--bdr)">
         <th style="padding:6px 8px;text-align:left;font-size:.65rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px">Student</th>
@@ -9508,6 +9533,7 @@ async function openRefDetail(instrId){
                 ?`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefPaid('${r.id}')" style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap">Mark Paid</button>
                     <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
+                    <button onclick="openRefReassign('${r.id}','${jsEsc(r.student_name)}','${r.instructor_id}')" style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.28);color:var(--gold);border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Move this student to a different instructor"><i class="bi bi-arrow-left-right me-1"></i>Reassign</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Student left — instructor owed replacement">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral — student left">Student Left</button>
                     <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
@@ -9515,6 +9541,7 @@ async function openRefDetail(instrId){
                 :`<div style="display:flex;flex-direction:column;gap:4px;align-items:center">
                     <button onclick="markRefUnpaid('${r.id}')" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 9px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="Undo paid">Mark Unpaid</button>
                     <button onclick="editRef('${r.id}')" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Edit">Edit</button>
+                    <button onclick="openRefReassign('${r.id}','${jsEsc(r.student_name)}','${r.instructor_id}')" style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.28);color:var(--gold);border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Move this student to a different instructor"><i class="bi bi-arrow-left-right me-1"></i>Reassign</button>
                     <button onclick="markRefCredit('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Issue credit">Issue Credit</button>
                     <button onclick="cancelRef('${r.id}','${jsEsc(r.student_name)}')" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Void this referral">Student Left</button>
                     <button onclick="addToFollowUp('${jsEsc(r.student_name)}','${jsEsc(r.student_phone||'')}','${r.instructor_id}')" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.6rem;cursor:pointer;white-space:nowrap" title="Add to Follow Up list"><i class="bi bi-telephone-fill me-1"></i>Follow Up</button>
@@ -9524,7 +9551,7 @@ async function openRefDetail(instrId){
         </tr>`;
       }).join('')}
     </tbody>
-  </table>`;
+  </table></div>`;
   openModal('refDetailModal');
 }
 
@@ -9572,6 +9599,61 @@ async function cancelRef(refId, studentName){
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
   renderReferrals();
+}
+
+// ── Referral Reassign ──
+function openRefReassign(refId, studentName, oldInstrId){
+  document.getElementById('refReassignRefId').value=refId;
+  document.getElementById('refReassignOldInstrId').value=oldInstrId||'';
+  document.getElementById('refReassignDesc').textContent=`Move "${studentName}" to a different instructor. This updates the referral record and the student's instructor assignment.`;
+  document.getElementById('refReassignReason').value='';
+  // Populate instructor select (exclude current instructor)
+  const sel=document.getElementById('refReassignInstrSel');
+  const instrs=(allInstrs||[]).filter(i=>i.id!==oldInstrId&&i.status==='approved');
+  sel.innerHTML='<option value="">— select instructor —</option>'+instrs.map(i=>`<option value="${i.id}">${esc(i.full_name||i.name||'Unnamed')} (${esc(i.car_model||i.model||'')})</option>`).join('');
+  closeModal('refDetailModal');
+  openModal('refReassignModal');
+}
+
+async function confirmRefReassign(){
+  const refId=document.getElementById('refReassignRefId').value;
+  const oldInstrId=document.getElementById('refReassignOldInstrId').value;
+  const newInstrId=document.getElementById('refReassignInstrSel').value;
+  const reason=document.getElementById('refReassignReason').value.trim();
+  if(!newInstrId){showToast('Please select a new instructor','warn');return;}
+  const r=_refData.find(x=>x.id===refId);
+  if(!r){showToast('Referral not found','error');return;}
+  const studentName=r.student_name||'';
+  const newInstr=allInstrs.find(i=>i.id===newInstrId);
+  const newInstrName=newInstr?.full_name||newInstr?.name||'New instructor';
+  const oldInstr=allInstrs.find(i=>i.id===oldInstrId);
+  const oldInstrName=oldInstr?.full_name||oldInstr?.name||'Previous instructor';
+  // Update referral record
+  const{error}=await sb.from('referrals').update({instructor_id:newInstrId}).eq('id',refId);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  r.instructor_id=newInstrId;
+  // Update student_profiles if exists
+  try{
+    let q=sb.from('student_profiles').update({instructor_id:newInstrId}).ilike('name',studentName);
+    if(oldInstrId)q=q.eq('instructor_id',oldInstrId);
+    await q;
+  }catch(e){console.warn('refReassign: student_profiles update:',e.message);}
+  // Notify both instructors via admin_messages
+  const note=reason?` Reason: ${reason}`:'';
+  try{
+    const msgs=[
+      {instructor_id:oldInstrId,message:`Admin: "${studentName}" has been reassigned from your referral list to ${newInstrName}.${note}`,type:'system'},
+      {instructor_id:newInstrId,message:`Admin: "${studentName}" has been assigned to you (transferred from ${oldInstrName}).${note}`,type:'system'}
+    ];
+    await sb.from('admin_messages').insert(msgs);
+  }catch(e){console.warn('refReassign: admin_messages:',e.message);}
+  _sfx('success');
+  showToast(`${studentName} reassigned to ${newInstrName} ✓`,'success');
+  closeModal('refReassignModal');
+  _buildUnpaidRefIndex();
+  renderReferrals();
+  // Re-open the NEW instructor's detail view
+  openRefDetail(newInstrId);
 }
 
 // Restore a voided referral (undo Student Left)
