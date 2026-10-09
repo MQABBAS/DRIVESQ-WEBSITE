@@ -996,8 +996,6 @@ html.dsqx .dsqx-up.dsqx-in { opacity:1; transform:none; }
 }
 @media (max-width:420px) { .dsqx-orbit { display:none; } .dsqx-float--2 { right:-4px; } }
 
-/* ---- DriveBot peek ---- */
-.dsqx-peek { position:absolute; right:62px; bottom:8px; width:max-content; max-width:220px; padding:10px 14px; border-radius:16px 16px 4px 16px; background:#fff; color:#111; font-size:.82rem; font-weight:600;
   box-shadow:0 14px 30px -10px rgba(0,0,0,.6); cursor:pointer; opacity:0; transform:translateX(10px) scale(.9); transform-origin:right bottom; pointer-events:none; transition:all .45s var(--dsqx-back); }
 .dsqx-peek.show { opacity:1; transform:none; pointer-events:auto; }
 .dsqx-peek b { color:#D10A11; }
@@ -1257,6 +1255,203 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 @keyframes dsqx-txta { 85%{opacity:0} 100%{opacity:0} }
 @keyframes dsqx-txtb { 85%{opacity:1} 100%{opacity:1} }
 @media (prefers-reduced-motion:reduce){ .dsqx-ld *, .dsqx-ld__brand { animation:none !important; } .dsqx-ld__needle { transform:rotate(19deg); } .dsqx-ld__bar span { transform:scaleX(1); } .dsqx-ld__txt .a { opacity:0; } .dsqx-ld__txt .b { opacity:1; } .dsqx-ld__sweep { stroke-dashoffset:89; } }
+
+/* =========================================================
+   DSQX — SQ Assistant, hanging SQ guide, floating dock, booking & tools
+   ========================================================= */
+:root { --sqa-r: max(18px, calc(env(safe-area-inset-right) + 12px)); --sqa-b: max(18px, calc(env(safe-area-inset-bottom) + 12px)); --sqa-ease: cubic-bezier(.22,1,.36,1); --sqa-back: cubic-bezier(.34,1.56,.64,1); }
+
+/* ---------- Floating dock: WhatsApp · SQ Assistant · Accessibility (stacked bottom-right) ---------- */
+#wa-fab { left:auto !important; right:var(--sqa-r) !important; bottom:var(--sqa-b) !important; z-index:9990 !important; }
+#wa-fab .fab-label, #db-wrap { display:none !important; }
+#wa-fab-btn { width:58px !important; height:58px !important; font-size:1.6rem !important; position:relative; }
+.sqa-launch { position:fixed; right:var(--sqa-r); bottom:calc(var(--sqa-b) + 72px); z-index:9991; width:58px; height:58px; padding:0; border-radius:50%; display:grid; place-items:center;
+  background:#0b0b0d; border:1px solid rgba(209,10,17,.6); color:#fff; cursor:pointer; box-shadow:0 12px 34px -10px rgba(209,10,17,.75); animation:sqa-pulse 3s infinite; transition:transform .25s var(--sqa-ease); }
+.sqa-launch:hover { transform:translateY(-2px) scale(1.04); }
+.sqa-logo { width:48px; height:48px; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 50% 35%,#1d0507,#0a0a0c 70%); border:1.5px solid #D10A11;
+  font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; font-style:italic; font-size:1.15rem; letter-spacing:.02em; color:#ff2d35; text-shadow:0 0 10px rgba(255,45,53,.9),0 0 22px rgba(209,10,17,.6); flex:none; }
+.sqa-dot { position:absolute; right:5px; top:5px; width:12px; height:12px; border-radius:50%; background:#25D366; border:2px solid #0b0b0d; }
+.sqa-launch b { position:absolute; right:calc(100% + 12px); top:50%; transform:translate(8px,-50%); opacity:0; white-space:nowrap; pointer-events:none; padding:8px 14px; border-radius:999px;
+  background:#fff; color:#111; font:600 .85rem/1 Inter,sans-serif; box-shadow:0 12px 30px -10px rgba(0,0,0,.45); transition:opacity .3s, transform .3s var(--sqa-ease); }
+.sqa-launch:hover b, .sqa-launch:focus-visible b { opacity:1; transform:translate(0,-50%); }
+.sqa-launch.is-peek b { animation:sqa-label 5.5s var(--sqa-ease) 2.4s both; }
+.sqa-launch[aria-expanded="true"] b { opacity:0 !important; animation:none; }
+@keyframes sqa-label { 0%{opacity:0;transform:translate(8px,-50%)} 10%,85%{opacity:1;transform:translate(0,-50%)} 100%{opacity:0;transform:translate(8px,-50%)} }
+@keyframes sqa-pulse { 0%{box-shadow:0 12px 34px -10px rgba(209,10,17,.75),0 0 0 0 rgba(209,10,17,.45)} 60%{box-shadow:0 12px 34px -10px rgba(209,10,17,.75),0 0 0 12px rgba(209,10,17,0)} 100%{box-shadow:0 12px 34px -10px rgba(209,10,17,.75),0 0 0 0 rgba(209,10,17,0)} }
+.dsqx-a11y-btn { right:calc(var(--sqa-r) + 6px) !important; bottom:calc(var(--sqa-b) + 144px) !important; width:46px !important; height:46px !important; z-index:9991 !important; }
+.dsqx-a11y { right:var(--sqa-r) !important; bottom:calc(var(--sqa-b) + 200px) !important; max-height:calc(100svh - var(--sqa-b) - 220px); overflow-y:auto; }
+#page-nav-sidebar { top:42% !important; }
+
+/* ---------- SQ Assistant chat panel ---------- */
+.sqa { position:fixed; right:var(--sqa-r); bottom:calc(var(--sqa-b) + 144px); z-index:10010; width:min(400px,calc(100vw - 32px)); height:min(600px,calc(100svh - var(--sqa-b) - 170px));
+  display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:#0d0d10; color:#eee; border:1px solid #26262b;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.8),0 0 60px -24px rgba(209,10,17,.7); transform-origin:bottom right; transform:scale(.6) translateY(30px); opacity:0; visibility:hidden;
+  transition:transform .45s var(--sqa-back), opacity .3s, visibility .3s; font-family:Inter,sans-serif; }
+.sqa.is-open { transform:none; opacity:1; visibility:visible; }
+.sqa__head { display:flex; align-items:center; gap:12px; padding:14px 16px; background:linear-gradient(135deg,#2a0306,#0d0d10 70%); border-bottom:1px solid rgba(209,10,17,.35); }
+.sqa__head .sqa-logo { width:42px; height:42px; font-size:1rem; }
+.sqa__head b { font-family:'Barlow Condensed','Oswald',sans-serif; font-size:1.2rem; letter-spacing:.02em; color:#fff; }
+.sqa__head small { display:block; color:#9a9aa2; font-size:.74rem; }
+.sqa__head small::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:#25D366; margin-right:6px; box-shadow:0 0 6px #25D366; }
+.sqa__close { margin-left:auto; width:34px; height:34px; border-radius:10px; background:transparent; color:#eee; border:1px solid rgba(255,255,255,.15); cursor:pointer; }
+.sqa__close:hover { border-color:#D10A11; }
+.sqa__log { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; overscroll-behavior:contain; scroll-behavior:smooth; }
+.sqa-msg { max-width:88%; padding:10px 14px; border-radius:16px; font-size:.9rem; line-height:1.5; animation:sqa-pop .35s var(--sqa-ease); }
+@keyframes sqa-pop { from { opacity:0; transform:translateY(8px) scale(.97); } }
+.sqa-msg--bot { background:#18181c; border:1px solid #26262b; border-bottom-left-radius:4px; }
+.sqa-msg--user { background:#D10A11; color:#fff; margin-left:auto; border-bottom-right-radius:4px; }
+.sqa-msg a { color:#ff6b70; text-decoration:underline; font-weight:600; }
+.sqa-msg table { width:100%; font-size:.84rem; margin:6px 0; border-collapse:collapse; }
+.sqa-msg td { padding:4px 0; border-bottom:1px dashed #2c2c32; }
+.sqa-msg td:last-child { text-align:right; font-weight:700; color:#fff; }
+.sqa-typing { display:inline-flex; gap:4px; padding:14px 16px; width:max-content; }
+.sqa-typing i { width:7px; height:7px; border-radius:50%; background:#666; animation:sqa-typing 1s infinite; }
+.sqa-typing i:nth-child(2) { animation-delay:.15s; } .sqa-typing i:nth-child(3) { animation-delay:.3s; }
+@keyframes sqa-typing { 50% { transform:translateY(-5px); background:#D10A11; } }
+.sqa__chips { display:flex; gap:8px; overflow-x:auto; padding:0 16px 12px; scrollbar-width:none; }
+.sqa__chips::-webkit-scrollbar { display:none; }
+.sqa__chips button { flex:none; padding:8px 13px; border-radius:999px; border:1px solid #2c2c32; background:#141418; color:#ddd; font-size:.8rem; cursor:pointer; transition:all .2s; }
+.sqa__chips button:hover { border-color:#D10A11; background:rgba(209,10,17,.15); color:#fff; }
+.sqa__form { display:flex; gap:8px; padding:12px; border-top:1px solid #1f1f24; }
+.sqa__form input { flex:1; min-width:0; padding:12px 14px; border-radius:14px; border:1px solid #2c2c32; background:#08080a; color:#fff; font-size:16px; }
+.sqa__form input:focus { outline:none; border-color:#D10A11; box-shadow:0 0 0 3px rgba(209,10,17,.2); }
+.sqa__form button { width:46px; border-radius:14px; background:#D10A11; color:#fff; border:0; display:grid; place-items:center; cursor:pointer; }
+.sqa__foot { font-size:.68rem; color:#666; text-align:center; padding:0 12px 10px; }
+
+/* ---------- Phone action bar ---------- */
+.sqa-bar { display:none; }
+@media (max-width:760px) {
+  :root { --sqa-r: max(12px, calc(env(safe-area-inset-right) + 8px)); --sqa-b: calc(78px + env(safe-area-inset-bottom)); }
+  .sqa-bar { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; position:fixed; left:0; right:0; bottom:0; z-index:9989; padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(10,10,12,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid #222; transition:transform .45s var(--sqa-ease); }
+  .sqa-bar.is-tucked { transform:translateY(110%); }
+  .sqa-bar a { display:flex; align-items:center; justify-content:center; gap:7px; height:46px; border-radius:14px; font:700 .86rem/1 Inter,sans-serif; text-decoration:none; color:#fff; }
+  .sqa-bar__book { background:linear-gradient(135deg,#ff2d35,#D10A11 60%,#a80008); box-shadow:0 8px 20px -8px rgba(209,10,17,.8); }
+  .sqa-bar__wa { background:#25D366; }
+  .sqa-bar__call { background:#1c1c20; border:1px solid #333; }
+  html:has(.sqa-bar:not(.is-tucked)) body { padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
+  #wa-fab { display:none !important; }
+  .sqa-launch { bottom:var(--sqa-b); width:54px; height:54px; }
+  .sqa-launch .sqa-logo { width:44px; height:44px; }
+  .sqa-launch b { display:none; }
+  .dsqx-a11y-btn { bottom:calc(var(--sqa-b) + 64px) !important; width:44px !important; height:44px !important; right:calc(var(--sqa-r) + 5px) !important; }
+  .dsqx-a11y { left:12px; right:12px !important; width:auto; bottom:calc(var(--sqa-b) + 4px) !important; }
+  .sqa { left:10px; right:10px; width:auto; bottom:calc(var(--sqa-b) - 4px); height:min(600px,calc(100svh - var(--sqa-b) - 70px)); }
+  html.sqa-open .sqa-bar { transform:translateY(110%); }
+}
+
+/* ---------- Hanging SQ guide ---------- */
+section:has(> .sqa-mascot) { position:relative; }
+.sqa-mascot { position:absolute; z-index:6; top:0; right:3%; width:clamp(104px,12vw,160px); transform-origin:50% 0; pointer-events:none; visibility:hidden; }
+.sqa-mascot.is-dropping, .sqa-mascot.is-landed { visibility:visible; }
+.sqa-mascot__rope { position:absolute; left:50%; top:0; width:2px; height:var(--rope,74px); background:linear-gradient(#bbb,#7a7a7a); transform:translateX(-50%); }
+.sqa-mascot__body { position:absolute; left:0; right:0; top:var(--rope,74px); pointer-events:auto; cursor:pointer; }
+.sqa-mascot__body svg { width:100%; height:auto; overflow:visible; filter:drop-shadow(0 18px 22px rgba(0,0,0,.3)); }
+.sqa-mascot__bubble { position:absolute; right:94%; top:calc(var(--rope,74px) + 6px); width:max-content; max-width:210px; pointer-events:auto; cursor:pointer;
+  background:#fff; color:#1f1714; border-radius:18px 18px 4px 18px; padding:11px 15px; font-size:.9rem; font-weight:500; line-height:1.4; border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 16px 34px -14px rgba(0,0,0,.45); opacity:0; transform:scale(.6) translateY(10px); transform-origin:right bottom; transition:opacity .4s var(--sqa-ease), transform .5s var(--sqa-back); }
+.sqa-mascot__bubble b { color:#D10A11; }
+.sqa-mascot.is-landed .sqa-mascot__bubble { opacity:1; transform:none; transition-delay:.2s; }
+.sqa-mascot.is-dropping { animation:sqa-drop 1.5s var(--sqa-back) both; }
+.sqa-mascot.is-landed { animation:sqa-sway 5s ease-in-out infinite; }
+@keyframes sqa-drop { 0% { transform:translateY(-130%); } 70% { transform:translateY(8%); } 85% { transform:translateY(-3%); } 100% { transform:none; } }
+@keyframes sqa-sway { 0%,100% { transform:rotate(2deg); } 50% { transform:rotate(-2deg); } }
+.sqa-mascot .arm-wave { transform-origin:52px 100px; }
+.sqa-mascot.is-landed .arm-wave { animation:sqa-wave 1.1s ease-in-out 3 .4s; }
+.sqa-mascot__body:hover .arm-wave { animation:sqa-wave 1.1s ease-in-out infinite; }
+@keyframes sqa-wave { 0%,100% { transform:rotate(0); } 25% { transform:rotate(-24deg); } 75% { transform:rotate(14deg); } }
+.sqa-mascot .blink { animation:sqa-blink 4s infinite; transform-origin:center; transform-box:fill-box; }
+@keyframes sqa-blink { 0%,92%,100% { transform:scaleY(1); } 95% { transform:scaleY(.1); } }
+#nervous > .sqa-mascot { --rope:30px; }
+#book-60 > .sqa-mascot { --rope:30px; }
+@media (max-width:1199px) { .sqa-mascot { right:1.5%; } }
+@media (max-width:991px) {
+  .sqa-mascot { width:92px; --rope:14px !important; right:10px; }
+  .sqa-mascot__bubble { max-width:150px; font-size:.76rem; padding:8px 11px; }
+  #nervous, #book-60 { padding-top:150px !important; }
+}
+
+/* ---------- Confetti ---------- */
+.sqa-confetti { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:100000; }
+
+/* ---------- Animated eyebrows ---------- */
+.sqa-eye { position:relative; }
+.sqa-eye::after { content:""; position:absolute; left:0; bottom:-6px; height:2px; width:100%; background:linear-gradient(90deg,#D10A11,rgba(209,10,17,0)); transform:scaleX(0); transform-origin:left; transition:transform 1s var(--sqa-ease) .15s; }
+.text-center .sqa-eye::after { background:linear-gradient(90deg,rgba(209,10,17,0),#D10A11,rgba(209,10,17,0)); transform-origin:center; }
+.sqa-eye.sqa-in::after { transform:scaleX(1); }
+
+/* ---------- Booking wizard upgrades ---------- */
+.dsqx-wiz__meta { align-items:center; }
+.dsqx-quote { display:inline-flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; border-radius:999px; background:#fff5f5; border:1px solid rgba(209,10,17,.2); color:#5d534d; font-size:.78rem; font-weight:600; }
+.dsqx-quote b { display:inline-block; min-width:44px; text-align:center; padding:4px 10px; border-radius:999px; background:#D10A11; color:#fff; font-family:'Barlow Condensed','Oswald',sans-serif; font-size:1.05rem; letter-spacing:.02em; }
+.dsqx-quote b.bump { animation:sqa-bump .5s var(--sqa-back); }
+@keyframes sqa-bump { 40% { transform:scale(1.22); } }
+.dsqx-wiz__dots { list-style:none; display:flex; gap:4px; margin:0 0 12px; padding:0; counter-reset:none; }
+.dsqx-wiz__dots li { flex:1; min-width:0; }
+.dsqx-wiz__dots button { all:unset; box-sizing:border-box; width:100%; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; font-size:.68rem; font-weight:600; color:#9b908a; text-align:center; }
+.dsqx-wiz__dots button[disabled] { cursor:default; opacity:.55; }
+.dsqx-wiz__dots i { font-style:normal; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; background:#f1ebe5; color:#8a7f78; font-weight:800; font-size:.75rem; transition:all .35s var(--sqa-ease); }
+.dsqx-wiz__dots span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.dsqx-wiz__dots .is-on i { background:#D10A11; color:#fff; box-shadow:0 0 0 5px rgba(209,10,17,.15); transform:scale(1.08); }
+.dsqx-wiz__dots .is-on button { color:#1f1714; }
+.dsqx-wiz__dots .is-done i { background:#1f1714; color:#fff; }
+.dsqx-wiz__dots .is-done i { font-size:0; } .dsqx-wiz__dots .is-done i::before { content:"✓"; font-size:.8rem; }
+.dsqx-wiz__dots button:focus-visible i { outline:2px solid #D10A11; outline-offset:2px; }
+@media (max-width:575px) { .dsqx-wiz__dots span { display:none; } .dsqx-quote { font-size:.7rem; gap:6px; padding:4px 4px 4px 10px; } .dsqx-quote b { font-size:1rem; } }
+.dsqx-wiz__step.shake { animation:sqa-shake .4s; }
+@keyframes sqa-shake { 20%,60% { transform:translateX(-6px); } 40%,80% { transform:translateX(6px); } }
+.dsqx-dates { display:flex; gap:8px; overflow-x:auto; padding:6px 2px 10px; margin:12px 0 2px; scroll-snap-type:x mandatory; scrollbar-width:thin; }
+.dsqx-date { flex:none; scroll-snap-align:start; width:64px; padding:8px 0; border-radius:16px; border:2px solid rgba(0,0,0,.09); background:#fff; color:#1f1714; display:flex; flex-direction:column; align-items:center; gap:1px; cursor:pointer; transition:all .25s var(--sqa-ease); }
+.dsqx-date small { font-size:.68rem; color:#8a7f78; text-transform:uppercase; letter-spacing:.06em; }
+.dsqx-date b { font-family:'Barlow Condensed','Oswald',sans-serif; font-size:1.5rem; line-height:1.05; }
+.dsqx-date:hover { border-color:#D10A11; transform:translateY(-2px); }
+.dsqx-date.is-on { border-color:#D10A11; background:#D10A11; color:#fff; box-shadow:0 10px 22px -12px rgba(209,10,17,.9); }
+.dsqx-date.is-on small { color:rgba(255,255,255,.85); }
+.dsqx-lab { display:block; font-size:.82rem; font-weight:700; color:#1f1714; margin-bottom:6px; }
+.dsqx-lab span { font-weight:500; color:#8a7f78; }
+.dsqx-err { color:#D10A11; font-size:.85rem; min-height:1.2em; margin:8px 0 0; }
+.dsqx-sum div { animation:sqa-pop .45s var(--sqa-ease) both; animation-delay:var(--d,0ms); }
+.dsqx-send { display:flex !important; justify-content:center; align-items:center; gap:8px; text-decoration:none; padding:15px; border-radius:16px !important; }
+.dsqx-callback { margin-top:10px; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; border-radius:16px; border:1.5px solid rgba(0,0,0,.14); background:#fff; color:#1f1714; font-weight:700; cursor:pointer; transition:all .25s var(--sqa-ease); }
+.dsqx-callback:hover { border-color:#D10A11; color:#D10A11; }
+.dsqx-callback.is-sent { border-color:#25D366; color:#128c4a; }
+.dsqx-callback[disabled] { opacity:.7; cursor:default; }
+.dsqx-status { margin:10px 0 0; min-height:1.3em; font-size:.9rem; color:#1f1714; }
+.dsqx-legal { margin:6px 0 0; font-size:.75rem; color:#8a7f78; }
+.dsqx-trust { display:flex; flex-wrap:wrap; justify-content:center; gap:10px 22px; margin-top:22px; font-size:.86rem; color:#5d534d; font-weight:600; }
+.dsqx-trust i { color:#D10A11; margin-right:6px; }
+
+/* ---------- Reaction test ---------- */
+.dsqx-react__pad { width:100%; min-height:150px; margin:6px 0 4px; border-radius:20px; border:0; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  background:radial-gradient(ellipse at 50% 30%,#1e1e22,#0b0b0d); color:#ddd; font-family:'Barlow Condensed','Oswald',sans-serif; font-size:1.35rem; letter-spacing:.03em; transition:background .15s; touch-action:manipulation; user-select:none; }
+.dsqx-react__lights { display:flex; gap:60px; }
+.dsqx-react__lights i { width:46px; height:18px; border-radius:6px; background:#3a0d0f; box-shadow:inset 0 0 0 2px #1a0507; transition:all .08s; }
+.dsqx-react__pad.is-wait { background:radial-gradient(ellipse at 50% 30%,#232327,#0b0b0d); }
+.dsqx-react__pad.is-go { background:radial-gradient(ellipse at 50% 30%,#3a0508,#120203); color:#fff; }
+.dsqx-react__pad.is-go .dsqx-react__lights i { background:#ff1f27; box-shadow:0 0 22px 6px rgba(255,31,39,.75),0 0 60px rgba(255,31,39,.5); }
+.dsqx-react__pad:focus-visible { outline:3px solid #D10A11; outline-offset:3px; }
+
+/* ---------- Theory challenge ---------- */
+.dsqx-tq__meta { display:flex; justify-content:space-between; font-size:.8rem; color:#8a7f78; font-weight:600; }
+.dsqx-tq__bar { height:6px; border-radius:6px; background:rgba(0,0,0,.06); overflow:hidden; margin:8px 0 14px; }
+.dsqx-tq__bar span { display:block; height:100%; background:#D10A11; border-radius:inherit; transition:width .5s var(--sqa-ease); }
+.dsqx-tq__q { font-weight:700; color:#1f1714; font-size:1.05rem; margin-bottom:10px; }
+.dsqx-tq__opts { display:grid; gap:8px; }
+.dsqx-tq__opts button { display:flex; align-items:center; gap:10px; text-align:left; padding:11px 14px; border-radius:14px; border:2px solid rgba(0,0,0,.08); background:#fff; color:#1f1714; font-size:.95rem; cursor:pointer; transition:all .2s var(--sqa-ease); }
+.dsqx-tq__opts button b { width:26px; height:26px; flex:none; border-radius:8px; display:grid; place-items:center; background:#f1ebe5; font-size:.8rem; }
+.dsqx-tq__opts button:hover:not([disabled]) { border-color:#D10A11; transform:translateX(3px); }
+.dsqx-tq__opts button.ok { border-color:#25D366; background:#effcf4; } .dsqx-tq__opts button.ok b { background:#25D366; color:#fff; }
+.dsqx-tq__opts button.no { border-color:#D10A11; background:#fff1f1; } .dsqx-tq__opts button.no b { background:#D10A11; color:#fff; }
+.dsqx-tq__opts button[disabled] { cursor:default; }
+.dsqx-tq__why { min-height:1.4em; margin:10px 0 0; font-size:.88rem; color:#5d534d; }
+.dsqx-tq__end { text-align:center; padding:10px 0; animation:sqa-pop .5s var(--sqa-ease); }
+.dsqx-tq__end .big { font-family:'Barlow Condensed','Oswald',sans-serif; font-size:3rem; font-weight:800; color:#D10A11; line-height:1; }
+.dsqx-tq__end p { color:#1f1714; margin:8px 0; }
+
+@media (prefers-reduced-motion:reduce) {
+  .sqa-launch, .sqa-mascot, .sqa-mascot .arm-wave, .sqa-mascot .blink { animation:none !important; }
+  .sqa-mascot { visibility:visible; } .sqa-mascot__bubble { opacity:1; transform:none; }
+}
 
 </style>
 <!-- DSQX:CSS END -->
@@ -1799,6 +1994,7 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 <!-- AREA DEALS -->
 <!-- DSQX:COMFORT START -->
 <section id="nervous" class="dsqx-light" aria-labelledby="dsqx-comfort-title">
+  <div data-mascot data-say="Hi! 👋 Nervous? <b>You're in the right place.</b>"></div>
   <div class="container">
     <div class="dsqx-comfort reveal">
       <div class="row g-5 align-items-center position-relative" style="z-index:1">
@@ -2059,14 +2255,17 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 <!-- INTENSIVE -->
 <!-- DSQX:WIZARD START -->
 <section id="book-60" class="dsqx-light alt" aria-labelledby="dsqx-wiz-title">
-  <div class="container" style="max-width:920px">
-    <div class="text-center mb-4 reveal"><span class="eye">Book in 60 seconds</span><h2 id="dsqx-wiz-title" class="sec-t mt-2">Ready? Let's get you booked.</h2><p class="dsqx-sub mx-auto">A few taps. We'll check your postcode and show your local price as you go.</p></div>
+  <div data-mascot data-say="Stuck? <b>Ask me anything</b> — I'm here to help 👋"></div>
+  <div class="container" style="max-width:940px">
+    <div class="text-center mb-4 reveal"><span class="eye">Book in 60 seconds</span><h2 id="dsqx-wiz-title" class="sec-t mt-2">Ready? Let's get you booked.</h2><p class="dsqx-sub mx-auto">A few taps. Your local price updates live as you go — then send it on WhatsApp or ask us to call you.</p></div>
     <div class="dsqx-wiz reveal" data-dsqx-wiz>
-      <div class="dsqx-wiz__meta"><span class="js-n">Step 1</span><span>⏱ about 60 seconds</span></div>
+      <div class="dsqx-wiz__meta"><span class="js-n">Step 1</span><span class="dsqx-quote" aria-live="polite">Your quote <b class="js-quote">—</b></span></div>
+      <ol class="dsqx-wiz__dots"><li><button type="button" data-go="0" disabled><i>1</i><span>Gearbox</span></button></li><li><button type="button" data-go="1" disabled><i>2</i><span>Pick-up</span></button></li><li><button type="button" data-go="2" disabled><i>3</i><span>Experience</span></button></li><li><button type="button" data-go="3" disabled><i>4</i><span>Package</span></button></li><li><button type="button" data-go="4" disabled><i>5</i><span>Dates</span></button></li><li><button type="button" data-go="5" disabled><i>6</i><span>Details</span></button></li><li><button type="button" data-go="6" disabled><i>7</i><span>Send</span></button></li></ol>
       <div class="dsqx-wiz__bar"><span></span></div>
-      <div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Manual or automatic?</div><p class="mb-0">Same price either way — £35/hr.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans0" value="Manual"><label for="dq_trans0"><span class="em">⚙️</span><b>Manual</b><small>Licence for both</small></label></div><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans1" value="Automatic"><label for="dq_trans1"><span class="em">🅰️</span><b>Automatic</b><small>No clutch</small></label></div><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans2" value="Not sure"><label for="dq_trans2"><span class="em">🤔</span><b>Not sure</b><small>We'll help</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Where should we pick you up?</div><p class="mb-0">Enter your postcode — we'll show your local price.</p><input class="dsqx-input dsqx-input--big mt-3" id="dq_pc" name="pc" type="text" autocomplete="postal-code" placeholder="e.g. M19 2AB" aria-label="Postcode"><p class="dsqx-pcnote" id="dq_pcnote" aria-live="polite"></p></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">How much have you driven?</div><p class="mb-0">No wrong answers.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp0" value="Never driven"><label for="dq_exp0"><span class="em">🌱</span><b>Never</b><small>Complete beginner</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp1" value="A few lessons"><label for="dq_exp1"><span class="em">🚗</span><b>A few lessons</b><small>Some experience</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp2" value="Lots of lessons"><label for="dq_exp2"><span class="em">🛣️</span><b>Lots</b><small>Nearly test ready</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp3" value="Failed a test before"><label for="dq_exp3"><span class="em">🔁</span><b>Failed a test</b><small>Let's fix it</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">What would you like?</div><p class="mb-0">You can change your mind later.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg0" value="2-hour lessons"><label for="dq_pkg0"><span class="em">⏱️</span><b>2-hour lessons</b><small>£70 each</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg1" value="10-hour block"><label for="dq_pkg1"><span class="em">📦</span><b>10-hour block</b><small>From £330</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg2" value="Intensive course"><label for="dq_pkg2"><span class="em">⚡</span><b>Intensive</b><small>10 hrs £380</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg3" value="Mock test"><label for="dq_pkg3"><span class="em">🎯</span><b>Mock test</b><small>£35</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg4" value="Pass Plus"><label for="dq_pkg4"><span class="em">🛡️</span><b>Pass Plus</b><small>Post-test</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">When suits you best?</div><p class="mb-0">Pick any that work.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time0" value="Weekday daytime"><label for="dq_time0"><span class="em">☀️</span><b>Weekday daytime</b><small></small></label></div><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time1" value="Weekday evenings"><label for="dq_time1"><span class="em">🌙</span><b>Weekday evenings</b><small></small></label></div><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time2" value="Weekends"><label for="dq_time2"><span class="em">🗓️</span><b>Weekends</b><small></small></label></div></div><div class="dsqx-choice mt-2"><input type="checkbox" name="nervous" id="dq_nerv" value="yes"><label for="dq_nerv"><span class="em">💙</span><b>I'm a bit nervous</b><small>We'll take it slow</small></label></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Last thing — your first name?</div><p class="mb-0">So we know who we're chatting to.</p><input class="dsqx-input mt-3" id="dq_name" name="name" type="text" autocomplete="given-name" placeholder="First name" aria-label="First name"></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">All set! 🎉</div><p class="mb-0">Check your details, then send them on WhatsApp — a real person replies.</p><div class="dsqx-sum" id="dq_sum"></div><a class="btn-wa-lg" id="dq_send" target="_blank" rel="nofollow noopener" href="https://wa.me/447352932003" style="display:flex;justify-content:center;align-items:center;gap:8px;text-decoration:none;padding:15px"><i class="bi bi-whatsapp"></i>Send to DriveSQ on WhatsApp</a><p class="mt-2 mb-0" style="font-size:.8rem">Nothing is stored on this page — your details open in WhatsApp for you to send.</p></div>
+      <div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Manual or automatic?</div><p class="mb-0">Same price either way — £35/hr.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans0" value="Manual"><label for="dq_trans0"><span class="em">⚙️</span><b>Manual</b><small>Licence for both</small></label></div><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans1" value="Automatic"><label for="dq_trans1"><span class="em">🅰️</span><b>Automatic</b><small>No clutch</small></label></div><div class="dsqx-choice"><input type="radio" name="trans" id="dq_trans2" value="Not sure"><label for="dq_trans2"><span class="em">🤔</span><b>Not sure</b><small>We'll help you choose</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Where should we pick you up?</div><p class="mb-0">Type your postcode — your local price appears instantly.</p><input class="dsqx-input dsqx-input--big mt-3" id="dq_pc" name="pc" type="text" autocomplete="postal-code" placeholder="e.g. M19 2AB" aria-label="Postcode" maxlength="9"><p class="dsqx-pcnote" id="dq_pcnote" aria-live="polite"></p></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">How much have you driven?</div><p class="mb-0">No wrong answers — it helps us plan your first lesson.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp0" value="Never driven"><label for="dq_exp0"><span class="em">🌱</span><b>Never</b><small>Complete beginner</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp1" value="A few lessons"><label for="dq_exp1"><span class="em">🚗</span><b>A few lessons</b><small>Some experience</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp2" value="Lots of lessons"><label for="dq_exp2"><span class="em">🛣️</span><b>Lots</b><small>Nearly test ready</small></label></div><div class="dsqx-choice"><input type="radio" name="exp" id="dq_exp3" value="Failed a test before"><label for="dq_exp3"><span class="em">🔁</span><b>Failed a test</b><small>Let's fix it</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">What would you like?</div><p class="mb-0">You can always change your mind later.</p><div class="dsqx-choices"><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg0" value="2-hour lessons"><label for="dq_pkg0"><span class="em">⏱️</span><b>2-hour lessons</b><small>£70 each</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg1" value="10-hour block"><label for="dq_pkg1"><span class="em">📦</span><b>10-hour block</b><small>From £330</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg2" value="Intensive 10 hrs"><label for="dq_pkg2"><span class="em">⚡</span><b>Intensive · 10 hrs</b><small>£380</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg3" value="Intensive 20 hrs"><label for="dq_pkg3"><span class="em">🚀</span><b>Intensive · 20 hrs</b><small>£770</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg4" value="Intensive 30 hrs"><label for="dq_pkg4"><span class="em">🏁</span><b>Intensive · 30 hrs</b><small>£1,200</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg5" value="Mock test"><label for="dq_pkg5"><span class="em">🎯</span><b>Mock test</b><small>£35</small></label></div><div class="dsqx-choice"><input type="radio" name="pkg" id="dq_pkg6" value="Pass Plus"><label for="dq_pkg6"><span class="em">🛡️</span><b>Pass Plus</b><small>£190</small></label></div></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">When would you like to start?</div><p class="mb-0">Pick up to 3 days that suit you — we'll confirm the exact time with you.</p><div class="dsqx-dates" id="dq_dates" role="group" aria-label="Preferred start days"></div><div class="dsqx-choices"><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time0" value="Mornings"><label for="dq_time0"><span class="em">🌅</span><b>Mornings</b><small>8am – 12pm</small></label></div><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time1" value="Afternoons"><label for="dq_time1"><span class="em">☀️</span><b>Afternoons</b><small>12pm – 5pm</small></label></div><div class="dsqx-choice"><input type="checkbox" name="time" id="dq_time2" value="Evenings"><label for="dq_time2"><span class="em">🌙</span><b>Evenings</b><small>5pm – 8pm</small></label></div></div><div class="dsqx-choice mt-2"><input type="checkbox" name="nervous" id="dq_nerv" value="yes"><label for="dq_nerv"><span class="em">💙</span><b>I'm a bit nervous</b><small>We'll take it slow and start somewhere quiet</small></label></div></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">Nearly there — your details</div><p class="mb-0">So we know who we're chatting to.</p><div class="row g-3 mt-1"><div class="col-sm-6"><label class="dsqx-lab" for="dq_name">First name *</label><input class="dsqx-input" id="dq_name" name="name" type="text" autocomplete="given-name" placeholder="First name"></div><div class="col-sm-6"><label class="dsqx-lab" for="dq_tel">Mobile <span>(optional — for a call back)</span></label><input class="dsqx-input" id="dq_tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" placeholder="07…"></div></div><p class="dsqx-err" id="dq_err" aria-live="polite"></p></div><div class="dsqx-wiz__step"><div class="dsqx-wiz__q">All set! 🎉</div><p class="mb-0">Check your booking, then send it — a real person replies.</p><div class="dsqx-sum" id="dq_sum"></div><a class="btn-wa-lg dsqx-send" id="dq_send" target="_blank" rel="nofollow noopener" href="https://wa.me/447352932003"><i class="bi bi-whatsapp"></i>Send to DriveSQ on WhatsApp</a><button type="button" class="dsqx-callback" id="dq_call"><i class="bi bi-telephone-inbound"></i><span>Request a call back instead</span></button><p class="dsqx-status" id="dq_status" aria-live="polite"></p><p class="dsqx-legal">By sending, you agree DriveSQ can contact you about lessons. We never share your details.</p></div>
       <div class="dsqx-wiz__nav"><button type="button" class="dsqx-btn dsqx-btn--ghost js-back" style="color:#1f1714 !important;border-color:rgba(0,0,0,.15)">← Back</button><button type="button" class="dsqx-btn dsqx-btn--red js-next">Next →</button></div>
     </div>
+    <div class="dsqx-trust reveal"><span><i class="bi bi-lightning-charge-fill"></i>Replies in minutes</span><span><i class="bi bi-shield-check"></i>DVSA-approved instructors</span><span><i class="bi bi-cash-coin"></i>No booking fee</span><span><i class="bi bi-phone"></i>Free Student Portal</span></div>
   </div>
 </section>
 <!-- DSQX:WIZARD END -->
@@ -2190,7 +2389,7 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 <!-- DSQX:TOOLS START -->
 <section id="tools" class="dsqx-light" aria-labelledby="dsqx-tools-title">
   <div class="container">
-    <div class="text-center mb-5 reveal"><span class="eye">Free learner tools</span><h2 id="dsqx-tools-title" class="sec-t mt-2">Plan your lessons in seconds.</h2><p class="dsqx-sub mx-auto">Estimate your hours and budget, and find out whether manual or automatic suits you.</p></div>
+    <div class="text-center mb-5 reveal"><span class="eye">Free learner tools</span><h2 id="dsqx-tools-title" class="sec-t mt-2">Plan your lessons in seconds.</h2><p class="dsqx-sub mx-auto">Estimate your hours, test your reactions, try a theory challenge and find out whether manual or automatic suits you.</p></div>
     <div class="row g-4">
       <div class="col-lg-6"><div class="dsqx-card" data-dsqx-calc>
         <div class="dsqx-ico"><i class="bi bi-calculator"></i></div><h3 style="font-family:'Oswald',sans-serif;color:#1f1714">How many lessons do I need?</h3>
@@ -2209,6 +2408,16 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
         <div class="dsqx-field"><span class="lab">Might you hire vans or cars abroad?</span><div class="dsqx-seg"><input type="radio" name="q4" id="q4a" value="2"><label for="q4a">Yes</label><input type="radio" name="q4" id="q4b" value="0"><label for="q4b">No</label></div></div>
         <button type="button" class="dsqx-btn dsqx-btn--red js-quiz">Show my recommendation</button>
         <div class="dsqx-result" role="status" aria-live="polite"></div>
+      </div></div>
+      <div class="col-lg-6"><div class="dsqx-card dsqx-react" data-dsqx-react>
+        <div class="dsqx-ico"><i class="bi bi-stopwatch"></i></div><h3 style="font-family:'Oswald',sans-serif;color:#1f1714">How fast do you react?</h3>
+        <p class="mb-2" style="color:#5d534d">Tap <b>Start</b>, wait for the brake lights, then tap the panel as fast as you can. We'll show your stopping distance at 30&nbsp;mph.</p>
+        <button type="button" class="dsqx-react__pad" aria-live="polite"><span class="dsqx-react__lights" aria-hidden="true"><i></i><i></i></span><b class="js-msg">Tap to start</b></button>
+        <div class="dsqx-result" role="status" aria-live="polite"></div>
+      </div></div>
+      <div class="col-lg-6"><div class="dsqx-card" data-dsqx-theory>
+        <div class="dsqx-ico"><i class="bi bi-journal-check"></i></div><h3 style="font-family:'Oswald',sans-serif;color:#1f1714">5-question theory challenge</h3>
+        <div class="dsqx-tq" aria-live="polite"></div>
       </div></div>
     </div>
   </div>
@@ -2897,27 +3106,7 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
   </div>
 </div>
 
-<!-- DRIVEBOT -->
-<div id="db-wrap">
-  <div id="db-win">
-    <div id="db-head">
-      <div class="db-hi"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveBot AI"/>DriveBot AI</div>
-      <div id="db-close">×</div>
-    </div>
-    <div id="db-msgs"></div>
-    <div id="db-typing">DriveBot is typing…</div>
-    <div id="db-foot">
-      <div class="db-iw">
-        <input type="text" id="db-inp" placeholder="Ask about prices, offers, areas…" autocomplete="off"/>
-        <button id="db-snd">SEND</button>
-      </div>
-    </div>
-  </div>
-  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-    <div id="db-icon"><img src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt="DriveSQ DriveBot chat"/></div>
-    <span class="fab-label">DriveBot</span>
-  </div>
-</div>
+<!-- DSQX: DriveBot replaced by the SQ Assistant (see DSQX script) -->
 
 <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -3269,58 +3458,6 @@ function openLocalVideo(src) {
     } catch { f.insertAdjacentHTML('beforeend', '<div class="alert alert-danger mt-2 rounded-3 small">Something went wrong. Please <a href="https://wa.me/447352932003">WhatsApp us</a>.</div>'); }
     finally { b.disabled = false; b.innerHTML = '<i class="bi bi-send me-2"></i>Submit Application'; }
   });
-})();
-
-/* ── DRIVEBOT ── */
-(function() {
-  const icon = document.getElementById('db-icon');
-  const win = document.getElementById('db-win');
-  const close = document.getElementById('db-close');
-  const inp = document.getElementById('db-inp');
-  const snd = document.getElementById('db-snd');
-  const msgs = document.getElementById('db-msgs');
-  const typing = document.getElementById('db-typing');
-  let opened = false;
-
-  function scroll() { msgs.scrollTop = msgs.scrollHeight; }
-  function openChat() {
-    win.style.display = 'flex';
-    if (!opened) {
-      bot('Hi! 👋 I\'m DriveBot. Ask me about <strong>prices</strong>, <strong>intensive courses</strong>, <strong>areas</strong>, or <strong>how to book</strong>.<br><br><div class="db-quick-btns"><span class="db-quick-btn" onclick="dbQ(\'passfirst\')">⚡ PassFirst</span><span class="db-quick-btn" onclick="dbQ(\'price\')">💷 Prices</span><span class="db-quick-btn" onclick="dbQ(\'book\')">📅 Book</span><span class="db-quick-btn" onclick="dbQ(\'areas\')">📍 Areas</span></div>');
-      opened = true;
-    }
-  }
-  function closeChat() { win.style.display = 'none'; inp.blur(); }
-  function bot(t) {
-    typing.style.display = 'block'; scroll();
-    setTimeout(() => {
-      typing.style.display = 'none';
-      const d = document.createElement('div'); d.className = 'db-bot'; d.innerHTML = t;
-      msgs.appendChild(d); scroll();
-    }, 700);
-  }
-  window.dbQ = function(topic) { const inp2 = document.getElementById('db-inp'); inp2.value = topic; go(); };
-  function go() {
-    const v = inp.value.trim(); if (!v) return;
-    const d = document.createElement('div'); d.className = 'db-usr'; d.textContent = v;
-    msgs.appendChild(d); inp.value = ''; scroll();
-    const q = v.toLowerCase();
-    if (q.match(/price|cost|how much|fee/)) bot('💷 <strong>Our prices:</strong><br>• Standard: <strong>£35/hr</strong> (manual or auto)<br>• 10hr block: <strong>£330</strong><br>• Mock test: <strong>£35</strong>');
-    else if (q.match(/intensive|crash|fast|quick/)) bot('⚡ Intensive courses from <strong>£380 (10hrs)</strong> — pass in 2–4 weeks.<br><a href="#intensive" style="color:#ff7070">See packages →</a>');
-    else if (q.match(/book|start|enrol/)) bot('📅 Fastest way to book: <a href="https://wa.me/447352932003" style="color:#ff7070"><strong>WhatsApp 07352 932003</strong></a> — reply in minutes!<br>Or <a href="#book" style="color:#ff7070">fill in the online form</a>.');
-    else if (q.match(/whatsapp|wa|contact|call/)) bot('📱 <a href="https://wa.me/447352932003" style="color:#ff7070"><strong>WhatsApp 07352 932003</strong></a> — fastest way to book!');
-    else if (q.match(/auto|automatic/)) bot('🚗 Automatic is the <strong>same price as manual — £35/hr</strong>. No premium charge, ever!');
-    else if (q.match(/pass rate|pass/)) bot('🏆 Our first-time pass rate is <strong>over 90%</strong> — nearly double the UK national average of 46%!');
-    else if (q.match(/review|rating|google/)) bot('⭐ We\'re rated <strong>5/5 on Google</strong> with 100+ verified reviews. <a href="#reviews" style="color:#ff7070">Read them →</a>');
-    else if (q.match(/area|cover|postcode|where/)) bot('📍 We cover <strong>all of Greater Manchester</strong> — M, SK, BL, OL, WN postcodes. <a href="#areas" style="color:#ff7070">Check your postcode →</a>');
-    else if (q.match(/nervous|scared|anxious|beginner/)) bot('💙 Many of our best learners started very nervous! Calm, patient instructors who go at your pace. <a href="https://wa.me/447352932003" style="color:#ff7070">WhatsApp us</a> and we\'ll match you perfectly.');
-    else bot('For the fastest answer: <a href="https://wa.me/447352932003" style="color:#ff7070"><strong>WhatsApp 07352 932003</strong></a><br>Or ask me about: <strong>pricing</strong>, <strong>intensive courses</strong>, <strong>areas</strong>, or <strong>booking</strong>.');
-  }
-  icon.addEventListener('click', openChat);
-  close.addEventListener('click', closeChat);
-  snd.addEventListener('click', () => { go(); inp.blur(); });
-  inp.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); go(); inp.blur(); } });
-  /* DSQX: auto-open replaced by a gentle 'peek' bubble (see DSQX script) */
 })();
 
 /* ── PAGE LOADER DISMISS ── */
@@ -4143,51 +4280,112 @@ window.DSQXCar3D = function (stage, hooks) {
   var DEAL = ["M12","M13","M14","M16","M18","M19","M20","M21","M22","M23","M33","SK3","SK4","SK5","SK8"];
   var MACC = ["SK10","SK11"];
   function outward(v) { var s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (s.length >= 5) s = s.slice(0, -3); return /^[A-Z]{1,2}\d[A-Z\d]?$/.test(s) ? s : ""; }
-  function priceFor(pc, pkg) {
-    var tier = DEAL.indexOf(pc) > -1 ? "deal" : MACC.indexOf(pc) > -1 ? "macc" : "std";
-    if (pkg === "10-hour block") return tier === "deal" ? "£330 (inner Manchester deal)" : tier === "macc" ? "£370" : "£350";
-    if (pkg === "2-hour lessons") return tier === "macc" ? "£80 per 2-hour lesson" : "£70 per 2-hour lesson";
-    if (pkg === "Intensive course") return "10 hrs £380 · 20 hrs £770";
-    if (pkg === "Mock test") return "£35 per session";
-    if (pkg === "Pass Plus") return "We'll confirm your price";
-    return "";
+  function tierFor(pc) { return DEAL.indexOf(pc) > -1 ? "deal" : MACC.indexOf(pc) > -1 ? "macc" : "std"; }
+  function priceFor(pc, pkg) { // returns [label, amount]
+    var tier = tierFor(pc);
+    switch (pkg) {
+      case "10-hour block": return tier === "deal" ? ["£330 · inner Manchester deal", 330] : tier === "macc" ? ["£370", 370] : ["£350", 350];
+      case "2-hour lessons": return tier === "macc" ? ["£80 per 2-hour lesson", 80] : ["£70 per 2-hour lesson", 70];
+      case "Intensive 10 hrs": return ["£380", 380];
+      case "Intensive 20 hrs": return ["£770", 770];
+      case "Intensive 30 hrs": return ["£1,200", 1200];
+      case "Mock test": return ["£35 per session", 35];
+      case "Pass Plus": return ["£190", 190];
+    }
+    return ["", 0];
   }
   function wizard() {
     var root = $("[data-dsqx-wiz]"); if (!root) return;
     var steps = $$(".dsqx-wiz__step", root), bar = $(".dsqx-wiz__bar span", root), n = $(".js-n", root), back = $(".js-back", root), next = $(".js-next", root);
-    var pcIn = $("#dq_pc", root), note = $("#dq_pcnote", root), i = 0;
+    var dots = $$(".dsqx-wiz__dots button", root), quote = $(".js-quote", root);
+    var pcIn = $("#dq_pc", root), note = $("#dq_pcnote", root), err = $("#dq_err", root), status = $("#dq_status", root);
+    var nameIn = $("#dq_name", root), telIn = $("#dq_tel", root), callBtn = $("#dq_call", root), sendBtn = $("#dq_send", root);
+    var i = 0, reached = 0, picked = [];
     function val(nm) { var e = $("[name='" + nm + "']:checked", root); return e ? e.value : ""; }
+    function vals(nm) { return $$("[name='" + nm + "']:checked", root).map(function (c) { return c.value; }); }
+    function telOk(v) { var d = String(v || "").replace(/[^\d+]/g, ""); return !d || /^(07\d{9}|\+447\d{9}|447\d{9}|0[1-3]\d{8,9})$/.test(d); }
+    // date strip: next 14 days
+    var dates = $("#dq_dates", root);
+    if (dates) {
+      var DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (var d = 1; d <= 14; d++) {
+        var dt = new Date(); dt.setDate(dt.getDate() + d);
+        var b = document.createElement("button"); b.type = "button"; b.className = "dsqx-date"; b.setAttribute("aria-pressed", "false");
+        var lab = DN[dt.getDay()] + " " + dt.getDate() + " " + MN[dt.getMonth()];
+        b.dataset.v = lab; b.innerHTML = "<small>" + DN[dt.getDay()] + "</small><b>" + dt.getDate() + "</b><small>" + MN[dt.getMonth()] + "</small>";
+        b.addEventListener("click", function () {
+          var v = this.dataset.v, k = picked.indexOf(v);
+          if (k > -1) picked.splice(k, 1); else { if (picked.length >= 3) { var old = picked.shift(); var ob = $(".dsqx-date[data-v='" + old + "']", dates); if (ob) { ob.classList.remove("is-on"); ob.setAttribute("aria-pressed", "false"); } } picked.push(v); }
+          this.classList.toggle("is-on", picked.indexOf(v) > -1); this.setAttribute("aria-pressed", String(picked.indexOf(v) > -1));
+        });
+        dates.appendChild(b);
+      }
+    }
+    function updateQuote() {
+      var p = priceFor(outward(pcIn.value), val("pkg"));
+      var txt = p[1] ? p[0].split(" · ")[0] : "—";
+      if (quote.textContent !== txt) { quote.textContent = txt; quote.classList.remove("bump"); void quote.offsetWidth; quote.classList.add("bump"); }
+    }
     function show(k, dir) {
       steps.forEach(function (s, x) { s.classList.toggle("is-on", x === k); s.classList.toggle("back", dir < 0); });
+      reached = Math.max(reached, k);
+      dots.forEach(function (b, x) { b.disabled = x > reached; b.parentNode.classList.toggle("is-done", x < k); b.parentNode.classList.toggle("is-on", x === k); });
       bar.style.width = ((k + 1) / steps.length) * 100 + "%"; n.textContent = "Step " + (k + 1) + " of " + steps.length;
       back.style.visibility = k ? "visible" : "hidden"; next.style.display = k === steps.length - 1 ? "none" : "";
+      next.textContent = k === steps.length - 2 ? "Review booking →" : "Next →";
       if (k === steps.length - 1) summary();
     }
     function ok() {
       var s = steps[i];
-      if ($("#dq_pc", s) && !outward(pcIn.value)) { note.innerHTML = "<span style='color:#D10A11'>Please enter a valid postcode.</span>"; pcIn.focus(); return false; }
-      if ($("#dq_name", s) && !$("#dq_name", s).value.trim()) { $("#dq_name", s).focus(); return false; }
-      var r = $$("input[type='radio']", s); if (r.length && !r.some(function (x) { return x.checked; })) return false;
+      if ($("#dq_pc", s) && !outward(pcIn.value)) { note.innerHTML = "<span style='color:#D10A11'>Please enter a valid postcode, e.g. M19 2AB.</span>"; pcIn.focus(); return false; }
+      if ($("#dq_name", s)) {
+        if (!nameIn.value.trim()) { err.textContent = "Please add your first name."; nameIn.focus(); return false; }
+        if (!telOk(telIn.value)) { err.textContent = "That mobile number doesn't look right — check it or leave it blank."; telIn.focus(); return false; }
+        err.textContent = "";
+      }
+      var r = $$("input[type='radio']", s);
+      if (r.length && !r.some(function (x) { return x.checked; })) { s.classList.remove("shake"); void s.offsetWidth; s.classList.add("shake"); return false; }
       return true;
     }
     pcIn.addEventListener("input", function () {
       var pc = outward(pcIn.value);
       note.innerHTML = !pc ? "" : DEAL.indexOf(pc) > -1 ? "🎉 <b>" + pc + "</b> gets our inner Manchester deal: <b>10 hours for £330</b>." :
         MACC.indexOf(pc) > -1 ? "📍 <b>" + pc + "</b> (Macclesfield): £40/hr · 10 hours £370." : "✅ <b>" + pc + "</b>: £35/hr · 10 hours £350. We'll confirm cover on WhatsApp.";
+      updateQuote();
     });
+    $$("[name='pkg']", root).forEach(function (r) { r.addEventListener("change", updateQuote); });
+    var rows = [];
     function summary() {
-      var pc = outward(pcIn.value), times = $$("[name='time']:checked", root).map(function (c) { return c.value; });
-      var rows = [["Name", $("#dq_name", root).value.trim()], ["Gearbox", val("trans")], ["Postcode", pc], ["Experience", val("exp")], ["Package", val("pkg")],
-        ["Price", priceFor(pc, val("pkg"))], ["Best times", times.join(", ") || "Flexible"], ["Nervous?", $("#dq_nerv", root).checked ? "Yes — please take it slow" : "No"]];
+      var pc = outward(pcIn.value), times = vals("time"), pr = priceFor(pc, val("pkg"));
+      rows = [["Name", nameIn.value.trim()], ["Mobile", telIn.value.trim() || "—"], ["Gearbox", val("trans")], ["Pick-up", pc], ["Experience", val("exp")], ["Package", val("pkg")],
+        ["Price", pr[0]], ["Start days", picked.join(", ") || "Flexible"], ["Times", times.join(", ") || "Flexible"], ["Nervous?", $("#dq_nerv", root).checked ? "Yes — please take it slow" : "No"]];
       var sum = $("#dq_sum", root); sum.innerHTML = "";
-      rows.forEach(function (r) { var d = document.createElement("div"); var a = document.createElement("span"); a.textContent = r[0]; var b = document.createElement("b"); b.textContent = r[1] || "—"; d.appendChild(a); d.appendChild(b); sum.appendChild(d); });
-      $("#dq_send", root).href = "https://wa.me/447352932003?text=" + encodeURIComponent("Hi DriveSQ! I'd like to book lessons:\n" + rows.map(function (r) { return "• " + r[0] + ": " + (r[1] || "—"); }).join("\n"));
+      rows.forEach(function (r, x) { var dv = document.createElement("div"); dv.style.setProperty("--d", x * 45 + "ms"); var a = document.createElement("span"); a.textContent = r[0]; var b = document.createElement("b"); b.textContent = r[1] || "—"; dv.appendChild(a); dv.appendChild(b); sum.appendChild(dv); });
+      sendBtn.href = "https://wa.me/447352932003?text=" + encodeURIComponent("Hi DriveSQ! I'd like to book lessons:\n" + rows.map(function (r) { return "• " + r[0] + ": " + (r[1] || "—"); }).join("\n"));
+      var hasTel = !!telIn.value.trim();
+      callBtn.querySelector("span").textContent = hasTel ? "Request a call back instead" : "Add a mobile number for a call back";
     }
     next.addEventListener("click", function () { if (!ok()) return; i = Math.min(steps.length - 1, i + 1); show(i, 1); });
     back.addEventListener("click", function () { i = Math.max(0, i - 1); show(i, -1); });
+    dots.forEach(function (b) { b.addEventListener("click", function () { var k = +b.dataset.go; if (k <= reached && k !== i) { var dir = k < i ? -1 : 1; i = k; show(i, dir); } }); });
     $$("input[type='radio']", root).forEach(function (r) { r.addEventListener("change", function () { if (!$("input[type='checkbox'], input[type='text']", steps[i])) setTimeout(function () { next.click(); }, 260); }); });
-    root.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.type === "text") { e.preventDefault(); next.click(); } });
-    $("#dq_send", root).addEventListener("click", function () { try { if (window.gtag) gtag("event", "generate_lead", { method: "booking_wizard" }); } catch (e) {} });
+    root.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target.tagName === "INPUT" && /text|tel/.test(e.target.type)) { e.preventDefault(); next.click(); } });
+    function celebrate() { if (window.SQA && SQA.confetti) SQA.confetti(); }
+    sendBtn.addEventListener("click", function () {
+      try { if (window.gtag) gtag("event", "generate_lead", { method: "booking_wizard_whatsapp" }); } catch (e) {}
+      status.innerHTML = "✅ WhatsApp is opening — just press <b>send</b>. We usually reply within minutes."; celebrate();
+    });
+    callBtn.addEventListener("click", function () {
+      if (!telIn.value.trim()) { i = steps.length - 2; show(i, -1); err.textContent = "Add your mobile number and we'll call you back."; setTimeout(function () { telIn.focus(); }, 300); return; }
+      if (callBtn.disabled) return;
+      callBtn.disabled = true; status.textContent = "Sending…";
+      var fd = new FormData(); rows.forEach(function (r) { fd.append(r[0], r[1] || "—"); }); fd.append("_subject", "Call-back request — Book in 60 seconds"); fd.append("Source", "drivesq.co.uk booking wizard");
+      fetch("https://formspree.io/f/xvgjdapp", { method: "POST", body: fd, headers: { Accept: "application/json" } }).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        status.innerHTML = "🎉 <b>Request sent!</b> We'll call you back soon on " + telIn.value.trim().replace(/[<>&]/g, "") + "."; callBtn.classList.add("is-sent"); celebrate();
+        try { if (window.gtag) gtag("event", "generate_lead", { method: "booking_wizard_callback" }); } catch (e) {}
+      }).catch(function () { callBtn.disabled = false; status.innerHTML = "Sorry — that didn't send. Please use the WhatsApp button above, or call <a href='tel:+447352932003'>07352 932003</a>."; });
+    });
     show(0, 1);
   }
 
@@ -4357,29 +4555,267 @@ window.DSQXCar3D = function (stage, hooks) {
     if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { inView = es[0].isIntersecting; if (inView) show(i); else clearTimeout(timer); }, { threshold: .3 }).observe(root);
   }
 
-  /* ---- DriveBot: gentle peek instead of covering the page ---- */
-  function botPeek() {
-    var wrap = document.getElementById("db-wrap"), icon = document.getElementById("db-icon"), win = document.getElementById("db-win");
-    if (!wrap || !icon) return;
-    var p = document.createElement("div");
-    p.className = "dsqx-peek"; p.setAttribute("role", "button"); p.setAttribute("tabindex", "0");
-    p.innerHTML = "👋 Questions? <b>Ask DriveBot</b><button type='button' aria-label='Dismiss'>✕</button>";
-    wrap.style.position = "fixed"; wrap.appendChild(p);
-    var shown = false;
-    try { shown = sessionStorage.getItem("dsqx-peek") === "1"; } catch (e) {}
-    var open = function () { p.classList.remove("show"); icon.click(); };
-    p.addEventListener("click", function (e) { if (e.target.tagName === "BUTTON") { p.classList.remove("show"); return; } open(); });
-    p.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
-    icon.addEventListener("click", function () { p.classList.remove("show"); });
-    if (!shown) setTimeout(function () {
-      if (win && win.style.display === "flex") return;
-      p.classList.add("show");
-      try { sessionStorage.setItem("dsqx-peek", "1"); } catch (e) {}
-      setTimeout(function () { p.classList.remove("show"); }, 9000);
-    }, 6000);
+  function init() { heroFx(); carStage(); wizard(); tools(); a11y(); parallax(); stagger(); cards(); buttons(); glow(); counters(); portal(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+
+</script>
+<script id="dsqx-assist">
+/* DSQX — SQ Assistant (DriveSQ edition), hanging SQ guide, floating dock, confetti and learner tools */
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var WA = "447352932003", PHONE = "07352 932003", TEL = "+447352932003";
+  var SQA = window.SQA = window.SQA || {};
+  function waLink(msg) { return "https://wa.me/" + WA + "?text=" + encodeURIComponent(msg); }
+  function track(name, p) { try { if (window.gtag) gtag("event", name, p || {}); } catch (e) {} }
+  function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } }
+
+  /* ---------------- confetti ---------------- */
+  SQA.confetti = function () {
+    if (reduce) return;
+    var c = document.createElement("canvas"); c.className = "sqa-confetti"; document.body.appendChild(c);
+    var g = c.getContext("2d"), W = c.width = innerWidth, H = c.height = innerHeight, cols = ["#D10A11", "#ff4d55", "#ffffff", "#F5C518", "#25D366"], P = [];
+    for (var i = 0; i < 150; i++) P.push({ x: W / 2 + (Math.random() - .5) * W * .3, y: H * .55, vx: (Math.random() - .5) * 15, vy: -Math.random() * 15 - 6, r: Math.random() * 6 + 4, c: cols[i % cols.length], a: Math.random() * 6, s: Math.random() * .3 - .15 });
+    var t0 = performance.now();
+    (function f(now) {
+      var t = now - t0; g.clearRect(0, 0, W, H);
+      P.forEach(function (p) { p.vy += .38; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.s; g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.globalAlpha = Math.max(0, 1 - t / 2600); g.fillStyle = p.c; g.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); g.restore(); });
+      if (t < 2600) requestAnimationFrame(f); else c.remove();
+    })(t0);
+  };
+
+  /* ---------------- postcode knowledge ---------------- */
+  var DEAL = ["M12", "M13", "M14", "M16", "M18", "M19", "M20", "M21", "M22", "M23", "M33", "SK3", "SK4", "SK5", "SK8"], MACC = ["SK10", "SK11"];
+  function outward(v) { var s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (s.length >= 5) s = s.slice(0, -3); return /^[A-Z]{1,2}\d[A-Z\d]?$/.test(s) ? s : ""; }
+  function checkPc(v) {
+    var o = outward(v); if (!o) return null;
+    var area = o.replace(/\d.*$/, ""), num = parseInt(o.replace(/^[A-Z]+/, ""), 10);
+    if (DEAL.indexOf(o) > -1) return { o: o, s: "deal" };
+    if (MACC.indexOf(o) > -1) return { o: o, s: "macc" };
+    if (["M", "BL", "OL", "WN"].indexOf(area) > -1) return { o: o, s: "yes" };
+    if (area === "SK") return { o: o, s: num <= 9 || num === 12 || (num >= 14 && num <= 16) ? "yes" : "edge" };
+    if (area === "WA") return { o: o, s: num >= 13 && num <= 16 ? "yes" : "edge" };
+    if (["CW", "PR", "L", "CH", "HD", "HX", "BB"].indexOf(area) > -1) return { o: o, s: "edge" };
+    return { o: o, s: "out" };
   }
 
-  function init() { heroFx(); carStage(); wizard(); tools(); a11y(); parallax(); stagger(); cards(); buttons(); glow(); counters(); portal(); botPeek(); }
+  /* ---------------- SQ Assistant ---------------- */
+  function assistant() {
+    var old = document.getElementById("db-wrap"); if (old) old.remove();
+    var launch = document.createElement("button");
+    launch.type = "button"; launch.className = "sqa-launch"; launch.setAttribute("aria-label", "Open SQ Assistant chat"); launch.setAttribute("aria-expanded", "false");
+    launch.innerHTML = "<span class='sqa-logo'>SQ</span><span class='sqa-dot'></span><b>Ask SQ Assistant</b>";
+    var box = document.createElement("section");
+    box.className = "sqa"; box.setAttribute("aria-label", "SQ Assistant"); box.setAttribute("role", "dialog");
+    box.innerHTML = "<div class='sqa__head'><span class='sqa-logo'>SQ</span><div><b>SQ Assistant</b><small>DriveSQ · instant answers</small></div><button class='sqa__close' type='button' aria-label='Close chat'>✕</button></div>" +
+      "<div class='sqa__log' role='log' aria-live='polite'></div><div class='sqa__chips'></div>" +
+      "<form class='sqa__form'><input type='text' aria-label='Type your question' placeholder='Ask about prices, postcodes, courses…' autocomplete='off' enterkeyhint='send'><button type='submit' aria-label='Send'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M13 6l6 6-6 6'/></svg></button></form>" +
+      "<div class='sqa__foot'>Automated answers · bookings are handled by a real person on WhatsApp</div>";
+    document.body.appendChild(launch); document.body.appendChild(box);
+    if (!ss("sqa-peek")) { launch.classList.add("is-peek"); ss("sqa-peek", "1"); }
+    var log = $(".sqa__log", box), chips = $(".sqa__chips", box), form = $(".sqa__form", box), input = $("input", box);
+    var started = false, awaitPc = false;
+    function add(html, who) { var m = document.createElement("div"); m.className = "sqa-msg sqa-msg--" + who; if (who === "user") m.textContent = html; else m.innerHTML = html; log.appendChild(m); log.scrollTop = log.scrollHeight; }
+    function say(html, next) {
+      var t = document.createElement("div"); t.className = "sqa-msg sqa-msg--bot sqa-typing"; t.innerHTML = "<i></i><i></i><i></i>"; log.appendChild(t); log.scrollTop = log.scrollHeight;
+      setTimeout(function () { t.remove(); add(html, "bot"); setChips(next || CHIPS); }, reduce ? 40 : 520 + Math.min(800, html.length * 2.5));
+    }
+    function setChips(list) { chips.innerHTML = ""; list.forEach(function (c) { var b = document.createElement("button"); b.type = "button"; b.textContent = c; b.addEventListener("click", function () { handle(c); }); chips.appendChild(b); }); }
+    var CHIPS = ["💷 Prices", "📅 Book a lesson", "📍 Check my postcode", "🔥 Area deals", "⚡ Intensive", "😟 I'm nervous", "🚗 First lesson", "📱 Student Portal", "🛡️ Pass Plus"];
+    var wa = function (msg, label) { return "<a href='" + waLink(msg) + "' target='_blank' rel='nofollow noopener' data-wa>" + (label || "Message us on WhatsApp") + " ↗</a>"; };
+    var go = function (id, label) { return "<a href='#" + id + "' data-jump>" + label + "</a>"; };
+    var INTENTS = [
+      { k: ["hello", "hi", "hey", "salam", "salaam", "good morning", "good evening", "yo"], r: function () { return "Hi! 👋 I'm the <b>SQ Assistant</b> for DriveSQ. I can help with prices, area deals, postcodes, intensive courses, Pass Plus, the Student Portal and booking. What would you like to know?"; } },
+      { w: 2, k: ["price", "cost", "how much", "fee", "rate", "£", "pound", "expensive", "per hour", "hourly", "cheap"], r: function () { return "💷 <b>DriveSQ prices</b> (manual &amp; automatic):<table><tr><td>Hourly rate</td><td>£35</td></tr><tr><td>2-hour lesson (minimum)</td><td>£70</td></tr><tr><td>1-hour only</td><td>£40</td></tr><tr><td>10-hour block</td><td>£350</td></tr><tr><td>10 hrs · inner Manchester deal</td><td>£330</td></tr><tr><td>Mock test</td><td>£35</td></tr><tr><td>Pass Plus</td><td>£190</td></tr></table>" + go("book-60", "Get my exact quote →"); }, chips: ["🔥 Area deals", "⚡ Intensive", "📍 Check my postcode", "📅 Book a lesson"] },
+      { w: 2, k: ["deal", "offer", "discount", "save", "promo", "inner manchester", "330"], r: function () { return "🔥 <b>Inner Manchester deal:</b> 10 hours for <b>£330</b> (instead of £350) in M12, M13, M14, M16, M18, M19, M20, M21, M22, M23, M33, SK3, SK4, SK5 and SK8.<br>Type your postcode and I'll check it for you."; }, after: function () { awaitPc = true; }, chips: ["M19", "M20", "SK4", "📅 Book a lesson"] },
+      { w: 3, k: ["macclesfield", "sk10", "sk11", "wilmslow", "prestbury"], r: function () { return "📍 We cover <b>Macclesfield (SK10 / SK11)</b> at £40/hr — <b>10 hours for £370</b>."; } },
+      { k: ["block", "10 hour", "ten hour", "package", "bundle"], r: function () { return "📦 A <b>10-hour block</b> is £350 — or <b>£330</b> with the inner Manchester deal (£370 in Macclesfield). " + go("book-60", "Book a block →"); } },
+      { k: ["1 hour", "one hour", "single", "2 hour", "two hour", "minimum", "lesson length", "how long"], r: function () { return "⏱️ Lessons are a <b>2-hour minimum for £70</b> — two hours gives you time to really progress. A one-hour-only lesson is <b>£40</b>."; } },
+      { w: 2, k: ["intensive", "fast", "quick", "crash", "asap", "urgent", "fast track", "passfirst", "pass first"], r: function () { return "⚡ <b>Intensive courses</b> (manual or automatic, £40/hr):<table><tr><td>10 hours</td><td>£380</td></tr><tr><td>20 hours</td><td>£770</td></tr><tr><td>30 hours</td><td>£1,200</td></tr></table>" + go("intensive", "See intensive courses →"); }, chips: ["📅 Book a lesson", "🎯 Mock test", "💷 Prices"] },
+      { w: 3, k: ["pass plus", "passplus", "after test", "new driver", "insurance"], r: function () { return "🛡️ <b>Pass Plus</b> is £190 — extra training after you pass (including motorways and night driving) that can help you feel confident and may reduce insurance with some insurers. " + go("passplus", "About Pass Plus →"); } },
+      { w: 2, k: ["mock", "mock test", "test practice"], r: function () { return "🎯 A <b>mock driving test</b> is £35 per session — a full test-style drive with feedback, so test day holds no surprises."; } },
+      { k: ["automatic", "auto"], r: function () { return "🅰️ Yes — <b>automatic lessons are the same price as manual</b>: £35/hr, £70 for 2 hours. No automatic premium."; } },
+      { k: ["manual", "clutch", "gears"], r: function () { return "⚙️ Yes — <b>manual lessons</b> are £35/hr (£70 for 2 hours). A manual licence lets you drive both manual and automatic cars. Not sure which? Try our " + go("tools", "manual or automatic quiz") + "."; } },
+      { w: 2, k: ["portal", "app", "student portal", "progress", "track"], r: function () { return "📱 Every learner gets the <b>DriveSQ Student Portal</b> free: skills tracked after every lesson, 700+ theory questions, full mock theory tests and instructor messaging.<br><a href='https://www.drivesq.co.uk/student.html' target='_blank' rel='noopener'>Open the Student Portal ↗</a> · " + go("student-portal", "See inside →"); } },
+      { w: 3, k: ["instructor portal", "instructor login", "i am an instructor", "adi", "pdi", "become an instructor", "join", "work for"], r: function () { return "👨‍🏫 Instructors use the <a href='https://www.drivesq.co.uk/portal.html' target='_blank' rel='noopener'>DriveSQ Instructor Portal ↗</a>. Want to teach with DriveSQ? " + go("join", "Join our team →"); } },
+      { k: ["area", "cover", "where", "location", "bolton", "bury", "oldham", "rochdale", "stockport", "tameside", "trafford", "salford", "wigan", "manchester", "near me", "sale", "didsbury", "chorlton"], r: function () { return "📍 We cover <b>Greater Manchester</b> — Manchester, Salford, Trafford, Stockport, Tameside, Oldham, Rochdale, Bury, Bolton and Wigan — plus Macclesfield. Type your postcode and I'll check it!"; }, after: function () { awaitPc = true; }, chips: ["📍 Check my postcode", "🔥 Area deals"] },
+      { w: 3, k: ["check my postcode", "postcode", "post code", "do you cover"], r: function () { return "📍 Sure — type your postcode (e.g. <b>M19 2AB</b> or just <b>M19</b>)."; }, after: function () { awaitPc = true; }, chips: ["M19", "SK4", "BL1", "OL1"] },
+      { k: ["theory", "hazard perception", "highway code"], r: function () { return "📚 Practise with our " + go("tools", "5-question theory challenge") + " — and DriveSQ learners get 700+ questions and full mock theory tests in the Student Portal. Book the real theory test on <a href='https://www.gov.uk/book-theory-test' target='_blank' rel='noopener'>GOV.UK ↗</a>."; } },
+      { k: ["book my test", "test centre", "test center", "practical", "exam", "driving test"], r: function () { return "🏁 You book your practical test on <a href='https://www.gov.uk/book-driving-test' target='_blank' rel='noopener'>GOV.UK ↗</a>. We'll make sure you're ready first — and a <b>£35 mock test</b> is a great final check."; } },
+      { k: ["how many hours", "how many lessons", "how many", "hours do i need"], r: function () { return "🧮 It depends on you — the DVSA says learners typically need around 45 hours of lessons plus 22 hours of private practice. Try our " + go("tools", "lesson calculator") + " for a personal estimate."; } },
+      { w: 2, k: ["nervous", "anxious", "scared", "anxiety", "afraid", "worried", "panic"], r: function () { return "💙 You're in exactly the right place. Many of our best learners started out nervous. Calm, patient instructors go at your pace, start on quiet roads and explain everything first — and every car has dual controls. " + go("nervous", "How we help nervous learners →"); }, chips: ["🚗 First lesson", "📅 Book a lesson", "💷 Prices"] },
+      { w: 2, k: ["first lesson", "first time", "what happens", "never driven", "beginner"], r: function () { return "🚗 <b>Your first lesson:</b><br>1. We confirm your time &amp; pick-up on WhatsApp<br>2. Quick licence &amp; eyesight check<br>3. We drive you somewhere quiet<br>4. Controls explained — no rush<br>5. Your first drive on calm roads<br>6. Debrief + Student Portal set-up<br>" + go("nervous", "See the full guide →"); }, chips: ["😟 I'm nervous", "📅 Book a lesson"] },
+      { k: ["fail", "failed"], r: function () { return "That's frustrating — but very common. Bring your test report and we'll focus your lessons on those faults, then a mock test before you go again."; } },
+      { k: ["motorway"], r: function () { return "🛣️ Learners can have motorway lessons with an approved instructor in a dual-controlled car — and motorway driving is part of " + go("passplus", "Pass Plus") + " after you pass."; } },
+      { k: ["review", "rating", "google", "rated"], r: function () { return "⭐ DriveSQ is rated <b>5/5 on Google</b>. " + go("reviews", "Read what learners say →"); } },
+      { k: ["pay", "payment", "card", "cash", "bank", "deposit"], r: function () { return "💳 " + wa("Hi DriveSQ! How can I pay for lessons?", "Message us") + " and we'll explain payment options."; } },
+      { k: ["who are you", "about", "drivesq", "owner"], r: function () { return "I'm the <b>SQ Assistant</b> — DriveSQ's automated helper. DriveSQ is a DVSA-approved driving school covering Greater Manchester since 2018."; } },
+      { w: 2, k: ["book", "start", "sign up", "enrol", "enroll", "available", "availability", "slot", "book a lesson", "lessons please"], r: function () { return "📅 Let's get you booked! Use " + go("book-60", "Book in 60 seconds") + " for your live price, or WhatsApp us — a real person replies in minutes.<br>" + wa("Hi DriveSQ! I'd like to book driving lessons.", "Book on WhatsApp") + " · <a href='tel:" + TEL + "'>Call " + PHONE + "</a>"; } },
+      { k: ["contact", "phone", "call", "number", "whatsapp", "email", "human", "person", "speak"], r: function () { return "📞 WhatsApp or call <a href='tel:" + TEL + "'>" + PHONE + "</a>.<br>" + wa("Hi DriveSQ!", "Open WhatsApp"); } },
+      { k: ["thank", "thanks", "cheers", "ta"], r: function () { return "You're welcome! 🚗 Anything else I can help with?"; } }
+    ];
+    function pcReply(text) {
+      var r = checkPc(text); if (!r) return null;
+      if (r.s === "deal") return "🎉 <b>" + r.o + "</b> — we cover you <b>and</b> you get the inner Manchester deal: <b>10 hours for £330</b>!<br>" + wa("Hi DriveSQ! My postcode is " + r.o + " — I'd like the 10 hours for £330 deal.", "Claim on WhatsApp") + " · " + go("book-60", "Book in 60s");
+      if (r.s === "macc") return "📍 <b>" + r.o + "</b> (Macclesfield) — yes! £40/hr, <b>10 hours for £370</b>.<br>" + wa("Hi DriveSQ! I'm in " + r.o + " and I'd like to book lessons.", "Book on WhatsApp");
+      if (r.s === "yes") return "✅ Yes — we cover <b>" + r.o + "</b>. Lessons are £70 for 2 hours, or 10 hours for £350.<br>" + wa("Hi DriveSQ! My postcode is " + r.o + " and I'd like to book lessons.", "Book on WhatsApp") + " · " + go("book-60", "Book in 60s");
+      if (r.s === "edge") return "🤔 <b>" + r.o + "</b> is on the edge of our area. " + wa("Hi DriveSQ! Do you cover " + r.o + "?", "Ask us on WhatsApp") + " and we'll confirm.";
+      return "😕 <b>" + r.o + "</b> looks outside our area. If you can get to a Greater Manchester pick-up point, " + wa("Hi DriveSQ! I'm in " + r.o + " — could you pick me up somewhere in Manchester?", "message us") + ".";
+    }
+    function handle(raw) {
+      var text = String(raw).trim(); if (!text) return;
+      add(text, "user"); input.value = "";
+      var clean = text.replace(/[^\w£\s'-]/g, " ").toLowerCase().replace(/\s+/g, " ").trim();
+      var looksPc = /^[a-z]{1,2}\d[a-z\d]?(\s*\d[a-z]{2})?$/i.test(clean);
+      var tok = (clean.match(/\b([a-z]{1,2}\d[a-z\d]?)(\s*\d[a-z]{2})?\b/i) || [])[0];
+      var pcAsk = tok && /cover|postcode|post code|area|live in|i'm in|im in|i am in|based in|pick up|pickup|from/.test(clean);
+      if (awaitPc || looksPc || pcAsk) { var src = looksPc ? clean : (tok || clean), pr = pcReply(src); if (pr) { awaitPc = false; track("sqa_postcode", { result: (checkPc(src) || {}).s }); return say(pr); } }
+      var best = null, bestScore = 0;
+      INTENTS.forEach(function (it) { var sc = 0; it.k.forEach(function (k) { if ((" " + clean + " ").indexOf(k.length <= 3 ? " " + k + " " : k) > -1) sc += k.length * (it.w || 1); }); if (sc > bestScore) { bestScore = sc; best = it; } });
+      if (best) { awaitPc = false; if (best.after) best.after(); return say(best.r(), best.chips); }
+      say("I'm not sure about that one — but a real person can help! " + wa("Hi DriveSQ! I have a question: " + text, "Ask on WhatsApp") + "<br>Or try one of these:");
+    }
+    function open() {
+      box.classList.add("is-open"); launch.setAttribute("aria-expanded", "true"); document.documentElement.classList.add("sqa-open");
+      if (!started) { started = true; say("Hi! 👋 I'm the <b>SQ Assistant</b>. Ask me anything about DriveSQ lessons, prices, deals or postcodes — or tap an option below."); track("sqa_open"); }
+      if (window.innerWidth > 760) setTimeout(function () { input.focus(); }, 300);
+    }
+    function close() { box.classList.remove("is-open"); launch.setAttribute("aria-expanded", "false"); document.documentElement.classList.remove("sqa-open"); }
+    launch.addEventListener("click", function () { box.classList.contains("is-open") ? close() : open(); });
+    $(".sqa__close", box).addEventListener("click", function () { close(); launch.focus(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && box.classList.contains("is-open")) { close(); launch.focus(); } });
+    form.addEventListener("submit", function (e) { e.preventDefault(); handle(input.value); });
+    log.addEventListener("click", function (e) {
+      var a = e.target.closest("a"); if (!a) return;
+      if (a.hasAttribute("data-wa")) track("whatsapp_click", { location: "sq_assistant" });
+      if (a.hasAttribute("data-jump") && window.innerWidth <= 760) close();
+    });
+    $$("[data-open-bot]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); open(); }); });
+    SQA.open = open; window.openChat = open;
+  }
+
+  /* ---------------- hanging SQ guide ---------------- */
+  var MASCOT = '<svg viewBox="0 0 160 270" aria-hidden="true">' +
+    '<path d="M108 98 C118 70 100 30 86 10" stroke="#D10A11" stroke-width="15" stroke-linecap="round" fill="none"/><circle cx="85" cy="9" r="9" fill="#f2c39c"/>' +
+    '<rect x="62" y="210" width="15" height="40" rx="7" fill="#232733"/><rect x="84" y="210" width="15" height="40" rx="7" fill="#232733"/>' +
+    '<ellipse cx="66" cy="252" rx="13" ry="7" fill="#111"/><ellipse cx="95" cy="252" rx="13" ry="7" fill="#111"/>' +
+    '<path d="M46 110 Q46 88 80 88 Q114 88 114 110 L114 205 Q114 215 104 215 L56 215 Q46 215 46 205 Z" fill="#D10A11"/><path d="M80 88 L70 112 L80 126 L90 112 Z" fill="#fff"/>' +
+    '<text x="80" y="170" font-family="Barlow Condensed, Oswald, Arial Black, sans-serif" font-weight="800" font-style="italic" font-size="28" fill="#fff" text-anchor="middle">SQ</text>' +
+    '<g class="arm-wave"><path d="M52 100 C34 92 24 70 26 52" stroke="#D10A11" stroke-width="15" stroke-linecap="round" fill="none"/><circle cx="26" cy="48" r="9" fill="#f2c39c"/></g>' +
+    '<rect x="72" y="76" width="16" height="14" fill="#f2c39c"/><circle cx="80" cy="54" r="28" fill="#f2c39c"/>' +
+    '<path d="M52 50 Q52 24 80 24 Q108 24 108 50 Z" fill="#D10A11"/><rect x="50" y="46" width="62" height="8" rx="4" fill="#a80008"/><path d="M104 50 Q122 50 124 56 L104 56 Z" fill="#a80008"/>' +
+    '<text x="80" y="44" font-family="Barlow Condensed, Oswald, Arial Black, sans-serif" font-weight="800" font-style="italic" font-size="14" fill="#fff" text-anchor="middle">SQ</text>' +
+    '<ellipse class="blink" cx="70" cy="60" rx="3.4" ry="4.2" fill="#2a1a12"/><ellipse class="blink" cx="90" cy="60" rx="3.4" ry="4.2" fill="#2a1a12"/>' +
+    '<circle cx="63" cy="69" r="4.5" fill="#ff8f8f" opacity=".5"/><circle cx="97" cy="69" r="4.5" fill="#ff8f8f" opacity=".5"/>' +
+    '<path d="M70 70 Q80 80 90 70" stroke="#2a1a12" stroke-width="3" stroke-linecap="round" fill="none"/></svg>';
+  function mascots() {
+    $$("[data-mascot]").forEach(function (m) {
+      m.classList.add("sqa-mascot");
+      m.innerHTML = '<div class="sqa-mascot__rope"></div><div class="sqa-mascot__body" role="button" tabindex="0" aria-label="Chat with the SQ guide">' + MASCOT + '</div>' +
+        '<div class="sqa-mascot__bubble" role="button" tabindex="0">' + (m.getAttribute("data-say") || "Hi! 👋") + '</div>';
+      var go = function () { if (SQA.open) SQA.open(); track("sqa_mascot_click"); };
+      $$(".sqa-mascot__body, .sqa-mascot__bubble", m).forEach(function (el) {
+        el.addEventListener("click", go);
+        el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      });
+      if (reduce || !("IntersectionObserver" in window)) { m.classList.add("is-landed"); return; }
+      var io = new IntersectionObserver(function (es) {
+        if (!es[0].isIntersecting) return; io.disconnect();
+        m.classList.add("is-dropping");
+        m.addEventListener("animationend", function onEnd(e) { if (e.animationName !== "sqa-drop") return; m.removeEventListener("animationend", onEnd); m.classList.remove("is-dropping"); m.classList.add("is-landed"); });
+      }, { threshold: 0, rootMargin: "0px 0px -45% 0px" });
+      io.observe(m.parentElement);
+    });
+  }
+
+  /* ---------------- floating dock + phone action bar ---------------- */
+  function dock() {
+    var wa = $("#wa-fab-btn");
+    if (wa) wa.addEventListener("click", function () { track("whatsapp_click", { location: "floating_button" }); });
+    var bar = document.createElement("nav"); bar.className = "sqa-bar"; bar.setAttribute("aria-label", "Quick actions");
+    bar.innerHTML = "<a href='#book-60' class='sqa-bar__book'><i class='bi bi-lightning-charge-fill'></i><span>Book in 60s</span></a>" +
+      "<a href='" + waLink("Hi DriveSQ! I'd like to book driving lessons 🚗") + "' target='_blank' rel='nofollow noopener' class='sqa-bar__wa'><i class='bi bi-whatsapp'></i><span>WhatsApp</span></a>" +
+      "<a href='tel:" + TEL + "' class='sqa-bar__call'><i class='bi bi-telephone-fill'></i><span>Call</span></a>";
+    document.body.appendChild(bar);
+    $(".sqa-bar__wa", bar).addEventListener("click", function () { track("whatsapp_click", { location: "mobile_bar" }); });
+    $(".sqa-bar__call", bar).addEventListener("click", function () { track("phone_click", { location: "mobile_bar" }); });
+    $(".sqa-bar__book", bar).addEventListener("click", function () { track("book_now_click", { location: "mobile_bar" }); });
+    // hide the bar while the hero booking form or the wizard is on screen (it would duplicate them)
+    if ("IntersectionObserver" in window) {
+      var watch = $$("#book-60 [data-dsqx-wiz], .book-card"), on = {};
+      var io = new IntersectionObserver(function (es) { es.forEach(function (e) { on[e.target === watch[0] ? 0 : 1] = e.isIntersecting; }); bar.classList.toggle("is-tucked", !!(on[0] || on[1])); }, { threshold: .25 });
+      watch.forEach(function (w) { io.observe(w); });
+    }
+  }
+
+  /* ---------------- reaction test ---------------- */
+  function reaction() {
+    var root = $("[data-dsqx-react]"); if (!root) return;
+    var pad = $(".dsqx-react__pad", root), msg = $(".js-msg", pad), out = $(".dsqx-result", root), state = "idle", t0 = 0, timer = 0, best = 0;
+    function set(s, text) { state = s; pad.className = "dsqx-react__pad is-" + s; msg.textContent = text; }
+    pad.addEventListener("click", function () {
+      if (state === "idle" || state === "done") {
+        set("wait", "Wait for the brake lights…"); clearTimeout(timer);
+        timer = setTimeout(function () { set("go", "BRAKE! Tap now!"); t0 = performance.now(); }, 1200 + Math.random() * 2300);
+      } else if (state === "wait") { clearTimeout(timer); set("done", "Too early! Tap to try again"); out.classList.add("show"); out.innerHTML = "😅 You jumped the lights — on the road, anticipation is good, but wait for the hazard!"; }
+      else if (state === "go") {
+        var ms = Math.round(performance.now() - t0); best = best ? Math.min(best, ms) : ms;
+        var think = 13.41 * ms / 1000, brake = 14, total = think + brake;
+        set("done", ms + " ms — tap to try again");
+        out.classList.add("show");
+        out.innerHTML = "<div class='big'>" + ms + " ms</div><p class='mb-1 mt-2'>At 30&nbsp;mph you'd travel <b>" + think.toFixed(1) + " m</b> before braking — then about <b>14 m</b> to stop. Total: <b>" + total.toFixed(1) + " m</b> (the Highway Code uses 23&nbsp;m).</p><p class='mb-0' style='font-size:.85rem'>Best this session: " + best + " ms. Tiredness, phones and distractions make this much worse.</p>";
+        track("tool_use", { tool: "reaction_test" });
+        if (ms < 300) SQA.confetti();
+      }
+    });
+  }
+
+  /* ---------------- theory challenge ---------------- */
+  var QS = [
+    ["What's the typical overall stopping distance at 30 mph on a dry road?", ["12 metres", "23 metres", "36 metres", "53 metres"], 1, "23 metres — about six car lengths (Highway Code)."],
+    ["What's the national speed limit for cars on a single carriageway road?", ["50 mph", "60 mph", "70 mph", "40 mph"], 1, "60 mph — 70 mph is for dual carriageways and motorways."],
+    ["What's the legal minimum tread depth for car tyres?", ["1 mm", "1.6 mm", "2 mm", "3 mm"], 1, "1.6 mm across the central three-quarters of the tread."],
+    ["A circular sign with a red border usually means…", ["A warning", "Information", "You must not do something", "A tourist route"], 2, "Red circles are mostly prohibitive — they tell you what you must not do."],
+    ["Visibility drops below 100 metres in fog. You should…", ["Use dipped headlights (fog lights allowed)", "Use full beam", "Use sidelights only", "Use hazard lights while driving"], 0, "Use dipped headlights — you may also use fog lights when visibility is seriously reduced."]
+  ];
+  function theory() {
+    var root = $("[data-dsqx-theory]"); if (!root) return;
+    var box = $(".dsqx-tq", root), q = 0, score = 0;
+    function render() {
+      if (q >= QS.length) {
+        var msgs = ["Keep practising — you've got this! 💪", "Good start! A little more revision. 📚", "Nice work! 👍", "Great knowledge! 🔥", "Excellent! Almost perfect. 🌟", "Perfect score! 🏆"];
+        box.innerHTML = "<div class='dsqx-tq__end'><div class='big'>" + score + " / " + QS.length + "</div><p>" + msgs[score] + "</p><p style='font-size:.9rem;color:#5d534d'>DriveSQ learners get 700+ questions and full mock theory tests in the free Student Portal.</p><div class='d-flex flex-wrap gap-2 justify-content-center'><button type='button' class='dsqx-btn dsqx-btn--red js-again'>Try again</button><a class='dsqx-btn dsqx-btn--ghost' style='color:#1f1714 !important;border-color:rgba(0,0,0,.15)' href='#student-portal'>See the Student Portal</a></div></div>";
+        $(".js-again", box).addEventListener("click", function () { q = 0; score = 0; render(); });
+        if (score >= 4) SQA.confetti(); track("tool_use", { tool: "theory_challenge", score: score });
+        return;
+      }
+      var Q = QS[q];
+      box.innerHTML = "<div class='dsqx-tq__meta'><span>Question " + (q + 1) + " of " + QS.length + "</span><span>Score " + score + "</span></div><div class='dsqx-tq__bar'><span style='width:" + (q / QS.length * 100) + "%'></span></div><p class='dsqx-tq__q'>" + Q[0] + "</p><div class='dsqx-tq__opts'>" +
+        Q[1].map(function (o, k) { return "<button type='button' data-k='" + k + "'><b>" + "ABCD"[k] + "</b>" + o + "</button>"; }).join("") + "</div><p class='dsqx-tq__why' aria-live='polite'></p>";
+      $$(".dsqx-tq__opts button", box).forEach(function (b) {
+        b.addEventListener("click", function () {
+          var k = +b.dataset.k, right = k === Q[2];
+          $$(".dsqx-tq__opts button", box).forEach(function (x) { x.disabled = true; if (+x.dataset.k === Q[2]) x.classList.add("ok"); });
+          if (!right) b.classList.add("no"); else score++;
+          $(".dsqx-tq__why", box).innerHTML = (right ? "✅ Correct! " : "❌ Not quite. ") + Q[3];
+          setTimeout(function () { q++; render(); }, 1700);
+        });
+      });
+    }
+    render();
+  }
+
+  /* ---------------- section headings: animated underline as they enter ---------------- */
+  function headings() {
+    if (!("IntersectionObserver" in window)) return;
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("sqa-in"); io.unobserve(e.target); } }); }, { threshold: .6 });
+    $$(".eye, .dsqx-eye").forEach(function (h) { h.classList.add("sqa-eye"); io.observe(h); });
+  }
+
+  function init() { assistant(); mascots(); dock(); reaction(); theory(); headings(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
 
