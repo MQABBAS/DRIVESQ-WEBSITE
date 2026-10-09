@@ -1223,6 +1223,14 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 .dsqx-cs-3d { position:absolute; inset:0; width:100%; height:100%; display:block; z-index:1; }
 .dsqx-carstage.is-3d .dsqx-cs-road, .dsqx-carstage.is-3d .dsqx-cs-car, .dsqx-carstage.is-3d .dsqx-cs-skid, .dsqx-carstage.is-3d .dsqx-cs-smoke { display:none; }
 .dsqx-carstage.is-3d .dsqx-cs-flash { background:radial-gradient(ellipse 55% 30% at 50% 62%,rgba(255,248,220,.42),transparent 70%); }
+/* ---- 3D car: driver's speech bubble ---- */
+.dsqx-cs-say { position:absolute; left:0; top:0; z-index:4; pointer-events:none; white-space:nowrap; opacity:0;
+  transform:translate(-28%,-100%) scale(.5); transform-origin:28% 100%; transition:opacity .25s ease, transform .5s cubic-bezier(.3,1.6,.5,1);
+  background:#fff; color:#111; padding:8px 14px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.45), 0 0 0 3px rgba(209,10,17,.85);
+  font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; letter-spacing:.03em; text-transform:uppercase; font-size:clamp(.8rem,1.5vw,1.08rem); }
+.dsqx-cs-say::after { content:""; position:absolute; left:28%; bottom:-9px; width:16px; height:16px; background:#fff; transform:translateX(-50%) rotate(45deg); box-shadow:3px 3px 0 0 rgba(209,10,17,.85); }
+.dsqx-cs-say.show { opacity:1; transform:translate(-28%,-100%) scale(1); }
+.dsqx-carstage:not(.is-3d) .dsqx-cs-say { display:none; }
 
 </style>
 <!-- DSQX:CSS END -->
@@ -3699,17 +3707,37 @@ window.DSQXCar3D = function (stage, hooks) {
   });
 
   // lights, grille, plates
-  var hlMat = new T.MeshStandardMaterial({ color: 0xe6ebf2, emissive: 0xfff3d2, emissiveIntensity: .15, metalness: .2, roughness: .08 });
-  var drlMat = new T.MeshBasicMaterial({ color: 0xffffff });
+  var hlMat = new T.MeshStandardMaterial({ color: 0xf2f5fa, emissive: 0xfff4dc, emissiveIntensity: .2, metalness: .1, roughness: .05 });
+  var housingMat = new T.MeshPhysicalMaterial({ color: 0x16181c, metalness: 1, roughness: .16, clearcoat: 1, clearcoatRoughness: .05 });
+  var coverMat = new T.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, metalness: 0, transparent: true, opacity: .16, clearcoat: 1, envMapIntensity: 2.2, depthWrite: false });
+  var drlMat = new T.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  var amberMat = new T.MeshBasicMaterial({ color: 0xff9a1a, toneMapped: false });
   var tailMat = new T.MeshStandardMaterial({ color: 0x5a0000, emissive: 0xff1010, emissiveIntensity: .9 });
   var glowTex = radial("rgba(255,248,225,1)", "rgba(255,220,140,0)");
-  var glows = [], spots = [];
+  var streakTex = tex(256, 64, function (g, w, h) { g.translate(w / 2, h / 2); g.scale(1, h / w * .7); var r = g.createRadialGradient(0, 0, 0, 0, 0, w / 2); r.addColorStop(0, "rgba(255,252,240,1)"); r.addColorStop(.25, "rgba(255,236,200,.55)"); r.addColorStop(1, "rgba(255,220,160,0)"); g.fillStyle = r; g.fillRect(-w / 2, -w / 2, w, w); });
+  var beamTex = tex(64, 256, function (g, w, h) { var r = g.createLinearGradient(0, 0, 0, h); r.addColorStop(0, "rgba(255,246,220,.9)"); r.addColorStop(.35, "rgba(255,240,210,.35)"); r.addColorStop(1, "rgba(255,240,210,0)"); g.fillStyle = r; g.fillRect(0, 0, w, h); });
+  var glows = [], spots = [], streaks = [], beams = [];
+  var hShape = new T.Shape(); hShape.moveTo(-.25, -.06); hShape.lineTo(.2, -.072); hShape.quadraticCurveTo(.285, -.06, .272, .02); hShape.lineTo(.215, .074); hShape.lineTo(-.2, .068); hShape.quadraticCurveTo(-.272, .05, -.25, -.06);
+  var hGeo = new T.ExtrudeGeometry(hShape, { depth: .05, bevelEnabled: true, bevelThickness: .012, bevelSize: .012, bevelSegments: 3, curveSegments: 12 });
+  var beamGeo = new T.ConeGeometry(.8, 3.1, 28, 1, true); beamGeo.rotateX(-PI / 2); beamGeo.translate(0, 0, 3.1 / 2);
   [-1, 1].forEach(function (s) {
-    var h = box(.48, .15, .1, hlMat, s * .6, .74, 2.255); h.rotation.y = -s * .12;
-    box(.4, .028, .05, drlMat, s * .6, .652, 2.27);
+    var u = new T.Group(); u.position.set(s * .6, .74, 2.19); u.rotation.y = s * .1; u.scale.x = s; body.add(u);
+    u.add(new T.Mesh(hGeo, housingMat));
+    var cov = new T.Mesh(hGeo, coverMat); cov.position.z = .014; u.add(cov);
+    [-.105, .075].forEach(function (lx) { // twin projector lenses with chrome rings
+      var ring = new T.Mesh(new T.TorusGeometry(.05, .009, 10, 32), chrome); ring.position.set(lx, .01, .064); u.add(ring);
+      var lens = new T.Mesh(new T.SphereGeometry(.045, 24, 12, 0, PI * 2, 0, PI / 2), hlMat); lens.rotation.x = PI / 2; lens.position.set(lx, .01, .05); u.add(lens);
+    });
+    var crv = new T.CatmullRomCurve3([new T.Vector3(-.235, -.046, .064), new T.Vector3(-.05, -.058, .066), new T.Vector3(.16, -.052, .066), new T.Vector3(.238, .0, .064), new T.Vector3(.198, .058, .062)]);
+    u.add(new T.Mesh(new T.TubeGeometry(crv, 48, .0075, 8, false), drlMat)); // LED signature strip
+    box(.045, .02, .02, amberMat, .232, .05, .058, u); // indicator
     box(.42, .12, .06, tailMat, s * .6, .84, -2.27);
-    var g = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0xfff1cf, transparent: true, opacity: .35, depthWrite: false, blending: T.AdditiveBlending, fog: false }));
-    g.position.set(s * .62, .74, 2.45); g.scale.set(.6, .6, 1); body.add(g); glows.push(g);
+    var g = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0xfff1cf, transparent: true, opacity: .3, depthWrite: false, blending: T.AdditiveBlending, fog: false }));
+    g.position.set(-.015, .01, .2); g.scale.set(.5, .5, 1); u.add(g); glows.push(g);
+    var st = new T.Sprite(new T.SpriteMaterial({ map: streakTex, color: 0xfff6e4, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, fog: false }));
+    st.position.set(-.015, .01, .24); u.add(st); streaks.push(st);
+    var bm = new T.Mesh(beamGeo, new T.MeshBasicMaterial({ map: beamTex, color: 0xfff1d6, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }));
+    bm.position.set(-.015, .01, .08); bm.rotation.x = .09; u.add(bm); beams.push(bm);
     var sp = new T.SpotLight(0xfff1d6, 0, 34, .42, .65, 1.4); sp.position.set(s * .6, .74, 2.5);
     sp.target.position.set(s * .9, 0, 14); body.add(sp); body.add(sp.target); spots.push(sp);
   });
@@ -3728,16 +3756,68 @@ window.DSQXCar3D = function (stage, hooks) {
   plane(1.3, .325, decalMat, .884, .66, -.15, PI / 2); plane(1.3, .325, decalMat, -.884, .66, -.15, -PI / 2);
 
   // roof sign
-  var signTex = tex(512, 144, function (g, w, h) {
-    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#D10A11"; g.lineWidth = 16; g.strokeRect(8, 8, w - 16, h - 16);
-    g.font = "800 100px 'Barlow Condensed', Oswald, Arial Narrow, sans-serif"; g.textBaseline = "middle"; g.textAlign = "left";
-    var a = g.measureText("Drive").width, b = g.measureText("SQ").width, x = (w - a - b) / 2; g.fillStyle = "#111"; g.fillText("Drive", x, h / 2 + 5); g.fillStyle = "#D10A11"; g.fillText("SQ", x + a, h / 2 + 5);
+  var signTex = tex(768, 168, function (g, w, h) {
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#D10A11"; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14);
+    [26, w - 26 - 116].forEach(function (x) { g.fillStyle = "#fff"; g.fillRect(x, 26, 116, 116); g.strokeStyle = "#D10A11"; g.lineWidth = 6; g.strokeRect(x + 3, 29, 110, 110); g.fillStyle = "#D10A11"; g.fillRect(x + 32, 40, 22, 86); g.fillRect(x + 32, 104, 56, 22); });
+    g.font = "800 112px 'Barlow Condensed', Oswald, Arial Narrow, sans-serif"; g.textBaseline = "middle"; g.textAlign = "left";
+    var a = g.measureText("Drive").width, b = g.measureText("SQ").width, x = (w - a - b) / 2; g.fillStyle = "#111"; g.fillText("Drive", x, h / 2 + 6); g.fillStyle = "#D10A11"; g.fillText("SQ", x + a, h / 2 + 6);
   });
   var signFace = new T.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: .35, roughness: .4 });
   var signSide = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0xff2020, emissiveIntensity: .25, roughness: .4 });
-  box(.56, .06, .22, black, 0, 1.56, -.62);
-  var sign = new T.Mesh(new T.BoxGeometry(1.02, .29, .16), [signSide, signSide, signSide, signSide, signFace, signFace]);
+  var signL = new T.MeshStandardMaterial({ map: lTex, emissive: 0xffffff, emissiveMap: lTex, emissiveIntensity: .3, roughness: .4 });
+  box(.62, .06, .22, black, 0, 1.56, -.62);
+  var sign = new T.Mesh(new T.BoxGeometry(1.24, .3, .17), [signL, signL, signSide, signSide, signFace, signFace]);
   sign.position.set(0, 1.74, -.62); body.add(sign);
+
+  // driver (UK right-hand drive: driver's window is on the car's right = -x)
+  var skin = new T.MeshStandardMaterial({ color: 0xc98b5e, roughness: .65 });
+  var hairM = new T.MeshStandardMaterial({ color: 0x1d130d, roughness: .8 });
+  var topM = new T.MeshStandardMaterial({ color: 0x1e222b, roughness: .7 });
+  var darkM = new T.MeshBasicMaterial({ color: 0x111111 });
+  var driver = new T.Group(); driver.scale.setScalar(1.18); body.add(driver);
+  var torso = new T.Mesh(new T.SphereGeometry(.2, 24, 16), topM); torso.scale.set(1, .78, .82); driver.add(torso);
+  var neck = new T.Mesh(new T.CylinderGeometry(.05, .055, .12, 14), skin); neck.position.y = .17; driver.add(neck);
+  var headG = new T.Group(); headG.position.y = .31; driver.add(headG);
+  headG.add(new T.Mesh(new T.SphereGeometry(.135, 32, 24), skin));
+  var hair = new T.Mesh(new T.SphereGeometry(.143, 32, 16, 0, PI * 2, 0, PI * .52), hairM); hair.position.set(0, .012, -.012); hair.rotation.x = -.22; headG.add(hair);
+  [-1, 1].forEach(function (s) {
+    var eye = new T.Mesh(new T.SphereGeometry(.017, 12, 10), darkM); eye.position.set(s * .047, .022, .124); headG.add(eye);
+    var shine = new T.Mesh(new T.SphereGeometry(.005, 8, 6), new T.MeshBasicMaterial({ color: 0xffffff })); shine.position.set(s * .047 + .005, .028, .14); headG.add(shine);
+    var brow = new T.Mesh(new T.BoxGeometry(.04, .008, .01), hairM); brow.position.set(s * .048, .062, .124); brow.rotation.z = -s * .18; headG.add(brow);
+    var ear = new T.Mesh(new T.SphereGeometry(.03, 12, 10), skin); ear.position.set(s * .133, 0, 0); ear.scale.set(.6, 1, 1); headG.add(ear);
+  });
+  var nose = new T.Mesh(new T.SphereGeometry(.02, 12, 10), skin); nose.position.set(0, -.006, .136); headG.add(nose);
+  var smile = new T.Mesh(new T.TorusGeometry(.046, .01, 8, 20, PI), new T.MeshStandardMaterial({ color: 0x7c1d1d, roughness: .6 }));
+  smile.rotation.z = PI; smile.position.set(0, -.038, .118); smile.scale.set(1, .75, 1); headG.add(smile);
+  var armG = new T.Group(); armG.position.set(-.15, .08, .05); driver.add(armG);
+  var upper = new T.Mesh(new T.CylinderGeometry(.045, .05, .26, 14), topM); upper.position.y = .13; armG.add(upper);
+  var elbow = new T.Group(); elbow.position.y = .26; armG.add(elbow);
+  var fore = new T.Mesh(new T.CylinderGeometry(.038, .044, .24, 14), skin); fore.position.y = .12; elbow.add(fore);
+  var hand = new T.Mesh(new T.SphereGeometry(.05, 16, 12), skin); hand.position.y = .25; hand.scale.set(1, 1.1, .8); elbow.add(hand);
+  var licTex = tex(512, 324, function (g, w, h) {
+    var r = g.createLinearGradient(0, 0, w, h); r.addColorStop(0, "#f7c8d6"); r.addColorStop(.6, "#fde7ee"); r.addColorStop(1, "#d8f0e2"); g.fillStyle = r; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#1d3b8b"; g.fillRect(0, 0, w, 62); g.fillStyle = "#fff"; g.font = "800 40px Arial, sans-serif"; g.textBaseline = "middle"; g.fillText("DRIVING LICENCE", 22, 33);
+    g.fillStyle = "#cfd5de"; g.fillRect(24, 86, 130, 166); g.fillStyle = "#7c8696"; g.beginPath(); g.arc(89, 148, 34, 0, PI * 2); g.fill(); g.fillRect(45, 196, 88, 56);
+    g.fillStyle = "#1c1c1c"; g.font = "700 30px Arial, sans-serif"; g.fillText("1. DRIVESQ", 176, 106); g.fillText("2. LEARNER", 176, 146); g.font = "600 24px Arial, sans-serif"; g.fillText("9. B  AUTO / MANUAL", 176, 186);
+    g.save(); g.translate(352, 252); g.rotate(-.12); g.strokeStyle = "#159a3e"; g.lineWidth = 7; g.strokeRect(-130, -36, 260, 72); g.fillStyle = "#159a3e"; g.font = "900 46px Arial, sans-serif"; g.textAlign = "center"; g.fillText("PASSED ✓", 0, 3); g.restore();
+    g.strokeStyle = "rgba(0,0,0,.25)"; g.lineWidth = 4; g.strokeRect(2, 2, w - 4, h - 4);
+  });
+  var cardWhite = new T.MeshStandardMaterial({ color: 0xf4f4f4, roughness: .4 });
+  var card = new T.Mesh(new T.BoxGeometry(.3, .19, .006), [cardWhite, cardWhite, cardWhite, cardWhite, new T.MeshStandardMaterial({ map: licTex, roughness: .25, metalness: 0, emissive: 0xffffff, emissiveMap: licTex, emissiveIntensity: .25 }), cardWhite]);
+  card.position.set(0, .36, .03); card.scale.setScalar(1.25); elbow.add(card);
+  var IN = { x: -.42, y: 1.08, z: .32 }, OUT = { x: -.9, y: 1.1, z: .36 };
+  function driverPose(out, arm, wave, t) {
+    driver.visible = out > 0.001;
+    driver.position.set(IN.x + (OUT.x - IN.x) * out, IN.y + (OUT.y - IN.y) * out, IN.z + (OUT.z - IN.z) * out);
+    driver.rotation.set(0, 0, .3 * out);
+    headG.rotation.set(-.05, .18 * out, -.22 * out + .06 * Math.sin(t * 3.1) * arm);
+    armG.rotation.set(.35 * arm, 0, -.4 + 1.05 * arm);
+    elbow.rotation.z = wave * Math.sin(t * PI * 2 * 2.1) - .1 * arm;
+    card.rotation.set(-.35 * arm, 0, -(armG.rotation.z + elbow.rotation.z) + .12 * Math.sin(t * PI * 2 * 2.1));
+  }
+  driverPose(0, 0, 0, 0);
+  var say = document.createElement("div"); say.className = "dsqx-cs-say"; say.setAttribute("aria-hidden", "true"); say.innerHTML = "I passed first time! <span>🎉</span>"; stage.appendChild(say);
+  var sayOn = false, hp = new T.Vector3();
 
   // wheels
   var wheels = [];
@@ -3791,6 +3871,7 @@ window.DSQXCar3D = function (stage, hooks) {
     car.position.set(0, 0, -75); car.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0); body.position.y = 0;
     marks.forEach(function (m) { m.visible = false; }); markMat.opacity = .62; last = wheels.map(function () { return null; });
     puffs.forEach(function (o) { o.s.visible = false; }); lightOn = lightTarget = 0; setLights(false); events = {}; fov = 38;
+    driverPose(0, 0, 0, 0); sayOn = false; say.classList.remove("show");
   }
   function once(name, fn) { if (!events[name]) { events[name] = 1; fn(); } }
   function pose(t, dt) {
@@ -3820,9 +3901,13 @@ window.DSQXCar3D = function (stage, hooks) {
     } else if (t < 10.2) { // roll up closer to the customer
       u = easeInOut3((t - 9.2) / 1); car.position.z = 1.5 * u; wheelSpeed = 2.4 * Math.sin(PI * (t - 9.2)); fov = 38 - 7 * u;
       body.rotation.x = 0;
-    } else { // flash the headlights at the customer, then idle
+    } else { // the driver leans out and waves his licence, then the car flashes its headlights at the customer
       car.position.z = 1.5; fov = 31;
-      var f = t - 10.4;
+      var out = easeOut3(clamp01((t - 10.3) / .7)), arm = easeInOut3(clamp01((t - 10.75) / .45));
+      var wave = t < 11.1 ? 0 : t < 14.5 ? .42 : .26;
+      driverPose(out, arm, wave * clamp01((t - 11.1) / .3), t);
+      sayOn = t > 11.25;
+      var f = t - 11.7;
       if (f >= 0) once("f1", function () { setLights(true, true); });
       if (f >= .17) once("f2", function () { setLights(false); });
       if (f >= .32) once("f3", function () { setLights(true, true); });
@@ -3843,9 +3928,12 @@ window.DSQXCar3D = function (stage, hooks) {
     if (t0 >= 0) { clock += dt; pose(clock, dt); }
     // lights
     lightOn += (lightTarget - lightOn) * Math.min(1, dt * 28);
-    hlMat.emissiveIntensity = .15 + lightOn * 2;
+    hlMat.emissiveIntensity = .2 + lightOn * 2.4;
+    var fl = Math.max(0, lightOn - 1) / .35;
+    streaks.forEach(function (st) { st.material.opacity = Math.min(1, lightOn * .22 + fl * .85); st.scale.set(1 + lightOn * 1.4 + fl * 2.6, .16 + fl * .12, 1); });
+    beams.forEach(function (bm) { bm.material.opacity = lightOn * .09 + fl * .06; });
     spots.forEach(function (s) { s.intensity = lightOn * 3.2; });
-    glows.forEach(function (g) { var k = .25 + lightOn * .6; g.material.opacity = Math.min(.9, k); var sc = .55 + lightOn * .75; g.scale.set(sc, sc, 1); });
+    glows.forEach(function (g) { var k = .25 + lightOn * .55; g.material.opacity = Math.min(.85, k); var sc = .45 + lightOn * .6; g.scale.set(sc, sc, 1); });
     signFace.emissiveIntensity = .35 + lightOn * .25;
     // smoke
     puffs.forEach(function (o) {
@@ -3861,6 +3949,8 @@ window.DSQXCar3D = function (stage, hooks) {
     cam.position.set(CAM.x + (Math.random() - .5) * sk, CAM.y + (Math.random() - .5) * sk * .6, CAM.z);
     if (Math.abs(cam.fov - fov) > .01) { cam.fov = fov; cam.updateProjectionMatrix(); }
     cam.lookAt(LOOK);
+    if (sayOn !== say.classList.contains("show")) say.classList.toggle("show", sayOn);
+    if (sayOn) { headG.getWorldPosition(hp); hp.y += .4; hp.project(cam); say.style.left = ((hp.x + 1) / 2 * 100).toFixed(2) + "%"; say.style.top = ((1 - hp.y) / 2 * 100).toFixed(2) + "%"; }
     if (!noRender) renderer.render(scene, cam);
   }
   function kick() { if (!raf && visible && !document.hidden) { prev = 0; raf = requestAnimationFrame(step); } }
@@ -3871,7 +3961,7 @@ window.DSQXCar3D = function (stage, hooks) {
   var api = {
     play: function () { reset(); car.visible = true; t0 = 0; clock = 0; kick(); },
     seek: function (t) { frozen = true; if (t < clock || t0 < 0) { reset(); car.visible = true; t0 = 0; clock = 0; } while (clock < t) update(1 / 60, true); shake = 0; update(0); },
-    still: function () { reset(); car.visible = true; car.position.z = 1.5; fov = 31; t0 = -1; setLights(true); kick(); }
+    still: function () { reset(); car.visible = true; car.position.z = 1.5; fov = 31; t0 = -1; driverPose(1, 1, 0, 0); setLights(true); kick(); }
   };
   stage.__dsqx3d = api;
   return api;
