@@ -848,6 +848,191 @@ footer a:hover { color:#fff; }
   .join-steps { flex-direction:column; }
 }
 </style>
+<!-- DSQX:CSS START -->
+<style id="dsqx-css">
+/* ==========================================================
+   DSQX — DriveSQ enhancement layer (animations + portal showcase)
+   Crafted by Mohammed Qaim Abbas · sqwebsites.co.uk
+   ========================================================== */
+:root { --dsqx-ease: cubic-bezier(.22,1,.36,1); --dsqx-back: cubic-bezier(.34,1.56,.64,1); }
+
+/* ---- Hero FX ---- */
+.dsqx-fx { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; opacity:.85; }
+.hero .hero-content { position:relative; z-index:3; }
+.hero { padding-bottom:96px; }
+.dsqx-beam { position:absolute; top:-10%; width:46vw; height:130%; z-index:1; pointer-events:none; opacity:.0;
+  background:conic-gradient(from 180deg at 50% 0%, transparent 0deg, rgba(255,60,60,.10) 12deg, transparent 28deg); filter:blur(8px); animation:dsqx-sweep 9s ease-in-out infinite; }
+.dsqx-beam--l { left:-8vw; transform-origin:50% 0; }
+.dsqx-beam--r { right:-8vw; transform-origin:50% 0; animation-delay:-4.5s; }
+@keyframes dsqx-sweep { 0%,100% { opacity:.25; transform:rotate(-14deg); } 50% { opacity:.6; transform:rotate(14deg); } }
+.hero-h1 .r { background-size:220% 100% !important; animation:dsqx-shine 4s linear infinite; background-image:linear-gradient(110deg,#D10A11 0%,#ff4444 35%,#ffd0d0 50%,#ff4444 65%,#D10A11 100%) !important; }
+@keyframes dsqx-shine { to { background-position:-220% 0; } }
+.dsqx-road { position:absolute; left:0; right:0; bottom:0; height:84px; z-index:2; pointer-events:none; overflow:hidden;
+  background:linear-gradient(180deg,transparent,rgba(17,17,17,.9) 40%,#111); border-top:1px solid rgba(209,10,17,.25); }
+.dsqx-road::before { content:""; position:absolute; left:0; right:0; top:52%; height:4px; transform:translateY(-50%);
+  background:repeating-linear-gradient(90deg,rgba(240,240,240,.55) 0 46px,transparent 46px 92px); animation:dsqx-dash .9s linear infinite; }
+.dsqx-road::after { content:""; position:absolute; inset:0; background:radial-gradient(ellipse 30% 120% at 50% 100%,rgba(209,10,17,.25),transparent 70%); }
+@keyframes dsqx-dash { to { background-position:-92px 0; } }
+.dsqx-car { position:absolute; bottom:12px; left:50%; width:190px; transform:translateX(-50%); filter:drop-shadow(0 10px 18px rgba(209,10,17,.45)); }
+.dsqx-car.is-in { animation:dsqx-drive 2.2s var(--dsqx-ease) both; }
+@keyframes dsqx-drive { from { transform:translateX(-160vw); } 82% { transform:translateX(-47%); } to { transform:translateX(-50%); } }
+.dsqx-car .w { transform-box:fill-box; transform-origin:center; }
+.dsqx-car.is-in .w { animation:dsqx-spin .35s linear 6; }
+@keyframes dsqx-spin { to { transform:rotate(360deg); } }
+.dsqx-car .hl { opacity:0; transition:opacity .5s 2s; }
+.dsqx-car.is-in .hl { opacity:1; }
+.dsqx-headlight { position:absolute; bottom:22px; left:calc(50% + 88px); width:260px; height:60px; pointer-events:none;
+  background:radial-gradient(ellipse at left,rgba(255,245,210,.45),transparent 70%); filter:blur(6px); opacity:0; transition:opacity .8s 2.1s; }
+.dsqx-car.is-in ~ .dsqx-headlight { opacity:1; }
+@media (max-width:991px) { .dsqx-car { width:150px; } .dsqx-headlight { left:calc(50% + 66px); width:150px; } .hero { padding-bottom:90px; } }
+
+/* ---- Cursor glow ---- */
+.dsqx-glow { position:fixed; left:0; top:0; width:440px; height:440px; border-radius:50%; pointer-events:none; z-index:1;
+  background:radial-gradient(circle,rgba(209,10,17,.10),transparent 65%); mix-blend-mode:screen; transform:translate(-999px,-999px); }
+@media (hover:none),(max-width:991px) { .dsqx-glow { display:none; } }
+
+/* ---- Staggered reveal for card grids ---- */
+html.dsqx .dsqx-up { opacity:0; transform:translateY(34px) scale(.98); transition:opacity .8s var(--dsqx-ease), transform .9s var(--dsqx-ease); }
+html.dsqx .dsqx-up.dsqx-in { opacity:1; transform:none; }
+
+/* ---- Tilt + spotlight cards ---- */
+.dsqx-tilt { transform-style:preserve-3d; transition:transform .5s var(--dsqx-ease), box-shadow .4s; will-change:transform; position:relative; }
+.dsqx-tilt:hover { box-shadow:0 24px 50px -20px rgba(209,10,17,.45); }
+.dsqx-spot { position:relative; isolation:isolate; }
+.dsqx-spot::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .35s; z-index:3;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(209,10,17,.16),transparent 45%); }
+.dsqx-spot:hover::after { opacity:1; }
+
+/* ---- Buttons: ripple ---- */
+.dsqx-ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,.45); transform:scale(0); animation:dsqx-rip .7s linear; pointer-events:none; }
+@keyframes dsqx-rip { to { transform:scale(4); opacity:0; } }
+
+/* ---- Areas marquee ---- */
+.dsqx-marquee { background:#0b0b0b; border-top:1px solid #1f1f1f; border-bottom:1px solid #1f1f1f; padding:14px 0; overflow:hidden; position:relative; }
+.dsqx-marquee__row { display:flex; gap:44px; width:max-content; animation:dsqx-marq 46s linear infinite; }
+.dsqx-marquee__row + .dsqx-marquee__row { margin-top:10px; animation-direction:reverse; animation-duration:58s; }
+.dsqx-marquee:hover .dsqx-marquee__row { animation-play-state:paused; }
+.dsqx-marquee span { font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:700; font-size:1.25rem; letter-spacing:.04em; text-transform:uppercase; color:#5d5d5d; white-space:nowrap; display:inline-flex; align-items:center; gap:14px; }
+.dsqx-marquee span::after { content:"◆"; color:#D10A11; font-size:.7rem; text-shadow:0 0 10px #D10A11; }
+.dsqx-marquee__row + .dsqx-marquee__row span { color:#3f3f3f; }
+@keyframes dsqx-marq { to { transform:translateX(-50%); } }
+
+/* ---- Student Portal showcase ---- */
+.dsqx-portal { position:relative; overflow:hidden; padding:110px 0 120px; background:radial-gradient(ellipse 60% 50% at 80% 30%,rgba(209,10,17,.16),transparent 60%),radial-gradient(ellipse 50% 40% at 10% 90%,rgba(209,10,17,.08),transparent 60%),#080808; color:#f0f0f0; }
+.dsqx-portal::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px); background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%); mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%); }
+.dsqx-eye { display:inline-flex; align-items:center; gap:9px; font-size:.72rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:#ff6b6b; }
+.dsqx-eye::before { content:""; width:8px; height:8px; border-radius:50%; background:#D10A11; box-shadow:0 0 12px #D10A11; animation:dsqx-blink 1.6s infinite; }
+@keyframes dsqx-blink { 50% { opacity:.3; } }
+.dsqx-portal h2 { font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; font-size:clamp(2.4rem,5.4vw,4.2rem); line-height:1; margin:14px 0 16px; color:#fff; letter-spacing:.01em; }
+.dsqx-portal h2 em { font-style:normal; color:#D10A11; text-shadow:0 0 30px rgba(209,10,17,.5); }
+.dsqx-portal .lead-t { color:#a5a5a5; font-size:1.08rem; max-width:560px; }
+.dsqx-tabs { display:grid; gap:10px; margin:30px 0 26px; }
+.dsqx-tab { all:unset; cursor:pointer; position:relative; display:flex; gap:14px; align-items:flex-start; padding:16px 18px; border-radius:16px; border:1px solid #222; background:rgba(255,255,255,.02); transition:border-color .3s, background .3s, transform .3s var(--dsqx-ease); overflow:hidden; }
+.dsqx-tab:hover { border-color:#3a3a3a; transform:translateX(4px); }
+.dsqx-tab:focus-visible { outline:2px solid #D10A11; outline-offset:2px; }
+.dsqx-tab.is-on { border-color:rgba(209,10,17,.6); background:linear-gradient(90deg,rgba(209,10,17,.14),rgba(255,255,255,.02)); }
+.dsqx-tab i { font-size:1.25rem; width:42px; height:42px; flex:none; border-radius:12px; display:grid; place-items:center; background:rgba(209,10,17,.12); color:#ff5a5f; }
+.dsqx-tab b { display:block; font-family:'Oswald',sans-serif; font-weight:600; color:#fff; font-size:1.02rem; letter-spacing:.02em; }
+.dsqx-tab span { color:#8a8a8a; font-size:.86rem; line-height:1.5; }
+.dsqx-tab .bar { position:absolute; left:0; bottom:0; height:2px; width:0; background:#D10A11; box-shadow:0 0 10px #D10A11; }
+.dsqx-tab.is-on .bar { animation:dsqx-fill var(--dsqx-dur,5s) linear forwards; }
+@keyframes dsqx-fill { to { width:100%; } }
+.dsqx-ctas { display:flex; flex-wrap:wrap; gap:12px; }
+.dsqx-btn { position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:9px; padding:14px 22px; border-radius:999px; font-weight:700; font-size:.95rem; text-decoration:none !important; transition:transform .3s var(--dsqx-ease), box-shadow .3s; }
+.dsqx-btn--red { background:#D10A11; color:#fff !important; box-shadow:0 10px 30px -10px rgba(209,10,17,.8); }
+.dsqx-btn--red:hover { transform:translateY(-2px); box-shadow:0 0 34px rgba(209,10,17,.65); }
+.dsqx-btn--ghost { border:1px solid #333; color:#eee !important; background:rgba(255,255,255,.03); }
+.dsqx-btn--ghost:hover { border-color:#D10A11; transform:translateY(-2px); }
+.dsqx-btn--wa { background:#25D366; color:#062b14 !important; }
+.dsqx-btn--wa:hover { transform:translateY(-2px); box-shadow:0 0 30px rgba(37,211,102,.45); }
+.dsqx-stage { position:relative; display:grid; place-items:center; min-height:600px; perspective:1400px; }
+.dsqx-halo { position:absolute; width:420px; height:420px; border-radius:50%; background:radial-gradient(circle,rgba(209,10,17,.38),transparent 65%); filter:blur(28px); animation:dsqx-breathe 6s ease-in-out infinite; }
+@keyframes dsqx-breathe { 50% { transform:scale(1.15); opacity:.7; } }
+.dsqx-orbit { position:absolute; width:500px; height:500px; border-radius:50%; border:1px dashed rgba(255,255,255,.1); animation:dsqx-rot 40s linear infinite; }
+.dsqx-orbit::before { content:""; position:absolute; top:-5px; left:50%; width:10px; height:10px; border-radius:50%; background:#D10A11; box-shadow:0 0 16px #D10A11; }
+@keyframes dsqx-rot { to { transform:rotate(360deg); } }
+.dsqx-phone { position:relative; width:300px; height:610px; border-radius:46px; padding:12px; background:linear-gradient(145deg,#232327,#0a0a0b); border:1px solid #2c2c31;
+  box-shadow:0 50px 90px -30px rgba(0,0,0,.9),0 0 90px -20px rgba(209,10,17,.45),inset 0 0 0 2px #111; transform:rotateY(-14deg) rotateX(6deg); transition:transform .8s var(--dsqx-ease); animation:dsqx-float 7s ease-in-out infinite; }
+@keyframes dsqx-float { 50% { translate:0 -14px; } }
+.dsqx-phone__notch { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:110px; height:28px; border-radius:20px; background:#000; z-index:5; }
+.dsqx-screen { position:relative; width:100%; height:100%; border-radius:36px; overflow:hidden; background:#0b0b0d; }
+.dsqx-scr { position:absolute; inset:0; padding:46px 16px 16px; opacity:0; transform:translateY(24px) scale(.98); transition:opacity .55s var(--dsqx-ease), transform .7s var(--dsqx-ease); color:#f0f0f0; font-size:.78rem; }
+.dsqx-scr.is-on { opacity:1; transform:none; }
+.dsqx-appbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.dsqx-appbar b { font-family:'Barlow Condensed',sans-serif; font-size:1.15rem; letter-spacing:.02em; }
+.dsqx-appbar b i { font-style:normal; color:#D10A11; }
+.dsqx-pill { font-size:.62rem; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(37,211,102,.15); color:#25D366; }
+.dsqx-c { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:11px 12px; margin-bottom:9px; }
+.dsqx-c small { display:block; color:#7c7c84; font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px; }
+.dsqx-c strong { font-family:'Barlow Condensed',sans-serif; font-size:1.25rem; }
+.dsqx-ring { position:relative; width:118px; height:118px; margin:4px auto 12px; }
+.dsqx-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+.dsqx-ring circle { fill:none; stroke-width:10; }
+.dsqx-ring .bg { stroke:rgba(255,255,255,.08); }
+.dsqx-ring .fg { stroke:#D10A11; stroke-linecap:round; stroke-dasharray:314; stroke-dashoffset:314; filter:drop-shadow(0 0 6px #D10A11); transition:stroke-dashoffset 1.6s var(--dsqx-ease); }
+.dsqx-scr.is-on .dsqx-ring .fg { stroke-dashoffset:69; }
+.dsqx-ring span { position:absolute; inset:0; display:grid; place-items:center; font-family:'Barlow Condensed',sans-serif; font-size:1.9rem; font-weight:800; }
+.dsqx-row { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.dsqx-row .dsqx-c { text-align:center; padding:9px 4px; margin:0; }
+.dsqx-skill { display:flex; justify-content:space-between; font-size:.68rem; margin-top:8px; color:#bdbdc4; }
+.dsqx-bar2 { height:6px; border-radius:6px; background:rgba(255,255,255,.07); overflow:hidden; margin-top:4px; }
+.dsqx-bar2 i { display:block; height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,#a80008,#ff2d35); transition:width 1.4s var(--dsqx-ease) .2s; }
+.dsqx-scr.is-on .dsqx-bar2 i { width:var(--w); }
+.dsqx-q { font-weight:600; font-size:.82rem; line-height:1.4; margin:4px 0 10px; }
+.dsqx-opt { padding:9px 11px; border-radius:11px; border:1px solid rgba(255,255,255,.1); margin-bottom:7px; font-size:.72rem; display:flex; gap:8px; transition:all .4s; }
+.dsqx-opt b { color:#ff6b6b; }
+.dsqx-scr.is-on .dsqx-opt.ok { border-color:#25D366; background:rgba(37,211,102,.12); transition-delay:1.2s; }
+.dsqx-msg { padding:9px 12px; border-radius:15px; margin-bottom:8px; max-width:86%; font-size:.72rem; line-height:1.45; opacity:0; transform:translateY(8px); transition:all .5s var(--dsqx-ease); }
+.dsqx-msg.in { background:rgba(255,255,255,.07); border-bottom-left-radius:4px; }
+.dsqx-msg.out { background:#D10A11; margin-left:auto; border-bottom-right-radius:4px; }
+.dsqx-scr.is-on .dsqx-msg { opacity:1; transform:none; }
+.dsqx-scr.is-on .dsqx-msg:nth-child(3) { transition-delay:.4s; } .dsqx-scr.is-on .dsqx-msg:nth-child(4) { transition-delay:.9s; } .dsqx-scr.is-on .dsqx-msg:nth-child(5) { transition-delay:1.4s; }
+.dsqx-check { display:flex; gap:9px; align-items:center; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,.08); font-size:.74rem; }
+.dsqx-check i { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; background:rgba(255,255,255,.06); color:transparent; font-style:normal; font-size:.7rem; transition:all .4s; }
+.dsqx-scr.is-on .dsqx-check.done i { background:#25D366; color:#062b14; }
+.dsqx-scr.is-on .dsqx-check:nth-child(4) i { transition-delay:.3s; } .dsqx-scr.is-on .dsqx-check:nth-child(5) i { transition-delay:.6s; } .dsqx-scr.is-on .dsqx-check:nth-child(6) i { transition-delay:.9s; }
+.dsqx-float { position:absolute; z-index:6; padding:10px 14px; border-radius:14px; background:rgba(20,20,22,.88); border:1px solid #2c2c31; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 20px 40px -18px rgba(0,0,0,.8); font-size:.8rem; color:#eee; display:flex; gap:9px; align-items:center; animation:dsqx-bob 6s ease-in-out infinite; }
+.dsqx-float i { color:#25D366; font-size:1.05rem; }
+.dsqx-float--1 { top:12%; left:2%; } .dsqx-float--2 { top:46%; right:0; animation-delay:-2s; } .dsqx-float--3 { bottom:10%; left:6%; animation-delay:-4s; }
+.dsqx-float--2 i { color:#F5C518; } .dsqx-float--3 i { color:#ff5a5f; }
+@keyframes dsqx-bob { 50% { transform:translateY(-12px); } }
+.dsqx-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-top:70px; background:#1d1d1d; border:1px solid #1d1d1d; border-radius:20px; overflow:hidden; }
+.dsqx-stat { background:#0b0b0b; padding:26px 12px; text-align:center; }
+.dsqx-stat b { display:block; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:clamp(2.2rem,4vw,3rem); line-height:1; color:#fff; }
+.dsqx-stat b em { font-style:normal; color:#D10A11; }
+.dsqx-stat span { color:#8a8a8a; font-size:.85rem; }
+@media (max-width:991px) {
+  .dsqx-portal { padding:80px 0 90px; }
+  .dsqx-stage { min-height:560px; margin-top:20px; }
+  .dsqx-phone { transform:none; width:270px; height:550px; }
+  .dsqx-orbit { width:400px; height:400px; }
+  .dsqx-float { font-size:.72rem; padding:8px 11px; }
+  .dsqx-float--1 { left:0; } .dsqx-float--3 { left:0; }
+  .dsqx-stats { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:420px) { .dsqx-orbit { display:none; } .dsqx-float--2 { right:-4px; } }
+
+/* ---- DriveBot peek ---- */
+.dsqx-peek { position:absolute; right:62px; bottom:8px; width:max-content; max-width:220px; padding:10px 14px; border-radius:16px 16px 4px 16px; background:#fff; color:#111; font-size:.82rem; font-weight:600;
+  box-shadow:0 14px 30px -10px rgba(0,0,0,.6); cursor:pointer; opacity:0; transform:translateX(10px) scale(.9); transform-origin:right bottom; pointer-events:none; transition:all .45s var(--dsqx-back); }
+.dsqx-peek.show { opacity:1; transform:none; pointer-events:auto; }
+.dsqx-peek b { color:#D10A11; }
+.dsqx-peek { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+@media (max-width:480px) { .dsqx-peek { font-size:.76rem; padding:8px 12px; right:58px; } }
+.dsqx-peek button { all:unset; margin-left:8px; color:#999; cursor:pointer; font-weight:700; }
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion:reduce) {
+  .dsqx-fx, .dsqx-beam, .dsqx-glow { display:none !important; }
+  .dsqx-car.is-in, .dsqx-car.is-in .w, .dsqx-road::before, .dsqx-marquee__row, .dsqx-phone, .dsqx-halo, .dsqx-orbit, .dsqx-float, .hero-h1 .r, .dsqx-tab.is-on .bar { animation:none !important; }
+  html.dsqx .dsqx-up { opacity:1 !important; transform:none !important; }
+  .dsqx-scr, .dsqx-msg, .dsqx-ring .fg, .dsqx-bar2 i { transition:none !important; }
+}
+</style>
+<!-- DSQX:CSS END -->
 </head>
 <body class="loading">
 
@@ -1671,6 +1856,9 @@ footer a:hover { color:#fff; }
 
 
 <!-- AREAS -->
+<!-- DSQX:MARQUEE START -->
+<div class="dsqx-marquee" aria-label="Areas we cover"><div class="dsqx-marquee__row"><span>Manchester</span><span>Didsbury</span><span>Chorlton</span><span>Levenshulme</span><span>Fallowfield</span><span>Withington</span><span>Stockport</span><span>Salford</span><span>Sale</span><span>Altrincham</span><span>Stretford</span><span>Urmston</span><span>Cheadle</span><span>Bramhall</span><span>Wythenshawe</span><span>Gorton</span><span>Prestwich</span><span>Oldham</span><span>Bolton</span><span>Bury</span><span>Rochdale</span><span>Wigan</span><span>Ashton-under-Lyne</span><span>Hyde</span><span>Denton</span><span>Eccles</span><span>Swinton</span><span>Middleton</span><span>Manchester</span><span>Didsbury</span><span>Chorlton</span><span>Levenshulme</span><span>Fallowfield</span><span>Withington</span><span>Stockport</span><span>Salford</span><span>Sale</span><span>Altrincham</span><span>Stretford</span><span>Urmston</span><span>Cheadle</span><span>Bramhall</span><span>Wythenshawe</span><span>Gorton</span><span>Prestwich</span><span>Oldham</span><span>Bolton</span><span>Bury</span><span>Rochdale</span><span>Wigan</span><span>Ashton-under-Lyne</span><span>Hyde</span><span>Denton</span><span>Eccles</span><span>Swinton</span><span>Middleton</span></div><div class="dsqx-marquee__row" aria-hidden="true"><span>Middleton</span><span>Swinton</span><span>Eccles</span><span>Denton</span><span>Hyde</span><span>Ashton-under-Lyne</span><span>Wigan</span><span>Rochdale</span><span>Bury</span><span>Bolton</span><span>Oldham</span><span>Prestwich</span><span>Gorton</span><span>Wythenshawe</span><span>Bramhall</span><span>Cheadle</span><span>Urmston</span><span>Stretford</span><span>Altrincham</span><span>Sale</span><span>Salford</span><span>Stockport</span><span>Withington</span><span>Fallowfield</span><span>Levenshulme</span><span>Chorlton</span><span>Didsbury</span><span>Manchester</span><span>Middleton</span><span>Swinton</span><span>Eccles</span><span>Denton</span><span>Hyde</span><span>Ashton-under-Lyne</span><span>Wigan</span><span>Rochdale</span><span>Bury</span><span>Bolton</span><span>Oldham</span><span>Prestwich</span><span>Gorton</span><span>Wythenshawe</span><span>Bramhall</span><span>Cheadle</span><span>Urmston</span><span>Stretford</span><span>Altrincham</span><span>Sale</span><span>Salford</span><span>Stockport</span><span>Withington</span><span>Fallowfield</span><span>Levenshulme</span><span>Chorlton</span><span>Didsbury</span><span>Manchester</span></div></div>
+<!-- DSQX:MARQUEE END -->
 <section id="areas" class="areas" aria-labelledby="areas-title">
   <div class="container">
     <div class="row g-5">
@@ -2130,6 +2318,84 @@ footer a:hover { color:#fff; }
 </section>
 
 <!-- FREE STUDENT APP -->
+<!-- DSQX:PORTAL START — Student Portal showcase -->
+<section id="student-portal" class="dsqx-portal" aria-labelledby="dsqx-portal-title">
+  <div class="container position-relative">
+    <div class="row g-5 align-items-center">
+      <div class="col-lg-6">
+        <span class="dsqx-eye">Free with every DriveSQ lesson</span>
+        <h2 id="dsqx-portal-title">The DriveSQ <em>Student Portal</em>.<br>Your licence, in your pocket.</h2>
+        <p class="lead-t">Track every skill, revise theory, sit full mock tests and message your instructor — all from one free portal that works on any phone. No app store needed.</p>
+        <div class="dsqx-tabs" role="tablist" aria-label="Student Portal features">
+          <button class="dsqx-tab is-on" role="tab" aria-selected="true" data-scr="0"><i class="bi bi-graph-up-arrow"></i><div><b>Live progress tracking</b><span>Every skill rated after every lesson, so you always know what's next.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="1"><i class="bi bi-journal-check"></i><div><b>700+ theory questions</b><span>14 full mock tests of 50 questions, plus practice mode with instant feedback.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="2"><i class="bi bi-chat-dots-fill"></i><div><b>Message your instructor</b><span>Chat directly, confirm or reschedule lessons in a tap.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="3"><i class="bi bi-shield-check"></i><div><b>Test-day ready</b><span>A readiness checklist, Show Me Tell Me prep and test centre info.</span></div><em class="bar"></em></button>
+        </div>
+        <div class="dsqx-ctas">
+          <a class="dsqx-btn dsqx-btn--red" href="https://www.drivesq.co.uk/student.html" target="_blank" rel="noopener"><i class="bi bi-mortarboard-fill"></i>Open Student Portal</a>
+          <a class="dsqx-btn dsqx-btn--ghost" href="https://www.drivesq.co.uk/portal.html" target="_blank" rel="noopener"><i class="bi bi-person-badge"></i>Instructor Portal</a>
+          <a class="dsqx-btn dsqx-btn--wa" href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20access%20to%20the%20DriveSQ%20Student%20Portal" target="_blank" rel="nofollow noopener"><i class="bi bi-whatsapp"></i>Get access</a>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="dsqx-stage" aria-hidden="true">
+          <div class="dsqx-halo"></div><div class="dsqx-orbit"></div>
+          <div class="dsqx-float dsqx-float--1"><i class="bi bi-check-circle-fill"></i>Lesson confirmed</div>
+          <div class="dsqx-float dsqx-float--2"><i class="bi bi-trophy-fill"></i>Mock test: 47/50</div>
+          <div class="dsqx-float dsqx-float--3"><i class="bi bi-graph-up-arrow"></i>Roundabouts: Independent</div>
+          <div class="dsqx-phone" data-dsqx-tilt-phone>
+            <div class="dsqx-phone__notch"></div>
+            <div class="dsqx-screen">
+              <div class="dsqx-scr is-on">
+                <div class="dsqx-appbar"><b>Drive<i>SQ</i></b><span class="dsqx-pill">Nearly test ready</span></div>
+                <div class="dsqx-ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50"/></svg><span>78%</span></div>
+                <div class="dsqx-row"><div class="dsqx-c"><small>Hours</small><strong>18</strong></div><div class="dsqx-c"><small>Skills</small><strong>23</strong></div><div class="dsqx-c"><small>Theory</small><strong>12d</strong></div></div>
+                <div class="dsqx-c mt-2"><small>Skills progress</small>
+                  <div class="dsqx-skill"><span>Bay parking</span><span style="color:#25D366">Independent</span></div><div class="dsqx-bar2"><i style="--w:100%"></i></div>
+                  <div class="dsqx-skill"><span>Roundabouts</span><span style="color:#F5C518">Developing</span></div><div class="dsqx-bar2"><i style="--w:64%"></i></div>
+                  <div class="dsqx-skill"><span>Dual carriageway</span><span style="color:#ff6b6b">Introduced</span></div><div class="dsqx-bar2"><i style="--w:35%"></i></div>
+                </div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Mock <i>Test</i></b><span class="dsqx-pill" style="background:rgba(209,10,17,.18);color:#ff6b6b">Q 12 / 50</span></div>
+                <div class="dsqx-c"><small>Safety margins</small><div class="dsqx-q">What is the typical overall stopping distance at 30mph on a dry road?</div>
+                  <div class="dsqx-opt"><b>A</b>12 metres</div><div class="dsqx-opt ok"><b>B</b>23 metres</div><div class="dsqx-opt"><b>C</b>36 metres</div><div class="dsqx-opt"><b>D</b>53 metres</div></div>
+                <div class="dsqx-c"><small>Time left</small><strong>41:08</strong></div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Messages</b><span class="dsqx-pill">Online</span></div>
+                <div class="dsqx-c"><small>Next lesson</small><strong>Thu · 4:00pm</strong><div style="color:#8a8a8a;font-size:.68rem">2 hrs · pick-up M19</div></div>
+                <div class="dsqx-msg in">Great lesson today — your roundabout positioning is really coming together 👏</div>
+                <div class="dsqx-msg out">Thank you! Can we do 4:30 on Thursday?</div>
+                <div class="dsqx-msg in">No problem — moved to 4:30 ✅</div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Test <i>Ready</i></b><span class="dsqx-pill">5 / 6</span></div>
+                <div class="dsqx-c"><small>Readiness checklist</small>
+                  <div class="dsqx-check done"><i>✓</i>Minimum hours completed</div>
+                  <div class="dsqx-check done"><i>✓</i>All manoeuvres independent</div>
+                  <div class="dsqx-check done"><i>✓</i>Junctions competent</div>
+                  <div class="dsqx-check done"><i>✓</i>Independent driving with sat-nav</div>
+                  <div class="dsqx-check done"><i>✓</i>Theory test passed</div>
+                  <div class="dsqx-check"><i>✓</i>Instructor sign-off</div>
+                </div>
+                <div class="dsqx-c"><small>Practical test</small><strong>in 9 days</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dsqx-stats">
+      <div class="dsqx-stat"><b><span data-dsqx-count="700">0</span><em>+</em></b><span>theory questions</span></div>
+      <div class="dsqx-stat"><b data-dsqx-count="14">0</b><span>full mock tests</span></div>
+      <div class="dsqx-stat"><b data-dsqx-count="23">0</b><span>driving skills tracked</span></div>
+      <div class="dsqx-stat"><b><em>£</em><span data-dsqx-count="0">0</span></b><span>cost to DriveSQ learners</span></div>
+    </div>
+  </div>
+</section>
+<!-- DSQX:PORTAL END -->
 <section id="app" class="app-section noise-overlay" aria-labelledby="app-title">
   <div class="container">
     <div class="text-center mb-5 reveal">
@@ -2739,7 +3005,7 @@ function openLocalVideo(src) {
   close.addEventListener('click', closeChat);
   snd.addEventListener('click', () => { go(); inp.blur(); });
   inp.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); go(); inp.blur(); } });
-  if (window.innerWidth > 1024) setTimeout(openChat, 3000);
+  /* DSQX: auto-open replaced by a gentle 'peek' bubble (see DSQX script) */
 })();
 
 /* ── PAGE LOADER DISMISS ── */
@@ -3018,5 +3284,228 @@ function openLocalVideo(src) {
   onScroll();
 })();
 </script>
+<!-- DSQX:JS START -->
+<script id="dsqx-js">
+/* ==========================================================
+   DSQX — DriveSQ enhancement layer
+   ========================================================== */
+(function () {
+  "use strict";
+  var doc = document.documentElement;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var fine = window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches;
+  var $ = function (s, c) { return (c || document).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+  doc.classList.add("dsqx");
+
+  /* ---- Hero: canvas light streaks + particles ---- */
+  function heroFx() {
+    var hero = $("header#home");
+    if (!hero || reduce) return;
+    var c = document.createElement("canvas");
+    c.className = "dsqx-fx"; c.setAttribute("aria-hidden", "true");
+    hero.insertBefore(c, hero.querySelector(".hero-content"));
+    ["l", "r"].forEach(function (s) { var b = document.createElement("div"); b.className = "dsqx-beam dsqx-beam--" + s; b.setAttribute("aria-hidden", "true"); hero.insertBefore(b, c); });
+    var ctx = c.getContext("2d"), dpr = Math.min(2, window.devicePixelRatio || 1), w, h, parts = [], streaks = [], visible = true, onScreen = true;
+    function size() {
+      var r = hero.getBoundingClientRect();
+      w = c.width = r.width * dpr; h = c.height = r.height * dpr;
+      parts = [];
+      var n = Math.min(60, Math.floor(r.width / 26));
+      for (var i = 0; i < n; i++) parts.push({ x: Math.random() * w, y: Math.random() * h, r: (Math.random() * 1.6 + .4) * dpr, vy: -(Math.random() * .3 + .05) * dpr, a: Math.random() * .5 + .15 });
+    }
+    size(); window.addEventListener("resize", size);
+    document.addEventListener("visibilitychange", function () { visible = !document.hidden; });
+    if ("IntersectionObserver" in window) new IntersectionObserver(function (e) { onScreen = e[0].isIntersecting; }).observe(hero);
+    var mx = -9999, my = -9999;
+    hero.addEventListener("pointermove", function (e) { var r = hero.getBoundingClientRect(); mx = (e.clientX - r.left) * dpr; my = (e.clientY - r.top) * dpr; });
+    (function frame() {
+      requestAnimationFrame(frame);
+      if (!visible || !onScreen) return;
+      ctx.clearRect(0, 0, w, h);
+      if (Math.random() < .03 && streaks.length < 5) streaks.push({ x: -300 * dpr, y: h * (.15 + Math.random() * .75), len: (Math.random() * 260 + 140) * dpr, v: (Math.random() * 12 + 9) * dpr, a: Math.random() * .4 + .2 });
+      streaks = streaks.filter(function (s) {
+        s.x += s.v;
+        var g = ctx.createLinearGradient(s.x - s.len, s.y, s.x, s.y);
+        g.addColorStop(0, "rgba(209,10,17,0)"); g.addColorStop(1, "rgba(255,70,70," + s.a + ")");
+        ctx.strokeStyle = g; ctx.lineWidth = 1.6 * dpr; ctx.beginPath(); ctx.moveTo(s.x - s.len, s.y); ctx.lineTo(s.x, s.y); ctx.stroke();
+        return s.x - s.len < w;
+      });
+      ctx.shadowColor = "rgba(209,10,17,.9)"; ctx.shadowBlur = 10 * dpr;
+      parts.forEach(function (p) {
+        var dx = p.x - mx, dy = p.y - my, d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 110 * dpr) { p.x += dx / d * 1.4; p.y += dy / d * 1.4; }
+        p.y += p.vy; if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+        ctx.beginPath(); ctx.fillStyle = "rgba(255,50,50," + p.a + ")"; ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+    })();
+  }
+
+  /* ---- Hero: road + DriveSQ car drives in ---- */
+  function heroCar() {
+    var hero = $("header#home");
+    if (!hero) return;
+    var road = document.createElement("div");
+    road.className = "dsqx-road"; road.setAttribute("aria-hidden", "true");
+    road.innerHTML = '<svg class="dsqx-car" viewBox="0 0 320 120"><path d="M16 82c0-14 10-22 26-24l34-24c8-6 18-8 28-8h68c12 0 22 4 30 12l24 20 50 8c16 2 24 12 24 24v10H16z" fill="#D10A11"/><path d="M90 34l-26 22h68V30h-24c-6 0-12 2-18 4zM144 30v26h80l-24-18c-6-5-12-8-20-8z" fill="#111"/><rect class="hl" x="292" y="70" width="16" height="9" rx="3" fill="#fff6c8"/><rect x="14" y="74" width="10" height="8" rx="2" fill="#ff5a5a"/><text x="160" y="84" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="800" font-size="24" fill="#fff" text-anchor="middle">Drive<tspan fill="#111">SQ</tspan></text><g class="w"><circle cx="80" cy="96" r="20" fill="#0b0b0d"/><circle cx="80" cy="96" r="9" fill="#888"/><path d="M80 87v18M71 96h18" stroke="#0b0b0d" stroke-width="3"/></g><g class="w"><circle cx="246" cy="96" r="20" fill="#0b0b0d"/><circle cx="246" cy="96" r="9" fill="#888"/><path d="M246 87v18M237 96h18" stroke="#0b0b0d" stroke-width="3"/></g></svg><div class="dsqx-headlight"></div>';
+    hero.appendChild(road);
+    var car = $(".dsqx-car", road);
+    var go = function () { car.classList.add("is-in"); };
+    if (reduce) return go();
+    var loader = document.getElementById("page-loader");
+    var start = function () { setTimeout(go, 500); };
+    if (!loader || loader.classList.contains("hide")) start();
+    else { var mo = new MutationObserver(function () { if (loader.classList.contains("hide")) { mo.disconnect(); start(); } }); mo.observe(loader, { attributes: true, attributeFilter: ["class"] }); setTimeout(go, 4200); }
+  }
+
+  /* ---- Parallax on the hero background ---- */
+  function parallax() {
+    var bg = $(".hero-bg"); if (!bg || reduce) return;
+    var tick = false;
+    window.addEventListener("scroll", function () {
+      if (tick) return; tick = true;
+      requestAnimationFrame(function () { var y = Math.min(window.scrollY, 1200); bg.style.transform = "translate3d(0," + y * .25 + "px,0) scale(1.06)"; tick = false; });
+    }, { passive: true });
+  }
+
+  /* ---- Staggered reveal for card grids that don't already use .reveal ---- */
+  function stagger() {
+    if (!("IntersectionObserver" in window)) return;
+    var sel = ".svc-card, .why-card, .offer-card, .cmp-card, .referral-card, .vid-card, .feat, .app-feat, .ig-item, .cd-box, .postcode-box";
+    var items = $$(sel).filter(function (el) { return !el.closest(".reveal") && !el.classList.contains("reveal") && !el.closest("header#home"); });
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("dsqx-in"); io.unobserve(e.target); } });
+    }, { threshold: .12, rootMargin: "0px 0px -30px 0px" });
+    items.forEach(function (el) {
+      var sibs = el.parentElement ? $$(sel, el.parentElement.parentElement || el.parentElement) : [];
+      var i = Math.max(0, sibs.indexOf(el));
+      el.classList.add("dsqx-up");
+      el.style.transitionDelay = Math.min(i, 8) * 0.07 + "s";
+      io.observe(el);
+    });
+    $$("#student-portal .dsqx-tab, #student-portal .dsqx-stat").forEach(function (el, i) { el.classList.add("dsqx-up"); el.style.transitionDelay = (i % 4) * 0.08 + "s"; io.observe(el); });
+  }
+
+  /* ---- Tilt + spotlight ---- */
+  function cards() {
+    var spot = $$(".svc-card, .why-card, .offer-card, .cmp-card, .referral-card, .vid-card, .app-card, .dsqx-tab, .dsqx-stat");
+    spot.forEach(function (el) {
+      el.classList.add("dsqx-spot");
+      el.addEventListener("pointermove", function (e) { var r = el.getBoundingClientRect(); el.style.setProperty("--mx", e.clientX - r.left + "px"); el.style.setProperty("--my", e.clientY - r.top + "px"); });
+    });
+    if (!fine || reduce) return;
+    $$(".svc-card, .why-card, .offer-card, .cmp-card, .referral-card").forEach(function (el) {
+      el.classList.add("dsqx-tilt");
+      el.addEventListener("pointermove", function (e) {
+        var r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+        el.style.transform = "perspective(900px) rotateY(" + x * 7 + "deg) rotateX(" + (-y * 7) + "deg) translateY(-4px)";
+      });
+      el.addEventListener("pointerleave", function () { el.style.transform = ""; });
+    });
+    var phone = $("[data-dsqx-tilt-phone]");
+    if (phone) {
+      var stage = phone.parentElement;
+      stage.addEventListener("pointermove", function (e) {
+        var r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+        phone.style.transform = "rotateY(" + (-14 + x * 22) + "deg) rotateX(" + (6 - y * 14) + "deg)";
+      });
+      stage.addEventListener("pointerleave", function () { phone.style.transform = ""; });
+    }
+  }
+
+  /* ---- Buttons: ripple + gentle magnetic pull ---- */
+  function buttons() {
+    var sel = ".dsqx-btn, .btn-wa-full, .btn-submit, .app-cta-btn, .btn";
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest(sel); if (!b || reduce) return;
+      var r = b.getBoundingClientRect(), s = document.createElement("span"), size = Math.max(r.width, r.height);
+      if (getComputedStyle(b).position === "static") b.style.position = "relative";
+      b.style.overflow = "hidden";
+      s.className = "dsqx-ripple"; s.style.width = s.style.height = size + "px";
+      s.style.left = e.clientX - r.left - size / 2 + "px"; s.style.top = e.clientY - r.top - size / 2 + "px";
+      b.appendChild(s); setTimeout(function () { s.remove(); }, 700);
+    });
+    if (!fine || reduce) return;
+    $$(".dsqx-btn, .btn-wa-full, .app-cta-btn").forEach(function (b) {
+      b.addEventListener("pointermove", function (e) { var r = b.getBoundingClientRect(); b.style.transform = "translate(" + (e.clientX - r.left - r.width / 2) * .1 + "px," + (e.clientY - r.top - r.height / 2) * .18 + "px)"; });
+      b.addEventListener("pointerleave", function () { b.style.transform = ""; });
+    });
+  }
+
+  /* ---- Cursor glow ---- */
+  function glow() {
+    if (!fine || reduce) return;
+    var g = document.createElement("div"); g.className = "dsqx-glow"; g.setAttribute("aria-hidden", "true"); document.body.appendChild(g);
+    var tx = -999, ty = -999, x = -999, y = -999;
+    window.addEventListener("pointermove", function (e) { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    (function loop() { x += (tx - x) * .12; y += (ty - y) * .12; g.style.transform = "translate(" + (x - 220) + "px," + (y - 220) + "px)"; requestAnimationFrame(loop); })();
+  }
+
+  /* ---- Count-up numbers ---- */
+  function counters() {
+    var els = $$("[data-dsqx-count]");
+    if (!els.length) return;
+    function run(el) {
+      var t = parseFloat(el.getAttribute("data-dsqx-count"));
+      if (reduce || !t) { el.textContent = t; return; }
+      var s = null;
+      (function step(ts) { if (!s) s = ts; var p = Math.min(1, (ts - s) / 1800), e = 1 - Math.pow(1 - p, 4); el.textContent = Math.round(t * e); if (p < 1) requestAnimationFrame(step); })(performance.now());
+    }
+    if (!("IntersectionObserver" in window)) return els.forEach(run);
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { run(e.target); io.unobserve(e.target); } }); }, { threshold: .4 });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---- Student Portal: auto-cycling tabs ---- */
+  function portal() {
+    var root = $("#student-portal"); if (!root) return;
+    var tabs = $$(".dsqx-tab", root), scrs = $$(".dsqx-scr", root), i = 0, timer = null, DUR = 5200, inView = false;
+    root.style.setProperty("--dsqx-dur", DUR + "ms");
+    function show(n, user) {
+      i = n;
+      tabs.forEach(function (t, k) { var on = k === n; t.classList.toggle("is-on", on); t.setAttribute("aria-selected", String(on)); var bar = $(".bar", t); if (bar) { bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; } });
+      scrs.forEach(function (s, k) { s.classList.toggle("is-on", k === n); });
+      clearTimeout(timer);
+      if (!reduce && inView && !user) timer = setTimeout(function () { show((i + 1) % tabs.length); }, DUR);
+      if (user) { clearTimeout(timer); timer = setTimeout(function () { show((i + 1) % tabs.length); }, DUR * 2); }
+    }
+    tabs.forEach(function (t, k) {
+      t.addEventListener("click", function () { show(k, true); });
+      t.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); tabs[(k + 1) % tabs.length].focus(); show((k + 1) % tabs.length, true); }
+        if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); var p = (k - 1 + tabs.length) % tabs.length; tabs[p].focus(); show(p, true); }
+      });
+    });
+    if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { inView = es[0].isIntersecting; if (inView) show(i); else clearTimeout(timer); }, { threshold: .3 }).observe(root);
+  }
+
+  /* ---- DriveBot: gentle peek instead of covering the page ---- */
+  function botPeek() {
+    var wrap = document.getElementById("db-wrap"), icon = document.getElementById("db-icon"), win = document.getElementById("db-win");
+    if (!wrap || !icon) return;
+    var p = document.createElement("div");
+    p.className = "dsqx-peek"; p.setAttribute("role", "button"); p.setAttribute("tabindex", "0");
+    p.innerHTML = "👋 Questions? <b>Ask DriveBot</b><button type='button' aria-label='Dismiss'>✕</button>";
+    wrap.style.position = "fixed"; wrap.appendChild(p);
+    var shown = false;
+    try { shown = sessionStorage.getItem("dsqx-peek") === "1"; } catch (e) {}
+    var open = function () { p.classList.remove("show"); icon.click(); };
+    p.addEventListener("click", function (e) { if (e.target.tagName === "BUTTON") { p.classList.remove("show"); return; } open(); });
+    p.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
+    icon.addEventListener("click", function () { p.classList.remove("show"); });
+    if (!shown) setTimeout(function () {
+      if (win && win.style.display === "flex") return;
+      p.classList.add("show");
+      try { sessionStorage.setItem("dsqx-peek", "1"); } catch (e) {}
+      setTimeout(function () { p.classList.remove("show"); }, 9000);
+    }, 6000);
+  }
+
+  function init() { heroFx(); heroCar(); parallax(); stagger(); cards(); buttons(); glow(); counters(); portal(); botPeek(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+<!-- DSQX:JS END -->
 </body>
 </html>
