@@ -9102,7 +9102,10 @@ async function openWbCreateStudent(wbId){
 
   // Parse email out of notes (website form saves it as "Email: xxx")
   const email=_extractEmailFromNotes(r.notes||'');
-  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').trim();
+  // Availability line (saved by the website booking wizard as "Availability: …") → Availability field
+  const _availM=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
+  const avail=_availM?_availM[1].trim():'';
+  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
 
   // Fill form fields — use a longer delay so the Find tab panel is fully visible
   setTimeout(()=>{
@@ -9112,6 +9115,7 @@ async function openWbCreateStudent(wbId){
       'fc-email': email,
       'fc-postcode': r.postcode||'',
       'fc-addr': r.area||'',
+      'fc-avail': avail,
       'fc-notes': cleanNotes
     };
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
