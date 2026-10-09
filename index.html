@@ -1174,6 +1174,33 @@ html.dsqx-still .dsqx-fx, html.dsqx-still .dsqx-glow { display:none !important; 
 @media (min-width:768px){ .dsqx-more > div { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:36px; } .dsqx-more > div > div:last-child { grid-column:1 / -1; } }
 /* ---- Hero gutter on phones/tablets (original container had 0 side padding) ---- */
 @media (max-width:991.98px){ .hero .container.hero-content { padding-left:16px !important; padding-right:16px !important; } }
+/* ---- v3 hero: car first, "Pass First Time" beside it ---- */
+.dsqx-hero-car { width:100%; will-change:transform; }
+.dsqx-hero-car .dsqx-carstage { max-width:600px; }
+@media (min-width:992px){
+  .dsqx-hero-row { align-items:flex-start !important; padding-top:24px; }
+  .dsqx-hero-carcol { position:sticky; top:96px; z-index:3; }
+  html.dsqx-intro .dsqx-hero-car { transform:translateX(calc(50% + 12px)); }
+}
+@media (max-width:991.98px){ .dsqx-hero-car .dsqx-carstage { aspect-ratio:1.25; } .dsqx-hero-carcol { margin-top:6px; } }
+.dsqx-hero-txt > * { transition:opacity .7s ease, transform .8s cubic-bezier(.16,1,.3,1); }
+.dsqx-hero-txt > :nth-child(2){transition-delay:.08s} .dsqx-hero-txt > :nth-child(3){transition-delay:.16s} .dsqx-hero-txt > :nth-child(4){transition-delay:.24s} .dsqx-hero-txt > :nth-child(5){transition-delay:.32s} .dsqx-hero-txt > :nth-child(n+6){transition-delay:.4s}
+html.dsqx-intro .dsqx-hero-txt > * { opacity:0 !important; transform:translateX(48px); }
+.dsqx-h1 { margin:6px 0 4px; line-height:.9; }
+.dsqx-pft { display:flex; flex-wrap:wrap; gap:0 .22em; font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; text-transform:uppercase; font-size:clamp(3.2rem,7.4vw,6.6rem); letter-spacing:-.01em; color:#fff; }
+.dsqx-pft .w { display:inline-block; }
+.dsqx-pft .w--red { background:linear-gradient(135deg,#ff3b42,#D10A11 60%,#8f0007); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 18px rgba(209,10,17,.35)); transition:filter .15s; }
+.dsqx-h1.flash .w--red { filter:drop-shadow(0 0 26px rgba(255,240,190,.95)) drop-shadow(0 0 8px #fff); }
+.dsqx-h1.lit .w--red { filter:drop-shadow(0 0 22px rgba(209,10,17,.75)); }
+.dsqx-h1-sub { display:block; margin-top:12px; font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:clamp(1.05rem,2vw,1.45rem); color:#d4d4d4; line-height:1.15; }
+.dsqx-hero-ticks { list-style:none; padding:0; margin:14px 0 16px; display:flex; flex-wrap:wrap; gap:8px; }
+.dsqx-hero-ticks li { display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:#e6e6e6; font-size:.8rem; font-weight:600; }
+.dsqx-hero-ticks i { color:#ff4d55; }
+.dsqx-hero-ctas { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 22px; }
+.dsqx-hero-ctas .dsqx-btn--ghost { color:#fff !important; }
+@media (max-width:420px){ .dsqx-hero-ctas .dsqx-btn { flex:1 1 100%; justify-content:center; } }
+@media (prefers-reduced-motion:reduce){ html.dsqx-intro .dsqx-hero-txt > *, html.dsqx-intro .dsqx-hero-car { opacity:1 !important; transform:none !important; } }
+.dsqx-view--side.is-flip text { transform:scaleX(-1); transform-box:fill-box; transform-origin:center; }
 
 </style>
 <!-- DSQX:CSS END -->
@@ -1315,64 +1342,16 @@ html.dsqx-still .dsqx-fx, html.dsqx-still .dsqx-glow { display:none !important; 
 </div>
 
 <!-- HERO -->
+<script>/* DSQX intro: hide hero text until the car has arrived (desktop, motion OK) */(function(d){try{if(innerWidth>=992&&!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("dsqx-intro");setTimeout(function(){d.classList.remove("dsqx-intro")},9000)}}catch(e){}})(document.documentElement);</script>
 <header id="home" class="hero noise-overlay" aria-label="DriveSQ — Manchester's Best Driving School">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="hero-ov" aria-hidden="true"></div>
   <div class="hero-dots" aria-hidden="true"></div>
   <div class="container hero-content">
-    <div class="row g-4 align-items-center">
-
-      <!-- LEFT COLUMN -->
-      <div class="col-lg-6">
-        <div class="eyebrow a1"><i class="bi bi-patch-check-fill"></i>DVSA-Approved · Est. 2018 · Greater Manchester</div>
-        <h1 class="hero-h1 a2">
-          <span class="line">Manchester's</span>
-          <span class="line"><span class="r" style="background:linear-gradient(135deg,#D10A11,#ff4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Best</span> Driving</span>
-          <span class="line">School.</span>
-        </h1>
-        <div class="type-row a3">
-          <span class="type-text" id="typeEl" aria-live="polite">Learn with DriveSQ</span><span class="cursor" aria-hidden="true"></span>
-        </div>
-
-        <div class="dsqx-carslot-m d-lg-none"></div>
-
-        <!-- Booking form -->
-        <div class="book-card reveal">
-          <div class="card-title">Book Your Lesson</div>
-          <div class="card-sub">Fastest reply via WhatsApp — usually within minutes.</div>
-          <a class="btn-wa-full" href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20book%20a%20driving%20lesson%20with%20DriveSQ%20%F0%9F%9A%97" target="_blank" rel="nofollow noopener">
-            <i class="bi bi-whatsapp" style="font-size:1.1rem"></i>WhatsApp Us — Instant Reply
-          </a>
-          <div class="or-line">or fill in the booking form</div>
-          <form action="https://formspree.io/f/xvgjdapp" method="POST" class="row g-2" novalidate aria-label="Lesson booking form">
-            <input type="hidden" name="_subject" value="New Lesson Booking — DriveSQ"/>
-            <input type="text" name="_gotcha" class="d-none" tabindex="-1" autocomplete="off"/>
-            <div class="col-12"><label class="req-star" for="b_n">Full Name</label><input id="b_n" name="name" class="form-control" placeholder="Jane Doe" autocomplete="name" required/></div>
-            <div class="col-6"><label class="req-star" for="b_e">Email</label><input id="b_e" name="email" type="email" class="form-control" placeholder="jane@email.com" required/></div>
-            <div class="col-6"><label class="req-star" for="b_p">Phone</label><input id="b_p" name="phone" type="tel" class="form-control" placeholder="07xxx xxx xxx" required/></div>
-            <div class="col-6"><label class="req-star" for="b_s">Lesson Type</label>
-              <select id="b_s" name="service" class="form-select" required>
-                <option value="">Select...</option>
-                <option>Manual Driving Lesson</option>
-                <option>Automatic Driving Lesson</option>
-                <option>Intensive Course</option>
-                <option>Refresher Course</option>
-                <option>Mock Test</option>
-                <option>Pass Plus</option>
-              </select>
-            </div>
-            <div class="col-6"><label class="req-star" for="b_pc">Postcode</label><input id="b_pc" name="postcode" class="form-control" placeholder="e.g. M19 2AB" required/></div>
-            <div class="col-12"><label for="b_no">Notes (optional)</label><textarea id="b_no" name="notes" rows="2" class="form-control" placeholder="Preferred times, experience level, area…"></textarea></div>
-            <div class="col-12"><button class="btn-submit" type="submit"><i class="bi bi-send me-2"></i>Request Booking — Reply Within 2 Hours</button></div>
-            <p class="mb-0 mt-1" style="font-size:.67rem;color:#3a3a3a"><i class="bi bi-shield-check me-1" style="color:var(--red)"></i>We never share your details. &nbsp;|&nbsp; <span class="tg">★★★★★</span> 5/5 Google</p>
-          </form>
-        </div>
-      </div>
-
-      <!-- RIGHT COLUMN — App showcase -->
-      <div class="col-lg-6 d-none d-lg-flex flex-column align-items-center justify-content-center" style="gap:0;padding-top:12px">
-        <!-- DSQX:CAR START -->
-        <div class="dsqx-hero-right">
+    <div class="row g-4 align-items-center dsqx-hero-row">
+      <!-- DSQX:CAR START — car column -->
+      <div class="col-lg-6 order-1 dsqx-hero-carcol">
+        <div class="dsqx-hero-car">
 <div class="dsqx-carstage" data-dsqx-car role="img" aria-label="The DriveSQ car drives towards you, spins round and flashes its headlights">
   <div class="dsqx-cs-sky"></div>
   <svg class="dsqx-cs-road" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
@@ -1443,9 +1422,54 @@ html.dsqx-still .dsqx-fx, html.dsqx-still .dsqx-glow { display:none !important; 
   <button type="button" class="dsqx-cs-replay" aria-label="Replay the car animation"><i class="bi bi-arrow-repeat"></i></button>
 </div>
         </div>
-        <!-- DSQX:CAR END -->
       </div>
-      <!-- END right column -->
+      <!-- DSQX:CAR END -->
+
+      <!-- LEFT COLUMN (text + booking) -->
+      <div class="col-lg-6 order-2 dsqx-hero-txt">
+        <div class="eyebrow a1"><i class="bi bi-patch-check-fill"></i>DVSA-Approved · Est. 2018 · Greater Manchester</div>
+        <h1 class="hero-h1 dsqx-h1"><span class="dsqx-pft"><span class="w">Pass</span> <span class="w w--red">First</span> <span class="w">Time.</span></span><span class="dsqx-h1-sub">with Manchester's Best Driving School</span></h1>
+        <div class="type-row a3">
+          <span class="type-text" id="typeEl" aria-live="polite">Learn with DriveSQ</span><span class="cursor" aria-hidden="true"></span>
+        </div>
+
+        <ul class="dsqx-hero-ticks"><li><i class="bi bi-shield-check"></i>DVSA-approved instructors</li><li><i class="bi bi-phone"></i>Free Student Portal</li><li><i class="bi bi-gear-wide-connected"></i>Manual &amp; auto · £35/hr</li></ul>
+        <div class="dsqx-hero-ctas"><a class="dsqx-btn dsqx-btn--red" href="#book-60"><i class="bi bi-lightning-charge-fill"></i>Book in 60 seconds</a><a class="dsqx-btn dsqx-btn--ghost" href="#student-portal"><i class="bi bi-mortarboard-fill"></i>See the Student Portal</a></div>
+
+        <!-- Booking form -->
+        <div class="book-card reveal">
+          <div class="card-title">Book Your Lesson</div>
+          <div class="card-sub">Fastest reply via WhatsApp — usually within minutes.</div>
+          <a class="btn-wa-full" href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20to%20book%20a%20driving%20lesson%20with%20DriveSQ%20%F0%9F%9A%97" target="_blank" rel="nofollow noopener">
+            <i class="bi bi-whatsapp" style="font-size:1.1rem"></i>WhatsApp Us — Instant Reply
+          </a>
+          <div class="or-line">or fill in the booking form</div>
+          <form action="https://formspree.io/f/xvgjdapp" method="POST" class="row g-2" novalidate aria-label="Lesson booking form">
+            <input type="hidden" name="_subject" value="New Lesson Booking — DriveSQ"/>
+            <input type="text" name="_gotcha" class="d-none" tabindex="-1" autocomplete="off"/>
+            <div class="col-12"><label class="req-star" for="b_n">Full Name</label><input id="b_n" name="name" class="form-control" placeholder="Jane Doe" autocomplete="name" required/></div>
+            <div class="col-6"><label class="req-star" for="b_e">Email</label><input id="b_e" name="email" type="email" class="form-control" placeholder="jane@email.com" required/></div>
+            <div class="col-6"><label class="req-star" for="b_p">Phone</label><input id="b_p" name="phone" type="tel" class="form-control" placeholder="07xxx xxx xxx" required/></div>
+            <div class="col-6"><label class="req-star" for="b_s">Lesson Type</label>
+              <select id="b_s" name="service" class="form-select" required>
+                <option value="">Select...</option>
+                <option>Manual Driving Lesson</option>
+                <option>Automatic Driving Lesson</option>
+                <option>Intensive Course</option>
+                <option>Refresher Course</option>
+                <option>Mock Test</option>
+                <option>Pass Plus</option>
+              </select>
+            </div>
+            <div class="col-6"><label class="req-star" for="b_pc">Postcode</label><input id="b_pc" name="postcode" class="form-control" placeholder="e.g. M19 2AB" required/></div>
+            <div class="col-12"><label for="b_no">Notes (optional)</label><textarea id="b_no" name="notes" rows="2" class="form-control" placeholder="Preferred times, experience level, area…"></textarea></div>
+            <div class="col-12"><button class="btn-submit" type="submit"><i class="bi bi-send me-2"></i>Request Booking — Reply Within 2 Hours</button></div>
+            <p class="mb-0 mt-1" style="font-size:.67rem;color:#3a3a3a"><i class="bi bi-shield-check me-1" style="color:var(--red)"></i>We never share your details. &nbsp;|&nbsp; <span class="tg">★★★★★</span> 5/5 Google</p>
+          </form>
+        </div>
+      </div>
+
+      
 
     </div>
   </div>
@@ -1460,6 +1484,132 @@ html.dsqx-still .dsqx-fx, html.dsqx-still .dsqx-glow { display:none !important; 
 <li><i class="bi bi-check-circle-fill"></i>Real people on WhatsApp</li>
 </ul></div></div>
 <!-- DSQX:REASSURE END -->
+<!-- DSQX:PORTAL START — Student Portal showcase -->
+<section id="student-portal" class="dsqx-portal" aria-labelledby="dsqx-portal-title">
+  <div class="container position-relative">
+    <div class="row g-5 align-items-center">
+      <div class="col-lg-6">
+        <span class="dsqx-eye">Free with every DriveSQ lesson</span>
+        <h2 id="dsqx-portal-title">The DriveSQ <em>Student Portal</em>.<br>Your licence, in your pocket.</h2>
+        <p class="lead-t">Track every skill, revise theory, sit full mock tests and message your instructor — all from one free portal that works on any phone. No app store needed.</p>
+        <div class="dsqx-tabs" role="tablist" aria-label="Student Portal features">
+          <button class="dsqx-tab is-on" role="tab" aria-selected="true" data-scr="0"><i class="bi bi-graph-up-arrow"></i><div><b>Live progress tracking</b><span>Every skill rated after every lesson, so you always know what's next.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="1"><i class="bi bi-journal-check"></i><div><b>700+ theory questions</b><span>14 full mock tests of 50 questions, plus practice mode with instant feedback.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="2"><i class="bi bi-chat-dots-fill"></i><div><b>Message your instructor</b><span>Chat directly, confirm or reschedule lessons in a tap.</span></div><em class="bar"></em></button>
+          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="3"><i class="bi bi-shield-check"></i><div><b>Test-day ready</b><span>A readiness checklist, Show Me Tell Me prep and test centre info.</span></div><em class="bar"></em></button>
+        </div>
+        <div class="dsqx-ctas">
+          <a class="dsqx-btn dsqx-btn--red" href="https://www.drivesq.co.uk/student.html" target="_blank" rel="noopener"><i class="bi bi-mortarboard-fill"></i>Open Student Portal</a>
+          <a class="dsqx-btn dsqx-btn--ghost" href="https://www.drivesq.co.uk/portal.html" target="_blank" rel="noopener"><i class="bi bi-person-badge"></i>Instructor Portal</a>
+          <a class="dsqx-btn dsqx-btn--wa" href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20access%20to%20the%20DriveSQ%20Student%20Portal" target="_blank" rel="nofollow noopener"><i class="bi bi-whatsapp"></i>Get access</a>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="dsqx-stage" aria-hidden="true">
+          <div class="dsqx-halo"></div><div class="dsqx-orbit"></div>
+          <div class="dsqx-float dsqx-float--1"><i class="bi bi-check-circle-fill"></i>Lesson confirmed</div>
+          <div class="dsqx-float dsqx-float--2"><i class="bi bi-trophy-fill"></i>Mock test: 47/50</div>
+          <div class="dsqx-float dsqx-float--3"><i class="bi bi-graph-up-arrow"></i>Roundabouts: Independent</div>
+          <div class="dsqx-phone" data-dsqx-tilt-phone>
+            <div class="dsqx-phone__notch"></div>
+            <div class="dsqx-screen">
+              <div class="dsqx-scr is-on">
+                <div class="dsqx-appbar"><b>Drive<i>SQ</i></b><span class="dsqx-pill">Nearly test ready</span></div>
+                <div class="dsqx-ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50"/></svg><span>78%</span></div>
+                <div class="dsqx-row"><div class="dsqx-c"><small>Hours</small><strong>18</strong></div><div class="dsqx-c"><small>Skills</small><strong>23</strong></div><div class="dsqx-c"><small>Theory</small><strong>12d</strong></div></div>
+                <div class="dsqx-c mt-2"><small>Skills progress</small>
+                  <div class="dsqx-skill"><span>Bay parking</span><span style="color:#25D366">Independent</span></div><div class="dsqx-bar2"><i style="--w:100%"></i></div>
+                  <div class="dsqx-skill"><span>Roundabouts</span><span style="color:#F5C518">Developing</span></div><div class="dsqx-bar2"><i style="--w:64%"></i></div>
+                  <div class="dsqx-skill"><span>Dual carriageway</span><span style="color:#ff6b6b">Introduced</span></div><div class="dsqx-bar2"><i style="--w:35%"></i></div>
+                </div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Mock <i>Test</i></b><span class="dsqx-pill" style="background:rgba(209,10,17,.18);color:#ff6b6b">Q 12 / 50</span></div>
+                <div class="dsqx-c"><small>Safety margins</small><div class="dsqx-q">What is the typical overall stopping distance at 30mph on a dry road?</div>
+                  <div class="dsqx-opt"><b>A</b>12 metres</div><div class="dsqx-opt ok"><b>B</b>23 metres</div><div class="dsqx-opt"><b>C</b>36 metres</div><div class="dsqx-opt"><b>D</b>53 metres</div></div>
+                <div class="dsqx-c"><small>Time left</small><strong>41:08</strong></div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Messages</b><span class="dsqx-pill">Online</span></div>
+                <div class="dsqx-c"><small>Next lesson</small><strong>Thu · 4:00pm</strong><div style="color:#8a8a8a;font-size:.68rem">2 hrs · pick-up M19</div></div>
+                <div class="dsqx-msg in">Great lesson today — your roundabout positioning is really coming together 👏</div>
+                <div class="dsqx-msg out">Thank you! Can we do 4:30 on Thursday?</div>
+                <div class="dsqx-msg in">No problem — moved to 4:30 ✅</div>
+              </div>
+              <div class="dsqx-scr">
+                <div class="dsqx-appbar"><b>Test <i>Ready</i></b><span class="dsqx-pill">5 / 6</span></div>
+                <div class="dsqx-c"><small>Readiness checklist</small>
+                  <div class="dsqx-check done"><i>✓</i>Minimum hours completed</div>
+                  <div class="dsqx-check done"><i>✓</i>All manoeuvres independent</div>
+                  <div class="dsqx-check done"><i>✓</i>Junctions competent</div>
+                  <div class="dsqx-check done"><i>✓</i>Independent driving with sat-nav</div>
+                  <div class="dsqx-check done"><i>✓</i>Theory test passed</div>
+                  <div class="dsqx-check"><i>✓</i>Instructor sign-off</div>
+                </div>
+                <div class="dsqx-c"><small>Practical test</small><strong>in 9 days</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dsqx-stats">
+      <div class="dsqx-stat"><b><span data-dsqx-count="700">0</span><em>+</em></b><span>theory questions</span></div>
+      <div class="dsqx-stat"><b data-dsqx-count="14">0</b><span>full mock tests</span></div>
+      <div class="dsqx-stat"><b data-dsqx-count="23">0</b><span>driving skills tracked</span></div>
+      <div class="dsqx-stat"><b><em>£</em><span data-dsqx-count="0">0</span></b><span>cost to DriveSQ learners</span></div>
+    </div>
+    <div class="dsqx-more"><h3 class="dsqx-more__t">More inside the <em>DriveSQ app</em></h3>
+      <!-- Animated checklist -->
+          <div style="flex:1;display:flex;flex-direction:column;gap:0">
+            <style>
+              .app-feat-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);opacity:0;transform:translateX(18px);transition:opacity .4s ease,transform .4s ease}
+              .app-feat-item.ticked{opacity:1;transform:translateX(0)}
+              .app-tick{width:22px;height:22px;border-radius:50%;border:2px solid #D10A11;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;background:transparent;transition:background .3s}
+              .app-feat-item.ticked .app-tick{background:#D10A11}
+              .app-tick svg{opacity:0;transition:opacity .25s .15s}
+              .app-feat-item.ticked .app-tick svg{opacity:1}
+              .app-feat-title{font-size:.82rem;font-weight:700;color:#fff;line-height:1.2;margin-bottom:2px}
+              .app-feat-desc{font-size:.72rem;color:#666;line-height:1.4}
+            </style>
+            <div class="app-feat-item" data-delay="200">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">📊 Progress tracker</div><div class="app-feat-desc">Every DVSA skill tracked after each lesson — see exactly what's ready</div></div>
+            </div>
+            <div class="app-feat-item" data-delay="400">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">🗺️ Route replay</div><div class="app-feat-desc">See every road you covered, with instructor notes pinned to each route</div></div>
+            </div>
+            <div class="app-feat-item" data-delay="600">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">📅 Lesson scheduler</div><div class="app-feat-desc">Book and manage lessons without phone calls — instant confirmation</div></div>
+            </div>
+            <div class="app-feat-item" data-delay="800">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">💬 Instructor messaging</div><div class="app-feat-desc">Ask questions between lessons, get feedback any time</div></div>
+            </div>
+            <div class="app-feat-item" data-delay="1000">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">🔔 Push reminders</div><div class="app-feat-desc">Never miss a lesson — automatic notification before every session</div></div>
+            </div>
+            <div class="app-feat-item" data-delay="1200" style="border-bottom:none">
+              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="app-feat-title">🚗 Dual controls · ADI-approved</div><div class="app-feat-desc">Every lesson in a fully-insured dual-controlled car with a DVSA-approved instructor</div></div>
+            </div>
+
+            <!-- Free badge -->
+            <div style="margin-top:14px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.25);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.4rem">📱</span>
+              <div>
+                <div style="font-size:.78rem;font-weight:700;color:#fff">Completely free with your lessons</div>
+                <div style="font-size:.68rem;color:#666;margin-top:2px">Available on iOS &amp; Android · No subscription</div>
+              </div>
+            </div>
+          </div>
+    </div>
+  </div>
+</section>
+<!-- DSQX:PORTAL END -->
 
 <script>
 // Staggered tick animation for hero checklist
@@ -2532,132 +2682,6 @@ html.dsqx-still .dsqx-fx, html.dsqx-still .dsqx-glow { display:none !important; 
 
 <!-- FREE STUDENT APP -->
 <!-- DSQX:WAVE --><svg class="dsqx-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true" style="background:#fffdfa"><path fill="#080808" d="M0,30 C240,70 480,10 720,40 C960,70 1200,10 1440,50 L1440,104 L0,104 Z"/></svg>
-<!-- DSQX:PORTAL START — Student Portal showcase -->
-<section id="student-portal" class="dsqx-portal" aria-labelledby="dsqx-portal-title">
-  <div class="container position-relative">
-    <div class="row g-5 align-items-center">
-      <div class="col-lg-6">
-        <span class="dsqx-eye">Free with every DriveSQ lesson</span>
-        <h2 id="dsqx-portal-title">The DriveSQ <em>Student Portal</em>.<br>Your licence, in your pocket.</h2>
-        <p class="lead-t">Track every skill, revise theory, sit full mock tests and message your instructor — all from one free portal that works on any phone. No app store needed.</p>
-        <div class="dsqx-tabs" role="tablist" aria-label="Student Portal features">
-          <button class="dsqx-tab is-on" role="tab" aria-selected="true" data-scr="0"><i class="bi bi-graph-up-arrow"></i><div><b>Live progress tracking</b><span>Every skill rated after every lesson, so you always know what's next.</span></div><em class="bar"></em></button>
-          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="1"><i class="bi bi-journal-check"></i><div><b>700+ theory questions</b><span>14 full mock tests of 50 questions, plus practice mode with instant feedback.</span></div><em class="bar"></em></button>
-          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="2"><i class="bi bi-chat-dots-fill"></i><div><b>Message your instructor</b><span>Chat directly, confirm or reschedule lessons in a tap.</span></div><em class="bar"></em></button>
-          <button class="dsqx-tab" role="tab" aria-selected="false" data-scr="3"><i class="bi bi-shield-check"></i><div><b>Test-day ready</b><span>A readiness checklist, Show Me Tell Me prep and test centre info.</span></div><em class="bar"></em></button>
-        </div>
-        <div class="dsqx-ctas">
-          <a class="dsqx-btn dsqx-btn--red" href="https://www.drivesq.co.uk/student.html" target="_blank" rel="noopener"><i class="bi bi-mortarboard-fill"></i>Open Student Portal</a>
-          <a class="dsqx-btn dsqx-btn--ghost" href="https://www.drivesq.co.uk/portal.html" target="_blank" rel="noopener"><i class="bi bi-person-badge"></i>Instructor Portal</a>
-          <a class="dsqx-btn dsqx-btn--wa" href="https://wa.me/447352932003?text=Hi!%20I'd%20like%20access%20to%20the%20DriveSQ%20Student%20Portal" target="_blank" rel="nofollow noopener"><i class="bi bi-whatsapp"></i>Get access</a>
-        </div>
-      </div>
-      <div class="col-lg-6">
-        <div class="dsqx-stage" aria-hidden="true">
-          <div class="dsqx-halo"></div><div class="dsqx-orbit"></div>
-          <div class="dsqx-float dsqx-float--1"><i class="bi bi-check-circle-fill"></i>Lesson confirmed</div>
-          <div class="dsqx-float dsqx-float--2"><i class="bi bi-trophy-fill"></i>Mock test: 47/50</div>
-          <div class="dsqx-float dsqx-float--3"><i class="bi bi-graph-up-arrow"></i>Roundabouts: Independent</div>
-          <div class="dsqx-phone" data-dsqx-tilt-phone>
-            <div class="dsqx-phone__notch"></div>
-            <div class="dsqx-screen">
-              <div class="dsqx-scr is-on">
-                <div class="dsqx-appbar"><b>Drive<i>SQ</i></b><span class="dsqx-pill">Nearly test ready</span></div>
-                <div class="dsqx-ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50"/></svg><span>78%</span></div>
-                <div class="dsqx-row"><div class="dsqx-c"><small>Hours</small><strong>18</strong></div><div class="dsqx-c"><small>Skills</small><strong>23</strong></div><div class="dsqx-c"><small>Theory</small><strong>12d</strong></div></div>
-                <div class="dsqx-c mt-2"><small>Skills progress</small>
-                  <div class="dsqx-skill"><span>Bay parking</span><span style="color:#25D366">Independent</span></div><div class="dsqx-bar2"><i style="--w:100%"></i></div>
-                  <div class="dsqx-skill"><span>Roundabouts</span><span style="color:#F5C518">Developing</span></div><div class="dsqx-bar2"><i style="--w:64%"></i></div>
-                  <div class="dsqx-skill"><span>Dual carriageway</span><span style="color:#ff6b6b">Introduced</span></div><div class="dsqx-bar2"><i style="--w:35%"></i></div>
-                </div>
-              </div>
-              <div class="dsqx-scr">
-                <div class="dsqx-appbar"><b>Mock <i>Test</i></b><span class="dsqx-pill" style="background:rgba(209,10,17,.18);color:#ff6b6b">Q 12 / 50</span></div>
-                <div class="dsqx-c"><small>Safety margins</small><div class="dsqx-q">What is the typical overall stopping distance at 30mph on a dry road?</div>
-                  <div class="dsqx-opt"><b>A</b>12 metres</div><div class="dsqx-opt ok"><b>B</b>23 metres</div><div class="dsqx-opt"><b>C</b>36 metres</div><div class="dsqx-opt"><b>D</b>53 metres</div></div>
-                <div class="dsqx-c"><small>Time left</small><strong>41:08</strong></div>
-              </div>
-              <div class="dsqx-scr">
-                <div class="dsqx-appbar"><b>Messages</b><span class="dsqx-pill">Online</span></div>
-                <div class="dsqx-c"><small>Next lesson</small><strong>Thu · 4:00pm</strong><div style="color:#8a8a8a;font-size:.68rem">2 hrs · pick-up M19</div></div>
-                <div class="dsqx-msg in">Great lesson today — your roundabout positioning is really coming together 👏</div>
-                <div class="dsqx-msg out">Thank you! Can we do 4:30 on Thursday?</div>
-                <div class="dsqx-msg in">No problem — moved to 4:30 ✅</div>
-              </div>
-              <div class="dsqx-scr">
-                <div class="dsqx-appbar"><b>Test <i>Ready</i></b><span class="dsqx-pill">5 / 6</span></div>
-                <div class="dsqx-c"><small>Readiness checklist</small>
-                  <div class="dsqx-check done"><i>✓</i>Minimum hours completed</div>
-                  <div class="dsqx-check done"><i>✓</i>All manoeuvres independent</div>
-                  <div class="dsqx-check done"><i>✓</i>Junctions competent</div>
-                  <div class="dsqx-check done"><i>✓</i>Independent driving with sat-nav</div>
-                  <div class="dsqx-check done"><i>✓</i>Theory test passed</div>
-                  <div class="dsqx-check"><i>✓</i>Instructor sign-off</div>
-                </div>
-                <div class="dsqx-c"><small>Practical test</small><strong>in 9 days</strong></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="dsqx-stats">
-      <div class="dsqx-stat"><b><span data-dsqx-count="700">0</span><em>+</em></b><span>theory questions</span></div>
-      <div class="dsqx-stat"><b data-dsqx-count="14">0</b><span>full mock tests</span></div>
-      <div class="dsqx-stat"><b data-dsqx-count="23">0</b><span>driving skills tracked</span></div>
-      <div class="dsqx-stat"><b><em>£</em><span data-dsqx-count="0">0</span></b><span>cost to DriveSQ learners</span></div>
-    </div>
-    <div class="dsqx-more"><h3 class="dsqx-more__t">More inside the <em>DriveSQ app</em></h3>
-      <!-- Animated checklist -->
-          <div style="flex:1;display:flex;flex-direction:column;gap:0">
-            <style>
-              .app-feat-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);opacity:0;transform:translateX(18px);transition:opacity .4s ease,transform .4s ease}
-              .app-feat-item.ticked{opacity:1;transform:translateX(0)}
-              .app-tick{width:22px;height:22px;border-radius:50%;border:2px solid #D10A11;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;background:transparent;transition:background .3s}
-              .app-feat-item.ticked .app-tick{background:#D10A11}
-              .app-tick svg{opacity:0;transition:opacity .25s .15s}
-              .app-feat-item.ticked .app-tick svg{opacity:1}
-              .app-feat-title{font-size:.82rem;font-weight:700;color:#fff;line-height:1.2;margin-bottom:2px}
-              .app-feat-desc{font-size:.72rem;color:#666;line-height:1.4}
-            </style>
-            <div class="app-feat-item" data-delay="200">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">📊 Progress tracker</div><div class="app-feat-desc">Every DVSA skill tracked after each lesson — see exactly what's ready</div></div>
-            </div>
-            <div class="app-feat-item" data-delay="400">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">🗺️ Route replay</div><div class="app-feat-desc">See every road you covered, with instructor notes pinned to each route</div></div>
-            </div>
-            <div class="app-feat-item" data-delay="600">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">📅 Lesson scheduler</div><div class="app-feat-desc">Book and manage lessons without phone calls — instant confirmation</div></div>
-            </div>
-            <div class="app-feat-item" data-delay="800">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">💬 Instructor messaging</div><div class="app-feat-desc">Ask questions between lessons, get feedback any time</div></div>
-            </div>
-            <div class="app-feat-item" data-delay="1000">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">🔔 Push reminders</div><div class="app-feat-desc">Never miss a lesson — automatic notification before every session</div></div>
-            </div>
-            <div class="app-feat-item" data-delay="1200" style="border-bottom:none">
-              <div class="app-tick"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div><div class="app-feat-title">🚗 Dual controls · ADI-approved</div><div class="app-feat-desc">Every lesson in a fully-insured dual-controlled car with a DVSA-approved instructor</div></div>
-            </div>
-
-            <!-- Free badge -->
-            <div style="margin-top:14px;background:rgba(209,10,17,.1);border:1px solid rgba(209,10,17,.25);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-              <span style="font-size:1.4rem">📱</span>
-              <div>
-                <div style="font-size:.78rem;font-weight:700;color:#fff">Completely free with your lessons</div>
-                <div style="font-size:.68rem;color:#666;margin-top:2px">Available on iOS &amp; Android · No subscription</div>
-              </div>
-            </div>
-          </div>
-    </div>
-  </div>
-</section>
-<!-- DSQX:PORTAL END -->
 <section id="app" class="app-section noise-overlay" aria-labelledby="app-title">
   <div class="container">
     <div class="text-center mb-5 reveal">
@@ -3608,51 +3632,59 @@ function openLocalVideo(src) {
   /* ---- Hero car: drive forward → 360° spin → flash headlights ---- */
   function carStage() {
     var stage = $("[data-dsqx-car]"); if (!stage) return;
-    var right = $(".dsqx-hero-right"), mslot = $(".dsqx-carslot-m");
-    function place() { var m = window.innerWidth < 992; var host = m ? mslot : right; if (host && stage.parentElement !== host) host.appendChild(stage); }
-    place(); window.addEventListener("resize", place);
+    var root = document.documentElement, wrap = $(".dsqx-hero-car"), h1 = $(".dsqx-h1");
     var car = $(".dsqx-cs-car", stage), spin = $(".dsqx-cs-spin", stage);
     var views = { front: $(".dsqx-view--front", stage), side: $(".dsqx-view--side", stage), rear: $(".dsqx-view--rear", stage) };
     var running = false, played = false;
+    function reveal() { root.classList.remove("dsqx-intro"); }
     function show(v, flip) { Object.keys(views).forEach(function (k) { views[k].classList.toggle("is-on", k === v); }); views.side.classList.toggle("is-flip", !!flip); }
     function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     function anim(el, frames, opts) { return el.animate(frames, opts).finished.catch(function () {}); }
-    function finalState() { show("front"); stage.classList.add("is-parked", "lights"); }
+    function lights(on, flash) { stage.classList.toggle("lights", on); stage.classList.toggle("flash", !!flash); if (h1) { h1.classList.toggle("lit", on); h1.classList.toggle("flash", !!flash); } }
+    function finalState() { show("front"); stage.classList.add("is-parked"); lights(true); reveal(); }
+    async function turn(v, flip) {
+      await anim(spin, [{ transform: "scaleX(1)" }, { transform: "scaleX(.04)" }], { duration: 170, easing: "ease-in", fill: "forwards" });
+      show(v, flip);
+      await anim(spin, [{ transform: "scaleX(.04)" }, { transform: "scaleX(1)" }], { duration: 190, easing: "ease-out", fill: "forwards" });
+    }
     async function play() {
       if (running) return; running = true; played = true;
-      stage.classList.remove("is-parked", "lights", "flash");
+      stage.classList.remove("is-parked"); lights(false);
       show("front");
       if (reduce || !car.animate) { finalState(); running = false; return; }
+      var intro = root.classList.contains("dsqx-intro") && wrap && window.innerWidth >= 992;
       // 1) drive forward towards the viewer
       await anim(car, [{ transform: "translateX(-50%) translateY(-46%) scale(.18)", opacity: 0 }, { offset: .15, opacity: 1 }, { transform: "translateX(-50%) translateY(0) scale(1)", opacity: 1 }],
         { duration: 1700, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" });
       stage.classList.add("is-parked");
       await anim(car, [{ transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(5px)" }, { transform: "translateX(-50%) translateY(0)" }], { duration: 260, easing: "ease-out" });
-      await wait(220);
-      // 2) 360° spin: front → side → rear → side → front
-      var seq = [["side", false], ["rear", false], ["side", true], ["front", false]];
-      for (var i = 0; i < seq.length; i++) {
-        await anim(spin, [{ transform: "scaleX(1)" }, { transform: "scaleX(.04)" }], { duration: 170, easing: "ease-in", fill: "forwards" });
-        show(seq[i][0], seq[i][1]);
-        await anim(spin, [{ transform: "scaleX(.04)" }, { transform: "scaleX(1)" }], { duration: 190, easing: "ease-out", fill: "forwards" });
-        if (i < seq.length - 1) await wait(110);
-      }
+      await wait(180);
+      // 2) turn to face left and drive to the left; the "Pass First Time" text slides in beside it
+      await turn("side", true);
+      if (intro) {
+        var from = getComputedStyle(wrap).transform;
+        var glide = anim(wrap, [{ transform: from }, { transform: "translateX(0)" }], { duration: 1100, easing: "cubic-bezier(.65,0,.35,1)", fill: "forwards" });
+        var bob = anim(car, [{ transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(-4px)" }, { transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(-3px)" }, { transform: "translateX(-50%) translateY(0)" }], { duration: 1100 });
+        setTimeout(reveal, 350);
+        await glide; await bob;
+      } else { reveal(); await anim(car, [{ transform: "translateX(-50%)" }, { transform: "translateX(-56%)" }, { transform: "translateX(-50%)" }], { duration: 700, easing: "ease-in-out" }); }
+      await wait(120);
+      // 3) finish the 360° spin: rear → side → front (facing the customer)
+      await turn("rear"); await wait(110); await turn("side", false); await wait(110); await turn("front");
       await wait(260);
-      // 3) flash the headlights at the customer
-      for (var f = 0; f < 2; f++) {
-        stage.classList.add("lights", "flash"); await wait(170);
-        stage.classList.remove("lights", "flash"); await wait(150);
-      }
-      stage.classList.add("lights", "flash"); await wait(260); stage.classList.remove("flash");
+      // 4) flash the headlights at the customer
+      for (var f = 0; f < 2; f++) { lights(true, true); await wait(170); lights(false); await wait(150); }
+      lights(true, true); await wait(260); lights(true);
       running = false;
     }
     stage.addEventListener("click", function () { play(); });
     var go = function () { if (!played) play(); };
+    if (reduce) { finalState(); return; }
     if ("IntersectionObserver" in window) {
       var loader = document.getElementById("page-loader");
       var ready = !loader || loader.classList.contains("hide");
       var vis = false;
-      var maybe = function () { if (ready && vis) setTimeout(go, 300); };
+      var maybe = function () { if (ready && vis) setTimeout(go, 250); };
       new IntersectionObserver(function (es) { vis = es[0].isIntersecting; maybe(); }, { threshold: .35 }).observe(stage);
       if (!ready) { var mo = new MutationObserver(function () { if (loader.classList.contains("hide")) { ready = true; mo.disconnect(); maybe(); } }); mo.observe(loader, { attributes: true, attributeFilter: ["class"] }); setTimeout(function () { ready = true; maybe(); }, 4000); }
     } else go();
