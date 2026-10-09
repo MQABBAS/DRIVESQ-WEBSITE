@@ -3869,8 +3869,9 @@ window.DSQXCar3D = function (stage, hooks) {
   function once(name, fn) { if (!events[name]) { events[name] = 1; fn(); } }
   function pose(t, dt) {
     var u, wheelSpeed = 0;
-    if (t < 5) { // far away, driving slowly and steadily straight at the customer
-      u = t / 5; car.position.set(0, 0, -75 + 66 * u); wheelSpeed = 13.2;
+    var A = 3.2; if (t >= A) t += 5 - A; // approach time; everything after it keeps its pacing
+    if (t < 5) { // far away, driving steadily straight at the customer
+      u = t / A; car.position.set(0, 0, -75 + 66 * u); wheelSpeed = 66 / A;
       body.rotation.x = Math.sin(t * 9) * .004; body.position.y = Math.sin(t * 13) * .006;
     } else if (t < 6.5) { // hard braking -> skid: tail kicks out, counter-steer, settle
       u = (t - 5) / 1.5;
@@ -4055,7 +4056,7 @@ window.DSQXCar3D = function (stage, hooks) {
         { transform: T + "translateY(-60%) scale(.04)", opacity: 0 },
         { offset: .1, transform: T + "translateY(-56%) scale(.08)", opacity: 1 },
         { transform: T + "translateY(-8%) scale(.82)", opacity: 1 }],
-        { duration: 3800, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
+        { duration: 2600, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
       // 2) brake hard and skid: the tail kicks out, tyres smoke, skid marks on the road, camera shakes
       stage.classList.remove("is-driving"); stage.classList.add("is-parked"); restart("skid");
       var skid = anim(car, [
