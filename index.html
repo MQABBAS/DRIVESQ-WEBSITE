@@ -1231,60 +1231,53 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 .dsqx-cs-say::after { content:""; position:absolute; left:28%; bottom:-9px; width:16px; height:16px; background:#fff; transform:translateX(-50%) rotate(45deg); box-shadow:3px 3px 0 0 rgba(209,10,17,.85); }
 .dsqx-cs-say.show { opacity:1; transform:translate(-28%,-100%) scale(1); }
 .dsqx-carstage:not(.is-3d) .dsqx-cs-say { display:none; }
+/* ---- Page loader: DriveSQ engine start ---- */
+#page-loader { background:radial-gradient(ellipse 60% 45% at 50% 45%,rgba(209,10,17,.16),transparent 70%),#080808 !important; }
+.dsqx-ld { display:flex; flex-direction:column; align-items:center; width:min(320px,82vw); }
+.dsqx-ld__brand { font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; font-size:clamp(3rem,12vw,4.4rem); letter-spacing:.01em; line-height:1; color:#fff; text-transform:none;
+  animation:dsqx-ign 1.9s ease-out both; }
+.dsqx-ld__brand span { color:#D10A11; text-shadow:0 0 18px rgba(209,10,17,.75),0 0 46px rgba(209,10,17,.45); }
+@keyframes dsqx-ign { 0%{opacity:.15;filter:brightness(.4)} 8%{opacity:1;filter:brightness(1.4)} 12%{opacity:.35} 18%{opacity:1;filter:brightness(1)} 30%{transform:translateX(0)} 33%{transform:translateX(-2px)} 36%{transform:translateX(2px)} 39%{transform:translateX(-1px)} 42%,100%{transform:none;opacity:1} }
+.dsqx-ld__tach { width:100%; margin-top:10px; animation:dsqx-shake .09s linear 6 .35s; }
+.dsqx-ld__tach svg { width:100%; height:auto; display:block; overflow:visible; }
+.dsqx-ld__needle { transform-box:view-box; transform-origin:110px 118px; animation:dsqx-rev 1.9s cubic-bezier(.3,.1,.2,1) both, dsqx-idle-n .18s ease-in-out 1.9s infinite alternate; filter:drop-shadow(0 0 6px rgba(255,45,53,.8)); }
+@keyframes dsqx-rev { 0%{transform:rotate(0)} 14%{transform:rotate(26deg)} 22%{transform:rotate(14deg)} 30%{transform:rotate(20deg)} 52%{transform:rotate(152deg)} 64%{transform:rotate(96deg)} 74%{transform:rotate(128deg)} 90%,100%{transform:rotate(19deg)} }
+@keyframes dsqx-idle-n { from{transform:rotate(18deg)} to{transform:rotate(21deg)} }
+@keyframes dsqx-shake { 0%,100%{transform:none} 25%{transform:translate(-1.5px,1px)} 75%{transform:translate(1.5px,-1px)} }
+.dsqx-ld__sweep { stroke-dasharray:100; stroke-dashoffset:100; animation:dsqx-sweep 1.9s cubic-bezier(.3,.1,.2,1) forwards; }
+@keyframes dsqx-sweep { 52%{stroke-dashoffset:16} 100%{stroke-dashoffset:89} }
+.dsqx-ld__bar { width:100%; height:3px; margin-top:16px; background:#1c1c1f; border-radius:3px; overflow:hidden; }
+.dsqx-ld__bar span { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#8f0007,#D10A11,#ff4d55); box-shadow:0 0 12px #D10A11; animation:dsqx-fill 2.2s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes dsqx-fill { to { transform:scaleX(1); } }
+.dsqx-ld__txt { position:relative; height:1.2em; width:100%; margin-top:12px; text-align:center; font-family:'Oswald',sans-serif; font-size:.78rem; letter-spacing:.32em; text-transform:uppercase; color:#8a8a8a; }
+.dsqx-ld__txt span { position:absolute; inset:0; }
+.dsqx-ld__txt .a { animation:dsqx-txta 2.2s steps(1) forwards; }
+.dsqx-ld__txt .b { opacity:0; color:#e9e9e9; animation:dsqx-txtb 2.2s steps(1) forwards; }
+@keyframes dsqx-txta { 85%{opacity:0} 100%{opacity:0} }
+@keyframes dsqx-txtb { 85%{opacity:1} 100%{opacity:1} }
+@media (prefers-reduced-motion:reduce){ .dsqx-ld *, .dsqx-ld__brand { animation:none !important; } .dsqx-ld__needle { transform:rotate(19deg); } .dsqx-ld__bar span { transform:scaleX(1); } .dsqx-ld__txt .a { opacity:0; } .dsqx-ld__txt .b { opacity:1; } .dsqx-ld__sweep { stroke-dashoffset:89; } }
 
 </style>
 <!-- DSQX:CSS END -->
 </head>
 <body class="loading">
 
-<!-- PAGE LOADER — STEERING WHEEL -->
-<div id="page-loader" aria-label="Loading DriveSQ">
-  <div class="wheel-wrap">
-    <svg class="wheel-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer rim shadow -->
-      <circle cx="100" cy="100" r="90" fill="none" stroke="#1a1a1a" stroke-width="18"/>
-      <!-- Outer rim -->
-      <circle cx="100" cy="100" r="90" fill="none" stroke="#3a3a3a" stroke-width="14"/>
-      <!-- Rim highlight (top shine) -->
-      <path d="M30,68 A90,90 0 0,1 170,68" fill="none" stroke="#555" stroke-width="3" stroke-linecap="round" opacity=".4"/>
-      <!-- Grip texture — left -->
-      <path d="M18,75 A90,90 0 0,0 18,125" fill="none" stroke="#4a4a4a" stroke-width="16" stroke-linecap="round"/>
-      <!-- Grip texture — right -->
-      <path d="M182,75 A90,90 0 0,1 182,125" fill="none" stroke="#4a4a4a" stroke-width="16" stroke-linecap="round"/>
-      <!-- Inner rim ring -->
-      <circle cx="100" cy="100" r="82" fill="none" stroke="#2a2a2a" stroke-width="1.5"/>
-      <!-- Spoke — top (12 o'clock) -->
-      <rect x="94" y="30" width="12" height="40" rx="4" fill="#333"/>
-      <rect x="96" y="32" width="8" height="36" rx="3" fill="#3d3d3d"/>
-      <!-- Spoke — bottom-left (7 o'clock) -->
-      <rect x="94" y="30" width="12" height="40" rx="4" fill="#333" transform="rotate(225,100,100)"/>
-      <rect x="96" y="32" width="8" height="36" rx="3" fill="#3d3d3d" transform="rotate(225,100,100)"/>
-      <!-- Spoke — bottom-right (5 o'clock) -->
-      <rect x="94" y="30" width="12" height="40" rx="4" fill="#333" transform="rotate(135,100,100)"/>
-      <rect x="96" y="32" width="8" height="36" rx="3" fill="#3d3d3d" transform="rotate(135,100,100)"/>
-      <!-- Centre hub — outer ring -->
-      <circle cx="100" cy="100" r="28" fill="#222"/>
-      <circle cx="100" cy="100" r="28" fill="none" stroke="#444" stroke-width="2"/>
-      <!-- Centre hub — inner pad -->
-      <circle cx="100" cy="100" r="20" fill="#2a2a2a"/>
-      <circle cx="100" cy="100" r="20" fill="none" stroke="#3a3a3a" stroke-width="1"/>
-      <!-- Centre hub — subtle highlight -->
-      <ellipse cx="100" cy="93" rx="12" ry="6" fill="rgba(255,255,255,.04)"/>
-      <!-- Animated red glow ring -->
-      <circle cx="100" cy="100" r="90" fill="none" stroke="url(#wheelGrad)" stroke-width="4" stroke-dasharray="80 486" stroke-linecap="round" opacity=".9">
-        <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="1.8s" repeatCount="indefinite"/>
-      </circle>
-      <defs>
-        <linearGradient id="wheelGrad" x1="0" y1="0" x2="200" y2="200">
-          <stop offset="0%" stop-color="#D10A11"/>
-          <stop offset="50%" stop-color="#ff4444"/>
-          <stop offset="100%" stop-color="#D10A11"/>
-        </linearGradient>
-      </defs>
-    </svg>
-    <div class="wheel-dot"></div>
+<!-- PAGE LOADER — DriveSQ engine start -->
+<div id="page-loader" aria-label="Loading DriveSQ" role="status">
+  <div class="dsqx-ld">
+    <div class="dsqx-ld__brand" aria-hidden="true">Drive<span>SQ</span></div>
+    <div class="dsqx-ld__tach" aria-hidden="true">
+      <svg viewBox="0 0 220 132">
+        <defs><linearGradient id="dsqxLdG" x1="0" x2="1"><stop offset="0" stop-color="#D10A11" stop-opacity=".2"/><stop offset=".7" stop-color="#ff3b42"/><stop offset="1" stop-color="#D10A11"/></linearGradient></defs>
+        <path d="M14.0 118.0 A96 96 0 0 1 206.0 118.0" stroke="#2a2a2e" stroke-width="3" fill="none"/><path class="dsqx-ld__sweep" d="M14.0 118.0 A96 96 0 0 1 206.0 118.0" stroke="url(#dsqxLdG)" stroke-width="3" fill="none" pathLength="100"/><path d="M185.7 67.4 A91 91 0 0 1 201.0 118.0" stroke="#D10A11" stroke-width="5" fill="none" opacity=".85"/><line x1="20.0" y1="118.0" x2="32.0" y2="118.0" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="46.0" y="123.0" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">0</text><line x1="20.3" y1="110.9" x2="23.3" y2="111.2" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="21.1" y1="103.9" x2="24.1" y2="104.4" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="21.7" y1="100.4" x2="28.6" y2="101.8" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="22.5" y1="97.0" x2="25.4" y2="97.7" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="24.4" y1="90.2" x2="27.3" y2="91.1" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="26.9" y1="83.6" x2="37.9" y2="88.2" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="50.9" y="98.5" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">1</text><line x1="29.8" y1="77.1" x2="32.5" y2="78.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="33.3" y1="71.0" x2="35.8" y2="72.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="35.2" y1="68.0" x2="41.0" y2="71.9" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="37.2" y1="65.1" x2="39.6" y2="66.9" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="41.6" y1="59.5" x2="43.8" y2="61.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="46.4" y1="54.4" x2="54.8" y2="62.8" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="64.7" y="77.7" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">2</text><line x1="51.5" y1="49.6" x2="53.5" y2="51.8" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="57.1" y1="45.2" x2="58.9" y2="47.6" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="60.0" y1="43.2" x2="63.9" y2="49.0" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="63.0" y1="41.3" x2="64.5" y2="43.8" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="69.1" y1="37.8" x2="70.5" y2="40.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="75.6" y1="34.9" x2="80.2" y2="45.9" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="85.5" y="63.9" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">3</text><line x1="82.2" y1="32.4" x2="83.1" y2="35.3" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="89.0" y1="30.5" x2="89.7" y2="33.4" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="92.4" y1="29.7" x2="93.8" y2="36.6" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="95.9" y1="29.1" x2="96.4" y2="32.1" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="102.9" y1="28.3" x2="103.2" y2="31.3" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="110.0" y1="28.0" x2="110.0" y2="40.0" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="110.0" y="59.0" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">4</text><line x1="117.1" y1="28.3" x2="116.8" y2="31.3" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="124.1" y1="29.1" x2="123.6" y2="32.1" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="127.6" y1="29.7" x2="126.2" y2="36.6" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="131.0" y1="30.5" x2="130.3" y2="33.4" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="137.8" y1="32.4" x2="136.9" y2="35.3" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="144.4" y1="34.9" x2="139.8" y2="45.9" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="134.5" y="63.9" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">5</text><line x1="150.9" y1="37.8" x2="149.5" y2="40.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="157.0" y1="41.3" x2="155.5" y2="43.8" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="160.0" y1="43.2" x2="156.1" y2="49.0" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="162.9" y1="45.2" x2="161.1" y2="47.6" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="168.5" y1="49.6" x2="166.5" y2="51.8" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="173.6" y1="54.4" x2="165.2" y2="62.8" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/><text x="155.3" y="77.7" text-anchor="middle" fill="#cfcfcf" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">6</text><line x1="178.4" y1="59.5" x2="176.2" y2="61.5" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="182.8" y1="65.1" x2="180.4" y2="66.9" stroke="#777" stroke-width="1.6" stroke-linecap="round"/><line x1="184.8" y1="68.0" x2="179.0" y2="71.9" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="186.7" y1="71.0" x2="184.2" y2="72.5" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="190.2" y1="77.1" x2="187.5" y2="78.5" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="193.1" y1="83.6" x2="182.1" y2="88.2" stroke="#D10A11" stroke-width="3" stroke-linecap="round"/><text x="169.1" y="98.5" text-anchor="middle" fill="#ff4d55" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">7</text><line x1="195.6" y1="90.2" x2="192.7" y2="91.1" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="197.5" y1="97.0" x2="194.6" y2="97.7" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="198.3" y1="100.4" x2="191.4" y2="101.8" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="198.9" y1="103.9" x2="195.9" y2="104.4" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="199.7" y1="110.9" x2="196.7" y2="111.2" stroke="#D10A11" stroke-width="1.6" stroke-linecap="round"/><line x1="200.0" y1="118.0" x2="188.0" y2="118.0" stroke="#D10A11" stroke-width="3" stroke-linecap="round"/><text x="174.0" y="123.0" text-anchor="middle" fill="#ff4d55" font-family="Barlow Condensed,Oswald,sans-serif" font-weight="700" font-size="15">8</text>
+        <text x="110" y="84" text-anchor="middle" fill="#666" font-family="Inter,Arial,sans-serif" font-size="8" letter-spacing="1.5">RPM ×1000</text>
+        <g class="dsqx-ld__needle"><path d="M110 115 L34 118 L110 121 Z" fill="#ff2d35"/></g>
+        <circle cx="110" cy="118" r="9" fill="#141416" stroke="#D10A11" stroke-width="2.5"/><circle cx="110" cy="118" r="3" fill="#ff4d55"/>
+      </svg>
+    </div>
+    <div class="dsqx-ld__bar" aria-hidden="true"><span></span></div>
+    <div class="dsqx-ld__txt"><span class="a">Starting engine…</span><span class="b">Ready to drive</span></div>
   </div>
-  <div class="loader-text">DriveSQ</div>
 </div>
 
 <div id="scroll-progress" aria-hidden="true"></div>
@@ -3337,7 +3330,7 @@ function openLocalVideo(src) {
     document.body.classList.remove('loading');
     document.querySelector('.hero')?.classList.add('loaded');
   }
-  window.addEventListener('load', () => setTimeout(dismiss, 400));
+  window.addEventListener('load', () => setTimeout(dismiss, Math.max(400, 2150 - performance.now()))); /* DSQX: let the engine-start rev finish */
   setTimeout(dismiss, 3500);
 })();
 
