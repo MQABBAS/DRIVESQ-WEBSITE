@@ -1201,6 +1201,28 @@ html.dsqx-intro .dsqx-hero-txt > * { opacity:0 !important; transform:translateX(
 @media (max-width:420px){ .dsqx-hero-ctas .dsqx-btn { flex:1 1 100%; justify-content:center; } }
 @media (prefers-reduced-motion:reduce){ html.dsqx-intro .dsqx-hero-txt > *, html.dsqx-intro .dsqx-hero-car { opacity:1 !important; transform:none !important; } }
 .dsqx-view--side.is-flip text { transform:scaleX(-1); transform-box:fill-box; transform-origin:center; }
+/* ---- v4 car: far-away approach, skid, smoke, spin, flash ---- */
+html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
+.dsqx-carstage.is-driving .dsqx-cs-dashes rect { animation-duration:.55s; }
+.dsqx-cs-skid { position:absolute; left:0; right:0; bottom:0; width:100%; height:62%; pointer-events:none; }
+.dsqx-cs-skid path { fill:none; stroke:#000; stroke-width:13; stroke-linecap:round; opacity:.85; stroke-dasharray:1; stroke-dashoffset:1; }
+.dsqx-carstage.skid .dsqx-cs-skid path { animation:dsqx-skidmark 1s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes dsqx-skidmark { to { stroke-dashoffset:0; } }
+.dsqx-carstage.is-parked .dsqx-cs-skid path { transition:opacity 4s 2s; opacity:.45; }
+.dsqx-cs-smoke { position:absolute; left:0; right:0; bottom:3%; height:34%; pointer-events:none; z-index:2; }
+.dsqx-cs-smoke i { position:absolute; bottom:0; width:24%; aspect-ratio:1; border-radius:50%; opacity:0; transform:scale(.3);
+  background:radial-gradient(circle,rgba(235,235,240,.7),rgba(200,200,210,.22) 50%,transparent 70%); filter:blur(5px); }
+.dsqx-carstage.skid .dsqx-cs-smoke--skid i { animation:dsqx-smoke 2s ease-out var(--d) forwards; }
+.dsqx-carstage.spinning .dsqx-cs-smoke--spin i { animation:dsqx-smoke 1.7s ease-out var(--d) forwards; }
+@keyframes dsqx-smoke { 0% { opacity:0; transform:translate(0,0) scale(.3); } 14% { opacity:.95; } 100% { opacity:0; transform:translate(var(--x),-70%) scale(2.6); } }
+.dsqx-carstage.skid .dsqx-cs-flash { background:radial-gradient(ellipse 70% 30% at 50% 90%,rgba(255,80,60,.25),transparent 70%); opacity:1; transition:opacity .6s; }
+.dsqx-carstage.skid.is-parked:not(.flash) .dsqx-cs-flash { opacity:0; }
+.dsqx-carstage.flash .dsqx-cs-flash { background:radial-gradient(ellipse 60% 40% at 50% 66%,rgba(255,250,220,.6),transparent 70%); opacity:1; transition:opacity .08s; }
+@media (prefers-reduced-motion:reduce){ .dsqx-cs-smoke { display:none; } .dsqx-cs-skid path { stroke-dashoffset:0; opacity:.3; } }
+/* ---- 3D car canvas ---- */
+.dsqx-cs-3d { position:absolute; inset:0; width:100%; height:100%; display:block; z-index:1; }
+.dsqx-carstage.is-3d .dsqx-cs-road, .dsqx-carstage.is-3d .dsqx-cs-car, .dsqx-carstage.is-3d .dsqx-cs-skid, .dsqx-carstage.is-3d .dsqx-cs-smoke { display:none; }
+.dsqx-carstage.is-3d .dsqx-cs-flash { background:radial-gradient(ellipse 55% 30% at 50% 62%,rgba(255,248,220,.42),transparent 70%); }
 
 </style>
 <!-- DSQX:CSS END -->
@@ -1342,7 +1364,7 @@ html.dsqx-intro .dsqx-hero-txt > * { opacity:0 !important; transform:translateX(
 </div>
 
 <!-- HERO -->
-<script>/* DSQX intro: hide hero text until the car has arrived (desktop, motion OK) */(function(d){try{if(innerWidth>=992&&!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("dsqx-intro");setTimeout(function(){d.classList.remove("dsqx-intro")},9000)}}catch(e){}})(document.documentElement);</script>
+<script>/* DSQX intro: hide hero text until the car has arrived (desktop, motion OK) */(function(d){try{d.classList.add("dsqx-js");setTimeout(function(){d.classList.remove("dsqx-intro");var c=document.querySelector(".dsqx-carstage");if(c)c.classList.add("is-played")},14000);if(innerWidth>=992&&!matchMedia("(prefers-reduced-motion: reduce)").matches)d.classList.add("dsqx-intro")}catch(e){}})(document.documentElement);</script>
 <header id="home" class="hero noise-overlay" aria-label="DriveSQ — Manchester's Best Driving School">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="hero-ov" aria-hidden="true"></div>
@@ -1352,13 +1374,16 @@ html.dsqx-intro .dsqx-hero-txt > * { opacity:0 !important; transform:translateX(
       <!-- DSQX:CAR START — car column -->
       <div class="col-lg-6 order-1 dsqx-hero-carcol">
         <div class="dsqx-hero-car">
-<div class="dsqx-carstage" data-dsqx-car role="img" aria-label="The DriveSQ car drives towards you, spins round and flashes its headlights">
+<div class="dsqx-carstage" data-dsqx-car role="img" aria-label="The DriveSQ car drives towards you from far away, skids, spins 360 degrees and flashes its headlights">
   <div class="dsqx-cs-sky"></div>
   <svg class="dsqx-cs-road" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="dsqxRoad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1b1e"/><stop offset="1" stop-color="#0c0c0e"/></linearGradient></defs>
     <polygon points="250,0 350,0 600,260 0,260" fill="url(#dsqxRoad)"/>
     <polygon points="244,0 250,0 0,260 0,248" fill="#D10A11" opacity=".55"/><polygon points="350,0 356,0 600,248 600,260" fill="#D10A11" opacity=".55"/>
     <g class="dsqx-cs-dashes"><rect x="296" y="10" width="8" height="26" fill="#eee"/><rect x="295" y="70" width="10" height="34" fill="#eee"/><rect x="293" y="140" width="14" height="44" fill="#eee"/><rect x="291" y="214" width="18" height="56" fill="#eee"/></g>
+  </svg>
+  <svg class="dsqx-cs-skid" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+    <path pathLength="1" d="M286 70 C282 120 250 150 214 178 S150 222 168 262"/><path pathLength="1" d="M314 70 C318 120 350 150 386 178 S452 222 432 262"/>
   </svg>
   <div class="dsqx-cs-flash" aria-hidden="true"></div>
   <div class="dsqx-cs-car" aria-hidden="true">
@@ -1418,6 +1443,8 @@ html.dsqx-intro .dsqx-hero-txt > * { opacity:0 !important; transform:translateX(
       </svg>
     </div>
   </div>
+  <div class="dsqx-cs-smoke dsqx-cs-smoke--skid" aria-hidden="true"><i style="left:8%;--d:0s;--x:-60%"></i><i style="left:16%;--d:0.08s;--x:-40%"></i><i style="left:24%;--d:0.18s;--x:-80%"></i><i style="left:62%;--d:0.04s;--x:50%"></i><i style="left:70%;--d:0.12s;--x:70%"></i><i style="left:78%;--d:0.22s;--x:40%"></i><i style="left:40%;--d:0.3s;--x:-20%"></i><i style="left:50%;--d:0.36s;--x:20%"></i></div>
+  <div class="dsqx-cs-smoke dsqx-cs-smoke--spin" aria-hidden="true"><i style="left:4%;--d:0s;--x:-90%"></i><i style="left:18%;--d:0.06s;--x:-60%"></i><i style="left:34%;--d:0.12s;--x:-30%"></i><i style="left:52%;--d:0.04s;--x:30%"></i><i style="left:68%;--d:0.1s;--x:60%"></i><i style="left:82%;--d:0.16s;--x:90%"></i></div>
   <div class="dsqx-cs-caption"><span class="dsqx-cs-dot"></span>DriveSQ · DVSA-approved · Dual controls</div>
   <button type="button" class="dsqx-cs-replay" aria-label="Replay the car animation"><i class="bi bi-arrow-repeat"></i></button>
 </div>
@@ -3571,6 +3598,286 @@ function openLocalVideo(src) {
 })();
 </script>
 <!-- DSQX:JS START -->
+<script id="dsqx-car3d">
+/* DSQX 3D car — one real 3D model, so the whole body stays the same as it drives, skids, spins and flashes.
+   Needs three.js r128 (window.THREE). Returns null if WebGL is unavailable so the SVG car is used instead. */
+window.DSQXCar3D = function (stage, hooks) {
+  var T = window.THREE; if (!T || !stage) return null;
+  var canvas = document.createElement("canvas"), renderer;
+  canvas.className = "dsqx-cs-3d"; canvas.setAttribute("aria-hidden", "true");
+  try { renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); } catch (e) { return null; }
+  if (!renderer.getContext()) return null;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = .92;
+  renderer.setClearColor(0x000000, 0);
+  var sky = stage.querySelector(".dsqx-cs-sky");
+  stage.insertBefore(canvas, sky ? sky.nextSibling : stage.firstChild);
+  stage.classList.add("is-3d");
+
+  var PI = Math.PI, scene = new T.Scene();
+  scene.fog = new T.Fog(0x0b0b0d, 20, 92);
+  var cam = new T.PerspectiveCamera(38, 1, 0.1, 300);
+  var CAM = new T.Vector3(0, 1.55, 8.2), LOOK = new T.Vector3(0, 0.85, 0);
+
+  /* ---------- helpers ---------- */
+  function tex(w, h, draw, srgb) {
+    var c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
+    var t = new T.CanvasTexture(c); if (srgb !== false) t.encoding = T.sRGBEncoding;
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t;
+  }
+  function radial(inner, outer) {
+    return tex(128, 128, function (g, w) { var r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); r.addColorStop(0, inner); r.addColorStop(1, outer); g.fillStyle = r; g.fillRect(0, 0, w, w); });
+  }
+  function ext(shape, depth, bevel) {
+    var g = new T.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 5, curveSegments: 20 });
+    g.translate(0, 0, -depth / 2); g.rotateY(-PI / 2); g.computeVertexNormals(); return g; // profile x (length) -> world z (front = +z)
+  }
+  function box(w, h, d, mat, x, y, z, parent) { var m = new T.Mesh(new T.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (parent || body).add(m); return m; }
+  function plane(w, h, mat, x, y, z, ry, parent) { var m = new T.Mesh(new T.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = ry || 0; (parent || body).add(m); return m; }
+  function keys(k, u) { // smooth keyframe interpolation [[u,v],...]
+    if (u <= k[0][0]) return k[0][1];
+    for (var i = 1; i < k.length; i++) if (u <= k[i][0]) { var a = k[i - 1], b = k[i], s = (u - a[0]) / (b[0] - a[0]); s = s * s * (3 - 2 * s); return a[1] + (b[1] - a[1]) * s; }
+    return k[k.length - 1][1];
+  }
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function easeOut3(u) { return 1 - Math.pow(1 - u, 3); }
+  function easeInOut3(u) { return u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; }
+
+  /* ---------- reflections for the glossy paint ---------- */
+  var pm = new T.PMREMGenerator(renderer), env = new T.Scene();
+  env.add(new T.Mesh(new T.SphereGeometry(20, 16, 8), new T.MeshBasicMaterial({ color: 0x121216, side: T.BackSide })));
+  function panel(w, h, x, y, z, c, i) { var m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(i), side: T.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); }
+  panel(16, 3, 0, 12, 3, 0xffffff, 1.6); panel(9, 2, -12, 6, 1, 0xffffff, .9); panel(9, 2, 12, 5, -2, 0xffe6d6, .8);
+  panel(12, 3, 0, 4, -14, 0xff2a2a, .7); panel(7, 2, 0, 3, 14, 0xffffff, .6);
+  scene.environment = pm.fromScene(env, 0.04).texture;
+
+  scene.add(new T.HemisphereLight(0x8a90a0, 0x0a0606, 0.32));
+  var key = new T.DirectionalLight(0xffffff, 1.05); key.position.set(4, 8, 7); scene.add(key);
+  var rim = new T.DirectionalLight(0xff3434, .55); rim.position.set(-6, 3, -8); scene.add(rim);
+
+  /* ---------- road ---------- */
+  var roadTex = tex(256, 512, function (g, w, h) {
+    g.fillStyle = "#141416"; g.fillRect(0, 0, w, h);
+    for (var i = 0; i < 3000; i++) { g.fillStyle = "rgba(255,255,255," + (Math.random() * .05).toFixed(3) + ")"; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+    g.fillStyle = "#D10A11"; g.fillRect(8, 0, 9, h); g.fillRect(w - 17, 0, 9, h);
+    g.fillStyle = "#ececec"; g.fillRect(w / 2 - 5, 40, 10, 220);
+  });
+  roadTex.wrapS = roadTex.wrapT = T.RepeatWrapping; roadTex.repeat.set(1, 30);
+  var road = new T.Mesh(new T.PlaneGeometry(7.5, 300), new T.MeshStandardMaterial({ map: roadTex, roughness: .9, color: 0x9a9a9a }));
+  road.rotation.x = -PI / 2; road.position.z = -130; scene.add(road);
+  var ground = new T.Mesh(new T.PlaneGeometry(500, 500), new T.MeshStandardMaterial({ color: 0x08080a, roughness: 1 }));
+  ground.rotation.x = -PI / 2; ground.position.y = -0.01; scene.add(ground);
+
+  /* ---------- the car ---------- */
+  var car = new T.Group(), body = new T.Group(); car.add(body); scene.add(car);
+  var paint = new T.MeshPhysicalMaterial({ color: 0xb0050b, metalness: .45, roughness: .2, clearcoat: 1, clearcoatRoughness: .05, envMapIntensity: .9 });
+  var glass = new T.MeshPhysicalMaterial({ color: 0x06070a, metalness: .3, roughness: .04, clearcoat: 1, envMapIntensity: 1.7 });
+  var black = new T.MeshStandardMaterial({ color: 0x0d0d0f, roughness: .55 });
+  var chrome = new T.MeshStandardMaterial({ color: 0xd5d8de, metalness: 1, roughness: .22 });
+  var tyreM = new T.MeshStandardMaterial({ color: 0x111112, roughness: .92 });
+
+  var bs = new T.Shape(); // side profile, x = length (front +), y = height
+  bs.moveTo(-2.12, .34); bs.lineTo(-1.78, .34); bs.absarc(-1.36, .34, .42, PI, 0, true);
+  bs.lineTo(.94, .34); bs.absarc(1.36, .34, .42, PI, 0, true); bs.lineTo(2.1, .34);
+  bs.quadraticCurveTo(2.26, .36, 2.25, .58); bs.quadraticCurveTo(2.22, .8, 1.95, .86);
+  bs.lineTo(.95, .98); bs.lineTo(-1.85, 1.02); bs.quadraticCurveTo(-2.2, 1, -2.22, .75); bs.quadraticCurveTo(-2.26, .4, -2.12, .34);
+  body.add(new T.Mesh(ext(bs, 1.62, .07), paint));
+
+  var gs = new T.Shape(); // glasshouse
+  gs.moveTo(1, .97); gs.lineTo(.2, 1.4); gs.quadraticCurveTo(.06, 1.46, -.2, 1.46); gs.lineTo(-1.42, 1.45);
+  gs.quadraticCurveTo(-1.68, 1.44, -1.8, 1.28); gs.lineTo(-1.98, 1.01); gs.lineTo(1, .97);
+  body.add(new T.Mesh(ext(gs, 1.36, .06), glass));
+  var rs = new T.Shape(); // roof panel
+  rs.moveTo(.16, 1.43); rs.quadraticCurveTo(.04, 1.5, -.2, 1.5); rs.lineTo(-1.42, 1.49); rs.quadraticCurveTo(-1.62, 1.48, -1.7, 1.38); rs.lineTo(-1.42, 1.44); rs.lineTo(.16, 1.43);
+  body.add(new T.Mesh(ext(rs, 1.3, .07), paint));
+  [-1, 1].forEach(function (s) { // pillars + mirrors
+    var a = box(.07, .05, .92, paint, s * .74, 1.19, .6); a.rotation.x = .52;
+    box(.07, .46, .13, paint, s * .745, 1.22, -.42);
+    var c = box(.07, .05, .7, paint, s * .74, 1.24, -1.72); c.rotation.x = -.72;
+    box(.2, .1, .12, paint, s * .96, 1.04, .82); box(.02, .08, .1, glass, s * 1.065, 1.04, .82);
+  });
+
+  // lights, grille, plates
+  var hlMat = new T.MeshStandardMaterial({ color: 0xe6ebf2, emissive: 0xfff3d2, emissiveIntensity: .15, metalness: .2, roughness: .08 });
+  var drlMat = new T.MeshBasicMaterial({ color: 0xffffff });
+  var tailMat = new T.MeshStandardMaterial({ color: 0x5a0000, emissive: 0xff1010, emissiveIntensity: .9 });
+  var glowTex = radial("rgba(255,248,225,1)", "rgba(255,220,140,0)");
+  var glows = [], spots = [];
+  [-1, 1].forEach(function (s) {
+    var h = box(.48, .15, .1, hlMat, s * .6, .74, 2.255); h.rotation.y = -s * .12;
+    box(.4, .028, .05, drlMat, s * .6, .652, 2.27);
+    box(.42, .12, .06, tailMat, s * .6, .84, -2.27);
+    var g = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: 0xfff1cf, transparent: true, opacity: .35, depthWrite: false, blending: T.AdditiveBlending, fog: false }));
+    g.position.set(s * .62, .74, 2.45); g.scale.set(.6, .6, 1); body.add(g); glows.push(g);
+    var sp = new T.SpotLight(0xfff1d6, 0, 34, .42, .65, 1.4); sp.position.set(s * .6, .74, 2.5);
+    sp.target.position.set(s * .9, 0, 14); body.add(sp); body.add(sp.target); spots.push(sp);
+  });
+  box(.86, .16, .05, black, 0, .6, 2.27);
+  box(1.86, .1, .08, black, 0, .4, 2.26); box(1.86, .1, .08, black, 0, .4, -2.26);
+  function plateTex(bg) { return tex(512, 112, function (g, w, h) { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.strokeStyle = "#111"; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6); g.fillStyle = "#111"; g.font = "bold 76px Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("DR18 VSQ", w / 2, h / 2 + 4); }); }
+  plane(.52, .114, new T.MeshStandardMaterial({ map: plateTex("#f6f6f2"), roughness: .4 }), 0, .47, 2.335);
+  plane(.52, .114, new T.MeshStandardMaterial({ map: plateTex("#f6c400"), roughness: .4 }), 0, .56, -2.335, PI);
+  var lTex = tex(128, 128, function (g, w) { g.fillStyle = "#fff"; g.fillRect(0, 0, w, w); g.fillStyle = "#D10A11"; g.fillRect(34, 18, 26, 92); g.fillRect(34, 84, 62, 26); });
+  var lMat = new T.MeshStandardMaterial({ map: lTex, roughness: .5 });
+  plane(.18, .18, lMat, -.66, .47, 2.33); plane(.18, .18, lMat, .66, .56, -2.33, PI);
+
+  // DriveSQ door decals (each side reads correctly)
+  var decal = tex(512, 128, function (g, w, h) { g.font = "800 92px 'Barlow Condensed', Oswald, Arial Narrow, sans-serif"; g.textBaseline = "middle"; g.textAlign = "left"; var a = g.measureText("Drive").width, b = g.measureText("SQ").width, x = (w - a - b) / 2; g.fillStyle = "#fff"; g.fillText("Drive", x, h / 2 + 4); g.fillStyle = "#111"; g.fillText("SQ", x + a, h / 2 + 4); });
+  var decalMat = new T.MeshStandardMaterial({ map: decal, transparent: true, roughness: .35, polygonOffset: true, polygonOffsetFactor: -2 });
+  plane(1.3, .325, decalMat, .884, .66, -.15, PI / 2); plane(1.3, .325, decalMat, -.884, .66, -.15, -PI / 2);
+
+  // roof sign
+  var signTex = tex(512, 144, function (g, w, h) {
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#D10A11"; g.lineWidth = 16; g.strokeRect(8, 8, w - 16, h - 16);
+    g.font = "800 100px 'Barlow Condensed', Oswald, Arial Narrow, sans-serif"; g.textBaseline = "middle"; g.textAlign = "left";
+    var a = g.measureText("Drive").width, b = g.measureText("SQ").width, x = (w - a - b) / 2; g.fillStyle = "#111"; g.fillText("Drive", x, h / 2 + 5); g.fillStyle = "#D10A11"; g.fillText("SQ", x + a, h / 2 + 5);
+  });
+  var signFace = new T.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: .35, roughness: .4 });
+  var signSide = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0xff2020, emissiveIntensity: .25, roughness: .4 });
+  box(.56, .06, .22, black, 0, 1.56, -.62);
+  var sign = new T.Mesh(new T.BoxGeometry(1.02, .29, .16), [signSide, signSide, signSide, signSide, signFace, signFace]);
+  sign.position.set(0, 1.74, -.62); body.add(sign);
+
+  // wheels
+  var wheels = [];
+  [[.79, 1.36], [-.79, 1.36], [.79, -1.36], [-.79, -1.36]].forEach(function (p) {
+    var w = new T.Group(), spin = new T.Group(); w.add(spin);
+    var tyre = new T.Mesh(new T.CylinderGeometry(.36, .36, .26, 32), tyreM); tyre.rotation.z = PI / 2; spin.add(tyre);
+    var rimG = new T.Mesh(new T.CylinderGeometry(.24, .24, .27, 24), chrome); rimG.rotation.z = PI / 2; spin.add(rimG);
+    for (var k = 0; k < 5; k++) { var sp = new T.Mesh(new T.BoxGeometry(.285, .045, .4), black); sp.rotation.x = k * PI / 5; spin.add(sp); }
+    w.position.set(p[0], .36, p[1]); car.add(w); wheels.push({ g: w, s: spin, rear: p[1] < 0 });
+  });
+
+  // soft contact shadow
+  var sh = new T.Mesh(new T.PlaneGeometry(2.7, 5.2), new T.MeshBasicMaterial({ map: radial("rgba(0,0,0,.85)", "rgba(0,0,0,0)"), transparent: true, depthWrite: false }));
+  sh.rotation.x = -PI / 2; sh.position.y = .006; car.add(sh);
+
+  /* ---------- tyre smoke + skid marks ---------- */
+  var smokeTex = radial("rgba(235,235,240,.6)", "rgba(200,200,210,0)"), puffs = [];
+  for (var i = 0; i < 90; i++) {
+    var sm = new T.Sprite(new T.SpriteMaterial({ map: smokeTex, color: 0xa6a6ae, transparent: true, opacity: 0, depthWrite: false }));
+    sm.visible = false; scene.add(sm); puffs.push({ s: sm, life: 0, max: 1, v: new T.Vector3() });
+  }
+  var pi = 0;
+  function puff(p, strength) {
+    var o = puffs[pi++ % puffs.length]; o.s.position.copy(p); o.s.position.y = .25;
+    o.v.set((Math.random() - .5) * 1.6, .5 + Math.random() * .8, (Math.random() - .5) * 1.6);
+    o.life = 0; o.max = 1.4 + Math.random() * 1.2; o.k = strength || 1; o.s.visible = true;
+  }
+  var markMat = new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .62, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  var markGeo = new T.PlaneGeometry(.17, .16); markGeo.rotateX(-PI / 2);
+  var marks = [], mi = 0, last = wheels.map(function () { return null; });
+  for (i = 0; i < 900; i++) { var m = new T.Mesh(markGeo, markMat); m.visible = false; m.position.y = .004; scene.add(m); marks.push(m); }
+  var wp = new T.Vector3();
+  function mark(idx) {
+    wheels[idx].g.getWorldPosition(wp);
+    var L = last[idx]; if (L && L.distanceTo(wp) < .06) return;
+    var m = marks[mi++ % marks.length]; m.position.set(wp.x, .004, wp.z); m.visible = true;
+    if (L) { var dx = wp.x - L.x, dz = wp.z - L.z; m.rotation.y = Math.atan2(dx, dz); m.scale.z = Math.min(2.2, Math.sqrt(dx * dx + dz * dz) / .16 + .35); } else m.rotation.y = car.rotation.y;
+    last[idx] = (last[idx] || new T.Vector3()).copy(wp);
+  }
+
+  /* ---------- lights state ---------- */
+  var lightOn = 0, lightTarget = 0;
+  function setLights(on, flash) { lightTarget = on ? (flash ? 1.35 : 1) : 0; if (hooks && hooks.lights) hooks.lights(on, flash); }
+
+  /* ---------- sizing + loop ---------- */
+  function size() { var w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+  size(); if (window.ResizeObserver) new ResizeObserver(size).observe(stage); else window.addEventListener("resize", size);
+
+  var t0 = -1, clock = 0, prev = 0, visible = true, raf = 0, shake = 0, events = {}, fov = 38;
+  function reset() {
+    car.position.set(0, 0, -75); car.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0); body.position.y = 0;
+    marks.forEach(function (m) { m.visible = false; }); markMat.opacity = .62; last = wheels.map(function () { return null; });
+    puffs.forEach(function (o) { o.s.visible = false; }); lightOn = lightTarget = 0; setLights(false); events = {}; fov = 38;
+  }
+  function once(name, fn) { if (!events[name]) { events[name] = 1; fn(); } }
+  function pose(t, dt) {
+    var u, wheelSpeed = 0;
+    if (t < 5) { // far away, driving slowly and steadily straight at the customer
+      u = t / 5; car.position.set(0, 0, -75 + 66 * u); wheelSpeed = 13.2;
+      body.rotation.x = Math.sin(t * 9) * .004; body.position.y = Math.sin(t * 13) * .006;
+    } else if (t < 6.5) { // hard braking -> skid: tail kicks out, counter-steer, settle
+      u = (t - 5) / 1.5;
+      once("skid", function () { shake = .35; if (hooks && hooks.onSkid) hooks.onSkid(); });
+      car.position.z = -9 + 9 * easeOut3(u);
+      car.position.x = keys([[0, 0], [.35, .38], [.7, -.16], [1, 0]], u);
+      car.rotation.y = keys([[0, 0], [.35, -.56], [.7, .22], [.88, -.06], [1, 0]], u);
+      body.rotation.z = keys([[0, 0], [.3, .075], [.65, -.05], [1, 0]], u);
+      body.rotation.x = keys([[0, 0], [.12, .055], [.6, .03], [.85, -.018], [1, 0]], u);
+      if (u < .85) { for (var w = 0; w < 4; w++) mark(w); if (Math.random() < .9) { wheels[2].g.getWorldPosition(wp); puff(wp); wheels[3].g.getWorldPosition(wp); puff(wp); } if (Math.random() < .35) { wheels[0].g.getWorldPosition(wp); puff(wp, .7); } }
+    } else if (t < 6.8) { body.rotation.set(0, 0, 0); car.rotation.y = 0; car.position.set(0, 0, 0); last = wheels.map(function () { return null; });
+    } else if (t < 8.7) { // 360° donut around the front wheels, smoke pouring off the rears
+      u = (t - 6.8) / 1.9; var yaw = -2 * PI * easeInOut3(u), R = .42; fov = 38 + 7 * Math.sin(PI * u);
+      car.rotation.y = yaw; car.position.x = -Math.sin(yaw) * R; car.position.z = R - Math.cos(yaw) * R;
+      body.rotation.z = .07 * Math.sin(PI * u); body.rotation.x = -.02 * Math.sin(PI * u);
+      wheelSpeed = 30 * Math.sin(PI * u) + 2;
+      if (u > .04 && u < .96) { mark(2); mark(3); for (var q = 0; q < 2; q++) { wheels[2 + q].g.getWorldPosition(wp); puff(wp, 1.1); } }
+    } else if (t < 9.2) { // settle on the suspension
+      u = (t - 8.7) / .5; car.rotation.y = 0; car.position.set(0, 0, 0); body.rotation.z = 0;
+      body.rotation.x = .025 * Math.sin(u * PI * 3) * (1 - u);
+    } else if (t < 10.2) { // roll up closer to the customer
+      u = easeInOut3((t - 9.2) / 1); car.position.z = 1.5 * u; wheelSpeed = 2.4 * Math.sin(PI * (t - 9.2)); fov = 38 - 7 * u;
+      body.rotation.x = 0;
+    } else { // flash the headlights at the customer, then idle
+      car.position.z = 1.5; fov = 31;
+      var f = t - 10.4;
+      if (f >= 0) once("f1", function () { setLights(true, true); });
+      if (f >= .17) once("f2", function () { setLights(false); });
+      if (f >= .32) once("f3", function () { setLights(true, true); });
+      if (f >= .49) once("f4", function () { setLights(false); });
+      if (f >= .64) once("f5", function () { setLights(true, true); });
+      if (f >= 1.0) once("f6", function () { setLights(true); if (hooks && hooks.done) hooks.done(); });
+      body.position.y = Math.sin(t * 2.2) * .008; body.rotation.x = Math.sin(t * 2.2 + 1) * .003;
+    }
+    wheels.forEach(function (w) { w.s.rotation.x += wheelSpeed * dt / .36; });
+  }
+  var frozen = false;
+  function step(now) {
+    raf = 0; if (frozen) return; var dt = Math.min(.1, prev ? (now - prev) / 1000 : 0); prev = now;
+    update(dt);
+    if (visible && !document.hidden) raf = requestAnimationFrame(step);
+  }
+  function update(dt, noRender) {
+    if (t0 >= 0) { clock += dt; pose(clock, dt); }
+    // lights
+    lightOn += (lightTarget - lightOn) * Math.min(1, dt * 28);
+    hlMat.emissiveIntensity = .15 + lightOn * 2;
+    spots.forEach(function (s) { s.intensity = lightOn * 3.2; });
+    glows.forEach(function (g) { var k = .25 + lightOn * .6; g.material.opacity = Math.min(.9, k); var sc = .55 + lightOn * .75; g.scale.set(sc, sc, 1); });
+    signFace.emissiveIntensity = .35 + lightOn * .25;
+    // smoke
+    puffs.forEach(function (o) {
+      if (!o.s.visible) return; o.life += dt; var a = o.life / o.max;
+      if (a >= 1) { o.s.visible = false; return; }
+      o.s.position.addScaledVector(o.v, dt); o.v.multiplyScalar(.985); o.v.y += .25 * dt;
+      var sc = (.5 + a * 2.6) * (o.k || 1); o.s.scale.set(sc, sc, 1); o.s.material.opacity = .45 * Math.sin(PI * Math.min(1, a * 1.15)) * (o.k || 1);
+    });
+    if (clock > 12) markMat.opacity = Math.max(.38, markMat.opacity - dt * .03);
+    // camera (with a little shake on the skid)
+    shake = Math.max(0, shake - dt);
+    var sk = shake * .35;
+    cam.position.set(CAM.x + (Math.random() - .5) * sk, CAM.y + (Math.random() - .5) * sk * .6, CAM.z);
+    if (Math.abs(cam.fov - fov) > .01) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    cam.lookAt(LOOK);
+    if (!noRender) renderer.render(scene, cam);
+  }
+  function kick() { if (!raf && visible && !document.hidden) { prev = 0; raf = requestAnimationFrame(step); } }
+  if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; kick(); }).observe(stage);
+  document.addEventListener("visibilitychange", kick);
+  reset(); car.visible = false; kick();
+
+  var api = {
+    play: function () { reset(); car.visible = true; t0 = 0; clock = 0; kick(); },
+    seek: function (t) { frozen = true; if (t < clock || t0 < 0) { reset(); car.visible = true; t0 = 0; clock = 0; } while (clock < t) update(1 / 60, true); shake = 0; update(0); },
+    still: function () { reset(); car.visible = true; car.position.z = 1.5; fov = 31; t0 = -1; setLights(true); kick(); }
+  };
+  stage.__dsqx3d = api;
+  return api;
+};
+
+</script>
 <script id="dsqx-js">
 /* ==========================================================
    DSQX — DriveSQ enhancement layer
@@ -3641,41 +3948,99 @@ function openLocalVideo(src) {
     function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     function anim(el, frames, opts) { return el.animate(frames, opts).finished.catch(function () {}); }
     function lights(on, flash) { stage.classList.toggle("lights", on); stage.classList.toggle("flash", !!flash); if (h1) { h1.classList.toggle("lit", on); h1.classList.toggle("flash", !!flash); } }
-    function finalState() { show("front"); stage.classList.add("is-parked"); lights(true); reveal(); }
-    async function turn(v, flip) {
-      await anim(spin, [{ transform: "scaleX(1)" }, { transform: "scaleX(.04)" }], { duration: 170, easing: "ease-in", fill: "forwards" });
+    function finalState() { show("front"); stage.classList.add("is-played", "is-parked"); lights(true); reveal(); }
+    function settle(el) { if (el.getAnimations) el.getAnimations().forEach(function (x) { x.cancel(); }); }
+    async function turn(v, flip, ms) {
+      ms = ms || 180;
+      await anim(spin, [{ transform: "scaleX(1)" }, { transform: "scaleX(.04)" }], { duration: ms * .47, easing: "ease-in", fill: "forwards" });
       show(v, flip);
-      await anim(spin, [{ transform: "scaleX(.04)" }, { transform: "scaleX(1)" }], { duration: 190, easing: "ease-out", fill: "forwards" });
+      await anim(spin, [{ transform: "scaleX(.04)" }, { transform: "scaleX(1)" }], { duration: ms * .53, easing: "ease-out", fill: "forwards" });
     }
-    async function play() {
+    function restart(cls) { stage.classList.remove(cls); void stage.offsetWidth; stage.classList.add(cls); }
+    var T = "translateX(-50%) ";
+    async function playSvg() {
       if (running) return; running = true; played = true;
-      stage.classList.remove("is-parked"); lights(false);
+      settle(car); settle(spin);
+      stage.classList.remove("is-parked", "skid", "spinning"); lights(false);
+      stage.classList.add("is-played");
       show("front");
       if (reduce || !car.animate) { finalState(); running = false; return; }
       var intro = root.classList.contains("dsqx-intro") && wrap && window.innerWidth >= 992;
-      // 1) drive forward towards the viewer
-      await anim(car, [{ transform: "translateX(-50%) translateY(-46%) scale(.18)", opacity: 0 }, { offset: .15, opacity: 1 }, { transform: "translateX(-50%) translateY(0) scale(1)", opacity: 1 }],
-        { duration: 1700, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" });
-      stage.classList.add("is-parked");
-      await anim(car, [{ transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(5px)" }, { transform: "translateX(-50%) translateY(0)" }], { duration: 260, easing: "ease-out" });
-      await wait(180);
-      // 2) turn to face left and drive to the left; the "Pass First Time" text slides in beside it
-      await turn("side", true);
+      // 1) far away on the horizon, then a slow, steady drive straight towards the customer
+      stage.classList.add("is-driving");
+      await anim(car, [
+        { transform: T + "translateY(-60%) scale(.04)", opacity: 0 },
+        { offset: .1, transform: T + "translateY(-56%) scale(.08)", opacity: 1 },
+        { transform: T + "translateY(-8%) scale(.82)", opacity: 1 }],
+        { duration: 3800, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
+      // 2) brake hard and skid: the tail kicks out, tyres smoke, skid marks on the road, camera shakes
+      stage.classList.remove("is-driving"); stage.classList.add("is-parked"); restart("skid");
+      var skid = anim(car, [
+        { transform: T + "translateY(-8%) scale(.82) rotate(0deg)" },
+        { offset: .22, transform: T + "translateY(-3%) scale(.9) translateX(-7%) rotate(-17deg)" },
+        { offset: .55, transform: T + "translateY(1%) scale(.98) translateX(5%) rotate(9deg)" },
+        { offset: .8, transform: T + "translateY(2px) scale(1) translateX(-1%) rotate(-3deg)" },
+        { transform: T + "translateY(0) scale(1) rotate(0deg)" }],
+        { duration: 1300, easing: "cubic-bezier(.2,.75,.3,1)", fill: "forwards" });
+      anim(stage, [{ transform: "none" }, { transform: "translate(-5px,2px)" }, { transform: "translate(5px,-2px)" }, { transform: "translate(-3px,1px)" }, { transform: "translate(2px,0)" }, { transform: "none" }], { duration: 420, easing: "linear" });
       if (intro) {
         var from = getComputedStyle(wrap).transform;
-        var glide = anim(wrap, [{ transform: from }, { transform: "translateX(0)" }], { duration: 1100, easing: "cubic-bezier(.65,0,.35,1)", fill: "forwards" });
-        var bob = anim(car, [{ transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(-4px)" }, { transform: "translateX(-50%) translateY(0)" }, { transform: "translateX(-50%) translateY(-3px)" }, { transform: "translateX(-50%) translateY(0)" }], { duration: 1100 });
-        setTimeout(reveal, 350);
-        await glide; await bob;
-      } else { reveal(); await anim(car, [{ transform: "translateX(-50%)" }, { transform: "translateX(-56%)" }, { transform: "translateX(-50%)" }], { duration: 700, easing: "ease-in-out" }); }
-      await wait(120);
-      // 3) finish the 360° spin: rear → side → front (facing the customer)
-      await turn("rear"); await wait(110); await turn("side", false); await wait(110); await turn("front");
-      await wait(260);
+        anim(wrap, [{ transform: from }, { transform: "translateX(0)" }], { duration: 1300, easing: "cubic-bezier(.2,.75,.3,1)", fill: "forwards" });
+        setTimeout(reveal, 300);
+      } else reveal();
+      await skid;
+      await anim(spin, [{ transform: "scaleY(1)" }, { transform: "scaleY(.96) translateY(6px)" }, { transform: "scaleY(1)" }], { duration: 280, easing: "ease-out" });
+      await wait(200);
+      // 3) a full 360° spin in a cloud of smoke — fast in the middle, easing out to face the customer
+      restart("spinning");
+      var seq = [["side", false, 230], ["rear", false, 170], ["side", true, 170], ["front", false, 260]];
+      for (var i = 0; i < seq.length; i++) await turn(seq[i][0], seq[i][1], seq[i][2]);
+      await anim(car, [{ transform: T + "translateY(0)" }, { transform: T + "translateY(-10px)" }, { transform: T + "translateY(0)" }], { duration: 320, easing: "cubic-bezier(.3,1.6,.6,1)" });
+      await wait(300);
       // 4) flash the headlights at the customer
-      for (var f = 0; f < 2; f++) { lights(true, true); await wait(170); lights(false); await wait(150); }
-      lights(true, true); await wait(260); lights(true);
+      for (var f = 0; f < 2; f++) { lights(true, true); await wait(160); lights(false); await wait(140); }
+      lights(true, true); await wait(320); lights(true);
+      settle(car); settle(spin);
       running = false;
+    }
+    /* 3D car (three.js) — same body from every angle; SVG car is the fallback */
+    var c3 = null, c3state = "off", pending = false;
+    function webgl() { try { var c = document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl"))); } catch (e) { return false; } }
+    if (!reduce && webgl()) {
+      c3state = "loading";
+      var sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"; sc.async = true;
+      sc.onload = function () {
+        if (c3state !== "loading") return;
+        try {
+          c3 = window.DSQXCar3D && window.DSQXCar3D(stage, {
+            onSkid: function () { glide(); },
+            lights: function (on, flash) { lights(on, flash); },
+            done: function () { stage.classList.add("is-parked"); running = false; }
+          });
+        } catch (e) { c3 = null; }
+        c3state = c3 ? "ready" : "off";
+        if (!c3) stage.classList.remove("is-3d");
+        if (pending) { pending = false; play(); }
+      };
+      sc.onerror = function () { c3state = "off"; if (pending) { pending = false; play(); } };
+      document.head.appendChild(sc);
+    }
+    function glide() {
+      var intro = root.classList.contains("dsqx-intro") && wrap && window.innerWidth >= 992;
+      if (intro) {
+        var from = getComputedStyle(wrap).transform;
+        anim(wrap, [{ transform: from }, { transform: "translateX(0)" }], { duration: 1400, easing: "cubic-bezier(.2,.75,.3,1)", fill: "forwards" });
+        setTimeout(reveal, 300);
+      } else reveal();
+    }
+    function play() {
+      if (c3state === "loading") {
+        if (!pending) { pending = true; setTimeout(function () { if (pending && c3state === "loading") { c3state = "off"; pending = false; play(); } }, 3500); }
+        return;
+      }
+      if (c3) { played = true; running = true; stage.classList.add("is-played"); stage.classList.remove("is-parked"); c3.play(); return; }
+      playSvg();
     }
     stage.addEventListener("click", function () { play(); });
     var go = function () { if (!played) play(); };
