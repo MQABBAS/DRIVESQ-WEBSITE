@@ -848,6 +848,7 @@ footer a:hover { color:#fff; }
   .join-steps { flex-direction:column; }
 }
 </style>
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
 <!-- DSQX:CSS START -->
 <style id="dsqx-css">
 /* ==========================================================
@@ -1235,24 +1236,24 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 #page-loader { background:radial-gradient(ellipse 60% 45% at 50% 45%,rgba(209,10,17,.16),transparent 70%),#080808 !important; }
 .dsqx-ld { display:flex; flex-direction:column; align-items:center; width:min(320px,82vw); }
 .dsqx-ld__brand { font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; font-size:clamp(3rem,12vw,4.4rem); letter-spacing:.01em; line-height:1; color:#fff; text-transform:none;
-  animation:dsqx-ign 1.9s ease-out both; }
+  animation:dsqx-ign 1.2s ease-out both; }
 .dsqx-ld__brand span { color:#D10A11; text-shadow:0 0 18px rgba(209,10,17,.75),0 0 46px rgba(209,10,17,.45); }
 @keyframes dsqx-ign { 0%{opacity:.15;filter:brightness(.4)} 8%{opacity:1;filter:brightness(1.4)} 12%{opacity:.35} 18%{opacity:1;filter:brightness(1)} 30%{transform:translateX(0)} 33%{transform:translateX(-2px)} 36%{transform:translateX(2px)} 39%{transform:translateX(-1px)} 42%,100%{transform:none;opacity:1} }
-.dsqx-ld__tach { width:100%; margin-top:10px; animation:dsqx-shake .09s linear 6 .35s; }
+.dsqx-ld__tach { width:100%; margin-top:10px; animation:dsqx-shake .08s linear 5 .2s; }
 .dsqx-ld__tach svg { width:100%; height:auto; display:block; overflow:visible; }
-.dsqx-ld__needle { transform-box:view-box; transform-origin:110px 118px; animation:dsqx-rev 1.9s cubic-bezier(.3,.1,.2,1) both, dsqx-idle-n .18s ease-in-out 1.9s infinite alternate; filter:drop-shadow(0 0 6px rgba(255,45,53,.8)); }
+.dsqx-ld__needle { transform-box:view-box; transform-origin:110px 118px; animation:dsqx-rev 1.2s cubic-bezier(.3,.1,.2,1) both, dsqx-idle-n .18s ease-in-out 1.2s infinite alternate; filter:drop-shadow(0 0 6px rgba(255,45,53,.8)); }
 @keyframes dsqx-rev { 0%{transform:rotate(0)} 14%{transform:rotate(26deg)} 22%{transform:rotate(14deg)} 30%{transform:rotate(20deg)} 52%{transform:rotate(152deg)} 64%{transform:rotate(96deg)} 74%{transform:rotate(128deg)} 90%,100%{transform:rotate(19deg)} }
 @keyframes dsqx-idle-n { from{transform:rotate(18deg)} to{transform:rotate(21deg)} }
 @keyframes dsqx-shake { 0%,100%{transform:none} 25%{transform:translate(-1.5px,1px)} 75%{transform:translate(1.5px,-1px)} }
-.dsqx-ld__sweep { stroke-dasharray:100; stroke-dashoffset:100; animation:dsqx-sweep 1.9s cubic-bezier(.3,.1,.2,1) forwards; }
+.dsqx-ld__sweep { stroke-dasharray:100; stroke-dashoffset:100; animation:dsqx-sweep 1.2s cubic-bezier(.3,.1,.2,1) forwards; }
 @keyframes dsqx-sweep { 52%{stroke-dashoffset:16} 100%{stroke-dashoffset:89} }
 .dsqx-ld__bar { width:100%; height:3px; margin-top:16px; background:#1c1c1f; border-radius:3px; overflow:hidden; }
-.dsqx-ld__bar span { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#8f0007,#D10A11,#ff4d55); box-shadow:0 0 12px #D10A11; animation:dsqx-fill 2.2s cubic-bezier(.4,0,.2,1) forwards; }
+.dsqx-ld__bar span { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#8f0007,#D10A11,#ff4d55); box-shadow:0 0 12px #D10A11; animation:dsqx-fill 1.3s cubic-bezier(.4,0,.2,1) forwards; }
 @keyframes dsqx-fill { to { transform:scaleX(1); } }
 .dsqx-ld__txt { position:relative; height:1.2em; width:100%; margin-top:12px; text-align:center; font-family:'Oswald',sans-serif; font-size:.78rem; letter-spacing:.32em; text-transform:uppercase; color:#8a8a8a; }
 .dsqx-ld__txt span { position:absolute; inset:0; }
-.dsqx-ld__txt .a { animation:dsqx-txta 2.2s steps(1) forwards; }
-.dsqx-ld__txt .b { opacity:0; color:#e9e9e9; animation:dsqx-txtb 2.2s steps(1) forwards; }
+.dsqx-ld__txt .a { animation:dsqx-txta 1.3s steps(1) forwards; }
+.dsqx-ld__txt .b { opacity:0; color:#e9e9e9; animation:dsqx-txtb 1.3s steps(1) forwards; }
 @keyframes dsqx-txta { 85%{opacity:0} 100%{opacity:0} }
 @keyframes dsqx-txtb { 85%{opacity:1} 100%{opacity:1} }
 @media (prefers-reduced-motion:reduce){ .dsqx-ld *, .dsqx-ld__brand { animation:none !important; } .dsqx-ld__needle { transform:rotate(19deg); } .dsqx-ld__bar span { transform:scaleX(1); } .dsqx-ld__txt .a { opacity:0; } .dsqx-ld__txt .b { opacity:1; } .dsqx-ld__sweep { stroke-dashoffset:89; } }
@@ -3330,8 +3331,7 @@ function openLocalVideo(src) {
     document.body.classList.remove('loading');
     document.querySelector('.hero')?.classList.add('loaded');
   }
-  window.addEventListener('load', () => setTimeout(dismiss, Math.max(400, 2150 - performance.now()))); /* DSQX: let the engine-start rev finish */
-  setTimeout(dismiss, 3500);
+  setTimeout(dismiss, Math.max(250, 1350 - performance.now())); /* DSQX: hide once the page is parsed and the engine-start rev has played — don't wait for every image */
 })();
 
 /* ── NAVBAR SECTION-AWARE COLOUR ── */
@@ -3869,7 +3869,7 @@ window.DSQXCar3D = function (stage, hooks) {
   function once(name, fn) { if (!events[name]) { events[name] = 1; fn(); } }
   function pose(t, dt) {
     var u, wheelSpeed = 0;
-    var A = 3.2; if (t >= A) t += 5 - A; // approach time; everything after it keeps its pacing
+    var A = 2.2; if (t >= A) t += 5 - A; // approach time; everything after it keeps its pacing
     if (t < 5) { // far away, driving steadily straight at the customer
       u = t / A; car.position.set(0, 0, -75 + 66 * u); wheelSpeed = 66 / A;
       body.rotation.x = Math.sin(t * 9) * .004; body.position.y = Math.sin(t * 13) * .006;
@@ -4056,7 +4056,7 @@ window.DSQXCar3D = function (stage, hooks) {
         { transform: T + "translateY(-60%) scale(.04)", opacity: 0 },
         { offset: .1, transform: T + "translateY(-56%) scale(.08)", opacity: 1 },
         { transform: T + "translateY(-8%) scale(.82)", opacity: 1 }],
-        { duration: 2600, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
+        { duration: 1800, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
       // 2) brake hard and skid: the tail kicks out, tyres smoke, skid marks on the road, camera shakes
       stage.classList.remove("is-driving"); stage.classList.add("is-parked"); restart("skid");
       var skid = anim(car, [
@@ -4133,7 +4133,7 @@ window.DSQXCar3D = function (stage, hooks) {
       var loader = document.getElementById("page-loader");
       var ready = !loader || loader.classList.contains("hide");
       var vis = false;
-      var maybe = function () { if (ready && vis) setTimeout(go, 250); };
+      var maybe = function () { if (ready && vis) setTimeout(go, 80); };
       new IntersectionObserver(function (es) { vis = es[0].isIntersecting; maybe(); }, { threshold: .35 }).observe(stage);
       if (!ready) { var mo = new MutationObserver(function () { if (loader.classList.contains("hide")) { ready = true; mo.disconnect(); maybe(); } }); mo.observe(loader, { attributes: true, attributeFilter: ["class"] }); setTimeout(function () { ready = true; maybe(); }, 4000); }
     } else go();
