@@ -3420,7 +3420,7 @@ function openLocalVideo(src) {
     try{
       // Find & Assign matches instructors by transmission, so store the real gearbox; the service goes in the notes
       const lessonType=gearbox==='Automatic'?'Automatic':'Manual';
-      const notesStr=['[WEB] Homepage booking form','Service: '+service,'Gearbox: '+gearbox,notes?'Notes: '+notes:'',email?'Email: '+email:''].filter(Boolean).join('\n');
+      const notesStr=['[WEB] Homepage booking form','Service: '+service,'Gearbox: '+gearbox,'Postcode: '+postcode,notes?'Notes: '+notes:'',email?'Email: '+email:''].filter(Boolean).join('\n');
       const sbHeaders={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
       // Try full insert first
       let sbRes=await fetch(SB_URL+'/rest/v1/waiting_list',{
@@ -4400,17 +4400,28 @@ window.DSQXCar3D = function (stage, hooks) {
       var notes = ["[WEB] Book in 60 seconds (homepage)" + (updated ? " — UPDATED request" : ""),
         "Package: " + get("Package") + " — " + get("Price"), "Gearbox: " + get("Gearbox"), "Experience: " + get("Experience"),
         "Nervous learner: " + ($("#dq_nerv", root).checked ? "yes — please take it slow" : "no"),
-        "Availability: " + avail, em ? "Email: " + em : ""].filter(Boolean).join("\n");
+        "Availability: " + avail, "Postcode: " + (pcFull || ""), ad ? "Address: " + ad : "", em ? "Email: " + em : ""].filter(Boolean).join("\n");
       var payload = { student_name: nameIn.value.trim() || null, student_phone: tel || null,
         postcode: pcFull || null, area: ad || null, lesson_type: lessonType(), notes: notes, status: "waiting", created_at: new Date().toISOString() };
       var H = { "Content-Type": "application/json", apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, Prefer: "return=minimal" };
       var post = function (body) { return fetch(SB_URL + "/rest/v1/waiting_list", { method: "POST", headers: H, body: JSON.stringify(body) }); };
-      var sb = post(payload).then(function (r) {
-        if (r.ok) return true;
-        // same fallback as the homepage form: retry with the minimum fields
-        return post({ student_name: payload.student_name, student_phone: payload.student_phone, notes: payload.notes + (payload.postcode ? "\nPostcode: " + payload.postcode : "") + (payload.area ? "\nAddress: " + payload.area : ""), status: "waiting" })
-          .then(function (r2) { if (!r2.ok) throw new Error("supabase " + r.status + "/" + r2.status); return true; });
-      });
+      // Try the full record first; if the database refuses a column, retry without just that column,
+      // so postcode and transmission are kept whenever the table has them (notes always carry a copy too).
+      var base = { student_name: payload.student_name, student_phone: payload.student_phone, notes: payload.notes, status: "waiting" };
+      var tries = [payload,
+        Object.assign({}, base, { postcode: payload.postcode, lesson_type: payload.lesson_type, created_at: payload.created_at }),
+        Object.assign({}, base, { postcode: payload.postcode, lesson_type: payload.lesson_type }),
+        Object.assign({}, base, { postcode: payload.postcode }),
+        base];
+      var codes = [];
+      var sb = (function attempt(k) {
+        return post(tries[k]).then(function (r) {
+          if (r.ok) return true;
+          codes.push(r.status);
+          if (k + 1 < tries.length && r.status >= 400 && r.status < 500 && r.status !== 401 && r.status !== 403) return attempt(k + 1);
+          throw new Error("supabase " + codes.join("/"));
+        });
+      })(0);
       var fd = new FormData(); rows.forEach(function (r) { fd.append(r[0], r[1] || "—"); });
       fd.append("_subject", (updated ? "UPDATED booking" : "New booking") + " — Book in 60 seconds (" + (nameIn.value.trim() || "web") + ")"); fd.append("Source", "drivesq.co.uk — Book in 60 seconds");
       var fs = fetch("https://formspree.io/f/xvgjdapp", { method: "POST", body: fd, headers: { Accept: "application/json" } }).then(function (r) { if (!r.ok) throw new Error("formspree " + r.status); return true; });

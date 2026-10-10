@@ -9137,6 +9137,7 @@ async function loadWaitlist(){
   if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">Error: '+error.message+'</div>';return;}
+    (data||[]).forEach(_wlNormalise);
   // Stats — always fetch all statuses so counts are accurate regardless of filter
   if(statsEl){
     sb.from('waiting_list').select('status').then(({data:allRows})=>{
@@ -9192,15 +9193,35 @@ function _extractEmailFromNotes(notes){
   const m=(notes||'').match(/Email:\s*([^\n,]+)/i);
   return m?m[1].trim():'';
 }
+/* ══ BOOKING ROW REPAIR ══
+   Website bookings always write "Postcode:", "Gearbox:" and "Address:" lines into the notes.
+   If a row's postcode / lesson type / address columns are empty (e.g. the save fell back to a
+   minimal record), fill them from the notes so lists and Find & Assign are always accurate. */
+function _wlNormalise(r){
+  if(!r)return r;
+  const n=String(r.notes||'');
+  const pick=re=>{const m=n.match(re);return m?m[1].trim():'';};
+  const fmtPc=v=>{const c=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return c.length>=5?c.slice(0,-3)+' '+c.slice(-3):c;};
+  if(!r.postcode){const pc=pick(/(?:^|\n)\s*Postcode:\s*([^\n]+)/i);if(pc)r.postcode=fmtPc(pc);}
+  else r.postcode=fmtPc(r.postcode);
+  if(!r.area){const a=pick(/(?:^|\n)\s*(?:Address|Pick-?up street):\s*([^\n]+)/i);if(a)r.area=a;}
+  const g=pick(/(?:^|\n)\s*(?:Gearbox|Transmission):\s*([^\n]+)/i)||pick(/(?:^|\n)\s*Service:\s*([^\n]+)/i);
+  if(/auto/i.test(g))r.lesson_type='Automatic';
+  else if(/manual/i.test(g)&&!/^(Intensive|Mock Test)$/.test(r.lesson_type||''))r.lesson_type='Manual';
+  if(!r.lesson_type)r.lesson_type=/automatic/i.test(n)?'Automatic':'Manual';
+  return r;
+}
 function waitlistAssign(id,name,postcode,type,phone,notes){
   // Pre-fill Find & Assign and switch to it
   switchTab('find');setActiveTab('find');
   setTimeout(()=>{
+    const r=_wlNormalise({postcode,lesson_type:type,notes,area:''});
     const email=_extractEmailFromNotes(notes);
-    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').trim();
-    const fields={['fc-name']:name,['fc-postcode']:postcode,['fc-phone']:phone,['fc-email']:email,['fc-notes']:cleanNotes};
+    const _av=(notes||'').match(/Availability:\s*([^\n]+)/i);
+    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Postcode:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Address:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
+    const fields={['fc-name']:name,['fc-postcode']:r.postcode||postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:r.area||'',['fc-avail']:_av?_av[1].trim():'',['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
-    document.getElementById('fc-type').value=type||'Manual';
+    document.getElementById('fc-type').value=r.lesson_type||type||'Manual';
     window._waitlistIdToAssign=id;
     findClosest();
   },300);
@@ -9244,7 +9265,7 @@ async function loadWebBookings(){
   if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">'+error.message+'</div>';return;}
-  _webBookingsData=data||[];
+  _webBookingsData=(data||[]).map(_wlNormalise);
   const totalBadge=document.getElementById('wbTotalBadge');
   if(totalBadge)totalBadge.textContent=_webBookingsData.length+' booking'+((_webBookingsData.length!==1)?'s':'');
   renderWebBookings();
@@ -9366,7 +9387,8 @@ async function openWbCreateStudent(wbId){
   // Availability line (saved by the website booking wizard as "Availability: …") → Availability field
   const _availM=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
   const avail=_availM?_availM[1].trim():'';
-  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
+  _wlNormalise(r);
+  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Postcode:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Address:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
 
   // Fill form fields — use a longer delay so the Find tab panel is fully visible
   setTimeout(()=>{
