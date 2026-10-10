@@ -1234,24 +1234,24 @@ html.dsqx-js .dsqx-carstage:not(.is-played) .dsqx-cs-car { opacity:0; }
 #page-loader { background:radial-gradient(ellipse 60% 45% at 50% 45%,rgba(209,10,17,.16),transparent 70%),#080808 !important; }
 .dsqx-ld { display:flex; flex-direction:column; align-items:center; width:min(320px,82vw); }
 .dsqx-ld__brand { font-family:'Barlow Condensed','Oswald',sans-serif; font-weight:800; font-size:clamp(3rem,12vw,4.4rem); letter-spacing:.01em; line-height:1; color:#fff; text-transform:none;
-  animation:dsqx-ign 1.2s ease-out both; }
+  animation:dsqx-ign .6s ease-out both; }
 .dsqx-ld__brand span { color:#D10A11; text-shadow:0 0 18px rgba(209,10,17,.75),0 0 46px rgba(209,10,17,.45); }
 @keyframes dsqx-ign { 0%{opacity:.15;filter:brightness(.4)} 8%{opacity:1;filter:brightness(1.4)} 12%{opacity:.35} 18%{opacity:1;filter:brightness(1)} 30%{transform:translateX(0)} 33%{transform:translateX(-2px)} 36%{transform:translateX(2px)} 39%{transform:translateX(-1px)} 42%,100%{transform:none;opacity:1} }
-.dsqx-ld__tach { width:100%; margin-top:10px; animation:dsqx-shake .08s linear 5 .2s; }
+.dsqx-ld__tach { width:100%; margin-top:10px; animation:dsqx-shake .07s linear 4 .1s; }
 .dsqx-ld__tach svg { width:100%; height:auto; display:block; overflow:visible; }
-.dsqx-ld__needle { transform-box:view-box; transform-origin:110px 118px; animation:dsqx-rev 1.2s cubic-bezier(.3,.1,.2,1) both, dsqx-idle-n .18s ease-in-out 1.2s infinite alternate; filter:drop-shadow(0 0 6px rgba(255,45,53,.8)); }
+.dsqx-ld__needle { transform-box:view-box; transform-origin:110px 118px; animation:dsqx-rev .62s cubic-bezier(.3,.1,.2,1) both, dsqx-idle-n .18s ease-in-out .62s infinite alternate; filter:drop-shadow(0 0 6px rgba(255,45,53,.8)); }
 @keyframes dsqx-rev { 0%{transform:rotate(0)} 14%{transform:rotate(26deg)} 22%{transform:rotate(14deg)} 30%{transform:rotate(20deg)} 52%{transform:rotate(152deg)} 64%{transform:rotate(96deg)} 74%{transform:rotate(128deg)} 90%,100%{transform:rotate(19deg)} }
 @keyframes dsqx-idle-n { from{transform:rotate(18deg)} to{transform:rotate(21deg)} }
 @keyframes dsqx-shake { 0%,100%{transform:none} 25%{transform:translate(-1.5px,1px)} 75%{transform:translate(1.5px,-1px)} }
-.dsqx-ld__sweep { stroke-dasharray:100; stroke-dashoffset:100; animation:dsqx-sweep 1.2s cubic-bezier(.3,.1,.2,1) forwards; }
+.dsqx-ld__sweep { stroke-dasharray:100; stroke-dashoffset:100; animation:dsqx-sweep .62s cubic-bezier(.3,.1,.2,1) forwards; }
 @keyframes dsqx-sweep { 52%{stroke-dashoffset:16} 100%{stroke-dashoffset:89} }
 .dsqx-ld__bar { width:100%; height:3px; margin-top:16px; background:#1c1c1f; border-radius:3px; overflow:hidden; }
-.dsqx-ld__bar span { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#8f0007,#D10A11,#ff4d55); box-shadow:0 0 12px #D10A11; animation:dsqx-fill 1.3s cubic-bezier(.4,0,.2,1) forwards; }
+.dsqx-ld__bar span { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#8f0007,#D10A11,#ff4d55); box-shadow:0 0 12px #D10A11; animation:dsqx-fill .65s cubic-bezier(.4,0,.2,1) forwards; }
 @keyframes dsqx-fill { to { transform:scaleX(1); } }
 .dsqx-ld__txt { position:relative; height:1.2em; width:100%; margin-top:12px; text-align:center; font-family:'Oswald',sans-serif; font-size:.78rem; letter-spacing:.32em; text-transform:uppercase; color:#8a8a8a; }
 .dsqx-ld__txt span { position:absolute; inset:0; }
-.dsqx-ld__txt .a { animation:dsqx-txta 1.3s steps(1) forwards; }
-.dsqx-ld__txt .b { opacity:0; color:#e9e9e9; animation:dsqx-txtb 1.3s steps(1) forwards; }
+.dsqx-ld__txt .a { animation:dsqx-txta .65s steps(1) forwards; }
+.dsqx-ld__txt .b { opacity:0; color:#e9e9e9; animation:dsqx-txtb .65s steps(1) forwards; }
 @keyframes dsqx-txta { 85%{opacity:0} 100%{opacity:0} }
 @keyframes dsqx-txtb { 85%{opacity:1} 100%{opacity:1} }
 @media (prefers-reduced-motion:reduce){ .dsqx-ld *, .dsqx-ld__brand { animation:none !important; } .dsqx-ld__needle { transform:rotate(19deg); } .dsqx-ld__bar span { transform:scaleX(1); } .dsqx-ld__txt .a { opacity:0; } .dsqx-ld__txt .b { opacity:1; } .dsqx-ld__sweep { stroke-dashoffset:89; } }
@@ -1455,6 +1455,55 @@ section:has(> .sqa-mascot) { position:relative; }
 .dsqx-status { font-weight:600; }
 .dsqx-status.is-err { color:#D10A11; }
 .dsqx-legal a { color:#D10A11; font-weight:700; }
+/* ---------- the hanging SQ guide (always one tap away) ---------- */
+.sqa-hang { position:fixed; right:clamp(54px,4.5vw,76px); top:0; z-index:1020; width:92px; pointer-events:none; opacity:0; transform:translateY(-110%); transition:opacity .35s ease, transform .6s cubic-bezier(.34,1.56,.64,1); }
+.sqa-hang.is-on { opacity:1; transform:none; }
+.sqa-hang__rope { position:absolute; left:50%; top:0; width:2px; height:calc(var(--hang-top,64px) + 26px); margin-left:-1px; background:linear-gradient(#9a9a9a,#cfcfcf); box-shadow:0 0 0 1px rgba(0,0,0,.15); }
+.sqa-hang__swing { position:absolute; left:0; right:0; top:0; height:calc(var(--hang-top,64px) + 26px + 150px); transform-origin:50% 0; }
+.sqa-hang__body { all:unset; position:absolute; left:0; right:0; top:calc(var(--hang-top,64px) + 22px); cursor:pointer; pointer-events:auto; }
+.sqa-hang__body svg { width:100%; height:auto; display:block; overflow:visible; filter:drop-shadow(0 14px 18px rgba(0,0,0,.35)); }
+.sqa-hang__body:focus-visible { outline:2px solid #D10A11; outline-offset:4px; border-radius:12px; }
+.sqa-hang .arm-wave { transform-origin:52px 100px; animation:sqa-wave 1.1s ease-in-out infinite; animation-play-state:paused; }
+.sqa-hang.is-drop .arm-wave, .sqa-hang__body:hover .arm-wave { animation-play-state:running; }
+.sqa-hang .blink { animation:sqa-blink 4s infinite; transform-origin:center; transform-box:fill-box; }
+.sqa-hang__bubble { all:unset; position:absolute; right:100%; top:calc(var(--hang-top,64px) + 34px); margin-right:6px; width:max-content; max-width:190px; padding:9px 13px; border-radius:16px 16px 4px 16px; background:#fff; color:#1f1714; font:500 .8rem/1.35 Inter,sans-serif;
+  box-shadow:0 14px 30px -12px rgba(0,0,0,.5); border:1px solid rgba(0,0,0,.06); cursor:pointer; pointer-events:auto; transition:opacity .25s, transform .3s; }
+.sqa-hang__bubble b { color:#D10A11; }
+.sqa-hang__bubble.is-swap { opacity:0; transform:translateY(4px); }
+.sqa-hang__x { all:unset; position:absolute; right:-4px; top:calc(var(--hang-top,64px) + 14px); width:20px; height:20px; border-radius:50%; display:grid; place-items:center; background:#1f1714; color:#fff; font-size:.6rem; cursor:pointer; pointer-events:auto; opacity:0; transition:opacity .2s; }
+.sqa-hang:hover .sqa-hang__x, .sqa-hang__x:focus-visible { opacity:1; }
+@media (max-width:767px) { .sqa-hang { width:62px; right:8px; } .sqa-hang__bubble { opacity:0; pointer-events:none; } .sqa-hang.is-talk .sqa-hang__bubble { opacity:1; pointer-events:auto; } .sqa-hang__bubble { font-size:.72rem; max-width:140px; padding:7px 10px; } .sqa-hang__x { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .sqa-hang { transition:opacity .2s; transform:none; } .sqa-hang .arm-wave { animation:none; } }
+
+/* ---------- scroll car on the progress bar ---------- */
+.dsqx-pcar { position:fixed; top:1px; left:0; z-index:100000; width:66px; height:44px; pointer-events:none; opacity:0; transition:opacity .35s ease; will-change:transform; }
+.dsqx-pcar.is-on { opacity:1; }
+.dsqx-pcar__svg { width:100%; height:100%; display:block; overflow:visible; transition:transform .25s ease; filter:drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.dsqx-pcar.is-back .dsqx-pcar__svg { transform:scaleX(-1); }
+.dsqx-pcar .beam { opacity:0; transition:opacity .2s; }
+.dsqx-pcar.is-moving .beam { opacity:.9; }
+.dsqx-pcar.is-moving .dsqx-pcar__svg { animation:dsqx-pbump .25s ease-in-out infinite alternate; }
+@keyframes dsqx-pbump { to { translate:0 -1px; } }
+#scroll-progress { height:4px !important; box-shadow:0 0 12px rgba(209,10,17,.7); }
+
+/* ---------- road dividers: a DriveSQ car drives across as you scroll ---------- */
+.dsqx-road { position:relative; height:136px; overflow:hidden; background:linear-gradient(#0f0f12,#151518 50%,#0f0f12); border-top:4px solid #D10A11; border-bottom:4px solid #D10A11; box-shadow:inset 0 10px 24px -14px #000, inset 0 -10px 24px -14px #000; }
+.dsqx-road::before { content:""; position:absolute; left:0; right:0; top:50%; height:4px; margin-top:-2px; background:repeating-linear-gradient(90deg,#f2f2f2 0 46px,transparent 46px 92px); opacity:.85; }
+.dsqx-road::after { content:""; position:absolute; inset:0; background:radial-gradient(ellipse 30% 120% at var(--rx,50%) 50%,rgba(255,240,200,.07),transparent 70%); pointer-events:none; }
+.dsqx-road__car { position:absolute; left:0; bottom:6px; width:clamp(150px,13vw,186px); will-change:transform; z-index:2; }
+.dsqx-road__svg { width:100%; height:auto; display:block; overflow:visible; filter:drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+.dsqx-road__signs { position:absolute; inset:0; display:flex; justify-content:space-around; align-items:flex-start; padding-top:8px; pointer-events:none; z-index:1; }
+.dsqx-road__sign { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:#e9e9e9; font:700 .78rem/1 'Barlow Condensed','Oswald',sans-serif; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; transition:transform .5s cubic-bezier(.34,1.56,.64,1), background .4s, border-color .4s; }
+.dsqx-road__sign i { color:#ff4d55; font-size:.95rem; }
+.dsqx-road.is-near .dsqx-road__sign { background:rgba(209,10,17,.16); border-color:rgba(209,10,17,.5); transform:translateY(2px); }
+@media (max-width:767px) { .dsqx-road { height:112px; } .dsqx-road__car { width:150px; } .dsqx-road__sign:nth-child(n+2) { display:none; } .dsqx-road__signs { justify-content:center; } }
+
+/* ---------- card tilt + light ---------- */
+.dsqx-tilt { transition:transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s !important; transform-style:preserve-3d; position:relative; }
+.dsqx-tilt::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .25s; background:radial-gradient(circle at var(--tx,50%) var(--ty,50%),rgba(255,255,255,.18),transparent 55%); }
+.dsqx-tilt:hover::after { opacity:1; }
+.dsqx-tilt:hover { box-shadow:0 24px 50px -28px rgba(0,0,0,.55); }
+@media (prefers-reduced-motion:reduce) { .dsqx-pcar { display:none; } }
 
 </style>
 <!-- DSQX:CSS END -->
@@ -1973,6 +2022,8 @@ section:has(> .sqa-mascot) { position:relative; }
 <hr class="sec-divider">
 
 <!-- REVIEWS -->
+<!-- DSQX:ROAD -->
+<div class="dsqx-road" data-dsqx-road aria-hidden="true"><div class="dsqx-road__signs"><span class="dsqx-road__sign"><i class="bi bi-shield-check"></i>DVSA-approved instructors</span><span class="dsqx-road__sign"><i class="bi bi-gear-wide-connected"></i>Manual &amp; automatic · £35/hr</span><span class="dsqx-road__sign"><i class="bi bi-lightning-charge-fill"></i>Book in 60 seconds</span></div><div class="dsqx-road__car"></div></div>
 <section id="reviews" class="reviews" aria-labelledby="reviews-title">
   <div class="container">
     <div class="text-center mb-5 reveal">
@@ -2347,6 +2398,8 @@ section:has(> .sqa-mascot) { position:relative; }
 <hr class="sec-divider">
 
 <!-- INSTAGRAM -->
+<!-- DSQX:ROAD -->
+<div class="dsqx-road" data-dsqx-road aria-hidden="true"><div class="dsqx-road__signs"><span class="dsqx-road__sign"><i class="bi bi-phone"></i>Free Student Portal</span><span class="dsqx-road__sign"><i class="bi bi-heart-fill"></i>Nervous? We go at your pace</span><span class="dsqx-road__sign"><i class="bi bi-geo-alt-fill"></i>All of Greater Manchester</span></div><div class="dsqx-road__car"></div></div>
 <section id="instagram" class="instagram-section" aria-labelledby="ig-title">
   <div class="container">
     <div class="ig-header reveal">
@@ -2854,6 +2907,8 @@ section:has(> .sqa-mascot) { position:relative; }
 </section>
 
 <!-- JOIN INSTRUCTORS -->
+<!-- DSQX:ROAD -->
+<div class="dsqx-road" data-dsqx-road aria-hidden="true"><div class="dsqx-road__signs"><span class="dsqx-road__sign"><i class="bi bi-star-fill"></i>5/5 on Google</span><span class="dsqx-road__sign"><i class="bi bi-trophy-fill"></i>Pass with confidence</span><span class="dsqx-road__sign"><i class="bi bi-whatsapp"></i>WhatsApp 07352 932003</span></div><div class="dsqx-road__car"></div></div>
 <section id="join" class="join" aria-labelledby="join-title">
   <div class="container">
     <div class="text-center reveal" style="max-width:780px;margin:0 auto">
@@ -3479,7 +3534,7 @@ function openLocalVideo(src) {
     document.body.classList.remove('loading');
     document.querySelector('.hero')?.classList.add('loaded');
   }
-  setTimeout(dismiss, Math.max(250, 1350 - performance.now())); /* DSQX: hide once the page is parsed and the engine-start rev has played — don't wait for every image */
+  setTimeout(dismiss, Math.max(120, 650 - performance.now())); /* DSQX: hide once the page is parsed and the engine-start rev has played — don't wait for every image */
 })();
 
 /* ── NAVBAR SECTION-AWARE COLOUR ── */
@@ -4017,7 +4072,7 @@ window.DSQXCar3D = function (stage, hooks) {
   function once(name, fn) { if (!events[name]) { events[name] = 1; fn(); } }
   function pose(t, dt) {
     var u, wheelSpeed = 0;
-    var A = 2.2; if (t >= A) t += 5 - A; // approach time; everything after it keeps its pacing
+    var A = 1.4; if (t >= A) t += 5 - A; // approach time; everything after it keeps its pacing
     if (t < 5) { // far away, driving steadily straight at the customer
       u = t / A; car.position.set(0, 0, -75 + 66 * u); wheelSpeed = 66 / A;
       body.rotation.x = Math.sin(t * 9) * .004; body.position.y = Math.sin(t * 13) * .006;
@@ -4067,7 +4122,7 @@ window.DSQXCar3D = function (stage, hooks) {
     if (visible && !document.hidden) raf = requestAnimationFrame(step);
   }
   function update(dt, noRender) {
-    if (t0 >= 0) { clock += dt; pose(clock, dt); }
+    if (t0 >= 0) { var fast = clock < 6.7 ? 1.6 : 1; clock += dt * fast; pose(clock, dt * fast); }
     // lights
     lightOn += (lightTarget - lightOn) * Math.min(1, dt * 28);
     hlMat.emissiveIntensity = .2 + lightOn * 2.4;
@@ -4204,7 +4259,7 @@ window.DSQXCar3D = function (stage, hooks) {
         { transform: T + "translateY(-60%) scale(.04)", opacity: 0 },
         { offset: .1, transform: T + "translateY(-56%) scale(.08)", opacity: 1 },
         { transform: T + "translateY(-8%) scale(.82)", opacity: 1 }],
-        { duration: 1800, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
+        { duration: 900, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
       // 2) brake hard and skid: the tail kicks out, tyres smoke, skid marks on the road, camera shakes
       stage.classList.remove("is-driving"); stage.classList.add("is-parked"); restart("skid");
       var skid = anim(car, [
@@ -4281,7 +4336,7 @@ window.DSQXCar3D = function (stage, hooks) {
       var loader = document.getElementById("page-loader");
       var ready = !loader || loader.classList.contains("hide");
       var vis = false;
-      var maybe = function () { if (ready && vis) setTimeout(go, 80); };
+      var maybe = function () { if (ready && vis) go(); };
       new IntersectionObserver(function (es) { vis = es[0].isIntersecting; maybe(); }, { threshold: .35 }).observe(stage);
       if (!ready) { var mo = new MutationObserver(function () { if (loader.classList.contains("hide")) { ready = true; mo.disconnect(); maybe(); } }); mo.observe(loader, { attributes: true, attributeFilter: ["class"] }); setTimeout(function () { ready = true; maybe(); }, 4000); }
     } else go();
@@ -4812,6 +4867,50 @@ window.DSQXCar3D = function (stage, hooks) {
     });
   }
 
+  /* ---------------- the SQ guide hangs on a rope, swings as you scroll, always one tap away ---------------- */
+  function hangingGuide() {
+    if (document.querySelector(".sqa-hang")) return;
+    try { if (sessionStorage.getItem("sqa-hang-off") === "1") return; } catch (e) {}
+    var LINES = ["Hi! 👋 Need help? <b>Ask me</b>", "Book in <b>60 seconds</b> ⚡", "Lessons from <b>£35/hr</b>", "Nervous? <b>We go at your pace</b> 💙", "Free <b>Student Portal</b> 📱", "Check your <b>postcode</b> 📍"];
+    var h = document.createElement("div"); h.className = "sqa-hang";
+    h.innerHTML = '<div class="sqa-hang__rope"></div><div class="sqa-hang__swing"><button type="button" class="sqa-hang__body" aria-label="Chat with the SQ Assistant">' + MASCOT + '</button>' +
+      '<button type="button" class="sqa-hang__bubble"><span>' + LINES[0] + '</span></button><button type="button" class="sqa-hang__x" aria-label="Hide the SQ guide">✕</button></div>';
+    document.body.appendChild(h);
+    var swing = h.querySelector(".sqa-hang__swing"), bub = h.querySelector(".sqa-hang__bubble span"), li = 0;
+    var navTop = function () { var n = document.querySelector("nav.navbar, #mainNav, nav"); var b = n ? n.getBoundingClientRect().bottom : 60; h.style.setProperty("--hang-top", Math.max(0, Math.min(140, b)) + "px"); };
+    navTop(); addEventListener("resize", navTop);
+    var open = function () { if (SQA.open) SQA.open(); track("sqa_hanging_click"); };
+    h.querySelector(".sqa-hang__body").addEventListener("click", open);
+    h.querySelector(".sqa-hang__bubble").addEventListener("click", open);
+    h.querySelector(".sqa-hang__x").addEventListener("click", function () { h.classList.remove("is-on"); try { sessionStorage.setItem("sqa-hang-off", "1"); } catch (e) {} setTimeout(function () { h.remove(); }, 500); });
+    setInterval(function () { if (!h.classList.contains("is-on") || document.hidden) return; li = (li + 1) % LINES.length; bub.parentNode.classList.add("is-swap"); setTimeout(function () { bub.innerHTML = LINES[li]; bub.parentNode.classList.remove("is-swap"); talk(); }, 260); }, 5200);
+    var talkT = 0; function talk() { h.classList.add("is-talk"); clearTimeout(talkT); talkT = setTimeout(function () { h.classList.remove("is-talk"); }, 4000); }
+    var ang = 0, vel = 0, lastY = scrollY, lastT = performance.now(), raf = 0;
+    function step() {
+      raf = 0; var acc = -ang * .045 - vel * .085; vel += acc; ang += vel;
+      if (Math.abs(ang) < .02 && Math.abs(vel) < .02) { ang = 0; vel = 0; }
+      swing.style.transform = "rotate(" + ang.toFixed(2) + "deg)";
+      if (ang || vel) raf = requestAnimationFrame(step);
+    }
+    var guides = [].slice.call(document.querySelectorAll(".sqa-mascot")), guideVisible = false, seen = [];
+    function update() {
+      var show = scrollY > innerHeight * .7 && !guideVisible && !document.documentElement.classList.contains("sqa-open");
+      if (show && !h.classList.contains("is-on")) { talk(); h.classList.add("is-on", "is-drop"); setTimeout(function () { h.classList.remove("is-drop"); }, 1300); }
+      if (!show) h.classList.remove("is-on");
+    }
+    if ("IntersectionObserver" in window && guides.length) {
+      var io = new IntersectionObserver(function (es) { es.forEach(function (e) { var k = seen.indexOf(e.target); if (e.isIntersecting && k < 0) seen.push(e.target); if (!e.isIntersecting && k > -1) seen.splice(k, 1); }); guideVisible = seen.length > 0; update(); }, { threshold: 0 });
+      guides.forEach(function (g) { io.observe(g.parentElement); });
+    }
+    addEventListener("scroll", function () {
+      var now = performance.now(), dy = scrollY - lastY, dt = Math.max(16, now - lastT); lastY = scrollY; lastT = now;
+      if (!reduce) { vel += Math.max(-1.6, Math.min(1.6, dy / dt * 2.2)); if (!raf) raf = requestAnimationFrame(step); }
+      update();
+    }, { passive: true });
+    new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    update();
+  }
+
   /* ---------------- floating dock + phone action bar ---------------- */
   function dock() {
     var wa = $("#wa-fab-btn");
@@ -4901,7 +5000,99 @@ window.DSQXCar3D = function (stage, hooks) {
     sv.addEventListener("change", function () { if (/automatic/i.test(sv.value)) gb.value = "Automatic"; else if (/manual/i.test(sv.value)) gb.value = "Manual"; });
   }
 
-  function init() { heroGearbox(); assistant(); mascots(); dock(); reaction(); theory(); headings(); }
+  function init() { heroGearbox(); assistant(); mascots(); hangingGuide(); dock(); reaction(); theory(); headings(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+
+</script>
+<script id="dsqx-motion">
+/* DSQX motion — scroll car on the progress bar, cars driving across the road dividers, card tilt */
+(function () {
+  "use strict";
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* side-view DriveSQ car (shared by the scroll car and the road dividers) */
+  var uid = 0;
+  function carSVG(cls) {
+    var u = "dsqm" + (++uid);
+    return ('<svg class="' + cls + '" viewBox="0 18 400 262" aria-hidden="true">' +
+      '<defs><linearGradient id="dsqmB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff2d35"/><stop offset=".55" stop-color="#D10A11"/><stop offset="1" stop-color="#8f0007"/></linearGradient>' +
+      '<linearGradient id="dsqmG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f4a"/><stop offset="1" stop-color="#0d0f13"/></linearGradient>' +
+      '<radialGradient id="dsqmL" cx="0" cy=".5" r="1"><stop offset="0" stop-color="#fff6c8" stop-opacity=".85"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient></defs>' +
+      '<path class="beam" d="M380 200 L560 168 L560 236 Z" fill="url(#dsqmL)"/>' +
+      '<ellipse cx="205" cy="268" rx="182" ry="12" fill="#000" opacity=".45"/>' +
+      '<g><rect x="132" y="38" width="146" height="36" rx="8" fill="#fff" stroke="#D10A11" stroke-width="4"/>' +
+      '<rect x="138" y="44" width="24" height="24" rx="3" fill="#fff" stroke="#D10A11" stroke-width="2.5"/><path d="M146 48 v15 h10" stroke="#D10A11" stroke-width="4" fill="none"/>' +
+      '<rect x="248" y="44" width="24" height="24" rx="3" fill="#fff" stroke="#D10A11" stroke-width="2.5"/><path d="M256 48 v15 h10" stroke="#D10A11" stroke-width="4" fill="none"/>' +
+      '<text x="205" y="63" font-family="Barlow Condensed,Oswald,Arial Narrow,sans-serif" font-weight="800" font-size="21" text-anchor="middle" fill="#111">Drive<tspan fill="#D10A11">SQ</tspan></text><rect x="180" y="74" width="50" height="8" rx="3" fill="#222"/></g>' +
+      '<path d="M24 214 Q24 190 50 186 L96 182 L140 128 Q150 116 168 116 L262 116 Q280 116 292 128 L332 178 L364 184 Q384 188 384 210 L384 238 L24 238 Z" fill="url(#dsqmB)"/>' +
+      '<path d="M118 178 L152 134 Q158 126 168 126 L206 126 L206 178 Z M216 178 L216 126 L258 126 Q270 126 278 136 L312 178 Z" fill="url(#dsqmG)"/>' +
+      '<text x="236" y="216" font-family="Barlow Condensed,Oswald,Arial Narrow,sans-serif" font-weight="800" font-size="25" text-anchor="middle" fill="#fff">Drive<tspan fill="#111">SQ</tspan></text>' +
+      '<rect x="30" y="200" width="20" height="20" rx="2" fill="#fff"/><path d="M36 203 v13 h9" stroke="#D10A11" stroke-width="3.5" fill="none"/>' +
+      '<rect x="370" y="194" width="14" height="12" rx="3" fill="#fffbe0"/><rect x="24" y="196" width="8" height="12" rx="2" fill="#ff3b3b"/>' +
+      [100, 306].map(function (x) {
+        return '<g class="wh" style="transform-origin:' + x + 'px 240px"><circle cx="' + x + '" cy="240" r="30" fill="#0b0b0d"/><circle cx="' + x + '" cy="240" r="17" fill="#9aa0a8"/>' +
+          '<path d="M' + x + ' 224 V256 M' + (x - 16) + ' 240 H' + (x + 16) + ' M' + (x - 11) + ' 229 L' + (x + 11) + ' 251 M' + (x + 11) + ' 229 L' + (x - 11) + ' 251" stroke="#4a4f57" stroke-width="3"/><circle cx="' + x + '" cy="240" r="5" fill="#2a2d33"/></g>';
+      }).join("") + "</svg>").replace(/dsqm([BGL])/g, u + "$1");
+  }
+
+  /* ---------- the car that rides the scroll-progress bar ---------- */
+  function scrollCar() {
+    var el = document.createElement("div"); el.className = "dsqx-pcar"; el.innerHTML = carSVG("dsqx-pcar__svg"); document.body.appendChild(el);
+    var lastY = window.scrollY, dir = 1, spin = 0, ticking = false, idle = 0;
+    function draw() {
+      ticking = false;
+      var h = document.documentElement.scrollHeight - innerHeight, y = window.scrollY, p = h > 0 ? Math.min(1, Math.max(0, y / h)) : 0, dy = y - lastY;
+      if (Math.abs(dy) > .5) dir = dy > 0 ? 1 : -1;
+      spin += dy * 1.4; lastY = y;
+      el.style.transform = "translate3d(calc(" + (p * 100).toFixed(3) + "vw - " + (p * 66).toFixed(1) + "px),0,0)";
+      el.classList.toggle("is-back", dir < 0); el.classList.toggle("is-on", y > 40);
+      el.classList.add("is-moving"); clearTimeout(idle); idle = setTimeout(function () { el.classList.remove("is-moving"); }, 160);
+      $$(".wh", el).forEach(function (w) { w.style.transform = "rotate(" + spin.toFixed(1) + "deg)"; });
+    }
+    addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(draw); } }, { passive: true });
+    addEventListener("resize", draw); draw();
+  }
+
+  /* ---------- cars that drive across the road dividers as you scroll ---------- */
+  function roads() {
+    var bands = $$("[data-dsqx-road]"); if (!bands.length) return;
+    bands.forEach(function (b) { var c = b.querySelector(".dsqx-road__car"); if (c && !c.firstChild) c.innerHTML = carSVG("dsqx-road__svg"); });
+    var visible = [], ticking = false;
+    function draw() {
+      ticking = false;
+      visible.forEach(function (b) {
+        var r = b.getBoundingClientRect(), vh = innerHeight, p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
+        var car = b.querySelector(".dsqx-road__car"), cw = car.offsetWidth, W = b.clientWidth, x = -cw + p * (W + cw);
+        car.style.transform = "translate3d(" + x.toFixed(1) + "px,0,0)";
+        $$(".wh", car).forEach(function (w) { w.style.transform = "rotate(" + (x * 1.1).toFixed(1) + "deg)"; });
+        b.classList.toggle("is-near", p > .25 && p < .8);
+      });
+    }
+    var kick = function () { if (!ticking) { ticking = true; requestAnimationFrame(draw); } };
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (es) { es.forEach(function (e) { var i = visible.indexOf(e.target); if (e.isIntersecting && i < 0) visible.push(e.target); if (!e.isIntersecting && i > -1) visible.splice(i, 1); }); kick(); });
+      bands.forEach(function (b) { io.observe(b); });
+    } else visible = bands;
+    addEventListener("scroll", kick, { passive: true }); addEventListener("resize", kick);
+  }
+
+  /* ---------- gentle 3D tilt + light on cards (mouse only) ---------- */
+  function tilt() {
+    if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    $$(".why-card, .svc-card, .offer-card, .cmp-card, .dsqx-card, .dsqx-step").forEach(function (c) {
+      c.classList.add("dsqx-tilt");
+      c.addEventListener("pointermove", function (e) {
+        var r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+        c.style.transform = "perspective(900px) rotateX(" + (-y * 6).toFixed(2) + "deg) rotateY(" + (x * 7).toFixed(2) + "deg) translateY(-4px)";
+        c.style.setProperty("--tx", (x * 100 + 50).toFixed(1) + "%"); c.style.setProperty("--ty", (y * 100 + 50).toFixed(1) + "%");
+      });
+      c.addEventListener("pointerleave", function () { c.style.transform = ""; });
+    });
+  }
+
+  function init() { if (reduce) { roads(); return; } scrollCar(); roads(); tilt(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
 
