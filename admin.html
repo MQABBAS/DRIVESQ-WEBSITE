@@ -691,6 +691,7 @@ div:has(> .bi-hourglass-split):not(button) > .bi-hourglass-split { color:var(--t
 
 
 
+
 <!-- ════ LOGIN ════ -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
@@ -3374,7 +3375,8 @@ function startAdminRealtime(){
         await loadWebBookingsBadge();
         const name=payload?.new?.student_name||'New student';
         showToast(`📅 New website booking: ${name}`,'success',6000);
-        pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
+        // the homepage forms push to admin devices themselves — only push here for other website forms
+        if(!/Book in 60 seconds|Homepage booking form/i.test(notes))pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
       }catch(e){}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_messages'},async(payload)=>{
@@ -12591,13 +12593,14 @@ document.addEventListener('click',e=>{
 
   /* ---------- web booking cards: readable, structured details ---------- */
   var ICON = { package: "bi-box-seam", requested: "bi-box-seam", gearbox: "bi-gear-fill", experience: "bi-speedometer2", availability: "bi-calendar-week", email: "bi-envelope-fill",
-    "nervous learner": "bi-heart-fill", nervous: "bi-heart-fill", contact: "bi-telephone-fill", page: "bi-link-45deg", postcode: "bi-geo-alt-fill", address: "bi-house-fill", note: "bi-chat-left-text" };
+    "nervous learner": "bi-heart-fill", nervous: "bi-heart-fill", contact: "bi-telephone-fill", page: "bi-link-45deg", postcode: "bi-geo-alt-fill", address: "bi-house-fill", note: "bi-chat-left-text", notes: "bi-chat-left-text", service: "bi-box-seam" };
   function parseNotes(notes) {
     var lines = String(notes || "").split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean), src = "Website form", wiz = false, facts = [];
     lines.forEach(function (l, i) {
       if (/\[WEB\]/i.test(l)) {
         var rest = l.replace(/\[WEB\]/ig, "").trim(), tag = (rest.match(/^\[([^\]]+)\]/) || [])[1];
         if (/book in 60 seconds/i.test(rest)) { src = "Book in 60 seconds"; wiz = true; if (/updated/i.test(rest)) src += " · updated"; }
+        else if (/homepage booking form/i.test(rest)) { src = "Homepage form"; wiz = true; }
         else if (tag) src = tag.toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); }).replace(/\bSeo\b/, "SEO");
         else if (/booked from:/i.test(rest)) src = rest.replace(/.*booked from:\s*/i, "");
         else if (rest) facts.push(["Note", rest]);
@@ -12619,7 +12622,7 @@ document.addEventListener('click',e=>{
     if (nameEl) nameEl.insertAdjacentHTML("afterend", '<span class="qa-src' + (p.wiz ? " qa-src--wiz" : "") + '"><i class="bi ' + (p.wiz ? "bi-lightning-charge-fill" : "bi-globe2") + '"></i>' + esc(p.src) + "</span>");
     if (notesDiv && p.facts.length) {
       notesDiv.outerHTML = '<div class="qa-facts">' + p.facts.map(function (f) {
-        var k = f[0].toLowerCase(), wide = /availability|note|package|requested/.test(k), warn = /nervous/.test(k) && /^yes/i.test(f[1]);
+        var k = f[0].toLowerCase(), wide = /availability|note|package|requested|service/.test(k), warn = /nervous/.test(k) && /^yes/i.test(f[1]);
         return '<div class="qa-fact' + (wide ? " qa-fact--wide" : "") + (warn ? " qa-fact--warn" : "") + '"><i class="bi ' + (ICON[k] || "bi-dot") + '"></i><div><small>' + esc(f[0]) + "</small><span>" + esc(f[1]) + "</span></div></div>";
       }).join("") + "</div>";
     }
@@ -12728,7 +12731,31 @@ document.addEventListener('click',e=>{
     }
   }
 
-  function init() { login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
+  /* ---------- never miss a website booking: backup check every minute ----------
+     The live (realtime) alert already plays a sound + toast. If realtime is ever unavailable,
+     this check still spots new bookings and alerts you — without doubling up on the live alert. */
+  function watchBookings() {
+    var lastLive = 0, prev = -1, badge = document.getElementById("webBookingsBadge");
+    if (typeof window._playBookingSound === "function" && !window._playBookingSound.__qa) {
+      var o = window._playBookingSound; window._playBookingSound = function () { lastLive = Date.now(); return o.apply(this, arguments); }; window._playBookingSound.__qa = true;
+    }
+    function count() { return parseInt((badge && badge.textContent) || "0", 10) || 0; }
+    setInterval(function () {
+      if (!loggedIn() || typeof window.loadWebBookingsBadge !== "function") return;
+      Promise.resolve(window.loadWebBookingsBadge()).then(function () {
+        var n = count();
+        if (prev >= 0 && n > prev && Date.now() - lastLive > 90000) {
+          call("_playBookingSound");
+          call("showToast", "📅 " + (n - prev) + " new website booking" + (n - prev > 1 ? "s" : "") + " — press B to review", "success");
+          try { if (document.hidden && window.Notification && Notification.permission === "granted") new Notification("📅 New website booking", { body: "Open DriveSQ admin to review and assign.", tag: "drivesq-admin" }); } catch (e) {}
+        }
+        prev = n;
+      });
+    }, 60000);
+    setTimeout(function () { prev = count(); }, 4000);
+  }
+
+  function init() { watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   window.DSQA = { palette: palette, confetti: confetti };
 })();

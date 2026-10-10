@@ -1688,7 +1688,8 @@ section:has(> .sqa-mascot) { position:relative; }
                 <option>Pass Plus</option>
               </select>
             </div>
-            <div class="col-6"><label class="req-star" for="b_pc">Postcode</label><input id="b_pc" name="postcode" class="form-control" placeholder="e.g. M19 2AB" required/></div>
+            <div class="col-6"><label class="req-star" for="b_g">Gearbox</label><select id="b_g" name="gearbox" class="form-select" required><option value="">Select...</option><option>Manual</option><option>Automatic</option></select></div>
+            <div class="col-12"><label class="req-star" for="b_pc">Full Postcode</label><input id="b_pc" name="postcode" class="form-control" placeholder="e.g. M19 2AB" autocomplete="postal-code" required/></div>
             <div class="col-12"><label for="b_no">Notes (optional)</label><textarea id="b_no" name="notes" rows="2" class="form-control" placeholder="Preferred times, experience level, area…"></textarea></div>
             <div class="col-12"><button class="btn-submit" type="submit"><i class="bi bi-send me-2"></i>Request Booking — Reply Within 2 Hours</button></div>
             <p class="mb-0 mt-1" style="font-size:.67rem;color:#3a3a3a"><i class="bi bi-shield-check me-1" style="color:var(--red)"></i>We never share your details. &nbsp;|&nbsp; <span class="tg">★★★★★</span> 5/5 Google</p>
@@ -3399,8 +3400,13 @@ function openLocalVideo(src) {
     const service=(bookForm.querySelector('[name="service"]')?.value||'').trim();
     const postcode=(bookForm.querySelector('[name="postcode"]')?.value||'').trim().toUpperCase();
     const notes=(bookForm.querySelector('[name="notes"]')?.value||'').trim();
+    const gearbox=(bookForm.querySelector('[name="gearbox"]')?.value||'').trim();
     // Validate required
-    if(!name||!email||!phone||!service||!postcode){
+    if(name&&email&&phone&&service&&gearbox&&postcode&&!/^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/.test(postcode)){
+      bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">Please enter your <strong>full postcode</strong>, e.g. M19 2AB.</div>');
+      btn.disabled=false;btn.innerHTML=origHtml;bookForm.querySelector('[name="postcode"]').focus();return;
+    }
+    if(!name||!email||!phone||!service||!gearbox||!postcode){
       bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">Please fill in all required fields.</div>');
       btn.disabled=false;btn.innerHTML=origHtml;return;
     }
@@ -3412,8 +3418,9 @@ function openLocalVideo(src) {
     }catch(e){fsOk=false;}
     // 2. Save to Supabase waiting_list so admin sees it
     try{
-      const lessonType=service.toLowerCase().includes('auto')?'Automatic':service.toLowerCase().includes('intensive')?'Intensive':service.toLowerCase().includes('pass plus')?'Pass Plus':'Manual';
-      const notesStr=['[WEB]',service,notes,email?'Email: '+email:''].filter(Boolean).join('\n');
+      // Find & Assign matches instructors by transmission, so store the real gearbox; the service goes in the notes
+      const lessonType=gearbox==='Automatic'?'Automatic':'Manual';
+      const notesStr=['[WEB] Homepage booking form','Service: '+service,'Gearbox: '+gearbox,notes?'Notes: '+notes:'',email?'Email: '+email:''].filter(Boolean).join('\n');
       const sbHeaders={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
       // Try full insert first
       let sbRes=await fetch(SB_URL+'/rest/v1/waiting_list',{
@@ -3435,6 +3442,7 @@ function openLocalVideo(src) {
         }
       }
     }catch(e){console.warn('Supabase booking save failed:',e);}
+    if(window.DSQNotifyAdmin)DSQNotifyAdmin('📅 New website booking',name+' · '+postcode.replace(/^([A-Z0-9]+?)\s*(\d[A-Z]{2})$/,'$1 $2')+' · '+service+' ('+gearbox+')');
     if(fsOk||true){
       bookForm.reset();
       bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-success mt-2 rounded-3 small"><strong>Booking request sent!</strong> We aim to reply within 2 hours. You can also <a href="https://wa.me/447352932003" style="color:inherit;font-weight:700">WhatsApp us</a> for a faster response.</div>');
@@ -4376,10 +4384,9 @@ window.DSQXCar3D = function (stage, hooks) {
     var SB_URL = "https://vwvbfqrlumvoabzkjxoa.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho";
     var sentSig = "", sending = false;
     function lessonType() {
-      var p = val("pkg"), t = val("trans");
-      // must match the admin Find & Assign lesson types: Manual · Automatic · Intensive · Mock Test
-      if (p === "Mock test") return "Mock Test"; if (/^Intensive/.test(p)) return "Intensive";
-      return t === "Automatic" ? "Automatic" : "Manual";
+      // Find & Assign matches instructors by transmission: Automatic → automatic instructors; anything else → manual.
+      // Always store the real gearbox; the package (intensive, mock test, Pass Plus…) is kept in the notes.
+      return val("trans") === "Automatic" ? "Automatic" : "Manual";
     }
     function submitBooking() {
       summary();
@@ -4410,7 +4417,10 @@ window.DSQXCar3D = function (stage, hooks) {
       return Promise.allSettled([sb, fs]).then(function (res) {
         var okAny = res.some(function (x) { return x.status === "fulfilled"; });
         if (res[0].status !== "fulfilled") console.warn("[DriveSQ] wizard → admin bookings failed", res[0].reason);
-        if (okAny) { sentSig = sig; try { if (window.gtag) gtag("event", "generate_lead", { method: "booking_wizard" }); } catch (e) {} }
+        if (okAny) {
+          sentSig = sig; try { if (window.gtag) gtag("event", "generate_lead", { method: "booking_wizard" }); } catch (e) {}
+          if (window.DSQNotifyAdmin) DSQNotifyAdmin((updated ? "🔄 Updated" : "📅 New") + " website booking", (nameIn.value.trim() || "New learner") + " · " + (payload.postcode || "") + " · " + get("Package") + " (" + get("Gearbox") + ")");
+        }
         return okAny;
       });
     }
@@ -4621,6 +4631,14 @@ window.DSQXCar3D = function (stage, hooks) {
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   var WA = "447352932003", PHONE = "07352 932003", TEL = "+447352932003";
   var SQA = window.SQA = window.SQA || {};
+  /* Instant push to the DriveSQ admin devices (same send-push function admin.html uses) */
+  window.DSQNotifyAdmin = function (title, body) {
+    try {
+      var K = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho";
+      return fetch("https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", Authorization: "Bearer " + K },
+        body: JSON.stringify({ instructor_id: "00000000-0000-0000-0000-000000000001", title: title, body: body, url: "/admin.html", tag: "drivesq-admin" }) }).catch(function (e) { console.warn("[DriveSQ] admin push failed", e); });
+    } catch (e) { return Promise.resolve(); }
+  };
   function waLink(msg) { return "https://wa.me/" + WA + "?text=" + encodeURIComponent(msg); }
   function track(name, p) { try { if (window.gtag) gtag("event", name, p || {}); } catch (e) {} }
   function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } }
@@ -4867,7 +4885,12 @@ window.DSQXCar3D = function (stage, hooks) {
     $$(".eye, .dsqx-eye").forEach(function (h) { h.classList.add("sqa-eye"); io.observe(h); });
   }
 
-  function init() { assistant(); mascots(); dock(); reaction(); theory(); headings(); }
+  function heroGearbox() {
+    var sv = document.getElementById("b_s"), gb = document.getElementById("b_g"); if (!sv || !gb) return;
+    sv.addEventListener("change", function () { if (/automatic/i.test(sv.value)) gb.value = "Automatic"; else if (/manual/i.test(sv.value)) gb.value = "Manual"; });
+  }
+
+  function init() { heroGearbox(); assistant(); mascots(); dock(); reaction(); theory(); headings(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
 
