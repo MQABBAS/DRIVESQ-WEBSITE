@@ -567,7 +567,7 @@ body:not(.day-mode)::before { content:""; position:fixed; inset:0; z-index:-1; p
 .qa-btn:hover { transform:translateY(-1px); }
 .qa-btn:active, .btn-p:active, .btn-s:active, .abtn:active, .dsq-tab:active { transform:scale(.97); }
 .btn-p { position:relative; overflow:hidden; }
-.dsq-tabs { scroll-behavior:smooth; scrollbar-width:thin; }
+.dsq-tabs { scroll-behavior:auto !important; scrollbar-width:thin; }
 .dsq-tab { transition:background .25s var(--qa-ease), color .25s, transform .2s var(--qa-ease), box-shadow .25s !important; }
 .dsq-tab:hover:not(.active) { transform:translateY(-1px); }
 .dsq-tab.active { box-shadow:0 8px 22px -10px var(--qa-glow); }
@@ -686,6 +686,8 @@ body:not(.day-mode)::before { content:""; position:fixed; inset:0; z-index:-1; p
   </div>
 </div>
 <!-- DSQA:BOOT END -->
+
+
 
 
 
@@ -12522,7 +12524,9 @@ document.addEventListener('click',e=>{
       var r = orig.apply(this, arguments);
       var p = document.getElementById("panel-" + t);
       if (p && !reduce) { p.classList.remove("qa-enter"); void p.offsetWidth; p.classList.add("qa-enter"); }
-      var tb = document.getElementById("tab-" + t); if (tb && tb.scrollIntoView) try { tb.scrollIntoView({ block: "nearest", inline: "center", behavior: reduce ? "auto" : "smooth" }); } catch (e) {}
+      // keep the chosen tab in view inside the tab strip — instantly, and without ever scrolling the page
+      var tb = document.getElementById("tab-" + t), strip = tb && tb.parentElement;
+      if (strip && strip.scrollWidth > strip.clientWidth + 2) strip.scrollLeft = Math.max(0, tb.offsetLeft - strip.offsetLeft - (strip.clientWidth - tb.offsetWidth) / 2);
       return r;
     };
     wrapped.__qa = true; window.switchTab = wrapped;
@@ -12754,7 +12758,20 @@ document.addEventListener('click',e=>{
     mark();
   }
 
-  function init() { loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
+  /* ---------- phone "More" menu: add the sections it was missing ---------- */
+  function phoneMore() {
+    var panel = document.getElementById("mobMorePanel"); if (!panel || panel.querySelector("[data-qa-more]")) return;
+    var T = []; try { T = typeof TABS !== "undefined" ? TABS : []; } catch (e) {}
+    var have = function (id) { return !!panel.querySelector("[onclick*=\"switchTab('" + id + "')\"]") || !!document.getElementById("mobt-" + id); };
+    var miss = T.filter(function (id) { return !have(id); }); if (!miss.length) return;
+    var html = '<div class="mob-more-group" data-qa-more><div class="mob-more-label">More tools</div><div class="mob-more-grid">' + miss.map(function (id) {
+      var tb = document.getElementById("tab-" + id), lab = tb ? tb.textContent.trim() : id, ic = tb && tb.querySelector("i") ? tb.querySelector("i").className.replace(/\s*me-\d/, "") : "bi bi-grid";
+      return '<button class="mob-more-btn" id="mmore-' + id + '" onclick="switchTab(\'' + id + '\');_mobSetActive(\'' + id + '\');_mobCloseMore()"><i class="' + ic + '"></i>' + esc(lab) + "</button>";
+    }).join("") + "</div></div>";
+    panel.insertAdjacentHTML("beforeend", html);
+  }
+
+  function init() { phoneMore(); loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   window.DSQA = { palette: palette, confetti: confetti };
 })();
