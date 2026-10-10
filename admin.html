@@ -664,6 +664,62 @@ body:not(.day-mode)::before { content:""; position:fixed; inset:0; z-index:-1; p
 #dsqa-boot { animation:qa-bootout .4s ease 4s forwards; }
 @keyframes qa-bootout { to { opacity:0; visibility:hidden; pointer-events:none; } }
 
+/* =========================================================
+   Organised sidebar navigation (screens ≥ 1200px)
+   ========================================================= */
+:root { --qa-sw: 244px; --qa-navh: 110px; }
+.qa-side { display:none; }
+@media (min-width:1200px) {
+  body.qa-side-on .qa-side { display:flex; }
+  body.qa-side-on .dsq-tabs { display:none !important; }
+  body.qa-side-on #mainPage { width:auto !important; margin-left:calc(var(--qa-sw) + 6px) !important; margin-right:6px !important; max-width:min(1400px, calc(100vw - var(--qa-sw) - 12px)) !important; }
+  body.qa-side-on.qa-side-mini { --qa-sw: 72px; }
+}
+.qa-side { position:fixed; left:0; top:var(--qa-navh); bottom:0; width:var(--qa-sw); z-index:150; flex-direction:column; background:var(--dk); border-right:1px solid var(--bdr); transition:width .3s var(--qa-ease); }
+.qa-side__scroll { flex:1; overflow-y:auto; overflow-x:hidden; padding:12px 10px 8px; scrollbar-width:thin; }
+.qa-side__grp { margin:12px 0 4px; padding:0 10px; font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--txt3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qa-side__grp:first-child { margin-top:2px; }
+.qa-side__item { width:100%; display:flex; align-items:center; gap:11px; padding:8px 10px; margin:1px 0; border:0; border-radius:10px; background:transparent; color:var(--txt2); font-size:.84rem; font-weight:500; text-align:left; cursor:pointer; position:relative; transition:background .18s, color .18s; white-space:nowrap; }
+.qa-side__item i { width:20px; flex:none; text-align:center; font-size:.98rem; color:var(--txt3); transition:color .18s; }
+.qa-side__item span.qa-lbl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.qa-side__item:hover { background:var(--dk2); color:var(--txt); }
+.qa-side__item:hover i { color:var(--txt); }
+.qa-side__item.is-on { background:linear-gradient(90deg,rgba(209,10,17,.18),rgba(209,10,17,.04)); color:var(--txt); font-weight:600; }
+.qa-side__item.is-on::before { content:""; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:0 3px 3px 0; background:#D10A11; box-shadow:0 0 10px #D10A11; }
+.qa-side__item.is-on i { color:#ff4d55; }
+.qa-side__item:focus-visible { outline:2px solid #D10A11; outline-offset:1px; }
+.qa-side__badge { min-width:20px; height:20px; padding:0 6px; border-radius:999px; display:inline-grid; place-items:center; font-size:.66rem; font-weight:700; background:rgba(245,197,24,.16); color:var(--gold); }
+.qa-side__badge--red { background:#D10A11; color:#fff; box-shadow:0 0 12px -2px rgba(209,10,17,.8); }
+.qa-side__badge[hidden] { display:none; }
+.qa-side__recent { display:flex; flex-wrap:wrap; gap:6px; padding:2px 6px 4px; }
+.qa-side__chip { display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:4px 9px; border-radius:999px; border:1px solid var(--bdr2); background:var(--dk2); color:var(--txt2); font-size:.7rem; cursor:pointer; white-space:nowrap; }
+.qa-side__chip:hover { border-color:#D10A11; color:var(--txt); }
+.qa-side__foot { border-top:1px solid var(--bdr); padding:10px; display:flex; flex-direction:column; gap:8px; }
+.qa-side__sync { display:flex; align-items:center; gap:8px; font-size:.7rem; color:var(--txt3); white-space:nowrap; overflow:hidden; }
+.qa-side__sync .dot { width:8px; height:8px; flex:none; border-radius:50%; background:#25D366; box-shadow:0 0 8px #25D366; }
+.qa-side__row { display:flex; gap:6px; }
+.qa-side__btn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:34px; border-radius:10px; border:1px solid var(--bdr2); background:var(--dk2); color:var(--txt); font-size:.76rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+.qa-side__btn:hover { border-color:#D10A11; }
+.qa-side__btn.spin i { animation:qa-spin .8s linear infinite; }
+@keyframes qa-spin { to { transform:rotate(360deg); } }
+.qa-side__collapse { flex:0 0 34px; }
+body.qa-side-mini .qa-side__item { justify-content:center; padding:9px 0; }
+body.qa-side-mini .qa-side__item span.qa-lbl, body.qa-side-mini .qa-side__grp, body.qa-side-mini .qa-side__recent, body.qa-side-mini .qa-side__sync span, body.qa-side-mini .qa-side__btn span { display:none; }
+body.qa-side-mini .qa-side__badge { position:absolute; top:2px; right:6px; min-width:16px; height:16px; font-size:.58rem; padding:0 4px; }
+body.qa-side-mini .qa-side__grp + * { margin-top:10px; }
+body.qa-side-mini .qa-side__row { flex-direction:column; }
+body.qa-side-mini .qa-side__collapse i { transform:rotate(180deg); }
+
+/* ---------- Section header ("where am I") ---------- */
+.qa-crumb { display:flex; align-items:center; gap:12px; margin:2px 0 14px; padding:10px 14px; border-radius:14px; border:1px solid var(--bdr); background:var(--card-bg); animation:qa-panel .35s var(--qa-ease) both; }
+.qa-crumb__ico { width:38px; height:38px; flex:none; border-radius:11px; display:grid; place-items:center; background:rgba(209,10,17,.12); color:#ff4d55; font-size:1.1rem; }
+.qa-crumb__path { font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--txt3); font-weight:700; }
+.qa-crumb__title { font-family:'Oswald',sans-serif; font-size:1.12rem; font-weight:700; color:var(--txt); line-height:1.15; }
+.qa-crumb__desc { font-size:.76rem; color:var(--txt3); margin-top:1px; }
+.qa-crumb__help { margin-left:auto; flex:none; }
+@media (max-width:575px) { .qa-crumb { padding:8px 10px; } .qa-crumb__desc { display:none; } .qa-crumb__help { display:none; } }
+@media (prefers-reduced-motion:reduce) { .qa-crumb { animation:none; } .qa-side { transition:none; } }
+
 </style>
 <!-- DSQA:CSS END -->
 </head>
@@ -686,6 +742,8 @@ body:not(.day-mode)::before { content:""; position:fixed; inset:0; z-index:-1; p
   </div>
 </div>
 <!-- DSQA:BOOT END -->
+
+
 
 
 
@@ -12522,6 +12580,7 @@ document.addEventListener('click',e=>{
     var orig = window.switchTab;
     var wrapped = function (t) {
       var r = orig.apply(this, arguments);
+      try { onSwitch(t); } catch (e) { console.warn("[DSQA] nav", e); }
       var p = document.getElementById("panel-" + t);
       if (p && !reduce) { p.classList.remove("qa-enter"); void p.offsetWidth; p.classList.add("qa-enter"); }
       // keep the chosen tab in view inside the tab strip — instantly, and without ever scrolling the page
@@ -12531,6 +12590,97 @@ document.addEventListener('click',e=>{
     };
     wrapped.__qa = true; window.switchTab = wrapped;
   }
+
+  /* ---------- organised sidebar, section header, recent & refresh ---------- */
+  var GROUPS = [
+    ["Overview", ["dashboard", "analytics", "revenue", "scorecard", "activity"]],
+    ["Bookings & students", ["@bookings", "waitlist", "find", "students", "followup", "requests", "transfers", "progress-overview"]],
+    ["Instructors", ["instructors", "pending", "add", "availability", "coverage", "map", "infoview"]],
+    ["Lessons & money", ["lessons", "calendar", "finance", "expenses", "referrals"]],
+    ["Messages & tools", ["messages", "bulk", "notes", "actions", "feedback"]]
+  ];
+  var current = "dashboard";
+  function tabInfo(id) {
+    var b = document.getElementById("tab-" + id), lab = "", ic = "bi bi-grid", desc = "";
+    if (b) {
+      var sp = $$("span", b).filter(function (s) { return !s.classList.contains("tab-badge"); })[0];
+      lab = (sp ? sp.textContent : b.textContent).trim(); var i = b.querySelector("i"); if (i) ic = i.className.replace(/\s*me-\d/, ""); desc = b.getAttribute("title") || "";
+    }
+    if (!lab) lab = id.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    var g = ""; GROUPS.forEach(function (G) { if (G[1].indexOf(id) > -1) g = G[0]; });
+    return { id: id, label: lab, icon: ic, desc: desc, group: g || "Other" };
+  }
+  function recentList() { try { return JSON.parse(localStorage.getItem("dsqa_recent") || "[]"); } catch (e) { return []; } }
+  function pushRecent(id) { try { var r = recentList().filter(function (x) { return x !== id; }); r.unshift(id); localStorage.setItem("dsqa_recent", JSON.stringify(r.slice(0, 6))); } catch (e) {} }
+  function sidebar() {
+    if (document.querySelector(".qa-side")) return;
+    var T = []; try { T = typeof TABS !== "undefined" ? TABS.slice() : []; } catch (e) {}
+    if (!T.length) return;
+    var used = {}; GROUPS.forEach(function (G) { G[1].forEach(function (id) { used[id] = 1; }); });
+    var extra = T.filter(function (id) { return !used[id]; });
+    var groups = GROUPS.map(function (G) { return [G[0], G[1].filter(function (id) { return id === "@bookings" || T.indexOf(id) > -1; })]; });
+    if (extra.length) groups.push(["Other", extra]);
+    var html = '<div class="qa-side__scroll"><div class="qa-side__grp">Recent</div><div class="qa-side__recent"></div>';
+    groups.forEach(function (G) {
+      html += '<div class="qa-side__grp">' + esc(G[0]) + "</div>";
+      G[1].forEach(function (id) {
+        if (id === "@bookings") { html += '<button type="button" class="qa-side__item" data-qa-bookings title="Website bookings (B)" onclick="openWebBookingsPanel()"><i class="bi bi-calendar2-check-fill"></i><span class="qa-lbl">Website bookings</span><span class="qa-side__badge qa-side__badge--red" data-qa-wb hidden>0</span></button>'; return; }
+        var t = tabInfo(id);
+        html += '<button type="button" class="qa-side__item" data-side="' + id + '" title="' + esc(t.label + (t.desc ? " — " + t.desc : "")) + '" onclick="switchTab(\'' + id + '\');setActiveTab(\'' + id + '\')"><i class="' + esc(t.icon) + '"></i><span class="qa-lbl">' + esc(t.label) + '</span><span class="qa-side__badge" hidden></span></button>';
+      });
+    });
+    html += '</div><div class="qa-side__foot"><div class="qa-side__sync"><span class="dot"></span><span class="js-qa-sync">Live · up to date</span></div>' +
+      '<div class="qa-side__row"><button type="button" class="qa-side__btn js-qa-refresh" title="Reload all data"><i class="bi bi-arrow-clockwise"></i><span>Refresh data</span></button>' +
+      '<button type="button" class="qa-side__btn qa-side__collapse js-qa-collapse" title="Collapse / expand sidebar"><i class="bi bi-chevron-double-left"></i></button></div></div>';
+    var side = document.createElement("aside"); side.className = "qa-side"; side.setAttribute("aria-label", "Admin sections"); side.innerHTML = html;
+    document.body.appendChild(side); document.body.classList.add("qa-side-on");
+    try { if (localStorage.getItem("dsqa_side") === "mini") document.body.classList.add("qa-side-mini"); } catch (e) {}
+    // keep the sidebar just below the (sticky) top bar
+    var nav = document.getElementById("mainNav");
+    var fit = function () { if (nav) document.documentElement.style.setProperty("--qa-navh", nav.getBoundingClientRect().height + "px"); };
+    fit(); if (window.ResizeObserver && nav) new ResizeObserver(fit).observe(nav); window.addEventListener("resize", fit);
+    // mirror the tab badges (e.g. pending applications) and the website-bookings count
+    $$(".qa-side__item[data-side]", side).forEach(function (it) {
+      var id = it.getAttribute("data-side"), src = document.getElementById("tab-" + id), bd = src && src.querySelector(".tab-badge"), mine = it.querySelector(".qa-side__badge");
+      if (!bd) return;
+      var sync = function () { var n = bd.textContent.trim(); mine.textContent = n; mine.hidden = bd.classList.contains("hidden") || !n || n === "0"; };
+      new MutationObserver(sync).observe(bd, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] }); sync();
+    });
+    var wb = document.getElementById("webBookingsBadge"), wbm = side.querySelector("[data-qa-wb]");
+    if (wb && wbm) { var s2 = function () { var n = parseInt(wb.textContent, 10) || 0; wbm.textContent = n; wbm.hidden = n < 1; }; new MutationObserver(s2).observe(wb, { childList: true, characterData: true, subtree: true }); s2(); }
+    side.addEventListener("click", function (e) {
+      var chip = e.target.closest("[data-recent]"); if (chip) { var id = chip.getAttribute("data-recent"); call("switchTab", id); call("setActiveTab", id); }
+    });
+    $(".js-qa-collapse", side).addEventListener("click", function () {
+      var on = document.body.classList.toggle("qa-side-mini"); try { localStorage.setItem("dsqa_side", on ? "mini" : "full"); } catch (e) {}
+    });
+    var stamp = function () { $(".js-qa-sync", side).textContent = "Live · updated " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); };
+    setTimeout(stamp, 3500);
+    $(".js-qa-refresh", side).addEventListener("click", function () {
+      var b = this; if (b.classList.contains("spin")) return; b.classList.add("spin");
+      Promise.resolve(typeof window.loadAll === "function" ? window.loadAll() : null).catch(function () {}).then(function () {
+        call("loadWebBookingsBadge"); call("switchTab", current); b.classList.remove("spin"); stamp(); call("showToast", "Data refreshed", "success");
+      });
+    });
+    markSide(current);
+  }
+  function markSide(id) {
+    var side = document.querySelector(".qa-side"); if (!side) return;
+    $$(".qa-side__item[data-side]", side).forEach(function (it) { it.classList.toggle("is-on", it.getAttribute("data-side") === id); it.setAttribute("aria-current", it.getAttribute("data-side") === id ? "page" : "false"); });
+    var rc = $(".qa-side__recent", side), list = recentList().filter(function (x) { return x !== id && document.getElementById("tab-" + x); }).slice(0, 4);
+    rc.innerHTML = list.length ? list.map(function (x) { var t = tabInfo(x); return '<button type="button" class="qa-side__chip" data-recent="' + x + '"><i class="' + esc(t.icon) + '"></i>' + esc(t.label) + "</button>"; }).join("") : '<span style="font-size:.7rem;color:var(--txt3);padding:0 4px">Sections you open appear here</span>';
+    var on = side.querySelector(".is-on"); if (on && on.scrollIntoView) { var sc = $(".qa-side__scroll", side), r = on.getBoundingClientRect(), sr = sc.getBoundingClientRect(); if (r.top < sr.top || r.bottom > sr.bottom) sc.scrollTop += r.top - sr.top - sr.height / 2; }
+  }
+  function crumb(id) {
+    var page = document.getElementById("mainPage"); if (!page) return;
+    var c = document.getElementById("qaCrumb");
+    if (!c) { c = document.createElement("div"); c.id = "qaCrumb"; c.className = "qa-crumb"; page.insertBefore(c, page.firstChild); }
+    var t = tabInfo(id);
+    c.innerHTML = '<div class="qa-crumb__ico"><i class="' + esc(t.icon) + '"></i></div><div style="min-width:0"><div class="qa-crumb__path">' + esc(t.group) + '</div><div class="qa-crumb__title">' + esc(t.label) + "</div>" + (t.desc ? '<div class="qa-crumb__desc">' + esc(t.desc) + "</div>" : "") + "</div>" +
+      '<button type="button" class="qa-pill-btn qa-crumb__help" onclick="DSQA.palette.open()" title="Jump to any section (G)"><i class="bi bi-lightning-charge-fill"></i>Jump to… <kbd style="font-size:.6rem;opacity:.7">G</kbd></button>';
+    c.style.animation = "none"; void c.offsetWidth; c.style.animation = "";
+  }
+  function onSwitch(id) { current = id; pushRecent(id); markSide(id); crumb(id); }
 
   /* ---------- toasts: celebrate assignments ---------- */
   function toasts() {
@@ -12771,7 +12921,19 @@ document.addEventListener('click',e=>{
     panel.insertAdjacentHTML("beforeend", html);
   }
 
-  function init() { phoneMore(); loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
+  function navReady() {
+    var go = function () {
+      if (!loggedIn()) return false;
+      sidebar();
+      var vis = null; try { vis = (typeof TABS !== "undefined" ? TABS : []).filter(function (t) { var p = document.getElementById("panel-" + t); return p && !p.classList.contains("hidden"); })[0]; } catch (e) {}
+      onSwitch(vis || "dashboard"); return true;
+    };
+    if (go()) return;
+    var page = document.getElementById("mainPage");
+    if (page) { var mo = new MutationObserver(function () { if (go()) mo.disconnect(); }); mo.observe(page, { attributes: true, attributeFilter: ["class"] }); }
+  }
+
+  function init() { navReady(); phoneMore(); loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   window.DSQA = { palette: palette, confetti: confetti };
 })();
