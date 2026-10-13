@@ -1888,6 +1888,11 @@ html.dsqx-js .dsqx-fh .dsqx-fh__steps li:hover { transform:translateX(6px); tran
 @media (max-width:420px) { .dsqx-bc__tabs button { font-size:.86rem; gap:5px; } .dsqx-bc__tabs button em { display:none; } .dsqx-bc__steps { grid-template-columns:1fr; } .dsqx-bc__picks small { font-size:.66rem; } }
 @media (prefers-reduced-motion:reduce) { .dsqx-bc__ink, .dsqx-bc__panel.in { transition:none; animation:none; } }
 
+/* hero pick → nudge the wizard's Next button */
+.js-next.dsqx-nudge { animation:dsqxNudge 1.05s ease-in-out 4; }
+@keyframes dsqxNudge { 0%,100% { box-shadow:0 0 0 0 rgba(245,197,24,0); transform:none; } 50% { box-shadow:0 0 0 6px rgba(245,197,24,.45); transform:scale(1.04); } }
+@media (prefers-reduced-motion:reduce) { .js-next.dsqx-nudge { animation:none; box-shadow:0 0 0 3px rgba(245,197,24,.6); } }
+
 </style>
 <!-- DSQX:CSS END -->
 </head>
@@ -5295,8 +5300,11 @@ window.DSQXCar3D = function (stage, hooks) {
       $$("[data-bc-pick]", card).forEach(function (x) { x.classList.toggle("is-on", x === p); });
       track("cta_click", { location: "hero_quick_start", gearbox: p.textContent.trim().split("\n")[0] });
       var w = document.getElementById("book-60");
-      if (w) w.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-      if (r) setTimeout(function () { var l = document.querySelector('label[for="dq_trans' + k + '"]'); if (l) l.click(); else { r.checked = true; r.dispatchEvent(new Event("change", { bubbles: true })); } }, reduce ? 0 : 450);
+      // land on the gearbox question so the choices and the Next button are both on screen
+      var st = r && r.closest(".dsqx-wiz__step"), tg = st && !st.hidden && st.offsetParent ? st : w;
+      if (tg) window.scrollTo({ top: Math.max(0, tg.getBoundingClientRect().top + window.pageYOffset - (tg === w ? 0 : Math.max(96, (window.innerHeight - tg.offsetHeight) / 2))), behavior: reduce ? "auto" : "smooth" });
+      // select only (no change event, so the wizard doesn't auto-advance) — the learner presses Next themselves
+      if (r) setTimeout(function () { r.checked = true; var nx = w && w.querySelector(".js-next"); if (nx) { nx.classList.remove("dsqx-nudge"); void nx.offsetWidth; nx.classList.add("dsqx-nudge"); setTimeout(function () { nx.classList.remove("dsqx-nudge"); }, 4200); } }, reduce ? 0 : 450);
     });
     $(".dsqx-bc__tabs", card).addEventListener("keydown", function (e) { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); set(card.classList.contains("is-form") ? "quick" : "form", true); } });
     document.addEventListener("click", function (e) {
