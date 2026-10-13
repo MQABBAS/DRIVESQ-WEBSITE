@@ -196,44 +196,7 @@ blockquote{background:#fff4f4;border-left:4px solid var(--brand);padding:15px 20
     </form>
   </div>
 </section>
-<script>
-(function(){
-  var f=document.getElementById('dsqInlineBookForm');
-  if(!f)return;
-  f.addEventListener('submit',function(e){
-    e.preventDefault();
-    var btn=document.getElementById('dsqInlineBookBtn');
-    var msg=document.getElementById('dsqInlineBookMsg');
-    btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i> Sending…';
-    msg.innerHTML='';
-    var name=(f.querySelector('[name="name"]').value||'').trim();
-    var phone=(f.querySelector('[name="phone"]').value||'').trim();
-    var postcode=(f.querySelector('[name="postcode"]').value||'').trim().toUpperCase();
-    var service=(f.querySelector('[name="service"]').value||'').trim();
-    var email=(f.querySelector('[name="email"]').value||'').trim();
-    if(!name||!phone||!postcode||!service){
-      msg.innerHTML='<div style="color:#f87171;font-size:.82rem;margin-top:6px">Please fill in all required fields.</div>';
-      btn.disabled=false;btn.innerHTML='<i class=\'bi bi-calendar-check-fill\'></i> Book Now';return;
-    }
-    var lessonType=service.toLowerCase().indexOf('auto')>-1?'Automatic':service.toLowerCase().indexOf('intens')>-1?'Intensive':service.toLowerCase().indexOf('pass plus')>-1?'Pass Plus':'Manual';
-    var notes=['[WEB]',service,email?'Email: '+email:'',window.location.href?'Page: '+window.location.pathname:''].filter(Boolean).join('
-');
-    var SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
-    var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
-    var headers={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
-    fetch(SB_URL+'/rest/v1/waiting_list',{method:'POST',headers:headers,body:JSON.stringify({student_name:name,student_phone:phone,postcode:postcode,lesson_type:lessonType,notes:notes,status:'waiting',created_at:new Date().toISOString()})})
-    .then(function(r){
-      if(!r.ok)return fetch(SB_URL+'/rest/v1/waiting_list',{method:'POST',headers:headers,body:JSON.stringify({student_name:name,student_phone:phone,notes:notes,status:'waiting'})});
-    })
-    .catch(function(){})
-    .finally(function(){
-      f.reset();
-      msg.innerHTML='<div style="color:#4ade80;font-size:.85rem;margin-top:8px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:10px 13px"><strong>Booking request sent!</strong> We'll be in touch within 2 hours. You can also <a href="https://wa.me/447352932003" style="color:#4ade80;font-weight:700">WhatsApp us</a> for a faster response.</div>';
-      btn.disabled=false;btn.innerHTML='<i class="bi bi-calendar-check-fill"></i> Book Now';
-    });
-  });
-})();
-</script>
+<script src="/booking-capture.js" defer></script>
 <!-- /DRIVESQ-INLINE-BOOKING-V1 -->
 <footer>
   &copy; 2025 Drive<b>SQ</b>. All Rights Reserved. |
