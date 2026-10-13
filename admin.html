@@ -15288,7 +15288,7 @@ document.addEventListener('click',e=>{
 
   /* ---------- web booking cards: readable, structured details ---------- */
   var ICON = { package: "bi-box-seam", requested: "bi-box-seam", gearbox: "bi-gear-fill", experience: "bi-speedometer2", availability: "bi-calendar-week", email: "bi-envelope-fill",
-    "nervous learner": "bi-heart-fill", nervous: "bi-heart-fill", contact: "bi-telephone-fill", page: "bi-link-45deg", postcode: "bi-geo-alt-fill", address: "bi-house-fill", note: "bi-chat-left-text", notes: "bi-chat-left-text", service: "bi-box-seam" };
+    "nervous learner": "bi-heart-fill", nervous: "bi-heart-fill", contact: "bi-telephone-fill", page: "bi-link-45deg", postcode: "bi-geo-alt-fill", address: "bi-house-fill", note: "bi-chat-left-text", notes: "bi-chat-left-text", service: "bi-box-seam", "message from learner": "bi-chat-quote-fill" };
   function parseNotes(notes) {
     var lines = String(notes || "").split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean), src = "Website form", wiz = false, facts = [];
     lines.forEach(function (l, i) {
@@ -15317,7 +15317,7 @@ document.addEventListener('click',e=>{
     if (nameEl) nameEl.insertAdjacentHTML("afterend", '<span class="qa-src' + (p.wiz ? " qa-src--wiz" : "") + '"><i class="bi ' + (p.wiz ? "bi-lightning-charge-fill" : "bi-globe2") + '"></i>' + esc(p.src) + "</span>");
     if (notesDiv && p.facts.length) {
       notesDiv.outerHTML = '<div class="qa-facts">' + p.facts.map(function (f) {
-        var k = f[0].toLowerCase(), wide = /availability|note|package|requested|service/.test(k), warn = /nervous/.test(k) && /^yes/i.test(f[1]);
+        var k = f[0].toLowerCase(), wide = /availability|note|package|requested|service|message/.test(k), warn = (/nervous/.test(k) && /^yes/i.test(f[1])) || k === "message from learner";
         return '<div class="qa-fact' + (wide ? " qa-fact--wide" : "") + (warn ? " qa-fact--warn" : "") + '"><i class="bi ' + (ICON[k] || "bi-dot") + '"></i><div><small>' + esc(f[0]) + "</small><span>" + esc(f[1]) + "</span></div></div>";
       }).join("") + "</div>";
     }
