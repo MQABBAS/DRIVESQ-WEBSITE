@@ -1036,7 +1036,8 @@ html.dsqx .dsqx-up.dsqx-in { opacity:1; transform:none; }
 .dsqx-stat { background:#0b0b0b; padding:26px 12px; text-align:center; }
 .dsqx-stat b { display:block; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:clamp(2.2rem,4vw,3rem); line-height:1; color:#fff; }
 .dsqx-stat b em { font-style:normal; color:#D10A11; }
-.dsqx-stat span { color:#8a8a8a; font-size:.85rem; }
+.dsqx-stat > span { color:#8a8a8a; font-size:.85rem; }
+.dsqx-stat b span { color:inherit; font-size:inherit; }
 @media (max-width:991px) {
   .dsqx-portal { padding:80px 0 90px; }
   .dsqx-stage { min-height:560px; margin-top:20px; }
@@ -1542,6 +1543,16 @@ section:has(> .sqa-mascot) { position:relative; }
 @media (max-width:767px) { .sqa-hang { width:62px; right:8px; } .sqa-hang__bubble { opacity:0; pointer-events:none; } .sqa-hang.is-talk .sqa-hang__bubble { opacity:1; pointer-events:auto; } .sqa-hang__bubble { font-size:.72rem; max-width:140px; padding:7px 10px; } .sqa-hang__x { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .sqa-hang { transition:opacity .2s; transform:none; } .sqa-hang .arm-wave { animation:none; } }
 
+/* desktop: the hanging guide lives in the empty margin beside the content (wide screens only) */
+@media (min-width:992px) {
+  .sqa-hang.is-gutter { right:var(--hang-right,24px); }
+  .sqa-hang.is-gutter .sqa-hang__bubble { right:auto; left:50%; top:calc(var(--hang-top,64px) + 168px); margin:0; transform:translateX(-50%); border-radius:16px; max-width:min(180px, calc(var(--hang-right,24px) * 2 + 80px)); text-align:center; }
+  .sqa-hang.is-gutter .sqa-hang__bubble.is-swap { transform:translate(-50%,4px); }
+  /* laptops: the SQ button shows a tip now and then instead */
+  .sqa-launch.is-tip b { animation:sqa-label 5.2s var(--sqa-ease) both; }
+  .sqa-launch b strong { color:#D10A11; font-weight:800; }
+}
+
 /* ---------- scroll car on the progress bar ---------- */
 .dsqx-pcar { position:fixed; top:1px; left:0; z-index:100000; width:66px; height:44px; pointer-events:none; opacity:0; transition:opacity .35s ease; will-change:transform; }
 .dsqx-pcar.is-on { opacity:1; }
@@ -1907,6 +1918,58 @@ html.dsqx-js .dsqx-fh .dsqx-fh__steps li:hover { transform:translateX(6px); tran
 .js-next.dsqx-nudge { animation:dsqxNudge 1.05s ease-in-out 4; }
 @keyframes dsqxNudge { 0%,100% { box-shadow:0 0 0 0 rgba(245,197,24,0); transform:none; } 50% { box-shadow:0 0 0 6px rgba(245,197,24,.45); transform:scale(1.04); } }
 @media (prefers-reduced-motion:reduce) { .js-next.dsqx-nudge { animation:none; box-shadow:0 0 0 3px rgba(245,197,24,.6); } }
+
+/* ===================== DESKTOP POLISH ===================== */
+/* leave a clear margin on both sides so the floating buttons (accessibility, SQ, WhatsApp, Book) and the
+   section dots never sit on top of the content */
+@media (min-width:1200px) {
+  .container { max-width:min(1320px, calc(100vw - 184px)); }
+}
+/* hero: booking card above the fold on laptops (1366×768 / 1440×900) */
+@media (min-width:992px) {
+  .hero { min-height:0; align-items:flex-start; }
+  .hero .hero-content { padding-top:clamp(18px,3vh,40px) !important; padding-bottom:48px !important; }
+  .dsqx-hero-row { padding-top:8px !important; }
+  .dsqx-hero-txt > .dsqx-hero-ctas, .dsqx-hero-txt > .dsqx-fh-pill { display:none !important; }   /* the card right below has both */
+  .dsqx-pft { flex-wrap:nowrap; white-space:nowrap; font-size:clamp(3.4rem,5.2vw,5.4rem); }
+  .dsqx-h1-sub { margin-top:8px; }
+  .dsqx-hero-txt .type-row { margin:4px 0 6px; }
+  .dsqx-hero-ticks { margin:8px 0 14px; }
+  .dsqx-hero-txt .book-card { margin-top:0; }
+  .dsqx-hero-txt .eyebrow { margin-bottom:8px; }
+}
+@media (min-width:992px) and (max-height:820px) {
+  .dsqx-pft { font-size:clamp(3rem,4.6vw,4.6rem); }
+  .dsqx-hero-txt .type-row { display:none; }
+}
+/* "Book in 60 seconds" float: compact after a few seconds, opens on hover */
+.dsqx-bookfloat > span { display:block; max-width:240px; overflow:hidden; white-space:nowrap; transition:max-width .45s cubic-bezier(.2,.9,.3,1), opacity .3s; }
+.dsqx-bookfloat { transition:transform .5s cubic-bezier(.2,1.3,.4,1), padding .45s cubic-bezier(.2,.9,.3,1), gap .45s; }
+.dsqx-bookfloat.is-mini:not(:hover):not(:focus-visible) { gap:0; padding:10px; }
+.dsqx-bookfloat.is-mini:not(:hover):not(:focus-visible) > span { max-width:0; opacity:0; }
+@media (prefers-reduced-motion:reduce) { .dsqx-bookfloat, .dsqx-bookfloat > span { transition:none; } }
+/* trust strip under the hero: keep it on one line on laptops */
+@media (min-width:1200px) { .dsqx-reassure ul { flex-wrap:nowrap; gap:8px 22px; } .dsqx-reassure li { font-size:.86rem; white-space:nowrap; } }
+/* top menu: never wrap; tighten on 13–14" laptops */
+@media (min-width:992px) {
+  #mainNav .nav-link, #mainNav .btn-nav-book, #mainNav .btn-nav-wa, #mainNav .btn-nav-portal, #mainNav .btn-nav-student { white-space:nowrap; }
+}
+@media (min-width:992px) and (max-width:1439px) {
+  #mainNav .navbar-nav .nav-link { padding-left:.5rem !important; padding-right:.5rem !important; font-size:.88rem; }
+  #mainNav .btn-nav-book, #mainNav .btn-nav-wa, #mainNav .btn-nav-portal, #mainNav .btn-nav-student { padding-left:12px !important; padding-right:12px !important; font-size:.84rem !important; }
+  #mainNav .navbar-brand .ntag { display:none !important; }
+}
+@media (min-width:992px) and (max-width:1279px) {
+  #mainNav .btn-nav-portal { display:none !important; }   /* Instructor Portal stays in the footer + mobile menu */
+}
+/* SQ Assistant on desktop: no "Ask SQ Assistant" pop-up over the hero booking card on load
+   (tips appear from the button once you've scrolled); chips row shows it scrolls */
+@media (min-width:992px) {
+  .sqa-launch.is-peek:not(.is-tip) b { animation:none; }
+  .sqa__chips { -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent); mask-image:linear-gradient(90deg,#000 88%,transparent); scroll-snap-type:x proximity; }
+  .sqa__chips button { scroll-snap-align:start; }
+}
+@media (min-width:992px) and (max-width:1439px) { .dsqx-hero-ticks { gap:6px; } .dsqx-hero-ticks li { padding:6px 11px; font-size:.76rem; } }
 
 </style>
 <!-- DSQX:CSS END -->
@@ -3497,7 +3560,7 @@ function openLocalVideo(src) {
     var now=new Date();
     var end=new Date('2026-09-30T23:59:59');
     var diff=end-now;
-    if(diff<=0){el.textContent='Offer ended';return;}
+    if(diff<=0){var box=el.closest('.reveal');if(box)box.style.display='none';else el.textContent='Offer ended';return;}
     var d=Math.floor(diff/86400000);
     var h=Math.floor((diff%86400000)/3600000);
     el.textContent=d+' day'+(d!==1?'s':'')+' '+h+'h left';
@@ -3556,7 +3619,8 @@ function openLocalVideo(src) {
   border: 1px solid rgba(255,255,255,.08);
 }
 .pnav-dot:hover .pnav-label,
-.pnav-dot.active .pnav-label {
+.pnav-dot:focus-visible .pnav-label,
+.pnav-dot.active.flash .pnav-label {
   opacity: 1;
   transform: translateX(0);
 }
@@ -3564,8 +3628,9 @@ function openLocalVideo(src) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(255,255,255,.22);
-  border: 1.5px solid rgba(255,255,255,.18);
+  background: rgba(128,128,128,.45);
+  border: 1.5px solid rgba(255,255,255,.55);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.12);
   transition: all .22s cubic-bezier(.34,1.56,.64,1);
   flex-shrink: 0;
 }
@@ -3592,6 +3657,10 @@ function openLocalVideo(src) {
     <span class="pnav-label">Home</span>
     <span class="pnav-pip"></span>
   </div>
+  <div class="pnav-dot" data-target="student-portal">
+    <span class="pnav-label">Student Portal</span>
+    <span class="pnav-pip"></span>
+  </div>
   <div class="pnav-dot" data-target="videos">
     <span class="pnav-label">Pass Videos</span>
     <span class="pnav-pip"></span>
@@ -3612,6 +3681,14 @@ function openLocalVideo(src) {
     <span class="pnav-label">Prices</span>
     <span class="pnav-pip"></span>
   </div>
+  <div class="pnav-dot" data-target="free-hour">
+    <span class="pnav-label">Free Hour Draw</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="book-60">
+    <span class="pnav-label">Book in 60 Seconds</span>
+    <span class="pnav-pip"></span>
+  </div>
   <div class="pnav-dot" data-target="intensive">
     <span class="pnav-label">Intensive Courses</span>
     <span class="pnav-pip"></span>
@@ -3622,6 +3699,10 @@ function openLocalVideo(src) {
   </div>
   <div class="pnav-dot" data-target="compare">
     <span class="pnav-label">Compare</span>
+    <span class="pnav-pip"></span>
+  </div>
+  <div class="pnav-dot" data-target="tools">
+    <span class="pnav-label">Free Learner Tools</span>
     <span class="pnav-pip"></span>
   </div>
   <div class="pnav-dot" data-target="areas">
@@ -3658,6 +3739,9 @@ function openLocalVideo(src) {
 
   // Click to scroll
   dots.forEach(function(dot,i){
+    dot.setAttribute('role','button');dot.setAttribute('tabindex','0');
+    dot.setAttribute('aria-label','Go to '+dot.querySelector('.pnav-label').textContent);
+    dot.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();dot.click();}});
     dot.addEventListener('click',function(){
       var sec=sections[i];
       if(!sec)return;
@@ -3667,7 +3751,7 @@ function openLocalVideo(src) {
   });
 
   // Scroll spy — mark active dot
-  var ticking=false;
+  var ticking=false,lastActive=-2,flashT=0;
   function onScroll(){
     if(ticking)return;
     ticking=true;
@@ -3679,7 +3763,12 @@ function openLocalVideo(src) {
         if(!sec)return;
         if(sec.offsetTop<=scrollMid)active=i;
       });
-      dots.forEach(function(d,i){d.classList.toggle('active',i===active);});
+      if(active!==lastActive){
+        lastActive=active;
+        dots.forEach(function(d,i){d.classList.toggle('active',i===active);d.classList.remove('flash');});
+        // show the section name briefly when it changes, then tuck it away so it never sits over content
+        if(dots[active]){dots[active].classList.add('flash');clearTimeout(flashT);flashT=setTimeout(function(){dots.forEach(function(d){d.classList.remove('flash');});},1400);}
+      }
       ticking=false;
     });
   }
@@ -4800,8 +4889,28 @@ window.DSQXCar3D = function (stage, hooks) {
       if (ang || vel) raf = requestAnimationFrame(step);
     }
     var guides = [].slice.call(document.querySelectorAll(".sqa-mascot")), guideVisible = false, seen = [];
+    /* desktop: the guide only hangs where there's empty space beside the content (wide screens). On laptops it would sit
+       over the page, so it steps aside and its tips pop out of the SQ chat button instead. */
+    var tight = false, launch = document.querySelector(".sqa-launch"), tipT = 0, tipI = 0;
+    function layout() {
+      var cont = document.querySelector("section .container"), cw = cont ? cont.getBoundingClientRect().width : innerWidth;
+      var gutter = (innerWidth - cw) / 2, desk = innerWidth >= 992;
+      tight = desk && gutter < 200;
+      h.classList.toggle("is-gutter", desk && !tight);
+      if (desk && !tight) h.style.setProperty("--hang-right", Math.max(16, Math.round((gutter - 92) / 2)) + "px"); else h.style.removeProperty("--hang-right");
+      if (tight && !tipT && launch) tipT = setInterval(launchTip, 16000);
+      if (!tight && tipT) { clearInterval(tipT); tipT = 0; }
+    }
+    function launchTip() {
+      var b = launch && launch.querySelector("b");
+      if (!b || document.hidden || scrollY < innerHeight * .7 || document.documentElement.classList.contains("sqa-open") || launch.getAttribute("aria-expanded") === "true") return;
+      b.innerHTML = LINES[tipI = (tipI + 1) % LINES.length].replace(/<(\/?)b>/g, "<$1strong>");
+      launch.classList.remove("is-tip"); void launch.offsetWidth; launch.classList.add("is-tip");
+    }
+    if (launch) launch.addEventListener("animationend", function (e) { if (e.animationName === "sqa-label" && launch.classList.contains("is-tip")) { launch.classList.remove("is-tip"); var lb = launch.querySelector("b"); if (lb) lb.textContent = "Ask SQ Assistant"; } });
+    layout(); addEventListener("resize", function () { layout(); update(); });
     function update() {
-      var show = scrollY > innerHeight * .7 && !guideVisible && !document.documentElement.classList.contains("sqa-open");
+      var show = !tight && scrollY > innerHeight * .7 && !guideVisible && !document.documentElement.classList.contains("sqa-open");
       if (show && !h.classList.contains("is-on")) { talk(); h.classList.add("is-on", "is-drop"); setTimeout(function () { h.classList.remove("is-drop"); }, 1300); }
       if (!show) h.classList.remove("is-on");
     }
@@ -5272,7 +5381,15 @@ window.DSQXCar3D = function (stage, hooks) {
     document.body.appendChild(el);
     el.addEventListener("click", function () { track("cta_click", { location: "floating" }); });
     var hero = $("#home"), wiz = $("#book-60"), fh = $("#free-hour"), heroOut = false, near = false;
-    var upd = function () { el.classList.toggle("show", heroOut && !near && !booked && innerWidth >= 992); };
+    // shows in full when it appears, then shrinks to a round ⚡ button so it never covers the text (hover / focus opens it)
+    var miniT = 0, shown = false;
+    var upd = function () {
+      var on = heroOut && !near && !booked && innerWidth >= 992;
+      el.classList.toggle("show", on);
+      if (on && !shown) { el.classList.remove("is-mini"); clearTimeout(miniT); miniT = setTimeout(function () { el.classList.add("is-mini"); }, 4500); }
+      shown = on;
+    };
+    el.setAttribute("aria-label", "Book in 60 seconds");
     if ("IntersectionObserver" in window) {
       if (hero) new IntersectionObserver(function (es) { heroOut = !es[0].isIntersecting; upd(); }, { threshold: 0 }).observe(hero);
       var vis = {};
