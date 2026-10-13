@@ -23,6 +23,17 @@
     return /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(c) ? c.slice(0, -3) + ' ' + c.slice(-3) : '';
   }
   function phoneOk(v) { var d = clean(v).replace(/\D/g, ''); if (d.indexOf('44') === 0) d = '0' + d.slice(2); return /^0\d{9,10}$/.test(d); }
+  function emailOk(v) { v = clean(v); return !v || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
+  function nameOk(v) { return /[A-Za-z\u00C0-\u024F].*[A-Za-z\u00C0-\u024F]/.test(clean(v)); }
+  /* inline error under a form; focuses the field at fault */
+  function formError(form, html, field) {
+    var old = form.querySelector('.dsq-form-err'); if (old) old.remove();
+    var d = document.createElement('div'); d.className = 'dsq-form-err'; d.setAttribute('role', 'alert');
+    d.style.cssText = 'color:#fca5a5;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.35);border-radius:8px;padding:10px 13px;font-size:.85rem;margin-top:8px';
+    d.innerHTML = html; form.appendChild(d);
+    if (field && field.focus) { try { field.focus(); } catch (e) {} }
+    setTimeout(function () { if (d.parentNode) d.remove(); }, 9000);
+  }
   function gearbox(service, extra) { return /auto/i.test(service + ' ' + (extra || '')) ? 'Automatic' : 'Manual'; }
   function pageLabel() {
     var h1 = document.querySelector('h1');
@@ -114,6 +125,8 @@
       var pcRaw = val('postcode');
       d.postcode = fullPostcode(pcRaw); d.gearbox = gearbox(d.service);
       if (!d.name || !d.phone || !pcRaw || !d.service) { say('Please fill in your name, phone number, postcode and lesson type.'); return; }
+      if (!nameOk(d.name)) { say('Please enter your name.'); return; }
+      if (!emailOk(d.email)) { say("That email doesn't look right — check it or leave it blank."); return; }
       if (!phoneOk(d.phone)) { say("That phone number doesn't look right — please check it."); return; }
       if (!d.postcode) { say('Please enter your full postcode, e.g. M19 2AB.'); return; }
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending…'; }
@@ -142,6 +155,17 @@
       var fd = new FormData(form), g = function (k) { return clean(fd.get(k)); };
       var d = { formName: 'Website booking form', page: pageLabel(), action: form.action, name: g('name'), phone: g('phone') || g('tel'), email: g('email'), service: g('service') || g('lesson_type') || g('package'), notes: g('notes') || g('message') };
       d.postcode = fullPostcode(g('postcode')) || g('postcode').toUpperCase(); d.gearbox = gearbox(d.service, g('gearbox') + ' ' + g('transmission'));
+      var F = function (n) { return form.querySelector('[name="' + n + '"]'); };
+      if (fd.get('_gotcha')) return;   // spam bot filled the hidden trap field
+      var phoneEl = F('phone') || F('tel'), pcEl = F('postcode'), emEl = F('email'), svcEl = F('service') || F('lesson_type') || F('package');
+      if (!nameOk(d.name)) return formError(form, 'Please enter your name.', F('name'));
+      if (phoneEl && !phoneOk(d.phone)) return formError(form, d.phone ? "That phone number doesn't look right — please check it." : 'Please enter your phone number so we can contact you.', phoneEl);
+      if (!phoneEl && !d.email) return formError(form, 'Please enter your email so we can reply.', emEl);
+      if (emEl && emEl.required && !d.email) return formError(form, 'Please enter your email address.', emEl);
+      if (!emailOk(d.email)) return formError(form, "That email doesn't look right — please check it.", emEl);
+      if (pcEl && !fullPostcode(g('postcode'))) return formError(form, 'Please enter your <strong>full postcode</strong>, e.g. M19 2AB.', pcEl);
+      if (svcEl && svcEl.required && !clean(svcEl.value)) return formError(form, 'Please choose a lesson type.', svcEl);
+      var oldErr = form.querySelector('.dsq-form-err'); if (oldErr) oldErr.remove();
       if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sending…'; }
       send(d, fd).then(function (ok) {
         if (ok) {

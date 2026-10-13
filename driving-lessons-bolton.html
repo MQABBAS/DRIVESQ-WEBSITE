@@ -3332,6 +3332,11 @@ function openLocalVideo(src) {
       bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">Please fill in all required fields.</div>');
       btn.disabled=false;btn.innerHTML=origHtml;return;
     }
+    {const bad=(m,n)=>{bookForm.insertAdjacentHTML('beforeend','<div class="alert alert-danger mt-2 rounded-3 small">'+m+'</div>');btn.disabled=false;btn.innerHTML=origHtml;bookForm.querySelector('[name="'+n+'"]')?.focus();return true;};
+     let d=phone.replace(/\D/g,'');if(d.indexOf('44')===0)d='0'+d.slice(2);
+     if(!/[A-Za-z].*[A-Za-z]/.test(name)&&bad('Please enter your name.','name'))return;
+     if(!/^0\d{9,10}$/.test(d)&&bad("That phone number doesn't look right — please check it.",'phone'))return;
+     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)&&bad("That email doesn't look right — please check it.",'email'))return;}
     // 1. Send to Formspree (keep email notifications working)
     let fsOk=false;
     try{

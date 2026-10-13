@@ -1001,6 +1001,10 @@ async function submitBooking(){
   const email=document.getElementById('b-email').value.trim();
   const notes=document.getElementById('b-notes').value.trim();
   if(!name||!phone||!postcode){alert('Please fill in your name, phone, and postcode.');return;}
+  if(!/[A-Za-z].*[A-Za-z]/.test(name)){alert('Please enter your name.');document.getElementById('b-name').focus();return;}
+  {let d=phone.replace(/\D/g,'');if(d.indexOf('44')===0)d='0'+d.slice(2);if(!/^0\d{9,10}$/.test(d)){alert("That phone number doesn't look right — please check it.");document.getElementById('b-phone').focus();return;}}
+  if(!/^[A-Z]{1,2}[0-9][A-Z0-9]?\s*[0-9][A-Z]{2}$/.test(postcode)){alert('Please enter your full postcode, e.g. M19 2AB.');document.getElementById('b-postcode').focus();return;}
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){alert("That email doesn't look right — check it or leave it blank.");document.getElementById('b-email').focus();return;}
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i>Sending…';
   const notesStr=['[WEB][OLDHAM SEO PAGE] Book a Lesson form','Package: '+lessonType,'Gearbox: '+(/auto/i.test(lessonType)?'Automatic':'Manual'),'Postcode: '+postcode,email?'Email: '+email:'',notes?'Notes: '+notes:''].filter(Boolean).join('\n');
   let supaOk=false,formOk=false;

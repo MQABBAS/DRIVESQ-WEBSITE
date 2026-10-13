@@ -1118,6 +1118,8 @@ function handleForm(e){
   const phone=document.getElementById('pp-phone').value;
   const trans=document.getElementById('pp-trans').value||'Not specified';
   const area=document.getElementById('pp-area').value||'Not specified';
+  if(!/[A-Za-z].*[A-Za-z]/.test(name)){alert('Please enter your name.');document.getElementById('pp-name').focus();return;}
+  {let d=phone.replace(/\D/g,'');if(d.indexOf('44')===0)d='0'+d.slice(2);if(!/^0\d{9,10}$/.test(d)){alert(phone.trim()?"That phone number doesn't look right — please check it.":'Please enter your phone number.');document.getElementById('pp-phone').focus();return;}}
   // also log it in Admin → Website Bookings (+ email + admin push) so nothing relies on WhatsApp alone
   try{if(window.DSQBooking)DSQBooking.send({formName:'Pass Plus form',page:'Pass Plus Manchester',name:name.trim(),phone:phone.trim(),service:'Pass Plus',gearbox:/auto/i.test(trans)?'Automatic':'Manual',postcode:window.DSQBooking.fullPostcode(area)||'',notes:'Area: '+area+' · Transmission: '+trans});}catch(err){}
   const msg=`Hi, I'd like to book Pass Plus in Manchester.%0AName: ${encodeURIComponent(name)}%0APhone: ${encodeURIComponent(phone)}%0ATransmission: ${encodeURIComponent(trans)}%0AArea: ${encodeURIComponent(area)}`;
