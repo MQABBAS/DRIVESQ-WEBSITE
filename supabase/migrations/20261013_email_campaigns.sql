@@ -86,3 +86,17 @@ begin
 end $$;
 
 grant all on email_contacts, email_campaigns, email_sends to anon, authenticated;
+
+-- ── Saved email templates (added later — safe to run the whole file again) ──
+create table if not exists email_templates (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  design      jsonb not null default '{}',
+  created_by  text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+alter table email_templates enable row level security;
+drop policy if exists "anon_all_email_templates" on email_templates;
+create policy "anon_all_email_templates" on email_templates for all using (true) with check (true);
+grant all on email_templates to anon, authenticated;

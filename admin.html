@@ -1257,6 +1257,28 @@ body.day-mode .dsqd-note{color:#92400e}
 @keyframes dsqmIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.dsqm *{animation:none!important}}
 
+.dsqm-tools{flex-wrap:wrap}
+.dsqm-tsel{border:1px solid var(--bdr2);background:var(--dk3);color:var(--txt2);border-radius:7px;padding:3px 6px;font-size:.78rem;cursor:pointer}
+.dsqm-stickers{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.dsqm-stk{border:1px solid var(--bdr2);background:#fff;border-radius:12px;padding:6px;cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:center}
+.dsqm-stk img{width:100%;height:84px;object-fit:contain;border-radius:8px}
+.dsqm-stk small{font-size:.66rem;color:#5d534d;text-align:center}
+.dsqm-stk.is-on{border-color:var(--m-red);box-shadow:0 0 0 3px rgba(209,10,17,.2)}
+.dsqm-tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.dsqm-tpl{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:16px;overflow:hidden;background:var(--dk3);transition:transform .25s,border-color .25s,box-shadow .25s}
+.dsqm-tpl:hover{transform:translateY(-4px);border-color:rgba(209,10,17,.5);box-shadow:0 14px 30px rgba(0,0,0,.25)}
+.dsqm-tpl__thumb{position:relative;height:250px;overflow:hidden;background:#f3eee8;pointer-events:none}
+.dsqm-tpl__thumb iframe{position:absolute;left:0;top:0;width:640px;height:780px;border:0;transform:scale(.38);transform-origin:0 0}
+.dsqm-tpl__b{padding:10px 12px 4px}
+.dsqm-tpl__b b{display:block;font:800 1rem 'Barlow Condensed','Oswald',sans-serif;text-transform:uppercase;letter-spacing:.3px}
+.dsqm-tpl__b small{font-size:.7rem;color:var(--txt4)}
+.dsqm-tpl__a{display:flex;gap:6px;align-items:center;padding:6px 12px 12px}
+.dsqm-tpl__a .btn-p{min-height:32px;padding:.35rem .9rem;font-size:.8rem;flex:1}
+.dsqm-empty--row{display:flex;gap:12px;align-items:center;justify-content:center;text-align:left;padding:18px}
+.dsqm-empty--row>div{font-size:2rem}
+.dsqm-empty--row p{margin:0;color:var(--txt3);font-size:.85rem}
+.dsqm-empty--row b{display:inline;font-size:inherit;margin:0}
+
 </style>
 <!-- DSQA:MAILCSS END -->
 </head>
@@ -14220,7 +14242,7 @@ document.addEventListener('click',e=>{
       .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+|tel:[^)\s]+)\)/g, '<a href="$2" style="color:' + th.accent + ';font-weight:700;text-decoration:underline">$1</a>')
       .replace(/\{\{(first_name|name|email)\}\}/g, "{{$1}}");
   }
-  function fmtBody(src, th) {
+  function fmtBody(src, th, opt) {
     var isLi = function (l) { return /^\s*[-•]\s+/.test(l); };
     var list = function (lines) {
       return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px">' + lines.map(function (l) {
@@ -14228,10 +14250,21 @@ document.addEventListener('click',e=>{
       }).join("") + "</table>";
     };
     var para = function (lines, last) { return '<p style="margin:0 0 ' + (last ? 18 : 8) + 'px;font-family:' + BODYF + ';font-size:16px;line-height:26px;color:' + th.ink + '">' + lines.map(function (l) { return fmtInline(l, th); }).join("<br>") + "</p>"; };
+    var IMG = /^\s*!\[([^\]]*)\]\(((?:https?:\/\/|email\/)[^)\s]+)\)(\{(small|medium|full)\})?\s*$/;
+    var img = function (l) {
+      var m = l.match(IMG), size = m[4] || "medium", w = size === "small" ? 200 : size === "full" ? 520 : 340;
+      var src = /^email\//.test(m[2]) ? (opt && opt.base ? opt.base : ASSET) + m[2].slice(6) : m[2];
+      return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px"><tr><td align="center"><img src="' + esc(src) + '" width="' + w + '" alt="' + esc(m[1]) + '" style="width:100%;max-width:' + w + 'px;height:auto;border-radius:14px;display:block"></td></tr></table>';
+    };
+    var hr = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:6px 0 22px"><tr><td style="border-top:1px solid ' + th.line + ';font-size:0;line-height:0">&nbsp;</td></tr></table>';
     return String(src || "").replace(/\r/g, "").split(/\n{2,}/).map(function (b) {
       var lines = b.split("\n").filter(function (l) { return l.trim(); }), out = "", run = [], mode = null;
       var flush = function (end) { if (!run.length) return; out += mode === "li" ? list(run) : para(run, end); run = []; };
-      lines.forEach(function (l, i) { var m = isLi(l) ? "li" : "p"; if (m !== mode) { flush(false); mode = m; } run.push(l); });
+      lines.forEach(function (l, i) {
+        if (IMG.test(l)) { flush(true); mode = null; out += img(l); return; }
+        if (/^\s*-{3,}\s*$/.test(l)) { flush(true); mode = null; out += hr; return; }
+        var m = isLi(l) ? "li" : "p"; if (m !== mode) { flush(false); mode = m; } run.push(l);
+      });
       flush(true);
       return out;
     }).join("");
@@ -14284,7 +14317,7 @@ document.addEventListener('click',e=>{
       '<tr><td class="dsq-pad" style="padding:34px 40px 10px">' +
       (d.headline ? '<h1 class="dsq-h1" style="margin:0 0 18px;font-family:' + FONT + ';font-size:40px;line-height:42px;font-weight:800;color:' + th.ink + ';text-transform:uppercase;letter-spacing:.3px">' + fmtInline(d.headline, th) + "</h1>" : "") +
       (d.greeting !== "" ? '<p style="margin:0 0 16px;font-family:' + BODYF + ';font-size:16px;line-height:26px;color:' + th.ink + ';font-weight:600">' + fmtInline(d.greeting || "Hi {{first_name}},", th) + "</p>" : "") +
-      fmtBody(d.body, th) + hl + button(d.buttonText, d.buttonUrl, th) +
+      fmtBody(d.body, th, opt) + hl + button(d.buttonText, d.buttonUrl, th) +
       (d.secondaryText ? '<p style="margin:0 0 20px;font-family:' + BODYF + ';font-size:14px;line-height:22px;color:' + th.soft + ';text-align:center">' + fmtInline(d.secondaryText, th) + "</p>" : "") +
       '<p style="margin:6px 0 26px;font-family:' + BODYF + ';font-size:16px;line-height:26px;color:' + th.ink + '">' + fmtInline(d.signoff || "Speak soon,\n**The DriveSQ team**", th).replace(/\n/g, "<br>") + "</p>" +
       "</td></tr>" +
@@ -14304,7 +14337,7 @@ document.addEventListener('click',e=>{
   }
 
   function text(d) {
-    var strip = function (s) { return String(s || "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)"); };
+    var strip = function (s) { return String(s || "").replace(/^\s*!\[[^\]]*\]\([^)]*\)(\{\w+\})?\s*$/gm, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)"); };
     return [d.headline ? strip(d.headline).toUpperCase() : "", "", strip(d.greeting || "Hi {{first_name}},"), "", strip(d.body),
       d.highlightValue ? "\n" + d.highlightValue + (d.highlightLabel ? " — " + strip(d.highlightLabel) : "") : "",
       d.buttonText && d.buttonUrl ? "\n" + d.buttonText + ": " + d.buttonUrl : "", d.secondaryText ? "\n" + strip(d.secondaryText) : "",
@@ -14390,7 +14423,16 @@ document.addEventListener('click',e=>{
     return d;
   }
 
-  window.DSQMail = { build: build, text: text, personalise: personalise, generate: generate, THEMES: THEMES, BANNERS: BANNERS, PURPOSES: PURPOSES, esc: esc };
+  var STICKERS = [
+    { file: "email/sticker-gift.gif", name: "Gift box (animated)", alt: "A gift for you" },
+    { file: "email/sticker-car.gif", name: "DriveSQ car (animated)", alt: "DriveSQ car" },
+    { file: "email/sticker-pass.gif", name: "PASSED licence (animated)", alt: "Passed!" },
+    { file: "email/banner-gift.gif", name: "Gift banner (animated)", alt: "Chance to win a free lesson" },
+    { file: "email/banner-drive.gif", name: "Car banner (animated)", alt: "DriveSQ — Pass First Time" },
+    { file: "email/banner-pass.gif", name: "Pass day banner (animated)", alt: "Congratulations" },
+    { file: "email/logo-240.png", name: "DriveSQ logo", alt: "DriveSQ" }
+  ];
+  window.DSQMail = { STICKERS: STICKERS, build: build, text: text, personalise: personalise, generate: generate, THEMES: THEMES, BANNERS: BANNERS, PURPOSES: PURPOSES, esc: esc };
 })();
 
 /* DSQM — DriveSQ Email (admin): contacts, branded templates, batch sending, campaign history.
@@ -14415,7 +14457,7 @@ document.addEventListener('click',e=>{
   const LS = { get(k, d) { try { const v = localStorage.getItem("dsqm_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem("dsqm_" + k, JSON.stringify(v)); } catch (e) {} } };
   const SOURCES = { students: "Students", bookings: "Website bookings", draw: "Free Hour Draw", instructors: "Instructors", manual: "Added by hand", import: "Imported list", unsubscribe: "Unsubscribe link" };
 
-  const S = { tab: LS.get("tab", "compose"), contacts: [], campaigns: [], missing: false, loaded: false, selected: new Set(), q: "", src: "", status: "subscribed", fnOk: null,
+  const S = { tab: LS.get("tab", "compose"), contacts: [], campaigns: [], templates: [], tplLocal: false, missing: false, loaded: false, selected: new Set(), q: "", src: "", status: "subscribed", fnOk: null,
     design: LS.get("draft", null), sending: null, view: "desktop" };
 
   async function load() {
@@ -14423,6 +14465,8 @@ document.addEventListener('click',e=>{
     const [ct, cp] = await Promise.all([fetchAll("email_contacts", "created_at"), c.from("email_campaigns").select("id,name,subject,status,total,sent_count,failed_count,skipped_count,created_at,started_at,finished_at,batch_size,batch_pause").order("created_at", { ascending: false })]);
     S.missing = isMissing(ct.error) || isMissing(cp.error);
     S.contacts = ct.data || []; S.campaigns = cp.data || []; S.loaded = true;
+    const tp = await c.from("email_templates").select("*").order("updated_at", { ascending: false });
+    if (tp.error) { S.tplLocal = true; S.templates = LS.get("templates", []); } else { S.tplLocal = false; S.templates = tp.data || []; }
   }
   async function fetchAll(table, order) {
     let all = [], from = 0, err = null;
@@ -14467,10 +14511,11 @@ document.addEventListener('click',e=>{
           <p class="dsqm-hero__s">Create a professional DriveSQ email in seconds, preview it, test it, then send it to your customers safely in batches.</p></div>
         <div class="dsqm-hero__stats"><div><b>${subs}</b><small>can be emailed</small></div><div><b>${S.contacts.length - subs}</b><small>unsubscribed</small></div><div><b>${S.campaigns.filter(c => c.status === "sent").length}</b><small>campaigns sent</small></div></div>
       </section>
-      <nav class="dsqm-tabs" role="tablist">${[["compose", "bi-magic", "Create email"], ["audience", "bi-people-fill", "Contacts"], ["campaigns", "bi-send-check-fill", "Campaigns"], ["setup", "bi-gear-fill", "Setup"]].map(t => `<button type="button" role="tab" aria-selected="${S.tab === t[0]}" class="dsqm-tab${S.tab === t[0] ? " is-on" : ""}" data-tab="${t[0]}"><i class="bi ${t[1]}"></i>${t[2]}${t[0] === "setup" && (S.missing || !LS.get("key", "")) ? ' <span class="dsqm-dot"></span>' : ""}</button>`).join("")}</nav>
-      <div class="dsqm-body">${S.missing && S.tab !== "setup" ? missingHTML() : S.tab === "audience" ? audienceHTML() : S.tab === "campaigns" ? campaignsHTML() : S.tab === "setup" ? setupHTML() : composeHTML()}</div>`;
+      <nav class="dsqm-tabs" role="tablist">${[["compose", "bi-magic", "Create email"], ["templates", "bi-collection-fill", "Templates"], ["audience", "bi-people-fill", "Contacts"], ["campaigns", "bi-send-check-fill", "Campaigns"], ["setup", "bi-gear-fill", "Setup"]].map(t => `<button type="button" role="tab" aria-selected="${S.tab === t[0]}" class="dsqm-tab${S.tab === t[0] ? " is-on" : ""}" data-tab="${t[0]}"><i class="bi ${t[1]}"></i>${t[2]}${t[0] === "setup" && (S.missing || !LS.get("key", "")) ? ' <span class="dsqm-dot"></span>' : ""}</button>`).join("")}</nav>
+      <div class="dsqm-body">${S.missing && S.tab !== "setup" ? missingHTML() : S.tab === "audience" ? audienceHTML() : S.tab === "templates" ? templatesHTML() : S.tab === "campaigns" ? campaignsHTML() : S.tab === "setup" ? setupHTML() : composeHTML()}</div>`;
     p.onclick = onClick; p.oninput = onInput; p.onchange = onChange;
     if (S.tab === "compose" && !S.missing) { fillCompose(); preview(); }
+    if (S.tab === "templates" && !S.missing) thumbs();
     if (S.tab === "setup") bindSetup();
   }
   function missingHTML() { return `<div class="dsqm-card dsqm-empty"><div>🛠️</div><b>One-time setup needed</b><p>The email tables aren't in Supabase yet. Open <b>Setup</b> and follow the steps — it takes about 10 minutes.</p><button type="button" class="btn-p" data-tab="setup"><i class="bi bi-gear-fill"></i>Open setup</button></div>`; }
@@ -14509,9 +14554,11 @@ document.addEventListener('click',e=>{
           <label class="dsqm-f"><span>Headline</span><input class="dsq-inp" data-k="headline"></label>
           <label class="dsqm-f"><span>Greeting</span><input class="dsq-inp" data-k="greeting"></label>
           <div class="dsqm-f"><span>Message</span>
-            <div class="dsqm-tools"><button type="button" data-fmt="bold" title="Bold"><i class="bi bi-type-bold"></i></button><button type="button" data-fmt="link" title="Link"><i class="bi bi-link-45deg"></i></button><button type="button" data-fmt="list" title="Bullet list"><i class="bi bi-list-check"></i></button><button type="button" data-fmt="name" title="First name">{{first_name}}</button></div>
+            <div class="dsqm-tools"><button type="button" data-fmt="bold" title="Bold"><i class="bi bi-type-bold"></i></button><button type="button" data-fmt="link" title="Link"><i class="bi bi-link-45deg"></i></button><button type="button" data-fmt="list" title="Ticked list"><i class="bi bi-list-check"></i></button><button type="button" data-fmt="img" title="Add a picture, gift or GIF"><i class="bi bi-gift-fill"></i> Picture / GIF</button><button type="button" data-fmt="hr" title="Divider"><i class="bi bi-dash-lg"></i></button>
+              <select class="dsqm-tsel" data-fmtsel="token" aria-label="Insert a name"><option value="">+ Name…</option><option value="{{first_name}}">First name</option><option value="{{name}}">Full name</option><option value="{{email}}">Email address</option></select>
+              <select class="dsqm-tsel" data-fmtsel="emoji" aria-label="Insert an emoji"><option value="">+ Emoji…</option>${["🎁", "🎉", "🚗", "✅", "⭐", "🔥", "📅", "💷", "🏆", "👋", "🚦", "📱", "❤️"].map(e => `<option>${e}</option>`).join("")}</select></div>
             <textarea class="dsq-inp dsqm-body-in" data-k="body" rows="9"></textarea>
-            <small class="dsqm-help">**bold** · [link text](https://…) · start lines with "- " for a ticked list · leave a blank line between paragraphs</small></div>
+            <small class="dsqm-help">**bold** · [link text](https://…) · "- " for a ticked list · ![picture](link) for an image · --- for a divider · blank line between paragraphs</small></div>
           <div class="dsqm-grid2">
             <label class="dsqm-f"><span>Highlight (big text, optional)</span><input class="dsq-inp" data-k="highlightValue" placeholder="e.g. £35/hr"></label>
             <label class="dsqm-f"><span>Highlight caption</span><input class="dsq-inp" data-k="highlightLabel" placeholder="e.g. Manual & automatic — same price"></label>
@@ -14530,6 +14577,7 @@ document.addEventListener('click',e=>{
           <div class="dsqm-frame dsqm-frame--${S.view}"><iframe title="Email preview" id="dm-frame" sandbox="allow-same-origin"></iframe></div>
           <div class="dsqm-actions">
             <button type="button" class="btn-s" data-save><i class="bi bi-floppy"></i>Save draft</button>
+            <button type="button" class="btn-s" data-savetpl><i class="bi bi-bookmark-star"></i>Save as my template</button>
             <button type="button" class="btn-s" data-test><i class="bi bi-send"></i>Send me a test</button>
             <button type="button" class="btn-s" data-dl><i class="bi bi-download"></i>Download HTML</button>
             <button type="button" class="btn-p dsqm-go" data-send><i class="bi bi-rocket-takeoff-fill"></i>Choose who gets it</button>
@@ -14568,9 +14616,87 @@ document.addEventListener('click',e=>{
     if (kind === "link") { const u = prompt("Link address (https://…)", "https://www.drivesq.co.uk/"); if (!u) return; ins = "[" + (sel || "link text") + "](" + u + ")"; }
     if (kind === "list") ins = (a && ta.value[a - 1] !== "\n" ? "\n" : "") + (sel ? sel.split("\n").map(l => "- " + l.replace(/^- /, "")).join("\n") : "- First point\n- Second point") + "\n";
     if (kind === "name") ins = "{{first_name}}";
+    if (kind === "hr") ins = (a && ta.value[a - 1] !== "\n" ? "\n\n" : "\n") + "---\n\n";
+    if (kind === "img") { pickImage(line => { ta.setRangeText((ta.selectionStart && ta.value[ta.selectionStart - 1] !== "\n" ? "\n\n" : "") + line + "\n\n", ta.selectionStart, ta.selectionEnd, "end"); design().body = ta.value; preview(); }); return; }
+    if (kind && kind.indexOf("raw:") === 0) ins = kind.slice(4);
     ta.setRangeText(ins, a, b, "end"); ta.focus(); design().body = ta.value; preview();
   }
   function finalHTML(d) { return M.build(d); }
+
+  /* picture / GIF picker */
+  function pickImage(done) {
+    const m = modal("dm-img", `<div class="dsqm-mhead"><span>🎁</span><div><h5>Add a picture, gift or GIF</h5><p>Animated GIFs play in Gmail, Apple Mail and most phones.</p></div></div>
+      <div class="dsqm-stickers">${M.STICKERS.map((x, i) => `<button type="button" class="dsqm-stk" data-i="${i}"><img src="${h(x.file)}" alt=""><small>${h(x.name)}</small></button>`).join("")}</div>
+      <label class="dsqm-f"><span>…or a picture from the web (https://…)</span><input class="dsq-inp" id="dm-img-url" placeholder="https://…/photo.jpg"></label>
+      <div class="dsqm-grid2"><label class="dsqm-f"><span>Description (for people who can't see images)</span><input class="dsq-inp" id="dm-img-alt" placeholder="e.g. Our new automatic car"></label>
+        <label class="dsqm-f"><span>Size</span><select class="dsq-inp" id="dm-img-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="full">Full width</option></select></label></div>
+      <div class="dsqm-actions"><button type="button" class="btn-s" data-x>Cancel</button><button type="button" class="btn-p" data-ok><i class="bi bi-plus-lg"></i>Insert</button></div>`);
+    let pick = null;
+    $$(".dsqm-stk", m).forEach(b => b.addEventListener("click", () => { pick = M.STICKERS[+b.dataset.i]; $$(".dsqm-stk", m).forEach(x => x.classList.toggle("is-on", x === b)); $("#dm-img-url", m).value = ""; if (!$("#dm-img-alt", m).value) $("#dm-img-alt", m).value = pick.alt; if (/banner/.test(pick.file)) $("#dm-img-size", m).value = "full"; else $("#dm-img-size", m).value = "small"; }));
+    $("[data-ok]", m).addEventListener("click", () => {
+      const url = $("#dm-img-url", m).value.trim(), src = url || (pick && pick.file);
+      if (!src) { toast("Choose a picture or paste a link", "warn"); return; }
+      if (url && !/^https:\/\//.test(url)) { toast("Use a link starting with https://", "warn"); return; }
+      const alt = ($("#dm-img-alt", m).value || "").replace(/[\[\]]/g, "").trim() || "Picture";
+      close(m); done("![" + alt + "](" + src + "){" + $("#dm-img-size", m).value + "}");
+    });
+  }
+
+  /* ready-made + my templates */
+  const PREMADE = () => Object.keys(M.PURPOSES).map(k => ({ id: "pre-" + k, name: M.PURPOSES[k].name, premade: true, design: Object.assign(M.generate(k, k === "draw" || k === "pass" || k === "offer" ? "exciting" : "friendly", { theme: k === "welcome" || k === "theory" ? "night" : k === "pass" || k === "winner" ? "bold" : "classic" }), { name: M.PURPOSES[k].name }) }));
+  function templatesHTML() {
+    const card = t => `<article class="dsqm-tpl" data-tpl="${h(t.id)}"><div class="dsqm-tpl__thumb"><iframe tabindex="-1" aria-hidden="true" sandbox="allow-same-origin" data-thumb="${h(t.id)}"></iframe></div>
+      <div class="dsqm-tpl__b"><b>${h(t.name)}</b><small>${t.premade ? "Ready-made" : "Saved " + fmtDT(t.updated_at || t.created_at)}</small></div>
+      <div class="dsqm-tpl__a"><button type="button" class="btn-p" data-usetpl="${h(t.id)}"><i class="bi bi-magic"></i>Use</button>${t.premade ? "" : `<button type="button" class="dsqm-mini" data-rentpl="${h(t.id)}" title="Rename"><i class="bi bi-pencil"></i></button><button type="button" class="dsqm-mini dsqm-mini--warn" data-deltpl="${h(t.id)}" title="Delete"><i class="bi bi-trash"></i></button>`}</div></article>`;
+    return `<section class="dsqm-card"><header><h3><i class="bi bi-bookmark-star-fill"></i>My templates <span class="dsqm-n">${S.templates.length}</span></h3><button type="button" class="btn-s" data-tab="compose"><i class="bi bi-plus-lg"></i>Make a new one</button></header>
+        ${S.tplLocal ? `<p class="dsqm-p">⚠️ Saved on this device only — run the latest email SQL in Setup to keep templates in Supabase.</p>` : ""}
+        ${S.templates.length ? `<div class="dsqm-tpls">${S.templates.map(card).join("")}</div>` : `<div class="dsqm-empty dsqm-empty--row"><div>🔖</div><p>Design an email in <b>Create email</b>, then press <b>Save as my template</b> to reuse it any time.</p></div>`}</section>
+      <section class="dsqm-card"><header><h3><i class="bi bi-collection-fill"></i>Ready-made templates</h3><span class="dsqm-hint">Pick one, then change anything you like</span></header>
+        <div class="dsqm-tpls">${PREMADE().map(card).join("")}</div></section>`;
+  }
+  function allTemplates() { return S.templates.concat(PREMADE()); }
+  function thumbs() {
+    const base = location.origin + location.pathname.replace(/[^/]*$/, "") + "email/";
+    const list = allTemplates();
+    $$("#panel-email [data-thumb]").forEach((f, i) => {
+      const t = list.find(x => x.id === f.getAttribute("data-thumb")); if (!t) return;
+      setTimeout(() => { f.srcdoc = M.personalise(M.build(t.design, { base: base }), { name: "Sam Patel" }).replace(/\{\{unsubscribe_url\}\}/g, "#"); }, i * 60);
+    });
+  }
+  async function saveTemplate() {
+    const d = design(), name = (prompt("Name this template", d.name || d.subject || "My template") || "").trim();
+    if (!name) return;
+    const row = { name, design: Object.assign({}, d, { name }), created_by: who(), updated_at: new Date().toISOString() };
+    const ex = S.templates.find(t => t.name.toLowerCase() === name.toLowerCase());
+    if (ex && !confirm("Replace your template “" + ex.name + "”?")) return;
+    if (!S.tplLocal) {
+      const r = ex ? await db().from("email_templates").update(row).eq("id", ex.id) : await db().from("email_templates").insert([row]);
+      if (r.error) { if (isMissing(r.error)) S.tplLocal = true; else { toast("Couldn't save: " + r.error.message, "error"); return; } }
+    }
+    if (S.tplLocal) {
+      const list = LS.get("templates", []).filter(t => !ex || t.id !== ex.id);
+      list.unshift(Object.assign({ id: (ex && ex.id) || "local-" + Date.now(), created_at: new Date().toISOString() }, row)); LS.set("templates", list);
+    }
+    await load(); toast("🔖 Saved as “" + name + "”", "success");
+  }
+  async function useTemplate(id) {
+    const t = allTemplates().find(x => x.id === id); if (!t) return;
+    S.design = JSON.parse(JSON.stringify(t.design)); S.design.name = t.name + " — " + new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    S.tab = "compose"; LS.set("tab", "compose"); render(); toast("Template loaded — edit anything, then send", "success");
+  }
+  async function renameTemplate(id) {
+    const t = S.templates.find(x => x.id === id); if (!t) return;
+    const name = (prompt("New name", t.name) || "").trim(); if (!name) return;
+    if (S.tplLocal) { LS.set("templates", LS.get("templates", []).map(x => x.id === id ? Object.assign(x, { name }) : x)); }
+    else await db().from("email_templates").update({ name, updated_at: new Date().toISOString() }).eq("id", id);
+    await load(); render();
+  }
+  async function deleteTemplate(id) {
+    if (!confirm("Delete this template?")) return;
+    if (S.tplLocal) LS.set("templates", LS.get("templates", []).filter(x => x.id !== id));
+    else await db().from("email_templates").delete().eq("id", id);
+    await load(); render();
+  }
 
   /* ===================== AUDIENCE ===================== */
   function filtered() {
@@ -14888,6 +15014,10 @@ document.addEventListener('click',e=>{
     if (a("data-banner")) { design().banner = a("data-banner"); fillCompose(); preview(); return; }
     if (a("data-fmt")) { insertFmt(a("data-fmt")); return; }
     if (a("data-view")) { S.view = a("data-view"); $$("#panel-email [data-view]").forEach(b => b.classList.toggle("is-on", b === t)); const fr = $("#panel-email .dsqm-frame"); if (fr) fr.className = "dsqm-frame dsqm-frame--" + S.view; return; }
+    if (t.hasAttribute("data-savetpl")) { saveTemplate(); return; }
+    if (a("data-usetpl")) { useTemplate(a("data-usetpl")); return; }
+    if (a("data-rentpl")) { renameTemplate(a("data-rentpl")); return; }
+    if (a("data-deltpl")) { deleteTemplate(a("data-deltpl")); return; }
     if (t.hasAttribute("data-save")) { LS.set("draft", design()); toast("Draft saved on this device", "success"); return; }
     if (t.hasAttribute("data-dl")) { const blob = new Blob([finalHTML(design())], { type: "text/html" }); const l = document.createElement("a"); l.href = URL.createObjectURL(blob); l.download = (design().name || "drivesq-email").replace(/[^\w-]+/g, "-") + ".html"; l.click(); return; }
     if (t.hasAttribute("data-test")) { sendTest(); return; }
@@ -14926,6 +15056,7 @@ document.addEventListener('click',e=>{
   }
   function onChange(ev) {
     const el = ev.target;
+    if (el.hasAttribute && el.hasAttribute("data-fmtsel")) { if (el.value) insertFmt("raw:" + el.value); el.value = ""; return; }
     if (el.id === "dm-src") { S.src = el.value; render(); return; }
     if (el.id === "dm-status") { S.status = el.value; render(); return; }
     if (el.hasAttribute("data-sel")) { const id = el.getAttribute("data-sel"); if (el.checked) S.selected.add(id); else S.selected.delete(id); render(); return; }
