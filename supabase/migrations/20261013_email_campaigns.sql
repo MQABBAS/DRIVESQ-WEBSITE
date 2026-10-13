@@ -87,7 +87,7 @@ end $$;
 
 grant all on email_contacts, email_campaigns, email_sends to anon, authenticated;
 
--- ── Saved email templates (added later — safe to run the whole file again) ──
+-- ── Saved email templates (safe to run the whole file again) ──
 create table if not exists email_templates (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
@@ -96,7 +96,16 @@ create table if not exists email_templates (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
-alter table email_templates enable row level security;
-drop policy if exists "anon_all_email_templates" on email_templates;
-create policy "anon_all_email_templates" on email_templates for all using (true) with check (true);
+do $$
+declare pol record;
+begin
+  alter table email_templates enable row level security;
+  for pol in select policyname from pg_policies where tablename = 'email_templates' loop
+    execute format('drop policy if exists %I on email_templates', pol.policyname);
+  end loop;
+  create policy "anon_select_email_templates" on email_templates for select using (true);
+  create policy "anon_insert_email_templates" on email_templates for insert with check (true);
+  create policy "anon_update_email_templates" on email_templates for update using (true) with check (true);
+  create policy "anon_delete_email_templates" on email_templates for delete using (true);
+end $$;
 grant all on email_templates to anon, authenticated;
