@@ -865,6 +865,21 @@ function toggleFaq(el){
 }
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
+/* DriveSQ: save to Admin → Website Bookings. If the table refuses a column, retry without it so the booking is never lost; then ping the admin's phone. */
+async function dsqSaveWL(row){
+  const H={'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'};
+  const base={student_name:row.student_name,student_phone:row.student_phone,notes:row.notes,status:'waiting'};
+  const tries=[row,Object.assign({},base,{postcode:row.postcode,lesson_type:row.lesson_type,created_at:row.created_at}),Object.assign({},base,{postcode:row.postcode}),base];
+  for(let k=0;k<tries.length;k++){
+    const r=await fetch(SB_URL+'/rest/v1/waiting_list',{method:'POST',headers:H,body:JSON.stringify(tries[k])});
+    if(r.ok){
+      try{fetch(SB_URL+'/functions/v1/send-push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({instructor_id:'00000000-0000-0000-0000-000000000001',title:'📅 New website booking',body:(row.student_name||'New learner')+' · '+(row.postcode||'')+' · '+(row.lesson_type||'Lessons'),url:'/admin.html',tag:'drivesq-admin'})}).catch(()=>{});}catch(e){}
+      return true;
+    }
+    if(r.status<400||r.status>=500||r.status===401||r.status===403)break;
+  }
+  return false;
+}
 async function submitBooking(){
   const btn=document.getElementById('bookBtn');
   const name=document.getElementById('b-name').value.trim();
@@ -875,15 +890,10 @@ async function submitBooking(){
   const notes=document.getElementById('b-notes').value.trim();
   if(!name||!phone||!postcode){alert('Please fill in your name, phone, and postcode.');return;}
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i>Sending…';
-  const notesStr=['[WEB][SALE SEO PAGE]',lessonType,notes,email?'Email: '+email:''].filter(Boolean).join('\n');
+  const notesStr=['[WEB][SALE SEO PAGE] Book a Lesson form','Package: '+lessonType,'Gearbox: '+(/auto/i.test(lessonType)?'Automatic':'Manual'),'Postcode: '+postcode,email?'Email: '+email:'',notes?'Notes: '+notes:''].filter(Boolean).join('\n');
   let supaOk=false,formOk=false;
   try{
-    const res=await fetch(SB_URL+'/rest/v1/waiting_list',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
-      body:JSON.stringify({student_name:name,student_phone:phone,postcode:postcode,area:'Sale',lesson_type:lessonType,notes:notesStr,status:'waiting',created_at:new Date().toISOString()})
-    });
-    supaOk=res.ok||res.status===201;
+    supaOk=await dsqSaveWL({student_name:name,student_phone:phone,postcode:postcode,area:'Sale',lesson_type:lessonType,notes:notesStr,status:'waiting',created_at:new Date().toISOString()});
   }catch(e){console.warn('Supabase error',e);}
   try{
     const fd=new FormData();

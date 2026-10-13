@@ -133,6 +133,8 @@
   /* ---------- any Formspree form ---------- */
   function formspreeForm(form) {
     if (form.dataset.dsqAttached) return;
+    // instructor job applications aren't learner bookings — leave them to Formspree (email) only
+    if (/join/i.test(form.id || '') || form.querySelector('[name="areas"]')) return;
     form.dataset.dsqAttached = '1';
     form.addEventListener('submit', function (e) {
       e.preventDefault();

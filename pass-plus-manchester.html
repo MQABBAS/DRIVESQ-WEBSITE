@@ -1118,6 +1118,8 @@ function handleForm(e){
   const phone=document.getElementById('pp-phone').value;
   const trans=document.getElementById('pp-trans').value||'Not specified';
   const area=document.getElementById('pp-area').value||'Not specified';
+  // also log it in Admin → Website Bookings (+ email + admin push) so nothing relies on WhatsApp alone
+  try{if(window.DSQBooking)DSQBooking.send({formName:'Pass Plus form',page:'Pass Plus Manchester',name:name.trim(),phone:phone.trim(),service:'Pass Plus',gearbox:/auto/i.test(trans)?'Automatic':'Manual',postcode:window.DSQBooking.fullPostcode(area)||'',notes:'Area: '+area+' · Transmission: '+trans});}catch(err){}
   const msg=`Hi, I'd like to book Pass Plus in Manchester.%0AName: ${encodeURIComponent(name)}%0APhone: ${encodeURIComponent(phone)}%0ATransmission: ${encodeURIComponent(trans)}%0AArea: ${encodeURIComponent(area)}`;
   window.open(`https://wa.me/447352932003?text=${msg}`,'_blank','noopener,noreferrer');
 }
