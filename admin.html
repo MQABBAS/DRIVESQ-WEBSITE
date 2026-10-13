@@ -3986,7 +3986,7 @@ function startAdminRealtime(){
         const name=payload?.new?.student_name||'New student';
         showToast(`📅 New website booking: ${name}`,'success',6000);
         // the homepage forms push to admin devices themselves — only push here for other website forms
-        if(!/Book in 60 seconds|Homepage booking form|Book a Lesson form|Website booking form/i.test(notes))pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
+        if(!/Book in 60 seconds|Homepage booking form|Book a Lesson form|Website booking form|Pass Plus form|SEO PAGE/i.test(notes))pushToAdmin('📅 New Website Booking',name+' has filled in the booking form.','/admin.html');
       }catch(e){}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_messages'},async(payload)=>{
@@ -9709,7 +9709,7 @@ async function loadWaitlist(){
     const daysWaiting=Math.floor((now-new Date(r.created_at))/864e5);
     const isUrgent=r.status==='waiting'&&daysWaiting>=7;
     const waNum=buildWaNum(r.student_phone||'');
-    const statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
+    const statusCol=r.status==='assigned'?'#4ade80':(r.status==='cancelled'||r.status==='rejected')?'#94a3b8':'#fbbf24';
     return`<div style="background:${isUrgent?'rgba(248,113,113,.06)':'var(--dk3)'};border:1px solid ${isUrgent?'rgba(248,113,113,.3)':'var(--bdr)'};border-radius:12px;padding:14px">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
@@ -9833,7 +9833,7 @@ function renderWebBookings(){
     const isUrgent=daysAgo>=3&&r.status==='waiting';
     const waNum=buildWaNum(r.student_phone||'');
     const _rid=String(r.id); // always use string for safe onclick and querySelector
-    const _statusCol=r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24';
+    const _statusCol=r.status==='assigned'?'#4ade80':(r.status==='cancelled'||r.status==='rejected')?'#94a3b8':'#fbbf24';
     return `<div style="background:var(--card-bg);border:1px solid ${isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
       <div class="d-flex align-items-start gap-2 flex-wrap">
         <div style="flex:1;min-width:160px">
@@ -12929,6 +12929,7 @@ function renderTheoryList(rows){
         <option value="waiting">Waiting</option>
         <option value="assigned">Assigned</option>
         <option value="cancelled">Declined</option>
+        <option value="rejected">Auto-declined / expired</option>
         <option value="all">All</option>
       </select>
       <input id="wbSearch" class="dsq-inp" style="max-width:200px;font-size:.8rem" placeholder="🔍 Search name or postcode…" oninput="renderWebBookings()"/>
