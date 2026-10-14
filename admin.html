@@ -735,6 +735,22 @@ body.qa-side-mini .qa-side__collapse i { transform:rotate(180deg); }
   #mainNav button[onclick="doLogout()"] i { font-size:.9rem; margin:0 !important; }
 }
 
+/* ===== tidier admin ===== */
+/* the 10 stat tiles belong on the dashboard only — other pages start with their own content */
+html[data-qa-tab]:not([data-qa-tab="dashboard"]) #globalStats { display:none !important; }
+/* phones: no empty band under the top bar (the bottom-tab spacer was being applied to it too) */
+#mainNav .container-fluid.px-3 { padding-bottom:0 !important; }
+/* one "Jump to…" per screen: the top bar has it on desktop */
+@media (min-width:1024px) { .qa-crumb__help, [data-qa="jump"] { display:none !important; } }
+@media (max-width:1023px) { html[data-qa-tab="dashboard"] .qa-crumb__help { display:none !important; } }
+/* quick actions: everyday buttons + "More" menu */
+.qa-more { position:relative; }
+.qa-more__menu { position:absolute; left:0; top:calc(100% + 6px); z-index:1100; min-width:210px; display:none; flex-direction:column; gap:2px; padding:6px; border-radius:12px; background:var(--dk2,#141414); border:1px solid var(--bdr,#2a2a2a); box-shadow:0 18px 40px rgba(0,0,0,.45); }
+.qa-more.is-open .qa-more__menu { display:flex; }
+.qa-more__menu .qa-btn { width:100%; justify-content:flex-start; text-align:left; border-color:transparent; background:none; }
+.qa-more__menu .qa-btn:hover, .qa-more__menu .qa-btn:focus-visible { background:rgba(255,255,255,.06); border-color:var(--bdr,#2a2a2a); }
+.qa-more.is-open .qa-more__btn { border-color:var(--red,#D10A11); color:var(--txt,#fff); }
+
 </style>
 <!-- DSQA:CSS END -->
 <!-- DSQA:DRAWCSS START -->
@@ -1492,11 +1508,11 @@ body.day-mode .dsqd-note{color:#92400e}
   <div style="flex:1">
     <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--txt);margin-bottom:6px">Quick Start Guide</div>
     <div style="font-size:.76rem;color:var(--txt2);line-height:1.7">
-      <strong style="color:var(--gold)">New customer booked?</strong> Click <em>New Customer</em> → enter their postcode → pick the nearest instructor → click <em>Assign to Instructor</em>.<br>
-      <strong style="color:var(--gold)">Website booking came in?</strong> Click the <em>Web Bookings</em> button at the top → click <em>Assign to Instructor</em> on their row.<br>
-      <strong style="color:var(--gold)">New instructor applied?</strong> Go to <em>Pending</em> tab → review and approve.<br>
-      <strong style="color:var(--gold)">Student needs a different instructor?</strong> Go to <em>Students</em> → find the student → click <em>Reassign</em>.<br>
-      <strong style="color:var(--gold)">Need to message everyone?</strong> Go to <em>Messages</em> tab → type your message → Send to All.
+      <strong style="color:var(--gold)">Website booking came in?</strong> Press <em>Website bookings</em> (or <kbd>B</kbd>) → <em>Find &amp; Assign Instructor</em> → <em>Create &amp; Assign</em> on the best match → once the first lesson is set, press <em>Lesson booked</em>.<br>
+      <strong style="color:var(--gold)">Phone or WhatsApp enquiry?</strong> <em>Find &amp; Assign</em> → enter their name and postcode → pick the closest instructor (or pass them to one of your <em>Other drivers</em>).<br>
+      <strong style="color:var(--gold)">New instructor applied?</strong> <em>Pending</em> → review → approve.<br>
+      <strong style="color:var(--gold)">Student needs a different instructor?</strong> <em>Students</em> → open the student → <em>Reassign</em>.<br>
+      <strong style="color:var(--gold)">Lost?</strong> Press <kbd>G</kbd> to jump to any page, or <kbd>?</kbd> for all shortcuts.
     </div>
   </div>
   <button onclick="document.getElementById('adminHelpBanner').style.display='none';localStorage.setItem('adminHelpDismissed','1')" style="background:none;border:none;color:var(--txt4);font-size:1rem;cursor:pointer;flex-shrink:0;padding:2px 4px" title="Dismiss">✕</button>
@@ -15825,7 +15841,34 @@ document.addEventListener('click',e=>{
     if (page) { var mo = new MutationObserver(function () { if (go()) mo.disconnect(); }); mo.observe(page, { attributes: true, attributeFilter: ["class"] }); }
   }
 
-  function init() { navReady(); phoneMore(); loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); boot(); }
+
+  /* ---------- tidy layout: stats only on the dashboard, a shorter quick-actions row ---------- */
+  function polish() {
+    var root = document.documentElement;
+    var cur = function () { var a = document.querySelector(".dsq-tab.active"); return a ? a.id.replace(/^tab-/, "") : "dashboard"; };
+    root.setAttribute("data-qa-tab", cur());
+    var orig = window.switchTab;
+    if (typeof orig === "function" && !orig.__qaTab) {
+      var w = function (t) { var out = orig.apply(this, arguments); root.setAttribute("data-qa-tab", t); return out; };
+      Object.keys(orig).forEach(function (k) { w[k] = orig[k]; }); w.__qaTab = true; window.switchTab = w;
+    }
+    // quick actions: keep the everyday ones, tuck the rest under "More"
+    var bar = document.getElementById("quickActionsBar"); if (!bar || bar.querySelector(".qa-more")) return;
+    var KEEP = /^(Add Student|Add Instructor|Find & Assign|Action Queue|Waiting List|Pending)$/i;
+    var extra = [].slice.call(bar.querySelectorAll(":scope > button.qa-btn")).filter(function (b) { return !KEEP.test(b.textContent.trim()); });
+    if (extra.length < 2) return;
+    var wrap = document.createElement("div"); wrap.className = "qa-more";
+    wrap.innerHTML = '<button type="button" class="qa-btn qa-more__btn" aria-expanded="false" aria-haspopup="true"><i class="bi bi-three-dots me-1"></i>More</button><div class="qa-more__menu" role="menu"></div>';
+    var menu = wrap.querySelector(".qa-more__menu"), btn = wrap.querySelector(".qa-more__btn");
+    extra.forEach(function (b) { b.setAttribute("role", "menuitem"); menu.appendChild(b); });
+    bar.appendChild(wrap);
+    var close = function () { wrap.classList.remove("is-open"); btn.setAttribute("aria-expanded", "false"); };
+    btn.addEventListener("click", function (e) { e.stopPropagation(); var o = !wrap.classList.contains("is-open"); wrap.classList.toggle("is-open", o); btn.setAttribute("aria-expanded", String(o)); if (o) { var f = menu.querySelector("button"); if (f) f.focus(); } });
+    menu.addEventListener("click", function () { setTimeout(close, 0); });
+    document.addEventListener("click", function (e) { if (!wrap.contains(e.target)) close(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && wrap.classList.contains("is-open")) { close(); btn.focus(); } });
+  }
+  function init() { navReady(); phoneMore(); loadingText(); watchBookings(); login(); tabs(); toasts(); counters(); dashboard(); webBookings(); shortcuts(); polish(); boot(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   window.DSQA = { palette: palette, confetti: confetti };
 })();
