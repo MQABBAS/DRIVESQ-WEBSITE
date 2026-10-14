@@ -720,6 +720,21 @@ body.qa-side-mini .qa-side__collapse i { transform:rotate(180deg); }
 @media (max-width:575px) { .qa-crumb { padding:8px 10px; } .qa-crumb__desc { display:none; } .qa-crumb__help { display:none; } }
 @media (prefers-reduced-motion:reduce) { .qa-crumb { animation:none; } .qa-side { transition:none; } }
 
+/* phones: keep the admin top bar inside the screen (it used to push Search / alerts / theme / Sign out off the edge) */
+@media (max-width:767px) {
+  #mainNav .admin-chip, #adminSessionInfo, #mainNav .brand-s { display:none !important; }
+  #mainNav .ms-auto { gap:6px !important; min-width:0; }
+  #mainNav .search-trigger-btn span, #mainNav .search-trigger-btn kbd { display:none; }
+  #mainNav .search-trigger-btn { padding:6px 9px; }
+}
+@media (max-width:575px) {
+  #adminClock { display:none !important; }
+  #webBookingsBtnLabel { display:none; }
+  #webBookingsBtn { padding:6px 9px !important; }
+  #mainNav button[onclick="doLogout()"] { font-size:0 !important; padding:6px 9px !important; }
+  #mainNav button[onclick="doLogout()"] i { font-size:.9rem; margin:0 !important; }
+}
+
 </style>
 <!-- DSQA:CSS END -->
 <!-- DSQA:DRAWCSS START -->
@@ -1281,6 +1296,72 @@ body.day-mode .dsqd-note{color:#92400e}
 
 </style>
 <!-- DSQA:MAILCSS END -->
+<!-- DSQA:ASSIGNCSS START -->
+<style id="dsqf-css">
+/* DSQF — Find & Assign extras */
+.xd-open { width:100%; margin-top:8px; font-size:.8rem; }
+.xd-note { display:flex; align-items:flex-start; gap:7px; flex-wrap:wrap; margin-top:6px; padding:6px 9px; border-radius:8px; background:rgba(245,197,24,.08); border:1px solid rgba(245,197,24,.3); font-size:.74rem; color:var(--txt2,#ddd); max-width:520px; }
+.xd-note > i { color:var(--gold,#F5C518); margin-top:1px; }
+.xd-note > span { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.xd-note.is-empty { background:none; border:1px dashed var(--bdr,#333); padding:3px 8px; }
+.xd-note.is-editing { display:block; background:rgba(245,197,24,.05); }
+.xd-note__edit { all:unset; cursor:pointer; font-size:.68rem; font-weight:700; color:var(--gold,#F5C518); display:inline-flex; align-items:center; gap:4px; margin-left:auto; }
+.xd-note__edit:hover, .xd-note__edit:focus-visible { text-decoration:underline; }
+.xd-note__ta { width:100%; font-size:.8rem; min-height:58px; }
+.xd-note__row { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+.xd-note__row small { flex:1; min-width:160px; font-size:.66rem; color:var(--txt4,#888); }
+.xd-note__row .btn-s, .xd-note__row .btn-p { font-size:.74rem; padding:5px 12px; }
+
+.xd-sec { margin-top:16px; padding:12px; border-radius:12px; border:1.5px dashed rgba(249,115,22,.45); background:rgba(249,115,22,.04); }
+.xd-sec__head { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#fb923c; }
+.xd-sec__head span { flex:1; } .xd-sec__head i { margin-right:6px; }
+.xd-sec__head .btn-s { font-size:.7rem; padding:4px 10px; text-transform:none; letter-spacing:0; }
+.xd-card { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:10px 12px; margin-bottom:8px; border-radius:10px; background:var(--dk2,#141414); border:1px solid var(--bdr,#2a2a2a); border-left:3px solid #f97316; }
+.xd-card.is-dim { opacity:.65; }
+.xd-card__main { flex:1; min-width:220px; }
+.xd-card__name { font-family:'Oswald',sans-serif; font-weight:700; font-size:.92rem; color:var(--txt,#fff); }
+.xd-card__meta { font-size:.72rem; color:var(--txt3,#aaa); margin-top:2px; } .xd-card__meta i { margin-right:4px; }
+.xd-card__side { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.xd-card__btns { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+.xd-card__btns .abtn { text-decoration:none; }
+.xd-tag { display:inline-block; vertical-align:middle; margin-left:4px; padding:1px 8px; border-radius:999px; font:700 .6rem/1.6 Inter,sans-serif; letter-spacing:.02em; text-transform:uppercase; background:rgba(249,115,22,.15); border:1px solid rgba(249,115,22,.5); color:#fb923c; }
+.xd-tag--type { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18); color:var(--txt3,#bbb); }
+.xd-tag--off { background:rgba(148,163,184,.12); border-color:rgba(148,163,184,.35); color:#94a3b8; }
+.xd-cov { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:2px 9px; border-radius:6px; font-size:.68rem; font-weight:700; color:var(--gold,#F5C518); background:rgba(245,197,24,.15); border:1px solid rgba(245,197,24,.5); }
+.xd-warn { font-size:.66rem; color:#f97316; margin-top:3px; } .xd-warn i { margin-right:4px; }
+.xd-foot { font-size:.66rem; color:var(--txt4,#888); margin-top:4px; }
+.xd-empty { font-size:.78rem; color:var(--txt3,#aaa); padding:6px 2px; }
+.xd-link { all:unset; cursor:pointer; color:#fb923c; font-weight:700; text-decoration:underline; }
+.xd-sql { font-size:.78rem; color:#fcd34d; background:rgba(245,197,24,.08); border:1px solid rgba(245,197,24,.35); border-radius:10px; padding:10px 12px; line-height:1.5; }
+.xd-sql code { color:#fff; font-size:.74rem; } .xd-sql a { color:var(--gold,#F5C518); font-weight:700; }
+
+.xd-modal { max-width:720px; width:96vw; }
+.xd-tabs { display:flex; gap:6px; margin:6px 0 12px; border-bottom:1px solid var(--bdr,#2a2a2a); }
+.xd-tabs button { all:unset; cursor:pointer; padding:8px 12px; font-size:.82rem; font-weight:700; color:var(--txt3,#aaa); border-bottom:2px solid transparent; margin-bottom:-1px; }
+.xd-tabs button small { font-weight:500; color:var(--txt4,#888); margin-left:4px; }
+.xd-tabs button.is-on { color:var(--txt,#fff); border-bottom-color:var(--red,#D10A11); }
+.xd-tabs button:focus-visible { outline:2px solid var(--gold,#F5C518); outline-offset:2px; }
+.xd-hint { font-size:.76rem; color:var(--txt3,#aaa); margin:0 0 10px; }
+.xd-list { display:flex; flex-direction:column; gap:6px; }
+.xd-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; border-radius:10px; background:var(--dk2,#141414); border:1px solid var(--bdr,#2a2a2a); border-left:3px solid #f97316; }
+.xd-item.is-off { opacity:.6; }
+.xd-item b { font-family:'Oswald',sans-serif; color:var(--txt,#fff); }
+.xd-item small { display:block; font-size:.7rem; color:var(--txt3,#aaa); margin-top:2px; }
+.xd-item__note { color:#fcd34d !important; white-space:pre-wrap; }
+.xd-item .btn-s { font-size:.74rem; padding:5px 12px; flex:none; }
+.xd-form { padding:12px; border-radius:12px; background:var(--dk2,#141414); border:1px solid rgba(249,115,22,.45); margin-bottom:10px; }
+.xd-form .btn-s, .xd-form .btn-p { font-size:.78rem; padding:6px 14px; }
+.xd-del { color:#f87171 !important; border-color:rgba(248,113,113,.4) !important; }
+.xd-check { display:inline-flex; align-items:center; gap:6px; font-size:.78rem; color:var(--txt2,#ddd); cursor:pointer; }
+.xd-row { display:grid; grid-template-columns:180px 1fr; gap:10px; align-items:start; padding:8px 0; border-bottom:1px solid var(--bdr,#2a2a2a); }
+.xd-row__who b { display:block; font-family:'Oswald',sans-serif; color:var(--txt,#fff); font-size:.86rem; }
+.xd-row__who small { font-size:.68rem; color:var(--txt4,#888); }
+.xd-row textarea { font-size:.8rem; min-height:44px; }
+.xd-actions { display:flex; justify-content:flex-end; margin-top:12px; }
+@media (max-width:575px) { .xd-row { grid-template-columns:1fr; gap:4px; } .xd-card__side { align-items:flex-start; } .xd-card__btns { justify-content:flex-start; } }
+
+</style>
+<!-- DSQA:ASSIGNCSS END -->
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -15086,6 +15167,268 @@ document.addEventListener('click',e=>{
 
 </script>
 <!-- DSQA:MAILJS END -->
+<!-- DSQA:ASSIGNJS START -->
+<script id="dsqf-js">
+/* DSQF — Find & Assign extras (admin).
+   1. A private note on each DriveSQ instructor (instructors.assign_note), shown + editable on their Find & Assign card.
+   2. Other drivers who are NOT DriveSQ instructors (table external_drivers), each with your own label. They're listed in
+      Find & Assign under their own heading, closest first, with WhatsApp / call / maps and "Passed on".
+   SQL: supabase/migrations/20261014_find_assign_drivers.sql */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const db = () => window.sb || (typeof sb !== "undefined" ? sb : null);
+  const toast = (m, t, ms) => { try { window.showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const instrs = () => { try { return (typeof allInstrs !== "undefined" ? allInstrs : []) || []; } catch (e) { return []; } };
+  const student = () => { try { return (typeof fcStudentData !== "undefined" && fcStudentData) || null; } catch (e) { return null; } };
+  const SQL_PATH = "supabase/migrations/20261014_find_assign_drivers.sql";
+  const LABELS = ["Not DriveSQ", "Partner school", "Freelance ADI", "Trainee (PDI)", "Backup driver", "Automatic only", "Weekends only"];
+  const TYPES = ["Manual", "Automatic", "Both"];
+  let drivers = [], tableOk = null, noteColOk = null;
+
+  /* ---------- postcodes ---------- */
+  const norm = pc => String(pc || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const outward = pc => { const c = norm(pc); return /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(c) ? c.slice(0, -3) : c; };
+  const isFull = pc => /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(norm(pc));
+  const geo = {};
+  async function locate(pc) {
+    const c = norm(pc); if (!c) return null;
+    if (c in geo) return geo[c];
+    try {
+      const url = isFull(c) ? "https://api.postcodes.io/postcodes/" + c : "https://api.postcodes.io/outcodes/" + c;
+      const j = await (await fetch(url)).json();
+      geo[c] = j && j.result ? { lat: j.result.latitude, lon: j.result.longitude } : null;
+    } catch (e) { geo[c] = null; }
+    return geo[c];
+  }
+  function miles(a, b) {
+    const R = 3958.8, r = x => x * Math.PI / 180, dLa = r(b.lat - a.lat), dLo = r(b.lon - a.lon);
+    const q = Math.sin(dLa / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(q));
+  }
+  const covers = (d, oc) => !!oc && String(d.coverage_postcodes || "").toUpperCase().split(/[\s,;/]+/).filter(Boolean).some(c => outward(c) === oc);
+  const canTeach = (carType, want) => carType === "Both" || (want === "Automatic" ? carType === "Automatic" : carType !== "Automatic");
+  const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (!d) return ""; if (d[0] === "0") d = "44" + d.slice(1); return d; };
+
+  /* ---------- data ---------- */
+  async function loadDrivers() {
+    const c = db(); if (!c) return [];
+    const r = await c.from("external_drivers").select("*").order("full_name", { ascending: true });
+    if (r.error) { tableOk = false; drivers = []; return drivers; }
+    tableOk = true; drivers = r.data || []; return drivers;
+  }
+  function sqlHelp() {
+    return '<div class="xd-sql"><b>One-time setup needed.</b> Run <code>' + SQL_PATH + '</code> in Supabase → SQL Editor, then reload admin.' +
+      ' <a href="https://supabase.com/dashboard/project/vwvbfqrlumvoabzkjxoa/sql/new" target="_blank" rel="noopener">Open SQL Editor ↗</a></div>';
+  }
+
+  /* ---------- instructor notes on Find & Assign cards ---------- */
+  function cardInstrId(card) {
+    const b = $$("button[onclick]", card).find(x => /openCreateAndAssign\('/.test(x.getAttribute("onclick")));
+    const m = b && b.getAttribute("onclick").match(/openCreateAndAssign\('([^']+)'/);
+    return m ? m[1] : null;
+  }
+  function noteBlock(i) {
+    const n = (i.assign_note || "").trim();
+    return '<div class="xd-note' + (n ? "" : " is-empty") + '" data-xd-note="' + h(i.id) + '">' +
+      (n ? '<i class="bi bi-sticky-fill"></i><span>' + h(n) + "</span>" : "") +
+      '<button type="button" class="xd-note__edit" data-xd-edit="' + h(i.id) + '"><i class="bi bi-pencil-square"></i>' + (n ? "Edit note" : "Add note") + "</button></div>";
+  }
+  function decorateCards(root) {
+    $$(".dist-card", root).forEach(card => {
+      if (card.querySelector("[data-xd-note]")) return;
+      const id = cardInstrId(card), i = id && instrs().find(x => String(x.id) === id);
+      if (!i) return;
+      const host = card.querySelector(".d-flex.align-items-center.gap-3 > div:last-child") || card;
+      host.insertAdjacentHTML("beforeend", noteBlock(i));
+    });
+  }
+  function editNote(id) {
+    const i = instrs().find(x => String(x.id) === String(id)); if (!i) return;
+    const box = $('[data-xd-note="' + CSS.escape(String(id)) + '"]'); if (!box) return;
+    box.classList.remove("is-empty"); box.classList.add("is-editing");
+    box.innerHTML = '<textarea class="dsq-inp xd-note__ta" rows="2" maxlength="600" placeholder="e.g. Only takes M19/M20 · prefers weekend learners · slow to reply on WhatsApp">' + h(i.assign_note || "") + "</textarea>" +
+      '<div class="xd-note__row"><small>Only you can see this. Shows on this instructor in Find &amp; Assign.</small><button type="button" class="btn-s" data-xd-cancel="' + h(id) + '">Cancel</button><button type="button" class="btn-p" data-xd-save="' + h(id) + '">Save note</button></div>';
+    const ta = box.querySelector("textarea"); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+  async function saveNote(id, text) {
+    const i = instrs().find(x => String(x.id) === String(id)); if (!i) return false;
+    const val = String(text || "").trim() || null;
+    const r = await db().from("instructors").update({ assign_note: val }).eq("id", id);
+    if (r.error) {
+      noteColOk = false;
+      toast(/assign_note/i.test(r.error.message || "") ? "Run the Find & Assign SQL first (" + SQL_PATH + ")" : "Couldn't save note: " + r.error.message, "error", 7000);
+      return false;
+    }
+    i.assign_note = val; toast(val ? "Note saved" : "Note removed", "success"); return true;
+  }
+  function redrawNote(id) {
+    const i = instrs().find(x => String(x.id) === String(id));
+    $$('[data-xd-note="' + CSS.escape(String(id)) + '"]').forEach(b => { b.outerHTML = noteBlock(i); });
+  }
+
+  /* ---------- other drivers in Find & Assign ---------- */
+  async function otherDriversSection(root) {
+    if (root.querySelector(".xd-sec")) root.querySelector(".xd-sec").remove();
+    const s = student(); if (!s || !s.postcode) return;
+    await loadDrivers();
+    const sec = document.createElement("div"); sec.className = "xd-sec";
+    const head = '<div class="xd-sec__head"><span><i class="bi bi-people"></i>Other drivers — not DriveSQ instructors</span><button type="button" class="btn-s" data-xd-manage>Manage</button></div>';
+    const wl = $$(":scope > div", root).find(d => /Add to Waiting List/.test(d.textContent) && d.querySelector("button[onclick*='addToWaitlist']"));
+    const place = el => { if (wl) root.insertBefore(el, wl); else root.appendChild(el); };
+    if (tableOk === false) { sec.innerHTML = head + sqlHelp(); place(sec); return; }
+    const active = drivers.filter(d => d.active !== false);
+    if (!active.length) { sec.innerHTML = head + '<div class="xd-empty">No other drivers yet. <button type="button" class="xd-link" data-xd-add>Add one</button> — e.g. a partner school or freelance instructor you pass students to.</div>'; place(sec); return; }
+    sec.innerHTML = head + '<div class="xd-empty">Measuring distances…</div>'; place(sec);
+    const here = await locate(s.postcode), oc = outward(s.postcode);
+    const rows = await Promise.all(active.map(async d => { const g = await locate(d.base_postcode || d.coverage_postcodes && String(d.coverage_postcodes).split(/[\s,;/]+/)[0]); return { d, dist: here && g ? miles(here, g) : null }; }));
+    rows.sort((a, b) => (covers(b.d, oc) - covers(a.d, oc)) || ((a.dist == null) - (b.dist == null)) || ((a.dist || 0) - (b.dist || 0)));
+    const want = s.type || "Manual";
+    sec.innerHTML = head + rows.map(({ d, dist }) => {
+      const ok = canTeach(d.car_type || "Manual", want), cov = covers(d, oc), wa = waNum(d.phone);
+      const msg = "Hi " + (d.full_name || "").split(" ")[0] + ", it's DriveSQ. Could you take a new " + want.toLowerCase() + " learner in " + (oc || s.postcode) + "?" +
+        (s.avail ? " Availability: " + s.avail + "." : "") + " Let me know and I'll pass on their details.";
+      return '<div class="xd-card' + (ok ? "" : " is-dim") + '">' +
+        '<div class="xd-card__main"><div class="xd-card__name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span></div>" +
+        '<div class="xd-card__meta"><i class="bi bi-geo-alt"></i>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + "</div>" +
+        (cov ? '<div class="xd-cov"><i class="bi bi-patch-check-fill"></i>Covers ' + h(oc) + "</div>" : "") +
+        (!ok ? '<div class="xd-warn"><i class="bi bi-exclamation-triangle"></i>Teaches ' + h(d.car_type) + " only — student wants " + h(want) + "</div>" : "") +
+        (d.notes ? '<div class="xd-note"><i class="bi bi-sticky-fill"></i><span>' + h(d.notes) + "</span></div>" : "") + "</div>" +
+        '<div class="xd-card__side">' + (dist != null ? '<span class="dist-badge' + (dist < 3 ? " close" : "") + '"><i class="bi bi-geo-alt me-1"></i>≈' + dist.toFixed(1) + " mi</span>" : '<span class="dist-badge">No postcode</span>') +
+        '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>Ask</a>' : "") +
+        (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
+        '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(s.postcode) + "&destination=" + encodeURIComponent(d.base_postcode || "") + '"><i class="bi bi-google me-1"></i>Maps</a>' +
+        '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button></div></div></div>';
+    }).join("") + '<div class="xd-foot">Straight-line distance from ' + h(s.postcode) + ". These drivers aren't in DriveSQ, so passing a learner on doesn't create a student here.</div>";
+  }
+  async function passedOn(id) {
+    const d = drivers.find(x => String(x.id) === String(id)), s = student(); if (!d || !s) return;
+    const wl = window._waitlistIdToAssign || window._pendingWbId || null;
+    const line = "➡️ Passed on to " + d.full_name + " (" + (d.label || "Not DriveSQ") + ") on " + new Date().toLocaleDateString("en-GB");
+    if (!confirm("Mark " + (s.name || "this learner") + " as passed on to " + d.full_name + "?" + (wl ? "\n\nThe website booking will move to Assigned." : ""))) return;
+    if (wl) {
+      const c = db(), cur = await c.from("waiting_list").select("notes").eq("id", wl).maybeSingle();
+      const notes = ((cur.data && cur.data.notes) || "").trim();
+      const r = await c.from("waiting_list").update({ status: "assigned", notes: (notes ? notes + "\n" : "") + line }).eq("id", wl);
+      if (r.error) { toast("Couldn't update the booking: " + r.error.message, "error", 6000); return; }
+      window._waitlistIdToAssign = null; window._pendingWbId = null;
+      try { window.loadWebBookingsBadge && window.loadWebBookingsBadge(); } catch (e) {}
+    }
+    const n = $("#fc-notes"); if (n && !wl) { n.value = (n.value ? n.value + "\n" : "") + line; try { window._saveFcDraft && window._saveFcDraft(); } catch (e) {} }
+    toast("✅ " + (s.name || "Learner") + " passed on to " + d.full_name, "success");
+  }
+
+  /* ---------- manager: other drivers + instructor notes ---------- */
+  let tab = "drivers", editing = null;
+  function ensureModal() {
+    let m = $("#xdModal"); if (m) return m;
+    m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "xdModal"; m.style.zIndex = "10150";
+    m.innerHTML = '<div class="dsq-modal xd-modal"><button class="modal-x" type="button" data-xd-close><i class="bi bi-x-lg"></i></button>' +
+      '<div class="d-flex align-items-center gap-2 mb-2"><i class="bi bi-people-fill" style="color:var(--gold);font-size:1.2rem"></i><h5 class="mb-0" style="font-family:\'Oswald\',sans-serif">Find &amp; Assign — drivers &amp; notes</h5></div>' +
+      '<div class="xd-tabs" role="tablist"><button type="button" role="tab" data-xd-tab="drivers">Other drivers <small>not DriveSQ</small></button><button type="button" role="tab" data-xd-tab="notes">DriveSQ instructor notes</button></div><div class="xd-body"></div></div>';
+    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); });
+    document.body.appendChild(m); return m;
+  }
+  function openManager(which) { const m = ensureModal(); tab = which || tab; editing = null; m.classList.add("open"); renderManager(); }
+  async function renderManager() {
+    const m = ensureModal(), body = $(".xd-body", m);
+    $$("[data-xd-tab]", m).forEach(b => { const on = b.getAttribute("data-xd-tab") === tab; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
+    if (tab === "notes") {
+      const list = instrs().filter(i => i.status === "approved").sort((a, b) => String(a.full_name).localeCompare(b.full_name));
+      body.innerHTML = '<p class="xd-hint">Private notes on your instructors — shown on their card every time you use Find &amp; Assign.</p>' +
+        (list.length ? list.map(i => '<div class="xd-row"><div class="xd-row__who"><b>' + h(i.full_name) + '</b><small>' + h(i.area || "") + " · " + h(i.car_type || "Manual") + "</small></div>" +
+          '<textarea class="dsq-inp" rows="2" maxlength="600" data-xd-inote="' + h(i.id) + '" placeholder="Add a note…">' + h(i.assign_note || "") + "</textarea></div>").join("") +
+          '<div class="xd-actions"><button type="button" class="btn-p" data-xd-savenotes><i class="bi bi-check-lg me-1"></i>Save notes</button></div>'
+          : '<div class="xd-empty">No approved instructors loaded yet.</div>');
+      return;
+    }
+    body.innerHTML = '<div class="xd-empty">Loading…</div>';
+    await loadDrivers();
+    if (tableOk === false) { body.innerHTML = sqlHelp(); return; }
+    const form = d => '<form class="xd-form" data-xd-form="' + h(d.id || "") + '"><div class="row g-2">' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Name *</label><input class="dsq-inp" name="full_name" required maxlength="80" value="' + h(d.full_name || "") + '"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Phone / WhatsApp</label><input class="dsq-inp" name="phone" type="tel" maxlength="20" value="' + h(d.phone || "") + '" placeholder="07…"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Label *</label><input class="dsq-inp" name="label" list="xdLabels" required maxlength="40" value="' + h(d.label || "Not DriveSQ") + '"><datalist id="xdLabels">' + LABELS.map(l => "<option>" + h(l) + "</option>").join("") + "</datalist></div>" +
+      '<div class="col-sm-6"><label class="dsq-lbl">Gearbox</label><select class="dsq-inp" name="car_type">' + TYPES.map(t => "<option" + ((d.car_type || "Manual") === t ? " selected" : "") + ">" + t + "</option>").join("") + "</select></div>" +
+      '<div class="col-sm-6"><label class="dsq-lbl">Based at (postcode) *</label><input class="dsq-inp" name="base_postcode" required maxlength="9" style="text-transform:uppercase" value="' + h(d.base_postcode || "") + '" placeholder="e.g. M20 4AB or M20"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Covers</label><input class="dsq-inp" name="coverage_postcodes" maxlength="200" style="text-transform:uppercase" value="' + h(d.coverage_postcodes || "") + '" placeholder="e.g. M19, M20, SK4"></div>' +
+      '<div class="col-12"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" name="notes" rows="2" maxlength="600" placeholder="e.g. £30/hr · only weekends · pays referral fee">' + h(d.notes || "") + "</textarea></div>" +
+      '<div class="col-12 d-flex align-items-center gap-2 flex-wrap"><label class="xd-check"><input type="checkbox" name="active"' + (d.active === false ? "" : " checked") + "> Show in Find &amp; Assign</label>" +
+      '<span class="ms-auto"></span>' + (d.id ? '<button type="button" class="btn-s xd-del" data-xd-del="' + h(d.id) + '"><i class="bi bi-trash3 me-1"></i>Delete</button>' : "") +
+      '<button type="button" class="btn-s" data-xd-cancelform>Cancel</button><button type="submit" class="btn-p"><i class="bi bi-check-lg me-1"></i>' + (d.id ? "Save" : "Add driver") + "</button></div></div></form>";
+    const list = drivers.map(d => editing === String(d.id) ? form(d) :
+      '<div class="xd-item' + (d.active === false ? " is-off" : "") + '"><div><b>' + h(d.full_name) + '</b> <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span>" + (d.active === false ? ' <span class="xd-tag xd-tag--off">Hidden</span>' : "") +
+      '<small>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + (d.phone ? " · " + h(d.phone) : "") + "</small>" + (d.notes ? '<small class="xd-item__note">' + h(d.notes) + "</small>" : "") + "</div>" +
+      '<button type="button" class="btn-s" data-xd-editd="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button></div>').join("");
+    body.innerHTML = '<p class="xd-hint">Drivers or schools who aren\'t DriveSQ instructors but you can pass learners to. They appear in Find &amp; Assign with their label, closest first.</p>' +
+      (editing === "new" ? form({}) : '<button type="button" class="btn-p mb-2" data-xd-new><i class="bi bi-plus-lg me-1"></i>Add a driver</button>') +
+      (drivers.length ? '<div class="xd-list">' + list + "</div>" : (editing === "new" ? "" : '<div class="xd-empty">No other drivers yet.</div>'));
+  }
+  async function saveDriver(f) {
+    const v = n => (f.elements[n].value || "").trim();
+    const pc = v("base_postcode").toUpperCase().replace(/\s+/g, " ");
+    const row = { full_name: v("full_name"), phone: v("phone") || null, label: v("label") || "Not DriveSQ", car_type: f.elements.car_type.value, base_postcode: pc,
+      coverage_postcodes: v("coverage_postcodes").toUpperCase() || null, notes: v("notes") || null, active: f.elements.active.checked, updated_at: new Date().toISOString() };
+    if (!row.full_name) return toast("Add the driver's name", "warn");
+    if (!pc || !(await locate(pc))) return toast("Enter a real postcode, e.g. M20 4AB or M20", "warn");
+    const id = f.getAttribute("data-xd-form"), c = db();
+    const r = id ? await c.from("external_drivers").update(row).eq("id", id) : await c.from("external_drivers").insert([row]);
+    if (r.error) return toast("Couldn't save: " + r.error.message, "error", 6000);
+    toast(id ? "Driver updated" : "Driver added", "success"); editing = null; await renderManager(); refreshResults();
+  }
+  function refreshResults() { const res = $("#findResults"); if (res && res.querySelector(".dist-card, .xd-sec")) otherDriversSection(res); }
+
+  /* ---------- wiring ---------- */
+  document.addEventListener("click", async e => {
+    const t = e.target.closest("[data-xd-edit],[data-xd-save],[data-xd-cancel],[data-xd-manage],[data-xd-add],[data-xd-pass],[data-xd-tab],[data-xd-new],[data-xd-editd],[data-xd-cancelform],[data-xd-del],[data-xd-close],[data-xd-savenotes],[data-xd-open]");
+    if (!t) return;
+    if (t.hasAttribute("data-xd-edit")) return editNote(t.getAttribute("data-xd-edit"));
+    if (t.hasAttribute("data-xd-cancel")) return redrawNote(t.getAttribute("data-xd-cancel"));
+    if (t.hasAttribute("data-xd-save")) { const id = t.getAttribute("data-xd-save"), ta = t.closest("[data-xd-note]").querySelector("textarea"); t.disabled = true; if (await saveNote(id, ta.value)) redrawNote(id); else t.disabled = false; return; }
+    if (t.hasAttribute("data-xd-manage") || t.hasAttribute("data-xd-open")) return openManager(t.getAttribute("data-xd-open") || "drivers");
+    if (t.hasAttribute("data-xd-add")) { openManager("drivers"); editing = "new"; return renderManager(); }
+    if (t.hasAttribute("data-xd-pass")) return passedOn(t.getAttribute("data-xd-pass"));
+    if (t.hasAttribute("data-xd-tab")) { tab = t.getAttribute("data-xd-tab"); editing = null; return renderManager(); }
+    if (t.hasAttribute("data-xd-new")) { editing = "new"; return renderManager(); }
+    if (t.hasAttribute("data-xd-editd")) { editing = t.getAttribute("data-xd-editd"); return renderManager(); }
+    if (t.hasAttribute("data-xd-cancelform")) { editing = null; return renderManager(); }
+    if (t.hasAttribute("data-xd-close")) return $("#xdModal").classList.remove("open");
+    if (t.hasAttribute("data-xd-del")) {
+      const id = t.getAttribute("data-xd-del"), d = drivers.find(x => String(x.id) === id);
+      if (!confirm("Delete " + (d ? d.full_name : "this driver") + "? You can hide them instead by unticking \"Show in Find & Assign\".")) return;
+      const r = await db().from("external_drivers").delete().eq("id", id);
+      if (r.error) return toast("Couldn't delete: " + r.error.message, "error");
+      toast("Driver deleted", "success"); editing = null; await renderManager(); return refreshResults();
+    }
+    if (t.hasAttribute("data-xd-savenotes")) {
+      t.disabled = true; let n = 0, fail = false;
+      for (const ta of $$("[data-xd-inote]")) {
+        const id = ta.getAttribute("data-xd-inote"), i = instrs().find(x => String(x.id) === id), val = ta.value.trim();
+        if (!i || (i.assign_note || "") === val) continue;
+        if (await saveNote(id, val)) n++; else { fail = true; break; }
+      }
+      t.disabled = false; if (!fail) toast(n ? n + " note" + (n === 1 ? "" : "s") + " saved" : "No changes", n ? "success" : ""); $$(".dist-card [data-xd-note]").forEach(b => redrawNote(b.getAttribute("data-xd-note")));
+    }
+  });
+  document.addEventListener("submit", e => { const f = e.target.closest("[data-xd-form]"); if (!f) return; e.preventDefault(); saveDriver(f); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdModal"); if (m) m.classList.remove("open"); } });
+
+  function hook() {
+    const orig = window.findClosest; if (typeof orig !== "function" || orig.__xd) return;
+    const wrapped = async function () { const out = await orig.apply(this, arguments); const res = $("#findResults"); if (res && res.querySelector(".dist-card, [onclick*='addToWaitlist']")) { decorateCards(res); otherDriversSection(res); } return out; };
+    wrapped.__xd = true; window.findClosest = wrapped;
+    // a button beside "Find Closest Instructor" to manage other drivers and instructor notes
+    const btn = $("#findBtn");
+    if (btn && !$("#xdOpenBtn")) btn.parentElement.insertAdjacentHTML("afterend", '<button type="button" class="btn-s xd-open" id="xdOpenBtn" data-xd-open="drivers"><i class="bi bi-people me-1"></i>Other drivers &amp; instructor notes</button>');
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hook); else hook();
+  window.DSQF = { openManager, loadDrivers };
+})();
+
+</script>
+<!-- DSQA:ASSIGNJS END -->
 <!-- DSQA:JS START -->
 <script id="dsqa-js">
 /* DSQA — DriveSQ Admin professional layer (behaviour). Adds on top of the existing admin; never replaces its logic. */
