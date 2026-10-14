@@ -1420,6 +1420,20 @@ body.day-mode .dsqd-note{color:#92400e}
 .dm-dash .btn-s { font-size:.76rem; padding:5px 12px; }
 @media (max-width:767px) { .dm-kpis { grid-template-columns:repeat(2,1fr); } }
 
+/* other drivers as cards in the Find & Assign list */
+.dist-card.xd-ext { border-left:3px solid #f97316 !important; background:linear-gradient(90deg,rgba(249,115,22,.06),transparent 40%), var(--dk2,#141414); }
+.dist-card.xd-ext.is-dim { opacity:.65; }
+.xd-ext__row { display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.xd-ext__mark { flex:none; min-width:44px; padding:5px 4px; border-radius:8px; text-align:center; font:800 .55rem/1.15 Inter,sans-serif; letter-spacing:.05em; color:#fb923c; background:rgba(249,115,22,.12); border:1px solid rgba(249,115,22,.45); }
+.xd-ext .xd-card__main { flex:1; min-width:200px; }
+.xd-divider { display:flex; align-items:center; gap:10px; margin:14px 0 8px; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#fb923c; }
+.xd-divider::after { content:""; flex:1; height:1px; background:rgba(249,115,22,.35); }
+.xd-foot2 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:6px 0 12px; padding:8px 12px; border-radius:10px; border:1px dashed rgba(249,115,22,.45); font-size:.74rem; color:var(--txt3,#aaa); }
+.xd-foot2 > span { flex:1; min-width:200px; } .xd-foot2 b { color:#fb923c; font-size:.66rem; }
+.xd-foot2 .btn-s { font-size:.72rem; padding:4px 12px; }
+.xd-foot2 .xd-sql { flex:1; }
+@media (max-width:575px) { .xd-ext .xd-card__side { align-items:flex-start; width:100%; } }
+
 </style>
 <!-- DSQA:ASSIGNCSS END -->
 </head>
@@ -15329,40 +15343,92 @@ document.addEventListener('click',e=>{
     $$('[data-xd-note="' + CSS.escape(String(id)) + '"]').forEach(b => { b.outerHTML = noteBlock(i); });
   }
 
-  /* ---------- other drivers in Find & Assign ---------- */
-  async function otherDriversSection(root) {
-    if (root.querySelector(".xd-sec")) root.querySelector(".xd-sec").remove();
-    const s = student(); if (!s || !s.postcode) return;
-    await loadDrivers();
-    const sec = document.createElement("div"); sec.className = "xd-sec";
-    const head = '<div class="xd-sec__head"><span><i class="bi bi-people"></i>Other drivers — not DriveSQ instructors</span><button type="button" class="btn-s" data-xd-manage>Manage</button></div>';
-    const wl = $$(":scope > div", root).find(d => /Add to Waiting List/.test(d.textContent) && d.querySelector("button[onclick*='addToWaitlist']"));
-    const place = el => { if (wl) root.insertBefore(el, wl); else root.appendChild(el); };
-    if (tableOk === false) { sec.innerHTML = head + sqlHelp(); place(sec); return; }
-    const active = drivers.filter(d => d.active !== false);
-    if (!active.length) { sec.innerHTML = head + '<div class="xd-empty">No other drivers yet. <button type="button" class="xd-link" data-xd-add>Add one</button> — e.g. a partner school or freelance instructor you pass students to.</div>'; place(sec); return; }
-    sec.innerHTML = head + '<div class="xd-empty">Measuring distances…</div>'; place(sec);
-    const here = await locate(s.postcode), oc = outward(s.postcode);
-    const rows = await Promise.all(active.map(async d => { const g = await locate(d.base_postcode || d.coverage_postcodes && String(d.coverage_postcodes).split(/[\s,;/]+/)[0]); return { d, dist: here && g ? miles(here, g) : null }; }));
-    rows.sort((a, b) => (covers(b.d, oc) - covers(a.d, oc)) || ((a.dist == null) - (b.dist == null)) || ((a.dist || 0) - (b.dist || 0)));
-    const want = s.type || "Manual";
-    sec.innerHTML = head + rows.map(({ d, dist }) => {
-      const ok = canTeach(d.car_type || "Manual", want), cov = covers(d, oc), wa = waNum(d.phone);
-      const msg = "Hi " + (d.full_name || "").split(" ")[0] + ", it's DriveSQ. Could you take a new " + want.toLowerCase() + " learner in " + (oc || s.postcode) + "?" +
-        (s.avail ? " Availability: " + s.avail + "." : "") + " Let me know and I'll pass on their details.";
-      return '<div class="xd-card' + (ok ? "" : " is-dim") + '">' +
-        '<div class="xd-card__main"><div class="xd-card__name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span></div>" +
-        '<div class="xd-card__meta"><i class="bi bi-geo-alt"></i>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + "</div>" +
-        (cov ? '<div class="xd-cov"><i class="bi bi-patch-check-fill"></i>Covers ' + h(oc) + "</div>" : "") +
-        (!ok ? '<div class="xd-warn"><i class="bi bi-exclamation-triangle"></i>Teaches ' + h(d.car_type) + " only — student wants " + h(want) + "</div>" : "") +
-        (d.notes ? '<div class="xd-note"><i class="bi bi-sticky-fill"></i><span>' + h(d.notes) + "</span></div>" : "") + "</div>" +
-        '<div class="xd-card__side">' + (dist != null ? '<span class="dist-badge' + (dist < 3 ? " close" : "") + '"><i class="bi bi-geo-alt me-1"></i>≈' + dist.toFixed(1) + " mi</span>" : '<span class="dist-badge">No postcode</span>') +
-        '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>Ask</a>' : "") +
-        (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
-        '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(s.postcode) + "&destination=" + encodeURIComponent(d.base_postcode || "") + '"><i class="bi bi-google me-1"></i>Maps</a>' +
-        '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button></div></div></div>';
-    }).join("") + '<div class="xd-foot">Straight-line distance from ' + h(s.postcode) + ". These drivers aren't in DriveSQ, so passing a learner on doesn't create a student here.</div>";
+  /* ---------- other drivers in Find & Assign ----------
+     They're shown as cards in the same list as DriveSQ instructors (ranked by distance after a postcode search, listed
+     after the instructors otherwise), so the "Search name or area" box and the type filter find them too. Find & Assign
+     redraws its list in several places (search box cleared, filter changed…), so a watcher puts them back each time. */
+  let loaded = false, loading = null, extCache = { key: "", rows: null }, busy = false, watcher = null;
+  function ensureDrivers() { if (loaded) return Promise.resolve(drivers); if (!loading) loading = loadDrivers().then(r => { loaded = true; loading = null; return r; }); return loading; }
+  const activeDrivers = () => drivers.filter(d => d.active !== false);
+  const searchText = d => [d.full_name, d.label, "not drivesq other driver", d.base_postcode, d.coverage_postcodes, d.phone, String(d.phone || "").replace(/\s/g, ""), d.car_type, d.notes].filter(Boolean).join(" ").toLowerCase();
+  function extCard(d, dist, s) {
+    const want = (s && s.type) || "", ok = !want || canTeach(d.car_type || "Manual", want), oc = s ? outward(s.postcode) : "", cov = covers(d, oc), wa = waNum(d.phone);
+    const msg = s ? "Hi " + (d.full_name || "").split(" ")[0] + ", it's DriveSQ. Could you take a new " + String(want || "").toLowerCase() + " learner in " + (oc || s.postcode) + "?" + (s.avail ? " Availability: " + s.avail + "." : "") + " Let me know and I'll pass on their details."
+      : "Hi " + (d.full_name || "").split(" ")[0] + ", it's DriveSQ.";
+    return '<div class="dist-card mb-2 xd-ext' + (ok ? "" : " is-dim") + '" data-xd-ext="' + h(d.id) + '" data-instr-search="' + h(searchText(d)) + '" data-instr-model="other">' +
+      '<div class="xd-ext__row"><div class="xd-ext__mark" title="Not a DriveSQ instructor">NOT<br>DRIVESQ</div>' +
+      '<div class="xd-card__main"><div class="xd-card__name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span></div>" +
+      '<div class="xd-card__meta"><i class="bi bi-geo-alt"></i>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + (d.phone ? " · " + h(d.phone) : "") + "</div>" +
+      (cov ? '<div class="xd-cov"><i class="bi bi-patch-check-fill"></i>Covers ' + h(oc) + "</div>" : "") +
+      (!ok ? '<div class="xd-warn"><i class="bi bi-exclamation-triangle"></i>Teaches ' + h(d.car_type) + " only — student wants " + h(want) + "</div>" : "") +
+      (d.notes ? '<div class="xd-note"><i class="bi bi-sticky-fill"></i><span>' + h(d.notes) + "</span></div>" : "") + "</div>" +
+      '<div class="xd-card__side">' + (s ? (dist != null ? '<span class="dist-badge' + (dist < 3 ? " close" : "") + '"><i class="bi bi-geo-alt me-1"></i>≈' + dist.toFixed(1) + " mi</span>" : '<span class="dist-badge">No postcode</span>') : "") +
+      '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>' + (s ? "Ask" : "WA") + "</a>" : "") +
+      (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
+      (s ? '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(s.postcode) + "&destination=" + encodeURIComponent(d.base_postcode || "") + '"><i class="bi bi-google me-1"></i>Maps</a>' : "") +
+      '<button type="button" class="abtn" data-xd-editext="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button>' +
+      (s ? '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button>' : "") + "</div></div></div></div>";
   }
+  function footRow(nShown) {
+    if (tableOk === false) return '<div class="xd-foot2">' + sqlHelp() + "</div>";
+    return '<div class="xd-foot2"><span><i class="bi bi-people me-1"></i>' + (nShown ? nShown + " other driver" + (nShown === 1 ? "" : "s") + " (not DriveSQ) shown with an orange <b>NOT DRIVESQ</b> mark." : "No other drivers (not DriveSQ) yet.") + "</span>" +
+      '<button type="button" class="btn-s" data-xd-' + (nShown || activeDrivers().length ? "manage" : "add") + ">" + (nShown || activeDrivers().length ? "Manage" : "Add one") + "</button></div>";
+  }
+  const cardDist = c => { const b = c.querySelector(".dist-badge"); const m = b && b.textContent.match(/([\d.]+)\s*mi/); return m ? parseFloat(m[1]) : Infinity; };
+  function applyFilter(res) {
+    const term = (($("#fcInstrSearch") || {}).value || "").toLowerCase().trim(), model = (($("#fcModelFilter") || {}).value || "").toLowerCase();
+    $$(".xd-ext", res).forEach(c => { c.style.display = (!term || (c.dataset.instrSearch || "").includes(term)) && (!model || model === "other") ? "" : "none"; });
+    if (model === "other") $$(".dist-card:not(.xd-ext)", res).forEach(c => { c.style.display = "none"; });
+  }
+  async function nearRows(s) {
+    const key = norm(s.postcode) + "|" + drivers.map(d => d.id + ":" + d.base_postcode + ":" + d.active).join(",");
+    if (extCache.key === key && extCache.rows) return extCache.rows;
+    const here = await locate(s.postcode);
+    const rows = await Promise.all(activeDrivers().map(async d => { const g = await locate(d.base_postcode || String(d.coverage_postcodes || "").split(/[\s,;/]+/)[0]); return { d, dist: here && g ? miles(here, g) : null }; }));
+    extCache = { key, rows }; return rows;
+  }
+  function place(res, html, before) { const t = document.createElement("div"); t.innerHTML = html; const el = t.firstElementChild; if (before) res.insertBefore(el, before); else res.appendChild(el); return el; }
+  async function enhance() {
+    const res = $("#findResults"); if (!res || busy) return;
+    const own = $$(".dist-card:not(.xd-ext)", res), waitBox = $$(":scope > div", res).find(d => d.querySelector("button[onclick*='addToWaitlist']"));
+    if (!own.length && !waitBox) return;                                     // loading / error message — nothing to add to
+    const near = !!(waitBox || res.querySelector(".dist-card .dist-badge")), s = near ? student() : null;
+    if (!loaded) { await ensureDrivers(); return enhance(); }
+    let rows = activeDrivers().map(d => ({ d, dist: null }));
+    if (near && s && s.postcode) { const key = norm(s.postcode); if (!extCache.rows || !extCache.key.startsWith(key + "|")) { await nearRows(s); return enhance(); } rows = await nearRows(s); }
+    busy = true; if (watcher) watcher.disconnect();
+    try {
+      decorateCards(res);
+      $$(".xd-ext, .xd-foot2, .xd-sec, .xd-divider", res).forEach(e => e.remove());
+      if (near && s) {
+        rows.sort((a, b) => (covers(b.d, outward(s.postcode)) - covers(a.d, outward(s.postcode))) || ((a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist)));
+        const kids = Array.from(res.children), mis = kids.find(k => /lesson type mismatch/i.test(k.textContent) && !k.classList.contains("dist-card"));
+        const group = c => (mis && (mis.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)) ? "mis" : "match";
+        rows.forEach(({ d, dist }) => {
+          const g = canTeach(d.car_type || "Manual", s.type || "Manual") ? "match" : "mis";
+          const same = $$(".dist-card:not(.xd-ext)", res).filter(c => group(c) === g);
+          const next = dist == null ? null : same.find(c => cardDist(c) > dist);
+          let before = next || null;
+          if (!before) { const last = same[same.length - 1]; before = last ? last.nextElementSibling : (g === "match" ? (mis || waitBox) : waitBox); }
+          place(res, extCard(d, dist, s), before || null);
+        });
+        place(res, footRow(rows.length), waitBox || null);
+      } else {
+        const sorted = rows.slice().sort((a, b) => String(a.d.full_name).localeCompare(b.d.full_name));
+        if (sorted.length) place(res, '<div class="xd-divider"><span>Other drivers — not DriveSQ instructors</span></div>');
+        sorted.forEach(({ d }) => place(res, extCard(d, null, null)));
+        place(res, footRow(sorted.length));
+      }
+      applyFilter(res);
+    } finally { if (watcher) watcher.observe(res, { childList: true }); busy = false; }
+  }
+  function watch() {
+    const res = $("#findResults"); if (!res || watcher) return;
+    let t = 0; watcher = new MutationObserver(() => { clearTimeout(t); t = setTimeout(enhance, 30); });
+    watcher.observe(res, { childList: true });
+  }
+  function refreshResults() { loaded = false; extCache = { key: "", rows: null }; ensureDrivers().then(enhance); }
+
   async function passedOn(id) {
     const d = drivers.find(x => String(x.id) === String(id)), s = student(); if (!d || !s) return;
     const wl = window._waitlistIdToAssign || window._pendingWbId || null;
@@ -15438,12 +15504,12 @@ document.addEventListener('click',e=>{
     if (r.error) return toast("Couldn't save: " + r.error.message, "error", 6000);
     toast(id ? "Driver updated" : "Driver added", "success"); editing = null; await renderManager(); refreshResults();
   }
-  function refreshResults() { const res = $("#findResults"); if (res && res.querySelector(".dist-card, .xd-sec")) otherDriversSection(res); }
 
   /* ---------- wiring ---------- */
   document.addEventListener("click", async e => {
-    const t = e.target.closest("[data-xd-edit],[data-xd-save],[data-xd-cancel],[data-xd-manage],[data-xd-add],[data-xd-pass],[data-xd-tab],[data-xd-new],[data-xd-editd],[data-xd-cancelform],[data-xd-del],[data-xd-close],[data-xd-savenotes],[data-xd-open]");
+    const t = e.target.closest("[data-xd-editext],[data-xd-edit],[data-xd-save],[data-xd-cancel],[data-xd-manage],[data-xd-add],[data-xd-pass],[data-xd-tab],[data-xd-new],[data-xd-editd],[data-xd-cancelform],[data-xd-del],[data-xd-close],[data-xd-savenotes],[data-xd-open]");
     if (!t) return;
+    if (t.hasAttribute("data-xd-editext")) { openManager("drivers"); editing = t.getAttribute("data-xd-editext"); return renderManager(); }
     if (t.hasAttribute("data-xd-edit")) return editNote(t.getAttribute("data-xd-edit"));
     if (t.hasAttribute("data-xd-cancel")) return redrawNote(t.getAttribute("data-xd-cancel"));
     if (t.hasAttribute("data-xd-save")) { const id = t.getAttribute("data-xd-save"), ta = t.closest("[data-xd-note]").querySelector("textarea"); t.disabled = true; if (await saveNote(id, ta.value)) redrawNote(id); else t.disabled = false; return; }
@@ -15475,16 +15541,49 @@ document.addEventListener('click',e=>{
   document.addEventListener("submit", e => { const f = e.target.closest("[data-xd-form]"); if (!f) return; e.preventDefault(); saveDriver(f); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdModal"); if (m) m.classList.remove("open"); } });
 
+  /* ---------- global search (Ctrl+K): other drivers too ---------- */
+  function globalSearch() {
+    const orig = window.runGlobalSearch; if (typeof orig !== "function" || orig.__xd) return;
+    const w = function (q) {
+      const out = orig.apply(this, arguments);
+      const raw = String(q || "").trim(), lq = raw.toLowerCase(), digits = raw.replace(/\D/g, ""), res = $("#globalSearchResults");
+      let filt = "all"; try { filt = typeof _gsFilter !== "undefined" ? _gsFilter : "all"; } catch (e) {}
+      if (!raw || !res || filt === "students") return out;
+      const show = () => {
+        const hits = activeDrivers().concat(drivers.filter(d => d.active === false)).filter(d => searchText(d).includes(lq) || (digits.length >= 4 && String(d.phone || "").replace(/\D/g, "").includes(digits))).slice(0, 6);
+        $$(".xd-gs", res).forEach(e => e.remove()); if (!hits.length) return;
+        $$(".gsearch-empty, [data-gs-empty]", res).forEach(e => e.remove());
+        if (!res.querySelector(".gsearch-section") && /No (results|matches)/i.test(res.textContent)) res.innerHTML = "";
+        res.insertAdjacentHTML("beforeend", '<div class="gsearch-section xd-gs">' + (res.querySelector(".gsearch-section:not(.xd-gs)") ? '<div class="gsearch-divider"></div>' : "") + '<div class="gsearch-lbl"><span>Other drivers — not DriveSQ</span><span class="gsearch-lbl-count">' + hits.length + "</span></div>" +
+          hits.map(d => '<div class="gsearch-item" data-xd-gs="' + h(d.id) + '"><div class="gsearch-item-icon instr" style="background:rgba(249,115,22,.15);color:#fb923c">' + h((d.full_name || "?").charAt(0).toUpperCase()) + '</div><div class="gsearch-item-main"><div class="gsearch-item-name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + "</span></div>" +
+            '<div class="gsearch-item-sub"><span>' + h(d.base_postcode || "") + "</span>" + (d.coverage_postcodes ? "<span>· covers " + h(d.coverage_postcodes) + "</span>" : "") + (d.phone ? "<span>· " + h(d.phone) + "</span>" : "") + "<span>· " + h(d.car_type || "Manual") + "</span>" + (d.active === false ? "<span>· hidden</span>" : "") + '</div></div><i class="bi bi-chevron-right" style="color:var(--bdr2);font-size:.7rem;flex-shrink:0"></i></div>').join("") + "</div>");
+      };
+      if (loaded) show(); else ensureDrivers().then(() => { if (($("#globalSearchInp") || {}).value === q) show(); });
+      return out;
+    };
+    w.__xd = true; window.runGlobalSearch = w;
+    document.addEventListener("click", e => { const it = e.target.closest("[data-xd-gs]"); if (!it) return; try { window.closeGlobalSearch(); } catch (x) {} openManager("drivers"); editing = it.getAttribute("data-xd-gs"); renderManager(); });
+  }
+
   function hook() {
-    const orig = window.findClosest; if (typeof orig !== "function" || orig.__xd) return;
-    const wrapped = async function () { const out = await orig.apply(this, arguments); const res = $("#findResults"); if (res && res.querySelector(".dist-card, [onclick*='addToWaitlist']")) { decorateCards(res); otherDriversSection(res); } return out; };
-    wrapped.__xd = true; window.findClosest = wrapped;
+    const orig = window.findClosest;
+    if (typeof orig === "function" && !orig.__xd) {
+      const wrapped = async function () {
+        const out = await orig.apply(this, arguments);
+        // the search box restores this copy when cleared — make it the ranked results, not the plain instructor list
+        const res = $("#findResults"); if (res && res.querySelector("button[onclick*='addToWaitlist']")) { const c = res.cloneNode(true); $$(".xd-ext, .xd-foot2, .xd-divider, [data-xd-note]", c).forEach(e => e.remove()); window._fcAllHtml = c.innerHTML; }
+        enhance(); return out;
+      };
+      wrapped.__xd = true; window.findClosest = wrapped;
+    }
+    watch(); globalSearch(); ensureDrivers().then(enhance);
+    const mf = $("#fcModelFilter"); if (mf && !mf.querySelector('option[value="other"]')) mf.insertAdjacentHTML("beforeend", '<option value="other">Other drivers (not DriveSQ)</option>');
     // a button beside "Find Closest Instructor" to manage other drivers and instructor notes
     const btn = $("#findBtn");
     if (btn && !$("#xdOpenBtn")) btn.parentElement.insertAdjacentHTML("afterend", '<button type="button" class="btn-s xd-open" id="xdOpenBtn" data-xd-open="drivers"><i class="bi bi-people me-1"></i>Other drivers &amp; instructor notes</button>');
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hook); else hook();
-  window.DSQF = { openManager, loadDrivers };
+  window.DSQF = { openManager, loadDrivers, enhance };
 })();
 
 /* DSQF — Instructor demand: which postcode areas need instructors, based on enquiries.
