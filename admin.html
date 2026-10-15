@@ -1434,6 +1434,32 @@ body.day-mode .dsqd-note{color:#92400e}
 .xd-foot2 .xd-sql { flex:1; }
 @media (max-width:575px) { .xd-ext .xd-card__side { align-items:flex-start; width:100%; } }
 
+/* direct message */
+.abtn.xd-msgbtn { border-color:rgba(168,85,247,.45); color:#c084fc; }
+.xd-learnerbtn { all:unset; cursor:pointer; margin-left:8px; padding:2px 10px; border-radius:999px; font-size:.7rem; font-weight:700; color:#c084fc; border:1px solid rgba(168,85,247,.45); background:rgba(168,85,247,.08); }
+.xd-learnerbtn:hover, .xd-learnerbtn:focus-visible { background:rgba(168,85,247,.18); }
+.xd-msgm { max-width:560px; width:96vw; }
+.xd-msgm__to { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+.xd-msgm__to > i { font-size:1.4rem; color:#c084fc; }
+.xd-msgm__to b { display:block; font-family:'Oswald',sans-serif; font-size:1.05rem; color:var(--txt,#fff); }
+.xd-msgm__to small { font-size:.72rem; color:var(--txt3,#aaa); }
+.xd-msgm__lbl { font-size:.62rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--txt4,#888); margin:10px 0 6px; }
+.xd-seg { display:flex; gap:6px; flex-wrap:wrap; }
+.xd-seg button, .xd-tpls button { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:10px; font-size:.78rem; font-weight:600; color:var(--txt2,#ddd); background:var(--dk2,#141414); border:1px solid var(--bdr,#2a2a2a); }
+.xd-seg button.is-on { border-color:#25D366; color:#4ade80; background:rgba(37,211,102,.08); }
+.xd-seg button[data-xd-ch="app"].is-on { border-color:#a855f7; color:#c084fc; background:rgba(168,85,247,.1); }
+.xd-seg button[data-xd-ch="sms"].is-on { border-color:#60a5fa; color:#93c5fd; background:rgba(96,165,250,.1); }
+.xd-tpls { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.xd-tpls button { padding:5px 10px; border-radius:999px; font-size:.72rem; }
+.xd-tpls button.is-on { border-color:var(--gold,#F5C518); color:var(--gold,#F5C518); }
+.xd-seg button:focus-visible, .xd-tpls button:focus-visible { outline:2px solid var(--gold,#F5C518); outline-offset:2px; }
+.xd-msgm__subj { margin-bottom:8px; font-size:.84rem; }
+.xd-msgm__ta { font-size:.86rem; line-height:1.5; min-height:130px; resize:vertical; }
+.xd-msgm__warn { margin:8px 0 0; font-size:.72rem; color:#fbbf24; } .xd-msgm__warn i { margin-right:5px; }
+.xd-msgm__foot { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.xd-msgm__count { flex:1; font-size:.68rem; color:var(--txt4,#888); }
+.xd-msgm__foot .btn-s, .xd-msgm__foot .btn-p { font-size:.8rem; padding:7px 16px; }
+
 </style>
 <!-- DSQA:ASSIGNCSS END -->
 </head>
@@ -15318,6 +15344,14 @@ document.addEventListener('click',e=>{
       const host = card.querySelector(".d-flex.align-items-center.gap-3 > div:last-child") || card;
       host.insertAdjacentHTML("beforeend", noteBlock(i));
     });
+    $$(".dist-card:not(.xd-ext)", root).forEach(card => {
+      if (card.querySelector("[data-xd-msg]")) return;
+      const id = cardInstrId(card); if (!id) return;
+      const assign = $$("button[onclick]", card).find(x => /openCreateAndAssign\('/.test(x.getAttribute("onclick")));
+      if (assign) assign.insertAdjacentHTML("beforebegin", '<button type="button" class="abtn xd-msgbtn" data-xd-msg="i:' + h(id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>');
+    });
+    const s = student(), bar = s && $$(":scope > div", root).find(d => !d.classList.contains("dist-card") && d.querySelector(".bi-person-fill") && d.textContent.includes(s.name || "\u0000"));
+    if (bar && s.phone && !bar.querySelector("[data-xd-msg]")) bar.insertAdjacentHTML("beforeend", ' <button type="button" class="xd-learnerbtn" data-xd-msg="s:"><i class="bi bi-chat-dots me-1"></i>Message learner</button>');
   }
   function editNote(id) {
     const i = instrs().find(x => String(x.id) === String(id)); if (!i) return;
@@ -15366,6 +15400,7 @@ document.addEventListener('click',e=>{
       '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>' + (s ? "Ask" : "WA") + "</a>" : "") +
       (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
       (s ? '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(s.postcode) + "&destination=" + encodeURIComponent(d.base_postcode || "") + '"><i class="bi bi-google me-1"></i>Maps</a>' : "") +
+      (d.phone ? '<button type="button" class="abtn xd-msgbtn" data-xd-msg="e:' + h(d.id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>' : "") +
       '<button type="button" class="abtn" data-xd-editext="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button>' +
       (s ? '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button>' : "") + "</div></div></div></div>";
   }
@@ -15541,6 +15576,89 @@ document.addEventListener('click',e=>{
   document.addEventListener("submit", e => { const f = e.target.closest("[data-xd-form]"); if (!f) return; e.preventDefault(); saveDriver(f); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdModal"); if (m) m.classList.remove("open"); } });
 
+  /* ---------- direct message: WhatsApp, text or in-app (DriveSQ instructors) ---------- */
+  let msgTo = null;
+  function learnerDetails(s) {
+    return ["Learner: " + (s.name || ""), s.phone ? "Phone: " + s.phone : "", s.email ? "Email: " + s.email : "", "Postcode: " + (isFull(s.postcode) ? outward(s.postcode) + " " + norm(s.postcode).slice(-3) : (s.postcode || "")), s.addr ? "Pick-up: " + s.addr : "",
+      "Lessons: " + (s.type || "Manual"), s.avail ? "Availability: " + s.avail : "", s.notes ? "Notes: " + String(s.notes).replace(/\s*\n+\s*/g, " · ") : ""].filter(Boolean).join("\n");
+  }
+  function templates(to, s) {
+    const first = String(to.name || "").split(" ")[0] || "there", oc = s ? outward(s.postcode) : "";
+    if (to.kind === "s") return [
+      ["Instructor found", "Hi " + first + ", it's DriveSQ 🚗 Good news — we've found an instructor near " + (oc || "you") + ". They'll be in touch shortly to arrange your first lesson. Any questions, just reply here."],
+      ["Check availability", "Hi " + first + ", it's DriveSQ. Thanks for your booking request! Which days and times suit you best for lessons?"],
+      ["Still looking", "Hi " + first + ", it's DriveSQ. We're finding the right instructor for you in " + (oc || "your area") + " — we'll update you within 24 hours."],
+      ["Blank", ""]];
+    const t = [];
+    if (s) {
+      t.push(["Can you take a learner?", "Hi " + first + ", it's DriveSQ. Could you take a new " + String(s.type || "manual").toLowerCase() + " learner in " + (oc || s.postcode) + "?" + (s.avail ? " Availability: " + s.avail + "." : "") + " Let me know and I'll send their details."]);
+      t.push(["Send learner details", "Hi " + first + ", here are the details for your new learner:\n\n" + learnerDetails(s) + "\n\nPlease contact them to arrange their first lesson. Thanks — DriveSQ"]);
+    }
+    t.push(["Quick check-in", "Hi " + first + ", it's DriveSQ. Have you got space for any new learners this week?"]);
+    t.push(["Blank", ""]);
+    return t;
+  }
+  function msgModal() {
+    let m = $("#xdMsg"); if (m) return m;
+    m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "xdMsg"; m.style.zIndex = "10160";
+    m.innerHTML = '<div class="dsq-modal xd-msgm" role="dialog" aria-labelledby="xdMsgT"><button class="modal-x" type="button" data-xd-msgclose><i class="bi bi-x-lg"></i></button><div class="xd-msgm__body"></div></div>';
+    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); });
+    document.body.appendChild(m); return m;
+  }
+  function openMsg(ref) {
+    const kind = ref.slice(0, 1), id = ref.slice(2), s = student();
+    if (kind === "i") { const i = instrs().find(x => String(x.id) === id); if (!i) return; msgTo = { kind, id, name: i.full_name, phone: i.phone, inApp: true, label: "DriveSQ instructor" }; }
+    else if (kind === "e") { const d = drivers.find(x => String(x.id) === id); if (!d) return; msgTo = { kind, id, name: d.full_name, phone: d.phone, inApp: false, label: (d.label || "Not DriveSQ") }; }
+    else { if (!s) return; msgTo = { kind: "s", id: "", name: s.name, phone: s.phone, inApp: false, label: "Learner" }; }
+    const tpl = templates(msgTo, s), m = msgModal(), body = $(".xd-msgm__body", m);
+    const ch = msgTo.phone ? "wa" : "app";
+    body.innerHTML = '<div class="xd-msgm__to"><i class="bi bi-chat-dots-fill"></i><div><b id="xdMsgT">Message ' + h(msgTo.name) + '</b><small>' + h(msgTo.label) + (msgTo.phone ? " · " + h(msgTo.phone) : " · no phone number saved") + "</small></div></div>" +
+      '<div class="xd-msgm__lbl">Send by</div><div class="xd-seg" role="radiogroup">' +
+      (msgTo.phone ? '<button type="button" role="radio" data-xd-ch="wa"><i class="bi bi-whatsapp"></i>WhatsApp</button><button type="button" role="radio" data-xd-ch="sms"><i class="bi bi-chat-text"></i>Text message</button>' : "") +
+      (msgTo.inApp ? '<button type="button" role="radio" data-xd-ch="app"><i class="bi bi-app-indicator"></i>In-app (their portal)</button>' : "") + "</div>" +
+      '<div class="xd-msgm__lbl">Message</div><div class="xd-tpls">' + tpl.map((t, k) => '<button type="button" data-xd-tpl="' + k + '">' + h(t[0]) + "</button>").join("") + "</div>" +
+      '<input class="dsq-inp xd-msgm__subj" maxlength="80" placeholder="Subject (in-app only)" value="Message from DriveSQ admin">' +
+      '<textarea class="dsq-inp xd-msgm__ta" rows="6" maxlength="1500" placeholder="Type your message…"></textarea>' +
+      (msgTo.kind === "e" ? '<p class="xd-msgm__warn"><i class="bi bi-shield-exclamation"></i>Only send a learner\'s details to a driver outside DriveSQ once the learner is happy to be passed on.</p>' : "") +
+      '<div class="xd-msgm__foot"><span class="xd-msgm__count">0 / 1500</span><button type="button" class="btn-s" data-xd-msgclose>Cancel</button><button type="button" class="btn-p" data-xd-send><i class="bi bi-send me-1"></i>Send</button></div>';
+    m._tpl = tpl; setChannel(ch); useTpl(0); m.classList.add("open");
+    setTimeout(() => { const ta = $(".xd-msgm__ta", m); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 60);
+  }
+  function setChannel(c) {
+    const m = msgModal(); m._ch = c;
+    $$("[data-xd-ch]", m).forEach(b => { const on = b.getAttribute("data-xd-ch") === c; b.classList.toggle("is-on", on); b.setAttribute("aria-checked", on); });
+    $(".xd-msgm__subj", m).style.display = c === "app" ? "" : "none";
+    const send = $("[data-xd-send]", m); if (send) send.innerHTML = '<i class="bi bi-' + (c === "wa" ? "whatsapp" : c === "sms" ? "chat-text" : "send") + ' me-1"></i>' + (c === "wa" ? "Open WhatsApp" : c === "sms" ? "Open text message" : "Send in-app");
+  }
+  function useTpl(k) {
+    const m = msgModal(), t = m._tpl[k]; if (!t) return;
+    $$("[data-xd-tpl]", m).forEach(b => b.classList.toggle("is-on", +b.getAttribute("data-xd-tpl") === k));
+    const ta = $(".xd-msgm__ta", m); ta.value = t[1]; $(".xd-msgm__count", m).textContent = ta.value.length + " / 1500";
+  }
+  async function sendMsg() {
+    const m = msgModal(), text = $(".xd-msgm__ta", m).value.trim(), c = m._ch; if (!msgTo) return;
+    if (!text) return toast("Write a message first", "warn");
+    if (c === "wa") { const n = waNum(msgTo.phone); if (!n) return toast("No valid phone number for " + msgTo.name, "warn"); window.open("https://wa.me/" + n + "?text=" + encodeURIComponent(text), "_blank", "noopener"); }
+    else if (c === "sms") { const n = String(msgTo.phone || "").replace(/[^\d+]/g, ""); if (!n) return toast("No phone number for " + msgTo.name, "warn"); location.href = "sms:" + n + "?&body=" + encodeURIComponent(text); }
+    else {
+      const subj = $(".xd-msgm__subj", m).value.trim() || "Message from DriveSQ admin", btn = $("[data-xd-send]", m); btn.disabled = true;
+      const r = await db().from("admin_messages").insert([{ instructor_id: msgTo.id, subject: subj, body: text, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
+      btn.disabled = false; if (r.error) return toast("Couldn't send: " + r.error.message, "error", 6000);
+      toast("✅ Sent to " + msgTo.name + "'s portal", "success");
+    }
+    m.classList.remove("open");
+  }
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-xd-msg],[data-xd-ch],[data-xd-tpl],[data-xd-send],[data-xd-msgclose]"); if (!t) return;
+    if (t.hasAttribute("data-xd-msg")) return openMsg(t.getAttribute("data-xd-msg"));
+    if (t.hasAttribute("data-xd-ch")) return setChannel(t.getAttribute("data-xd-ch"));
+    if (t.hasAttribute("data-xd-tpl")) return useTpl(+t.getAttribute("data-xd-tpl"));
+    if (t.hasAttribute("data-xd-send")) return sendMsg();
+    if (t.hasAttribute("data-xd-msgclose")) return msgModal().classList.remove("open");
+  });
+  document.addEventListener("input", e => { if (e.target.matches(".xd-msgm__ta")) $(".xd-msgm__count", msgModal()).textContent = e.target.value.length + " / 1500"; });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdMsg"); if (m) m.classList.remove("open"); } });
+
   /* ---------- global search (Ctrl+K): other drivers too ---------- */
   function globalSearch() {
     const orig = window.runGlobalSearch; if (typeof orig !== "function" || orig.__xd) return;
@@ -15571,7 +15689,7 @@ document.addEventListener('click',e=>{
       const wrapped = async function () {
         const out = await orig.apply(this, arguments);
         // the search box restores this copy when cleared — make it the ranked results, not the plain instructor list
-        const res = $("#findResults"); if (res && res.querySelector("button[onclick*='addToWaitlist']")) { const c = res.cloneNode(true); $$(".xd-ext, .xd-foot2, .xd-divider, [data-xd-note]", c).forEach(e => e.remove()); window._fcAllHtml = c.innerHTML; }
+        const res = $("#findResults"); if (res && res.querySelector("button[onclick*='addToWaitlist']")) { const c = res.cloneNode(true); $$(".xd-ext, .xd-foot2, .xd-divider, [data-xd-note], [data-xd-msg]", c).forEach(e => e.remove()); window._fcAllHtml = c.innerHTML; }
         enhance(); return out;
       };
       wrapped.__xd = true; window.findClosest = wrapped;
