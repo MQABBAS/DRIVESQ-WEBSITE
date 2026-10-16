@@ -1,21 +1,11 @@
--- DriveSQ — admin monitoring: activity log + automatic phone alerts.
--- Run once in Supabase → SQL Editor. Safe to run again.
---
--- 1. admin_activity  — every change made from admin.html is recorded here (who, what, when).
--- 2. Phone alerts    — every 15 minutes the database checks for:
---      • enquiries waiting more than 1 hour without an instructor
---      • (once a day, 9am UK) referrals assigned 7+ days ago that are still unpaid (not booked)
---    and sends a push notification to the admin's phone through the existing send-push function.
-
--- ── 1. activity log ─────────────────────────────────────────────
 create table if not exists admin_activity (
   id          uuid primary key default gen_random_uuid(),
   created_at  timestamptz not null default now(),
   admin_email text,
-  action      text not null,          -- added | changed | deleted
+  action      text not null,
   table_name  text not null,
-  summary     text,                   -- human-readable line shown in admin → Activity
-  row_filter  text,                   -- which row(s), e.g. id=eq.123
+  summary     text,
+  row_filter  text,
   details     jsonb
 );
 create index if not exists admin_activity_created_idx on admin_activity (created_at desc);
@@ -25,9 +15,7 @@ drop policy if exists "anon_select_admin_activity" on admin_activity;
 drop policy if exists "anon_insert_admin_activity" on admin_activity;
 create policy "anon_select_admin_activity" on admin_activity for select using (true);
 create policy "anon_insert_admin_activity" on admin_activity for insert with check (true);
--- no update/delete policies: the log can't be edited or wiped from the browser
 
--- ── 2. alerts ───────────────────────────────────────────────────
 alter table if exists waiting_list add column if not exists alert_sent_at timestamptz;
 
 create extension if not exists pg_net;
@@ -52,7 +40,6 @@ returns void language plpgsql security definer as $$
 declare
   n int; names text; uk_hour int; unpaid int; unpaid_names text;
 begin
-  -- enquiries waiting over an hour that haven't been alerted yet (only between 8am and 10pm UK)
   uk_hour := extract(hour from (now() at time zone 'Europe/London'));
   if uk_hour between 8 and 21 then
     select count(*), string_agg(coalesce(student_name, 'Unnamed'), ', ' order by created_at)
@@ -67,7 +54,6 @@ begin
     end if;
   end if;
 
-  -- daily at 9am UK: referrals 7+ days old still unpaid (= not booked yet)
   if uk_hour = 9 and extract(minute from now()) < 15 then
     select count(*), string_agg(coalesce(student_name, 'Unnamed'), ', ')
       into unpaid, unpaid_names
@@ -81,7 +67,6 @@ begin
   end if;
 end $$;
 
--- run every 15 minutes (replaces an older schedule with the same name)
 do $$ begin
   perform cron.unschedule('dsq-admin-watch');
 exception when others then null; end $$;
