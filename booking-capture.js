@@ -85,7 +85,7 @@
     try {
       return fetch(SB_URL + '/functions/v1/send-push', {
         method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + SB_KEY },
-        body: JSON.stringify({ instructor_id: ADMIN_ID, title: '📅 New website booking', body: (d.name || 'New learner') + ' · ' + (d.postcode || '') + ' · ' + (d.service || 'Lessons') + ' (' + d.gearbox + ')', url: '/admin.html', tag: 'drivesq-admin' })
+        body: JSON.stringify({ instructor_id: ADMIN_ID, title: '📅 New website booking', body: (d.name || 'New learner') + ' · ' + (d.postcode || '') + ' · ' + (d.service || 'Lessons') + ' (' + d.gearbox + ')', url: '/admin.html', tag: 'drivesq-admin-' + Date.now() })
       }).catch(function () {});
     } catch (e) { return Promise.resolve(); }
   }
