@@ -199,3 +199,70 @@
   window.DSQBooking = { send: send, fullPostcode: fullPostcode };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
+
+/**
+ * DriveSQ enquiry source tracking (v1)
+ * Works out where a visitor came from (Google Ads, Google search, Maps, AI assistant, social, direct…)
+ * and adds "Source:" and "Landing:" lines to every enquiry saved to the admin waiting list,
+ * whichever form on the site sends it. Admin → Enquiries reads these lines.
+ * Rule: the latest non-direct visit within 30 days wins (a later direct visit keeps the earlier source).
+ */
+(function () {
+  if (window.__dsqSource) return;
+  window.__dsqSource = true;
+  var KEY = 'dsq_src_v1', DAYS = 30;
+
+  function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+  function detect() {
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { q = { get: function () { return null; } }; }
+    var med = (q.get('utm_medium') || '').toLowerCase(), src = (q.get('utm_source') || '').toLowerCase();
+    var ref = hostOf(document.referrer || ''), self = location.hostname.replace(/^www\./, '').toLowerCase();
+    if (q.get('gclid') || q.get('gbraid') || q.get('wbraid') || /^(cpc|ppc|paid|paidsearch|pmax)$/.test(med)) return 'Google Ads';
+    if (/^(gbp|google_business|googlemybusiness|gmb)$/.test(src) || /maps\.google|google\.[a-z.]+\/maps/.test(document.referrer || '')) return 'Google Maps';
+    if (src) {
+      if (/chatgpt|openai|perplexity|copilot|gemini|claude/.test(src)) return 'AI assistant';
+      if (/instagram|facebook|fb|tiktok|snapchat|youtube/.test(src)) return 'Social';
+      return 'Campaign: ' + src;
+    }
+    if (!ref || ref === self) return 'Direct';
+    if (/(^|\.)google\./.test(ref)) return 'Google search';
+    if (/bing\.|duckduckgo\.|yahoo\.|ecosia\./.test(ref)) return 'Other search';
+    if (/chatgpt\.com|openai\.com|perplexity\.ai|copilot\.microsoft|gemini\.google|claude\.ai/.test(ref)) return 'AI assistant';
+    if (/instagram\.|facebook\.|fb\.|tiktok\.|t\.co$|twitter\.|x\.com|snapchat\.|youtube\.|whatsapp\./.test(ref)) return 'Social';
+    return 'Referral: ' + ref;
+  }
+  function store() {
+    var now = Date.now(), found = detect(), prev = null;
+    try { prev = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { prev = null; }
+    var fresh = prev && prev.t && (now - prev.t) < DAYS * 864e5;
+    var rec;
+    if (found === 'Direct' && fresh) rec = prev;
+    else if (fresh && prev.s === found && prev.l) rec = prev;
+    else rec = { s: found, l: location.pathname, t: now };
+    try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch (e) {}
+    return rec;
+  }
+  var current = store();
+  window.DSQSource = function () { return current; };
+
+  /* add Source/Landing lines to any enquiry posted to the waiting list */
+  if (!window.fetch || window.fetch.__dsqSrc) return;
+  var orig = window.fetch;
+  var wrapped = function (input, init) {
+    try {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (/\/rest\/v1\/waiting_list/.test(url) && init && /post/i.test(init.method || '') && typeof init.body === 'string') {
+        var body = JSON.parse(init.body), rows = Array.isArray(body) ? body : [body];
+        rows.forEach(function (r) {
+          if (r && typeof r === 'object' && !/(^|\n)Source: /.test(r.notes || '')) {
+            r.notes = (r.notes ? r.notes + '\n' : '') + 'Source: ' + current.s + '\nLanding: ' + current.l;
+          }
+        });
+        init = Object.assign({}, init, { body: JSON.stringify(body) });
+      }
+    } catch (e) {}
+    return orig.call(this, input, init);
+  };
+  wrapped.__dsqSrc = true;
+  window.fetch = wrapped;
+})();
