@@ -9853,14 +9853,32 @@ async function addToWaitlist(){
   if(!name){showToast('Please enter a student name first.','warn');return;}
   const wlFull={student_name:name,student_phone:phone||null,postcode:postcode||null,area:addr||null,lesson_type:type||'Manual',notes:[notes,avail?'Availability: '+avail:''].filter(Boolean).join('\n')||null,status:'waiting',created_at:new Date().toISOString()};
   let{error:wlErr}=await sb.from('waiting_list').insert([wlFull]);
-  if(wlErr){const r=await sb.from('waiting_list').insert([{student_name:name,student_phone:phone||null,postcode:postcode||null,status:'waiting',created_at:new Date().toISOString()}]);wlErr=r.error;}
+  if(wlErr){const _fbNotes=[wlFull.notes,addr?'Address: '+addr:''].filter(Boolean).join('\n')||null;const r=await sb.from('waiting_list').insert([{student_name:name,student_phone:phone||null,postcode:postcode||null,notes:_fbNotes,status:'waiting',created_at:new Date().toISOString()}]);wlErr=r.error;}
   if(wlErr){showToast('Failed to add: '+wlErr.message,'error');return;}
   showToast(`✅ ${name} added to waiting list.`,'success');
   if(document.getElementById('waitlistList'))loadWaitlist();
 }
 function openAddWaitlistModal(){
-  ['wl-name','wl-phone','wl-postcode','wl-area','wl-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['wl-name','wl-phone','wl-postcode','wl-area','wl-avail','wl-notes','wl-edit-id'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('wl-type').value='Manual';
+  const tt=document.getElementById('wl-title');if(tt)tt.innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List';
+  const b=document.querySelector('#waitlistAddModal .btn-p');if(b)b.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';
+  openModal('waitlistAddModal');
+}
+/* Edit an existing waiting-list entry (notes, availability, address, postcode…) */
+async function editWaitlistEntry(id){
+  const{data:r,error}=await sb.from('waiting_list').select('*').eq('id',id).maybeSingle();
+  if(error||!r){showToast('Could not open this entry: '+(error?error.message:'not found'),'error');return;}
+  _wlNormalise(r);
+  const n=String(r.notes||'');
+  const av=(n.match(/(?:^|\n)\s*Availability:\s*([^\n]+)/i)||[])[1]||'';
+  const cleanN=n.split('\n').filter(l=>!/^\s*(Availability:|Address:|Source:|Landing:|Page:|Email:|\[(WEB|CALL|WHATSAPP|OTHER)\])/i.test(l)).join('\n').trim();
+  const set=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
+  set('wl-edit-id',r.id);set('wl-name',r.student_name);set('wl-phone',r.student_phone);set('wl-postcode',r.postcode);
+  set('wl-area',_fcAddrOnly(r.area,r.postcode));set('wl-avail',av.trim());set('wl-notes',cleanN);
+  const lt=document.getElementById('wl-type');if(lt)lt.value=['Manual','Automatic','Intensive'].includes(r.lesson_type)?r.lesson_type:'Manual';
+  const tt=document.getElementById('wl-title');if(tt)tt.innerHTML='<i class="bi bi-pencil-square me-2" style="color:#fbbf24"></i>Edit waiting list entry';
+  const b=document.querySelector('#waitlistAddModal .btn-p');if(b)b.innerHTML='<i class="bi bi-check-lg me-1"></i>Save changes';
   openModal('waitlistAddModal');
 }
 async function saveWaitlistEntry(){
@@ -9869,28 +9887,37 @@ async function saveWaitlistEntry(){
   if(!name){showToast('Please enter a student name.','error');return;}
   const btn=document.querySelector('#waitlistAddModal .btn-p');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Saving…';}
-  // Try full insert first; fall back to minimal if columns are missing
+  const editId=(document.getElementById('wl-edit-id')?.value||'').trim();
+  const area=(document.getElementById('wl-area').value||'').trim();
+  const avail=(document.getElementById('wl-avail')?.value||'').trim();
+  const userNotes=(document.getElementById('wl-notes').value||'').trim();
+  // keep any machine lines that were already on the entry (Source, Landing, [WEB] tag, Email…)
+  let keep='';
+  if(editId){const{data:old}=await sb.from('waiting_list').select('notes').eq('id',editId).maybeSingle();
+    keep=String(old?.notes||'').split('\n').filter(l=>/^\s*(\[(WEB|CALL|WHATSAPP|OTHER)\]|Source:|Landing:|Page:|Email:)/i.test(l)&&userNotes.indexOf(l.trim())<0).join('\n');}
+  const notesStr=[keep,userNotes,avail?'Availability: '+avail:'',area?'Address: '+area:''].filter(Boolean).join('\n')||null;
   const full={
     student_name:name,
     student_phone:(document.getElementById('wl-phone').value||'').trim()||null,
     postcode:postcode||null,
-    area:(document.getElementById('wl-area').value||'').trim()||null,
+    area:area||null,
     lesson_type:document.getElementById('wl-type').value||'Manual',
-    notes:(document.getElementById('wl-notes').value||'').trim()||null,
-    status:'waiting',
-    created_at:new Date().toISOString()
+    notes:notesStr
   };
-  let {error}=await sb.from('waiting_list').insert([full]);
-  if(error){
-    // Retry with only the core columns that definitely exist
-    const minimal={student_name:name,student_phone:full.student_phone,postcode:full.postcode,status:'waiting',created_at:full.created_at};
-    const res=await sb.from('waiting_list').insert([minimal]);
-    error=res.error;
+  let error;
+  if(editId){
+    ({error}=await sb.from('waiting_list').update(full).eq('id',editId));
+    if(error)({error}=await sb.from('waiting_list').update({student_name:name,student_phone:full.student_phone,postcode:full.postcode,notes:notesStr}).eq('id',editId));
+  }else{
+    ({error}=await sb.from('waiting_list').insert([{...full,status:'waiting',created_at:new Date().toISOString()}]));
+    // fallback keeps notes (with availability + address inside) even if some columns are missing
+    if(error)({error}=await sb.from('waiting_list').insert([{student_name:name,student_phone:full.student_phone,postcode:full.postcode,notes:notesStr,status:'waiting',created_at:new Date().toISOString()}]));
+    if(error)({error}=await sb.from('waiting_list').insert([{student_name:name,student_phone:full.student_phone,notes:notesStr,status:'waiting'}]));
   }
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
+  if(btn){btn.disabled=false;btn.innerHTML=editId?'<i class="bi bi-check-lg me-1"></i>Save changes':'<i class="bi bi-plus-lg me-1"></i>Add to Waiting List';}
   if(error){showToast('Failed to save: '+error.message,'error');return;}
   closeModal('waitlistAddModal');
-  showToast(`✅ ${name} added to waiting list.`,'success');
+  showToast(editId?`✅ ${name} updated.`:`✅ ${name} added to waiting list.`,'success');
   loadWaitlist();
 }
 async function loadWaitlist(){
@@ -9946,6 +9973,7 @@ async function loadWaitlist(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
           ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
           ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}','${jsEsc(r.area||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
+          <button class="abtn" onclick="editWaitlistEntry('${r.id}')" title="Edit notes, availability, address"><i class="bi bi-pencil me-1"></i>Edit</button>
           ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
           ${r.status==='cancelled'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','waiting')" style="color:#4ade80;border-color:rgba(74,222,128,.3)"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivate</button>`:''}
         </div>
@@ -13222,15 +13250,16 @@ function renderTheoryList(rows){
 <div class="dsq-overlay" id="waitlistAddModal">
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('waitlistAddModal')"><i class="bi bi-x-lg"></i></button>
-    <h5><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List</h5>
+    <h5 id="wl-title"><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List</h5><input type="hidden" id="wl-edit-id"/>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-name" placeholder="Student full name"/></div>
     <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="wl-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
     <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
-    <div class="mb-2"><label class="dsq-lbl">Area</label><input class="dsq-inp" id="wl-area" placeholder="e.g. Didsbury, Withington"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Pickup address / area</label><input class="dsq-inp" id="wl-area" placeholder="e.g. 12 Kingsway, Didsbury"/></div>
     <div class="mb-2"><label class="dsq-lbl">Lesson Type</label>
       <select class="dsq-inp" id="wl-type"><option value="Manual">Manual</option><option value="Automatic">Automatic</option><option value="Intensive">Intensive</option></select>
     </div>
-    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="2" placeholder="Any notes about availability, preferences…"></textarea></div>
+    <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="wl-avail" placeholder="e.g. Weekday evenings, Saturdays"/></div>
+    <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="3" placeholder="Preferences, nerves, female instructor, anything useful…"></textarea></div>
     <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
   </div>
 </div>
