@@ -4014,7 +4014,7 @@ async function _saveAdminPushSub(reg){
 async function pushToAdmin(title,body,url){
   try{
     await fetch(PUSH_EDGE_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-      body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title,body:body,url:url||'/admin.html',tag:'drivesq-admin'})});
+      body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title,body:body,url:url||'/admin.html',tag:'drivesq-admin-'+Date.now()})});
   }catch(e){console.warn('Admin push send error:',e);}
 }
 /* ══ PWA INSTALL ══ */
@@ -16318,7 +16318,7 @@ document.addEventListener('click',e=>{
         if (prev >= 0 && n > prev && Date.now() - lastLive > 90000) {
           call("_playBookingSound");
           call("showToast", "📅 " + (n - prev) + " new website booking" + (n - prev > 1 ? "s" : "") + " — press B to review", "success");
-          try { if (document.hidden && window.Notification && Notification.permission === "granted") new Notification("📅 New website booking", { body: "Open DriveSQ admin to review and assign.", tag: "drivesq-admin" }); } catch (e) {}
+          try { if (document.hidden && window.Notification && Notification.permission === "granted") new Notification("📅 New website booking", { body: "Open DriveSQ admin to review and assign.", tag: "drivesq-admin-" + Date.now() }); } catch (e) {}
         }
         prev = n;
       });
@@ -16480,6 +16480,16 @@ document.addEventListener('click',e=>{
     });
   }
 
+  /* the same phone number counts as one enquiry: keep the first, note repeat contacts */
+  function dedupe(rows) {
+    const seen = {}, out = [];
+    rows.slice().sort((x, y) => new Date(x.created_at) - new Date(y.created_at)).forEach(r => {
+      const p = normPhone(r.student_phone);
+      if (p && seen[p]) { seen[p]._repeats = (seen[p]._repeats || 0) + 1; if (r.status === "assigned" && seen[p].status === "waiting") seen[p].status = "assigned"; return; }
+      if (p) seen[p] = r; out.push(r);
+    });
+    return out.sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+  }
   async function load() {
     const c = db(); if (!c) return;
     const [a, b] = rangeDates();
@@ -16492,6 +16502,7 @@ document.addEventListener('click',e=>{
       const r3 = await c.from("referrals").select("id,student_name,amount,is_paid,paid_at,is_cancelled,created_at,instructor_id").gte("created_at", new Date(a.getTime() - 864e5).toISOString());
       refs = r3.data || [];
     }
+    S.rows = dedupe(S.rows);
     S.refs = refs; matchRefs(S.rows, S.refs); S.loaded = true;
   }
 
@@ -16519,7 +16530,7 @@ document.addEventListener('click',e=>{
     const stCls = s => s === "Booked" ? "b" : s === "Waiting" ? "w" : s === "Cancelled" ? "c" : "a";
     p.innerHTML = `
       <div class="page-title mb-2"><i class="bi bi-funnel-fill me-2" style="color:var(--gold)"></i>Enquiries &amp; Bookings</div>
-      <p class="muted" style="margin:-4px 0 12px">Every enquiry, where it came from, and whether it booked. <strong>Booked</strong> = the referral is marked paid. Website enquiries are tracked automatically — log calls and WhatsApps with the button so they count too.</p>
+      <p class="muted" style="margin:-4px 0 12px">Every enquiry, where it came from, and whether it booked. <strong>Booked</strong> = the referral is marked paid. The same phone number counts as one enquiry. Website enquiries are tracked automatically — log calls and WhatsApps with the button so they count too.</p>
       <div class="dsqe-row">
         ${chips.map(([k, l]) => `<button class="dsqe-chip${S.range === k ? " on" : ""}" data-r="${k}">${l}</button>`).join("")}
         <span style="flex:1"></span>
@@ -16541,7 +16552,7 @@ document.addEventListener('click',e=>{
         ${table("Website pages that bring enquiries", "bi-file-earmark-text", group(rows.filter(r => line(r.notes, "Landing") || line(r.notes, "Page")), r => line(r.notes, "Landing") || line(r.notes, "Page")).slice(0, 12), "Page")}
         <div class="dsq-card p-3"><div class="section-label"><i class="bi bi-list-ul me-2" style="color:var(--gold)"></i>Latest enquiries</div>
           ${rows.length ? `<div class="dsqe-scroll"><table class="t3"><thead><tr><th>Date</th><th>Name</th><th>Status</th></tr></thead><tbody>
-          ${rows.slice(0, 40).map(r => `<tr><td class="muted">${fmtD(r.created_at)}</td><td>${h(r.student_name || "—")}<div class="muted">${h(sourceOf(r))}</div></td><td><span class="st ${stCls(r._state)}" style="white-space:normal">${h(r._state)}</span></td></tr>`).join("")}
+          ${rows.slice(0, 40).map(r => `<tr><td class="muted">${fmtD(r.created_at)}</td><td>${h(r.student_name || "—")}${r._repeats ? ` <span class="muted">(contacted ${r._repeats + 1}×)</span>` : ""}<div class="muted">${h(sourceOf(r))}</div></td><td><span class="st ${stCls(r._state)}" style="white-space:normal">${h(r._state)}</span></td></tr>`).join("")}
           </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}
         </div>
       </div>`;
@@ -16639,6 +16650,292 @@ document.addEventListener('click',e=>{
 })();
 </script>
 <!-- DSQE:ENQUIRIES END -->
+
+<!-- DSQMON:MONITORING START -->
+<style id="dsqmon-css">
+.dsqmon{margin-bottom:18px}
+.dsqmon-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.dsqmon-head h3{font-family:'Oswald',sans-serif;font-weight:700;font-size:1rem;margin:0;color:var(--txt);letter-spacing:.02em}
+.dsqmon-head .upd{font-size:.7rem;color:var(--txt3)}
+.dsqmon-allclear{display:flex;align-items:center;gap:10px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:12px;padding:14px 16px;color:#4ade80;font-size:.85rem}
+.dsqmon-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.dsqmon-item{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--card-bg);border:1px solid var(--bdr);border-left:4px solid var(--gold);border-radius:12px;padding:13px 14px;cursor:pointer;color:var(--txt);min-height:64px;touch-action:manipulation;transition:border-color .15s,background .15s}
+.dsqmon-item:hover,.dsqmon-item:focus-visible{background:var(--dk2);outline:none;border-color:var(--bdr2)}
+.dsqmon-item.red{border-left-color:#ef4444}.dsqmon-item.amber{border-left-color:var(--gold)}.dsqmon-item.blue{border-left-color:#3b82f6}
+.dsqmon-item .cnt{font-family:'Oswald',sans-serif;font-size:1.55rem;line-height:1;min-width:34px;text-align:center}
+.dsqmon-item.red .cnt{color:#f87171}.dsqmon-item.amber .cnt{color:var(--gold)}.dsqmon-item.blue .cnt{color:#60a5fa}
+.dsqmon-item .t{font-weight:700;font-size:.85rem}
+.dsqmon-item .d{font-size:.72rem;color:var(--txt3);margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+.dsqmon-item .go{margin-left:auto;color:var(--txt3);align-self:center}
+.dsqmon-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+.dsqmon-stat{background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px}
+.dsqmon-stat .l{font-size:.66rem;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}
+.dsqmon-stat .n{font-family:'Oswald',sans-serif;font-size:1.45rem;color:var(--txt);margin-top:2px}
+.dsqmon-notif{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:.8rem}
+.dsqmon-notif .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dsqmon-btn{background:var(--dk2);border:1px solid var(--bdr2);color:var(--txt);border-radius:9px;padding:8px 13px;font-size:.78rem;min-height:38px;cursor:pointer;touch-action:manipulation}
+.dsqmon-btn.p{background:var(--gold);color:#111;border-color:var(--gold);font-weight:700}
+.dsqmon-log{list-style:none;margin:0;padding:0}
+.dsqmon-log li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bdr);font-size:.8rem;align-items:flex-start}
+.dsqmon-log li:last-child{border-bottom:none}
+.dsqmon-log .ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem}
+.dsqmon-log .ic.add{background:rgba(74,222,128,.12);color:#4ade80}.dsqmon-log .ic.chg{background:rgba(59,130,246,.12);color:#60a5fa}.dsqmon-log .ic.del{background:rgba(239,68,68,.12);color:#f87171}
+.dsqmon-log .w{color:var(--txt3);font-size:.7rem;margin-top:2px}
+.dsqmon-health{width:100%;border-collapse:collapse;font-size:.8rem;min-width:0!important;table-layout:auto}
+.dsqmon-health th{text-align:left;color:var(--txt3);font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;padding:8px;border-bottom:1px solid var(--bdr);white-space:nowrap}
+.dsqmon-health td{padding:9px 8px;border-bottom:1px solid var(--bdr);color:var(--txt);vertical-align:middle}
+.dsqmon-health td.n,.dsqmon-health th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsqmon-flag{display:inline-block;border-radius:99px;padding:2px 8px;font-size:.66rem;font-weight:700;margin:1px 2px 1px 0;white-space:nowrap}
+.dsqmon-flag.r{background:rgba(239,68,68,.14);color:#f87171}.dsqmon-flag.a{background:rgba(245,197,24,.14);color:var(--gold)}.dsqmon-flag.g{background:rgba(74,222,128,.12);color:#4ade80}
+.dsqmon-health .show-s{display:none}
+@media (max-width:600px){.dsqmon-health .hide-s{display:none}.dsqmon-health .show-s{display:block;margin-top:4px}}
+</style>
+<script id="dsqmon-js">
+/* DSQMON — admin monitoring.
+   1. Today: everything that needs action, on top of Dashboard (auto-refreshes; in-app alert when a new enquiry arrives).
+   2. Notifications health: is this device subscribed, how many admin devices, send a test.
+   3. Activity log: every insert/update/delete made from this admin page is written to admin_activity
+      (needs supabase/migrations/20261016_admin_monitoring.sql) and shown on Dashboard + Activity.
+   4. Instructor health: per instructor — given, booked, booking rate, unpaid, oldest unpaid, last login (Scorecard tab). */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const db = () => window.sb || (typeof sb !== "undefined" ? sb : null);
+  const toast = (m, t, ms) => { try { window.showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const instrs = () => { try { return (typeof allInstrs !== "undefined" ? allInstrs : []) || []; } catch (e) { return []; } };
+  const ADMIN_ID = "00000000-0000-0000-0000-000000000001";
+  const ago = d => { const m = Math.max(0, Math.round((Date.now() - new Date(d)) / 60000)); if (m < 60) return m + " min"; const hr = Math.round(m / 60); if (hr < 48) return hr + " hr"; return Math.round(hr / 24) + " days"; };
+  const days = d => Math.floor((Date.now() - new Date(d)) / 864e5);
+  const go = tab => { try { window.switchTab(tab); } catch (e) {} try { window.setActiveTab && window.setActiveTab(tab); } catch (e) {} try { window._mobSetActive && window._mobSetActive(tab); } catch (e) {} };
+  const adminEmail = () => { try { return (JSON.parse(localStorage.getItem("dsq_admin_session") || "{}").email) || "admin"; } catch (e) { return "admin"; } };
+  const S = { lastWaiting: null, timer: null, logMissing: false };
+
+  /* ═════════ 1. activity log: record every write made from this page ═════════ */
+  const SKIP = new Set(["admin_activity", "push_subscriptions", "lesson_reminders", "student_link_events"]);
+  const VERB = { POST: "added", PATCH: "changed", DELETE: "deleted" };
+  const label = t => ({ waiting_list: "enquiry", referrals: "referral", student_profiles: "student", student_accounts: "student account", instructors: "instructor", lessons: "lesson", admin_messages: "message", student_requests: "student request", transfer_requests: "transfer", reschedule_requests: "reschedule request", instructor_change_requests: "instructor change", email_campaigns: "email campaign", draw_entries: "draw entry", draw_results: "draw result" }[t] || t.replace(/_/g, " "));
+  function instrName(id) { const i = instrs().find(x => x.id === id); return i ? (i.full_name || i.name) : ""; }
+  function describe(table, method, body, filter) {
+    const rows = Array.isArray(body) ? body : body ? [body] : [];
+    const b = rows[0] || {};
+    let who = b.student_name || b.full_name || b.name || b.subject || "";
+    if (!who && filter) {
+      const id = (String(filter).match(/(?:^|&)id=eq\.([^&]+)/) || [])[1];
+      if (id) { try { const pools = { referrals: typeof _refData !== "undefined" ? _refData : [], instructors: instrs() }; const hit = (pools[table] || []).find(x => String(x.id) === decodeURIComponent(id)); if (hit) who = hit.student_name || hit.full_name || hit.name || ""; } catch (e) {} }
+    }
+    const bits = [];
+    if ("is_paid" in b) bits.push(b.is_paid ? "marked paid (booked)" : "marked unpaid");
+    if ("is_cancelled" in b) bits.push(b.is_cancelled ? "cancelled" : "restored");
+    if ("status" in b && method !== "POST") bits.push("status → " + b.status);
+    if ("instructor_id" in b && b.instructor_id && method !== "POST") bits.push("instructor → " + (instrName(b.instructor_id) || "another instructor"));
+    if ("amount" in b && method !== "POST") bits.push("amount £" + b.amount);
+    if ("notes" in b && method === "PATCH") bits.push("notes edited");
+    let s = VERB[method].charAt(0).toUpperCase() + VERB[method].slice(1) + " " + label(table) + (rows.length > 1 ? " ×" + rows.length : "");
+    if (who) s += ": " + who;
+    if (method === "POST" && b.instructor_id && instrName(b.instructor_id)) s += " (" + instrName(b.instructor_id) + ")";
+    if (bits.length) s += " — " + bits.join(", ");
+    return s.slice(0, 300);
+  }
+  function installLogger() {
+    try {
+      const c = db(); if (!c || !c.from) return false;
+      let p = Object.getPrototypeOf(c.from("x").select("*"));
+      while (p && !Object.prototype.hasOwnProperty.call(p, "then")) p = Object.getPrototypeOf(p);
+      if (!p || p.__dsqmon) return !!p;
+      const orig = p.then;
+      Object.defineProperty(p, "then", { configurable: true, writable: true, value: function (res, rej) {
+        const self = this;
+        let table = "";
+        try { table = (self.url && self.url.pathname || "").split("/rest/v1/")[1] || ""; } catch (e) {}
+        const method = String(self.method || "").toUpperCase();
+        if (!self.__dsqLogged && VERB[method] && table && !SKIP.has(table) && !/\/rpc\//.test(String(self.url && self.url.pathname))) {
+          self.__dsqLogged = true;
+          return orig.call(self, r => {
+            try {
+              if (r && !r.error) {
+                let filter = ""; try { const q = new URLSearchParams(self.url.search); q.delete("select"); q.delete("columns"); q.delete("on_conflict"); filter = q.toString().slice(0, 200); } catch (e) {}
+                record(table, method, self.body, filter);
+              }
+            } catch (e) {}
+            return res ? res(r) : r;
+          }, rej);
+        }
+        return orig.call(self, res, rej);
+      } });
+      Object.defineProperty(p, "__dsqmon", { value: true });
+      return true;
+    } catch (e) { console.warn("DSQMON logger:", e); return false; }
+  }
+  function record(table, method, body, filter) {
+    if (S.logMissing) return;
+    const c = db(); if (!c) return;
+    const row = { admin_email: adminEmail(), action: VERB[method], table_name: table, summary: describe(table, method, body, filter), row_filter: filter || null, details: (() => { try { const b = Array.isArray(body) ? body.slice(0, 3) : body; return b ? JSON.parse(JSON.stringify(b)) : null; } catch (e) { return null; } })(), created_at: new Date().toISOString() };
+    c.from("admin_activity").insert([row]).then(r => { if (r && r.error && /admin_activity|relation|does not exist|schema cache/i.test(r.error.message || "")) S.logMissing = true; });
+  }
+
+  /* ═════════ 2. Today ═════════ */
+  async function q(promise) { try { const r = await promise; return r && !r.error ? (r.data || []) : []; } catch (e) { return []; } }
+  async function gather() {
+    const c = db(); if (!c) return null;
+    const since7 = new Date(Date.now() - 7 * 864e5).toISOString(), today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    const [waiting, refs, sreq, resch, transf, chg, pend, enqWeek, logs] = await Promise.all([
+      q(c.from("waiting_list").select("id,student_name,student_phone,postcode,created_at,notes").eq("status", "waiting").order("created_at", { ascending: true })),
+      q(c.from("referrals").select("id,student_name,instructor_id,amount,is_paid,is_cancelled,created_at").eq("is_paid", false).eq("is_cancelled", false).lt("created_at", since7)),
+      q(c.from("student_requests").select("id,student_name,created_at").eq("status", "pending")),
+      q(c.from("reschedule_requests").select("id,created_at").eq("status", "pending")),
+      q(c.from("transfer_requests").select("id,created_at").eq("status", "pending")),
+      q(c.from("instructor_change_requests").select("id,created_at").eq("status", "pending")),
+      q(c.from("instructors").select("id,full_name,created_at").eq("status", "pending")),
+      q(c.from("waiting_list").select("id,created_at,status,student_phone").gte("created_at", since7)),
+      S.logMissing ? Promise.resolve([]) : q(c.from("admin_activity").select("*").order("created_at", { ascending: false }).limit(6))
+    ]);
+    const paidWeek = await q(c.from("referrals").select("id").eq("is_paid", true).gte("paid_at", since7));
+    const uniq = rows => { const seen = new Set(); return rows.filter(r => { let p = String(r.student_phone || "").replace(/\D/g, ""); if (p.indexOf("44") === 0) p = "0" + p.slice(2); if (p.length < 10) return true; if (seen.has(p)) return false; seen.add(p); return true; }); };
+    return { waiting: uniq(waiting), enqWeek: uniq(enqWeek.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))), unpaid: refs.filter(r => (parseFloat(r.amount) || 0) > 0), sreq, resch, transf, chg, pend, paidWeek, logs, today0 };
+  }
+  function items(d) {
+    const out = [];
+    const old = d.waiting.filter(w => Date.now() - new Date(w.created_at) > 36e5);
+    if (d.waiting.length) out.push({ cls: old.length ? "red" : "amber", n: d.waiting.length, t: "Enquir" + (d.waiting.length === 1 ? "y" : "ies") + " waiting for an instructor", dsc: (old.length ? old.length + " waiting over 1 hour · " : "") + "oldest " + ago(d.waiting[0].created_at) + " · " + d.waiting.slice(0, 3).map(w => w.student_name || "Unnamed").join(", "), tab: "waitlist" });
+    if (d.unpaid.length) { const o = d.unpaid.reduce((a, r) => Math.max(a, days(r.created_at)), 0); out.push({ cls: o > 14 ? "red" : "amber", n: d.unpaid.length, t: "Not booked after 7 days", dsc: "£" + d.unpaid.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toFixed(0) + " unpaid · oldest " + o + " days · " + d.unpaid.slice(0, 3).map(r => (r.student_name || "?") + (instrName(r.instructor_id) ? " (" + instrName(r.instructor_id).split(" ")[0] + ")" : "")).join(", "), tab: "referrals" }); }
+    if (d.sreq.length) out.push({ cls: "blue", n: d.sreq.length, t: "Student request" + (d.sreq.length === 1 ? "" : "s") + " to approve", dsc: d.sreq.slice(0, 3).map(r => r.student_name || "Student").join(", "), tab: "requests" });
+    if (d.resch.length) out.push({ cls: "blue", n: d.resch.length, t: "Reschedule request" + (d.resch.length === 1 ? "" : "s"), dsc: "oldest " + ago(d.resch[0].created_at), tab: "requests" });
+    if (d.transf.length + d.chg.length) out.push({ cls: "blue", n: d.transf.length + d.chg.length, t: "Transfer / instructor change requests", dsc: "Waiting for your decision", tab: "transfers" });
+    if (d.pend.length) out.push({ cls: "amber", n: d.pend.length, t: "Instructor application" + (d.pend.length === 1 ? "" : "s"), dsc: d.pend.slice(0, 3).map(i => i.full_name || "New instructor").join(", "), tab: "pending" });
+    return out;
+  }
+  async function notifState() {
+    const st = { supported: "Notification" in window && "serviceWorker" in navigator && "PushManager" in window, perm: "Notification" in window ? Notification.permission : "unsupported", sub: false, devices: null };
+    try { const reg = await navigator.serviceWorker.getRegistration("/"); const s = reg && await reg.pushManager.getSubscription(); st.sub = !!s; } catch (e) {}
+    try { const c = db(); const r = await c.from("push_subscriptions").select("endpoint").eq("instructor_id", ADMIN_ID); if (!r.error) st.devices = (r.data || []).length; } catch (e) {}
+    return st;
+  }
+  function logList(rows, empty) {
+    if (S.logMissing) return `<div style="font-size:.78rem;color:var(--txt3)">Change tracking starts once the database update <strong>20261016_admin_monitoring.sql</strong> has been run in Supabase.</div>`;
+    if (!rows.length) return `<div style="font-size:.78rem;color:var(--txt3)">${empty}</div>`;
+    const ic = a => a === "added" ? ["add", "bi-plus-lg"] : a === "deleted" ? ["del", "bi-trash3"] : ["chg", "bi-pencil"];
+    return `<ul class="dsqmon-log">${rows.map(r => { const [c, i] = ic(r.action); return `<li><span class="ic ${c}"><i class="bi ${i}"></i></span><div style="min-width:0"><div>${h(r.summary || (r.action + " " + r.table_name))}</div><div class="w">${new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · ${h(r.admin_email || "admin")}</div></div></li>`; }).join("")}</ul>`;
+  }
+  async function renderToday(silent) {
+    const box = $("#dsqmonToday"); if (!box) return;
+    if (!silent) box.innerHTML = `<div style="font-size:.8rem;color:var(--txt3);padding:10px 0"><i class="bi bi-hourglass-split me-1"></i>Checking what needs attention…</div>`;
+    const d = await gather(); if (!d) return;
+    const list = items(d), ns = await notifState();
+    // in-app alert when a new enquiry arrives while admin is open
+    if (S.lastWaiting !== null && d.waiting.length > S.lastWaiting) {
+      const n = d.waiting.length - S.lastWaiting;
+      toast("📅 " + n + " new enquir" + (n === 1 ? "y" : "ies") + " — open Waiting list to assign", "info", 8000);
+      try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (e) {}
+    }
+    S.lastWaiting = d.waiting.length;
+    const todayEnq = d.enqWeek.filter(w => new Date(w.created_at) >= d.today0).length;
+    const nOk = ns.perm === "granted" && ns.sub;
+    box.innerHTML = `
+      <div class="dsqmon-head"><h3><i class="bi bi-bell-fill me-2" style="color:var(--gold)"></i>Needs your attention</h3><span class="upd">Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · refreshes every 2 min</span><span style="flex:1"></span><button class="dsqmon-btn" id="dsqmonRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></div>
+      ${list.length ? `<div class="dsqmon-list">${list.map(i => `<button class="dsqmon-item ${i.cls}" data-tab="${i.tab}"><span class="cnt">${i.n}</span><span style="min-width:0"><div class="t">${h(i.t)}</div><div class="d">${h(i.dsc)}</div></span><i class="bi bi-chevron-right go"></i></button>`).join("")}</div>`
+        : `<div class="dsqmon-allclear"><i class="bi bi-check-circle-fill" style="font-size:1.2rem"></i>All clear — nothing waiting for you right now.</div>`}
+      <div class="dsqmon-stats">
+        <div class="dsqmon-stat"><div class="l">Enquiries today</div><div class="n">${todayEnq}</div></div>
+        <div class="dsqmon-stat"><div class="l">Enquiries · 7 days</div><div class="n">${d.enqWeek.length}</div></div>
+        <div class="dsqmon-stat"><div class="l">Booked · 7 days</div><div class="n" style="color:#4ade80">${d.paidWeek.length}</div></div>
+        <div class="dsqmon-stat"><div class="l">Waiting now</div><div class="n">${d.waiting.length}</div></div>
+      </div>
+      <div class="dsqmon-notif">
+        <span class="dot" style="background:${nOk ? "#4ade80" : ns.perm === "denied" ? "#ef4444" : "var(--gold)"}"></span>
+        <div style="flex:1;min-width:200px"><strong>Phone alerts:</strong> ${nOk ? "on for this device" : ns.perm === "denied" ? "blocked on this device — allow notifications for this site in your browser/phone settings" : !ns.supported ? "not supported here — on iPhone/iPad, add admin to the Home Screen and open it from there" : "off on this device"}${ns.devices != null ? ` · <span style="color:var(--txt3)">${ns.devices} admin device${ns.devices === 1 ? "" : "s"} registered</span>` : ""}</div>
+        ${nOk ? `<button class="dsqmon-btn" id="dsqmonTest"><i class="bi bi-send me-1"></i>Send test</button>` : ns.perm !== "denied" && ns.supported ? `<button class="dsqmon-btn p" id="dsqmonEnable"><i class="bi bi-bell me-1"></i>Turn on alerts</button>` : ""}
+      </div>
+      <div class="dsq-card p-3" style="margin-top:12px"><div class="section-label"><i class="bi bi-clock-history me-2" style="color:var(--gold)"></i>Latest changes</div>${logList(d.logs, "No changes recorded yet.")}<button class="dsqmon-btn" style="margin-top:8px" data-tab="activity">Full activity log</button></div>`;
+    box.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
+    const r = $("#dsqmonRefresh"); if (r) r.addEventListener("click", () => renderToday());
+    const t = $("#dsqmonTest"); if (t) t.addEventListener("click", async () => { try { await window._testAdminPush(); } catch (e) { toast("Test failed: " + e.message, "error"); } });
+    const en = $("#dsqmonEnable"); if (en) en.addEventListener("click", async () => {
+      try {
+        if (!window._adminSwReg && "serviceWorker" in navigator) window._adminSwReg = await navigator.serviceWorker.register("/student-sw.js");
+        try { _adminSwReg = window._adminSwReg; } catch (e) {}
+        await window.acceptAdminPush();
+      } catch (e) { toast("Couldn't turn on alerts: " + e.message, "error"); }
+      setTimeout(() => renderToday(true), 1500);
+    });
+  }
+  function mountToday() {
+    const panel = $("#panel-dashboard"); if (!panel || $("#dsqmonToday")) return;
+    const title = panel.querySelector(".page-title"); const anchor = title ? title.closest("div.d-flex") || title : null;
+    const box = document.createElement("section"); box.id = "dsqmonToday"; box.className = "dsqmon";
+    if (anchor && anchor.parentNode === panel) anchor.insertAdjacentElement("afterend", box); else panel.insertAdjacentElement("afterbegin", box);
+  }
+
+  /* ═════════ 3. full activity log (Activity tab) ═════════ */
+  async function renderActivity() {
+    const panel = $("#panel-activity"); if (!panel) return;
+    let box = $("#dsqmonActivity");
+    if (!box) { box = document.createElement("div"); box.id = "dsqmonActivity"; box.className = "dsq-card p-3"; box.style.marginBottom = "14px"; const t = panel.querySelector(".page-title"); if (t) t.insertAdjacentElement("afterend", box); else panel.insertAdjacentElement("afterbegin", box); }
+    box.innerHTML = `<div class="section-label"><i class="bi bi-shield-check me-2" style="color:var(--gold)"></i>Admin changes — who changed what, and when</div><div style="font-size:.8rem;color:var(--txt3)">Loading…</div>`;
+    const c = db(); const rows = S.logMissing ? [] : await q(c.from("admin_activity").select("*").order("created_at", { ascending: false }).limit(100));
+    box.innerHTML = `<div class="section-label"><i class="bi bi-shield-check me-2" style="color:var(--gold)"></i>Admin changes — who changed what, and when</div><div style="max-height:520px;overflow:auto;-webkit-overflow-scrolling:touch">${logList(rows, "No admin changes recorded yet. Every assignment, edit, payment and deletion made in admin will appear here.")}</div>`;
+  }
+
+  /* ═════════ 4. instructor health (Scorecard tab) ═════════ */
+  async function renderHealth() {
+    const panel = $("#panel-scorecard"); if (!panel) return;
+    let box = $("#dsqmonHealth");
+    if (!box) { box = document.createElement("div"); box.id = "dsqmonHealth"; box.className = "dsq-card p-3"; box.style.marginBottom = "16px"; const t = panel.querySelector("h5"); if (t) t.insertAdjacentElement("afterend", box); else panel.insertAdjacentElement("afterbegin", box); }
+    box.innerHTML = `<div class="section-label"><i class="bi bi-heart-pulse me-2" style="color:var(--gold)"></i>Instructor health — last 30 days</div><div style="font-size:.8rem;color:var(--txt3)">Loading…</div>`;
+    const c = db(); const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    const [refs30, unpaidAll, ins] = await Promise.all([
+      q(c.from("referrals").select("instructor_id,is_paid,is_cancelled,amount,created_at").gte("created_at", since)),
+      q(c.from("referrals").select("instructor_id,amount,created_at").eq("is_paid", false).eq("is_cancelled", false)),
+      q(c.from("instructors").select("id,full_name,status,last_login,model").eq("status", "approved"))
+    ]);
+    const list = (ins.length ? ins : instrs().filter(i => i.status === "approved")).map(i => {
+      const g = refs30.filter(r => r.instructor_id === i.id && !r.is_cancelled);
+      const b = g.filter(r => r.is_paid).length;
+      const u = unpaidAll.filter(r => r.instructor_id === i.id && (parseFloat(r.amount) || 0) > 0);
+      const oldest = u.reduce((a, r) => Math.max(a, days(r.created_at)), 0);
+      const flags = [];
+      if (g.length >= 3 && b / g.length < 0.4) flags.push(["r", "Low booking rate"]);
+      if (oldest > 14) flags.push(["r", "Unpaid " + oldest + "d"]); else if (oldest > 7) flags.push(["a", "Unpaid " + oldest + "d"]);
+      if (!i.last_login || days(i.last_login) > 7) flags.push(["a", i.last_login ? "No login " + days(i.last_login) + "d" : "Never logged in"]);
+      if (!flags.length && g.length) flags.push(["g", "Healthy"]);
+      return { i, given: g.length, booked: b, rate: g.length ? Math.round(b / g.length * 100) : null, unpaid: u.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0), oldest, flags, score: flags.filter(f => f[0] === "r").length * 10 + flags.filter(f => f[0] === "a").length };
+    }).sort((a, z) => z.score - a.score || z.given - a.given);
+    box.innerHTML = `<div class="section-label"><i class="bi bi-heart-pulse me-2" style="color:var(--gold)"></i>Instructor health — last 30 days</div>
+      <div style="font-size:.74rem;color:var(--txt3);margin:-4px 0 10px">Given = students assigned · Booked = referral paid · problems shown first</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="dsqmon-health"><thead><tr><th>Instructor</th><th class="n">Given</th><th class="n">Booked</th><th class="n">Rate</th><th class="n hide-s">Unpaid</th><th class="hide-s">Status</th></tr></thead><tbody>
+      ${list.map(r => `<tr><td><div style="font-weight:600">${h(r.i.full_name || r.i.name || "—")}</div><div style="font-size:.68rem;color:var(--txt3)">${h(r.i.model || "")}${r.i.last_login ? (r.i.model ? " · " : "") + "last login " + ago(r.i.last_login) + " ago" : ""}</div><div class="show-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</div></td><td class="n">${r.given}</td><td class="n">${r.booked}</td><td class="n">${r.rate == null ? "—" : r.rate + "%"}</td><td class="n hide-s">${r.unpaid ? "£" + r.unpaid.toFixed(0) : "—"}</td><td class="hide-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</td></tr>`).join("") || `<tr><td colspan="6" style="color:var(--txt3)">No approved instructors.</td></tr>`}
+      </tbody></table></div>`;
+  }
+
+  /* ═════════ boot ═════════ */
+  function hookTabs() {
+    if (typeof window.switchTab !== "function" || window.switchTab.__dsqmon) return;
+    const sw = window.switchTab;
+    const w = function (t) { const r = sw.apply(this, arguments); if (t === "dashboard") renderToday(); if (t === "activity") renderActivity(); if (t === "scorecard") renderHealth(); return r; };
+    Object.keys(sw).forEach(k => { w[k] = sw[k]; }); w.__dsqmon = true; window.switchTab = w;
+  }
+  function init() {
+    mountToday(); hookTabs();
+    let tries = 0;
+    (function wait() {
+      const m = $("#mainPage"), c = db();
+      if (m && !m.classList.contains("hidden") && c) {
+        installLogger();
+        const dash = $("#panel-dashboard");
+        if (dash && !dash.classList.contains("hidden")) renderToday();
+        clearInterval(S.timer);
+        S.timer = setInterval(() => { if (document.visibilityState === "visible") { const p = $("#panel-dashboard"); renderToday(true); } }, 120000);
+        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") renderToday(true); });
+        return;
+      }
+      if (++tries < 600) setTimeout(wait, 1000);
+    })();
+  }
+  window.DSQMON = { today: renderToday, activity: renderActivity, health: renderHealth, _state: S, _describe: describe, _install: installLogger };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+<!-- DSQMON:MONITORING END -->
 
 </body>
 </html>
