@@ -54,11 +54,18 @@ SQ_LINKS = [
     (SQ + "/solihull/solihull-driving-test-centres-compared.html", "Compare", "Solihull test centres compared", "Which centre suits your postcode."),
     (SQ + "/solihull/learning-to-drive-in-solihull.html", "Local guide", "Learning to drive in Solihull", "M42, 20mph, Clean Air Zone and local data."),
     (SQ + "/solihull/automatic-driving-lessons-solihull.html", "Lessons", "Automatic lessons in Solihull", "Same £35/hr as manual."),
+    (SQ + "/solihull/driving-lesson-prices-solihull.html", "Prices", "Driving lesson prices in Solihull", "£35/hr, no booking fees — and how Solihull compares."),
+    (SQ + "/solihull/solihull-road-guides.html", "Roads", "Solihull road guides", "A34 cameras, M42 J5A, A45, bus lanes and 20mph zones."),
+    (SQ + "/solihull/drivesq-student-portal-solihull.html", "Portal", "DriveSQ Student Portal in Solihull", "23 skills, mock tests and test-readiness."),
+    (SQ + "/solihull/all-solihull-guides.html", "Directory", "Every Solihull guide", "Areas, postcodes, schools, workplaces and more."),
 ]
 AREAS = [("Shirley", "shirley"), ("Solihull town centre", "solihull-town-centre"), ("Olton", "olton"), ("Knowle", "knowle"), ("Dorridge", "dorridge"),
          ("Chelmsley Wood", "chelmsley-wood"), ("Castle Bromwich", "castle-bromwich"), ("Kingshurst &amp; Smith's Wood", "kingshurst-smiths-wood"),
          ("Marston Green", "marston-green"), ("Dickens Heath", "dickens-heath"), ("Monkspath", "monkspath"), ("Hockley Heath", "hockley-heath"),
-         ("Balsall Common", "balsall-common"), ("Meriden", "meriden")]
+         ("Balsall Common", "balsall-common"), ("Meriden", "meriden"), ("Hillfield", "hillfield"), ("Cheswick Green", "cheswick-green"),
+         ("Bentley Heath", "bentley-heath"), ("Elmdon", "elmdon"), ("Lyndon", "lyndon"), ("Fordbridge", "fordbridge"), ("Hampton-in-Arden", "hampton-in-arden"),
+         ("Berkswell", "berkswell"), ("Catherine-de-Barnes", "catherine-de-barnes"), ("Tidbury Green", "tidbury-green"), ("Blythe Valley", "blythe-valley"),
+         ("Widney Manor", "widney-manor"), ("Bickenhill", "bickenhill")]
 # 2024-25 car pass rates, passrates.uk analysis of DVSA data
 CENTRES = [("Birmingham (Shirley)", "401 Stratford Road, B90 4AA", 58.1, 9600, None, "shirley"),
            ("Warwick (Wedgenock House)", "Warwick", 48.4, 10900, None, None),
@@ -112,7 +119,7 @@ def form(title, sub, options, button="Book Now"):
 LESSON_OPTS = ["Manual Lessons", "Automatic Lessons", "Intensive Course", "Pass Plus", "Theory Help"]
 
 
-def crosslinks(exclude=None, n=6):
+def crosslinks(exclude=None, n=10):
     cards = "".join(f'<a href="{u}"><small>{c}</small><b>{t}</b><span>{d}</span></a>' for u, c, t, d in SQ_LINKS[:n])
     own = "".join(f'<a href="{f}"><small>DriveSQ</small><b>{lbl}</b><span>More from DriveSQ in Solihull</span></a>' for f, lbl, _ in PAGES if f != exclude)
     return f"""<section class="sg"><div class="container"><span class="eye">Solihull guides</span><h2 class="sec-t">More on <span class="tr">Solihull</span></h2>
@@ -191,7 +198,7 @@ def school():
     areas = "".join(f'<a href="{SQ}/solihull/driving-lessons-{s}.html"><small>Lessons</small><b>{n}</b><span>Driving lessons in {n}</span></a>' for n, s in AREAS)
     body = f"""<div class="stats-bar"><div class="container"><div class="d-flex justify-content-center flex-wrap gap-4">
 <div class="stat"><div class="stat-num">&pound;<span class="counter" data-t="35">35</span></div><div class="stat-lbl">per hour</div></div><div class="stat-sep d-none d-md-block"></div>
-<div class="stat"><div class="stat-num"><span class="counter" data-t="14">14</span></div><div class="stat-lbl">Solihull areas</div></div><div class="stat-sep d-none d-md-block"></div>
+<div class="stat"><div class="stat-num"><span class="counter" data-t="{len(AREAS)}">{len(AREAS)}</span></div><div class="stat-lbl">Solihull areas</div></div><div class="stat-sep d-none d-md-block"></div>
 <div class="stat"><div class="stat-num"><span class="counter" data-t="23">23</span></div><div class="stat-lbl">skills tracked</div></div><div class="stat-sep d-none d-md-block"></div>
 <div class="stat"><div class="stat-num">58.1%</div><div class="stat-lbl">Shirley pass rate</div></div></div></div></div>
 <section class="sw"><div class="container"><div class="row g-5"><div class="col-lg-7 reveal"><span class="eye">Driving school Solihull</span>
