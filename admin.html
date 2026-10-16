@@ -1462,6 +1462,17 @@ body.day-mode .dsqd-note{color:#92400e}
 
 </style>
 <!-- DSQA:ASSIGNCSS END -->
+
+<style id="dsq-touch">
+/* Touch devices: bigger tap targets, no zoom-on-focus (iOS zooms inputs under 16px), no double-tap delay */
+@media (pointer:coarse){
+  .abtn{min-height:38px;padding:7px 12px!important;font-size:.78rem!important}
+  #refDetailModal button,#refDetailModal .abtn{min-height:34px;padding:6px 10px!important;font-size:.72rem!important}
+  .dsq-inp,input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px!important}
+  button,.abtn,.dsq-tab,.mob-more-btn,a{touch-action:manipulation}
+  .modal-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+}
+</style>
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -3760,6 +3771,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
+(function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
 const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
@@ -4302,7 +4315,9 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input still breaks out of
 // the surrounding HTML attribute before the browser ever hands the value to the JS parser. Escape for
 // the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function jsEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* address that is really just the postcode (or empty) → '' so the two fields never duplicate */
+function _fcAddrOnly(addr,pc){const a=String(addr||'').trim();const n=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!a)return'';if(pc&&n(a)===n(pc))return'';if(/^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(a))return'';return a;}
 function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
   const days=Math.floor((Date.now()-new Date(assignedAt))/86400000);
@@ -8128,15 +8143,18 @@ async function confirmAssign(){
   let profInserted=false;
   const profBase={instructor_id:instrId,name:s.name,phone:s.phone||null,address:s.addr||null,created_at:new Date().toISOString()};
   const notesStr=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n')||null;
-  for(const payload of [
+  let _profNotesDropped=false;
+  for(const [pi,payload] of [
+    {...profBase,lesson_type:s.type||'Manual',notes:notesStr,availability:s.avail||null},
     {...profBase,lesson_type:s.type||'Manual',notes:notesStr},
     {...profBase,lesson_type:s.type||'Manual'},
     profBase
-  ]){
+  ].entries()){
     const{error:e}=await sb.from('student_profiles').insert([payload]);
-    if(!e){profInserted=true;break;}
+    if(!e){profInserted=true;_profNotesDropped=pi>=2&&!!notesStr;break;}
     console.warn('student_profiles attempt failed:',e.message);
   }
+  if(_profNotesDropped)showToast('Student saved — notes/availability kept on the referral record (run the 20261016 database update to store them on the profile too).','warn',8000);
 
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Assign Student';}
 
@@ -8174,7 +8192,7 @@ async function confirmAssign(){
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
     pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
-    notes:s.notes||null,status:'approved',created_at:new Date().toISOString()
+    notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.addr?'Address: '+s.addr:''].filter(Boolean).join('\n')||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
 
   // 3b. Record referral fee
@@ -8186,7 +8204,7 @@ async function confirmAssign(){
     amount:_refAmt,is_paid:_refPaid,
     paid_at:_refPaid?_refNow:null,
     is_cancelled:false,is_credit:false,credit_fulfilled:false,
-    notes:'Assigned via Find & Assign',created_at:_refNow
+    notes:['Assigned via Find & Assign',s.postcode?'Postcode: '+s.postcode:'',s.addr?'Address: '+s.addr:'',s.avail?'Availability: '+s.avail:'',s.notes?'Notes: '+s.notes:''].filter(Boolean).join('\n'),created_at:_refNow
   };
   const{data:_assignRefData,error:_assignRefErr}=await sb.from('referrals').insert([_refRow]).select().single();
   if(_assignRefErr){
@@ -8232,6 +8250,15 @@ async function confirmAssign(){
   const _wlId=window._waitlistIdToAssign||window._pendingWbId||null;
   if(_wlId){
     updateWaitlistStatus(_wlId,'assigned',instrId).catch(()=>{});
+    try{
+      const _wlUpd={};if(s.addr)_wlUpd.area=s.addr;if(s.postcode)_wlUpd.postcode=s.postcode;
+      const{data:_wlRow}=await sb.from('waiting_list').select('notes').eq('id',_wlId).maybeSingle();
+      let _wn=String(_wlRow?.notes||'');
+      if(s.avail&&!/Availability:/i.test(_wn))_wn+=(_wn?'\n':'')+'Availability: '+s.avail;
+      if(s.notes&&_wn.indexOf(s.notes)<0)_wn+=(_wn?'\n':'')+'Admin notes: '+s.notes;
+      _wlUpd.notes=_wn||null;
+      sb.from('waiting_list').update(_wlUpd).eq('id',_wlId).then(()=>{}).catch(()=>{});
+    }catch(e){console.warn('waiting_list notes update:',e);}
     window._waitlistIdToAssign=null;
     window._pendingWbId=null;
     loadWebBookingsBadge();
@@ -8239,8 +8266,16 @@ async function confirmAssign(){
 
   // If this assignment came from a reassign flow, finalize: update request + notify old instructor
   if(_reassignContext){
-    const{reqId,oldInstrId,name:rName}=_reassignContext;
+    const{reqId,oldInstrId,name:rName,refId:_oldRefId}=_reassignContext;
     _reassignContext=null;
+    if(_oldRefId){
+      const _old=(_refData||[]).find(x=>x.id===_oldRefId);
+      const _newName=(allInstrs.find(i=>i.id===instrId)||{}).full_name||'new instructor';
+      const _stamp='Reassigned to '+_newName+' on '+new Date().toLocaleDateString('en-GB');
+      const _upd={admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};
+      if(_old&&!_old.is_paid)_upd.is_cancelled=true;
+      sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{if(_old)Object.assign(_old,_upd);try{_buildUnpaidRefIndex();}catch(e){}}).catch(()=>{});
+    }
     if(reqId){
       sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId).catch(()=>{});
     }
@@ -9910,7 +9945,7 @@ async function loadWaitlist(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
           ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp"></i></a>`:''}
-          ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
+          ${r.status==='waiting'?`<button class="abtn approve" onclick="waitlistAssign('${r.id}','${jsEsc(r.student_name)}','${jsEsc(r.postcode||'')}','${jsEsc(r.lesson_type||'Manual')}','${jsEsc(r.student_phone||'')}','${jsEsc(r.notes||'')}','${jsEsc(r.area||'')}')"><i class="bi bi-person-check me-1"></i>Find & Assign</button>`:''}
           ${r.status==='waiting'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','cancelled')" style="color:#f87171;border-color:rgba(248,113,113,.3)"><i class="bi bi-x-lg me-1"></i>Cancel</button>`:''}
           ${r.status==='cancelled'?`<button class="abtn" onclick="updateWaitlistStatus('${r.id}','waiting')" style="color:#4ade80;border-color:rgba(74,222,128,.3)"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivate</button>`:''}
         </div>
@@ -9941,11 +9976,12 @@ function _wlNormalise(r){
   if(!r.lesson_type)r.lesson_type=/automatic/i.test(n)?'Automatic':'Manual';
   return r;
 }
-function waitlistAssign(id,name,postcode,type,phone,notes){
+function waitlistAssign(id,name,postcode,type,phone,notes,area){
   // Pre-fill Find & Assign and switch to it
   switchTab('find');setActiveTab('find');
   setTimeout(()=>{
-    const r=_wlNormalise({postcode,lesson_type:type,notes,area:''});
+    const r=_wlNormalise({postcode,lesson_type:type,notes,area:area||''});
+    r.area=_fcAddrOnly(r.area,r.postcode||postcode);
     const email=_extractEmailFromNotes(notes);
     const _av=(notes||'').match(/Availability:\s*([^\n]+)/i);
     const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Postcode:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Address:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
@@ -10127,7 +10163,7 @@ async function openWbCreateStudent(wbId){
       'fc-phone': r.student_phone||'',
       'fc-email': email,
       'fc-postcode': r.postcode||'',
-      'fc-addr': r.area||'',
+      'fc-addr': _fcAddrOnly(r.area,r.postcode),
       'fc-avail': avail,
       'fc-notes': cleanNotes
     };
@@ -10666,7 +10702,58 @@ async function cancelRef(refId, studentName){
 }
 
 // ── Referral Reassign ──
-function openRefReassign(refId, studentName, oldInstrId){
+async function openRefReassign(refId, studentName, oldInstrId){
+  /* Reassign now goes through Find & Assign, pre-filled with everything we know about the learner,
+     so the admin can pick the closest instructor. The old referral is closed when the new assignment is confirmed. */
+  try{ await refReassignToFind(refId); return; }catch(e){ console.warn('refReassignToFind failed, using quick reassign:',e); }
+  _openRefQuickReassign(refId, studentName, oldInstrId);
+}
+async function refReassignToFind(refId){
+  const r=(_refData||[]).find(x=>x.id===refId); if(!r)throw new Error('referral not found');
+  const name=r.student_name||'', oldInstrId=r.instructor_id||null;
+  const pick=(txt,re)=>{const m=String(txt||'').match(re);return m?m[1].trim():'';};
+  let phone=r.student_phone||'', addr='', postcode='', avail='', email='', notes='', type='Manual';
+  const refN=String(r.notes||'');
+  postcode=pick(refN,/(?:^|\n)\s*Postcode:\s*([^\n]+)/i); addr=pick(refN,/(?:^|\n)\s*Address:\s*([^\n]+)/i);
+  avail=pick(refN,/(?:^|\n)\s*Availability:\s*([^\n]+)/i); notes=pick(refN,/(?:^|\n)\s*Notes:\s*([^\n]+)/i);
+  try{
+    let q=sb.from('student_profiles').select('*').ilike('name',name).order('created_at',{ascending:false}).limit(1);
+    if(oldInstrId)q=q.eq('instructor_id',oldInstrId);
+    const{data:p}=await q; const prof=(p||[])[0];
+    if(prof){
+      phone=phone||prof.phone||''; addr=addr||prof.address||''; email=prof.email||''; type=prof.lesson_type||type;
+      const pn=String(prof.notes||'');
+      postcode=postcode||pick(pn,/(?:^|\n)\s*Postcode:\s*([^\n]+)/i);
+      avail=avail||prof.availability||pick(pn,/(?:^|\n)\s*Availability:\s*([^\n]+)/i);
+      if(!notes)notes=pn.replace(/(?:^|\n)\s*(?:Availability|Postcode|Address):[^\n]*/gi,'').trim();
+    }
+  }catch(e){console.warn('reassign: profile lookup',e);}
+  try{
+    let q=sb.from('waiting_list').select('*').order('created_at',{ascending:false}).limit(1);
+    q=phone?q.eq('student_phone',phone):q.ilike('student_name',name);
+    const{data:w}=await q; const wl=(w||[])[0];
+    if(wl){ _wlNormalise(wl);
+      postcode=postcode||wl.postcode||''; addr=addr||wl.area||''; phone=phone||wl.student_phone||'';
+      avail=avail||pick(wl.notes,/Availability:\s*([^\n]+)/i); email=email||pick(wl.notes,/Email:\s*([^\n]+)/i);
+      if(!type||type==='Manual')type=wl.lesson_type||type;
+    }
+  }catch(e){console.warn('reassign: waiting list lookup',e);}
+  addr=_fcAddrOnly(addr,postcode);
+  const oldI=(allInstrs||[]).find(i=>i.id===oldInstrId);
+  _reassignContext={reqId:null,oldInstrId,name,refId};
+  closeModal('refDetailModal');
+  switchTab('find');setActiveTab('find');
+  setTimeout(()=>{
+    const _set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+    _set('fc-name',name);_set('fc-phone',phone);_set('fc-email',email);_set('fc-addr',addr);_set('fc-postcode',postcode);
+    _set('fc-avail',avail);_set('fc-notes',[notes,oldI?('Reassigning from '+(oldI.full_name||oldI.name||'previous instructor')):''].filter(Boolean).join('\n'));
+    const lt=document.getElementById('fc-type');if(lt)lt.value=/auto/i.test(type)?'Automatic':(['Intensive','Mock Test'].includes(type)?type:'Manual');
+    _saveFcDraft();
+    showToast('Reassigning '+name+' — pick the new instructor below','info',4000);
+    if(postcode)findClosest();
+  },300);
+}
+function _openRefQuickReassign(refId, studentName, oldInstrId){
   document.getElementById('refReassignRefId').value=refId;
   document.getElementById('refReassignOldInstrId').value=oldInstrId||'';
   document.getElementById('refReassignDesc').textContent=`Move "${studentName}" to a different instructor. This updates the referral record and the student's instructor assignment.`;
@@ -10705,10 +10792,11 @@ async function confirmRefReassign(){
   // Notify both instructors via admin_messages
   const note=reason?` Reason: ${reason}`:'';
   try{
+    const _ts=new Date().toISOString();
     const msgs=[
-      {instructor_id:oldInstrId,message:`Admin: "${studentName}" has been reassigned from your referral list to ${newInstrName}.${note}`,type:'system'},
-      {instructor_id:newInstrId,message:`Admin: "${studentName}" has been assigned to you (transferred from ${oldInstrName}).${note}`,type:'system'}
-    ];
+      {instructor_id:oldInstrId,subject:'👤 Student Reassigned Away: '+studentName,body:`"${studentName}" has been reassigned from your list to ${newInstrName}.${note}\n\n— DriveSQ Admin`,message_type:'general',is_read:false,dismissed:false,created_at:_ts},
+      {instructor_id:newInstrId,subject:'👤 New Student Assigned: '+studentName,body:`"${studentName}" has been assigned to you (transferred from ${oldInstrName}).${note}\n\n— DriveSQ Admin`,message_type:'general',is_read:false,dismissed:false,created_at:_ts}
+    ].filter(m=>m.instructor_id);
     await sb.from('admin_messages').insert(msgs);
   }catch(e){console.warn('refReassign: admin_messages:',e.message);}
   _sfx('success');
@@ -16304,5 +16392,253 @@ document.addEventListener('click',e=>{
 
 </script>
 <!-- DSQA:JS END -->
+<!-- DSQE:ENQUIRIES START -->
+<style id="dsqe-css">
+#panel-enquiries .dsqe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+#panel-enquiries .dsqe-kpi{background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+#panel-enquiries .dsqe-kpi .l{font-size:.68rem;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}
+#panel-enquiries .dsqe-kpi .n{font-family:'Oswald',sans-serif;font-size:1.7rem;color:var(--txt);line-height:1.2;margin-top:4px}
+#panel-enquiries .dsqe-kpi .s{font-size:.72rem;color:var(--txt2);margin-top:2px}
+#panel-enquiries .dsqe-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+#panel-enquiries .dsqe-chip{border:1px solid var(--bdr2);background:var(--dk2);color:var(--txt2);border-radius:99px;padding:7px 13px;font-size:.78rem;cursor:pointer;min-height:36px}
+#panel-enquiries .dsqe-chip.on{background:var(--gold);color:#111;border-color:var(--gold);font-weight:700}
+#panel-enquiries table{width:100%!important;min-width:0!important;border-collapse:collapse;font-size:.8rem;table-layout:fixed}
+#panel-enquiries table.t4 th:first-child{width:46%}
+#panel-enquiries table.t3 th:nth-child(1){width:22%}#panel-enquiries table.t3 th:nth-child(3){width:34%}
+#panel-enquiries td{overflow-wrap:anywhere}
+#panel-enquiries th{text-align:left;color:var(--txt3);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border-bottom:1px solid var(--bdr)}
+#panel-enquiries td{padding:8px;border-bottom:1px solid var(--bdr);color:var(--txt)}
+#panel-enquiries td.num,#panel-enquiries th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+#panel-enquiries .bar{height:5px;border-radius:3px;background:var(--gold);opacity:.85;max-width:100%}
+#panel-enquiries .st{display:inline-block;border-radius:99px;padding:2px 9px;font-size:.68rem;font-weight:700;white-space:nowrap}
+#panel-enquiries .st.b{background:rgba(74,222,128,.14);color:#4ade80}
+#panel-enquiries .st.a{background:rgba(245,197,24,.14);color:var(--gold)}
+#panel-enquiries .st.w{background:rgba(59,130,246,.14);color:#60a5fa}
+#panel-enquiries .st.c{background:rgba(148,163,184,.12);color:#94a3b8}
+#panel-enquiries .dsqe-two{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:992px){#panel-enquiries .dsqe-two{grid-template-columns:1fr 1fr}}
+#panel-enquiries .dsqe-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#panel-enquiries .muted{color:var(--txt3);font-size:.75rem}
+#dsqeLogModal .dsq-inp{min-height:42px}
+</style>
+<script id="dsqe-js">
+/* DSQE — Enquiries & bookings (admin).
+   Enquiries = rows in waiting_list (website forms add them automatically; calls and WhatsApps are logged here).
+   Booked   = the learner's referral is marked paid (paid = booked a lesson with the instructor; unpaid = not booked).
+   Source   = the "Source:" line the website adds to each enquiry (Google Ads, Google search, Maps, AI assistant…),
+              or the source picked when logging a call/WhatsApp. */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const db = () => window.sb || (typeof sb !== "undefined" ? sb : null);
+  const toast = (m, t, ms) => { try { window.showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const SOURCES = ["Google Ads", "Google search", "Google Maps", "Friend or family", "Instagram / TikTok / Facebook", "AI assistant (ChatGPT etc.)", "Returning learner", "Instructor referral", "Other"];
+  const S = { range: "month", from: null, to: null, rows: [], refs: [], loaded: false };
+
+  /* ---------- dates (UK) ---------- */
+  const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  function rangeDates() {
+    const now = new Date(), t = startOfDay(now);
+    if (S.range === "7") return [new Date(t.getTime() - 6 * 864e5), now];
+    if (S.range === "30") return [new Date(t.getTime() - 29 * 864e5), now];
+    if (S.range === "last") { const a = new Date(now.getFullYear(), now.getMonth() - 1, 1); const b = new Date(now.getFullYear(), now.getMonth(), 1); return [a, new Date(b.getTime() - 1)]; }
+    if (S.range === "custom" && S.from && S.to) return [startOfDay(S.from), new Date(startOfDay(S.to).getTime() + 864e5 - 1)];
+    return [new Date(now.getFullYear(), now.getMonth(), 1), now];
+  }
+  const fmtD = d => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  /* ---------- parsing ---------- */
+  const line = (n, k) => { const m = String(n || "").match(new RegExp("(?:^|\\n)\\s*" + k + ":\\s*([^\\n]+)", "i")); return m ? m[1].trim() : ""; };
+  function sourceOf(r) {
+    const s = line(r.notes, "Source");
+    if (s) return s.replace(/^Referral: /, "Website link: ");
+    if (/\[WEB\]/i.test(r.notes || "")) return "Website (before tracking)";
+    return "Not recorded";
+  }
+  function channelOf(r) {
+    const n = String(r.notes || "");
+    if (/\[CALL\]/i.test(n)) return "Phone call";
+    if (/\[WHATSAPP\]/i.test(n)) return "WhatsApp";
+    if (/\[WALKIN\]|\[OTHER\]/i.test(n)) return "Other";
+    if (/\[WEB\]/i.test(n)) return "Website form";
+    return "Added by admin";
+  }
+  const normPhone = p => { let d = String(p || "").replace(/\D/g, ""); if (d.indexOf("44") === 0) d = "0" + d.slice(2); return d.length >= 10 ? d : ""; };
+  const normName = n => String(n || "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+
+  /* each enquiry → its referral (same phone, else same name), created on/after the enquiry day */
+  function matchRefs(rows, refs) {
+    const byPhone = {}, byName = {};
+    refs.forEach(f => { if (f.is_cancelled) return; const p = normPhone(f.student_phone), n = normName(f.student_name); if (p) (byPhone[p] = byPhone[p] || []).push(f); if (n) (byName[n] = byName[n] || []).push(f); });
+    rows.forEach(r => {
+      const t0 = startOfDay(r.created_at).getTime();
+      const cands = (byPhone[normPhone(r.student_phone)] || byName[normName(r.student_name)] || []).filter(f => new Date(f.created_at).getTime() >= t0 - 864e5);
+      cands.sort((a, b) => (b.is_paid ? 1 : 0) - (a.is_paid ? 1 : 0));
+      r._ref = cands[0] || null;
+      r._state = r.status === "cancelled" ? "Cancelled" : r._ref && r._ref.is_paid ? "Booked" : (r._ref || r.status === "assigned") ? "Not booked yet" : "Waiting";
+    });
+  }
+
+  async function load() {
+    const c = db(); if (!c) return;
+    const [a, b] = rangeDates();
+    const q1 = c.from("waiting_list").select("*").gte("created_at", a.toISOString()).lte("created_at", b.toISOString()).order("created_at", { ascending: false });
+    const q2 = c.from("referrals").select("id,student_name,student_phone,amount,is_paid,paid_at,is_cancelled,created_at,instructor_id").gte("created_at", new Date(a.getTime() - 864e5).toISOString());
+    const [r1, r2] = await Promise.all([q1, q2]);
+    if (r1.error) { toast("Couldn't load enquiries: " + r1.error.message, "error", 6000); S.rows = []; } else S.rows = r1.data || [];
+    let refs = r2.error ? [] : (r2.data || []);
+    if (r2.error && /student_phone/.test(r2.error.message || "")) {
+      const r3 = await c.from("referrals").select("id,student_name,amount,is_paid,paid_at,is_cancelled,created_at,instructor_id").gte("created_at", new Date(a.getTime() - 864e5).toISOString());
+      refs = r3.data || [];
+    }
+    S.refs = refs; matchRefs(S.rows, S.refs); S.loaded = true;
+  }
+
+  /* ---------- render ---------- */
+  function group(rows, keyFn) {
+    const m = {}; rows.forEach(r => { const k = keyFn(r); (m[k] = m[k] || { k, n: 0, b: 0 }); m[k].n++; if (r._state === "Booked") m[k].b++; });
+    return Object.values(m).sort((x, y) => y.n - x.n || y.b - x.b);
+  }
+  function table(title, icon, data, label) {
+    const max = Math.max(1, ...data.map(d => d.n));
+    return `<div class="dsq-card p-3"><div class="section-label"><i class="bi ${icon} me-2" style="color:var(--gold)"></i>${title}</div>
+      ${data.length ? `<div class="dsqe-scroll"><table class="t4"><thead><tr><th>${label}</th><th class="num">Enq.</th><th class="num">Booked</th><th class="num">Rate</th></tr></thead><tbody>
+      ${data.map(d => `<tr><td>${h(d.k)}<div class="bar" style="width:${Math.round(d.n / max * 100)}%;margin-top:4px"></div></td><td class="num">${d.n}</td><td class="num">${d.b}</td><td class="num">${d.n ? Math.round(d.b / d.n * 100) : 0}%</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}</div>`;
+  }
+  function render() {
+    const p = $("#panel-enquiries"); if (!p) return;
+    const [a, b] = rangeDates(), rows = S.rows;
+    const booked = rows.filter(r => r._state === "Booked").length;
+    const paidRefs = S.refs.filter(f => f.is_paid && !f.is_cancelled && f.paid_at && new Date(f.paid_at) >= a && new Date(f.paid_at) <= b);
+    const income = paidRefs.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
+    const waiting = rows.filter(r => r._state === "Waiting").length, notYet = rows.filter(r => r._state === "Not booked yet").length;
+    const chips = [["month", "This month"], ["last", "Last month"], ["7", "Last 7 days"], ["30", "Last 30 days"], ["custom", "Custom"]];
+    const iso = d => d ? new Date(d).toISOString().slice(0, 10) : "";
+    const stCls = s => s === "Booked" ? "b" : s === "Waiting" ? "w" : s === "Cancelled" ? "c" : "a";
+    p.innerHTML = `
+      <div class="page-title mb-2"><i class="bi bi-funnel-fill me-2" style="color:var(--gold)"></i>Enquiries &amp; Bookings</div>
+      <p class="muted" style="margin:-4px 0 12px">Every enquiry, where it came from, and whether it booked. <strong>Booked</strong> = the referral is marked paid. Website enquiries are tracked automatically — log calls and WhatsApps with the button so they count too.</p>
+      <div class="dsqe-row">
+        ${chips.map(([k, l]) => `<button class="dsqe-chip${S.range === k ? " on" : ""}" data-r="${k}">${l}</button>`).join("")}
+        <span style="flex:1"></span>
+        <button class="btn-p" id="dsqeLogBtn" style="min-height:40px"><i class="bi bi-telephone-plus me-1"></i>Log call / WhatsApp</button>
+      </div>
+      ${S.range === "custom" ? `<div class="dsqe-row"><input type="date" class="dsq-inp" id="dsqeFrom" value="${iso(S.from)}" style="max-width:170px"><span class="muted">to</span><input type="date" class="dsq-inp" id="dsqeTo" value="${iso(S.to)}" style="max-width:170px"><button class="btn-s" id="dsqeApply">Apply</button></div>` : ""}
+      <div class="muted" style="margin-bottom:10px">${fmtD(a)} – ${fmtD(b)}</div>
+      <div class="dsqe-grid">
+        <div class="dsqe-kpi"><div class="l">Enquiries</div><div class="n">${rows.length}</div><div class="s">${waiting} still waiting</div></div>
+        <div class="dsqe-kpi"><div class="l">Booked</div><div class="n" style="color:#4ade80">${booked}</div><div class="s">${notYet} assigned, not booked yet</div></div>
+        <div class="dsqe-kpi"><div class="l">Booking rate</div><div class="n">${rows.length ? Math.round(booked / rows.length * 100) : 0}%</div><div class="s">of enquiries booked</div></div>
+        <div class="dsqe-kpi"><div class="l">Referrals paid</div><div class="n">${paidRefs.length}</div><div class="s">£${income.toFixed(0)} paid in this period</div></div>
+      </div>
+      <div class="dsqe-two">
+        ${table("Where enquiries come from", "bi-signpost-split", group(rows, sourceOf), "Source")}
+        ${table("How they got in touch", "bi-chat-dots", group(rows, channelOf), "Channel")}
+      </div>
+      <div class="dsqe-two" style="margin-top:12px">
+        ${table("Website pages that bring enquiries", "bi-file-earmark-text", group(rows.filter(r => line(r.notes, "Landing") || line(r.notes, "Page")), r => line(r.notes, "Landing") || line(r.notes, "Page")).slice(0, 12), "Page")}
+        <div class="dsq-card p-3"><div class="section-label"><i class="bi bi-list-ul me-2" style="color:var(--gold)"></i>Latest enquiries</div>
+          ${rows.length ? `<div class="dsqe-scroll"><table class="t3"><thead><tr><th>Date</th><th>Name</th><th>Status</th></tr></thead><tbody>
+          ${rows.slice(0, 40).map(r => `<tr><td class="muted">${fmtD(r.created_at)}</td><td>${h(r.student_name || "—")}<div class="muted">${h(sourceOf(r))}</div></td><td><span class="st ${stCls(r._state)}" style="white-space:normal">${h(r._state)}</span></td></tr>`).join("")}
+          </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}
+        </div>
+      </div>`;
+    p.querySelectorAll(".dsqe-chip").forEach(b => b.addEventListener("click", async () => { S.range = b.dataset.r; if (S.range !== "custom") { await load(); } render(); }));
+    const ap = $("#dsqeApply"); if (ap) ap.addEventListener("click", async () => { S.from = $("#dsqeFrom").value ? new Date($("#dsqeFrom").value) : null; S.to = $("#dsqeTo").value ? new Date($("#dsqeTo").value) : null; if (!S.from || !S.to) { toast("Pick both dates", "warn"); return; } await load(); render(); });
+    $("#dsqeLogBtn").addEventListener("click", openLog);
+  }
+
+  /* ---------- log a call / WhatsApp ---------- */
+  function ensureLogModal() {
+    if ($("#dsqeLogModal")) return;
+    const m = document.createElement("div");
+    m.className = "modal fade"; m.id = "dsqeLogModal"; m.tabIndex = -1;
+    m.innerHTML = `<div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="background:var(--dk);border:1px solid var(--bdr);color:var(--txt)">
+      <div class="modal-header" style="border-color:var(--bdr)"><h5 class="modal-title" style="font-family:'Oswald',sans-serif"><i class="bi bi-telephone-plus me-2" style="color:var(--gold)"></i>Log an enquiry</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="dsq-lbl">How did they contact you? <span class="req-mark">*</span></label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="dsqeCh">${["Phone call", "WhatsApp", "Other"].map((c, i) => `<button type="button" class="dsqe-chip${i === 0 ? " on" : ""}" data-c="${c}" style="border:1px solid var(--bdr2);background:${i === 0 ? "var(--gold)" : "var(--dk2)"};color:${i === 0 ? "#111" : "var(--txt2)"};border-radius:99px;padding:8px 14px;min-height:40px">${c}</button>`).join("")}</div></div>
+        <div class="mb-2"><label class="dsq-lbl">How did they find DriveSQ? <span class="req-mark">*</span></label><select class="dsq-inp" id="dsqeSrc"><option value="">— ask them —</option>${SOURCES.map(s => `<option>${h(s)}</option>`).join("")}</select></div>
+        <div class="mb-2"><label class="dsq-lbl">Name <span class="req-mark">*</span></label><input class="dsq-inp" id="dsqeName" autocomplete="off"></div>
+        <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="dsqePhone" type="tel" inputmode="tel"></div>
+        <div class="row g-2 mb-2"><div class="col-6"><label class="dsq-lbl">Postcode</label><input class="dsq-inp" id="dsqePc" style="text-transform:uppercase"></div>
+          <div class="col-6"><label class="dsq-lbl">Gearbox</label><select class="dsq-inp" id="dsqeGb"><option>Manual</option><option>Automatic</option></select></div></div>
+        <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="dsqeAv" placeholder="e.g. Weekday evenings"></div>
+        <div class="mb-1"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="dsqeNotes" rows="2"></textarea></div>
+        <div class="muted">Saved to the waiting list, so you can Find &amp; Assign them as usual.</div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--bdr)"><button class="btn-s" data-bs-dismiss="modal">Cancel</button><button class="btn-p" id="dsqeSave"><i class="bi bi-check-lg me-1"></i>Save enquiry</button></div>
+    </div></div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll("#dsqeCh button").forEach(b => b.addEventListener("click", () => {
+      m.querySelectorAll("#dsqeCh button").forEach(x => { x.classList.remove("on"); x.style.background = "var(--dk2)"; x.style.color = "var(--txt2)"; });
+      b.classList.add("on"); b.style.background = "var(--gold)"; b.style.color = "#111";
+    }));
+    $("#dsqeSave", m).addEventListener("click", saveLog);
+  }
+  function openLog() {
+    ensureLogModal();
+    ["#dsqeName", "#dsqePhone", "#dsqePc", "#dsqeAv", "#dsqeNotes"].forEach(s => { $(s).value = ""; }); $("#dsqeSrc").value = "";
+    try { bootstrap.Modal.getOrCreateInstance($("#dsqeLogModal")).show(); } catch (e) { $("#dsqeLogModal").style.display = "block"; }
+    setTimeout(() => { try { $("#dsqeName").focus(); } catch (e) {} }, 300);
+  }
+  async function saveLog() {
+    const c = db(); if (!c) return;
+    const name = $("#dsqeName").value.trim(), src = $("#dsqeSrc").value, ch = ($("#dsqeCh .on") || {}).dataset?.c || "Phone call";
+    if (!name) { toast("Add their name", "warn"); $("#dsqeName").focus(); return; }
+    if (!src) { toast("Pick how they found DriveSQ — that's what the stats are built on", "warn"); $("#dsqeSrc").focus(); return; }
+    const pcRaw = $("#dsqePc").value.toUpperCase().replace(/[^A-Z0-9]/g, ""), pc = pcRaw.length >= 5 ? pcRaw.slice(0, -3) + " " + pcRaw.slice(-3) : pcRaw;
+    const gb = $("#dsqeGb").value, av = $("#dsqeAv").value.trim(), nt = $("#dsqeNotes").value.trim();
+    const tag = ch === "WhatsApp" ? "[WHATSAPP]" : ch === "Other" ? "[OTHER]" : "[CALL]";
+    const notes = [tag + " " + ch + " enquiry (logged by admin)", "Source: " + src, "Gearbox: " + gb, pc ? "Postcode: " + pc : "", av ? "Availability: " + av : "", nt].filter(Boolean).join("\n");
+    const btn = $("#dsqeSave"); btn.disabled = true;
+    const full = { student_name: name, student_phone: $("#dsqePhone").value.trim() || null, postcode: pc || null, lesson_type: gb, notes, status: "waiting", created_at: new Date().toISOString() };
+    let { error } = await c.from("waiting_list").insert([full]);
+    if (error) ({ error } = await c.from("waiting_list").insert([{ student_name: name, student_phone: full.student_phone, notes, status: "waiting" }]));
+    btn.disabled = false;
+    if (error) { toast("Couldn't save: " + error.message, "error", 6000); return; }
+    try { bootstrap.Modal.getInstance($("#dsqeLogModal")).hide(); } catch (e) {}
+    toast("✅ Enquiry logged — " + name + " (" + src + ")", "success");
+    try { window.loadWebBookingsBadge && window.loadWebBookingsBadge(); } catch (e) {}
+    await load(); render();
+  }
+
+  /* ---------- mount ---------- */
+  async function open() { const p = $("#panel-enquiries"); if (p && !S.loaded) p.innerHTML = '<div class="muted" style="padding:30px;text-align:center"><i class="bi bi-hourglass-split me-2"></i>Loading enquiries…</div>'; await load(); render(); }
+  function mountTab() {
+    try { if (typeof TABS !== "undefined" && TABS.indexOf("enquiries") < 0) TABS.push("enquiries"); } catch (e) {}
+    const anchor = $("#tab-find");
+    if (anchor && !$("#tab-enquiries")) {
+      const b = document.createElement("button");
+      b.className = "dsq-tab"; b.id = "tab-enquiries"; b.title = "Enquiries & bookings — where enquiries come from and how many book";
+      b.setAttribute("onclick", "switchTab('enquiries')");
+      b.innerHTML = '<i class="bi bi-funnel-fill"></i><span class="d-none d-sm-inline ms-1">Enquiries</span>';
+      anchor.insertAdjacentElement("beforebegin", b);
+    }
+    const grid = document.querySelector(".mob-more-grid");
+    if (grid && !$("#mmore-enquiries")) {
+      const mb = document.createElement("button");
+      mb.className = "mob-more-btn"; mb.id = "mmore-enquiries";
+      mb.setAttribute("onclick", "switchTab('enquiries');try{_mobSetActive('enquiries')}catch(e){};try{_mobCloseMore()}catch(e){}");
+      mb.innerHTML = '<i class="bi bi-funnel-fill"></i>Enquiries';
+      grid.insertAdjacentElement("afterbegin", mb);
+    }
+    const after = $("#panel-dashboard");
+    if (after && !$("#panel-enquiries")) { const p = document.createElement("div"); p.id = "panel-enquiries"; p.className = "hidden"; after.insertAdjacentElement("afterend", p); }
+    if (typeof window.switchTab === "function" && !window.switchTab.__dsqe) {
+      const sw = window.switchTab;
+      const w = function (t) { const r = sw.apply(this, arguments); const p = $("#panel-enquiries"); if (p) p.classList.toggle("hidden", t !== "enquiries"); const tb = $("#tab-enquiries"); if (tb) tb.classList.toggle("active", t === "enquiries"); if (t === "enquiries") open(); return r; };
+      Object.keys(sw).forEach(k => { w[k] = sw[k]; }); w.__dsqe = true; window.switchTab = w;
+    }
+  }
+  function init() { mountTab(); if (location.hash === "#enquiries") setTimeout(() => { try { window.switchTab("enquiries"); } catch (e) {} }, 1500); }
+  window.DSQE = { open, logEnquiry: () => { ensureLogModal(); openLog(); }, _state: S };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+<!-- DSQE:ENQUIRIES END -->
+
 </body>
 </html>
