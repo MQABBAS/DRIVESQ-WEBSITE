@@ -10085,6 +10085,8 @@ function renderWebBookings(){
           <div class="d-flex align-items-center gap-2 mb-1">
             ${isNew?'<span style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#4ade80;padding:1px 7px">NEW</span>':''}
             ${isUrgent?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">⚠ URGENT</span>':''}
+            ${/\[SQ DRIVING SCHOOL\]/i.test(r.notes||'')?'<span title="Booked on sqdrivingschool.com" style="background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#60a5fa;padding:1px 7px">SQ DRIVING SCHOOL</span>':'<span title="Booked on drivesq.co.uk" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">DRIVESQ</span>'}
+            ${(()=>{const _s=((r.notes||'').match(/(?:^|\n)\s*Source:\s*([^\n]+)/i)||[])[1];return _s?`<span title="Where they came from" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);border-radius:20px;font-size:.6rem;font-weight:700;color:var(--gold);padding:1px 7px">${esc(_s.trim())}</span>`:'';})()}
             <span style="font-family:\'Oswald\',sans-serif;font-size:.75rem;color:${_statusCol};font-weight:700;text-transform:uppercase;margin-left:auto">${r.status}</span>
           </div>
           <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">${esc(r.student_name||'—')}</div>
@@ -16569,7 +16571,8 @@ document.addEventListener('click',e=>{
     if (/\[CALL\]/i.test(n)) return "Phone call";
     if (/\[WHATSAPP\]/i.test(n)) return "WhatsApp";
     if (/\[WALKIN\]|\[OTHER\]/i.test(n)) return "Other";
-    if (/\[WEB\]/i.test(n)) return "Website form";
+    if (/\[SQ DRIVING SCHOOL\]/i.test(n)) return "SQ Driving School website";
+    if (/\[WEB\]/i.test(n)) return "DriveSQ website";
     return "Added by admin";
   }
   const normPhone = p => { let d = String(p || "").replace(/\D/g, ""); if (d.indexOf("44") === 0) d = "0" + d.slice(2); return d.length >= 10 ? d : ""; };
