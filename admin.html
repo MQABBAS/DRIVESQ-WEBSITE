@@ -1188,7 +1188,7 @@ body.day-mode .dsqd-note{color:#92400e}
 .dsqm-swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .dsqm-sw{display:flex;align-items:center;gap:8px;border:1px solid var(--bdr2);background:var(--dk3);color:var(--txt2);border-radius:12px;padding:9px 10px;font-size:.8rem;cursor:pointer}
 .dsqm-sw i{width:22px;height:22px;border-radius:7px;flex:none;border:1px solid rgba(0,0,0,.2)}
-.dsqm-sw--classic i{background:linear-gradient(135deg,#fff 50%,#0b0204 50%)}.dsqm-sw--night i{background:linear-gradient(135deg,#16080a 50%,#F5C518 50%)}.dsqm-sw--bold i{background:linear-gradient(135deg,#fff 50%,#D10A11 50%)}
+.dsqm-sw--classic i{background:linear-gradient(135deg,#fff 50%,#0b0204 50%)}.dsqm-sw--night i{background:linear-gradient(135deg,#16080a 50%,#F5C518 50%)}.dsqm-sw--bold i{background:linear-gradient(135deg,#fff 50%,#D10A11 50%)}#panel-email .dsqm-code{white-space:pre-wrap;word-break:break-all;max-width:100%}#panel-email .dsqm-sec{width:100%!important;min-width:0!important;table-layout:fixed}#panel-email .dsqm-steps li>div{min-width:0;flex:1 1 auto}#panel-email .dsqm-sec td,#panel-email .dsqm-steps code,#panel-email .dsqm-steps p{overflow-wrap:anywhere;word-break:break-word}#panel-email .dsqm-setup{min-width:0;max-width:100%}#panel-email .dsqm-steps{grid-template-columns:minmax(0,1fr)}#panel-email .dsqm-inrow{flex-wrap:wrap}#panel-email .dsqm-inrow>.dsq-inp{min-width:0;flex:1 1 180px}@media (max-width:700px){#panel-email .dsqm-setup{grid-template-columns:minmax(0,1fr)!important}}.dsqm-sw--clean i{background:linear-gradient(135deg,#fff 50%,#e6e8eb 50%);box-shadow:inset 0 0 0 1px #c9ccd1}
 .dsqm-sw.is-on,.dsqm-bn.is-on{border-color:var(--m-red);box-shadow:0 0 0 3px rgba(209,10,17,.15);color:var(--txt)}
 .dsqm-banners{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .dsqm-bn{border:1px solid var(--bdr2);background:var(--dk3);border-radius:12px;padding:5px;cursor:pointer;color:var(--txt3);display:flex;flex-direction:column;gap:4px;align-items:stretch}
@@ -14495,7 +14495,8 @@ document.addEventListener('click',e=>{
   var THEMES = {
     classic: { name: "Classic", page: "#f3eee8", card: "#ffffff", ink: "#1f1714", soft: "#5d534d", head: "#0b0204", accent: "#D10A11", gold: "#b07d00", box: "#fff7d6", boxInk: "#3d2f05", line: "#eee3d8", foot: "#8a7f78" },
     night: { name: "Night drive", page: "#0b0204", card: "#16080a", ink: "#f4eeee", soft: "#c9bcbc", head: "#0b0204", accent: "#D10A11", gold: "#F5C518", box: "#2a0a0d", boxInk: "#ffe680", line: "#2e1416", foot: "#8f7f80" },
-    bold: { name: "Bold red", page: "#f6f1ec", card: "#ffffff", ink: "#1f1714", soft: "#5d534d", head: "#8f0007", accent: "#D10A11", gold: "#b07d00", box: "#fde8e9", boxInk: "#7a0006", line: "#f1d6d7", foot: "#8a7f78" }
+    bold: { name: "Bold red", page: "#f6f1ec", card: "#ffffff", ink: "#1f1714", soft: "#5d534d", head: "#8f0007", accent: "#D10A11", gold: "#b07d00", box: "#fde8e9", boxInk: "#7a0006", line: "#f1d6d7", foot: "#8a7f78" },
+    clean: { name: "Clean & professional", page: "#f4f5f7", card: "#ffffff", ink: "#1a1d21", soft: "#5b6168", head: "#111317", accent: "#C8102E", gold: "#8a6d00", box: "#f6f7f9", boxInk: "#1a1d21", line: "#e6e8eb", foot: "#8b9097" }
   };
   var BANNERS = {
     drive: { file: "banner-drive.gif", alt: "DriveSQ — Pass First Time" },
@@ -14624,18 +14625,34 @@ document.addEventListener('click',e=>{
 
   /* ---------------- "Create a template for me" ---------------- */
   var BOOK = "https://www.drivesq.co.uk/#book-60", WA = "https://wa.me/447352932003";
+  var GROUPS = ["New enquiries & bookings", "During lessons", "Tests & passing", "Offers & newsletters", "Instructors", "General"];
   var PURPOSES = {
-    welcome: { name: "Welcome a new student", banner: "drive" },
-    offer: { name: "Special offer / deal", banner: "drive" },
-    draw: { name: "Free Hour Draw — enter this month", banner: "gift" },
-    winner: { name: "Free Hour Draw — winner announcement", banner: "gift" },
-    rebook: { name: "Book your next lessons / we miss you", banner: "drive" },
-    pass: { name: "Congratulations on passing", banner: "pass" },
-    tips: { name: "Newsletter — driving tips", banner: "drive" },
-    theory: { name: "Theory test & Student Portal", banner: "drive" },
-    intensive: { name: "Intensive course promotion", banner: "drive" },
-    instructors: { name: "Instructor recruitment", banner: "drive" },
-    news: { name: "Announcement / news", banner: "drive" }
+    followup: { name: "Still looking for lessons? (enquiry follow-up)", banner: "drive", group: "New enquiries & bookings", tone: "friendly", theme: "clean" },
+    welcome: { name: "Welcome a new student", banner: "drive", group: "New enquiries & bookings", theme: "night" },
+    firstlesson: { name: "Your first lesson — what to expect", banner: "drive", group: "New enquiries & bookings", theme: "clean" },
+    waitlist: { name: "We're finding your instructor", banner: "drive", group: "New enquiries & bookings", theme: "clean" },
+    rebook: { name: "Book your next lessons / we miss you", banner: "drive", group: "During lessons" },
+    review: { name: "How are your lessons going? (review request)", banner: "none", group: "During lessons", theme: "clean" },
+    referral: { name: "Refer a friend", banner: "gift", group: "During lessons", tone: "exciting" },
+    theory: { name: "Theory test & Student Portal", banner: "drive", group: "During lessons", theme: "night" },
+    theorypass: { name: "Congratulations on your theory test", banner: "pass", group: "Tests & passing", tone: "exciting", theme: "bold" },
+    testsoon: { name: "Your driving test is coming up", banner: "drive", group: "Tests & passing", theme: "clean" },
+    testday: { name: "Test day checklist", banner: "none", group: "Tests & passing", theme: "clean" },
+    mocktest: { name: "Book a mock test", banner: "drive", group: "Tests & passing" },
+    pass: { name: "Congratulations on passing", banner: "pass", group: "Tests & passing", tone: "exciting", theme: "bold" },
+    passplus: { name: "Pass Plus & motorway lessons", banner: "drive", group: "Tests & passing" },
+    offer: { name: "Special offer / deal", banner: "drive", group: "Offers & newsletters", tone: "exciting" },
+    intensive: { name: "Intensive course promotion", banner: "drive", group: "Offers & newsletters" },
+    draw: { name: "Free Hour Draw — enter this month", banner: "gift", group: "Offers & newsletters", tone: "exciting" },
+    winner: { name: "Free Hour Draw — winner announcement", banner: "gift", group: "Offers & newsletters", theme: "bold" },
+    tips: { name: "Newsletter — driving tips", banner: "drive", group: "Offers & newsletters" },
+    winter: { name: "Winter driving tips", banner: "drive", group: "Offers & newsletters", theme: "night" },
+    instructors: { name: "Instructor recruitment", banner: "drive", group: "Instructors" },
+    instrwelcome: { name: "Welcome a new instructor", banner: "drive", group: "Instructors", theme: "night" },
+    instrupdate: { name: "Instructor update / newsletter", banner: "none", group: "Instructors", theme: "clean", tone: "professional" },
+    prices: { name: "Price or policy update", banner: "none", group: "General", theme: "clean", tone: "professional" },
+    holiday: { name: "Holiday opening hours", banner: "none", group: "General", theme: "clean" },
+    news: { name: "Announcement / news", banner: "drive", group: "General" }
   };
   function generate(purpose, tone, x) {
     x = x || {};
@@ -14685,6 +14702,66 @@ document.addEventListener('click',e=>{
         Object.assign(d, { subject: "Join the DriveSQ instructor team", preheader: "A steady supply of pupils — we handle the marketing and bookings.", greeting: pro ? "Dear {{first_name}}," : "Hi {{first_name}},",
           headline: "Teach with DriveSQ", body: "We're growing across Greater Manchester and looking for calm, professional ADIs and PDIs.\n\n- **Steady pupil supply** — we handle marketing and enquiries\n- **Your hours, your areas** — full-time or part-time\n- **Free Instructor Portal** — diary, payments and pupil progress in one place\n\n" + (detail ? detail + "\n\n" : "") + "Reply to this email or message us on WhatsApp for a friendly chat.",
           buttonText: "Message us on WhatsApp", buttonUrl: link || WA, secondaryText: "" }); break;
+      case "followup":
+        Object.assign(d, { subject: pro ? "Your driving lesson enquiry, {{first_name}}" : "Still looking for driving lessons, {{first_name}}?", preheader: "We'd love to help — book in 60 seconds or just reply.",
+          headline: "Still looking for **lessons?**", body: "Thanks again for getting in touch with DriveSQ. We noticed you haven't booked yet, so we wanted to make it as easy as possible.\n\n- **£35/hr** — manual and automatic, the same price\n- **Patient, DVSA-approved instructors** across Manchester\n- **Pick-up** from home, college or work\n- **4.9★ from 157 Google reviews**\n\n" + (detail ? detail + "\n\n" : "") + "If anything's holding you back — price, times, nerves — just reply and tell us. We'll find something that works.",
+          buttonText: "Book my first lesson" }); break;
+      case "firstlesson":
+        Object.assign(d, { subject: "Your first driving lesson — what to expect", preheader: "Nothing to worry about. Here's how it works.",
+          headline: "Your **first lesson**", body: "Your first lesson is all about getting comfortable — there's no pressure and no test.\n\n**What to bring**\n- Your **provisional licence** (photocard)\n- Glasses or contact lenses if you need them to read a number plate\n- Comfortable, flat shoes\n\n**What you'll do**\n- Quiet roads to start, at your pace\n- The controls, moving off and stopping\n- A chat about your goals and how many hours you might need\n\n" + (date ? "**Your lesson:** " + date + "\n\n" : "") + (detail ? detail + "\n\n" : "") + "Feeling nervous? That's completely normal — tell your instructor and they'll take it slow.",
+          buttonText: "Open my Student Portal", buttonUrl: link || "https://www.drivesq.co.uk/student.html" }); break;
+      case "waitlist":
+        Object.assign(d, { subject: "We're matching you with an instructor, {{first_name}}", preheader: "A quick update on your DriveSQ booking.",
+          headline: "We're on it", body: "Thanks for booking with DriveSQ. We're matching you with the best available instructor near you right now.\n\n- Your instructor will **call or WhatsApp you** to arrange your first lesson\n- This usually takes **1–3 working days**\n- Nothing for you to do in the meantime\n\n" + (detail ? detail + "\n\n" : "") + "If your availability changes, just reply and let us know.",
+          buttonText: "Message us on WhatsApp", buttonUrl: link || WA, secondaryText: "" }); break;
+      case "review":
+        Object.assign(d, { subject: pro ? "How are your lessons going, {{first_name}}?" : "Quick favour, {{first_name}}? ⭐", preheader: "30 seconds of your time would mean a lot.",
+          headline: "How are your **lessons** going?", body: "We hope you're enjoying learning with DriveSQ and feeling more confident every week.\n\nIf you're happy with your instructor, a quick Google review would mean a lot. It helps other learners in Manchester find a good, patient instructor — and it only takes 30 seconds.\n\nIf anything isn't right, please reply to this email instead. We read every message and we'll sort it.",
+          buttonText: "Leave a Google review", buttonUrl: link || "https://www.google.com/search?q=DriveSQ+Driving+School+reviews" }); break;
+      case "referral":
+        Object.assign(d, { subject: ex ? "🎁 Know someone learning to drive, {{first_name}}?" : "Refer a friend to DriveSQ", preheader: "Recommend a friend — you both get rewarded.",
+          headline: "Refer a **friend**", body: "Know someone who's learning to drive? Send them our way.\n\n- Your friend books lessons with DriveSQ\n- **" + (detail || "You both get a reward") + "** once they've had their first lesson\n- No limit — refer as many friends as you like\n\nJust ask them to mention your name when they book, or forward this email.",
+          buttonText: "Share DriveSQ", buttonUrl: link || "https://www.drivesq.co.uk/" }); break;
+      case "theorypass":
+        Object.assign(d, { subject: ex ? "🎉 Theory test PASSED, {{first_name}}!" : "Congratulations on passing your theory test", preheader: "One step closer to your full licence.",
+          headline: "Theory **passed!**", body: "Brilliant work — your theory test is done.\n\n**What's next**\n- Book your practical test as soon as you can — waiting times in Manchester can be long\n- Your theory certificate lasts **2 years**\n- Keep up regular lessons so you're test-ready by your date\n\n" + (detail ? detail + "\n\n" : "") + "Want help planning how many lessons you need before your test? Just reply.",
+          buttonText: "Book more lessons" }); break;
+      case "testsoon":
+        Object.assign(d, { subject: "Your driving test is coming up, {{first_name}}", preheader: "Get test-ready with a mock test and a final checklist.",
+          headline: "Your test is **coming up**", body: (date ? "Your practical test is on **" + date + "**. " : "Your practical test is coming up. ") + "Here's how to make sure you're ready.\n\n- **Book a mock test** with your instructor — it's the best way to settle nerves\n- **Practise the show me, tell me questions**\n- **Drive the local test routes** around your test centre\n- **Book the car** — you can use your instructor's car on the day\n\n" + (detail ? detail + "\n\n" : "") + "Your instructor will help you plan the final lessons. You've got this.",
+          buttonText: "Book a mock test" }); break;
+      case "testday":
+        Object.assign(d, { subject: "Test day checklist, {{first_name}} ✅", preheader: "Everything to bring and remember on the day.",
+          headline: "Test day **checklist**", body: (date ? "Good luck for **" + date + "**! " : "Good luck for your test! ") + "Run through this the night before.\n\n**Bring with you**\n- Your **provisional licence** (photocard)\n- Your **theory test pass certificate** number\n- Glasses or contact lenses if you need them\n\n**On the day**\n- Eat something and arrive with time to spare\n- Have a short warm-up drive with your instructor\n- If you make a mistake, keep going — one error rarely means a fail\n\n" + (detail ? detail + "\n\n" : "") + "Everyone at DriveSQ is rooting for you.",
+          buttonText: "Message your instructor", buttonUrl: link || WA, secondaryText: "" }); break;
+      case "mocktest":
+        Object.assign(d, { subject: "Find out if you're test-ready, {{first_name}}", preheader: "A full mock test on real Manchester test routes.",
+          headline: "Book a **mock test**", body: "A mock test is the closest thing to the real thing — the best way to know you're ready and to calm nerves.\n\n- Full test conditions on **real local test routes**\n- An honest marking sheet showing exactly what to work on\n- Independent driving, manoeuvres and show me, tell me questions\n\n" + (detail ? detail + "\n\n" : "") + "Ask your instructor to book one in, or reply to this email.",
+          buttonText: "Book a mock test" }); break;
+      case "passplus":
+        Object.assign(d, { subject: "Drive with confidence after your test, {{first_name}}", preheader: "Motorways, night driving and Pass Plus with DriveSQ.",
+          headline: "Keep **building** confidence", body: "Passing your test is just the start. Many new drivers have never driven on a motorway or at night.\n\n- **Pass Plus** — six modules including motorways, night and all-weather driving\n- **Motorway lessons** — join, overtake and exit safely\n- Some insurers offer **discounts** after Pass Plus\n\n" + (detail ? detail + "\n\n" : "") + "Reply or message us to book.",
+          buttonText: "Book Pass Plus" }); break;
+      case "winter":
+        Object.assign(d, { subject: "Winter driving tips from DriveSQ ❄️", preheader: "Stay safe on dark, icy and wet Manchester roads.",
+          headline: "Winter **driving** tips", body: "Darker evenings and colder mornings change how you drive. A few habits make a big difference:\n\n- **Clear all windows fully** before setting off — not just a peephole\n- **Double your gap** in rain, and more on ice\n- **Use dipped headlights** in poor visibility, not fog lights unless it's really foggy\n- **Gentle inputs** — smooth steering, braking and acceleration\n- **Check your tyres** — tread and pressure\n\n" + (detail ? detail + "\n\n" : "") + "Want practice in the dark or rain with an instructor? Book a lesson and we'll plan it in.",
+          buttonText: "Book a lesson" }); break;
+      case "instrwelcome":
+        Object.assign(d, { subject: "Welcome to the DriveSQ team, {{first_name}}", preheader: "Your Instructor Portal and what happens next.", greeting: pro ? "Dear {{first_name}}," : "Hi {{first_name}},",
+          headline: "Welcome to **DriveSQ**", body: "We're really pleased to have you on board.\n\n**Getting started**\n- Log in to your **Instructor Portal** to set your areas and availability\n- New pupils appear in your **Students** tab with their details and notes\n- Contact each new pupil within **24 hours** — fast replies mean more bookings\n\n" + (detail ? detail + "\n\n" : "") + "Any questions at all, message us on WhatsApp.",
+          buttonText: "Open the Instructor Portal", buttonUrl: link || "https://www.drivesq.co.uk/dashboard.html", secondaryText: "" }); break;
+      case "instrupdate":
+        Object.assign(d, { subject: detail ? "DriveSQ instructor update: " + detail : "DriveSQ instructor update", preheader: "News, reminders and pupil updates for DriveSQ instructors.", greeting: "Hi {{first_name}},",
+          headline: "Instructor **update**", body: "Here's what's new for DriveSQ instructors.\n\n" + (detail ? "**" + detail + "**\n\n" : "") + "**Reminders**\n- Please contact new pupils within 24 hours\n- Mark lessons in the portal so pupils see their progress\n- Let us know about any changes to your areas or availability\n\n" + (date ? "**Date:** " + date + "\n\n" : "") + "Thanks for everything you do for our learners.",
+          buttonText: "Open the Instructor Portal", buttonUrl: link || "https://www.drivesq.co.uk/dashboard.html", secondaryText: "" }); break;
+      case "prices":
+        Object.assign(d, { subject: "An update about your DriveSQ lessons", preheader: "Please take a moment to read this update.",
+          headline: "An **update** from DriveSQ", body: "We're writing to let you know about a change.\n\n" + (detail ? "**" + detail + "**\n\n" : "**Describe the change here.**\n\n") + (date ? "This takes effect from **" + date + "**.\n\n" : "") + "Any lessons you've already booked and paid for are not affected.\n\nIf you have any questions, just reply to this email — we're happy to help.",
+          buttonText: "Contact us", buttonUrl: link || WA, secondaryText: "" }); break;
+      case "holiday":
+        Object.assign(d, { subject: "DriveSQ holiday opening hours", preheader: "When we're available over the holidays.",
+          headline: "Holiday **opening hours**", body: "Here's when DriveSQ is available over the holidays.\n\n" + (detail ? detail + "\n\n" : "- **Christmas Eve:** lessons until 2pm\n- **Christmas Day & Boxing Day:** closed\n- **27–31 December:** normal hours\n- **New Year's Day:** closed\n\n") + "Lessons fill up quickly in January — book early to get your preferred times.\n\nWishing you a happy and safe holiday from everyone at DriveSQ.",
+          buttonText: "Book January lessons" }); break;
       default:
         Object.assign(d, { subject: detail || "News from DriveSQ", preheader: "A quick update from the DriveSQ team.", headline: detail || "News from DriveSQ",
           body: "We wanted to let you know about something new at DriveSQ.\n\n" + (detail ? detail + "\n\n" : "Write your update here.\n\n") + (date ? "**Date:** " + date + "\n\n" : "") + "As always, just reply if you have any questions.", buttonText: "Find out more" });
@@ -14702,7 +14779,7 @@ document.addEventListener('click',e=>{
     { file: "email/banner-pass.gif", name: "Pass day banner (animated)", alt: "Congratulations" },
     { file: "email/logo-240.png", name: "DriveSQ logo", alt: "DriveSQ" }
   ];
-  window.DSQMail = { STICKERS: STICKERS, build: build, text: text, personalise: personalise, generate: generate, THEMES: THEMES, BANNERS: BANNERS, PURPOSES: PURPOSES, esc: esc };
+  window.DSQMail = { STICKERS: STICKERS, build: build, text: text, personalise: personalise, generate: generate, THEMES: THEMES, BANNERS: BANNERS, PURPOSES: PURPOSES, GROUPS: GROUPS, esc: esc };
 })();
 
 /* DSQM — DriveSQ Email (admin): contacts, branded templates, batch sending, campaign history.
@@ -14794,12 +14871,13 @@ document.addEventListener('click',e=>{
   const DEFAULT = () => Object.assign(M.generate("news", "friendly", {}), { name: "", theme: "classic" });
   function composeHTML() {
     const P = M.PURPOSES;
-    return `<div class="dsqm-compose">
+    return `<ol style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0 0 14px;padding:0;counter-reset:s">${[["Pick", "a ready-made email below or in Templates"], ["Edit", "the words, style and button"], ["Test", "send it to yourself first"], ["Choose", "who gets it in Contacts"], ["Send", "it goes out safely in batches"]].map((s, i) => `<li style="flex:1 1 150px;background:var(--card-bg);border:1px solid var(--bdr);border-radius:12px;padding:10px 12px;font-size:.76rem;color:var(--txt2)"><b style="display:block;font-family:'Oswald',sans-serif;color:var(--txt);font-size:.9rem"><span style="color:var(--gold)">${i + 1}.</span> ${s[0]}</b>${s[1]}</li>`).join("")}</ol>
+    <div class="dsqm-compose">
       <div class="dsqm-col">
         <section class="dsqm-card dsqm-gen">
           <header><h3><i class="bi bi-stars"></i>Create a template for me</h3></header>
           <div class="dsqm-grid2">
-            <label class="dsqm-f"><span>What's the email for?</span><select class="dsq-inp" id="dm-purpose">${Object.keys(P).map(k => `<option value="${k}">${h(P[k].name)}</option>`).join("")}</select></label>
+            <label class="dsqm-f"><span>What's the email for?</span><select class="dsq-inp" id="dm-purpose">${(M.GROUPS || ["General"]).map(g => `<optgroup label="${h(g)}">${Object.keys(P).filter(k => (P[k].group || "General") === g).map(k => `<option value="${k}">${h(P[k].name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
             <label class="dsqm-f"><span>Tone</span><select class="dsq-inp" id="dm-tone"><option value="friendly">Friendly</option><option value="professional">Professional</option><option value="exciting">Exciting</option></select></label>
           </div>
           <label class="dsqm-f"><span>Key detail (optional)</span><input class="dsq-inp" id="dm-detail" placeholder="e.g. 10 hours for £330 in M19 · or the winner's first name"></label>
@@ -14913,7 +14991,7 @@ document.addEventListener('click',e=>{
   }
 
   /* ready-made + my templates */
-  const PREMADE = () => Object.keys(M.PURPOSES).map(k => ({ id: "pre-" + k, name: M.PURPOSES[k].name, premade: true, design: Object.assign(M.generate(k, k === "draw" || k === "pass" || k === "offer" ? "exciting" : "friendly", { theme: k === "welcome" || k === "theory" ? "night" : k === "pass" || k === "winner" ? "bold" : "classic" }), { name: M.PURPOSES[k].name }) }));
+  const PREMADE = () => Object.keys(M.PURPOSES).map(k => { const P = M.PURPOSES[k]; return { id: "pre-" + k, name: P.name, group: P.group || "General", premade: true, design: Object.assign(M.generate(k, P.tone || "friendly", { theme: P.theme || "classic" }), { name: P.name }, P.banner ? { banner: P.banner } : {}) }; });
   function templatesHTML() {
     const card = t => `<article class="dsqm-tpl" data-tpl="${h(t.id)}"><div class="dsqm-tpl__thumb"><iframe tabindex="-1" aria-hidden="true" sandbox="allow-same-origin" data-thumb="${h(t.id)}"></iframe></div>
       <div class="dsqm-tpl__b"><b>${h(t.name)}</b><small>${t.premade ? "Ready-made" : "Saved " + fmtDT(t.updated_at || t.created_at)}</small></div>
@@ -14921,8 +14999,9 @@ document.addEventListener('click',e=>{
     return `<section class="dsqm-card"><header><h3><i class="bi bi-bookmark-star-fill"></i>My templates <span class="dsqm-n">${S.templates.length}</span></h3><button type="button" class="btn-s" data-tab="compose"><i class="bi bi-plus-lg"></i>Make a new one</button></header>
         ${S.tplLocal ? `<p class="dsqm-p">⚠️ Saved on this device only — run the latest email SQL in Setup to keep templates in Supabase.</p>` : ""}
         ${S.templates.length ? `<div class="dsqm-tpls">${S.templates.map(card).join("")}</div>` : `<div class="dsqm-empty dsqm-empty--row"><div>🔖</div><p>Design an email in <b>Create email</b>, then press <b>Save as my template</b> to reuse it any time.</p></div>`}</section>
-      <section class="dsqm-card"><header><h3><i class="bi bi-collection-fill"></i>Ready-made templates</h3><span class="dsqm-hint">Pick one, then change anything you like</span></header>
-        <div class="dsqm-tpls">${PREMADE().map(card).join("")}</div></section>`;
+      <section class="dsqm-card"><header><h3><i class="bi bi-collection-fill"></i>Ready-made templates <span class="dsqm-n">${PREMADE().length}</span></h3><span class="dsqm-hint">Pick one, then change anything you like</span></header>
+        <input class="dsq-inp" id="dm-tplsearch" type="search" placeholder="Search templates — e.g. review, test, offer, instructor" style="margin-bottom:12px" oninput="(function(v){v=v.toLowerCase();document.querySelectorAll('#panel-email [data-tplgroup] .dsqm-tpl').forEach(function(a){a.style.display=a.textContent.toLowerCase().indexOf(v)>-1?'':'none'});document.querySelectorAll('#panel-email [data-tplgroup]').forEach(function(g){g.style.display=[].some.call(g.querySelectorAll('.dsqm-tpl'),function(a){return a.style.display!=='none'})?'':'none'})})(this.value)">
+        ${(M.GROUPS || ["General"]).map(g => { const list = PREMADE().filter(x => x.group === g); return list.length ? `<div data-tplgroup="${h(g)}"><h4 style="font-family:'Oswald',sans-serif;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3);margin:14px 0 8px">${h(g)}</h4><div class="dsqm-tpls">${list.map(card).join("")}</div></div>` : ""; }).join("")}</section>`;
   }
   function allTemplates() { return S.templates.concat(PREMADE()); }
   function thumbs() {
@@ -15232,7 +15311,7 @@ document.addEventListener('click',e=>{
         ${step(tables, 1, "Create the email tables in Supabase", `<p>Supabase → SQL Editor → paste this and press <b>Run</b>.</p><div class="dsqm-actions" style="justify-content:flex-start"><button type="button" class="btn-s" data-copysql><i class="bi bi-clipboard"></i>Copy SQL</button><a class="btn-s" href="https://supabase.com/dashboard/project/vwvbfqrlumvoabzkjxoa/sql/new" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Open SQL Editor</a><button type="button" class="btn-s" data-recheck><i class="bi bi-arrow-repeat"></i>Check again</button></div>`)}
         ${step(false, 2, "Create a free Resend account and verify drivesq.co.uk", `<p><a href="https://resend.com/signup" target="_blank" rel="noopener">resend.com</a> → Domains → Add <b>drivesq.co.uk</b> → add the DNS records it shows (SPF + DKIM) where your domain is managed. Adding a DMARC record (<code>v=DMARC1; p=none;</code>) helps your emails land in the inbox.</p><p>Then API Keys → Create → copy the key (starts with <code>re_</code>).</p>`)}
         ${step(false, 3, "Add the secrets in Supabase", `<p>Supabase → Edge Functions → Secrets → add:</p><table class="dsqm-sec"><tr><td><code>RESEND_API_KEY</code></td><td>your Resend key</td></tr><tr><td><code>EMAIL_ADMIN_KEY</code></td><td><code id="dm-genkey">${h(LS.get("genkey", "") || "—")}</code> <button type="button" class="dsqm-mini" data-genkey title="Make a new key"><i class="bi bi-arrow-repeat"></i></button> <button type="button" class="dsqm-mini" data-copykey title="Copy"><i class="bi bi-clipboard"></i></button></td></tr><tr><td><code>EMAIL_FROM</code></td><td><code>DriveSQ &lt;hello@drivesq.co.uk&gt;</code></td></tr><tr><td><code>EMAIL_REPLY_TO</code></td><td>the inbox you want replies to go to</td></tr></table>`)}
-        ${step(false, 4, "Deploy the send-email function", `<p>From the DriveSQ repository folder (Supabase CLI):</p><pre class="dsqm-code">supabase functions deploy send-email --no-verify-jwt --project-ref vwvbfqrlumvoabzkjxoa</pre><p class="dsqm-p">"--no-verify-jwt" lets Gmail and Yahoo's one-click unsubscribe reach it. Sending still needs your admin email key.</p>`)}
+        ${step(S.fnOk === true, 4, "Deploy the send-email function", `<p><strong>Easiest — in your browser:</strong></p><p>1. Press <strong>Copy function code</strong> below.</p><p>2. Open <strong>Edge Functions</strong> in Supabase → <strong>Deploy a new function</strong> → <strong>Via Editor</strong>.</p><p>3. Name it exactly <code>send-email</code>, delete the sample code, paste, and press <strong>Deploy</strong>.</p><p>4. Open the function → <strong>Details</strong> → turn <strong>off</strong> “Enforce JWT verification” (so one-click unsubscribe works) → <strong>Save</strong>.</p><div class="dsqm-actions" style="justify-content:flex-start"><button type="button" class="btn-s" onclick="(async function(b){try{const r=await fetch('/supabase/functions/send-email/index.ts',{cache:'no-store'});if(!r.ok)throw new Error(r.status);await navigator.clipboard.writeText(await r.text());b.innerHTML='<i class=&quot;bi bi-check-lg&quot;></i>Copied';}catch(e){b.textContent='Copy failed — open the file on GitHub';}})(this)"><i class="bi bi-clipboard"></i>Copy function code</button><a class="btn-s" href="https://supabase.com/dashboard/project/vwvbfqrlumvoabzkjxoa/functions" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Open Edge Functions</a></div><details style="margin-top:10px"><summary class="dsqm-p" style="cursor:pointer">Or with the Supabase CLI</summary><pre class="dsqm-code">supabase functions deploy send-email --no-verify-jwt --project-ref vwvbfqrlumvoabzkjxoa</pre></details>`)}
         ${step(!!key && S.fnOk === true, 5, "Connect this admin", `<div class="dsqm-inrow"><input class="dsq-inp" id="dm-key" type="password" placeholder="Paste the same EMAIL_ADMIN_KEY" value="${h(key)}"><button type="button" class="btn-p" data-savekey><i class="bi bi-plug-fill"></i>Save &amp; test</button></div><p class="dsqm-p" id="dm-fnstat">${S.fnOk === true ? "✅ Connected — sending from " + h(LS.get("from", "")) : S.fnOk === false ? "⚠️ " + h(LS.get("fnerr", "Not connected yet")) : ""}</p>`)}
       </ol></section>
       <section class="dsqm-card"><header><h3><i class="bi bi-envelope-check-fill"></i>Defaults</h3></header>
@@ -16712,7 +16791,7 @@ document.addEventListener('click',e=>{
   const S = { lastWaiting: null, timer: null, logMissing: false };
 
   /* ═════════ 1. activity log: record every write made from this page ═════════ */
-  const SKIP = new Set(["admin_activity", "push_subscriptions", "lesson_reminders", "student_link_events"]);
+  const SKIP = new Set(["admin_activity", "admin_sessions", "push_subscriptions", "lesson_reminders", "student_link_events"]);
   const VERB = { POST: "added", PATCH: "changed", DELETE: "deleted" };
   const label = t => ({ waiting_list: "enquiry", referrals: "referral", student_profiles: "student", student_accounts: "student account", instructors: "instructor", lessons: "lesson", admin_messages: "message", student_requests: "student request", transfer_requests: "transfer", reschedule_requests: "reschedule request", instructor_change_requests: "instructor change", email_campaigns: "email campaign", draw_entries: "draw entry", draw_results: "draw result" }[t] || t.replace(/_/g, " "));
   function instrName(id) { const i = instrs().find(x => x.id === id); return i ? (i.full_name || i.name) : ""; }
@@ -16830,6 +16909,7 @@ document.addEventListener('click',e=>{
     }
     S.lastWaiting = d.waiting.length;
     const todayEnq = d.enqWeek.filter(w => new Date(w.created_at) >= d.today0).length;
+    let tcard = ""; try { tcard = timeCard(await timeStats()); } catch (e) { console.warn("time stats", e); }
     const nOk = ns.perm === "granted" && ns.sub;
     box.innerHTML = `
       <div class="dsqmon-head"><h3><i class="bi bi-bell-fill me-2" style="color:var(--gold)"></i>Needs your attention</h3><span class="upd">Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · refreshes every 2 min</span><span style="flex:1"></span><button class="dsqmon-btn" id="dsqmonRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></div>
@@ -16841,6 +16921,7 @@ document.addEventListener('click',e=>{
         <div class="dsqmon-stat"><div class="l">Booked · 7 days</div><div class="n" style="color:#4ade80">${d.paidWeek.length}</div></div>
         <div class="dsqmon-stat"><div class="l">Waiting now</div><div class="n">${d.waiting.length}</div></div>
       </div>
+      ${tcard}
       <div class="dsqmon-notif">
         <span class="dot" style="background:${nOk ? "#4ade80" : ns.perm === "denied" ? "#ef4444" : "var(--gold)"}"></span>
         <div style="flex:1;min-width:200px"><strong>Phone alerts:</strong> ${nOk ? "on for this device" : ns.perm === "denied" ? "blocked on this device — allow notifications for this site in your browser/phone settings" : !ns.supported ? "not supported here — on iPhone/iPad, add admin to the Home Screen and open it from there" : "off on this device"}${ns.devices != null ? ` · <span style="color:var(--txt3)">${ns.devices} admin device${ns.devices === 1 ? "" : "s"} registered</span>` : ""}</div>
@@ -16907,6 +16988,87 @@ document.addEventListener('click',e=>{
       </tbody></table></div>`;
   }
 
+
+  /* ═════════ 5. admin time tracking ═════════
+     Counts time only while admin is on screen AND you've clicked/typed/scrolled in the last 5 minutes.
+     Saved to admin_sessions (migration 20261016_admin_time.sql); a per-device copy is kept in this browser too. */
+  const TT = { id: null, active: 0, unsent: 0, lastInput: Date.now(), missing: false, started: false, busy: false };
+  const ukDay = d => new Date(d).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const LKEY = "dsq_admin_time_v1";
+  function localAdd(sec) { try { const m = JSON.parse(localStorage.getItem(LKEY) || "{}"); const k = ukDay(Date.now()); m[k] = (m[k] || 0) + sec; const keys = Object.keys(m).sort(); while (keys.length > 120) delete m[keys.shift()]; localStorage.setItem(LKEY, JSON.stringify(m)); } catch (e) {} }
+  async function flush() {
+    if (TT.missing || TT.busy || !TT.unsent) return;
+    const c = db(); if (!c) return;
+    TT.busy = true; const sending = TT.unsent;
+    try {
+      if (!TT.id) {
+        const r = await c.from("admin_sessions").insert([{ admin_email: adminEmail(), device: (/iPad|Tablet/i.test(navigator.userAgent) ? "Tablet" : /Mobi|iPhone|Android/i.test(navigator.userAgent) ? "Phone" : "Computer"), started_at: new Date(Date.now() - TT.active * 1000).toISOString(), last_seen: new Date().toISOString(), active_seconds: TT.active }]).select("id").single();
+        if (r.error) { if (/admin_sessions|relation|does not exist|schema cache/i.test(r.error.message || "")) TT.missing = true; }
+        else { TT.id = r.data && r.data.id; TT.unsent -= sending; }
+      } else {
+        const r = await c.from("admin_sessions").update({ active_seconds: TT.active, last_seen: new Date().toISOString() }).eq("id", TT.id);
+        if (!r.error) TT.unsent -= sending;
+      }
+    } catch (e) {} finally { TT.busy = false; }
+  }
+  function startTracker() {
+    if (TT.started) return; TT.started = true;
+    const mark = () => { TT.lastInput = Date.now(); };
+    ["pointerdown", "keydown", "wheel", "touchstart", "scroll", "input"].forEach(ev => window.addEventListener(ev, mark, { passive: true, capture: true }));
+    let lastMove = 0; window.addEventListener("mousemove", () => { const n = Date.now(); if (n - lastMove > 20000) { lastMove = n; mark(); } }, { passive: true });
+    setInterval(() => {
+      const m = $("#mainPage");
+      if (document.visibilityState === "visible" && m && !m.classList.contains("hidden") && Date.now() - TT.lastInput < 300000) { TT.active += 15; TT.unsent += 15; localAdd(15); }
+    }, 15000);
+    setInterval(flush, 60000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); else mark(); });
+    window.addEventListener("pagehide", flush);
+  }
+  const fmtHM = s => { s = Math.round(s || 0); const hr = Math.floor(s / 3600), mn = Math.round((s % 3600) / 60); return hr ? hr + "h " + String(mn).padStart(2, "0") + "m" : mn + "m"; };
+  async function timeStats() {
+    const now = new Date(), today = ukDay(now);
+    const dow = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7; // Mon = 0
+    const weekStart = ukDay(new Date(new Date(today + "T12:00:00Z").getTime() - dow * 864e5));
+    const monthStart = today.slice(0, 8) + "01";
+    const from14 = ukDay(Date.now() - 13 * 864e5);
+    const since = [monthStart, from14, weekStart].sort()[0];
+    const byDay = {}; let source = "this device";
+    const me = adminEmail();
+    let others = {};
+    if (!TT.missing) {
+      const c = db();
+      const r = await c.from("admin_sessions").select("admin_email,started_at,active_seconds").gte("started_at", new Date(new Date(since + "T00:00:00Z").getTime() - 864e5).toISOString());
+      if (r && !r.error) {
+        source = "all devices";
+        (r.data || []).forEach(x => {
+          const k = ukDay(x.started_at); if (k < since) return;
+          if ((x.admin_email || "admin") === me) byDay[k] = (byDay[k] || 0) + (x.active_seconds || 0);
+          else if (k >= monthStart) others[x.admin_email || "admin"] = (others[x.admin_email || "admin"] || 0) + (x.active_seconds || 0);
+        });
+        byDay[today] = (byDay[today] || 0) + TT.unsent; // not saved yet
+      } else if (r && r.error && /admin_sessions|relation|does not exist|schema cache/i.test(r.error.message || "")) TT.missing = true;
+    }
+    if (TT.missing) { try { Object.assign(byDay, JSON.parse(localStorage.getItem(LKEY) || "{}")); } catch (e) {} }
+    const sum = from => Object.keys(byDay).filter(k => k >= from && k <= today).reduce((s, k) => s + byDay[k], 0);
+    const days14 = []; for (let i = 13; i >= 0; i--) { const k = ukDay(Date.now() - i * 864e5); days14.push([k, byDay[k] || 0]); }
+    return { today: byDay[today] || 0, week: sum(weekStart), month: sum(monthStart), days14, source, others, missing: TT.missing };
+  }
+  function timeCard(tm) {
+    const max = Math.max(3600, ...tm.days14.map(d => d[1]));
+    const avg = tm.days14.filter(d => d[1] > 0).length ? tm.days14.reduce((s, d) => s + d[1], 0) / Math.max(1, tm.days14.filter(d => d[1] > 0).length) : 0;
+    return `<div class="dsq-card p-3" style="margin-top:12px"><div class="section-label"><i class="bi bi-stopwatch me-2" style="color:var(--gold)"></i>Your time in admin</div>
+      <div class="dsqmon-stats" style="margin-top:0">
+        <div class="dsqmon-stat"><div class="l">Today</div><div class="n">${fmtHM(tm.today)}</div></div>
+        <div class="dsqmon-stat"><div class="l">This week</div><div class="n">${fmtHM(tm.week)}</div></div>
+        <div class="dsqmon-stat"><div class="l">This month</div><div class="n">${fmtHM(tm.month)}</div></div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:14px" role="img" aria-label="Active time per day, last 14 days">
+        ${tm.days14.map(([k, s]) => `<div title="${new Date(k + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}: ${fmtHM(s)}" style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:${s ? Math.max(4, Math.round(s / max * 100)) : 2}%;background:${k === ukDay(Date.now()) ? "var(--gold)" : "rgba(245,197,24,.45)"};border-radius:3px 3px 0 0"></div></div>`).join("")}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--txt3);margin-top:4px"><span>${new Date(tm.days14[0][0] + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span><span>Daily average ${fmtHM(avg)}</span><span>Today</span></div>
+      <div style="font-size:.7rem;color:var(--txt3);margin-top:8px">Counts only while admin is open on screen and you've used it in the last 5 minutes${tm.missing ? " · showing this device only — run <b>20261016_admin_time.sql</b> in Supabase to combine all your devices" : " · " + tm.source}.${Object.keys(tm.others).length ? " Other admins this month: " + Object.entries(tm.others).map(([e, s]) => h(e) + " " + fmtHM(s)).join(", ") + "." : ""}</div></div>`;
+  }
+
   /* ═════════ boot ═════════ */
   function hookTabs() {
     if (typeof window.switchTab !== "function" || window.switchTab.__dsqmon) return;
@@ -16920,7 +17082,7 @@ document.addEventListener('click',e=>{
     (function wait() {
       const m = $("#mainPage"), c = db();
       if (m && !m.classList.contains("hidden") && c) {
-        installLogger();
+        installLogger(); startTracker();
         const dash = $("#panel-dashboard");
         if (dash && !dash.classList.contains("hidden")) renderToday();
         clearInterval(S.timer);
@@ -16931,7 +17093,7 @@ document.addEventListener('click',e=>{
       if (++tries < 600) setTimeout(wait, 1000);
     })();
   }
-  window.DSQMON = { today: renderToday, activity: renderActivity, health: renderHealth, _state: S, _describe: describe, _install: installLogger };
+  window.DSQMON = { time: timeStats, _tt: TT, today: renderToday, activity: renderActivity, health: renderHealth, _state: S, _describe: describe, _install: installLogger };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
 </script>
