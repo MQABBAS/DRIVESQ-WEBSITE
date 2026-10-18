@@ -13,8 +13,8 @@
   window.__dsqAnalytics = true;
 
   var GA_ID = 'G-CQP798G5TW';
-  var ADS_ID = '';            // e.g. 'AW-123456789'  — paste the Google Ads ID here to switch on Ads tracking
-  var ADS_LEAD_LABEL = '';    // e.g. 'AbC-dEfGhIjK' — the conversion label for "Booking request"
+  var ADS_ID = 'AW-17483647790';             // Google Ads account (DriveSQ)
+  var ADS_LEAD_LABEL = 'LJ5ECPypo58dEK6W7ZBB';  // conversion: "Website booking request (DriveSQ + SQ)"
 
   window.dataLayer = window.dataLayer || [];
   if (typeof window.gtag !== 'function') window.gtag = function () { dataLayer.push(arguments); };
