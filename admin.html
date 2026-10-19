@@ -1523,6 +1523,7 @@ body.day-mode .dsqd-note{color:#92400e}
           <span id="adminSessionLabel">admin</span>
           <span id="adminSessionDays" style="color:var(--txt4);font-size:.58rem"></span>
         </div>
+        <button id="newCustomerTopBtn" onclick="adminNewCustomer()" title="New customer — enter their details and find the closest instructor (shortcut: Alt+N)" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#D10A11,#ff3b3b);border:none;color:#fff;border-radius:9px;padding:6px 13px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(209,10,17,.6);white-space:nowrap"><i class="bi bi-person-plus-fill"></i><span>New Customer</span></button>
         <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
@@ -1532,6 +1533,7 @@ body.day-mode .dsqd-note{color:#92400e}
     </div>
     <!-- Quick Actions Bar -->
     <div id="quickActionsBar" class="hidden" style="border-top:1px solid var(--bdr);padding:6px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="qa-btn" onclick="adminNewCustomer()" style="background:#D10A11;border-color:#D10A11;color:#fff"><i class="bi bi-person-plus-fill me-1"></i>New Customer</button>
       <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
       <button class="qa-btn" onclick="switchTab('find');setActiveTab('find')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>
@@ -17131,5 +17133,15 @@ document.addEventListener('click',e=>{
 </script>
 <!-- DSQMON:MONITORING END -->
 
+<script>
+/* New Customer shortcut: opens Find & Assign with the customer form ready (top bar button, quick actions, Alt+N) */
+function adminNewCustomer(){
+  try{ switchTab('find'); }catch(e){}
+  try{ if(typeof setActiveTab==='function') setActiveTab('find'); }catch(e){}
+  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(function(){ var el=document.getElementById('fc-name'); if(el){ el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true}); } },250);
+}
+document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.metaKey&&(e.key==='n'||e.key==='N'||e.code==='KeyN')){ var mp=document.getElementById('mainPage'); if(mp&&!mp.classList.contains('hidden')){ e.preventDefault(); adminNewCustomer(); } } });
+</script>
 </body>
 </html>
