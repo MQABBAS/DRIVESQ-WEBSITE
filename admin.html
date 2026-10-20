@@ -5888,10 +5888,15 @@ async function adminReassignStudent(idx){
     overlay.querySelector('#_reassignCancel').onclick=()=>{document.body.removeChild(overlay);resolve(null);};
   });
   if(!result)return;
-  const{instrId:picked,reason}=result;
+  await _adminMoveStudent(s,result.instrId,result.reason);
+}
+
+/* Move an existing student (profile, progress, portal account) to another instructor.
+   overrides: optional {phone,address,lesson_type,notes} edited in Find & Assign. */
+async function _adminMoveStudent(s,picked,reason,overrides){
   const newInstr=allInstrs.find(i=>i.id===picked);
-  if(!newInstr){showToast('Instructor not found.','error');return;}
-  if(picked===s.instrId){showToast('Student is already with this instructor.','warn');return;}
+  if(!newInstr){showToast('Instructor not found.','error');return false;}
+  if(picked===s.instrId){showToast('Student is already with this instructor.','warn');return false;}
   const oldInstr=allInstrs.find(i=>i.id===s.instrId);
   showToast('<i class="bi bi-arrow-left-right me-1"></i>Reassigning…','warn',60000);
 
@@ -5910,20 +5915,23 @@ async function adminReassignStudent(idx){
     }
     if(!existingProfile){
       showToast('Could not find student profile row to reassign.','error',6000);
-      return;
+      return false;
     }
 
     // Step 2: Check new instructor doesn't already have this student
     const{data:dupCheck}=await sb.from('student_profiles').select('id').eq('instructor_id',picked).ilike('name',s.name).maybeSingle();
     if(dupCheck){
       showToast(`${s.name} is already on ${newInstr.full_name}'s roster.`,'warn',5000);
-      return;
+      return false;
     }
 
     // Step 3: INSERT fresh row for new instructor (exact copy of existing profile but new instructor_id)
     const{id:_oldId,created_at:_oldCat,...profileData}=existingProfile;
+    const _ov={};
+    if(overrides)Object.keys(overrides).forEach(k=>{if(overrides[k])_ov[k]=overrides[k];});
     const{error:insertErr}=await sb.from('student_profiles').insert([{
       ...profileData,
+      ..._ov,
       instructor_id:picked,
       created_at:new Date().toISOString()
     }]);
@@ -5956,15 +5964,67 @@ async function adminReassignStudent(idx){
       }]).catch(()=>{});
     }
 
+    // Step 7: Tell the new instructor
+    try{
+      const _nm='Hi '+newInstr.full_name+',\n\n'+s.name+' has been reassigned to you by the admin team.\n\n'
+        +'📞 Phone: '+((overrides&&overrides.phone)||s.phone||'Not provided')+'\n'
+        +'📍 Address: '+((overrides&&overrides.address)||s.address||'Not provided')+'\n'
+        +((overrides&&overrides.notes)?'📝 Notes: '+overrides.notes+'\n':'')
+        +'\nTheir profile and progress have moved across — open your Students tab to get in touch.\n\n— DriveSQ Admin';
+      await sb.from('admin_messages').insert([{instructor_id:picked,subject:'👤 Student Reassigned To You: '+s.name,message_type:'general',body:_nm,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
+      if(typeof sendPushToInstructor==='function')sendPushToInstructor(picked,newInstr.full_name,'👤 Student reassigned to you: '+s.name,'Tap to view '+s.name+' in your Students tab','/dashboard.html');
+    }catch(e){}
+
     showToast(`✅ ${s.name} moved to ${newInstr.full_name}${oldInstr?' — '+oldInstr.full_name+' notified':''}`,'success',5000);
     document.getElementById('studentDetailModal')?.classList.remove('open');
     _adminStudentCtx=null;
     loadAllStudents();
+    return true;
   }catch(e){
     showToast(`Reassign failed: ${e.message}`,'error',7000);
     console.error('Reassign error:',e);
+    return false;
   }
 }
+
+/* Student profile → Reassign: open Find Closest Instructor with everything we know about the student filled in.
+   Choosing an instructor there moves the existing profile, progress and portal account (no duplicate account). */
+async function adminReassignViaFind(){
+  const ctx=_adminStudentCtx;
+  if(!ctx||!ctx.name){showToast('No student loaded — open the student first.','error');return;}
+  showToast('Loading student details…','info',3000);
+  let prof=null,acc=null;
+  try{
+    if(ctx.profileId){const{data}=await sb.from('student_profiles').select('*').eq('id',ctx.profileId).maybeSingle();prof=data;}
+    if(!prof&&ctx.instrId){const{data}=await sb.from('student_profiles').select('*').eq('instructor_id',ctx.instrId).ilike('name',ctx.name).limit(1);prof=(data||[])[0]||null;}
+    if(ctx.accId){const{data}=await sb.from('student_accounts').select('*').eq('id',ctx.accId).maybeSingle();acc=data;}
+  }catch(e){console.warn('reassign lookup:',e);}
+  const cache=(typeof allStudentsCache!=='undefined'?allStudentsCache:[]).find(x=>(ctx.profileId&&(x.rosterId===ctx.profileId||x.profileId===ctx.profileId))||(ctx.accId&&x.acctId===ctx.accId))||{};
+  const pick=(...v)=>v.find(x=>x!=null&&String(x).trim()!=='')||'';
+  const name=pick(acc&&acc.full_name,prof&&prof.name,ctx.name,cache.name);
+  const phone=pick(acc&&acc.phone,prof&&prof.phone,ctx.phone,cache.phone);
+  const email=pick(acc&&acc.email,prof&&prof.email,cache.acctEmail);
+  const addr=pick(prof&&prof.address,acc&&acc.address,ctx.address,cache.address);
+  const pcMatch=(String(pick(prof&&prof.postcode,acc&&acc.postcode,''))||String(addr)).toUpperCase().match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/);
+  const postcode=pcMatch?pcMatch[0].replace(/\s*(\d[A-Z]{2})$/,' $1'):pick(prof&&prof.postcode,'');
+  const type=pick(prof&&prof.lesson_type,cache.types&&cache.types.size?[...cache.types][0]:'','Manual');
+  const avail=pick(prof&&prof.availability,acc&&acc.availability,'');
+  const oldName=(allInstrs.find(i=>i.id===ctx.instrId)||{}).full_name||'';
+  const notes=[pick(prof&&prof.notes,cache.notes,''),oldName?'Reassigning from '+oldName+'.':''].filter(Boolean).join('\n');
+  const _set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  _set('fc-name',name);_set('fc-phone',phone);_set('fc-email',email);_set('fc-addr',addr);_set('fc-postcode',postcode);_set('fc-avail',avail);_set('fc-notes',notes);
+  const lt=document.getElementById('fc-type');
+  if(lt){const o=[...lt.options].find(o=>o.value.toLowerCase()===String(type).toLowerCase()||o.text.toLowerCase().includes(String(type).toLowerCase()));if(o)lt.value=o.value;}
+  try{_saveFcDraft();}catch(e){}
+  _reassignContext={reqId:null,oldInstrId:ctx.instrId||null,name,fromProfile:{accId:ctx.accId||(acc&&acc.id)||null,profileId:(prof&&prof.id)||ctx.profileId||null,instrId:ctx.instrId||null,name,phone,address:addr}};
+  document.getElementById('studentDetailModal')?.classList.remove('open');
+  try{closeModal('studentDetailModal');}catch(e){}
+  switchTab('find');try{setActiveTab('find');}catch(e){}
+  window.scrollTo({top:0,behavior:'smooth'});
+  showToast('Reassigning '+name+(oldName?' from '+oldName:'')+' — details filled in. Pick an instructor below.','info',5000);
+  if(postcode)setTimeout(()=>{try{findClosest();}catch(e){}},400);
+}
+
 
 function filterStudentsByReg(registered){
   if(registered){
@@ -6531,7 +6591,7 @@ async function openStudentDetail(idx,_directData){
     ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
     ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 14px;font-size:.82rem;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-star-fill"></i>Request Google Review</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
-    <button class="btn-p" onclick="adminReassignStudent(null)" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-arrow-left-right me-1"></i>${s.instrId?'Reassign Instructor':'Assign Instructor'}</button>
+    <button class="btn-p" onclick="adminReassignViaFind()" title="Opens Find Closest Instructor with this student's details filled in" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-geo-alt-fill me-1"></i>${s.instrId?'Reassign — Find Closest':'Assign — Find Closest'}</button><button class="abtn" onclick="adminReassignStudent(null)" title="Pick an instructor from a list instead" style="font-size:.72rem;min-height:36px;padding:6px 10px"><i class="bi bi-list-ul me-1"></i>Quick pick</button>
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
     <button id="_sdFlagBtn" class="abtn" onclick="toggleStuFlagFromDetail(window._sdCurrentStudent)" style="background:${_isStuFlagged(s)?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)'};border:1px solid ${_isStuFlagged(s)?'rgba(239,68,68,.35)':'rgba(100,116,139,.25)'};color:${_isStuFlagged(s)?'#f87171':'var(--txt3)'};border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-flag${_isStuFlagged(s)?'-fill':''} me-1"></i>${_isStuFlagged(s)?'Unflag Student':'Flag Student'}</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
@@ -8122,6 +8182,15 @@ async function confirmAssign(){
   const instrName=document.getElementById('assign-instr-name').value;
   const s=fcStudentData||{};
   if(!instrId||!s.name){showToast('Missing student or instructor data.','error');return;}
+  if(_reassignContext&&_reassignContext.fromProfile){
+    const fp=_reassignContext.fromProfile;
+    _reassignContext=null;
+    closeModal('assignModal');
+    const ov={phone:s.phone||'',address:s.addr||'',lesson_type:s.type||'',notes:s.notes||''};
+    const ok=await _adminMoveStudent({accId:fp.accId,profileId:fp.profileId,rosterId:fp.profileId,instrId:fp.instrId,name:fp.name,phone:s.phone||fp.phone,address:s.addr||fp.address},instrId,'Reassigned via Find & Assign',ov);
+    if(ok){try{localStorage.removeItem('dsq_fc_draft');}catch(e){}}
+    return;
+  }
 
   // Lock button to prevent double-submit
   const btn=document.querySelector('#assignModal .btn-p');
