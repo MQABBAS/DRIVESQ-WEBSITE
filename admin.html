@@ -17462,7 +17462,11 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   function save(s){try{localStorage.setItem(LS,JSON.stringify(s));}catch(e){}}
   function hidden(key){var s=st()[key];return s&&s.until&&s.until>Date.now();}
   function note(key){var s=st()[key];return s&&s.note||'';}
-  function setState(key,patch){var s=st();s[key]=Object.assign({},s[key]||{},patch);save(s);}
+  // Shared across devices when the admin_followups table exists (falls back to this device only)
+  var REMOTE=null;
+  async function pull(){try{var r=await sb.from('admin_followups').select('key,until,done,note');if(r.error){REMOTE=false;return;}REMOTE=true;var s=st();(r.data||[]).forEach(function(x){s[x.key]=Object.assign({},s[x.key]||{},{until:x.until?Date.parse(x.until):0,done:!!x.done,note:x.note||''});});save(s);}catch(e){REMOTE=false;}}
+  function push(key){if(REMOTE===false)return;var v=st()[key]||{};try{sb.from('admin_followups').upsert({key:key,until:v.until?new Date(v.until).toISOString():null,done:!!v.done,note:v.note||null,updated_at:new Date().toISOString()},{onConflict:'key'}).then(function(r){if(r&&r.error)REMOTE=false;});}catch(e){}}
+  function setState(key,patch){var s=st();s[key]=Object.assign({},s[key]||{},patch);save(s);push(key);}
   function e(x){return typeof esc==='function'?esc(x):String(x||'').replace(/[&<>"']/g,function(c){return'&#'+c.charCodeAt(0)+';';});}
   function wa(num,text){var n=typeof buildWaNum==='function'?buildWaNum(num||''):'';return n?'https://wa.me/'+n+'?text='+encodeURIComponent(text):'';}
   function first(n){return String(n||'').trim().split(/\s+/)[0]||'there';}
@@ -17473,6 +17477,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   var _items=[],_filter='all';
 
   async function build(){
+    await pull();
     var items=[],now=Date.now();
     try{if(!_S().length&&typeof loadAllStudents==='function')await loadAllStudents();}catch(x){}
     var studs=_S();
@@ -17539,7 +17544,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   window.todaySnooze=function(key,days,done){setState(key,{until:Date.now()+days*DAY,done:!!done});render();badge();if(typeof showToast==='function')showToast(done?'Marked done ✓':'Snoozed for '+days+' day'+(days>1?'s':''),'success',1800);};
   window.todayNote=function(key){var v=prompt('Note for this follow-up (only on this device):',note(key));if(v===null)return;setState(key,{note:v.trim()});render();};
   window.todayTouched=function(key){setState(key,{touched:Date.now()});};
-  window.todayReset=function(){var s=st();Object.keys(s).forEach(function(k){delete s[k].until;});save(s);render();badge();};
+  window.todayReset=function(){var s=st();Object.keys(s).forEach(function(k){if(s[k].until){s[k].until=0;s[k].done=false;}});save(s);Object.keys(s).forEach(push);render();badge();};
   window.openTodayBooking=function(id){try{if(typeof openWebBookingsPanel==='function'){openWebBookingsPanel();return;}}catch(x){}switchTab('find');};
   window.openToday=function(cat){_filter=cat||'all';switchTab('today');};
   window.loadToday=async function(){var el=document.getElementById('todayList');if(el)el.innerHTML='<div class="tdy-empty"><i class="bi bi-hourglass-split me-2"></i>Building your follow-up list…</div>';await build();render();badge();};
