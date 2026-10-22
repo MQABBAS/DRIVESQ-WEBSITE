@@ -6451,8 +6451,31 @@ async function confirmCreateStudent(){
   const instrId=document.getElementById('cs-instr').value||null;
   if(!instrId){showCreateStudentMsg('error','Please select an instructor to assign this student to.');return;}
   const btn=document.getElementById('createStudentBtn');
-  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';
+  _fcCtxFor(name);
+  // Reassigning an existing student (from their profile): move them instead of creating a duplicate
+  if(_reassignContext&&_reassignContext.fromProfile){
+    const fp=_reassignContext.fromProfile;_reassignContext=null;window._fcCtxName=null;
+    btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Moving…';
+    const ov={phone:document.getElementById('cs-phone').value.trim(),address:document.getElementById('cs-addr').value.trim(),lesson_type:document.getElementById('cs-type').value,notes:document.getElementById('cs-notes').value.trim()};
+    const ok=await _adminMoveStudent({accId:fp.accId,profileId:fp.profileId,rosterId:fp.profileId,instrId:fp.instrId,name:fp.name,phone:ov.phone||fp.phone,address:ov.address||fp.address},instrId,'Reassigned via Find & Assign',ov);
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';
+    if(ok){closeModal('createStudentModal');resetFindForm(true);}
+    return;
+  }
   const phone=document.getElementById('cs-phone').value.trim();
+  // Warn before creating a second account for someone who is already a student
+  const _np=typeof normalizePhone==='function'?normalizePhone(phone):phone.replace(/\D/g,'');
+  if(_np&&!window._csDupOk){
+    try{
+      const{data:_dup}=await sb.from('student_accounts').select('id,full_name,instructor_id,status').eq('phone',_np).limit(1);
+      const d=(_dup||[])[0];
+      if(d&&d.status!=='inactive'){
+        const _di=(allInstrs.find(i=>i.id===d.instructor_id)||{}).full_name||'an instructor';
+        if(!confirm(`${d.full_name} with this phone number is already a student with ${_di}.\n\nCreate another account anyway?\n(To move them instead, open the student and use Reassign.)`))return;
+      }
+    }catch(e){}
+  }
+  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';
   const email=document.getElementById('cs-email').value.trim().toLowerCase();
   const lessonType=document.getElementById('cs-type').value;
   const addr=document.getElementById('cs-addr').value.trim();
@@ -6530,12 +6553,13 @@ async function confirmCreateStudent(){
   if(allStudentsCache.length)loadAllStudents();
   // Update in-memory _weekAssigned so no-jobs alert refreshes on next Find tab visit
   if(instrId){const _csInstr=allInstrs.find(i=>i.id===instrId);if(_csInstr)_csInstr._weekAssigned=(_csInstr._weekAssigned||0)+1;}
-  // If this student was created from a website booking, mark as assigned + show WhatsApp prompts
-  if(window._pendingWbId&&instrId){
-    const wbId=window._pendingWbId;
-    window._pendingWbId=null;
-    // Mark as assigned in waiting_list
-    sb.from('waiting_list').update({status:'assigned'}).eq('id',wbId).then(()=>{loadWebBookingsBadge();}).catch(()=>{});
+  // Finish any reassignment (request / referral) this came from
+  if(instrId)_finishReassign(instrId);
+  // If this student came from a website booking or the waiting list, mark it assigned + show WhatsApp prompts
+  const _wasWb=!!window._pendingWbId;
+  const wbId=instrId?await _finishWaitlist(instrId,{addr,postcode:extractPostcode(addr)||((notes||'').match(/Postcode:\s*([^\n]+)/i)||[])[1]||''}):null;
+  window._fcCtxName=null;
+  if(wbId&&instrId){
     // Show WhatsApp buttons for both student and instructor
     const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
@@ -7852,6 +7876,40 @@ async function createInstructor(){
 }
 
 /* ══ FIND CLOSEST ══ */
+
+/* ══ FIND & ASSIGN — reliable geocoding ══
+   cached (30 days), time-limited, full postcodes or outward codes ("M20"), never hangs the search */
+const _fcGeoMem={};
+function _fcTimeout(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal;}
+function _fcNormPc(raw){return String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+async function _fcGeo(raw){
+  const pc=_fcNormPc(raw);if(!pc)return null;
+  if(_fcGeoMem[pc]!==undefined)return _fcGeoMem[pc];
+  try{const c=JSON.parse(localStorage.getItem('dsq_geo_v1')||'{}');if(c[pc]&&c[pc].t>Date.now()-30*864e5){_fcGeoMem[pc]=c[pc].g;return c[pc].g;}}catch(e){}
+  const full=/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(pc), out=full?pc.slice(0,-3):(/^[A-Z]{1,2}\d[A-Z\d]?$/.test(pc)?pc:'');
+  let g=null;
+  const get=async url=>{const r=await fetch(url,{signal:_fcTimeout(7000)});if(r.status===404)return'nf';if(!r.ok)throw new Error('lookup '+r.status);const j=await r.json();return j&&j.result?{lat:j.result.latitude,lon:j.result.longitude}:'nf';};
+  let netErr=null;
+  try{if(full){const x=await get('https://api.postcodes.io/postcodes/'+pc);if(x!=='nf')g={...x,exact:true};}}catch(e){netErr=e;}
+  if(!g&&out){try{const x=await get('https://api.postcodes.io/outcodes/'+out);if(x!=='nf')g={...x,exact:false};}catch(e){netErr=netErr||e;}}
+  if(!g&&netErr)throw netErr; // network problem — don't cache
+  _fcGeoMem[pc]=g;
+  try{const c=JSON.parse(localStorage.getItem('dsq_geo_v1')||'{}');c[pc]={g,t:Date.now()};localStorage.setItem('dsq_geo_v1',JSON.stringify(c));}catch(e){}
+  return g;
+}
+// Where an instructor is based: their saved postcode, else a postcode/area code in "area", else their first covered area
+function _fcInstrPc(i){
+  const own=(i.postcode||'').trim();if(own)return own;
+  const full=extractPostcode(i.area||'')||extractPostcode(i.address||'');if(full)return full;
+  const oc=(i.area||'').toUpperCase().match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/);if(oc)return oc[0];
+  const cov=(i.coverage_postcodes||'').toUpperCase().match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/);return cov?cov[0]:'';
+}
+// Context (web booking / waiting list / reassign) belongs to one customer — ignore it if the form now holds someone else
+function _fcCtxFor(name){
+  const n=String(name||'').trim().toLowerCase(),c=window._fcCtxName;
+  if(c&&n&&c!==n){window._waitlistIdToAssign=null;window._pendingWbId=null;_reassignContext=null;window._fcCtxName=null;}
+}
+function _fcClearCtx(){window._waitlistIdToAssign=null;window._pendingWbId=null;_reassignContext=null;window._fcCtxName=null;}
 async function findClosest(){
   const studentName=document.getElementById('fc-name').value.trim();
   const postcode=document.getElementById('fc-postcode').value.trim().toUpperCase().replace(/\s+/g,'');
@@ -7875,36 +7933,31 @@ async function findClosest(){
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
-    const res=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`);
-    const json=await res.json();
-    if(!json.result){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode not found.</div>';return;}
-    const{latitude:sLat,longitude:sLon}=json.result;
+    let sGeo=null;
+    try{sGeo=await _fcGeo(postcode);}
+    catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">⚠️ The postcode lookup service isn\'t responding right now.<div class="mt-2"><button class="btn-s" onclick="findClosest()"><i class="bi bi-arrow-clockwise me-1"></i>Try again</button> <button class="btn-s" onclick="showAllInstructors()"><i class="bi bi-list-ul me-1"></i>Show all instructors</button></div></div>';return;}
+    if(!sGeo){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode "'+esc(postcode)+'" not found — check it for typos (e.g. M19 2AB).<div class="mt-2"><button class="btn-s" onclick="showAllInstructors()"><i class="bi bi-list-ul me-1"></i>Show all instructors instead</button></div></div>';return;}
+    const sLat=sGeo.lat,sLon=sGeo.lon;
     const approved=allInstrs.filter(i=>i.status==='approved');
-    const pcLookups=approved.map(async i=>{
-      const pcMatch=(i.area||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}|[A-Z]{1,2}\d{1,2}[A-Z]?/i);
-      if(!pcMatch)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
-      try{
-        const pc=pcMatch[0].replace(/\s+/g,'');
-        const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`);
-        const j=await r.json();
-        if(!j.result)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
-        const{latitude:iLat,longitude:iLon}=j.result;
-        // Try OSRM for real road distance + drive time
-        let dist,mins;
-        try{
-          const osrm=await fetch(`https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${iLon},${iLat}?overview=false`);
-          const od=await osrm.json();
-          if(od.routes&&od.routes[0]){
-            dist=od.routes[0].distance/1609.34; // metres → miles
-            mins=Math.round(od.routes[0].duration/60); // seconds → minutes
-          } else { dist=haversine(sLat,sLon,iLat,iLon); mins=null; }
-        }catch{ dist=haversine(sLat,sLon,iLat,iLon); mins=null; }
-        return{instr:i,dist,mins,iLat,iLon,iPostcode:pc};
-      }catch{return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};}
-    });
-    const results=await Promise.all(pcLookups);
+    // 1) straight-line distance for everyone (cached lookups, run in parallel)
+    const results=await Promise.all(approved.map(async i=>{
+      const pc=_fcInstrPc(i);
+      if(!pc)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
+      try{const g=await _fcGeo(pc);if(!g)return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};
+        return{instr:i,dist:haversine(sLat,sLon,g.lat,g.lon),mins:null,iLat:g.lat,iLon:g.lon,iPostcode:pc.toUpperCase(),approx:!g.exact};}
+      catch(e){return{instr:i,dist:null,mins:null,iLat:null,iLon:null,iPostcode:null};}
+    }));
+    // 2) real road distance + drive time for the 10 nearest only (time-limited, falls back to straight line)
+    const _near=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist).slice(0,10);
+    await Promise.all(_near.map(async r=>{
+      try{const od=await (await fetch(`https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${r.iLon},${r.iLat}?overview=false`,{signal:_fcTimeout(3500)})).json();
+        if(od.routes&&od.routes[0]){r.dist=od.routes[0].distance/1609.34;r.mins=Math.round(od.routes[0].duration/60);}}catch(e){}
+    }));
     const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
+    if(!sGeo.exact)showToast('Only the area code was found — distances are approximate.','info',3500);
     const unknown=results.filter(r=>r.dist===null);
+    _fcCtxFor(studentName);
+    if(window._waitlistIdToAssign||window._pendingWbId||_reassignContext)window._fcCtxName=studentName.trim().toLowerCase();
     fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes};
 
     // Helper: does instructor car_type match student's requested lesson type?
@@ -8028,7 +8081,7 @@ async function findClosest(){
       <div style="font-size:.74rem;color:var(--txt3)">Student will be saved and you'll be alerted when an instructor becomes available in their area.</div></div>
       <button class="btn-p" onclick="addToWaitlist()" style="background:#fbbf24;color:#000;border-color:#fbbf24;white-space:nowrap;font-size:.82rem"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
     </div>`;
-    if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')}</div>`;}
+    if(unknown.length){html+=`<div style="font-size:.72rem;color:var(--txt4);margin-top:8px;padding:10px;background:var(--dk3);border:1px solid var(--bdr);border-radius:8px"><i class="bi bi-info-circle me-1"></i>No postcode on file for: ${unknown.map(r=>esc(r.instr.full_name)).join(', ')} — add a postcode (e.g. M19 2AB) to their Area or Address in Edit instructor so they appear in the ranking.</div>`;}
 
     // ── POSTCODE DISTRIBUTION CHART ──────────────────────────────────────────
     // Build: for each instructor in results, group their students by outward code
@@ -8323,6 +8376,7 @@ async function confirmAssign(){
   const instrName=document.getElementById('assign-instr-name').value;
   const s=fcStudentData||{};
   if(!instrId||!s.name){showToast('Missing student or instructor data.','error');return;}
+  _fcCtxFor(s.name);
   if(_reassignContext&&_reassignContext.fromProfile){
     const fp=_reassignContext.fromProfile;
     _reassignContext=null;
@@ -8477,29 +8531,7 @@ async function confirmAssign(){
   }
 
   // If this assignment came from a reassign flow, finalize: update request + notify old instructor
-  if(_reassignContext){
-    const{reqId,oldInstrId,name:rName,refId:_oldRefId}=_reassignContext;
-    _reassignContext=null;
-    if(_oldRefId){
-      const _old=(_refData||[]).find(x=>x.id===_oldRefId);
-      const _newName=(allInstrs.find(i=>i.id===instrId)||{}).full_name||'new instructor';
-      const _stamp='Reassigned to '+_newName+' on '+new Date().toLocaleDateString('en-GB');
-      const _upd={admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};
-      if(_old&&!_old.is_paid)_upd.is_cancelled=true;
-      sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{if(_old)Object.assign(_old,_upd);try{_buildUnpaidRefIndex();}catch(e){}}).catch(()=>{});
-    }
-    if(reqId){
-      sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId).catch(()=>{});
-    }
-    if(oldInstrId&&oldInstrId!==instrId){
-      sb.from('student_profiles').update({status:'inactive'}).eq('instructor_id',oldInstrId).ilike('name',rName).catch(()=>{});
-      const oldInstr=allInstrs.find(i=>i.id===oldInstrId);
-      if(oldInstr){
-        const _oldMsg=`Hi ${oldInstr.full_name},\n\nPlease be aware that ${rName} has been reassigned to a different instructor by the admin team. They will no longer appear in your active student list.\n\n— DriveSQ Admin`;
-        sb.from('admin_messages').insert([{instructor_id:oldInstrId,subject:'👤 Student Reassigned Away: '+rName,body:_oldMsg,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
-      }
-    }
-  }
+  _finishReassign(instrId);
 
   // 6. Offer WhatsApp to student
   if(s.phone){
@@ -8517,6 +8549,44 @@ async function confirmAssign(){
 
   resetFindForm(true);
 }
+
+// Finish a reassignment (from a declined request, a referral or a student) once the new instructor is chosen
+function _finishReassign(instrId){
+  if(!_reassignContext)return;
+  const{reqId,oldInstrId,name:rName,refId:_oldRefId}=_reassignContext;
+  _reassignContext=null;
+  if(_oldRefId){
+    const _old=(_refData||[]).find(x=>x.id===_oldRefId);
+    const _newName=(allInstrs.find(i=>i.id===instrId)||{}).full_name||'new instructor';
+    const _stamp='Reassigned to '+_newName+' on '+new Date().toLocaleDateString('en-GB');
+    const _upd={admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};
+    if(!_old||!_old.is_paid)_upd.is_cancelled=true;
+    sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{if(_old)Object.assign(_old,_upd);try{_buildUnpaidRefIndex();}catch(e){}}).catch(()=>{});
+  }
+  if(reqId)sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId).then(()=>{}).catch(()=>{});
+  if(oldInstrId&&oldInstrId!==instrId){
+    sb.from('student_profiles').update({status:'inactive'}).eq('instructor_id',oldInstrId).ilike('name',rName).then(()=>{}).catch(()=>{});
+    const oldInstr=allInstrs.find(i=>i.id===oldInstrId);
+    if(oldInstr){
+      const _oldMsg=`Hi ${oldInstr.full_name},\n\nPlease be aware that ${rName} has been reassigned to a different instructor by the admin team. They will no longer appear in your active student list.\n\n— DriveSQ Admin`;
+      sb.from('admin_messages').insert([{instructor_id:oldInstrId,subject:'👤 Student Reassigned Away: '+rName,body:_oldMsg,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]).then(()=>{}).catch(()=>{});
+      try{sendPushToInstructor(oldInstrId,oldInstr.full_name,'Student reassigned: '+rName,rName+' has moved to another instructor.','/dashboard.html');}catch(e){}
+    }
+  }
+}
+// Mark the waiting-list / website booking this customer came from as assigned
+async function _finishWaitlist(instrId,s){
+  const _wlId=window._waitlistIdToAssign||window._pendingWbId||null;
+  window._waitlistIdToAssign=null;window._pendingWbId=null;
+  if(!_wlId)return null;
+  try{await updateWaitlistStatus(_wlId,'assigned',instrId);}catch(e){try{await sb.from('waiting_list').update({status:'assigned'}).eq('id',_wlId);}catch(x){}}
+  try{
+    const _wlUpd={};if(s.addr)_wlUpd.area=s.addr;if(s.postcode)_wlUpd.postcode=s.postcode;
+    if(Object.keys(_wlUpd).length)await sb.from('waiting_list').update(_wlUpd).eq('id',_wlId);
+  }catch(e){}
+  try{loadWebBookingsBadge();}catch(e){}
+  return _wlId;
+}
 function resetFindForm(afterAssign){
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   if(afterAssign)try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
@@ -8526,6 +8596,7 @@ function resetFindForm(afterAssign){
     ?'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Student assigned successfully. Enter new details to assign another.</div>'
     :'<div style="padding:32px;text-align:center;font-size:.84rem;color:var(--txt4)">Enter student details and click Find to see nearby instructors ranked by distance.</div>';
   fcStudentData=null;
+  _fcClearCtx();
   if(afterAssign&&allStudentsCache.length)loadAllStudents();
 }
 
@@ -17346,6 +17417,7 @@ document.addEventListener('click',e=>{
 <script>
 /* New Customer shortcut: opens Find & Assign with the customer form ready (top bar button, quick actions, Alt+N) */
 function adminNewCustomer(){
+  try{ if(typeof resetFindForm==='function')resetFindForm(); }catch(e){}
   try{ switchTab('find'); }catch(e){}
   try{ if(typeof setActiveTab==='function') setActiveTab('find'); }catch(e){}
   window.scrollTo({top:0,behavior:'smooth'});
