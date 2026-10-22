@@ -81,7 +81,9 @@ a{color:var(--red);text-decoration:none}
 @media(max-width:1023px){
   .mob-tab-bar{display:block}
   .dsq-tabs{display:none}
-  #quickActionsBar{display:none!important}
+  #quickActionsBar:not(.hidden){display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 2px!important}
+  #quickActionsBar::-webkit-scrollbar{display:none}
+  #quickActionsBar .qa-btn{flex:0 0 auto;min-height:36px}
   .container-fluid.px-3{padding-bottom:70px!important}
 }
 .tab-badge{background:rgba(245,197,24,.15);color:var(--gold);border-radius:8px;padding:1px 5px;font-size:.6rem;font-family:'Inter',sans-serif;font-weight:700}
@@ -1536,6 +1538,9 @@ body.day-mode .dsqd-note{color:#92400e}
       <button class="qa-btn" onclick="adminNewCustomer()" style="background:#D10A11;border-color:#D10A11;color:#fff"><i class="bi bi-person-plus-fill me-1"></i>New Customer</button>
       <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
+      <button class="qa-btn" onclick="switchTab('referrals');setActiveTab('referrals')" style="border-color:rgba(245,197,24,.45);color:var(--gold)"><i class="bi bi-cash-coin me-1"></i>Referrals</button>
+      <button class="qa-btn" onclick="openReportsInbox()" style="border-color:rgba(245,158,11,.45);color:#f59e0b"><i class="bi bi-flag-fill me-1"></i>Reports <span id="qaReportsBadge" style="display:none;background:#f59e0b;color:#111;border-radius:8px;padding:0 6px;font-size:.62rem;margin-left:3px"></span></button>
+      <button class="qa-btn" onclick="switchTab('students');setActiveTab('students')"><i class="bi bi-people me-1"></i>Students</button>
       <button class="qa-btn" onclick="switchTab('find');setActiveTab('find')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>
       <button class="qa-btn" onclick="openGlobalSearch()"><i class="bi bi-search me-1"></i>Search</button>
       <button class="qa-btn" onclick="switchTab('messages');setActiveTab('messages')"><i class="bi bi-chat-dots-fill me-1"></i>Broadcast</button>
@@ -3892,6 +3897,8 @@ const ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
 // Instructor → admin report types (shown in the Inbox, pushed to admin devices)
 const INBOUND_REPORT_TYPES=['drop_request','cancel_drop_request','no_lesson_report','referral_report'];
 const REPORT_LABELS={drop_request:'🚪 Student Left Request',cancel_drop_request:'↩️ Drop Cancelled',no_lesson_report:'📅 No Lesson Booked',referral_report:'🚩 Instructor Report'}; // fixed UUID for admin push subscriptions
+// Franchise instructors run their own students — admin doesn't need notifications about them
+function _isFranchiseInstr(id){const i=(allInstrs||[]).find(x=>x.id===id);return !!(i&&i.instructor_model==='franchise');}
 let _adminSwReg=null;
 
 function _adminUrlB64ToUint8(b64){
@@ -4156,6 +4163,7 @@ function startAdminRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'student_profiles'},async(payload)=>{
       try{
         const name=payload?.new?.name||'New student';
+        if(_isFranchiseInstr(payload?.new?.instructor_id))return;
         pushToAdmin('👤 New Student Added',name+' has been added to the system.','/admin.html');
       }catch(e){}
     })
@@ -4194,6 +4202,7 @@ function startAdminRealtime(){
         if(!msg)return;
         // Only push to admin for inbound messages (from instructor), not our own sent messages
         if(!INBOUND_REPORT_TYPES.includes(msg.message_type))return;
+        if(_isFranchiseInstr(msg.instructor_id)){if(document.getElementById('panel-messages')&&!document.getElementById('panel-messages').classList.contains('hidden'))loadInbox();return;}
         const label=REPORT_LABELS[msg.message_type]||'📩 New Message';
         const subject=msg.subject||'No subject';
         const body=msg.body?msg.body.slice(0,120):subject;
@@ -4215,6 +4224,7 @@ function startAdminRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'lessons'},async(payload)=>{
       try{
         const l=payload?.new;if(!l)return;
+        if(_isFranchiseInstr(l.instructor_id))return;
         const sName=l.student_name||'A student';
         const instrObj=allInstrs.find(i=>i.id===l.instructor_id);
         const iName=instrObj?.full_name||'an instructor';
@@ -4225,6 +4235,7 @@ function startAdminRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'student_accounts'},async(payload)=>{
       try{
         const a=payload?.new;if(!a)return;
+        if(_isFranchiseInstr(a.instructor_id))return;
         const name=a.full_name||'A student';
         pushToAdmin('📱 Student Signed Up on App',`${name} just created an account on the DriveSQ app`,'/admin.html');
         showToast(`📱 New app signup: ${name}`,'success',4000);
@@ -7391,8 +7402,9 @@ async function loadInbox(){
 }
 
 function _updateInboxBadge(){
-  const pending=(_inboxCache||[]).filter(m=>m.message_type!=='cancel_drop_request'&&INBOUND_REPORT_TYPES.includes(m.message_type)&&!m.dismissed).length;
+  const pending=(_inboxCache||[]).filter(m=>m.message_type!=='cancel_drop_request'&&INBOUND_REPORT_TYPES.includes(m.message_type)&&!m.dismissed&&!_isFranchiseInstr(m.instructor_id)).length;
   _renderReportsAlert(pending);
+  const qb=document.getElementById('qaReportsBadge');if(qb){if(pending>0){qb.textContent=pending;qb.style.display='';}else qb.style.display='none';}
   const badge=document.getElementById('inboxBadge');
   if(!badge)return;
   if(pending>0){badge.textContent=pending;badge.style.display='';}
@@ -7518,11 +7530,13 @@ function openReportsInbox(){window._inboxFilter='open';switchTab('messages');try
 // Keep the badge/alert fresh even if realtime drops, and open the inbox from push notifications (#reports)
 async function _pollReports(){
   try{
-    const{count}=await sb.from('admin_messages').select('id',{count:'exact',head:true}).in('message_type',['drop_request','no_lesson_report','referral_report']).eq('dismissed',false);
+    const{data:_open}=await sb.from('admin_messages').select('id,instructor_id').in('message_type',['drop_request','no_lesson_report','referral_report']).eq('dismissed',false).limit(500);
+    const count=Array.isArray(_open)?_open.filter(m=>!_isFranchiseInstr(m.instructor_id)).length:null;
     if(typeof count==='number'){
       if(_reportsSeen&&count>_reportsSeen)showToast('🚩 New instructor report — check the Inbox','warn',8000);
       _reportsSeen=count;_renderReportsAlert(count);
       const badge=document.getElementById('inboxBadge');if(badge){if(count>0){badge.textContent=count;badge.style.display='';}else badge.style.display='none';}
+      const qb=document.getElementById('qaReportsBadge');if(qb){if(count>0){qb.textContent=count;qb.style.display='';}else qb.style.display='none';}
     }
   }catch(e){}
 }
@@ -16652,7 +16666,7 @@ document.addEventListener('click',e=>{
     }
     // quick actions: keep the everyday ones, tuck the rest under "More"
     var bar = document.getElementById("quickActionsBar"); if (!bar || bar.querySelector(".qa-more")) return;
-    var KEEP = /^(Add Student|Add Instructor|Find & Assign|Action Queue|Waiting List|Pending)$/i;
+    var KEEP = /^(New Customer|Add Student|Add Instructor|Find & Assign|Referrals|Reports\s*\d*|Students|Action Queue|Waiting List|Pending)$/i;
     var extra = [].slice.call(bar.querySelectorAll(":scope > button.qa-btn")).filter(function (b) { return !KEEP.test(b.textContent.trim()); });
     if (extra.length < 2) return;
     var wrap = document.createElement("div"); wrap.className = "qa-more";

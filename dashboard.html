@@ -2947,7 +2947,7 @@ async function sendAdminReport(type,subject,body,pushTitle){
   if(ins.error&&/select|returning|policy/i.test(ins.error.message||'')){ins=await sb.from('admin_messages').insert([row]);} // RLS may block reading back
   if(ins.error)return{error:ins.error};
   const id=ins.data?.id||('t'+Date.now());
-  try{
+  if(instr?.instructor_model!=='franchise')try{
     await fetch(PUSH_EDGE_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
       body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title:pushTitle||subject,body:(instr?.full_name||instr?.name||'An instructor')+' — '+String(body).split('\n').filter(Boolean).slice(0,3).join(' · ').slice(0,160),url:'/admin.html#reports',tag:'drivesq-report-'+id})});
   }catch(e){console.warn('admin push:',e.message);}

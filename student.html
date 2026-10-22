@@ -2526,9 +2526,9 @@ async function sendMessage(){
   // Notify instructor via push notification
   const _sName=currentStudent.name||'Your student';
   pushToInstructor(currentStudent.instructor_id,'💬 Message from '+_sName,msg,'/dashboard.html');
-  // Also notify admin
+  // Also notify admin — except for franchise instructors, who look after their own students
   const ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
-  pushToInstructor(ADMIN_PUSH_ID,'💬 Student message: '+_sName,_sName+' → Instructor: '+msg,'/admin.html');
+  if(typeof instrData==='undefined'||instrData?.instructor_model!=='franchise')pushToInstructor(ADMIN_PUSH_ID,'💬 Student message: '+_sName,_sName+' → Instructor: '+msg,'/admin.html');
   await loadMessages();
 }
 
