@@ -2936,6 +2936,80 @@ window.addEventListener('popstate',function(e){
 /* ══════════════════════════════
    REFERRALS TAB
 ══════════════════════════════ */
+/* ── Reports to admin: save in admin_messages AND push to the admin's devices straight away
+   (previously admin only heard about a report if admin.html happened to be open) ── */
+const ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
+const REPORT_TYPES=['drop_request','cancel_drop_request','no_lesson_report','referral_report'];
+let _myOpenReports=[]; // this instructor's reports admin hasn't actioned yet (cross-device)
+async function sendAdminReport(type,subject,body,pushTitle){
+  const row={instructor_id:instr?.id||null,subject,body,message_type:type,is_read:false,dismissed:false,created_at:new Date().toISOString()};
+  let ins=await sb.from('admin_messages').insert([row]).select('id').maybeSingle();
+  if(ins.error&&/select|returning|policy/i.test(ins.error.message||'')){ins=await sb.from('admin_messages').insert([row]);} // RLS may block reading back
+  if(ins.error)return{error:ins.error};
+  const id=ins.data?.id||('t'+Date.now());
+  try{
+    await fetch(PUSH_EDGE_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
+      body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title:pushTitle||subject,body:(instr?.full_name||instr?.name||'An instructor')+' — '+String(body).split('\n').filter(Boolean).slice(0,3).join(' · ').slice(0,160),url:'/admin.html#reports',tag:'drivesq-report-'+id})});
+  }catch(e){console.warn('admin push:',e.message);}
+  _myOpenReports.unshift({...row,id});
+  return{id};
+}
+async function loadMyOpenReports(){
+  if(!instr?.id)return;
+  try{
+    const{data}=await sb.from('admin_messages').select('id,subject,message_type,created_at,dismissed').eq('instructor_id',instr.id).in('message_type',REPORT_TYPES).eq('dismissed',false).order('created_at',{ascending:false}).limit(50);
+    _myOpenReports=data||[];
+  }catch(e){}
+}
+function _openReportFor(name){
+  const n=(name||'').toLowerCase().trim();if(!n)return null;
+  return _myOpenReports.find(m=>m.message_type!=='cancel_drop_request'&&(m.subject||'').toLowerCase().trim().endsWith(n))||null;
+}
+const REF_ISSUES=[
+  ['cant_contact','📵',"Can't contact the student",'No answer to calls or messages'],
+  ['wrong_details','📇','Wrong phone number or details','Number not in use, wrong person, wrong address'],
+  ['wants_switch','🔁','Wants automatic / manual instead','Student needs a different gearbox'],
+  ['different_instructor','👥','Needs a different instructor','Clash, preference or availability'],
+  ['too_far','📍','Too far / outside my area','Pick-up is outside where I teach'],
+  ['fee_query','💷','Question about the referral fee','Amount, payment or credit query'],
+  ['other','📝','Something else','Tell admin what happened']
+];
+function openRefReportModal(studentName,refId){
+  document.getElementById('refReportWrap')?.remove();
+  const ref=_refAllData.find(r=>r.id===refId)||{};
+  const w=document.createElement('div');w.id='refReportWrap';
+  w.innerHTML=`<div onclick="closeRefReportModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998"></div>
+  <div role="dialog" aria-modal="true" aria-labelledby="rrTitle" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;background:var(--card,#141414);border:1px solid var(--bdr,#2a2a2a);border-radius:16px;padding:18px;z-index:9999;box-shadow:0 24px 60px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h5 id="rrTitle" style="font-family:'Oswald',sans-serif;margin:0;font-size:1.05rem"><i class="bi bi-flag-fill me-2" style="color:#f59e0b"></i>Report an issue</h5><button onclick="closeRefReportModal()" aria-label="Close" style="background:none;border:none;color:var(--txt3);font-size:1.1rem;cursor:pointer">✕</button></div>
+    <div style="font-size:.8rem;color:var(--txt3);margin:4px 0 12px">Student: <b style="color:var(--txt1)">${esc(studentName)}</b>${parseFloat(ref.amount)>0?` · referral £${parseFloat(ref.amount).toFixed(0)}`:''}. Admin gets a notification straight away.</div>
+    <div id="rrOpts" style="display:grid;gap:6px">${REF_ISSUES.map(([k,e,t,d])=>`<label style="display:flex;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--bdr,#2a2a2a);border-radius:10px;cursor:pointer"><input type="radio" name="rrIssue" value="${k}" style="accent-color:#f59e0b"><span style="font-size:1.1rem">${e}</span><span><b style="font-size:.84rem">${t}</b><br><small style="color:var(--txt4)">${d}</small></span></label>`).join('')}</div>
+    <textarea id="rrNotes" rows="3" maxlength="600" placeholder="Details for admin — when you last tried, what the student said, what you need…" style="width:100%;margin-top:10px;background:var(--dk3,#1e1e1e);border:1px solid var(--bdr,#2a2a2a);border-radius:10px;color:var(--txt1,#eee);padding:9px 11px;font-size:.84rem"></textarea>
+    <div id="rrErr" style="color:#f87171;font-size:.78rem;min-height:1.2em;margin-top:4px"></div>
+    <button id="rrSend" onclick="submitRefReport('${jsEsc(studentName)}','${jsEsc(refId||'')}')" style="width:100%;margin-top:6px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#111;border-radius:10px;padding:11px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;cursor:pointer"><i class="bi bi-send-fill me-1"></i>Send to admin</button>
+  </div>`;
+  document.body.appendChild(w);
+}
+function closeRefReportModal(){document.getElementById('refReportWrap')?.remove();}
+async function submitRefReport(studentName,refId){
+  const pick=document.querySelector('input[name="rrIssue"]:checked');
+  const notes=(document.getElementById('rrNotes')?.value||'').trim();
+  const err=document.getElementById('rrErr');
+  if(!pick){err.textContent='Please choose what the issue is.';return;}
+  if(pick.value==='other'&&notes.length<5){err.textContent='Please add a few words about what happened.';return;}
+  const issue=REF_ISSUES.find(x=>x[0]===pick.value);
+  const ref=_refAllData.find(r=>r.id===refId)||{};
+  const p=rosterMap[(studentName||'').toLowerCase().trim()]||{};
+  const btn=document.getElementById('rrSend');btn.disabled=true;btn.textContent='Sending…';
+  const body=[`${instr?.full_name||instr?.name||'An instructor'} has reported an issue with a referred student.`,'',
+    `• Student: ${studentName}${p.phone?' ('+p.phone+')':''}`,`• Issue: ${issue[2]}`,...(notes?[`• Details: ${notes}`]:[]),
+    ...(parseFloat(ref.amount)>0?[`• Referral fee: £${parseFloat(ref.amount).toFixed(0)}${ref.is_paid?' (paid)':' (unpaid)'}`]:[]),
+    ...(ref.created_at?[`• Referred on: ${new Date(ref.created_at).toLocaleDateString('en-GB')}`]:[]),
+    `• Reported: ${new Date().toLocaleString('en-GB')}`,...(refId?[`[ref:${refId}]`]:[])].join('\n');
+  const r=await sendAdminReport('referral_report',`${issue[1]} ${issue[2]}: ${studentName}`,body,`🚩 Instructor report: ${issue[2]}`);
+  if(r.error){btn.disabled=false;btn.textContent='Send to admin';err.textContent='Could not send: '+r.error.message;return;}
+  closeRefReportModal();showToast('Sent — admin has been notified ✓','success');_renderRefTab();
+}
+
 let _refAllData=[],_refFilter='unpaid',_refRealtimeSub=null,_refPollTimer=null;
 
 function _startRefLiveUpdates(){
@@ -2960,6 +3034,7 @@ async function loadRefData(){
       .eq('instructor_id',instr.id).eq('is_cancelled',false)
       .order('created_at',{ascending:false});
     _refAllData=data||[];
+    await loadMyOpenReports();
     const unpaid=_refAllData.filter(r=>!r.is_paid&&!r.is_credit);
     const totalFee=unpaid.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
     // Update stat card
@@ -3105,6 +3180,7 @@ function _renderRefTab(){
             </span>
             ${hasNoLesson?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No lesson yet</span>`:''}
             ${showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\nNotes: '+dropReason.notes:''):'Awaiting admin confirmation'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin</span>`:''}
+            ${(()=>{const _or=_openReportFor(r.student_name);return _or&&!showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.3)" title="${esc(_or.subject||'')}"><i class="bi bi-flag-fill me-1"></i>Reported · awaiting admin</span>`:'';})()}
             ${noLessonAlerted&&!showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(99,102,241,.08);color:#818cf8;border:1px solid rgba(99,102,241,.2)"><i class="bi bi-bell-fill me-1"></i>Admin Notified</span>`:''}
           </div>
           ${r.notes&&r.notes_visible?`<div style="font-size:.68rem;color:var(--txt3);margin-top:6px;font-style:italic;line-height:1.4;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px;border-left:2px solid rgba(99,102,241,.3)">${r.notes}</div>`:''}
@@ -3113,6 +3189,7 @@ function _renderRefTab(){
           <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:${paid?'var(--txt3)':'#f87171'};font-variant-numeric:tabular-nums">${amt>0?`£${amt.toFixed(0)}`:'—'}</div>
           ${hasNoLesson&&!noLessonAlerted?`<button onclick="refNotifyNoLesson('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#fbbf24;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-bell me-1"></i>Notify</button>`:''}
           <button onclick="reassignStudent('${sn}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.1);color:#c084fc;cursor:pointer;white-space:nowrap;font-weight:600" title="Find closest instructor for this student"><i class="bi bi-person-up me-1"></i>Reassign</button>
+          <button onclick="openRefReportModal('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.1);color:#f59e0b;cursor:pointer;white-space:nowrap;font-weight:600" title="Tell admin about a problem with this student — admin is notified instantly"><i class="bi bi-flag-fill me-1"></i>Report issue</button>
           ${!paid?`<button onclick="refMarkStudentLeft('${sn}','${rid}')" style="font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid ${showPending?'rgba(239,68,68,.5)':'rgba(239,68,68,.3)'};background:${showPending?'rgba(239,68,68,.15)':'rgba(239,68,68,.07)'};color:#f87171;cursor:pointer;white-space:nowrap;font-weight:600"><i class="bi bi-person-x me-1"></i>${showPending?'Cancel':'Student Left'}</button>`:''}
         </div>
       </div>
@@ -3136,15 +3213,7 @@ async function refNotifyNoLesson(studentName, refId){
       'Please follow up or reassign if needed.',
     ];
     const body=bodyLines.join('\n').trim();
-    const{error}=await sb.from('admin_messages').insert([{
-      instructor_id:instr.id,
-      subject:`📅 No Lesson Booked: ${studentName}`,
-      body,
-      message_type:'general',
-      is_read:false,
-      dismissed:false,
-      created_at:new Date().toISOString(),
-    }]);
+    const{error}=await sendAdminReport('no_lesson_report',`📅 No Lesson Booked: ${studentName}`,body+(refId?`\n[ref:${refId}]`:''),'📅 No lesson booked yet');
     if(error){showToast('Could not notify admin: '+error.message,'error');return;}
     // Save flag to database so it persists across devices and logouts
     await sb.from('referrals').update({admin_notified:true}).eq('id',refId).catch(()=>{});
@@ -4755,13 +4824,13 @@ async function checkReminders(){
 /* ── NOTIFICATIONS ── */
 async function loadNotifications(){
   let data;try{const r=await sb.from('admin_messages').select('*').eq('instructor_id',instr.id).eq('dismissed',false).order('created_at',{ascending:false});data=r.data;}catch(e){console.warn('loadNotifications:',e);return;}
-  const msgs=data||[];const unread=msgs.filter(m=>!m.is_read);
+  const msgs=(data||[]).filter(m=>!REPORT_TYPES.includes(m.message_type));const unread=msgs.filter(m=>!m.is_read);
   document.getElementById('notifDot').classList.toggle('hidden',unread.length===0);
   const bc=document.getElementById('msgBanners');
   // Keep reschedule banners, clear admin message banners
   const existingBanners=bc.querySelectorAll('.msg-banner:not([id^="resch-banner"])');
   existingBanners.forEach(el=>el.remove());
-  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️'};
+  const icons={general:'📢',warning:'⚠️',franchise_fee:'💰',badge_request:'🪪',drop_request_approved:'✅',drop_request_kept:'ℹ️',report_resolved:'✅'};
   // When admin acts on a drop request, clear only the matching referral's pending flags
   // Use msgs (all undismissed) not unread — markRead() removes from unread but not msgs
   const decisionMsgs=msgs.filter(m=>m.message_type==='drop_request_approved'||m.message_type==='drop_request_kept');
@@ -5698,15 +5767,7 @@ async function submitDropModal(){
     '',
     'Please review and take appropriate action (confirm removal, process any outstanding referral fees, update records).'
   ];
-  const{error:msgErr}=await sb.from('admin_messages').insert([{
-    instructor_id:instr?.id||null,
-    subject:`⚠️ Student left: ${_dropModalStudentName}`,
-    body:bodyParts.join('\n').trim(),
-    message_type:'drop_request',
-    is_read:false,
-    dismissed:false,
-    created_at:new Date().toISOString()
-  }]);
+  const{error:msgErr}=await sendAdminReport('drop_request',`⚠️ Student left: ${_dropModalStudentName}`,bodyParts.join('\n').trim()+(_dropModalRefId?`\n[ref:${_dropModalRefId}]`:''),'🚪 Student left — please review');
   if(msgErr){
     console.warn('submitDropModal insert error:',msgErr.message);
     showToast('Failed to notify admin: '+msgErr.message,'error');
@@ -5755,15 +5816,7 @@ async function confirmCancelDrop(){
   }
   // Notify admin that the request was cancelled — so they don't act on the original
   const instrName=instr?.name||instr?.full_name||'The instructor';
-  await sb.from('admin_messages').insert([{
-    instructor_id:instr?.id||null,
-    subject:`↩ Drop Request Cancelled: ${_cancelDropStudentName}`,
-    body:`${instrName} has cancelled the drop request for "${_cancelDropStudentName}".\n\nThe student is back to active status — please disregard any earlier "Student left" notification for this student.`,
-    message_type:'cancel_drop_request',
-    is_read:false,
-    dismissed:false,
-    created_at:new Date().toISOString()
-  }]).catch(()=>{});
+  try{await sendAdminReport('cancel_drop_request',`↩ Drop Request Cancelled: ${_cancelDropStudentName}`,`${instrName} has cancelled the drop request for "${_cancelDropStudentName}".\n\nThe student is back to active status — please disregard any earlier "Student left" notification for this student.`,'↩️ Drop request cancelled');}catch(e){}
   closeCancelDropModal();
   showToast(`Drop request cancelled — ${_cancelDropStudentName} is back as active.`,'success');
   if(_cancelDropSource==='student'){
