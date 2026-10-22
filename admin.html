@@ -2248,6 +2248,55 @@ body.day-mode .dsqd-note{color:#92400e}
     </div>
   </div>
 
+  <!-- Quick actions (top) -->
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    <button class="qa-btn" onclick="openReportsInbox()" style="border-color:rgba(245,158,11,.45);color:#f59e0b"><i class="bi bi-flag-fill me-1"></i>Instructor reports <span id="refQaReports" style="display:none;background:#f59e0b;color:#111;border-radius:8px;padding:0 6px;font-size:.62rem;margin-left:3px"></span></button>
+    <button class="qa-btn" onclick="document.getElementById('refCreditSection')?.scrollIntoView({behavior:'smooth',block:'start'});if(document.getElementById('refCreditSection')?.style.display==='none')showToast('No replacement students owed right now.','info')" style="border-color:rgba(245,158,11,.35)"><i class="bi bi-arrow-repeat me-1"></i>Credits owed</button>
+    <button class="qa-btn" onclick="document.getElementById('refSort').value='due';document.getElementById('refSearch').value='';renderReferrals()"><i class="bi bi-exclamation-circle me-1"></i>Most owed first</button>
+    <button class="qa-btn" onclick="switchTab('find');try{setActiveTab('find')}catch(e){}"><i class="bi bi-geo-alt-fill me-1"></i>Find &amp; Assign</button>
+    <button class="qa-btn" onclick="document.getElementById('refSummaryBox').open=true;document.getElementById('refSummaryBox').scrollIntoView({behavior:'smooth'})"><i class="bi bi-bar-chart-fill me-1"></i>Totals</button>
+  </div>
+
+  <!-- Instructor list filter -->
+  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Period:</div>
+    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+      <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
+      <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
+      <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
+    </div>
+    <!-- legacy IDs kept for renderReferrals compatibility -->
+    <div style="display:none">
+      <span id="refTotalDue"></span><span id="refTotalPaid"></span>
+      <span id="refTotalCount"></span><span id="refInstrOwing"></span>
+    </div>
+  </div>
+
+  <!-- Search + sort + model filter -->
+  <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+    <div style="position:relative;flex:1;min-width:160px">
+      <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt4);font-size:.8rem;pointer-events:none"></i>
+      <input id="refSearch" class="dsq-inp" placeholder="Search instructor…" oninput="renderReferrals()" style="padding-left:28px;font-size:.82rem"/>
+    </div>
+    <select id="refSort" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
+      <option value="due">Most owed first</option>
+      <option value="name">Name A–Z</option>
+      <option value="count">Most referrals</option>
+      <option value="paid">Most paid</option>
+    </select>
+    <select id="refModelFilter" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
+      <option value="">All models</option>
+      <option value="referral">Referral only</option>
+      <option value="franchise">Franchise only</option>
+      <option value="unsure">Unsure only</option>
+    </select>
+  </div>
+
+  <!-- Instructor list -->
+  <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
+  <!-- Accounting totals (moved below the instructor list) -->
+  <details id="refSummaryBox" open style="margin-top:18px">
+    <summary style="cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;font-size:.95rem;color:var(--txt2);margin-bottom:10px"><i class="bi bi-bar-chart-fill me-2" style="color:var(--gold)"></i>Accounting totals — today, week, month, all time</summary>
   <!-- ═══ ACCOUNTING OVERVIEW — Today / Week / Month / All ═══ -->
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:18px">
 
@@ -2360,43 +2409,7 @@ body.day-mode .dsqd-note{color:#92400e}
     <div id="refCreditList" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>
 
-  <!-- Instructor list filter -->
-  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-    <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Period:</div>
-    <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
-      <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
-      <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
-      <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
-    </div>
-    <!-- legacy IDs kept for renderReferrals compatibility -->
-    <div style="display:none">
-      <span id="refTotalDue"></span><span id="refTotalPaid"></span>
-      <span id="refTotalCount"></span><span id="refInstrOwing"></span>
-    </div>
-  </div>
-
-  <!-- Search + sort + model filter -->
-  <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
-    <div style="position:relative;flex:1;min-width:160px">
-      <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt4);font-size:.8rem;pointer-events:none"></i>
-      <input id="refSearch" class="dsq-inp" placeholder="Search instructor…" oninput="renderReferrals()" style="padding-left:28px;font-size:.82rem"/>
-    </div>
-    <select id="refSort" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
-      <option value="due">Most owed first</option>
-      <option value="name">Name A–Z</option>
-      <option value="count">Most referrals</option>
-      <option value="paid">Most paid</option>
-    </select>
-    <select id="refModelFilter" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
-      <option value="">All models</option>
-      <option value="referral">Referral only</option>
-      <option value="franchise">Franchise only</option>
-      <option value="unsure">Unsure only</option>
-    </select>
-  </div>
-
-  <!-- Instructor list -->
-  <div id="refInstrList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </details>
 </div>
 
 <!-- ══ FINANCE CENTRE PANEL ══ -->
@@ -7404,7 +7417,7 @@ async function loadInbox(){
 function _updateInboxBadge(){
   const pending=(_inboxCache||[]).filter(m=>m.message_type!=='cancel_drop_request'&&INBOUND_REPORT_TYPES.includes(m.message_type)&&!m.dismissed&&!_isFranchiseInstr(m.instructor_id)).length;
   _renderReportsAlert(pending);
-  const qb=document.getElementById('qaReportsBadge');if(qb){if(pending>0){qb.textContent=pending;qb.style.display='';}else qb.style.display='none';}
+  ['qaReportsBadge','refQaReports'].forEach(id=>{const qb=document.getElementById(id);if(qb){if(pending>0){qb.textContent=pending;qb.style.display='';}else qb.style.display='none';}});
   const badge=document.getElementById('inboxBadge');
   if(!badge)return;
   if(pending>0){badge.textContent=pending;badge.style.display='';}
@@ -7536,7 +7549,7 @@ async function _pollReports(){
       if(_reportsSeen&&count>_reportsSeen)showToast('🚩 New instructor report — check the Inbox','warn',8000);
       _reportsSeen=count;_renderReportsAlert(count);
       const badge=document.getElementById('inboxBadge');if(badge){if(count>0){badge.textContent=count;badge.style.display='';}else badge.style.display='none';}
-      const qb=document.getElementById('qaReportsBadge');if(qb){if(count>0){qb.textContent=count;qb.style.display='';}else qb.style.display='none';}
+      ['qaReportsBadge','refQaReports'].forEach(id=>{const qb=document.getElementById(id);if(qb){if(count>0){qb.textContent=count;qb.style.display='';}else qb.style.display='none';}});
     }
   }catch(e){}
 }
