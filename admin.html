@@ -1535,6 +1535,7 @@ body.day-mode .dsqd-note{color:#92400e}
     </div>
     <!-- Quick Actions Bar -->
     <div id="quickActionsBar" class="hidden" style="border-top:1px solid var(--bdr);padding:6px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="qa-btn" onclick="openToday()" style="border-color:rgba(245,158,11,.5);color:#f59e0b"><i class="bi bi-sun-fill me-1"></i>Today <span id="qaTodayBadge" style="display:none;color:#fff;border-radius:8px;padding:0 6px;font-size:.62rem;margin-left:3px"></span></button>
       <button class="qa-btn" onclick="adminNewCustomer()" style="background:#D10A11;border-color:#D10A11;color:#fff"><i class="bi bi-person-plus-fill me-1"></i>New Customer</button>
       <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
@@ -1562,6 +1563,7 @@ body.day-mode .dsqd-note{color:#92400e}
 
   <!-- TABS -->
   <div class="dsq-tabs mb-3">
+    <button class="dsq-tab" id="tab-today" onclick="switchTab('today')" title="Today — everything that needs following up"><i class="bi bi-sun-fill"></i><span class="d-none d-sm-inline ms-1">Today</span> <span id="todayTabBadge" class="tab-badge" style="display:none"></span></button>
     <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')" title="Overview: stats, today's lessons, revenue and alerts at a glance"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
     <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')" title="View, manage, approve and message all instructors"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')" title="View all students across all instructors; click a student to see their full profile"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
@@ -1603,6 +1605,18 @@ body.day-mode .dsqd-note{color:#92400e}
   </div>
 
   <!-- == DASHBOARD == -->
+  <!-- ══ TODAY — follow-up centre ══ -->
+  <div id="panel-today" class="hidden">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+      <div class="page-title mb-0"><i class="bi bi-sun-fill me-2" style="color:#f59e0b"></i>Today — follow-ups</div>
+      <div class="d-flex gap-2"><button class="btn-s" style="font-size:.75rem" onclick="loadToday()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></div>
+    </div>
+    <p style="font-size:.78rem;color:var(--txt3);margin:0 0 6px">Everything that needs chasing, built from live bookings, students, lessons, referrals and reports — most urgent first. Tap a button to WhatsApp or call with a ready-written message, then snooze or mark done. Franchise instructors' students are left out.</p>
+    <div id="todayChips"></div>
+    <div id="todaySnoozed" style="font-size:.72rem;color:var(--txt4);margin:6px 0 10px"></div>
+    <div id="todayList"></div>
+  </div>
+
   <div id="panel-dashboard">
     <!-- HELP GUIDE -->
 <div id="adminHelpBanner" style="background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.22);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start">
@@ -16326,7 +16340,7 @@ document.addEventListener('click',e=>{
 
   /* ---------- organised sidebar, section header, recent & refresh ---------- */
   var GROUPS = [
-    ["Overview", ["dashboard", "analytics", "revenue", "scorecard", "activity"]],
+    ["Overview", ["today", "dashboard", "analytics", "revenue", "scorecard", "activity"]],
     ["Bookings & students", ["@bookings", "freehour", "waitlist", "find", "students", "followup", "requests", "transfers", "progress-overview"]],
     ["Instructors", ["instructors", "pending", "add", "availability", "coverage", "map", "infoview"]],
     ["Lessons & money", ["lessons", "calendar", "finance", "expenses", "referrals"]],
@@ -16679,7 +16693,7 @@ document.addEventListener('click',e=>{
     }
     // quick actions: keep the everyday ones, tuck the rest under "More"
     var bar = document.getElementById("quickActionsBar"); if (!bar || bar.querySelector(".qa-more")) return;
-    var KEEP = /^(New Customer|Add Student|Add Instructor|Find & Assign|Referrals|Reports\s*\d*|Students|Action Queue|Waiting List|Pending)$/i;
+    var KEEP = /^(Today\s*\d*|New Customer|Add Student|Add Instructor|Find & Assign|Referrals|Reports\s*\d*|Students|Action Queue|Waiting List|Pending)$/i;
     var extra = [].slice.call(bar.querySelectorAll(":scope > button.qa-btn")).filter(function (b) { return !KEEP.test(b.textContent.trim()); });
     if (extra.length < 2) return;
     var wrap = document.createElement("div"); wrap.className = "qa-more";
@@ -17339,5 +17353,133 @@ function adminNewCustomer(){
 }
 document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.metaKey&&(e.key==='n'||e.key==='N'||e.code==='KeyN')){ var mp=document.getElementById('mainPage'); if(mp&&!mp.classList.contains('hidden')){ e.preventDefault(); adminNewCustomer(); } } });
 </script>
+<!-- DSQT:TODAY START -->
+<style id="dsqt-css">
+.tdy-brief{background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(209,10,17,.06));border:1px solid rgba(245,158,11,.35);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.tdy-brief--ok{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3);font-size:.85rem}
+.tdy-brief__head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:'Oswald',sans-serif}
+.tdy-brief__chips,#todayChips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tdy-chip{border:1px solid var(--bdr2,#333);background:var(--dk2);color:var(--txt2);border-radius:99px;padding:6px 12px;font-size:.76rem;cursor:pointer;min-height:34px}
+.tdy-chip.on{background:var(--red,#D10A11);border-color:var(--red,#D10A11);color:#fff;font-weight:700}
+.tdy-item{display:flex;gap:12px;background:var(--card-bg,var(--dk2));border:1px solid var(--bdr);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;margin-bottom:8px;animation:tdyIn .3s ease both}
+.tdy-item.urgent{background:linear-gradient(90deg,rgba(209,10,17,.07),transparent 60%),var(--card-bg,var(--dk2))}
+@keyframes tdyIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tdy-ic{font-size:1.35rem;line-height:1;flex-shrink:0;margin-top:2px}
+.tdy-main{flex:1;min-width:0}
+.tdy-cat{font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:var(--c);font-weight:700}
+.tdy-cat b{color:#f87171}
+.tdy-title{font-family:'Oswald',sans-serif;font-size:.98rem;color:var(--txt);margin-top:1px;overflow-wrap:anywhere}
+.tdy-desc{font-size:.76rem;color:var(--txt3);margin-top:1px}
+.tdy-note{font-size:.74rem;color:var(--txt2);background:var(--dk3);border-radius:8px;padding:5px 9px;margin-top:6px}
+.tdy-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.tdy-acts .qa-btn{min-height:34px;display:inline-flex;align-items:center;text-decoration:none}
+.tdy-sp{flex:1}
+.tdy-done{border-color:rgba(74,222,128,.4)!important;color:#4ade80!important}
+.tdy-empty{text-align:center;padding:36px 12px;color:var(--txt4);font-size:.86rem}
+@media(max-width:600px){.tdy-sp{display:none}.tdy-item{padding:11px}}
+@media(prefers-reduced-motion:reduce){.tdy-item{animation:none}}
+</style>
+<script>
+/* ══ TODAY — follow-up centre: everything that needs chasing, built from live data, with one-tap actions ══ */
+(function(){
+  if(window.__dsqToday)return;window.__dsqToday=true;
+  function _I(){return typeof allInstrs!=='undefined'&&allInstrs?allInstrs:[];}
+  function _S(){return typeof allStudentsCache!=='undefined'&&allStudentsCache?allStudentsCache:[];}
+  var LS='dsq_today_state_v1', DAY=864e5;
+  function st(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return{};}}
+  function save(s){try{localStorage.setItem(LS,JSON.stringify(s));}catch(e){}}
+  function hidden(key){var s=st()[key];return s&&s.until&&s.until>Date.now();}
+  function note(key){var s=st()[key];return s&&s.note||'';}
+  function setState(key,patch){var s=st();s[key]=Object.assign({},s[key]||{},patch);save(s);}
+  function e(x){return typeof esc==='function'?esc(x):String(x||'').replace(/[&<>"']/g,function(c){return'&#'+c.charCodeAt(0)+';';});}
+  function wa(num,text){var n=typeof buildWaNum==='function'?buildWaNum(num||''):'';return n?'https://wa.me/'+n+'?text='+encodeURIComponent(text):'';}
+  function first(n){return String(n||'').trim().split(/\s+/)[0]||'there';}
+  function ago(d){if(!d)return'';var h=(Date.now()-new Date(d).getTime())/36e5;return h<1?Math.max(1,Math.round(h*60))+' min':h<48?Math.round(h)+' h':Math.round(h/24)+' days';}
+  function instrById(id){return _I().find(function(i){return i.id===id;})||{};}
+  function franchise(id){return instrById(id).instructor_model==='franchise';}
+  var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],nolesson:['⏳','Assigned, no lesson yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],quiet:['💤','Students gone quiet','#a78bfa'],ready:['🎓','Test-ready students','#4ade80'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
+  var _items=[],_filter='all';
+
+  async function build(){
+    var items=[],now=Date.now();
+    try{if(!_S().length&&typeof loadAllStudents==='function')await loadAllStudents();}catch(x){}
+    var studs=_S();
+    // 1. website bookings not yet assigned
+    try{var r=await sb.from('waiting_list').select('id,student_name,student_phone,postcode,lesson_type,created_at,notes,status').eq('status','waiting').order('created_at',{ascending:true}).limit(100);
+      (r.data||[]).forEach(function(b){var age=(now-new Date(b.created_at))/36e5;items.push({key:'booking:'+b.id,cat:'booking',pri:age>24?0:1,title:(b.student_name||'New learner')+(b.postcode?' · '+b.postcode:''),
+        desc:(b.lesson_type||'')+' · waiting '+ago(b.created_at)+(/\[WEB\]/.test(b.notes||'')?' · website':''),urgent:age>24,
+        acts:[['Assign','openTodayBooking',b.id],wa(b.student_phone,'Hi '+first(b.student_name)+', thanks for booking with DriveSQ! 🚗 We\'re matching you with an instructor near '+(b.postcode||'you')+' and will be in touch very shortly.')?['WhatsApp learner','url',wa(b.student_phone,'Hi '+first(b.student_name)+', thanks for booking with DriveSQ! 🚗 We\'re matching you with an instructor near '+(b.postcode||'you')+' and will be in touch very shortly.')]:null,b.student_phone?['Call','url','tel:'+b.student_phone]:null]});});
+    }catch(x){}
+    // 2. open instructor reports
+    try{var m=await sb.from('admin_messages').select('id,instructor_id,subject,message_type,created_at').in('message_type',['drop_request','no_lesson_report','referral_report']).eq('dismissed',false).limit(100);
+      (m.data||[]).filter(function(x){return!franchise(x.instructor_id);}).forEach(function(x){items.push({key:'report:'+x.id,cat:'report',pri:0,title:x.subject||'Report',desc:(instrById(x.instructor_id).full_name||'Instructor')+' · '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>DAY,acts:[['Open report','openReportsInbox']]});});
+    }catch(x){}
+    // 3. referrals: fees to chase, credits owed
+    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
+    var owe={};refs.filter(function(x){return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
+    Object.keys(owe).forEach(function(id){var o=owe[id],i=instrById(id),msg='Hi '+first(i.full_name)+', hope you\'re well! Just a reminder that £'+o.amt.toFixed(0)+' in referral fees ('+o.n+' student'+(o.n>1?'s':'')+') is outstanding. Could you send it over when you get a chance? Thanks — DriveSQ';
+      items.push({key:'fee:'+id+':'+o.n,cat:'fee',pri:2,title:(i.full_name||'Instructor')+' owes £'+o.amt.toFixed(0),desc:o.n+' unpaid referral'+(o.n>1?'s':'')+' · oldest '+ago(o.oldest),urgent:(now-new Date(o.oldest))>30*DAY,
+        acts:[wa(i.phone,msg)?['WhatsApp reminder','url',wa(i.phone,msg)]:null,['Referrals','tab','referrals']]});});
+    refs.filter(function(x){return x.is_credit&&!x.credit_fulfilled;}).forEach(function(x){var i=instrById(x.instructor_id);items.push({key:'credit:'+x.id,cat:'credit',pri:1,title:(i.full_name||'Instructor')+' is owed a replacement',desc:'For '+(x.student_name||'a student')+' who left · '+ago(x.created_at)+' ago',acts:[['Find a student','tab','find']]});});
+    // 4. students: assigned but no lesson; gone quiet; test ready
+    studs.forEach(function(s){
+      if(!s.instrId||franchise(s.instrId))return;var i=instrById(s.instrId);
+      var left=/inactive|drop_pending|deleted/.test((s.acctStatus||'')+(s.status||''));if(left)return;
+      if(!s.count&&s.assignedAt&&(now-new Date(s.assignedAt))>5*DAY){var mi='Hi '+first(i.full_name)+', quick one — have you been able to book a first lesson with '+s.name+' yet? Let me know if you can\'t reach them. Thanks!',ms='Hi '+first(s.name)+', it\'s DriveSQ 👋 Just checking — has '+first(i.full_name)+' been in touch to book your first lesson? Reply here if you need anything.';
+        items.push({key:'nolesson:'+(s.acctId||s.rosterId||s.name)+':'+s.instrId,cat:'nolesson',pri:1,title:s.name+' — no lesson yet',desc:'With '+(i.full_name||s.instrName||'instructor')+' for '+ago(s.assignedAt),urgent:(now-new Date(s.assignedAt))>14*DAY,
+          acts:[wa(i.phone,mi)?['Ask instructor','url',wa(i.phone,mi)]:null,wa(s.phone,ms)?['Ask student','url',wa(s.phone,ms)]:null]});}
+      else if(s.lastLesson&&s.lastLesson<new Date(now-21*DAY).toISOString().slice(0,10)&&s.lastLesson>new Date(now-120*DAY).toISOString().slice(0,10)){var mq='Hi '+first(s.name)+', it\'s DriveSQ 👋 We noticed you haven\'t had a lesson for a while — would you like us to help you book your next one with '+first(i.full_name||s.instrName)+'?';
+        items.push({key:'quiet:'+(s.acctId||s.rosterId||s.name)+':'+s.lastLesson,cat:'quiet',pri:3,title:s.name+' — no lesson for '+ago(s.lastLesson),desc:'Last lesson '+s.lastLesson+' · '+(i.full_name||s.instrName||''),acts:[wa(s.phone,mq)?['Check in','url',wa(s.phone,mq)]:null,wa(i.phone,'Hi '+first(i.full_name)+', is '+s.name+' still having lessons with you?')?['Ask instructor','url',wa(i.phone,'Hi '+first(i.full_name)+', is '+s.name+' still having lessons with you?')]:null]});}
+      if(s.testReadiness==='ready'){var mr='Hi '+first(s.name)+'! 🎉 Your instructor says you\'re test-ready. Have you booked your practical test yet? Book at https://www.gov.uk/book-driving-test — and tell us the date so we can plan a mock test.';
+        items.push({key:'ready:'+(s.acctId||s.name),cat:'ready',pri:3,title:s.name+' is test-ready',desc:'Instructor: '+(i.full_name||s.instrName||''),acts:[wa(s.phone,mr)?['Nudge to book test','url',wa(s.phone,mr)]:null]});}
+    });
+    // 5. instructors with no new student for 14+ days
+    _I().filter(function(i){return i.status==='approved'&&i.instructor_model!=='franchise';}).forEach(function(i){
+      var last=null;studs.forEach(function(s){if(s.instrId===i.id&&s.assignedAt&&(!last||s.assignedAt>last))last=s.assignedAt;});
+      if(!last||(now-new Date(last))>14*DAY)items.push({key:'idle:'+i.id+':'+(last||'none'),cat:'idle',pri:4,title:i.full_name+' — no new student '+(last?'for '+ago(last):'yet'),desc:(i.area||'')+(i.car_type?' · '+i.car_type:''),acts:[['Find a student','tab','find'],wa(i.phone,'Hi '+first(i.full_name)+', how is your availability for new learners this week?')?['Ask availability','url',wa(i.phone,'Hi '+first(i.full_name)+', how is your availability for new learners this week?')]:null]});});
+    items.forEach(function(it){it.acts=(it.acts||[]).filter(Boolean);});
+    items.sort(function(a,b){return(b.urgent?1:0)-(a.urgent?1:0)||a.pri-b.pri;});
+    _items=items;return items;
+  }
+  function visible(){return _items.filter(function(it){return!hidden(it.key);});}
+  function counts(){var c={};visible().forEach(function(it){c[it.cat]=(c[it.cat]||0)+1;});return c;}
+  function badge(){var n=visible().length,u=visible().filter(function(x){return x.urgent;}).length;['todayTabBadge','qaTodayBadge'].forEach(function(id){var b=document.getElementById(id);if(b){b.textContent=n;b.style.display=n?'':'none';b.style.background=u?'#D10A11':'#f59e0b';}});briefing();}
+  function briefing(){
+    var host=document.getElementById('panel-dashboard');if(!host)return;var el=document.getElementById('todayBriefing');
+    var c=counts(),n=visible().length;if(!el){el=document.createElement('div');el.id='todayBriefing';host.insertBefore(el,host.firstChild);}
+    if(!n){el.innerHTML='<div class="tdy-brief tdy-brief--ok">✅ <b>All caught up.</b> Nothing needs chasing right now.</div>';return;}
+    el.innerHTML='<div class="tdy-brief"><div class="tdy-brief__head"><span>☀️ <b>Today: '+n+' thing'+(n>1?'s':'')+' to follow up</b></span><button class="btn-p" onclick="openToday()" style="font-size:.78rem;padding:6px 12px"><i class="bi bi-play-fill me-1"></i>Start</button></div><div class="tdy-brief__chips">'+
+      Object.keys(CATS).filter(function(k){return c[k];}).map(function(k){return'<button class="tdy-chip" onclick="openToday(\''+k+'\')">'+CATS[k][0]+' '+c[k]+' '+CATS[k][1].toLowerCase()+'</button>';}).join('')+'</div></div>';
+  }
+  function render(){
+    var el=document.getElementById('todayList');if(!el)return;var vis=visible(),c=counts();
+    var chips='<button class="tdy-chip'+(_filter==='all'?' on':'')+'" onclick="todayFilter(\'all\')">All '+vis.length+'</button>'+Object.keys(CATS).filter(function(k){return c[k];}).map(function(k){return'<button class="tdy-chip'+(_filter===k?' on':'')+'" onclick="todayFilter(\''+k+'\')">'+CATS[k][0]+' '+CATS[k][1]+' '+c[k]+'</button>';}).join('');
+    document.getElementById('todayChips').innerHTML=chips;
+    var list=vis.filter(function(it){return _filter==='all'||it.cat===_filter;});
+    var snoozed=_items.length-vis.length;document.getElementById('todaySnoozed').innerHTML=snoozed?snoozed+' snoozed or done · <a href="#" onclick="todayReset();return false">show again</a>':'';
+    if(!list.length){el.innerHTML='<div class="tdy-empty">🎉 Nothing to follow up here. Nice work!</div>';return;}
+    el.innerHTML=list.map(function(it,ix){var cat=CATS[it.cat],n=note(it.key);
+      return'<div class="tdy-item'+(it.urgent?' urgent':'')+'" style="--c:'+cat[2]+'"><div class="tdy-ic">'+cat[0]+'</div><div class="tdy-main"><div class="tdy-cat">'+cat[1]+(it.urgent?' · <b>overdue</b>':'')+'</div><div class="tdy-title">'+e(it.title)+'</div><div class="tdy-desc">'+e(it.desc)+'</div>'+(n?'<div class="tdy-note">📝 '+e(n)+'</div>':'')+
+      '<div class="tdy-acts">'+it.acts.map(function(a){return a[1]==='url'?'<a class="qa-btn" href="'+e(a[2])+'" target="_blank" rel="noopener" onclick="todayTouched(\''+it.key+'\')">'+(a[2].indexOf('tel:')===0?'<i class="bi bi-telephone-fill me-1"></i>':'<i class="bi bi-whatsapp me-1"></i>')+e(a[0])+'</a>':a[1]==='tab'?'<button class="qa-btn" onclick="switchTab(\''+a[2]+'\')">'+e(a[0])+'</button>':'<button class="qa-btn" onclick="'+a[1]+'('+(a[2]?'\''+a[2]+'\'':'')+')">'+e(a[0])+'</button>';}).join('')+
+      '<span class="tdy-sp"></span><button class="qa-btn" title="Add a note" onclick="todayNote(\''+it.key+'\')"><i class="bi bi-pencil"></i></button><button class="qa-btn" onclick="todaySnooze(\''+it.key+'\',1)">Tomorrow</button><button class="qa-btn" onclick="todaySnooze(\''+it.key+'\',3)">3 days</button><button class="qa-btn tdy-done" onclick="todaySnooze(\''+it.key+'\',30,true)"><i class="bi bi-check-lg me-1"></i>Done</button></div></div></div>';}).join('');
+  }
+  window.todayFilter=function(k){_filter=k;render();};
+  window.todaySnooze=function(key,days,done){setState(key,{until:Date.now()+days*DAY,done:!!done});render();badge();if(typeof showToast==='function')showToast(done?'Marked done ✓':'Snoozed for '+days+' day'+(days>1?'s':''),'success',1800);};
+  window.todayNote=function(key){var v=prompt('Note for this follow-up (only on this device):',note(key));if(v===null)return;setState(key,{note:v.trim()});render();};
+  window.todayTouched=function(key){setState(key,{touched:Date.now()});};
+  window.todayReset=function(){var s=st();Object.keys(s).forEach(function(k){delete s[k].until;});save(s);render();badge();};
+  window.openTodayBooking=function(id){try{if(typeof openWebBookingsPanel==='function'){openWebBookingsPanel();return;}}catch(x){}switchTab('find');};
+  window.openToday=function(cat){_filter=cat||'all';switchTab('today');};
+  window.loadToday=async function(){var el=document.getElementById('todayList');if(el)el.innerHTML='<div class="tdy-empty"><i class="bi bi-hourglass-split me-2"></i>Building your follow-up list…</div>';await build();render();badge();};
+  // hook switchTab
+  if(typeof TABS!=='undefined'&&TABS.indexOf('today')<0)TABS.push('today');
+  var orig=window.switchTab;if(typeof orig==='function'&&!orig.__today){var w=function(t){var r=orig.apply(this,arguments);if(t==='today')window.loadToday();return r;};Object.keys(orig).forEach(function(k){w[k]=orig[k];});w.__today=true;window.switchTab=w;}
+  // first build once the admin is in, then every 5 minutes
+  var t=setInterval(function(){var mp=document.getElementById('mainPage');if(mp&&!mp.classList.contains('hidden')&&_I().length){clearInterval(t);setTimeout(function(){build().then(function(){badge();if(location.hash==='#today')openToday();});},1500);}},1000);
+  setInterval(function(){var mp=document.getElementById('mainPage');if(mp&&!mp.classList.contains('hidden'))build().then(function(){badge();if(!document.getElementById('panel-today')?.classList.contains('hidden'))render();});},300000);
+})();
+
+</script>
+<!-- DSQT:TODAY END -->
 </body>
 </html>
