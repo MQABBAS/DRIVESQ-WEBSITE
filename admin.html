@@ -1611,7 +1611,7 @@ body.day-mode .dsqd-note{color:#92400e}
       <div class="page-title mb-0"><i class="bi bi-sun-fill me-2" style="color:#f59e0b"></i>Today — follow-ups</div>
       <div class="d-flex gap-2"><button class="btn-s" style="font-size:.75rem" onclick="loadToday()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button></div>
     </div>
-    <p style="font-size:.78rem;color:var(--txt3);margin:0 0 6px">Everything that needs chasing, built from live bookings, students, lessons, referrals and reports — most urgent first. Tap a button to WhatsApp or call with a ready-written message, then snooze or mark done. Franchise instructors' students are left out.</p>
+    <p style="font-size:.78rem;color:var(--txt3);margin:0 0 6px">Everything that needs chasing, built from live bookings, referrals and instructor reports (student follow-ups come from referrals only, not portal lessons) — most urgent first. Tap a button to WhatsApp or call with a ready-written message, then snooze or mark done. Franchise instructors' students are left out.</p>
     <div id="todayChips"></div>
     <div id="todaySnoozed" style="font-size:.72rem;color:var(--txt4);margin:6px 0 10px"></div>
     <div id="todayList"></div>
@@ -17473,14 +17473,12 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   function ago(d){if(!d)return'';var h=(Date.now()-new Date(d).getTime())/36e5;return h<1?Math.max(1,Math.round(h*60))+' min':h<48?Math.round(h)+' h':Math.round(h/24)+' days';}
   function instrById(id){return _I().find(function(i){return i.id===id;})||{};}
   function franchise(id){return instrById(id).instructor_model==='franchise';}
-  var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],nolesson:['⏳','Assigned, no lesson yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],quiet:['💤','Students gone quiet','#a78bfa'],ready:['🎓','Test-ready students','#4ade80'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
+  var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],nolesson:['⏳','Referred, not booked yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
   var _items=[],_filter='all';
 
   async function build(){
     await pull();
     var items=[],now=Date.now();
-    try{if(!_S().length&&typeof loadAllStudents==='function')await loadAllStudents();}catch(x){}
-    var studs=_S();
     // 1. website bookings not yet assigned
     try{var r=await sb.from('waiting_list').select('id,student_name,student_phone,postcode,lesson_type,created_at,notes,status').eq('status','waiting').order('created_at',{ascending:true}).limit(100);
       (r.data||[]).forEach(function(b){var age=(now-new Date(b.created_at))/36e5;items.push({key:'booking:'+b.id,cat:'booking',pri:age>24?0:1,title:(b.student_name||'New learner')+(b.postcode?' · '+b.postcode:''),
@@ -17498,21 +17496,15 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       items.push({key:'fee:'+id+':'+o.n,cat:'fee',pri:2,title:(i.full_name||'Instructor')+' owes £'+o.amt.toFixed(0),desc:o.n+' unpaid referral'+(o.n>1?'s':'')+' · oldest '+ago(o.oldest),urgent:(now-new Date(o.oldest))>30*DAY,
         acts:[wa(i.phone,msg)?['WhatsApp reminder','url',wa(i.phone,msg)]:null,['Referrals','tab','referrals']]});});
     refs.filter(function(x){return x.is_credit&&!x.credit_fulfilled;}).forEach(function(x){var i=instrById(x.instructor_id);items.push({key:'credit:'+x.id,cat:'credit',pri:1,title:(i.full_name||'Instructor')+' is owed a replacement',desc:'For '+(x.student_name||'a student')+' who left · '+ago(x.created_at)+' ago',acts:[['Find a student','tab','find']]});});
-    // 4. students: assigned but no lesson; gone quiet; test ready
-    studs.forEach(function(s){
-      if(!s.instrId||franchise(s.instrId))return;var i=instrById(s.instrId);
-      var left=/inactive|drop_pending|deleted/.test((s.acctStatus||'')+(s.status||''));if(left)return;
-      if(!s.count&&s.assignedAt&&(now-new Date(s.assignedAt))>5*DAY){var mi='Hi '+first(i.full_name)+', quick one — have you been able to book a first lesson with '+s.name+' yet? Let me know if you can\'t reach them. Thanks!',ms='Hi '+first(s.name)+', it\'s DriveSQ 👋 Just checking — has '+first(i.full_name)+' been in touch to book your first lesson? Reply here if you need anything.';
-        items.push({key:'nolesson:'+(s.acctId||s.rosterId||s.name)+':'+s.instrId,cat:'nolesson',pri:1,title:s.name+' — no lesson yet',desc:'With '+(i.full_name||s.instrName||'instructor')+' for '+ago(s.assignedAt),urgent:(now-new Date(s.assignedAt))>14*DAY,
-          acts:[wa(i.phone,mi)?['Ask instructor','url',wa(i.phone,mi)]:null,wa(s.phone,ms)?['Ask student','url',wa(s.phone,ms)]:null]});}
-      else if(s.lastLesson&&s.lastLesson<new Date(now-21*DAY).toISOString().slice(0,10)&&s.lastLesson>new Date(now-120*DAY).toISOString().slice(0,10)){var mq='Hi '+first(s.name)+', it\'s DriveSQ 👋 We noticed you haven\'t had a lesson for a while — would you like us to help you book your next one with '+first(i.full_name||s.instrName)+'?';
-        items.push({key:'quiet:'+(s.acctId||s.rosterId||s.name)+':'+s.lastLesson,cat:'quiet',pri:3,title:s.name+' — no lesson for '+ago(s.lastLesson),desc:'Last lesson '+s.lastLesson+' · '+(i.full_name||s.instrName||''),acts:[wa(s.phone,mq)?['Check in','url',wa(s.phone,mq)]:null,wa(i.phone,'Hi '+first(i.full_name)+', is '+s.name+' still having lessons with you?')?['Ask instructor','url',wa(i.phone,'Hi '+first(i.full_name)+', is '+s.name+' still having lessons with you?')]:null]});}
-      if(s.testReadiness==='ready'){var mr='Hi '+first(s.name)+'! 🎉 Your instructor says you\'re test-ready. Have you booked your practical test yet? Book at https://www.gov.uk/book-driving-test — and tell us the date so we can plan a mock test.';
-        items.push({key:'ready:'+(s.acctId||s.name),cat:'ready',pri:3,title:s.name+' is test-ready',desc:'Instructor: '+(i.full_name||s.instrName||''),acts:[wa(s.phone,mr)?['Nudge to book test','url',wa(s.phone,mr)]:null]});}
-    });
-    // 5. instructors with no new student for 14+ days
+    // 4. referral students not booked yet — from referrals only (not portal lessons, as not every instructor uses the portal)
+    var lastRef={};refs.forEach(function(x){if(!x.is_cancelled&&!x.is_credit&&(!lastRef[x.instructor_id]||x.created_at>lastRef[x.instructor_id]))lastRef[x.instructor_id]=x.created_at;});
+    refs.filter(function(x){var age=now-new Date(x.created_at);return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&age>3*DAY&&age<=14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){
+      var i=instrById(x.instructor_id),nm=x.student_name||'the student',mi='Hi '+first(i.full_name)+', quick one — have you been able to book a first lesson with '+nm+' yet? Let me know if you can\'t reach them. Thanks!',ms='Hi '+first(nm)+', it\'s DriveSQ 👋 Just checking — has '+first(i.full_name)+' been in touch to book your first lesson? Reply here if you need anything.';
+      items.push({key:'nolesson:ref:'+x.id,cat:'nolesson',pri:1,title:nm+' — not booked yet',desc:'Referred to '+(i.full_name||'instructor')+' '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>7*DAY,
+        acts:[wa(i.phone,mi)?['Ask instructor','url',wa(i.phone,mi)]:null,wa(x.student_phone,ms)?['Ask student','url',wa(x.student_phone,ms)]:null,x.student_phone?['Call','url','tel:'+x.student_phone]:null,['Referrals','tab','referrals']]});});
+    // 5. instructors with no new referral for 14+ days
     _I().filter(function(i){return i.status==='approved'&&i.instructor_model!=='franchise';}).forEach(function(i){
-      var last=null;studs.forEach(function(s){if(s.instrId===i.id&&s.assignedAt&&(!last||s.assignedAt>last))last=s.assignedAt;});
+      var last=lastRef[i.id]||null;
       if(!last||(now-new Date(last))>14*DAY)items.push({key:'idle:'+i.id+':'+(last||'none'),cat:'idle',pri:4,title:i.full_name+' — no new student '+(last?'for '+ago(last):'yet'),desc:(i.area||'')+(i.car_type?' · '+i.car_type:''),acts:[['Find a student','tab','find'],wa(i.phone,'Hi '+first(i.full_name)+', how is your availability for new learners this week?')?['Ask availability','url',wa(i.phone,'Hi '+first(i.full_name)+', how is your availability for new learners this week?')]:null]});});
     items.forEach(function(it){it.acts=(it.acts||[]).filter(Boolean);});
     items.sort(function(a,b){return(b.urgent?1:0)-(a.urgent?1:0)||a.pri-b.pri;});
