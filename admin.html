@@ -1475,6 +1475,7 @@ body.day-mode .dsqd-note{color:#92400e}
   .modal-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 }
 </style>
+<link rel="stylesheet" href="admin-growth.css?v=20261023a">
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -1540,6 +1541,7 @@ body.day-mode .dsqd-note{color:#92400e}
       <button class="qa-btn" onclick="switchTab('students');setActiveTab('students');setTimeout(()=>openCreateStudentModal(),300)"><i class="bi bi-person-plus-fill me-1"></i>Add Student</button>
       <button class="qa-btn" onclick="switchTab('add');setActiveTab('add')"><i class="bi bi-person-plus me-1"></i>Add Instructor</button>
       <button class="qa-btn" onclick="switchTab('referrals');setActiveTab('referrals')" style="border-color:rgba(245,197,24,.45);color:var(--gold)"><i class="bi bi-cash-coin me-1"></i>Referrals</button>
+      <button class="qa-btn" onclick="switchTab('growth');setActiveTab('growth')" style="border-color:rgba(34,197,94,.45);color:#4ade80"><i class="bi bi-rocket-takeoff-fill me-1"></i>Growth</button>
       <button class="qa-btn" onclick="openReportsInbox()" style="border-color:rgba(245,158,11,.45);color:#f59e0b"><i class="bi bi-flag-fill me-1"></i>Reports <span id="qaReportsBadge" style="display:none;background:#f59e0b;color:#111;border-radius:8px;padding:0 6px;font-size:.62rem;margin-left:3px"></span></button>
       <button class="qa-btn" onclick="switchTab('students');setActiveTab('students')"><i class="bi bi-people me-1"></i>Students</button>
       <button class="qa-btn" onclick="switchTab('find');setActiveTab('find')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign</button>
@@ -1564,6 +1566,7 @@ body.day-mode .dsqd-note{color:#92400e}
   <!-- TABS -->
   <div class="dsq-tabs mb-3">
     <button class="dsq-tab" id="tab-today" onclick="switchTab('today')" title="Today — everything that needs following up"><i class="bi bi-sun-fill"></i><span class="d-none d-sm-inline ms-1">Today</span> <span id="todayTabBadge" class="tab-badge" style="display:none"></span></button>
+    <button class="dsq-tab" id="tab-growth" onclick="switchTab('growth')" title="Growth — auto-chase instructors, best leads first, instructor league, profit by source"><i class="bi bi-rocket-takeoff-fill"></i><span class="d-none d-sm-inline ms-1">Growth</span><span id="gxTabBadge" class="tab-badge" style="display:none;margin-left:5px;background:#D10A11;color:#fff;border-radius:99px;padding:0 6px;font-size:.62rem;font-weight:700"></span></button>
     <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')" title="Overview: stats, today's lessons, revenue and alerts at a glance"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
     <button class="dsq-tab" id="tab-instructors" onclick="switchTab('instructors')" title="View, manage, approve and message all instructors"><i class="bi bi-people-fill"></i><span class="d-none d-sm-inline ms-1">Instructors</span></button>
     <button class="dsq-tab" id="tab-students" onclick="switchTab('students')" title="View all students across all instructors; click a student to see their full profile"><i class="bi bi-people"></i><span class="d-none d-sm-inline ms-1">Students</span></button>
@@ -4403,7 +4406,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','instructors','students','find','map','referrals','finance','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['dashboard','growth','instructors','students','find','map','referrals','finance','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -13625,6 +13628,7 @@ function renderTheoryList(rows){
   <div class="mob-more-group">
     <div class="mob-more-label">Lessons & Finance</div>
     <div class="mob-more-grid">
+      <button class="mob-more-btn" id="mmore-growth" onclick="switchTab('growth');_mobSetActive('growth');_mobCloseMore()"><i class="bi bi-rocket-takeoff-fill"></i>Growth</button>
       <button class="mob-more-btn" id="mmore-referrals" onclick="switchTab('referrals');_mobSetActive('referrals');_mobCloseMore()"><i class="bi bi-cash-coin"></i>Referrals</button>
       <button class="mob-more-btn" id="mmore-finance" onclick="switchTab('finance');_mobSetActive('finance');_mobCloseMore()"><i class="bi bi-bank2"></i>Finance</button>
       <button class="mob-more-btn" id="mmore-lessons" onclick="switchTab('lessons');_mobSetActive('lessons');_mobCloseMore()"><i class="bi bi-journal-text"></i>Lessons</button>
@@ -16411,7 +16415,7 @@ document.addEventListener('click',e=>{
 
   /* ---------- organised sidebar, section header, recent & refresh ---------- */
   var GROUPS = [
-    ["Overview", ["today", "dashboard", "analytics", "revenue", "scorecard", "activity"]],
+    ["Overview", ["today", "growth", "dashboard", "analytics", "revenue", "scorecard", "activity"]],
     ["Bookings & students", ["@bookings", "freehour", "waitlist", "find", "students", "followup", "requests", "transfers", "progress-overview"]],
     ["Instructors", ["instructors", "pending", "add", "availability", "coverage", "map", "infoview"]],
     ["Lessons & money", ["lessons", "calendar", "finance", "expenses", "referrals"]],
@@ -16764,7 +16768,7 @@ document.addEventListener('click',e=>{
     }
     // quick actions: keep the everyday ones, tuck the rest under "More"
     var bar = document.getElementById("quickActionsBar"); if (!bar || bar.querySelector(".qa-more")) return;
-    var KEEP = /^(Today\s*\d*|New Customer|Add Student|Add Instructor|Find & Assign|Referrals|Reports\s*\d*|Students|Action Queue|Waiting List|Pending)$/i;
+    var KEEP = /^(Today\s*\d*|Growth|New Customer|Add Student|Add Instructor|Find & Assign|Referrals|Reports\s*\d*|Students|Action Queue|Waiting List|Pending)$/i;
     var extra = [].slice.call(bar.querySelectorAll(":scope > button.qa-btn")).filter(function (b) { return !KEEP.test(b.textContent.trim()); });
     if (extra.length < 2) return;
     var wrap = document.createElement("div"); wrap.className = "qa-more";
@@ -17550,5 +17554,6 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 
 </script>
 <!-- DSQT:TODAY END -->
+<script src="admin-growth.js?v=20261023a"></script>
 </body>
 </html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="theme-color" content="#080808"/>
+<title>DriveSQ — Student update</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#080808;--card:#131313;--card2:#1b1b1b;--bdr:#262626;--txt:#f2f2f2;--txt2:#b5b5b5;--txt3:#7a7a7a;--red:#D10A11;--gold:#F5C518;--green:#22c55e}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{color:var(--txt);font-family:'Inter',system-ui,sans-serif;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:22px;padding:26px 20px 22px;max-width:430px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--red),var(--gold))}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--red);object-fit:cover}
+.brand{font-family:'Oswald',sans-serif;font-size:1.25rem;letter-spacing:.5px}
+.brand span{color:var(--red)}
+.tag{margin-left:auto;font-size:.66rem;color:var(--txt3);border:1px solid var(--bdr);border-radius:99px;padding:3px 9px}
+h1{font-family:'Oswald',sans-serif;font-size:1.45rem;line-height:1.2;margin-bottom:6px}
+.sub{font-size:.88rem;color:var(--txt2);line-height:1.5}
+.stu{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--bdr);border-radius:14px;padding:12px 14px;margin:16px 0 18px}
+.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--red),#7a0509);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.1rem;flex-shrink:0}
+.stu b{display:block;font-size:1rem}
+.stu small{color:var(--txt3);font-size:.76rem}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card2);color:var(--txt);border:1.5px solid var(--bdr);border-radius:14px;padding:14px;font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;min-height:58px;transition:transform .12s ease,border-color .15s ease,background .15s ease}
+.opt:active{transform:scale(.98)}
+.opt .e{font-size:1.4rem;width:30px;text-align:center;flex-shrink:0}
+.opt small{display:block;font-weight:400;color:var(--txt3);font-size:.74rem;margin-top:1px}
+.opt.booked{border-color:rgba(34,197,94,.55);background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(34,197,94,.04))}
+.opt:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.opt[aria-pressed="true"]{border-color:var(--gold);background:rgba(245,197,24,.1)}
+textarea{width:100%;margin-top:12px;background:var(--card2);color:var(--txt);border:1px solid var(--bdr);border-radius:12px;padding:11px 12px;font:inherit;font-size:.9rem;min-height:70px;resize:vertical}
+textarea::placeholder{color:var(--txt3)}
+.send{display:none;width:100%;margin-top:12px;background:var(--red);color:#fff;border:0;border-radius:14px;padding:15px;font-family:'Oswald',sans-serif;font-size:1.05rem;letter-spacing:.4px;cursor:pointer}
+.send.show{display:block}
+.send:disabled{opacity:.6}
+.done{text-align:center;padding:10px 0 4px}
+.done .big{font-size:3.4rem;margin:6px 0 10px;animation:pop .45s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.link{background:none;border:0;color:var(--gold);font:inherit;font-size:.82rem;margin-top:14px;cursor:pointer;text-decoration:underline}
+.err{color:#f87171;font-size:.86rem;line-height:1.5}
+.foot{font-size:.7rem;color:var(--txt3);text-align:center;margin-top:18px}
+.sk{height:14px;border-radius:7px;background:linear-gradient(90deg,#1b1b1b,#262626,#1b1b1b);background-size:200% 100%;animation:sh 1.2s linear infinite;margin:10px 0}
+@keyframes sh{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.done .big,.sk{animation:none}}
+</style>
+</head>
+<body>
+<main class="card" id="card" aria-live="polite">
+  <div class="head"><img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/><div class="brand">Drive<span>SQ</span></div><span class="tag">Instructor update</span></div>
+  <div id="body"><div class="sk" style="width:70%"></div><div class="sk"></div><div class="sk" style="width:50%"></div></div>
+</main>
+<script>
+(function(){
+  var SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
+  var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
+  var H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+  var ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
+  var OPTS=[
+    ['booked','✅','Booked — first lesson arranged','They\'ve booked with me'],
+    ['not_yet','⏳','Not booked yet','In touch, still arranging'],
+    ['unreachable','📵','Can\'t reach them','No answer to calls or messages'],
+    ['not_interested','🚫','Not going ahead','They\'ve decided not to book']
+  ];
+  var LABEL={booked:'Booked',not_yet:'Not booked yet',unreachable:'Can\'t reach them',not_interested:'Not going ahead'};
+  var body=document.getElementById('body');
+  var q=new URLSearchParams(location.search), id=q.get('r'), pre=q.get('a');
+  var ref=null, instr=null, choice=null;
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function first(n){return String(n||'').trim().split(/\s+/)[0]||'';}
+  function fail(m){body.innerHTML='<h1>Link problem</h1><p class="err">'+m+'</p><p class="foot">If this keeps happening, WhatsApp DriveSQ admin.</p>';}
+  async function get(path){var r=await fetch(SB_URL+'/rest/v1/'+path,{headers:H});if(!r.ok)throw new Error(r.status);return r.json();}
+
+  async function init(){
+    if(!id||!/^[0-9a-f-]{20,}$/i.test(id))return fail('This link isn\'t complete. Please open it straight from the message we sent you.');
+    try{
+      var rows=await get('referrals?id=eq.'+encodeURIComponent(id)+'&select=*');
+      if(!rows||!rows.length)return fail('We couldn\'t find this student. It may have been removed.');
+      ref=rows[0];
+      try{var ins=await get('instructors?id=eq.'+encodeURIComponent(ref.instructor_id)+'&select=id,full_name');instr=ins&&ins[0];}catch(e){}
+    }catch(e){return fail('Connection problem — check your signal and try again.');}
+    if(ref.is_cancelled)return showDone('ℹ️','No update needed','This student was taken off your list, so there\'s nothing to do. Thanks!');
+    if(ref.is_paid&&!pre)return showDone('✅','All sorted','We already have '+esc(ref.student_name||'this student')+' down as booked. Thanks!');
+    render();
+    if(pre&&LABEL[pre])pick(pre);
+  }
+  function render(){
+    var nm=ref.student_name||'your student', d=new Date(ref.created_at);
+    var days=Math.max(0,Math.round((Date.now()-d)/864e5));
+    var prev=ref.reply_status&&LABEL[ref.reply_status]?'<p class="sub" style="margin-top:6px">Last update: <b>'+esc(LABEL[ref.reply_status])+'</b>. Tap to change it.</p>':'';
+    body.innerHTML=
+      '<h1>Hi '+esc(first(instr&&instr.full_name)||'there')+' 👋</h1>'+
+      '<p class="sub">Quick update on the student we sent you — one tap, no login.</p>'+prev+
+      '<div class="stu"><div class="av">'+esc((nm.charAt(0)||'?').toUpperCase())+'</div><div><b>'+esc(nm)+'</b><small>Sent to you '+(days===0?'today':days===1?'yesterday':days+' days ago')+' · '+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</small></div></div>'+
+      '<div class="opts" role="group" aria-label="Has the student booked?">'+OPTS.map(function(o){return'<button type="button" class="opt '+o[0]+'" data-v="'+o[0]+'" aria-pressed="false"><span class="e" aria-hidden="true">'+o[1]+'</span><span>'+esc(o[2])+'<small>'+esc(o[3])+'</small></span></button>';}).join('')+'</div>'+
+      '<textarea id="note" maxlength="400" placeholder="Anything else? e.g. first lesson Tuesday 4pm (optional)"></textarea>'+
+      '<button type="button" class="send" id="send">Send update</button>'+
+      '<p class="foot">Goes straight to DriveSQ admin.</p>';
+    body.querySelectorAll('.opt').forEach(function(b){b.addEventListener('click',function(){pick(b.getAttribute('data-v'));});});
+    document.getElementById('send').addEventListener('click',send);
+  }
+  function pick(v){
+    choice=v;
+    body.querySelectorAll('.opt').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-v')===v));});
+    var s=document.getElementById('send');if(s){s.classList.add('show');s.textContent='Send: '+LABEL[v];}
+    // booked → send straight away (true one tap, also from the email buttons)
+    if(v==='booked')send();
+  }
+  async function send(){
+    if(!choice)return;
+    var btn=document.getElementById('send');if(btn){btn.disabled=true;btn.textContent='Sending…';}
+    var note=((document.getElementById('note')||{}).value||'').trim();
+    var now=new Date().toISOString(), ok=false;
+    try{
+      var r=await fetch(SB_URL+'/rest/v1/referrals?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify({reply_status:choice,reply_note:note||null,replied_at:now})});
+      ok=r.ok;
+    }catch(e){}
+    if(!ok){ // database not upgraded yet → leave it as an instructor report instead
+      try{
+        var r2=await fetch(SB_URL+'/rest/v1/admin_messages',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify({instructor_id:ref.instructor_id,subject:'Student update: '+(ref.student_name||'student')+' — '+LABEL[choice],message_type:'referral_report',body:'Referral '+id+'\nReply: '+LABEL[choice]+(note?'\nNote: '+note:''),is_read:false,dismissed:false,created_at:now})});
+        ok=r2.ok;
+      }catch(e){}
+    }
+    if(!ok){if(btn){btn.disabled=false;btn.textContent='Try again';}var p=document.createElement('p');p.className='err';p.style.marginTop='10px';p.textContent='Couldn\'t send — check your signal and tap again.';btn&&btn.after(p);return;}
+    try{fetch(SB_URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({instructor_id:ADMIN_PUSH_ID,title:(choice==='booked'?'✅ ':'📝 ')+(instr&&instr.full_name||'Instructor')+': '+LABEL[choice],body:(ref.student_name||'Student')+(note?' — '+note:''),url:'/admin.html#growth',tag:'dsq-ref-'+id})});}catch(e){}
+    var msg={booked:'Brilliant — thanks for letting us know. 🎉',not_yet:'Thanks — we\'ll check back in a few days.',unreachable:'Thanks — we\'ll try to reach '+esc(first(ref.student_name)||'them')+' ourselves.',not_interested:'Thanks for letting us know.'}[choice];
+    showDone(choice==='booked'?'🎉':'👍','Update sent',msg,true);
+  }
+  function showDone(icon,title,msg,canChange){
+    body.innerHTML='<div class="done"><div class="big" aria-hidden="true">'+icon+'</div><h1>'+esc(title)+'</h1><p class="sub">'+msg+'</p>'+(canChange?'<button type="button" class="link" id="chg">Tapped the wrong one? Change it</button>':'')+'</div><p class="foot">— DriveSQ</p>';
+    var c=document.getElementById('chg');if(c)c.addEventListener('click',function(){pre=null;choice=null;render();});
+  }
+  init();
+})();
+</script>
+</body>
+</html>
