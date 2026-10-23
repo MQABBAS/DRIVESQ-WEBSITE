@@ -1506,6 +1506,7 @@ body.day-mode .dsqd-note{color:#92400e}
 }
 </style>
 <link rel="stylesheet" href="admin-growth.css?v=20261023c">
+<link rel="stylesheet" href="admin-ledger.css?v=20261023a">
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -2821,6 +2822,9 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
       <button class="btn-s" style="font-size:.75rem;padding:5px 12px" onclick="loadExpenses()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
   </div>
+
+  <!-- Money overview: referral fees × booking flags × paid (admin-ledger.js) -->
+  <div id="ledgerBox"></div>
 
   <!-- Period selector -->
   <div style="display:flex;border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:18px;width:fit-content">
@@ -5153,7 +5157,7 @@ async function setRefNotesVisible(refId,visible){
 async function notifyInstructorRef(instrId){
   const instr=allInstrs.find(i=>i.id===instrId);
   if(!instr){showToast('Instructor not found','error');return;}
-  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0);
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&r.flag_color!=='red'&&(parseFloat(r.amount)||0)>0); // 🚩 not booked = no fee
   const totalDue=unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const names=unpaid.map(r=>r.student_name).join(', ');
   const body=`Hi ${instr.full_name||'Instructor'},\n\nThis is a reminder that you have ${unpaid.length} outstanding referral fee${unpaid.length!==1?'s':''} totalling £${totalDue.toFixed(2)} due to DriveSQ.\n\nStudents: ${names||'—'}\n\nPlease arrange payment at your earliest convenience.\n\nThank you,\nDriveSQ Admin`;
@@ -11161,9 +11165,10 @@ async function markRefPaid(refId){
   const r=_refData.find(x=>x.id===refId);
   const instrId=r?.instructor_id;
   const now=new Date().toISOString();
-  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).eq('id',refId);
+  // a paid fee means the lesson was booked → flag goes green
+  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now,flag_color:'green'}).eq('id',refId);
   if(error){showToast('Error: '+error.message,'error');return;}
-  if(r){r.is_paid=true;r.paid_at=now;}
+  if(r){r.is_paid=true;r.paid_at=now;r.flag_color='green';}
   showToast('Referral marked as paid ✓','success');
   _buildUnpaidRefIndex();
   if(instrId)openRefDetail(instrId);
@@ -11405,7 +11410,7 @@ function updateAccounting(){
     const rows=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
     const count=rows.length;
     const paid=rows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const due=rows.filter(r=>!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const due=rows.filter(r=>!r.is_paid&&r.flag_color!=='red').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
     const total=paid+due;
     const cEl=document.getElementById(`acc-${key}-count`);
     const pEl=document.getElementById(`acc-${key}-paid`);
@@ -11501,15 +11506,15 @@ async function markRefUnpaid(refId){
 
 async function markAllRefPaid(instrId){
   if(!instrId)return;
-  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0);
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&r.flag_color!=='red'&&(parseFloat(r.amount)||0)>0); // 🚩 not booked = no fee
   if(!unpaid.length){showToast('No outstanding referrals to mark paid','info');return;}
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'this instructor'};
   if(!confirm(`Mark all ${unpaid.length} outstanding referral(s) for ${instr.full_name} as PAID?\n\nTotal: £${unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0).toFixed(2)}`))return;
   const now=new Date().toISOString();
   const ids=unpaid.map(r=>r.id);
-  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now}).in('id',ids);
+  const{error}=await sb.from('referrals').update({is_paid:true,paid_at:now,flag_color:'green'}).in('id',ids);
   if(error){showToast('Error: '+error.message,'error');return;}
-  unpaid.forEach(r=>{r.is_paid=true;r.paid_at=now;});
+  unpaid.forEach(r=>{r.is_paid=true;r.paid_at=now;r.flag_color='green';});
   showToast(`${unpaid.length} referral(s) marked as paid ✓`,'success');
   _buildUnpaidRefIndex();
   openRefDetail(instrId);
@@ -12127,7 +12132,7 @@ function renderAccounting(){
   // Current period
   const inPeriod=r=>new Date(r.created_at)>=start;
   const incomeRows=refRows.filter(r=>r.is_paid&&inPeriod(r));
-  const outstandingRows=refRows.filter(r=>!r.is_paid&&inPeriod(r));
+  const outstandingRows=refRows.filter(r=>!r.is_paid&&r.flag_color!=='red'&&inPeriod(r)); // 🚩 not booked = no fee owed
   const incomeFromRefs=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   // Add manual income entries
   const manualIncRows=(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start);
@@ -12199,7 +12204,7 @@ function renderAccounting(){
   if(pp){pp.style.color=profit>=0?'var(--gold)':'#f87171';}
 
   set('kpi-outstanding',fmt(outstanding));
-  set('kpi-outstanding-sub',`${outstandingRows.length} referral${outstandingRows.length!==1?'s':''} pending`);
+  set('kpi-outstanding-sub',`${outstandingRows.length} unpaid (booked, unsure or no flag) · not-booked excluded`);
 
   if(collectionRate!==null){
     set('kpi-collection',collectionRate+'%');
@@ -17755,5 +17760,6 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 </script>
 <!-- DSQT:TODAY END -->
 <script src="admin-growth.js?v=20261023c"></script>
+<script src="admin-ledger.js?v=20261023a"></script>
 </body>
 </html>
