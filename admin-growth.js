@@ -476,6 +476,7 @@
     // franchise pitch builder
     const perMonth = 52 / 12, cands = list.filter(x => !x.fr).map(x => { const s = stats(x.i.id, 90); const fee = frFee(x.i.id); const feesM = s.fees / 3, studentsM = s.n / 3; return { ...x, s, fee, feesM, studentsM, frM: fee * perMonth, gain: fee * perMonth - feesM, fit: studentsM >= 2 && fee * perMonth >= feesM ? "Strong" : studentsM >= 1 ? "Possible" : "Too few students yet" }; }).sort((a, b) => b.studentsM - a.studentsM);
     const pros = prospects(), ready = pros.filter(x => x.ratio >= 1);
+    html += frBenefitCard();
     html += `<div class="gx-card"><h4><i class="bi bi-bar-chart-line-fill"></i>Who to move to franchise</h4><p class="gx-sub">Each bar is how many learners an instructor books a month from you. Past the purple line, a flat weekly fee is cheaper for them than paying per learner — that's your easiest pitch.${ready.length ? ` <b style="color:#4ade80">${ready.length} instructor${ready.length > 1 ? "s" : ""} would already save money.</b>` : ""}</p>
       <div class="gx-scroll">${prospectsChart(pros)}</div>
       ${pros.length ? `<div class="gx-acts" style="margin-top:8px">${pros.slice(0, 6).map(x => `<button class="gx-btn ${x.ratio >= 1 ? "p" : ""}" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-file-earmark-bar-graph"></i>${h(first(x.i.full_name))} · report</button>`).join("")}</div>` : ""}</div>`;
@@ -485,7 +486,7 @@
         <div class="d">Last 3 months: ${x.s.n} students sent, ${x.s.booked} booked → paid you ${money(x.s.fees)} (≈${money(x.feesM)}/month). On franchise at ${money(x.fee)}/week ≈ ${money(x.frM)}/month <b style="color:${x.gain >= 0 ? "#4ade80" : "#f87171"}">(${x.gain >= 0 ? "+" : "−"}${money(Math.abs(x.gain))}/month for DriveSQ)</b></div>
         <div class="gx-acts"><label class="gx-field" style="flex-direction:row;align-items:center;gap:6px">£/week <input class="dsq-inp" style="width:76px" type="number" min="0" step="5" data-frfee="${h(x.i.id)}" value="${h(x.fee)}"></label>
         <button class="gx-btn p" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-file-earmark-bar-graph"></i>Franchise report</button>
-        <button class="gx-btn gold" data-act="pitch" data-id="${h(x.i.id)}"><i class="bi bi-chat-quote-fill"></i>Build pitch</button></div></div></div>`; }).join("") || '<div class="gx-empty">No referral instructors.</div>'}</div>`;
+        <button class="gx-btn gold" data-act="frmsg" data-id="${h(x.i.id)}"><i class="bi bi-chat-quote-fill"></i>Build message</button></div></div></div>`; }).join("") || '<div class="gx-empty">No referral instructors.</div>'}</div>`;
     const frs = list.filter(x => x.fr);
     if (frs.length) html += `<div class="gx-card"><h4><i class="bi bi-shield-check"></i>Franchise instructors · value check</h4><p class="gx-sub">Keep them happy: make sure the students you send are worth their weekly fee.</p>${frs.map(x => { const s = stats(x.i.id, 90); return `<div class="gx-row" style="justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bdr);font-size:.82rem"><b>${h(x.i.full_name)}</b><span style="color:var(--txt3)">${s.n} students in 3 months · ${(s.n / 13).toFixed(1)}/week for ${money(frFee(x.i.id))}/week · <label>£/week <input class="dsq-inp" style="width:70px;display:inline-block;min-height:30px;padding:3px 6px" type="number" data-frfee="${h(x.i.id)}" value="${h(frFee(x.i.id))}"></label></span></div>`; }).join("")}</div>`;
     return html;
@@ -520,6 +521,104 @@
       .filter(x => x.n.tot6.sent > 0).map(x => { const r = x.n.breakEvenM ? x.n.bookedM / x.n.breakEvenM : 0; return { ...x, ratio: r, tier: r >= 1 ? "Saves them money" : r >= .7 ? "Nearly there" : "Grow first" }; })
       .sort((a, b) => b.ratio - a.ratio);
   }
+  // month by month since they started (max 24 months): what they paid in referral fees vs what franchise would have cost
+  function frHistory(id) {
+    const mine = G.refs.filter(r => r.instructor_id === id && !r.is_credit);
+    if (!mine.length) return [];
+    const firstAt = new Date(Math.min(...mine.map(r => new Date(r.created_at).getTime()))), d = new Date(), fee = frFee(id), out = [];
+    for (let k = 23; k >= 0; k--) {
+      const a = new Date(d.getFullYear(), d.getMonth() - k, 1), b = new Date(a.getFullYear(), a.getMonth() + 1, 1);
+      if (b <= firstAt) continue;
+      const rs = mine.filter(r => new Date(r.created_at) >= a && new Date(r.created_at) < b), bk = rs.filter(bookedRef);
+      const part = k === 0 ? Math.min(1, (now() - a) / (b - a)) : 1;
+      const fees = bk.reduce((t, r) => t + amt(r), 0), paid = bk.filter(r => r.is_paid).reduce((t, r) => t + amt(r), 0), frCost = fee * WK_M * part;
+      out.push({ a, lbl: a.toLocaleDateString("en-GB", { month: "short", year: k > d.getMonth() ? "2-digit" : undefined }), sent: rs.filter(r => !r.is_cancelled).length, booked: bk.length, fees, paid, owed: fees - paid, frCost, saved: fees - frCost, part });
+    }
+    return out;
+  }
+  function frWin(hist, months) {
+    const w = hist.slice(-months), t = w.reduce((a, m) => ({ fees: a.fees + m.fees, paid: a.paid + m.paid, owed: a.owed + m.owed, booked: a.booked + m.booked, sent: a.sent + m.sent, fr: a.fr + m.frCost }), { fees: 0, paid: 0, owed: 0, booked: 0, sent: 0, fr: 0 });
+    return Object.assign(t, { months: w.length, saved: t.fees - t.fr, from: w[0] ? w[0].a : null });
+  }
+  // who is most likely to benefit from (and say yes to) franchise — from the fees they actually pay
+  function frBenefit(id) {
+    const N = frNumbers(id), hist = frHistory(id), full = hist.filter(m => m.part === 1);
+    const last3 = full.slice(-3), prev3 = full.slice(-6, -3), avg = xs => xs.length ? xs.reduce((a, m) => a + m.fees, 0) / xs.length : 0;
+    const feesM = avg(last3), prevM = avg(prev3), trend = prevM ? (feesM - prevM) / prevM : null;
+    const w3 = frWin(hist, 3), w6 = frWin(hist, 6), w12 = frWin(hist, 12), all = frWin(hist, 24);
+    const best = hist.reduce((b, m) => !b || m.saved > b.saved ? m : b, null);
+    const active = full.slice(-6), steady = active.length ? active.filter(m => m.booked > 0).length / active.length : 0;
+    const cover = N.frM ? feesM / N.frM : 0;
+    const score = Math.round(clamp(50 * Math.min(cover, 1.5) / 1.5 + (w6.saved > 0 ? 20 : w6.saved > -N.frM ? 8 : 0) + (trend == null ? 5 : trend > .1 ? 15 : trend > -.1 ? 8 : 0) + 15 * steady, 0, 100));
+    const tier = cover >= 1 && w6.saved >= 0 ? ["Very likely to benefit", "g"] : cover >= .75 || w6.saved >= 0 ? ["Likely to benefit", "g"] : cover >= .4 ? ["Could benefit as they grow", "a"] : ["Not yet", ""];
+    return { id, N, hist, feesM, prevM, trend, w3, w6, w12, all, best, steady, cover, score, tier, perLearner: N.bookedM ? N.frM / N.bookedM : null };
+  }
+  function frRanked() {
+    return instrs().filter(i => i.status === "approved" && i.instructor_model !== "franchise").map(i => Object.assign({ i }, frBenefit(i.id)))
+      .filter(x => x.all.sent > 0).sort((a, b) => b.score - a.score || b.w6.saved - a.w6.saved);
+  }
+  const winLbl = m => m === 3 ? "3 months" : m === 6 ? "6 months" : m === 12 ? "12 months" : "since they started";
+  // the WhatsApp message: what they paid, what franchise would have cost, what they could have saved — honest either way
+  function frMessage(id, months, opts) {
+    const o = Object.assign({ monthly: true, perks: true }, opts || {});
+    const i = iById(id), B = frBenefit(id), w = months >= 24 ? B.all : frWin(B.hist, months), fee = frFee(id), fm = v => money(v);
+    const ms = B.hist.slice(-(months >= 24 ? 24 : months));
+    // never claim a longer period than they've actually been with us
+    const since = w.from ? w.from.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : "";
+    const period = (months >= 24 || w.months < months) && since ? "since you started with us in " + since + " (" + w.months + " month" + (w.months === 1 ? "" : "s") + ")" : "over the last " + winLbl(months);
+    let t = "Hi " + (first(i.full_name) || "there") + " 👋\n\nHere's a quick look at your DriveSQ referrals " + period + ":\n\n";
+    t += "👥 " + w.sent + " learner" + (w.sent === 1 ? "" : "s") + " sent to you · " + w.booked + " booked\n";
+    t += "💷 Referral fees: *" + fm(w.fees) + "*" + (w.owed > 0 ? " (" + fm(w.paid) + " paid, " + fm(w.owed) + " still due)" : "") + "\n";
+    if (w.booked) t += "That's " + fm(w.fees / w.booked) + " for each learner who booked.\n";
+    if (o.monthly && ms.length > 1) t += "\n📅 Month by month:\n" + ms.map(m => "• " + m.lbl + (m.part < 1 ? " (so far)" : "") + ": " + fm(m.fees) + (m.booked ? " — " + m.booked + " booked" : "")).join("\n") + "\n";
+    t += "\n🔑 *On a DriveSQ franchise* you'd pay one flat " + fm(fee) + " a week (about " + fm(fee * WK_M) + " a month) — no fee per learner, however many we send.\n\n";
+    if (w.saved > 0) t += "✅ Over " + (w.months === 1 ? "that month" : "those " + w.months + " months") + " franchise would have cost " + fm(w.fr) + " — *you could have saved " + fm(w.saved) + "*.\n";
+    else if (B.best && B.best.saved > 0) t += "✅ In " + B.best.lbl + " alone you'd have saved " + fm(B.best.saved) + " on franchise.\n";
+    else t += "📈 You're building up nicely — franchise pays for itself from about " + (B.N.breakEvenM / WK_M).toFixed(1) + " booked learners a week, and every learner after that costs you nothing extra.\n";
+    if (B.feesM > 0) t += B.feesM >= B.N.frM ? "At your current pace (about " + fm(B.feesM) + " a month in fees) that's roughly " + fm(B.feesM - B.N.frM) + " a month back in your pocket.\n" : "Right now you average about " + fm(B.feesM) + " a month in fees — franchise starts saving you money from " + (B.N.breakEvenM / WK_M).toFixed(1) + " booked learners a week.\n";
+    if (B.trend != null && B.trend > .1) t += "Your referrals are up " + Math.round(B.trend * 100) + "% on the 3 months before — the more we send, the more franchise saves you.\n";
+    if (o.perks) t += "\nFranchise also includes:\n• Priority for new learners in your area\n• DriveSQ branding, the instructor app and admin support\n";
+    return t + "\nWould you like me to hold a franchise place for you? Happy to chat it through this week.\n— DriveSQ";
+  }
+  function frMsgModal(id, months0) {
+    const i = iById(id); let months = months0 || 6, opts = { monthly: true, perks: true };
+    const m = modal(`<div class="gxm-sheet-hd"><h4>Franchise message · ${h(i.full_name)}</h4><button class="gx-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button></div>
+      <p class="gx-sub">Built from their own referral fees. Edit anything before sending.</p>
+      <div class="gx-row" style="gap:8px;margin-bottom:8px;align-items:center"><div class="gxm-seg" role="group" aria-label="Period" id="gxfmPer">${[[3, "3 months"], [6, "6 months"], [12, "12 months"], [24, "All"]].map(([v, l]) => `<button type="button" data-per="${v}" aria-pressed="${v === months}">${l}</button>`).join("")}</div>
+        <label class="gx-field" style="flex-direction:row;align-items:center;gap:5px"><input type="checkbox" id="gxfmMonthly" checked>Month by month</label><label class="gx-field" style="flex-direction:row;align-items:center;gap:5px"><input type="checkbox" id="gxfmPerks" checked>What's included</label></div>
+      <div id="gxfmSum" class="gxf-sum"></div>
+      <textarea class="dsq-inp gx-msg" id="gxfmTxt" style="min-height:260px"></textarea>
+      <div class="gx-acts" style="margin-top:8px">${i.phone ? `<a class="gx-btn wa" id="gxfmWa" target="_blank" rel="noopener" href="#"><i class="bi bi-whatsapp"></i>Send on WhatsApp</a>` : `<span class="gx-chip a">No phone number saved</span>`}<button class="gx-btn" id="gxfmCopy"><i class="bi bi-clipboard"></i>Copy</button><button class="gx-btn p" data-act="frreport" data-id="${h(id)}"><i class="bi bi-image"></i>Picture report</button></div>`);
+    m.querySelector(".gxm-sheet").classList.add("gxf-sheet");
+    const ta = m.querySelector("#gxfmTxt"), sync = () => { const a = m.querySelector("#gxfmWa"); if (a) a.href = wa(i.phone, ta.value); };
+    const draw = () => {
+      const B = frBenefit(id), w = months >= 24 ? B.all : frWin(B.hist, months);
+      m.querySelector("#gxfmSum").innerHTML = `<span>Paid in fees <b>${money(w.fees)}</b></span><span>Franchise would be <b>${money(w.fr)}</b></span><span class="${w.saved >= 0 ? "g" : "r"}">${w.saved >= 0 ? "Could have saved" : "Franchise would cost"} <b>${money(Math.abs(w.saved))}</b>${w.saved >= 0 ? "" : " more"}</span><span>${w.booked} booked · ${w.months} months</span>`;
+      ta.value = frMessage(id, months, opts); sync();
+    };
+    m.querySelector("#gxfmPer").addEventListener("click", e => { const b = e.target.closest("[data-per]"); if (!b) return; months = +b.getAttribute("data-per"); m.querySelectorAll("#gxfmPer button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); draw(); });
+    m.querySelector("#gxfmMonthly").addEventListener("change", e => { opts.monthly = e.target.checked; draw(); });
+    m.querySelector("#gxfmPerks").addEventListener("change", e => { opts.perks = e.target.checked; draw(); });
+    ta.addEventListener("input", sync);
+    m.querySelector("#gxfmCopy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(ta.value); toast("Message copied", "success", 1500); } catch (e) { ta.select(); } });
+    draw();
+  }
+  function frBenefitCard() {
+    const list = frRanked(), win = G.frWin || 6;
+    if (!list.length) return `<div class="gx-card"><h4><i class="bi bi-stars"></i>Most likely to benefit from franchise</h4><div class="gx-empty">No referral instructors with referrals yet.</div></div>`;
+    const tot = list.reduce((a, x) => { const w = win >= 24 ? x.all : frWin(x.hist, win); return { fees: a.fees + w.fees, saved: a.saved + Math.max(0, w.saved), n: a.n + (w.saved > 0 ? 1 : 0) }; }, { fees: 0, saved: 0, n: 0 });
+    return `<div class="gx-card"><div class="gx-row" style="justify-content:space-between;align-items:center"><h4 style="margin:0"><i class="bi bi-stars"></i>Most likely to benefit from franchise</h4>
+        <div class="gxm-seg" role="group" aria-label="Period">${[[3, "3m"], [6, "6m"], [12, "12m"], [24, "All"]].map(([v, l]) => `<button type="button" data-act="frwin" data-id="${v}" aria-pressed="${v === win}">${l}</button>`).join("")}</div></div>
+      <p class="gx-sub">Ranked by the referral fees they really pay (booked learners, paid or still due) against your weekly franchise fee, how steady their learners are and whether it's growing. "Could have saved" = their fees over the period minus what franchise would have cost.${tot.n ? ` <b style="color:#4ade80">${tot.n} instructor${tot.n > 1 ? "s" : ""} could have saved ${money(tot.saved)} between them over the last ${winLbl(win)}.</b>` : ""}</p>
+      <div class="gxf-list">${list.map((x, k) => { const w = win >= 24 ? x.all : frWin(x.hist, win); return `<div class="gxf-row">
+        <div class="gxf-rank">${k + 1}</div>
+        <div class="gxf-main"><div class="gxf-nm">${h(x.i.full_name)} <span class="gx-chip ${x.tier[1]}">${x.tier[0]}</span>${x.trend != null && Math.abs(x.trend) > .1 ? ` <span class="gx-chip ${x.trend > 0 ? "g" : "r"}">${x.trend > 0 ? "▲" : "▼"} ${Math.round(Math.abs(x.trend) * 100)}%</span>` : ""}</div>
+          <div class="gxf-stats"><span>Paid in fees <b>${money(w.fees)}</b>${w.owed > 0 ? ` <small>(${money(w.owed)} due)</small>` : ""}</span><span>Franchise <b>${money(w.fr)}</b></span><span class="${w.saved >= 0 ? "g" : "r"}">${w.saved >= 0 ? "Could have saved" : "Would cost"} <b>${money(Math.abs(w.saved))}</b>${w.saved >= 0 ? "" : " more"}</span><span>${w.booked} booked · ${money(x.feesM)}/month now</span>${x.perLearner ? `<span>On franchise ≈ <b>${money(x.perLearner)}</b>/learner vs ${money(x.N.avgFee)}</span>` : ""}</div>
+          <div class="gx-bar" style="margin-top:6px;max-width:320px" title="Fees per month vs franchise per month"><span style="width:${clamp(x.cover * 66, 2, 100)}%;background:${x.cover >= 1 ? "#22c55e" : x.cover >= .75 ? "#f59e0b" : "#64748b"}"></span></div></div>
+        <div class="gxf-side"><div class="gxf-score" title="Benefit score">${x.score}</div>
+          ${x.i.phone ? `<button class="gx-btn wa" data-act="frmsg" data-id="${h(x.i.id)}"><i class="bi bi-whatsapp"></i>Message</button>` : `<button class="gx-btn" data-act="frmsg" data-id="${h(x.i.id)}"><i class="bi bi-chat-text"></i>Message</button>`}
+          <button class="gx-btn" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-image"></i>Report</button></div></div>`; }).join("")}</div></div>`;
+  }
   function prospectsChart(list) {
     if (!list.length) return '<div class="gx-empty">No referral instructors with students in the last 6 months.</div>';
     const W = 640, row = 34, top = 26, H = top + list.length * row + 26, L = 150, R = 70, max = Math.max(2, ...list.map(x => Math.max(x.n.bookedM, x.n.breakEvenM))) * 1.1, X = v => L + (W - L - R) * v / max;
@@ -536,7 +635,7 @@
   function frReportSvg(id, perWeek) {
     const i = iById(id), N = frNumbers(id), m = N.months, W = 720, fm = v => "£" + Math.round(v).toLocaleString("en-GB");
     const pw = perWeek != null ? perWeek : Math.max(.5, Math.round(N.bookedM / WK_M * 2) / 2);
-    const refCostM = pw * WK_M * N.avgFee, diff = refCostM - N.frM;
+    const refCostM = pw * WK_M * N.avgFee, diff = refCostM - N.frM, HW = frWin(frHistory(id), 6);
     const cx = 60, cy = 300, cw = 600, ch = 190, maxV = Math.max(N.frM, ...m.map(x => x.fees), 1) * 1.15, bw = cw / m.length;
     const Y = v => cy + ch - ch * v / maxV;
     const bars = m.map((x, k) => { const bx = cx + k * bw + bw * .2, w = bw * .6; return `<rect x="${bx}" y="${Y(x.fees)}" width="${w}" height="${cy + ch - Y(x.fees)}" rx="6" fill="#F5C518"${x.part < 1 ? ' opacity=".55"' : ""}/>
@@ -545,8 +644,8 @@
       <text x="${bx + w / 2}" y="${cy + ch + 34}" text-anchor="middle" font-size="11" fill="#888">${x.booked} booked</text>`; }).join("");
     const kpi = (x, lbl, v) => `<rect x="${x}" y="150" width="152" height="74" rx="12" fill="#f6f6f6"/><text x="${x + 14}" y="180" font-size="24" font-weight="800" fill="#111" font-family="Oswald,Inter,sans-serif">${v}</text><text x="${x + 14}" y="206" font-size="12" fill="#666">${lbl}</text>`;
     const good = diff >= 0;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 900" width="${W}" height="900" font-family="Inter,Arial,sans-serif">
-      <rect width="${W}" height="900" rx="0" fill="#fff"/><rect width="${W}" height="96" fill="#111"/><rect y="96" width="${W}" height="5" fill="#D10A11"/>
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 930" width="${W}" height="930" font-family="Inter,Arial,sans-serif">
+      <rect width="${W}" height="930" rx="0" fill="#fff"/><rect width="${W}" height="96" fill="#111"/><rect y="96" width="${W}" height="5" fill="#D10A11"/>
       <text x="32" y="44" font-size="26" font-weight="800" fill="#fff" font-family="Oswald,Inter,sans-serif">Drive<tspan fill="#D10A11">SQ</tspan> · your franchise numbers</text>
       <text x="32" y="74" font-size="14" fill="#ccc">Prepared for ${h(i.full_name || "you")} · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</text>
       <text x="32" y="136" font-size="15" font-weight="700" fill="#111">Last 6 months with DriveSQ</text>
@@ -557,13 +656,14 @@
       ${bars}
       <line x1="${cx}" x2="${cx + cw}" y1="${Y(N.frM)}" y2="${Y(N.frM)}" stroke="#7c3aed" stroke-width="3" stroke-dasharray="8 6"/>
       <text x="${cx + cw}" y="${Y(N.frM) - 7}" text-anchor="end" font-size="12" font-weight="700" fill="#7c3aed">Franchise ${fm(N.frM)}/month</text>
-      <rect x="32" y="560" width="656" height="118" rx="14" fill="${good ? "#ecfdf5" : "#f5f3ff"}" stroke="${good ? "#22c55e" : "#a78bfa"}"/>
+      <rect x="32" y="560" width="656" height="148" rx="14" fill="${good ? "#ecfdf5" : "#f5f3ff"}" stroke="${good ? "#22c55e" : "#a78bfa"}"/>
+      <text x="52" y="690" font-size="14" fill="${HW.saved >= 0 ? "#15803d" : "#555"}" font-weight="700">${HW.saved >= 0 ? "Last " + HW.months + " months: you paid " + fm(HW.fees) + " — franchise would have been " + fm(HW.fr) + ", saving you " + fm(HW.saved) : "Last " + HW.months + " months: you paid " + fm(HW.fees) + " in referral fees (franchise " + fm(HW.fr) + ")"}</text>
       <text x="52" y="592" font-size="15" font-weight="700" fill="#111">At ${pw} booked learner${pw === 1 ? "" : "s"} a week:</text>
       <text x="52" y="620" font-size="14" fill="#333">Referral fees ≈ ${fm(refCostM)} a month · Franchise = ${fm(N.frM)} a month</text>
       <text x="52" y="652" font-size="19" font-weight="800" fill="${good ? "#15803d" : "#6d28d9"}">${good ? "You'd save about " + fm(diff) + " a month on franchise" : "Franchise pays off from " + (N.breakEvenM / WK_M).toFixed(1) + " booked learners a week"}</text>
-      <text x="32" y="716" font-size="15" font-weight="700" fill="#111">What franchise includes</text>
-      ${["One flat weekly fee — no fee per learner, however many we send", "Priority for new learners in your area", "DriveSQ branding, the instructor app and admin support"].map((t, k) => `<circle cx="42" cy="${744 + k * 30}" r="5" fill="#D10A11"/><text x="56" y="${749 + k * 30}" font-size="14" fill="#222">${h(t)}</text>`).join("")}
-      <text x="32" y="862" font-size="11" fill="#888">Figures come from the referrals DriveSQ has recorded for you. Break-even: ${(N.breakEvenM / WK_M).toFixed(1)} booked learners a week at ${fm(N.avgFee)} per learner.</text>
+      <text x="32" y="746" font-size="15" font-weight="700" fill="#111">What franchise includes</text>
+      ${["One flat weekly fee — no fee per learner, however many we send", "Priority for new learners in your area", "DriveSQ branding, the instructor app and admin support"].map((t, k) => `<circle cx="42" cy="${774 + k * 30}" r="5" fill="#D10A11"/><text x="56" y="${779 + k * 30}" font-size="14" fill="#222">${h(t)}</text>`).join("")}
+      <text x="32" y="892" font-size="11" fill="#888">Figures come from the referrals DriveSQ has recorded for you. Break-even: ${(N.breakEvenM / WK_M).toFixed(1)} booked learners a week at ${fm(N.avgFee)} per learner.</text>
     </svg>`;
   }
   function frReport(id) {
@@ -576,7 +676,7 @@
       <div id="gxfImg" class="gxf-img">${frReportSvg(id, pw0)}</div>
       <div class="gx-acts" style="margin-top:10px"><button class="gx-btn p" id="gxfPng"><i class="bi bi-image"></i>Download picture</button>
         ${i.phone ? `<a class="gx-btn wa" id="gxfWa" target="_blank" rel="noopener" href="#"><i class="bi bi-whatsapp"></i>WhatsApp summary</a>` : ""}
-        <button class="gx-btn" id="gxfShare"><i class="bi bi-share"></i>Share</button><button class="gx-btn" data-act="pitch" data-id="${h(id)}"><i class="bi bi-chat-quote-fill"></i>Pitch message</button></div>`);
+        <button class="gx-btn" id="gxfShare"><i class="bi bi-share"></i>Share</button><button class="gx-btn" data-act="frmsg" data-id="${h(id)}"><i class="bi bi-chat-quote-fill"></i>Full message</button></div>`);
     const sheet = m.querySelector(".gxm-sheet"); sheet.classList.add("gxf-sheet");
     const pwEl = m.querySelector("#gxfPw"), feeEl = m.querySelector("#gxfFee");
     const summary = () => { const n2 = frNumbers(id), pw = parseFloat(pwEl.value), ref = pw * WK_M * n2.avgFee, d = ref - n2.frM;
@@ -585,7 +685,7 @@
     pwEl.addEventListener("input", redraw);
     feeEl.addEventListener("change", () => { G.cfg.franchiseBy[id] = parseFloat(feeEl.value) || 0; saveCfg(); redraw(); });
     redraw();
-    const png = () => new Promise((res, rej) => { const svg = frReportSvg(id, parseFloat(pwEl.value)), img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = 1440; c.height = 1800; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/png"); }; img.onerror = () => rej(new Error("render failed")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+    const png = () => new Promise((res, rej) => { const svg = frReportSvg(id, parseFloat(pwEl.value)), img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = 1440; c.height = 1860; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/png"); }; img.onerror = () => rej(new Error("render failed")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
     const fname = "DriveSQ-franchise-" + (i.full_name || "instructor").replace(/\W+/g, "-") + ".png";
     m.querySelector("#gxfPng").addEventListener("click", async () => { try { const b = await png(), u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); toast("Picture saved — send it with the WhatsApp summary", "success", 3000); } catch (e) { toast("Couldn't make the picture: " + e.message, "error"); } });
     m.querySelector("#gxfShare").addEventListener("click", async () => { try { const b = await png(), f = new File([b], fname, { type: "image/png" }); if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], text: summary() }); else { await navigator.clipboard.writeText(summary()); toast("Summary copied — use Download picture for the image", "info", 3500); } } catch (e) { if (e && e.name !== "AbortError") toast("Couldn't share: " + e.message, "error"); } });
@@ -671,6 +771,8 @@
     else if (act === "pitch") { const i = iById(id), txt = pitchText(id); modal(`<h4 style="font-family:Oswald;margin:0 0 4px">Franchise pitch for ${h(i.full_name)}</h4><p class="gx-sub">Edit it, then send.</p><textarea class="dsq-inp gx-msg" id="gxPitch">${h(txt)}</textarea><div class="gx-acts"><a class="gx-btn wa" id="gxPitchWa" target="_blank" rel="noopener" href="${h(wa(i.phone, txt))}"><i class="bi bi-whatsapp"></i>Send on WhatsApp</a><button class="gx-btn" data-act="copylink" data-text="${h(txt)}" id="gxPitchCopy"><i class="bi bi-clipboard"></i>Copy</button><button class="gx-btn" data-close>Close</button></div>`); const ta = $("#gxPitch"); ta.addEventListener("input", () => { $("#gxPitchWa").href = wa(i.phone, ta.value); $("#gxPitchCopy").setAttribute("data-text", ta.value); }); }
     else if (act === "sendweekly") sendWeekly();
     else if (act === "frreport") frReport(id);
+    else if (act === "frmsg") frMsgModal(id, G.frWin || 6);
+    else if (act === "frwin") { G.frWin = +id; render(); }
   }
   function onChange(e) {
     const t = e.target;
