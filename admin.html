@@ -86,6 +86,26 @@ a{color:var(--red);text-decoration:none}
   #quickActionsBar .qa-btn{flex:0 0 auto;min-height:36px}
   .container-fluid.px-3{padding-bottom:70px!important}
 }
+/* booking flag monitor (Referrals) */
+.rfm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-family:'Oswald',sans-serif;font-size:.92rem;color:var(--txt)}
+.rfm-head span{font-family:Inter,sans-serif;font-size:.68rem;color:var(--txt4)}
+.rfm-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.rfm-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--card-bg);border:1px solid var(--bdr);border-left:4px solid var(--c);border-radius:12px;padding:10px 12px;cursor:pointer;color:var(--txt)}
+.rfm-tile.on{box-shadow:0 0 0 2px var(--c) inset}
+.rfm-n{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;line-height:1;color:var(--c)}
+.rfm-l{font-size:.78rem;font-weight:700}
+.rfm-s{font-size:.66rem;color:var(--txt4)}
+.rfm-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.rfm-row{background:var(--card-bg);border:1px solid var(--bdr);border-left:3px solid var(--c);border-radius:10px;padding:9px 11px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rfm-who{flex:1;min-width:180px}
+.rfm-who b{display:block;font-size:.84rem;color:var(--txt)}
+.rfm-who span{font-size:.68rem;color:var(--txt3)}
+.rfm-acts{display:flex;gap:4px;flex-wrap:wrap}
+.rfm-f,.rfm-a{border:1px solid var(--bdr);background:transparent;color:var(--txt2);border-radius:7px;padding:4px 8px;font-size:.66rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.rfm-f{border-color:var(--c);color:var(--c)}
+.rfm-f.on{background:var(--c);color:#111}
+.rfm-a .bi-whatsapp{color:#25d366}
+@media(max-width:600px){.rfm-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* phones: keep the top bar inside the screen (otherwise the whole page is wider than the phone and gets cut off) */
 @media(max-width:600px){
   #mainNav .admin-chip,#mainNav .brand-s,#adminClock,#adminSessionInfo,#mainNav .search-trigger-btn kbd,#mainNav .search-trigger-btn span,#webBookingsBtnLabel{display:none!important}
@@ -1485,7 +1505,7 @@ body.day-mode .dsqd-note{color:#92400e}
   .modal-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 }
 </style>
-<link rel="stylesheet" href="admin-growth.css?v=20261023b">
+<link rel="stylesheet" href="admin-growth.css?v=20261023c">
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -2288,6 +2308,9 @@ body.day-mode .dsqd-note{color:#92400e}
     <button class="qa-btn" onclick="switchTab('find');try{setActiveTab('find')}catch(e){}"><i class="bi bi-geo-alt-fill me-1"></i>Find &amp; Assign</button>
     <button class="qa-btn" onclick="document.getElementById('refSummaryBox').open=true;document.getElementById('refSummaryBox').scrollIntoView({behavior:'smooth'})"><i class="bi bi-bar-chart-fill me-1"></i>Totals</button>
   </div>
+
+  <!-- Booking flags monitor -->
+  <div id="refFlagMonitor" class="mb-3"></div>
 
   <!-- Instructor list filter -->
   <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
@@ -4763,22 +4786,113 @@ function toggleStuFlagFromDetail(s){
 
 let _openRefInstrId=null;
 
-// ── Referral flags — stored in DB (flag_color: 'red'|'green'|'purple'|null) ──
+// ── Referral booking flags — stored in DB (flag_color: 'red'|'green'|'purple'|null) ──
+// green = lesson confirmed booked · purple = unsure, needs checking · red = not booked
+const REF_FLAG={
+  green:{e:'✅',l:'Booked',d:'Lesson confirmed booked',c:'#4ade80',bg:'rgba(74,222,128,'},
+  purple:{e:'🟣',l:'Unsure',d:'Not sure yet if a lesson is booked — check',c:'#a855f7',bg:'rgba(168,85,247,'},
+  red:{e:'🚩',l:'Not booked',d:'No lesson booked',c:'#f87171',bg:'rgba(239,68,68,'}
+};
+// instructor's one-tap reply (ref.html) → flag. Only fills an empty or purple flag, never overrides green/red set by admin
+const REPLY_FLAG={booked:'green',not_yet:'purple',unreachable:'red',not_interested:'red'};
+function _refFlagOf(r){return r.flag_color||(r.is_paid?'green':null);} // a paid fee means the lesson was booked
+async function _saveRefFlag(refId,color){
+  const{error}=await sb.from('referrals').update({flag_color:color||null}).eq('id',refId);
+  if(error){showToast('Flag save failed: '+error.message,'error');return false;}
+  const r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);if(r)r.flag_color=color||null;
+  return true;
+}
+function _flagToast(color,name){
+  const f=REF_FLAG[color];
+  showToast(f?`${f.e} ${name?name+' — ':''}${f.l}`:'Flag removed','success',2200);
+  _playFlagSound(color);
+}
+// red flag → offer to move the student to another instructor straight away
+function _afterRedFlag(r){
+  if(!r||r.is_cancelled)return;
+  setTimeout(()=>{if(confirm(`🚩 ${r.student_name||'This student'} is marked NOT BOOKED.\n\nFind another instructor for them now?`))_flagReassign(r.id);},250);
+}
+async function _getRef(refId){
+  let r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);
+  if(!r){try{const{data}=await sb.from('referrals').select('*').eq('id',refId).limit(1);r=(data||[])[0]||null;}catch(e){}}
+  return r;
+}
+async function _flagReassign(refId){
+  const r=await _getRef(refId);if(!r){showToast('Referral not found','error');return;}
+  const m=$_('#gxModal');if(m)m.classList.remove('open');try{closeModal('refDetailModal');}catch(e){}
+  reportReassign(r.student_name||'',r.instructor_id);
+}
+function $_(q){return document.querySelector(q);}
+// used by the Today list and the flag monitor: arg = "refId|color"
+async function _todayFlag(arg){
+  const[id,color]=String(arg).split('|');const r=await _getRef(id);
+  if(!(await _saveRefFlag(id,color)))return;
+  _flagToast(color,r&&r.student_name);
+  try{if(window.loadToday)window.loadToday(true);}catch(e){}
+  if(document.getElementById('refInstrList')&&typeof _refData!=='undefined'&&_refData.length)renderReferrals();
+  if(color==='red')_afterRedFlag(r);
+}
 async function setRefFlag(refId,color){
   // color = 'red'|'green'|'purple'|null (null = remove)
   const r=_refData.find(x=>x.id===refId);
   if(!r)return;
   const newColor=(r.flag_color===color)?null:color; // toggle off if same
-  const{error}=await sb.from('referrals').update({flag_color:newColor||null}).eq('id',refId);
-  if(error){showToast('Flag save failed: '+error.message,'error');return;}
-  r.flag_color=newColor;
-  const labels={red:'🚩 Red flag set',green:'✅ Green flag set',purple:'🟣 Purple flag set',null:'Flag removed'};
-  showToast(labels[newColor]||'Flag removed','success',1800);
-  _playFlagSound(newColor);
+  if(!(await _saveRefFlag(refId,newColor)))return;
+  _flagToast(newColor,r.student_name);
   if(_openRefInstrId)openRefDetail(_openRefInstrId);
-  // Schedule daily reminder for purple (unfiled) flags
+  renderReferrals();
+  try{if(window.loadToday)window.loadToday(true);}catch(e){}
+  if(newColor==='red')_afterRedFlag(r);
   _scheduleUnfiledCheck();
 }
+// Instructors' one-tap replies fill in the flag (empty or purple only)
+async function _syncReplyFlags(){
+  const todo=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&r.reply_status&&REPLY_FLAG[r.reply_status]&&(!r.flag_color||r.flag_color==='purple')&&REPLY_FLAG[r.reply_status]!==r.flag_color);
+  if(!todo.length)return;
+  let n=0;
+  for(const r of todo.slice(0,50)){const c=REPLY_FLAG[r.reply_status];const{error}=await sb.from('referrals').update({flag_color:c}).eq('id',r.id);if(!error){r.flag_color=c;n++;}}
+  if(n){showToast(`🔄 ${n} booking flag${n>1?'s':''} updated from instructor replies`,'info',4000);renderReferrals();}
+}
+// ── Flag monitor (Referrals tab): booked / unsure / not booked / no flag ──
+window._flagView=null;
+function _flagRows(){
+  const since=Date.now()-90*864e5;
+  return _refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at).getTime()>=since);
+}
+function _flagAge(r){return Math.floor((Date.now()-new Date(r.created_at))/864e5);}
+function _renderFlagMonitor(){
+  const box=document.getElementById('refFlagMonitor');if(!box)return;
+  const rows=_flagRows();
+  const grp={green:[],purple:[],red:[],none:[]};
+  rows.forEach(r=>{const f=_refFlagOf(r);(grp[f]||grp.none).push(r);});
+  const overdueUnsure=grp.purple.filter(r=>_flagAge(r)>=3).length, overdueNone=grp.none.filter(r=>_flagAge(r)>=2).length;
+  const tile=(k,e,l,sub,col,n)=>`<button type="button" class="rfm-tile${window._flagView===k?' on':''}" style="--c:${col}" onclick="_flagSetView('${k}')"><span class="rfm-n">${n}</span><span class="rfm-l">${e} ${l}</span><span class="rfm-s">${sub}</span></button>`;
+  let html=`<div class="rfm-head"><b><i class="bi bi-flag-fill me-1"></i>Booking flags</b><span>last 90 days · ✅ booked · 🟣 unsure · 🚩 not booked</span></div><div class="rfm-tiles">
+    ${tile('red','🚩','Not booked',grp.red.length?'Reassign or chase':'None',REF_FLAG.red.c,grp.red.length)}
+    ${tile('purple','🟣','Unsure',overdueUnsure?overdueUnsure+' over 3 days':'Check soon',REF_FLAG.purple.c,grp.purple.length)}
+    ${tile('none','⚪','No flag yet',overdueNone?overdueNone+' need a flag':'Up to date','#94a3b8',grp.none.length)}
+    ${tile('green','✅','Booked',rows.length?Math.round(grp.green.length/rows.length*100)+'% of referrals':'—',REF_FLAG.green.c,grp.green.length)}</div>`;
+  const v=window._flagView;
+  if(v&&grp[v]){
+    const list=grp[v].slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    html+=`<div class="rfm-list">${list.length?list.map(r=>{
+      const i=allInstrs.find(x=>x.id===r.instructor_id)||{};const f=_refFlagOf(r);const age=_flagAge(r);
+      const sw=r.student_phone?buildWaNum(r.student_phone):'',iw=i.phone?buildWaNum(i.phone):'';
+      const ms=`Hi ${(r.student_name||'').split(' ')[0]}, it's DriveSQ 👋 Just checking — has ${(i.full_name||'your instructor').split(' ')[0]} booked your first driving lesson yet? Reply here if you need anything.`;
+      const mi=`Hi ${(i.full_name||'').split(' ')[0]}, quick one — have you booked a first lesson with ${r.student_name||'the student'} yet? Thanks!`;
+      const fb=(c)=>`<button type="button" class="rfm-f${f===c?' on':''}" style="--c:${REF_FLAG[c].c}" title="${REF_FLAG[c].d}" onclick="_todayFlag('${r.id}|${c}')">${REF_FLAG[c].e} ${REF_FLAG[c].l}</button>`;
+      return`<div class="rfm-row" style="--c:${f?REF_FLAG[f].c:'#94a3b8'}">
+        <div class="rfm-who"><b>${esc(r.student_name||'Student')}</b><span>${esc(i.full_name||'Instructor')} · referred ${age===0?'today':age+' day'+(age>1?'s':'')+' ago'}${r.reply_status?` · instructor says: <em>${esc({booked:'Booked',not_yet:'Not booked yet',unreachable:"Can't reach",not_interested:'Not going ahead'}[r.reply_status]||r.reply_status)}</em>`:''}${r.is_paid?' · fee paid':''}</span></div>
+        <div class="rfm-acts">${fb('green')}${fb('purple')}${fb('red')}
+          ${sw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${sw}?text=${encodeURIComponent(ms)}"><i class="bi bi-whatsapp"></i>Ask student</a>`:''}
+          ${iw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${iw}?text=${encodeURIComponent(mi)}"><i class="bi bi-whatsapp"></i>Ask instructor</a>`:''}
+          ${f!=='green'?`<button type="button" class="rfm-a" onclick="_flagReassign('${r.id}')"><i class="bi bi-arrow-left-right"></i>Reassign</button>`:''}
+          <button type="button" class="rfm-a" onclick="openRefDetail('${r.instructor_id}')"><i class="bi bi-person"></i>Instructor</button></div></div>`;
+    }).join(''):'<div style="padding:12px;font-size:.78rem;color:var(--txt4)">Nothing here 👍</div>'}</div>`;
+  }
+  box.innerHTML=html;
+}
+function _flagSetView(k){window._flagView=window._flagView===k?null:k;_renderFlagMonitor();}
 function _playFlagSound(color){
   try{
     const ctx=_getAudioCtx();if(!ctx)return;
@@ -4985,17 +5099,18 @@ function _scheduleUnfiledCheck(){
   const today=new Date().toDateString();
   if(lastCheck===today)return;
   localStorage.setItem('dsq_ref_unfiled_check',today);
-  const unfiled=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&!r.flag_color&&(parseFloat(r.amount)||0)>0&&!r.is_paid);
-  if(unfiled.length>0){
+  const act=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
+  const unfiled=act.filter(r=>!r.flag_color&&(parseFloat(r.amount)||0)>0&&_flagAge(r)>=2);
+  const red=act.filter(r=>r.flag_color==='red'&&_flagAge(r)<=60);
+  const unsure=act.filter(r=>r.flag_color==='purple'&&_flagAge(r)>=3&&_flagAge(r)<=60);
+  const n=unfiled.length+red.length+unsure.length;
+  if(n>0){
+    const parts=[red.length?`🚩 ${red.length} not booked`:'',unsure.length?`🟣 ${unsure.length} unsure 3+ days`:'',unfiled.length?`⚪ ${unfiled.length} with no flag`:''].filter(Boolean);
     setTimeout(()=>{
       _playBookingSound();
-      showToast(`⚠️ ${unfiled.length} referral${unfiled.length!==1?'s':''} with no flag set — please review`,'warn',8000);
+      showToast('Booking flags: '+parts.join(' · ')+' — check Referrals','warn',9000);
       // Also push to admin device so it arrives even when the tab is closed
-      pushToAdmin(
-        `⚠️ ${unfiled.length} Referral${unfiled.length!==1?'s':''} Need Flagging`,
-        unfiled.slice(0,3).map(r=>r.student_name).join(', ')+(unfiled.length>3?` +${unfiled.length-3} more`:''),
-        '/admin.html#referrals'
-      );
+      pushToAdmin(`Booking flags to check (${n})`,parts.join(' · ')+' — '+red.concat(unsure,unfiled).slice(0,3).map(r=>r.student_name).join(', '),'/admin.html#referrals');
     },2000);
   }
 }
@@ -5102,7 +5217,7 @@ async function openInstrLog(instrId){
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.65rem">
             <span style="font-weight:700;color:var(--txt2)">£${(parseFloat(r.amount)||0).toFixed(2)}</span>
             <span style="color:${statCol};font-weight:600">${status}</span>
-            ${fc?`<span style="color:${fcCol}">${fcEmoji} ${fc} flag</span>`:'<span style="color:var(--txt4)">No flag</span>'}
+            ${fc?`<span style="color:${fcCol}">${fcEmoji} ${REF_FLAG[fc]?REF_FLAG[fc].l:fc}</span>`:'<span style="color:var(--txt4)">No booking flag</span>'}
           </div>
           ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);margin-top:4px;font-style:italic">${esc(r.notes)}${r.notes_visible?'':' <span style="color:var(--txt4)">(hidden from instructor)</span>'}</div>`:''}
           ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;margin-top:3px"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes)}</div>`:''}
@@ -10625,13 +10740,14 @@ async function loadReferrals(){
     _refData=data||[];
     _buildUnpaidRefIndex(); // keep badge index fresh
     renderReferrals();
-    _scheduleUnfiledCheck();
+    _syncReplyFlags().catch(()=>{}).then(_scheduleUnfiledCheck);
   }catch(e){
     if(el)el.innerHTML='<div style="color:#f87171;padding:20px;font-size:.82rem"><i class="bi bi-exclamation-triangle me-2"></i>'+e.message+'<br><br>Run this SQL in Supabase to create the referrals table:<br><code style="font-size:.7rem;word-break:break-all">create table if not exists referrals (id uuid primary key default gen_random_uuid(), instructor_id uuid not null, student_name text not null, student_phone text, amount numeric(10,2) not null default 0, is_paid boolean not null default false, paid_at timestamptz, is_cancelled boolean not null default false, is_credit boolean not null default false, credit_fulfilled boolean not null default false, credit_fulfilled_at timestamptz, notes text, created_at timestamptz not null default now()); alter table referrals enable row level security; create policy "admin_all" on referrals for all using (true) with check (true); -- if table already exists: alter table referrals add column if not exists is_cancelled boolean not null default false; alter table referrals add column if not exists is_credit boolean not null default false; alter table referrals add column if not exists credit_fulfilled boolean not null default false; alter table referrals add column if not exists credit_fulfilled_at timestamptz; alter table referrals add column if not exists is_contacted boolean not null default false;</code></div>';
   }
 }
 
 function renderReferrals(){
+  try{_renderFlagMonitor();}catch(e){console.warn('flag monitor',e);}
   const start=_refPeriodStart();
   const rows=_refData.filter(r=>new Date(r.created_at)>=start);
 
@@ -10756,7 +10872,7 @@ function renderReferrals(){
           <div style="width:40px;height:40px;border-radius:10px;background:${avatarColor};border:1px solid ${cardBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:${cardAccent}">${initials}</div>
           <div style="flex:1;min-width:0">
             <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);line-height:1.25">${esc(instr.full_name)}${modelBadge}${g.credits>0?`<span style="margin-left:7px;font-size:.58rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''}</span>`:''}</div>
-            <div style="font-size:.67rem;color:var(--txt4);margin-top:2px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}${notifiedBadge}</div>
+            <div style="font-size:.67rem;color:var(--txt4);margin-top:2px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}${notifiedBadge}${(()=>{const c={green:0,purple:0,red:0,none:0};g.rows.forEach(r=>{if(r.is_cancelled||r.is_credit)return;const f=_refFlagOf(r);c[f||'none']++;});return['green','purple','red'].filter(k=>c[k]).map(k=>`<span title="${REF_FLAG[k].d}" style="color:${REF_FLAG[k].c};font-weight:700">${REF_FLAG[k].e}${c[k]}</span>`).join(' ')+(c.none?` <span title="No booking flag yet" style="color:var(--txt4)">⚪${c.none}</span>`:'');})()}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
             ${g.due>0?`<div><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px;text-align:right">Due</div><div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#f87171;font-variant-numeric:tabular-nums;line-height:1">${fmt(g.due)}</div></div>`:''}
@@ -10983,9 +11099,9 @@ async function openRefDetail(instrId){
               <button onclick="toggleContacted('${r.id}')" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap">
                 ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
               </button>
-              <button onclick="setRefFlag('${r.id}','green')" style="background:${fc==='green'?'rgba(74,222,128,.25)':'rgba(74,222,128,.06)'};border:1px solid ${fc==='green'?'rgba(74,222,128,.6)':'rgba(74,222,128,.25)'};color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Green flag — all good">✅</button>
-              <button onclick="setRefFlag('${r.id}','red')" style="background:${fc==='red'?'rgba(239,68,68,.25)':'rgba(239,68,68,.06)'};border:1px solid ${fc==='red'?'rgba(239,68,68,.6)':'rgba(239,68,68,.25)'};color:#f87171;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Red flag — issue / problem">🚩</button>
-              <button onclick="setRefFlag('${r.id}','purple')" style="background:${fc==='purple'?'rgba(168,85,247,.25)':'rgba(168,85,247,.06)'};border:1px solid ${fc==='purple'?'rgba(168,85,247,.6)':'rgba(168,85,247,.25)'};color:#a855f7;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Purple flag — needs review / pending">🟣</button>
+              <button onclick="setRefFlag('${r.id}','green')" style="background:${fc==='green'?'rgba(74,222,128,.25)':'rgba(74,222,128,.06)'};border:1px solid ${fc==='green'?'rgba(74,222,128,.6)':'rgba(74,222,128,.25)'};color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Green — lesson confirmed booked">✅ Booked</button>
+              <button onclick="setRefFlag('${r.id}','red')" style="background:${fc==='red'?'rgba(239,68,68,.25)':'rgba(239,68,68,.06)'};border:1px solid ${fc==='red'?'rgba(239,68,68,.6)':'rgba(239,68,68,.25)'};color:#f87171;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Red — not booked">🚩 Not booked</button>
+              <button onclick="setRefFlag('${r.id}','purple')" style="background:${fc==='purple'?'rgba(168,85,247,.25)':'rgba(168,85,247,.06)'};border:1px solid ${fc==='purple'?'rgba(168,85,247,.6)':'rgba(168,85,247,.25)'};color:#a855f7;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Purple — unsure if booked, check">🟣 Unsure</button>
               ${r.notes?`<button onclick="setRefNotesVisible('${r.id}',${!notesVisible})" style="background:${notesVisible?'rgba(96,165,250,.15)':'rgba(100,116,139,.08)'};border:1px solid ${notesVisible?'rgba(96,165,250,.35)':'rgba(100,116,139,.2)'};color:${notesVisible?'#60a5fa':'#94a3b8'};border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${notesVisible?'Hide note from instructor':'Show note to instructor'}"><i class="bi bi-eye${notesVisible?'':'-slash'} me-1"></i>${notesVisible?'Visible':'Hidden'}</button>`:''}
               ${stuWaNum?`<a href="https://wa.me/${stuWaNum}?text=${encodeURIComponent(waFollowUpMsg)}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);color:#25d366;border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:600;text-decoration:none;white-space:nowrap"><i class="bi bi-whatsapp"></i>Follow Up</a>`:''}
               ${stuWaNum?`<a href="${buildReviewWaLink(stuWaNum)}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:600;text-decoration:none;white-space:nowrap" title="Ask student to leave a Google review"><i class="bi bi-star-fill"></i>Review</a>`:''}
@@ -17549,7 +17665,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   function ago(d){if(!d)return'';var h=(Date.now()-new Date(d).getTime())/36e5;return h<1?Math.max(1,Math.round(h*60))+' min':h<48?Math.round(h)+' h':Math.round(h/24)+' days';}
   function instrById(id){return _I().find(function(i){return i.id===id;})||{};}
   function franchise(id){return instrById(id).instructor_model==='franchise';}
-  var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],nolesson:['⏳','Referred, not booked yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
+  var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],notbooked:['🚩','Not booked (red flag)','#ef4444'],unsure:['🟣','Unsure if booked (purple)','#a855f7'],nolesson:['⏳','Referred, no booking flag yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
   var _items=[],_filter='all';
 
   async function build(){
@@ -17566,18 +17682,30 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       (m.data||[]).filter(function(x){return!franchise(x.instructor_id);}).forEach(function(x){items.push({key:'report:'+x.id,cat:'report',pri:0,title:x.subject||'Report',desc:(instrById(x.instructor_id).full_name||'Instructor')+' · '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>DAY,acts:[['Open report','openReportsInbox']]});});
     }catch(x){}
     // 3. referrals: fees to chase, credits owed
-    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
-    var owe={};refs.filter(function(x){return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
+    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,student_phone,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,flag_color,reply_status,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
+    // an instructor's one-tap reply counts until the flag is set by hand (empty/purple only)
+    refs.forEach(function(x){var rf=typeof REPLY_FLAG!=='undefined'&&REPLY_FLAG[x.reply_status];x._fc=rf&&(!x.flag_color||x.flag_color==='purple')?rf:x.flag_color;});
+    var owe={};refs.filter(function(x){return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&x._fc!=='red'&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
     Object.keys(owe).forEach(function(id){var o=owe[id],i=instrById(id),msg='Hi '+first(i.full_name)+', hope you\'re well! Just a reminder that £'+o.amt.toFixed(0)+' in referral fees ('+o.n+' student'+(o.n>1?'s':'')+') is outstanding. Could you send it over when you get a chance? Thanks — DriveSQ';
       items.push({key:'fee:'+id+':'+o.n,cat:'fee',pri:2,title:(i.full_name||'Instructor')+' owes £'+o.amt.toFixed(0),desc:o.n+' unpaid referral'+(o.n>1?'s':'')+' · oldest '+ago(o.oldest),urgent:(now-new Date(o.oldest))>30*DAY,
         acts:[wa(i.phone,msg)?['WhatsApp reminder','url',wa(i.phone,msg)]:null,['Referrals','tab','referrals']]});});
     refs.filter(function(x){return x.is_credit&&!x.credit_fulfilled;}).forEach(function(x){var i=instrById(x.instructor_id);items.push({key:'credit:'+x.id,cat:'credit',pri:1,title:(i.full_name||'Instructor')+' is owed a replacement',desc:'For '+(x.student_name||'a student')+' who left · '+ago(x.created_at)+' ago',acts:[['Find a student','tab','find']]});});
     // 4. referral students not booked yet — from referrals only (not portal lessons, as not every instructor uses the portal)
     var lastRef={};refs.forEach(function(x){if(!x.is_cancelled&&!x.is_credit&&(!lastRef[x.instructor_id]||x.created_at>lastRef[x.instructor_id]))lastRef[x.instructor_id]=x.created_at;});
-    refs.filter(function(x){var age=now-new Date(x.created_at);return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&age>3*DAY&&age<=14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){
-      var i=instrById(x.instructor_id),nm=x.student_name||'the student',mi='Hi '+first(i.full_name)+', quick one — have you been able to book a first lesson with '+nm+' yet? Let me know if you can\'t reach them. Thanks!',ms='Hi '+first(nm)+', it\'s DriveSQ 👋 Just checking — has '+first(i.full_name)+' been in touch to book your first lesson? Reply here if you need anything.';
-      items.push({key:'nolesson:ref:'+x.id,cat:'nolesson',pri:1,title:nm+' — not booked yet',desc:'Referred to '+(i.full_name||'instructor')+' '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>7*DAY,
-        acts:[wa(i.phone,mi)?['Ask instructor','url',wa(i.phone,mi)]:null,wa(x.student_phone,ms)?['Ask student','url',wa(x.student_phone,ms)]:null,x.student_phone?['Call','url','tel:'+x.student_phone]:null,['Referrals','tab','referrals']]});});
+    // booking flags: 🚩 not booked → reassign/chase · 🟣 unsure → check · no flag after 2 days → set one. ✅ booked needs nothing.
+    refs.filter(function(x){var age=now-new Date(x.created_at);return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&x._fc!=='green'&&age<=60*DAY&&!franchise(x.instructor_id)&&(x._fc||age>2*DAY);}).forEach(function(x){
+      var i=instrById(x.instructor_id),nm=x.student_name||'the student',fc=x._fc,age=now-new Date(x.created_at),
+        mi='Hi '+first(i.full_name)+', quick one — have you been able to book a first lesson with '+nm+' yet? Let me know if you can\'t reach them. Thanks!',
+        ms='Hi '+first(nm)+', it\'s DriveSQ 👋 Just checking — has '+first(i.full_name)+' been in touch to book your first lesson? Reply here if you need anything.',
+        said=x.reply_status?' · instructor says: '+({booked:'booked',not_yet:'not booked yet',unreachable:'can\'t reach them',not_interested:'not going ahead'}[x.reply_status]||x.reply_status):'',
+        flags=[fc!=='green'?['✅ Booked','_todayFlag',x.id+'|green']:null,fc!=='purple'?['🟣 Unsure','_todayFlag',x.id+'|purple']:null,fc!=='red'?['🚩 Not booked','_todayFlag',x.id+'|red']:null],
+        ask=[wa(i.phone,mi)?['Ask instructor','url',wa(i.phone,mi)]:null,wa(x.student_phone,ms)?['Ask student','url',wa(x.student_phone,ms)]:null,x.student_phone?['Call','url','tel:'+x.student_phone]:null];
+      if(fc==='red')items.push({key:'notbooked:'+x.id,cat:'notbooked',pri:0,title:nm+' — NOT booked',desc:'With '+(i.full_name||'instructor')+' · referred '+ago(x.created_at)+' ago'+said,urgent:true,
+        acts:[['Reassign','_flagReassign',x.id]].concat(ask,[['✅ Booked after all','_todayFlag',x.id+'|green']])});
+      else if(fc==='purple')items.push({key:'unsure:'+x.id,cat:'unsure',pri:1,title:nm+' — unsure if booked',desc:'With '+(i.full_name||'instructor')+' · referred '+ago(x.created_at)+' ago'+said,urgent:age>3*DAY,
+        acts:ask.concat(flags)});
+      else items.push({key:'nolesson:ref:'+x.id,cat:'nolesson',pri:1,title:nm+' — booked yet? Set a flag',desc:'Referred to '+(i.full_name||'instructor')+' '+ago(x.created_at)+' ago'+said,urgent:age>7*DAY,
+        acts:flags.concat(ask)});});
     // 5. instructors with no new referral for 14+ days
     _I().filter(function(i){return i.status==='approved'&&i.instructor_model!=='franchise';}).forEach(function(i){
       var last=lastRef[i.id]||null;
@@ -17626,6 +17754,6 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 
 </script>
 <!-- DSQT:TODAY END -->
-<script src="admin-growth.js?v=20261023b"></script>
+<script src="admin-growth.js?v=20261023c"></script>
 </body>
 </html>

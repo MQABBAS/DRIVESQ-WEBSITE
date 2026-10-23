@@ -475,15 +475,120 @@
       </tbody></table></div></div>`;
     // franchise pitch builder
     const perMonth = 52 / 12, cands = list.filter(x => !x.fr).map(x => { const s = stats(x.i.id, 90); const fee = frFee(x.i.id); const feesM = s.fees / 3, studentsM = s.n / 3; return { ...x, s, fee, feesM, studentsM, frM: fee * perMonth, gain: fee * perMonth - feesM, fit: studentsM >= 2 && fee * perMonth >= feesM ? "Strong" : studentsM >= 1 ? "Possible" : "Too few students yet" }; }).sort((a, b) => b.studentsM - a.studentsM);
+    const pros = prospects(), ready = pros.filter(x => x.ratio >= 1);
+    html += `<div class="gx-card"><h4><i class="bi bi-bar-chart-line-fill"></i>Who to move to franchise</h4><p class="gx-sub">Each bar is how many learners an instructor books a month from you. Past the purple line, a flat weekly fee is cheaper for them than paying per learner — that's your easiest pitch.${ready.length ? ` <b style="color:#4ade80">${ready.length} instructor${ready.length > 1 ? "s" : ""} would already save money.</b>` : ""}</p>
+      <div class="gx-scroll">${prospectsChart(pros)}</div>
+      ${pros.length ? `<div class="gx-acts" style="margin-top:8px">${pros.slice(0, 6).map(x => `<button class="gx-btn ${x.ratio >= 1 ? "p" : ""}" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-file-earmark-bar-graph"></i>${h(first(x.i.full_name))} · report</button>`).join("")}</div>` : ""}</div>`;
     html += `<div class="gx-card"><h4><i class="bi bi-arrow-up-right-circle-fill"></i>Franchise pitch builder</h4><p class="gx-sub">Compares what each referral instructor pays you now with a weekly franchise fee. A strong fit gets plenty of students from you and would pay you the same or more on franchise.</p>
       <div class="gx-row" style="margin-bottom:10px"><label class="gx-field">Default weekly fee<input class="dsq-inp" type="number" min="0" step="5" data-cfg="franchiseDef" value="${h(G.cfg.franchiseDef)}"></label></div>
       ${cands.map(x => { const tone = x.fit === "Strong" ? "g" : x.fit === "Possible" ? "a" : ""; return `<div class="gx-item" style="--c:${x.fit === "Strong" ? "#22c55e" : x.fit === "Possible" ? "#f59e0b" : "var(--bdr)"}"><div class="mn"><div class="t">${h(x.i.full_name)} <span class="gx-chip ${tone}">${x.fit}</span></div>
         <div class="d">Last 3 months: ${x.s.n} students sent, ${x.s.booked} booked → paid you ${money(x.s.fees)} (≈${money(x.feesM)}/month). On franchise at ${money(x.fee)}/week ≈ ${money(x.frM)}/month <b style="color:${x.gain >= 0 ? "#4ade80" : "#f87171"}">(${x.gain >= 0 ? "+" : "−"}${money(Math.abs(x.gain))}/month for DriveSQ)</b></div>
         <div class="gx-acts"><label class="gx-field" style="flex-direction:row;align-items:center;gap:6px">£/week <input class="dsq-inp" style="width:76px" type="number" min="0" step="5" data-frfee="${h(x.i.id)}" value="${h(x.fee)}"></label>
+        <button class="gx-btn p" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-file-earmark-bar-graph"></i>Franchise report</button>
         <button class="gx-btn gold" data-act="pitch" data-id="${h(x.i.id)}"><i class="bi bi-chat-quote-fill"></i>Build pitch</button></div></div></div>`; }).join("") || '<div class="gx-empty">No referral instructors.</div>'}</div>`;
     const frs = list.filter(x => x.fr);
     if (frs.length) html += `<div class="gx-card"><h4><i class="bi bi-shield-check"></i>Franchise instructors · value check</h4><p class="gx-sub">Keep them happy: make sure the students you send are worth their weekly fee.</p>${frs.map(x => { const s = stats(x.i.id, 90); return `<div class="gx-row" style="justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bdr);font-size:.82rem"><b>${h(x.i.full_name)}</b><span style="color:var(--txt3)">${s.n} students in 3 months · ${(s.n / 13).toFixed(1)}/week for ${money(frFee(x.i.id))}/week · <label>£/week <input class="dsq-inp" style="width:70px;display:inline-block;min-height:30px;padding:3px 6px" type="number" data-frfee="${h(x.i.id)}" value="${h(frFee(x.i.id))}"></label></span></div>`; }).join("")}</div>`;
     return html;
+  }
+  /* ── franchise: convince referral instructors with their own numbers ── */
+  const WK_M = 52 / 12;
+  const bookedRef = r => !r.is_cancelled && !r.is_credit && (r.is_paid || r.flag_color === "green");
+  // what this instructor's referral fees look like month by month (booked students only — that's what they pay for)
+  function frMonths(id, n) {
+    const out = [], d = new Date();
+    for (let k = n - 1; k >= 0; k--) {
+      const a = new Date(d.getFullYear(), d.getMonth() - k, 1), b = new Date(a.getFullYear(), a.getMonth() + 1, 1);
+      const rs = G.refs.filter(r => r.instructor_id === id && !r.is_credit && new Date(r.created_at) >= a && new Date(r.created_at) < b);
+      const bk = rs.filter(bookedRef);
+      out.push({ lbl: a.toLocaleDateString("en-GB", { month: "short" }), sent: rs.filter(r => !r.is_cancelled).length, booked: bk.length, fees: bk.reduce((s2, r) => s2 + amt(r), 0), part: k === 0 ? Math.min(1, (now() - a) / (b - a)) : 1 });
+    }
+    return out;
+  }
+  function frNumbers(id) {
+    const months = frMonths(id, 6), fee = frFee(id), frM = fee * WK_M;
+    const full = months.filter(m => m.part === 1).slice(-3);
+    const bookedM = full.length ? full.reduce((a, m) => a + m.booked, 0) / full.length : 0;
+    const feesM = full.length ? full.reduce((a, m) => a + m.fees, 0) / full.length : 0;
+    const allBk = G.refs.filter(r => r.instructor_id === id && bookedRef(r));
+    const avgFee = allBk.length ? allBk.reduce((a, r) => a + amt(r), 0) / allBk.length : G.cfg.refFee;
+    const breakEvenM = avgFee ? frM / avgFee : 0; // booked students a month at which franchise costs the same
+    const tot6 = months.reduce((a, m) => ({ sent: a.sent + m.sent, booked: a.booked + m.booked, fees: a.fees + m.fees }), { sent: 0, booked: 0, fees: 0 });
+    return { months, fee, frM, bookedM, feesM, avgFee, breakEvenM, saveM: feesM - frM, tot6 };
+  }
+  function prospects() {
+    return instrs().filter(i => i.status === "approved" && i.instructor_model !== "franchise").map(i => ({ i, n: frNumbers(i.id) }))
+      .filter(x => x.n.tot6.sent > 0).map(x => { const r = x.n.breakEvenM ? x.n.bookedM / x.n.breakEvenM : 0; return { ...x, ratio: r, tier: r >= 1 ? "Saves them money" : r >= .7 ? "Nearly there" : "Grow first" }; })
+      .sort((a, b) => b.ratio - a.ratio);
+  }
+  function prospectsChart(list) {
+    if (!list.length) return '<div class="gx-empty">No referral instructors with students in the last 6 months.</div>';
+    const W = 640, row = 34, top = 26, H = top + list.length * row + 26, L = 150, R = 70, max = Math.max(2, ...list.map(x => Math.max(x.n.bookedM, x.n.breakEvenM))) * 1.1, X = v => L + (W - L - R) * v / max;
+    const col = x => x.ratio >= 1 ? "#22c55e" : x.ratio >= .7 ? "#f59e0b" : "#64748b";
+    return `<svg class="gxf-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Booked students a month compared with the franchise break-even point for each referral instructor">
+      <text x="${L}" y="14" class="gxf-ax">Booked students a month (last 3 full months) · ┆ = point where franchise is cheaper for them</text>
+      ${list.map((x, k) => { const y = top + k * row; return `<text x="${L - 8}" y="${y + 19}" text-anchor="end" class="gxf-nm">${h(first(x.i.full_name))} ${h((x.i.full_name || "").split(/\s+/)[1] ? (x.i.full_name.split(/\s+/)[1][0] + ".") : "")}</text>
+        <rect x="${L}" y="${y + 6}" width="${Math.max(2, X(x.n.bookedM) - L)}" height="18" rx="5" fill="${col(x)}"/>
+        <line x1="${X(x.n.breakEvenM)}" x2="${X(x.n.breakEvenM)}" y1="${y + 2}" y2="${y + 28}" stroke="#a78bfa" stroke-width="2.5" stroke-dasharray="3 3"/>
+        <text x="${Math.max(X(x.n.bookedM), X(x.n.breakEvenM)) + 6}" y="${y + 19}" class="gxf-v">${x.n.bookedM.toFixed(1)} / ${x.n.breakEvenM.toFixed(1)}</text>`; }).join("")}
+      <text x="${L}" y="${H - 6}" class="gxf-ax">Green = franchise already saves them money · amber = close · grey = needs more students first</text></svg>`;
+  }
+  // a self-contained picture of the case for franchise, built only from this instructor's own referral history
+  function frReportSvg(id, perWeek) {
+    const i = iById(id), N = frNumbers(id), m = N.months, W = 720, fm = v => "£" + Math.round(v).toLocaleString("en-GB");
+    const pw = perWeek != null ? perWeek : Math.max(.5, Math.round(N.bookedM / WK_M * 2) / 2);
+    const refCostM = pw * WK_M * N.avgFee, diff = refCostM - N.frM;
+    const cx = 60, cy = 300, cw = 600, ch = 190, maxV = Math.max(N.frM, ...m.map(x => x.fees), 1) * 1.15, bw = cw / m.length;
+    const Y = v => cy + ch - ch * v / maxV;
+    const bars = m.map((x, k) => { const bx = cx + k * bw + bw * .2, w = bw * .6; return `<rect x="${bx}" y="${Y(x.fees)}" width="${w}" height="${cy + ch - Y(x.fees)}" rx="6" fill="#F5C518"${x.part < 1 ? ' opacity=".55"' : ""}/>
+      <text x="${bx + w / 2}" y="${Y(x.fees) - 6}" text-anchor="middle" font-size="13" font-weight="700" fill="#111">${fm(x.fees)}</text>
+      <text x="${bx + w / 2}" y="${cy + ch + 18}" text-anchor="middle" font-size="12" fill="#555">${x.lbl}${x.part < 1 ? " (so far)" : ""}</text>
+      <text x="${bx + w / 2}" y="${cy + ch + 34}" text-anchor="middle" font-size="11" fill="#888">${x.booked} booked</text>`; }).join("");
+    const kpi = (x, lbl, v) => `<rect x="${x}" y="150" width="152" height="74" rx="12" fill="#f6f6f6"/><text x="${x + 14}" y="180" font-size="24" font-weight="800" fill="#111" font-family="Oswald,Inter,sans-serif">${v}</text><text x="${x + 14}" y="206" font-size="12" fill="#666">${lbl}</text>`;
+    const good = diff >= 0;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 900" width="${W}" height="900" font-family="Inter,Arial,sans-serif">
+      <rect width="${W}" height="900" rx="0" fill="#fff"/><rect width="${W}" height="96" fill="#111"/><rect y="96" width="${W}" height="5" fill="#D10A11"/>
+      <text x="32" y="44" font-size="26" font-weight="800" fill="#fff" font-family="Oswald,Inter,sans-serif">Drive<tspan fill="#D10A11">SQ</tspan> · your franchise numbers</text>
+      <text x="32" y="74" font-size="14" fill="#ccc">Prepared for ${h(i.full_name || "you")} · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</text>
+      <text x="32" y="136" font-size="15" font-weight="700" fill="#111">Last 6 months with DriveSQ</text>
+      ${kpi(32, "learners sent to you", N.tot6.sent)}${kpi(196, "booked with you", N.tot6.booked)}${kpi(360, "referral fees", fm(N.tot6.fees))}${kpi(524, "a month, recently", fm(N.feesM))}
+      <text x="32" y="262" font-size="15" font-weight="700" fill="#111">What you pay us each month</text>
+      <text x="32" y="282" font-size="12" fill="#666">Gold bars = referral fees for booked learners · purple line = flat franchise fee (${fm(N.fee)} a week ≈ ${fm(N.frM)} a month)</text>
+      <line x1="${cx}" x2="${cx + cw}" y1="${cy + ch}" y2="${cy + ch}" stroke="#ddd"/>
+      ${bars}
+      <line x1="${cx}" x2="${cx + cw}" y1="${Y(N.frM)}" y2="${Y(N.frM)}" stroke="#7c3aed" stroke-width="3" stroke-dasharray="8 6"/>
+      <text x="${cx + cw}" y="${Y(N.frM) - 7}" text-anchor="end" font-size="12" font-weight="700" fill="#7c3aed">Franchise ${fm(N.frM)}/month</text>
+      <rect x="32" y="560" width="656" height="118" rx="14" fill="${good ? "#ecfdf5" : "#f5f3ff"}" stroke="${good ? "#22c55e" : "#a78bfa"}"/>
+      <text x="52" y="592" font-size="15" font-weight="700" fill="#111">At ${pw} booked learner${pw === 1 ? "" : "s"} a week:</text>
+      <text x="52" y="620" font-size="14" fill="#333">Referral fees ≈ ${fm(refCostM)} a month · Franchise = ${fm(N.frM)} a month</text>
+      <text x="52" y="652" font-size="19" font-weight="800" fill="${good ? "#15803d" : "#6d28d9"}">${good ? "You'd save about " + fm(diff) + " a month on franchise" : "Franchise pays off from " + (N.breakEvenM / WK_M).toFixed(1) + " booked learners a week"}</text>
+      <text x="32" y="716" font-size="15" font-weight="700" fill="#111">What franchise includes</text>
+      ${["One flat weekly fee — no fee per learner, however many we send", "Priority for new learners in your area", "DriveSQ branding, the instructor app and admin support"].map((t, k) => `<circle cx="42" cy="${744 + k * 30}" r="5" fill="#D10A11"/><text x="56" y="${749 + k * 30}" font-size="14" fill="#222">${h(t)}</text>`).join("")}
+      <text x="32" y="862" font-size="11" fill="#888">Figures come from the referrals DriveSQ has recorded for you. Break-even: ${(N.breakEvenM / WK_M).toFixed(1)} booked learners a week at ${fm(N.avgFee)} per learner.</text>
+    </svg>`;
+  }
+  function frReport(id) {
+    const i = iById(id), N = frNumbers(id);
+    const pw0 = Math.max(.5, Math.round(N.bookedM / WK_M * 2) / 2);
+    const m = modal(`<div class="gxm-sheet-hd"><h4>Franchise report · ${h(i.full_name)}</h4><button class="gx-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button></div>
+      <p class="gx-sub">Their own numbers: what they've paid you in referral fees against a flat weekly fee. Move the slider to show "if we send you more".</p>
+      <div class="gx-row" style="gap:12px;margin:6px 0 10px;align-items:center"><label class="gx-field" style="flex:1;min-width:200px">Booked learners a week: <b id="gxfPwV">${pw0}</b><input type="range" id="gxfPw" min="0.5" max="6" step="0.5" value="${pw0}"></label>
+        <label class="gx-field">£/week<input class="dsq-inp" style="width:84px" type="number" min="0" step="5" id="gxfFee" value="${h(N.fee)}"></label></div>
+      <div id="gxfImg" class="gxf-img">${frReportSvg(id, pw0)}</div>
+      <div class="gx-acts" style="margin-top:10px"><button class="gx-btn p" id="gxfPng"><i class="bi bi-image"></i>Download picture</button>
+        ${i.phone ? `<a class="gx-btn wa" id="gxfWa" target="_blank" rel="noopener" href="#"><i class="bi bi-whatsapp"></i>WhatsApp summary</a>` : ""}
+        <button class="gx-btn" id="gxfShare"><i class="bi bi-share"></i>Share</button><button class="gx-btn" data-act="pitch" data-id="${h(id)}"><i class="bi bi-chat-quote-fill"></i>Pitch message</button></div>`);
+    const sheet = m.querySelector(".gxm-sheet"); sheet.classList.add("gxf-sheet");
+    const pwEl = m.querySelector("#gxfPw"), feeEl = m.querySelector("#gxfFee");
+    const summary = () => { const n2 = frNumbers(id), pw = parseFloat(pwEl.value), ref = pw * WK_M * n2.avgFee, d = ref - n2.frM;
+      return "Hi " + first(i.full_name) + " 👋 Here are your DriveSQ numbers for the last 6 months:\n\n• " + n2.tot6.sent + " learners sent to you, " + n2.tot6.booked + " booked\n• " + money(n2.tot6.fees) + " paid in referral fees (≈" + money(n2.feesM) + " a month recently)\n\nOn franchise it's a flat " + money(n2.fee) + " a week (≈" + money(n2.frM) + " a month), with no fee per learner.\nAt " + pw + " booked learner" + (pw === 1 ? "" : "s") + " a week: referral fees ≈ " + money(ref) + "/month vs franchise " + money(n2.frM) + "/month" + (d >= 0 ? " — you'd save about " + money(d) + " a month." : ". Franchise pays off from " + (n2.breakEvenM / WK_M).toFixed(1) + " booked learners a week.") + "\n\nFancy a quick chat this week?\n— DriveSQ"; };
+    const redraw = () => { m.querySelector("#gxfPwV").textContent = pwEl.value; m.querySelector("#gxfImg").innerHTML = frReportSvg(id, parseFloat(pwEl.value)); const w = m.querySelector("#gxfWa"); if (w) w.href = wa(i.phone, summary()); };
+    pwEl.addEventListener("input", redraw);
+    feeEl.addEventListener("change", () => { G.cfg.franchiseBy[id] = parseFloat(feeEl.value) || 0; saveCfg(); redraw(); });
+    redraw();
+    const png = () => new Promise((res, rej) => { const svg = frReportSvg(id, parseFloat(pwEl.value)), img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = 1440; c.height = 1800; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); c.toBlob(b => b ? res(b) : rej(new Error("no image")), "image/png"); }; img.onerror = () => rej(new Error("render failed")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+    const fname = "DriveSQ-franchise-" + (i.full_name || "instructor").replace(/\W+/g, "-") + ".png";
+    m.querySelector("#gxfPng").addEventListener("click", async () => { try { const b = await png(), u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); toast("Picture saved — send it with the WhatsApp summary", "success", 3000); } catch (e) { toast("Couldn't make the picture: " + e.message, "error"); } });
+    m.querySelector("#gxfShare").addEventListener("click", async () => { try { const b = await png(), f = new File([b], fname, { type: "image/png" }); if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], text: summary() }); else { await navigator.clipboard.writeText(summary()); toast("Summary copied — use Download picture for the image", "info", 3500); } } catch (e) { if (e && e.name !== "AbortError") toast("Couldn't share: " + e.message, "error"); } });
   }
   function pitchText(id) {
     const i = iById(id), s = stats(id, 90), fee = frFee(id), wk = (s.n / 13);
@@ -565,6 +670,7 @@
     else if (act === "match") { const r = G.wl.find(x => x.id === id); if (!r) return; markContacted(id, true); try { waitlistAssign(r.id, r.student_name || "", wlPostcode(r), r.lesson_type || lessonType(r), r.student_phone || "", r.notes || "", r.area || ""); } catch (x) { switchTab("find"); } }
     else if (act === "pitch") { const i = iById(id), txt = pitchText(id); modal(`<h4 style="font-family:Oswald;margin:0 0 4px">Franchise pitch for ${h(i.full_name)}</h4><p class="gx-sub">Edit it, then send.</p><textarea class="dsq-inp gx-msg" id="gxPitch">${h(txt)}</textarea><div class="gx-acts"><a class="gx-btn wa" id="gxPitchWa" target="_blank" rel="noopener" href="${h(wa(i.phone, txt))}"><i class="bi bi-whatsapp"></i>Send on WhatsApp</a><button class="gx-btn" data-act="copylink" data-text="${h(txt)}" id="gxPitchCopy"><i class="bi bi-clipboard"></i>Copy</button><button class="gx-btn" data-close>Close</button></div>`); const ta = $("#gxPitch"); ta.addEventListener("input", () => { $("#gxPitchWa").href = wa(i.phone, ta.value); $("#gxPitchCopy").setAttribute("data-text", ta.value); }); }
     else if (act === "sendweekly") sendWeekly();
+    else if (act === "frreport") frReport(id);
   }
   function onChange(e) {
     const t = e.target;
@@ -650,7 +756,7 @@
       if (S.osrm[k] === undefined) { try { const ctl = new AbortController(); setTimeout(() => ctl.abort(), 3500); const j = await (await fetch(`https://router.project-osrm.org/route/v1/driving/${g.lon},${g.lat};${r.g.lon},${r.g.lat}?overview=false`, { signal: ctl.signal })).json(); S.osrm[k] = j.routes && j.routes[0] ? { mi: j.routes[0].distance / 1609.34, mins: Math.round(j.routes[0].duration / 60) } : null; } catch (e) { S.osrm[k] = null; } }
       if (S.osrm[k]) { r.miles = S.osrm[k].mi; r.mins = S.osrm[k].mins; }
     }));
-    S.cmp.clear(); return true;
+    S.cmp.clear(); S.sel = null; return true;
   }
   function score(r) {
     const tc = TC() && r.tc, w0 = MODES[S.mode][1], st = r.st;
@@ -733,34 +839,89 @@
     box.innerHTML = html;
     if (best) drawMap(list.slice(0, Math.max(n, 6)));
   }
-  async function leaflet() {
-    if (window.L) return true;
+  let _lf = null;
+  // one shared loader — admin.html's own maps load the same Leaflet, so wait for that copy instead of adding a second
+  function leaflet() {
+    if (window.L && window.L.map) return Promise.resolve(true);
+    if (_lf) return _lf;
     if (!document.getElementById("leaflet-css")) { const lc = document.createElement("link"); lc.id = "leaflet-css"; lc.rel = "stylesheet"; lc.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(lc); }
-    try { await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); return true; } catch (e) { return false; }
+    _lf = new Promise(res => {
+      const done = () => res(!!(window.L && window.L.map));
+      const old = document.querySelector('script[src*="leaflet@1.9.4/dist/leaflet.js"]');
+      if (old) { let n = 0; (function w() { if (window.L && window.L.map) return res(true); if (++n > 100) return res(false); setTimeout(w, 100); })(); return; }
+      const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"; sc.onload = done; sc.onerror = () => { _lf = null; res(false); }; document.head.appendChild(sc);
+    });
+    return _lf;
+  }
+  const pinCol = v => v >= 70 ? "#22c55e" : v >= 45 ? "#f59e0b" : "#ef4444";
+  function popupHtml(r) {
+    const tc = TC();
+    return `<div class="gxm-pop"><b>${h(r.i.full_name)}</b><div>${r.sc.total}/100 · ${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""} to student</div>${tc && r.tc ? `<div>🏁 ${r.tc.dist.toFixed(1)} mi to ${h(tc.name)}${r.tc.covers ? " · covers" : r.tc.between ? " · in between" : ""}</div>` : ""}
+      <div class="gxm-pop-acts"><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}"><i class="bi bi-person-plus-fill"></i>Assign</button><a class="gx-btn" target="_blank" rel="noopener" href="${h(mapsUrl(r))}"><i class="bi bi-google"></i>Maps</a></div></div>`;
+  }
+  // highlight one instructor: bigger pin, a line to the student (and on to the test centre) with the distance on it
+  function selectOnMap(id, open) {
+    const M = S.mapCtx; if (!M) return;
+    const r = M.list.find(x => x.i.id === id); if (!r) return;
+    S.sel = id;
+    M.markers.forEach((m, k) => { const on = M.list[k].i.id === id; m.setIcon(M.icon(M.list[k], k, on)); m.setZIndexOffset(on ? 800 : 0); });
+    M.link.clearLayers();
+    const st = [S.geo.lat, S.geo.lon], ip = [r.g.lat, r.g.lon];
+    L.polyline([ip, st], { color: "#F5C518", weight: 4, opacity: .9 }).addTo(M.link)
+      .bindTooltip(`${first(r.i.full_name)} → student: ${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""}`, { permanent: true, direction: "center", className: "gxm-dist" });
+    const tc = TC();
+    if (tc && tc.lat != null && r.tc) L.polyline([ip, [tc.lat, tc.lon]], { color: "#f472b6", weight: 2, opacity: .8, dashArray: "2 6" }).addTo(M.link)
+      .bindTooltip(`${r.tc.dist.toFixed(1)} mi to test`, { permanent: true, direction: "center", className: "gxm-dist tc" });
+    $$(".gxm-row.on").forEach(x => x.classList.remove("on")); const row = $(`[data-gxm-row="${CSS.escape(id)}"]`); if (row) row.classList.add("on");
+    const lbl = $("#gxmMapSel"); if (lbl) lbl.innerHTML = `<b>${h(r.i.full_name)}</b> · ${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""}${tc && r.tc ? " · 🏁 " + r.tc.dist.toFixed(1) + " mi" : ""} <a target="_blank" rel="noopener" href="${h(mapsUrl(r))}">Open in Google Maps</a>`;
+    if (open) { const k = M.list.indexOf(r); M.markers[k].openPopup(); M.map.panInside(ip, { padding: [40, 40] }); }
   }
   async function drawMap(list) {
     const el = $("#gxmMap"); if (!el) return;
-    if (!(await leaflet())) { el.innerHTML = '<div class="gxm-map-ph">Map unavailable offline</div>'; return; }
-    if (!$("#gxmMap")) return;
-    try { if (S.map) S.map.remove(); } catch (e) {}
+    if (!(await leaflet())) { el.innerHTML = '<div class="gxm-map-ph">Map couldn\'t load — check the connection. Use the Maps buttons instead.</div>'; return; }
+    if (!el.isConnected || !S.geo) return;
+    try { if (S.map) S.map.remove(); } catch (e) {} S.map = null; S.mapCtx = null;
+    if (S.mapRO) { try { S.mapRO.disconnect(); } catch (e) {} }
     el.innerHTML = "";
-    const dark = document.documentElement.getAttribute("data-theme") !== "light" && !document.body.classList.contains("light-mode");
-    const map = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, tap: true });
-    L.tileLayer(dark ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 18, attribution: "© OpenStreetMap © CARTO" }).addTo(map);
+    const touch = window.matchMedia && matchMedia("(pointer:coarse)").matches;
+    const map = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, dragging: !touch, tap: false });
+    // normal street map in both themes (the old dark basemap looked like a black box); falls back to CARTO if OSM tiles fail
+    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
+    let errs = 0, swapped = false;
+    osm.on("tileerror", () => { if (swapped || ++errs < 4) return; swapped = true; map.removeLayer(osm); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { maxZoom: 18, subdomains: "abcd", attribution: "© OpenStreetMap © CARTO" }).addTo(map); });
     const c = [S.geo.lat, S.geo.lon];
     [3, 5, 10].forEach((mi, k) => L.circle(c, { radius: mi * 1609.34, color: "#F5C518", weight: 1, opacity: .5 - k * .12, fillOpacity: .03, dashArray: "4 6", interactive: false }).addTo(map));
-    L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="gxm-pin me">●</div>', iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 1000 }).addTo(map).bindTooltip(h(S.student.name) + " · " + h(S.student.postcode));
+    L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="gxm-pin me">●</div>', iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 1000 }).addTo(map).bindTooltip("Student · " + h(S.student.postcode), { direction: "top", offset: [0, -10] });
     const pts = [c], tc = TC();
-    if (tc && tc.lat != null) { L.marker([tc.lat, tc.lon], { icon: L.divIcon({ className: "", html: '<div class="gxm-pin" style="background:#f472b6">🏁</div>', iconSize: [28, 28], iconAnchor: [14, 14] }), zIndexOffset: 900 }).addTo(map).bindTooltip(h(tc.name)); L.polyline([c, [tc.lat, tc.lon]], { color: "#f472b6", weight: 2, dashArray: "6 6", interactive: false }).addTo(map); pts.push([tc.lat, tc.lon]); }
-    list.forEach((r, k) => {
-      const col = r.sc.total >= 70 ? "#22c55e" : r.sc.total >= 45 ? "#f59e0b" : "#ef4444";
-      const m = L.marker([r.g.lat, r.g.lon], { icon: L.divIcon({ className: "", html: `<div class="gxm-pin" style="background:${col}">${k + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(map);
-      m.bindPopup(`<b>${h(r.i.full_name)}</b><br>${r.sc.total}/100 · ${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""}`);
-      m.on("click", () => { const row = $(`[data-gxm-row="${CSS.escape(r.i.id)}"]`); if (row) { $$(".gxm-row.on").forEach(x => x.classList.remove("on")); row.classList.add("on", "flash"); row.scrollIntoView({ block: "nearest", behavior: "smooth" }); setTimeout(() => row.classList.remove("flash"), 1000); } });
+    if (tc && tc.lat != null) { L.marker([tc.lat, tc.lon], { icon: L.divIcon({ className: "", html: '<div class="gxm-pin tc">🏁</div>', iconSize: [28, 28], iconAnchor: [14, 14] }), zIndexOffset: 900 }).addTo(map).bindTooltip(h(tc.name), { direction: "top", offset: [0, -12] }); L.polyline([c, [tc.lat, tc.lon]], { color: "#f472b6", weight: 2, opacity: .6, dashArray: "6 6", interactive: false }).addTo(map); pts.push([tc.lat, tc.lon]); }
+    const icon = (r, k, on) => L.divIcon({ className: "", html: `<div class="gxm-pin${on ? " sel" : ""}" style="background:${pinCol(r.sc.total)}">${k + 1}</div>`, iconSize: on ? [36, 36] : [28, 28], iconAnchor: on ? [18, 18] : [14, 14] });
+    const markers = list.map((r, k) => {
+      const m = L.marker([r.g.lat, r.g.lon], { icon: icon(r, k, false), title: r.i.full_name, riseOnHover: true }).addTo(map);
+      m.bindTooltip(`${k + 1}. ${h(first(r.i.full_name))}`, { direction: "top", offset: [0, -14] });
+      m.bindPopup(popupHtml(r), { maxWidth: 230, autoPanPaddingTopLeft: [52, 16], autoPanPaddingBottomRight: [16, 70] });
+      m.on("click", () => { selectOnMap(r.i.id, false); const row = $(`[data-gxm-row="${CSS.escape(r.i.id)}"]`); if (row) { row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1000); } });
       if (k < 5) pts.push([r.g.lat, r.g.lon]);
+      return m;
     });
-    map.fitBounds(L.latLngBounds(pts), { padding: [28, 28], maxZoom: 13 });
-    S.map = map; setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 200);
+    S.mapCtx = { map, list, markers, icon, link: L.layerGroup().addTo(map), pts };
+    const cap = L.DomUtil.create("div", "gxm-mapcap", el); cap.id = "gxmMapSel"; L.DomEvent.disableClickPropagation(cap);
+    const fit = () => { try { map.invalidateSize(); map.fitBounds(L.latLngBounds(pts), { padding: [34, 34], maxZoom: 13 }); } catch (e) {} };
+    fit();
+    // fit-all button
+    const Fit = L.Control.extend({ onAdd() { const b = L.DomUtil.create("button", "gxm-fit"); b.type = "button"; b.title = "Show everyone"; b.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>'; L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); fit(); }); return b; } });
+    map.addControl(new Fit({ position: "topright" }));
+    // desktop: wheel zoom only after clicking the map, so the page still scrolls
+    map.on("click", () => map.scrollWheelZoom.enable()); el.addEventListener("mouseleave", () => map.scrollWheelZoom.disable());
+    // phones: one finger scrolls the page; tap the map to move it
+    if (touch) {
+      const hint = L.DomUtil.create("button", "gxm-touch", el); hint.type = "button"; hint.textContent = "Tap to move the map";
+      L.DomEvent.on(hint, "click", e => { L.DomEvent.stop(e); map.dragging.enable(); hint.remove(); });
+    }
+    // a map drawn while the tab was hidden has no size — fix it when it becomes visible
+    if (window.ResizeObserver) { let last = ""; S.mapRO = new ResizeObserver(() => { const k = el.clientWidth + "x" + el.clientHeight; if (k === last || !el.clientWidth) return; const first0 = !last; last = k; map.invalidateSize(); if (!first0) fit(); }); S.mapRO.observe(el); }
+    S.map = map; setTimeout(fit, 250);
+    const keep = list.find(r => r.i.id === S.sel);
+    selectOnMap((keep || list[0]).i.id, false);
   }
   function compareModal() {
     const rows = ranked().filter(r => S.cmp.has(r.i.id));
@@ -780,7 +941,8 @@
       <tr><th scope="row">Type</th>${rows.map(r => `<td>${h(r.i.instructor_model || "unsure")}</td>`).join("")}</tr>
       <tr class="gxm-cmpt-acts"><th></th>${rows.map(r => `<td><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}"><i class="bi bi-person-plus-fill"></i>Assign</button><a class="gx-btn" target="_blank" rel="noopener" href="${h(mapsUrl(r))}"><i class="bi bi-google"></i>Maps</a></td>`).join("")}</tr></tbody></table>
       <button class="gx-btn" data-close style="margin-top:12px;width:100%;justify-content:center">Close</button>`;
-    let m = $("#gxModal"); if (!m) { m = document.createElement("div"); m.id = "gxModal"; m.className = "gxm-modal"; document.body.appendChild(m); m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-close]")) m.classList.remove("open"); }); document.addEventListener("keydown", e => { if (e.key === "Escape") m.classList.remove("open"); }); }
+    // own modal: #gxModal belongs to the Growth tab (its buttons are wired when it is created)
+    let m = $("#gxmCmpModal"); if (!m) { m = document.createElement("div"); m.id = "gxmCmpModal"; m.className = "gxm-modal"; document.body.appendChild(m); m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-close]")) m.classList.remove("open"); }); document.addEventListener("keydown", e => { if (e.key === "Escape") m.classList.remove("open"); }); }
     m.innerHTML = `<div class="gxm-sheet" role="dialog" aria-modal="true" aria-label="Compare instructors">${html}</div>`; m.classList.add("open");
   }
   document.addEventListener("click", e => {
@@ -792,7 +954,11 @@
     else if (t.hasAttribute("data-gxm-toggle")) { S.compact = !S.compact; $("#findResults").classList.toggle("gx-compact", S.compact); render(); }
     else if (t.hasAttribute("data-gxm-cmpgo")) compareModal();
     else if (t.hasAttribute("data-gxm-cmpclear")) { S.cmp.clear(); render(); }
-    else if (t.hasAttribute("data-gxm-assign")) { const i = instrs().find(x => x.id === t.getAttribute("data-gxm-assign")); const m = $("#gxModal"); if (m) m.classList.remove("open"); if (i) openCreateAndAssign(i.id, i.full_name); }
+    else if (t.hasAttribute("data-gxm-assign")) { const i = instrs().find(x => x.id === t.getAttribute("data-gxm-assign")); const m = $("#gxmCmpModal"); if (m) m.classList.remove("open"); if (i) openCreateAndAssign(i.id, i.full_name); }
+  });
+  document.addEventListener("click", e => {
+    const row = e.target.closest("[data-gxm-row]"); if (!row || e.target.closest("button,a,label,input")) return;
+    selectOnMap(row.getAttribute("data-gxm-row"), true); const m = $("#gxmMap"); if (m && m.getBoundingClientRect().bottom < 0) m.scrollIntoView({ block: "center", behavior: "smooth" });
   });
   document.addEventListener("change", e => { const t = e.target; if (!t.hasAttribute || !t.hasAttribute("data-gxm-cmp")) return; const id = t.getAttribute("data-gxm-cmp"); if (t.checked) { if (S.cmp.size >= 3) { t.checked = false; try { showToast("Compare up to 3 at a time", "info", 2000); } catch (x) {} return; } S.cmp.add(id); } else S.cmp.delete(id); const tray = $("#gxmTray"); if (tray) { tray.classList.toggle("show", S.cmp.size > 0); tray.innerHTML = trayInner(); } });
 

@@ -110,13 +110,16 @@ textarea::placeholder{color:var(--txt3)}
     // booked → send straight away (true one tap, also from the email buttons)
     if(v==='booked')send();
   }
+  // keep the admin's booking flag in step: ✅ booked = green, not yet = purple (unsure), can't reach / not going ahead = red.
+  // Only fills an empty or purple flag — a green/red set by admin is never overwritten.
+  function flagFor(v){var f={booked:'green',not_yet:'purple',unreachable:'red',not_interested:'red'}[v];return f&&(!ref.flag_color||ref.flag_color==='purple')?{flag_color:f}:{};}
   async function send(){
     if(!choice)return;
     var btn=document.getElementById('send');if(btn){btn.disabled=true;btn.textContent='Sending…';}
     var note=((document.getElementById('note')||{}).value||'').trim();
     var now=new Date().toISOString(), ok=false;
     try{
-      var r=await fetch(SB_URL+'/rest/v1/referrals?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify({reply_status:choice,reply_note:note||null,replied_at:now})});
+      var r=await fetch(SB_URL+'/rest/v1/referrals?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(Object.assign({reply_status:choice,reply_note:note||null,replied_at:now},flagFor(choice)))});
       ok=r.ok;
     }catch(e){}
     if(!ok){ // database not upgraded yet → leave it as an instructor report instead
