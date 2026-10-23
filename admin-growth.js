@@ -612,7 +612,11 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
   const MODES = { balanced: ["Balanced", { d: .35, b: .3, f: .15, s: .1, c: .1 }], closest: ["Closest", { d: .7, b: .1, f: .05, s: .05, c: .1 }], book: ["Most likely to book", { d: .2, b: .55, f: .05, s: .15, c: .05 }], fair: ["Share fairly", { d: .3, b: .15, f: .45, s: .05, c: .05 }] };
-  const COMP = [["d", "Distance", "#60a5fa"], ["b", "Books", "#22c55e"], ["f", "Fair share", "#a78bfa"], ["s", "Speed", "#f59e0b"], ["c", "Covers area", "#F5C518"]];
+  const COMP0 = [["d", "Distance", "#60a5fa"], ["b", "Books", "#22c55e"], ["f", "Fair share", "#a78bfa"], ["s", "Speed", "#f59e0b"], ["c", "Covers area", "#F5C518"]];
+  const TC = () => (S.student && S.student.testCentre) || null;
+  // the test-centre part only shows when a test centre was picked on the Find form
+  const comps = () => TC() ? COMP0.concat([["t", "Test centre", "#f472b6"]]) : COMP0;
+  const mapsUrl = r => { const s = S.student, tc = TC(), o = _fcInstrPc(r.i) || r.i.area || ""; try { return _fcMapsUrl(o, s.postcode, tc ? tc.postcode : ""); } catch (e) { return "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(o) + "&destination=" + encodeURIComponent(s.postcode); } };
   const S = { mode: localStorage.getItem("gxm_mode") || "balanced", filters: new Set(JSON.parse(localStorage.getItem("gxm_f") || "[]")), cmp: new Set(), rows: [], student: null, geo: null, map: null, compact: true, showAll: false, osrm: {}, key: "" };
   const save = () => { try { localStorage.setItem("gxm_mode", S.mode); localStorage.setItem("gxm_f", JSON.stringify([...S.filters])); } catch (e) {} };
   const canTeach = (lt, want) => lt === "Both" || (want === "Automatic" ? lt === "Automatic" : lt !== "Automatic");
@@ -634,6 +638,13 @@
       return { i, g: ig, miles: haversine(g.lat, g.lon, ig.lat, ig.lon), mins: null, st, lt: i.car_type || "Manual", ok: canTeach(i.car_type || "Manual", s.type), cov: covers(i, oc), credits: (typeof _creditIndex !== "undefined" && _creditIndex[i.id]) || 0, fr: i.instructor_model === "franchise" };
     }));
     S.rows = rows.filter(Boolean).sort((a, b) => a.miles - b.miles);
+    const tc = s.testCentre;
+    if (tc && tc.lat != null) {
+      const toc = outward(tc.postcode);
+      S.rows.forEach(r => { const crow = r.miles, dT = haversine(r.g.lat, r.g.lon, tc.lat, tc.lon), cov = covers(r.i, toc);
+        r.tc = { dist: dT, covers: cov, between: crow < tc.fromHome && dT < tc.fromHome, cost: _fcTestCost(crow, dT) - (cov ? 2 : 0) }; });
+      S.tcBest = Math.min(...S.rows.map(r => r.tc.cost));
+    }
     await Promise.all(S.rows.slice(0, 10).map(async r => {
       const k = [g.lat, g.lon, r.g.lat, r.g.lon].map(v => v.toFixed(4)).join(",");
       if (S.osrm[k] === undefined) { try { const ctl = new AbortController(); setTimeout(() => ctl.abort(), 3500); const j = await (await fetch(`https://router.project-osrm.org/route/v1/driving/${g.lon},${g.lat};${r.g.lon},${r.g.lat}?overview=false`, { signal: ctl.signal })).json(); S.osrm[k] = j.routes && j.routes[0] ? { mi: j.routes[0].distance / 1609.34, mins: Math.round(j.routes[0].duration / 60) } : null; } catch (e) { S.osrm[k] = null; } }
@@ -642,7 +653,8 @@
     S.cmp.clear(); return true;
   }
   function score(r) {
-    const w = MODES[S.mode][1], st = r.st;
+    const tc = TC() && r.tc, w0 = MODES[S.mode][1], st = r.st;
+    const w = tc ? Object.assign(Object.fromEntries(Object.entries(w0).map(([k, v]) => [k, v * .55])), { t: .45 }) : w0;
     const c = {
       d: r.mins != null ? clamp(1 - (r.mins - 5) / 35, 0, 1) : clamp(1 - (r.miles - 1) / 9, 0, 1),
       b: clamp(st.smooth, 0, 1),
@@ -650,7 +662,8 @@
       s: st.speed == null ? .5 : clamp(1 - (st.speed - 1) / 13, 0, 1),
       c: r.cov ? 1 : r.miles <= 3 ? .6 : 0
     };
-    const parts = {}; let tot = 0; COMP.forEach(([k]) => { parts[k] = w[k] * c[k] * 100; tot += parts[k]; });
+    if (tc) { const D = TC().fromHome || 0; c.t = clamp(1 - (r.tc.cost - S.tcBest) / Math.max(3, D * .25), 0, 1); if (r.tc.covers) c.t = Math.max(c.t, .9); }
+    const parts = {}; let tot = 0; comps().forEach(([k]) => { parts[k] = w[k] * c[k] * 100; tot += parts[k]; });
     const pen = st.unpaid > 40 ? 8 : st.unpaid > 0 ? 3 : 0;
     return { total: Math.round(clamp(tot - pen, 0, 100)), parts, c, pen };
   }
@@ -669,6 +682,7 @@
     out.push(["📍", r.miles.toFixed(1) + " miles" + (r.mins != null ? " · about " + r.mins + " min drive" : "") + " from " + s.postcode]);
     out.push([r.ok ? "✅" : "⚠️", r.ok ? "Teaches " + s.type : "Teaches " + r.lt + " only"]);
     if (r.cov) out.push(["🗺️", "Says they cover " + outward(s.postcode)]);
+    if (TC() && r.tc) out.push(["🏁", r.tc.dist.toFixed(1) + " miles from " + TC().name + (r.tc.covers ? " · covers " + outward(TC().postcode) : "") + (r.tc.between ? " · between home and the test" : r.tc.dist > TC().fromHome ? " · further from the test than the student is" : "")]);
     if (st.n) out.push(["📈", Math.round(st.smooth * 100) + "% of students they get go on to book" + (st.n < 4 ? " (few so far)" : "")]); else out.push(["🆕", "No referrals yet — a good chance to try them"]);
     if (st.speed != null) out.push(["⚡", "Usually books within " + (st.speed < 1.5 ? "a day" : Math.round(st.speed) + " days")]);
     out.push([st.week ? "📅" : "🙋", st.week ? st.week + " student" + (st.week > 1 ? "s" : "") + " from you this week" : "No students from you this week"]);
@@ -681,9 +695,13 @@
   const av = (i, cls) => i.profile_photo_url ? `<img class="${cls}" src="${h(i.profile_photo_url)}" alt="">` : `<div class="${cls}">${h((i.full_name || "?").charAt(0))}</div>`;
   function intro(r) {
     const s = S.student;
-    return "Hi " + first(r.i.full_name) + " 👋 New learner near you from DriveSQ:\n\n👤 " + s.name + "\n📍 " + s.postcode + (r.mins != null ? " (about " + r.mins + " min from you)" : "") + "\n🚗 " + s.type + (s.avail ? "\n🕐 " + s.avail : "") + (s.notes ? "\n📝 " + s.notes : "") + "\n\nCan you take them? Reply YES and I'll send their number.";
+    return "Hi " + first(r.i.full_name) + " 👋 New learner near you from DriveSQ:\n\n👤 " + s.name + "\n📍 " + s.postcode + (r.mins != null ? " (about " + r.mins + " min from you)" : "") + "\n🚗 " + s.type + (TC() ? "\n🏁 Test at " + TC().name : "") + (s.avail ? "\n🕐 " + s.avail : "") + (s.notes ? "\n📝 " + s.notes : "") + "\n\nCan you take them? Reply YES and I'll send their number.";
   }
-  function bar(sc) { return `<div class="gx-bar" title="${COMP.map(([k, n]) => n + " " + Math.round(sc.parts[k])).join(" · ")}">${COMP.map(([k, , col]) => `<span style="width:${sc.parts[k]}%;background:${col}"></span>`).join("")}</div>`; }
+  function trayInner() {
+    const n = S.cmp.size, names = S.rows.filter(r => S.cmp.has(r.i.id)).map(r => first(r.i.full_name)).join(", ");
+    return `<span class="gxm-tray-txt"><b>${n}</b> selected${names ? ": " + h(names) : ""}<small>${n < 2 ? "Tick one more to compare (up to 3)" : n < 3 ? "You can add one more" : "Maximum 3"}</small></span><button class="gx-btn" data-gxm-cmpclear>Clear</button><button class="gx-btn gold" data-gxm-cmpgo ${n < 2 ? "disabled" : ""}><i class="bi bi-layout-three-columns"></i>Compare</button>`;
+  }
+  function bar(sc) { return `<div class="gx-bar" title="${comps().map(([k, n]) => n + " " + Math.round(sc.parts[k])).join(" · ")}">${comps().map(([k, , col]) => `<span style="width:${sc.parts[k]}%;background:${col}"></span>`).join("")}</div>`; }
 
   function render() {
     const res = $("#findResults"); if (!res || !S.student) return;
@@ -699,16 +717,17 @@
       html += `<div class="gxm-hero"><div class="gxm-best"><div class="lbl"><i class="bi bi-trophy-fill"></i>Best match · ${h(MODES[S.mode][0])}</div>
         <div class="gxm-who">${av(best.i, "gxm-av")}<div style="flex:1;min-width:0"><div class="gxm-name">${h(best.i.full_name)}</div><div class="gxm-meta">${h(best.i.area || "")} · ${h(best.lt === "Both" ? "Manual & Auto" : best.lt)} · ${h(best.i.instructor_model || "unsure")}</div></div>${ringSvg(best.sc.total, 60)}</div>
         <ul class="gxm-why">${why(best).map(w => `<li><span>${w[0]}</span><span>${h(w[1])}</span></li>`).join("")}</ul>
-        ${bar(best.sc)}<div class="gxm-legend">${COMP.map(([, n, col]) => `<span><i style="background:${col}"></i>${n}</span>`).join("")}</div>
+        ${bar(best.sc)}<div class="gxm-legend">${comps().map(([, n, col]) => `<span><i style="background:${col}"></i>${n}</span>`).join("")}</div>
         <div class="gx-acts" style="margin-top:12px"><button class="gx-btn p" data-gxm-assign="${h(best.i.id)}"><i class="bi bi-person-plus-fill"></i>Create &amp; Assign</button>
         ${waNum(best.i.phone) ? `<a class="gx-btn wa" target="_blank" rel="noopener" href="https://wa.me/${waNum(best.i.phone)}?text=${encodeURIComponent(intro(best))}"><i class="bi bi-whatsapp"></i>Ask if they can take them</a>` : ""}
+        <a class="gx-btn" target="_blank" rel="noopener" href="${h(mapsUrl(best))}" title="Driving route on Google Maps"><i class="bi bi-google"></i>${TC() ? "Route via test centre" : "Distance on Maps"}</a>
         ${best.i.phone ? `<a class="gx-btn" href="tel:${h(best.i.phone)}"><i class="bi bi-telephone-fill"></i>Call</a>` : ""}</div></div>
         <div class="gxm-map" id="gxmMap"><div class="gxm-map-ph">Loading map…</div></div></div>`;
       html += `<div class="gxm-list">${list.slice(0, n).map((r, k) => `<div class="gxm-row" data-gxm-row="${h(r.i.id)}"><div class="gxm-rank">${k + 1}</div>${ringSvg(r.sc.total, 40)}<div style="min-width:0"><div class="nm">${h(r.i.full_name)}${r.fr ? ' <span class="gx-chip p">Franchise</span>' : ""}${!r.ok ? ' <span class="gx-chip a">' + h(r.lt) + " only</span>" : ""}</div>
-          <div class="pills"><span class="gx-chip b">${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""}</span><span class="gx-chip ${r.st.smooth >= .55 ? "g" : r.st.smooth >= .4 ? "a" : "r"}">${r.st.n ? Math.round(r.st.smooth * 100) + "% book" : "new"}</span>${r.st.speed != null ? `<span class="gx-chip">~${Math.max(1, Math.round(r.st.speed))}d</span>` : ""}<span class="gx-chip ${r.st.week ? "" : "g"}">${r.st.week} this wk</span>${r.cov ? '<span class="gx-chip" style="color:var(--gold)">covers</span>' : ""}${r.st.unpaid ? `<span class="gx-chip r">£${Math.round(r.st.unpaid)} owed</span>` : ""}${r.credits ? '<span class="gx-chip a">credit owed</span>' : ""}</div>${bar(r.sc)}</div>
-          <div class="gxm-side"><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}" aria-label="Assign to ${h(r.i.full_name)}"><i class="bi bi-person-plus-fill"></i><span class="gx-hide-s">Assign</span></button><label class="gxm-cmp"><input type="checkbox" data-gxm-cmp="${h(r.i.id)}" ${S.cmp.has(r.i.id) ? "checked" : ""}>Compare</label></div></div>`).join("")}</div>
+          <div class="pills"><span class="gx-chip b">${r.miles.toFixed(1)} mi${r.mins != null ? " · " + r.mins + " min" : ""}</span><span class="gx-chip ${r.st.smooth >= .55 ? "g" : r.st.smooth >= .4 ? "a" : "r"}">${r.st.n ? Math.round(r.st.smooth * 100) + "% book" : "new"}</span>${r.st.speed != null ? `<span class="gx-chip">~${Math.max(1, Math.round(r.st.speed))}d</span>` : ""}<span class="gx-chip ${r.st.week ? "" : "g"}">${r.st.week} this wk</span>${r.cov ? '<span class="gx-chip" style="color:var(--gold)">covers</span>' : ""}${r.tc ? `<span class="gx-chip ${r.tc.covers || r.tc.between ? "g" : r.tc.dist > TC().fromHome ? "a" : ""}" title="Distance from ${h(TC().name)}">🏁 ${r.tc.dist.toFixed(1)} mi${r.tc.covers ? " · covers" : r.tc.between ? " · between" : ""}</span>` : ""}${r.st.unpaid ? `<span class="gx-chip r">£${Math.round(r.st.unpaid)} owed</span>` : ""}${r.credits ? '<span class="gx-chip a">credit owed</span>' : ""}</div>${bar(r.sc)}</div>
+          <div class="gxm-side"><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}" aria-label="Assign to ${h(r.i.full_name)}"><i class="bi bi-person-plus-fill"></i><span class="gx-hide-s">Assign</span></button><a class="gx-btn gxm-maps" target="_blank" rel="noopener" href="${h(mapsUrl(r))}" aria-label="Route to ${h(r.i.full_name)} on Google Maps" title="Google Maps route"><i class="bi bi-google"></i><span class="gx-hide-s">Maps</span></a><label class="gxm-cmp"><input type="checkbox" data-gxm-cmp="${h(r.i.id)}" ${S.cmp.has(r.i.id) ? "checked" : ""}>Compare</label></div></div>`).join("")}</div>
         ${list.length > 6 ? `<button class="gx-btn gxm-more" data-gxm-all>${S.showAll ? "Show top 6" : "Show all " + list.length}</button>` : ""}
-        <div class="gxm-tray ${S.cmp.size >= 2 ? "show" : ""}" id="gxmTray"><span style="flex:1;font-size:.8rem;color:var(--txt2)"><b>${S.cmp.size}</b> selected to compare</span><button class="gx-btn" data-gxm-cmpclear>Clear</button><button class="gx-btn gold" data-gxm-cmpgo>Compare</button></div>`;
+        <div class="gxm-tray ${S.cmp.size ? "show" : ""}" id="gxmTray">${trayInner()}</div>`;
     }
     html += `<button class="gx-btn gxm-more" data-gxm-toggle><i class="bi ${S.compact ? "bi-chevron-down" : "bi-chevron-up"}"></i>${S.compact ? "Show full list, other drivers &amp; area intelligence" : "Hide full list"}</button>`;
     box.innerHTML = html;
@@ -731,7 +750,8 @@
     const c = [S.geo.lat, S.geo.lon];
     [3, 5, 10].forEach((mi, k) => L.circle(c, { radius: mi * 1609.34, color: "#F5C518", weight: 1, opacity: .5 - k * .12, fillOpacity: .03, dashArray: "4 6", interactive: false }).addTo(map));
     L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="gxm-pin me">●</div>', iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 1000 }).addTo(map).bindTooltip(h(S.student.name) + " · " + h(S.student.postcode));
-    const pts = [c];
+    const pts = [c], tc = TC();
+    if (tc && tc.lat != null) { L.marker([tc.lat, tc.lon], { icon: L.divIcon({ className: "", html: '<div class="gxm-pin" style="background:#f472b6">🏁</div>', iconSize: [28, 28], iconAnchor: [14, 14] }), zIndexOffset: 900 }).addTo(map).bindTooltip(h(tc.name)); L.polyline([c, [tc.lat, tc.lon]], { color: "#f472b6", weight: 2, dashArray: "6 6", interactive: false }).addTo(map); pts.push([tc.lat, tc.lon]); }
     list.forEach((r, k) => {
       const col = r.sc.total >= 70 ? "#22c55e" : r.sc.total >= 45 ? "#f59e0b" : "#ef4444";
       const m = L.marker([r.g.lat, r.g.lon], { icon: L.divIcon({ className: "", html: `<div class="gxm-pin" style="background:${col}">${k + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(map);
@@ -743,17 +763,25 @@
     S.map = map; setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 200);
   }
   function compareModal() {
-    const rows = ranked().filter(r => S.cmp.has(r.i.id)); if (rows.length < 2) return;
-    const best = (vals, low) => { const v = vals.filter(x => x != null); const t = low ? Math.min(...v) : Math.max(...v); return x => x === t; };
-    const line = (lab, vals, fmt, low) => { const isB = best(vals, low); return `<tr><td>${lab}</td>${vals.map(v => `<td class="n ${v != null && isB(v) ? "best" : ""}">${v == null ? "—" : fmt(v)}</td>`).join("")}</tr>`; };
-    const html = `<h4 style="font-family:Oswald;margin:0 0 10px">Compare instructors</h4><div class="gx-scroll"><table class="gx-table gxm-cmpt"><thead><tr><th></th>${rows.map(r => `<th class="n">${h(first(r.i.full_name))}</th>`).join("")}</tr></thead><tbody>
-      ${line("Match", rows.map(r => r.sc.total), v => v + "/100")}${line("Miles", rows.map(r => r.miles), v => v.toFixed(1), true)}${line("Drive", rows.map(r => r.mins), v => v + " min", true)}
+    const rows = ranked().filter(r => S.cmp.has(r.i.id));
+    // a ticked instructor can drop out of the list when a filter changes — compare whoever is still selected
+    if (rows.length < 2) { try { showToast(S.cmp.size >= 2 ? "Some ticked instructors are hidden by a filter — clear filters or tick another" : "Tick at least 2 instructors to compare", "info", 3000); } catch (x) {} return; }
+    const best = (vals, low) => { const v = vals.filter(x => x != null); const t = low ? Math.min(...v) : Math.max(...v); return x => v.length > 1 && x === t && !v.every(y => y === t); };
+    const line = (lab, vals, fmt, low) => { const isB = best(vals, low); return `<tr><th scope="row">${lab}</th>${vals.map(v => `<td class="${v != null && isB(v) ? "best" : ""}">${v == null ? "—" : fmt(v)}</td>`).join("")}</tr>`; };
+    const tc = TC();
+    const html = `<div class="gxm-sheet-hd"><h4>Compare instructors</h4><button class="gx-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button></div>
+      <div class="gxm-sheet-sub">${h(S.student.name)} · ${h(S.student.postcode)} · ${h(S.student.type)}${tc ? " · test at " + h(tc.name) : ""}. <span style="color:#4ade80">Green</span> = best.</div>
+      <table class="gxm-cmpt"><thead><tr><th></th>${rows.map(r => `<th scope="col">${av(r.i, "gxm-cav")}<span>${h(r.i.full_name)}</span></th>`).join("")}</tr></thead><tbody>
+      ${line("Match", rows.map(r => r.sc.total), v => v + "/100")}${line("Miles to student", rows.map(r => r.miles), v => v.toFixed(1), true)}${line("Drive", rows.map(r => r.mins), v => v + " min", true)}
+      ${tc ? line("Miles to test centre", rows.map(r => r.tc ? r.tc.dist : null), v => v.toFixed(1), true) + `<tr><th scope="row">Test centre fit</th>${rows.map(r => `<td>${!r.tc ? "—" : r.tc.covers ? "✓ Covers it" : r.tc.between ? "✓ In between" : r.tc.dist > tc.fromHome ? "Far side" : "—"}</td>`).join("")}</tr>` : ""}
       ${line("Booking rate", rows.map(r => r.st.n ? r.st.smooth : null), v => Math.round(v * 100) + "%")}${line("Days to book", rows.map(r => r.st.speed), v => v.toFixed(1), true)}
-      ${line("This week", rows.map(r => r.st.week), v => v, true)}${line("Overdue fees", rows.map(r => r.st.unpaid), v => "£" + Math.round(v), true)}
-      <tr><td>Teaches</td>${rows.map(r => `<td class="n">${h(r.lt)}</td>`).join("")}</tr><tr><td>Covers area</td>${rows.map(r => `<td class="n">${r.cov ? "✓" : "—"}</td>`).join("")}</tr>
-      <tr><td></td>${rows.map(r => `<td class="n"><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}">Assign</button></td>`).join("")}</tr></tbody></table></div><button class="gx-btn" data-close style="margin-top:12px;width:100%;justify-content:center">Close</button>`;
-    let m = $("#gxModal"); if (!m) { m = document.createElement("div"); m.id = "gxModal"; m.className = "gxm-modal"; document.body.appendChild(m); m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-close]")) m.classList.remove("open"); }); }
-    m.innerHTML = `<div class="gxm-sheet" role="dialog" aria-modal="true">${html}</div>`; m.classList.add("open");
+      ${line("Students this week", rows.map(r => r.st.week), v => v, true)}${line("Overdue fees", rows.map(r => r.st.unpaid), v => "£" + Math.round(v), true)}
+      <tr><th scope="row">Teaches</th>${rows.map(r => `<td>${h(r.lt === "Both" ? "Manual & Auto" : r.lt)}</td>`).join("")}</tr><tr><th scope="row">Covers area</th>${rows.map(r => `<td>${r.cov ? "✓" : "—"}</td>`).join("")}</tr>
+      <tr><th scope="row">Type</th>${rows.map(r => `<td>${h(r.i.instructor_model || "unsure")}</td>`).join("")}</tr>
+      <tr class="gxm-cmpt-acts"><th></th>${rows.map(r => `<td><button class="gx-btn p" data-gxm-assign="${h(r.i.id)}"><i class="bi bi-person-plus-fill"></i>Assign</button><a class="gx-btn" target="_blank" rel="noopener" href="${h(mapsUrl(r))}"><i class="bi bi-google"></i>Maps</a></td>`).join("")}</tr></tbody></table>
+      <button class="gx-btn" data-close style="margin-top:12px;width:100%;justify-content:center">Close</button>`;
+    let m = $("#gxModal"); if (!m) { m = document.createElement("div"); m.id = "gxModal"; m.className = "gxm-modal"; document.body.appendChild(m); m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-close]")) m.classList.remove("open"); }); document.addEventListener("keydown", e => { if (e.key === "Escape") m.classList.remove("open"); }); }
+    m.innerHTML = `<div class="gxm-sheet" role="dialog" aria-modal="true" aria-label="Compare instructors">${html}</div>`; m.classList.add("open");
   }
   document.addEventListener("click", e => {
     const t = e.target.closest("[data-gxm-mode],[data-gxm-f],[data-gxm-assign],[data-gxm-all],[data-gxm-toggle],[data-gxm-cmpgo],[data-gxm-cmpclear],[data-gxm-clear]"); if (!t) return;
@@ -766,7 +794,7 @@
     else if (t.hasAttribute("data-gxm-cmpclear")) { S.cmp.clear(); render(); }
     else if (t.hasAttribute("data-gxm-assign")) { const i = instrs().find(x => x.id === t.getAttribute("data-gxm-assign")); const m = $("#gxModal"); if (m) m.classList.remove("open"); if (i) openCreateAndAssign(i.id, i.full_name); }
   });
-  document.addEventListener("change", e => { const t = e.target; if (!t.hasAttribute || !t.hasAttribute("data-gxm-cmp")) return; const id = t.getAttribute("data-gxm-cmp"); if (t.checked) { if (S.cmp.size >= 3) { t.checked = false; try { showToast("Compare up to 3 at a time", "info", 2000); } catch (x) {} return; } S.cmp.add(id); } else S.cmp.delete(id); const tray = $("#gxmTray"); if (tray) { tray.classList.toggle("show", S.cmp.size >= 2); tray.querySelector("b").textContent = S.cmp.size; } });
+  document.addEventListener("change", e => { const t = e.target; if (!t.hasAttribute || !t.hasAttribute("data-gxm-cmp")) return; const id = t.getAttribute("data-gxm-cmp"); if (t.checked) { if (S.cmp.size >= 3) { t.checked = false; try { showToast("Compare up to 3 at a time", "info", 2000); } catch (x) {} return; } S.cmp.add(id); } else S.cmp.delete(id); const tray = $("#gxmTray"); if (tray) { tray.classList.toggle("show", S.cmp.size > 0); tray.innerHTML = trayInner(); } });
 
   function hook() {
     const orig = window.findClosest; if (typeof orig !== "function" || orig.__gxm) return false;

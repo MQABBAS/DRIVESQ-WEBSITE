@@ -86,6 +86,15 @@ a{color:var(--red);text-decoration:none}
   #quickActionsBar .qa-btn{flex:0 0 auto;min-height:36px}
   .container-fluid.px-3{padding-bottom:70px!important}
 }
+/* phones: keep the top bar inside the screen (otherwise the whole page is wider than the phone and gets cut off) */
+@media(max-width:600px){
+  #mainNav .admin-chip,#mainNav .brand-s,#adminClock,#adminSessionInfo,#mainNav .search-trigger-btn kbd,#mainNav .search-trigger-btn span,#webBookingsBtnLabel{display:none!important}
+  #mainNav>.container-fluid{padding-left:10px!important;padding-right:10px!important}
+  #mainNav .ms-auto{gap:6px!important;min-width:0}
+  #mainNav .btn-s[onclick="doLogout()"]{font-size:0!important;padding:6px 9px!important}
+  #mainNav .btn-s[onclick="doLogout()"] i{font-size:.9rem;margin:0!important}
+}
+@media(max-width:400px){#newCustomerTopBtn span{display:none}#mainNav .nav-logo{display:none}}
 .tab-badge{background:rgba(245,197,24,.15);color:var(--gold);border-radius:8px;padding:1px 5px;font-size:.6rem;font-family:'Inter',sans-serif;font-weight:700}
 .dsq-tab.active .tab-badge{background:rgba(255,255,255,.25);color:#fff}
 
@@ -610,6 +619,7 @@ body:not(.day-mode)::before { content:""; position:fixed; inset:0; z-index:-1; p
 .qa-pill-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; border:1px solid var(--bdr2); background:var(--dk2); color:var(--txt); font-size:.78rem; font-weight:600; cursor:pointer; transition:all .2s var(--qa-ease); }
 .qa-pill-btn:hover { border-color:#D10A11; transform:translateY(-1px); }
 .qa-pill-btn--red { background:linear-gradient(135deg,#ff2d35,#D10A11 60%,#a80008); border-color:transparent; color:#fff; box-shadow:0 10px 24px -12px var(--qa-glow); }
+.qa-pill-btn--gold { border-color:rgba(245,197,24,.5); color:var(--gold); }
 .qa-pill-btn b { display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:rgba(255,255,255,.22); font-size:.72rem; }
 .qa-alert { display:none; align-items:center; gap:14px; margin-bottom:14px; padding:14px 16px; border-radius:var(--qa-r); border:1px solid rgba(37,211,102,.35);
   background:linear-gradient(120deg,rgba(37,211,102,.12),transparent 60%),var(--card-bg); }
@@ -1475,7 +1485,7 @@ body.day-mode .dsqd-note{color:#92400e}
   .modal-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 }
 </style>
-<link rel="stylesheet" href="admin-growth.css?v=20261023a">
+<link rel="stylesheet" href="admin-growth.css?v=20261023b">
 </head>
 <body>
 <!-- DSQA:BOOT START -->
@@ -1987,6 +1997,11 @@ body.day-mode .dsqd-note{color:#92400e}
           <div class="mb-2"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="fc-email" type="email" placeholder="customer@email.com" oninput="_saveFcDraft()"/></div>
           <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="fc-addr" placeholder="Full street address" oninput="_saveFcDraft()"/></div>
           <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="fc-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')findClosest()" oninput="_saveFcDraft()"/></div>
+          <div class="mb-2"><label class="dsq-lbl">Test centre <span style="color:var(--txt4);font-weight:400">(optional)</span></label>
+            <select class="dsq-inp" id="fc-test" onchange="_fcTestChange()"></select>
+            <input class="dsq-inp mt-1" id="fc-test-other" placeholder="Test centre postcode, e.g. BL3 2AW" style="display:none;text-transform:uppercase" oninput="_saveFcDraft()"/>
+            <div style="font-size:.66rem;color:var(--txt4);margin-top:3px">If their test is booked far away, instructors between home and the test centre (or who cover it) rank higher.</div>
+          </div>
           <div class="mb-2"><label class="dsq-lbl">Lesson Type <span class="req-mark">*</span></label>
             <select class="dsq-inp" id="fc-type" onchange="_saveFcDraft()">
               <option value="Manual">🔧 Manual</option>
@@ -4093,6 +4108,7 @@ function _saveFcDraft(){
     const el=document.getElementById(id);if(el)d[id]=el.value;
   });
   const lt=document.getElementById('fc-type');if(lt)d['fc-type']=lt.value;
+  ['fc-test','fc-test-other'].forEach(id=>{const el=document.getElementById(id);if(el)d[id]=el.value;});
   try{localStorage.setItem('dsq_fc_draft',JSON.stringify(d));}catch(e){}
 }
 function _restoreFcDraft(){
@@ -4103,6 +4119,10 @@ function _restoreFcDraft(){
       const el=document.getElementById(id);if(el&&d[id]!=null)el.value=d[id];
     });
     const lt=document.getElementById('fc-type');if(lt&&d['fc-type'])lt.value=d['fc-type'];
+    _fcTestFill();
+    const tc=document.getElementById('fc-test'),to=document.getElementById('fc-test-other');
+    if(tc&&d['fc-test']!=null)tc.value=d['fc-test'];if(to&&d['fc-test-other']!=null)to.value=d['fc-test-other'];
+    _fcTestChange(true);
   }catch(e){}
 }
 function showApp(){
@@ -7883,6 +7903,36 @@ async function createInstructor(){
 /* ══ FIND & ASSIGN — reliable geocoding ══
    cached (30 days), time-limited, full postcodes or outward codes ("M20"), never hangs the search */
 const _fcGeoMem={};
+// DVSA practical test centres we send learners to (name, postcode)
+const FC_TEST_CENTRES=[
+  ['Greater Manchester',[['Atherton','M46 0SU'],['Bolton','BL3 2AW'],['Bredbury (Stockport)','SK6 2QT'],['Bury','BL9 6HH'],['Chadderton (Oldham)','OL9 9XA'],['Cheetham Hill','M8 0AL'],['Rochdale','OL16 5EB'],['Sale','M33 7ER'],['West Didsbury','M21 7QY']]],
+  ['Solihull & Birmingham',[['Garretts Green','B33 0SD'],['Kings Heath','B14 5JA'],['Shirley (Solihull)','B90 4AA'],['South Yardley','B26 1EA']]]
+];
+function _fcTestFill(){
+  const el=document.getElementById('fc-test');if(!el||el.options.length)return;
+  el.innerHTML='<option value="">No test booked / not sure</option>'+FC_TEST_CENTRES.map(([g,l])=>`<optgroup label="${g}">${l.map(([n,pc])=>`<option value="${pc}">${n} · ${pc}</option>`).join('')}</optgroup>`).join('')+'<option value="other">Other — type a postcode…</option>';
+}
+function _fcTestChange(quiet){
+  const el=document.getElementById('fc-test'),o=document.getElementById('fc-test-other');if(!el||!o)return;
+  o.style.display=el.value==='other'?'':'none';if(el.value==='other'&&!quiet)o.focus();
+  if(!quiet)_saveFcDraft();
+}
+// {name, postcode} of the chosen test centre, or null
+function _fcTestCentre(){
+  const el=document.getElementById('fc-test');if(!el||!el.value)return null;
+  if(el.value==='other'){const pc=(document.getElementById('fc-test-other')?.value||'').trim().toUpperCase();return pc?{name:pc+' test centre',postcode:pc}:null;}
+  for(const[,l]of FC_TEST_CENTRES)for(const[n,pc]of l)if(pc===el.value)return{name:n+' test centre',postcode:pc};
+  return null;
+}
+// Google Maps driving route: instructor → student (→ test centre when one is set)
+function _fcMapsUrl(from,to,via){
+  const q='https://www.google.com/maps/dir/?api=1&travelmode=driving&origin='+encodeURIComponent(from||'');
+  return via?q+'&waypoints='+encodeURIComponent(to||'')+'&destination='+encodeURIComponent(via):q+'&destination='+encodeURIComponent(to||'');
+}
+// How well an instructor base suits a learner who lives at S and tests at T (lower = better, miles).
+// Halfway between home and test centre scores best; living right next to only one of them scores worse.
+function _fcTestCost(dS,dT){return .5*Math.max(dS,dT)+.3*dS+.2*dT;}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_fcTestFill);else _fcTestFill();
 function _fcTimeout(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal;}
 function _fcNormPc(raw){return String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
 async function _fcGeo(raw){
@@ -7922,6 +7972,7 @@ async function findClosest(){
   const type=document.getElementById('fc-type').value;
   const avail=(document.getElementById('fc-avail')||{}).value?.trim()||'';
   const notes=document.getElementById('fc-notes').value.trim();
+  const testCentre=_fcTestCentre();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
   // Ensure student roster is loaded for postcode frequency analysis
@@ -7941,6 +7992,11 @@ async function findClosest(){
     catch(e){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">⚠️ The postcode lookup service isn\'t responding right now.<div class="mt-2"><button class="btn-s" onclick="findClosest()"><i class="bi bi-arrow-clockwise me-1"></i>Try again</button> <button class="btn-s" onclick="showAllInstructors()"><i class="bi bi-list-ul me-1"></i>Show all instructors</button></div></div>';return;}
     if(!sGeo){resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:#f87171;font-size:.84rem">❌ Postcode "'+esc(postcode)+'" not found — check it for typos (e.g. M19 2AB).<div class="mt-2"><button class="btn-s" onclick="showAllInstructors()"><i class="bi bi-list-ul me-1"></i>Show all instructors instead</button></div></div>';return;}
     const sLat=sGeo.lat,sLon=sGeo.lon;
+    // optional test centre — used to favour instructors between home and the test, or who cover it
+    let tGeo=null;
+    if(testCentre){try{tGeo=await _fcGeo(testCentre.postcode);}catch(e){}if(!tGeo)showToast('Couldn\'t find the test centre postcode — ranking by distance only.','info',3500);}
+    const tcStu=tGeo?haversine(sLat,sLon,tGeo.lat,tGeo.lon):null;
+    const tcOC=tGeo?outwardCode(testCentre.postcode):'';
     const approved=allInstrs.filter(i=>i.status==='approved');
     // 1) straight-line distance for everyone (cached lookups, run in parallel)
     const results=await Promise.all(approved.map(async i=>{
@@ -7956,12 +8012,20 @@ async function findClosest(){
       try{const od=await (await fetch(`https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${r.iLon},${r.iLat}?overview=false`,{signal:_fcTimeout(3500)})).json();
         if(od.routes&&od.routes[0]){r.dist=od.routes[0].distance/1609.34;r.mins=Math.round(od.routes[0].duration/60);}}catch(e){}
     }));
-    const ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
+    let ranked=results.filter(r=>r.dist!==null).sort((a,b)=>a.dist-b.dist);
+    if(tGeo){
+      // straight-line for both legs so every instructor is judged the same way
+      ranked.forEach(r=>{const crow=haversine(sLat,sLon,r.iLat,r.iLon);r.tcDist=haversine(r.iLat,r.iLon,tGeo.lat,tGeo.lon);
+        r.tcCovers=!!tcOC&&String((r.instr.coverage_postcodes||'')+' '+(r.instr.area||'')).toUpperCase().split(/[\s,;/]+/).some(c=>c&&outwardCode(c)===tcOC);
+        r.tcBetween=crow<tcStu&&r.tcDist<tcStu;
+        r.tcCost=_fcTestCost(crow,r.tcDist)-(r.tcCovers?2:0);});
+      ranked.sort((a,b)=>a.tcCost-b.tcCost||a.dist-b.dist);
+    }
     if(!sGeo.exact)showToast('Only the area code was found — distances are approximate.','info',3500);
     const unknown=results.filter(r=>r.dist===null);
     _fcCtxFor(studentName);
     if(window._waitlistIdToAssign||window._pendingWbId||_reassignContext)window._fcCtxName=studentName.trim().toLowerCase();
-    fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes};
+    fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes,testCentre:tGeo?{...testCentre,lat:tGeo.lat,lon:tGeo.lon,fromHome:tcStu}:null};
 
     // Helper: does instructor car_type match student's requested lesson type?
     function instrCanTeach(instrLT,reqType){
@@ -7996,7 +8060,8 @@ async function findClosest(){
     function instrCardHtml(r,displayNum){
       const distMiles=r.dist.toFixed(1);const isClose=r.dist<3;const waNum=buildWaNum(r.instr.phone||'');
       const minsLabel=r.mins!=null?`<span style="font-size:.65rem;color:var(--txt3);margin-left:4px">· ~${r.mins} min drive</span>`:'';
-      const mapsUrl=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(postcode)}&destination=${encodeURIComponent(r.iPostcode||r.instr.area||'')}&travelmode=driving`;
+      const mapsUrl=_fcMapsUrl(r.iPostcode||r.instr.area||'',fmtPostcode(postcode),tGeo?testCentre.postcode:'');
+      const tcNote=tGeo?`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:${r.tcCovers||r.tcBetween?'#4ade80':r.tcDist>tcStu?'#f97316':'var(--txt3)'}"><i class="bi bi-flag-fill me-1"></i>${r.tcDist.toFixed(1)} mi from ${esc(testCentre.name)}${r.tcCovers?' · covers '+tcOC:''}${r.tcBetween?' · between home &amp; test':''}</div>`:'';
 
       // Coverage check: does the instructor explicitly cover the student's outward code?
       const rawCoverage=(r.instr.coverage_postcodes||r.instr.area||'');
@@ -8029,11 +8094,12 @@ async function findClosest(){
               <span style="font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:700;color:var(--txt)">${esc(r.instr.full_name)}</span>
               <span class="chip ${(r.instr.badge_type||'ADI').toLowerCase()} ms-1" style="font-size:.6rem">${esc(r.instr.badge_type||'ADI')}</span>
               ${(()=>{const m=r.instr.instructor_model||'unsure';const styles={referral:'background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.45);color:#25d366',franchise:'background:rgba(209,10,17,.15);border-color:rgba(209,10,17,.45);color:#ff6b6b',unsure:'background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);color:var(--txt3)'};return`<span style="display:inline-flex;align-items:center;gap:3px;${styles[m]||styles.unsure};border-radius:5px;padding:1px 8px;font-size:.6rem;font-weight:700;font-family:'Oswald',sans-serif;border:1px solid;vertical-align:middle;margin-left:3px">${m.charAt(0).toUpperCase()+m.slice(1)}</span>`})()}
-              ${displayNum===1?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.62rem;font-weight:700;font-family:'Oswald',sans-serif;vertical-align:middle;margin-left:4px"><i class="bi bi-star-fill" style="font-size:.55rem"></i>CLOSEST</span>`:''}
+              ${displayNum===1?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.62rem;font-weight:700;font-family:'Oswald',sans-serif;vertical-align:middle;margin-left:4px"><i class="bi bi-star-fill" style="font-size:.55rem"></i>${tGeo?'BEST FOR TEST':'CLOSEST'}</span>`:''}
               ${ltChipHtml(instrLT)}
               <div style="font-size:.72rem;color:var(--txt3);margin-top:2px"><i class="bi bi-geo-alt me-1"></i>${esc(r.instr.area||'—')}</div>
               ${!canTeach?`<div style="font-size:.65rem;color:#f97316;margin-top:2px"><i class="bi bi-exclamation-triangle me-1"></i>Teaches ${instrLT} only — student wants ${type}</div>`:''}
               ${coversBadge}
+              ${tcNote}
               ${areaNote}
               ${weekAssignNote}
               ${creditNote}
@@ -8046,7 +8112,7 @@ async function findClosest(){
             </div>
             <div class="d-flex gap-1 flex-wrap justify-content-end">
               ${waNum?`<a class="abtn wa" href="https://wa.me/${waNum}" target="_blank"><i class="bi bi-whatsapp me-1"></i>WA</a>`:''}
-              <a class="abtn" style="border-color:rgba(66,133,244,.4);color:#4285f4;text-decoration:none" href="${mapsUrl}" target="_blank"><i class="bi bi-google me-1"></i>Maps</a>
+              <a class="abtn" style="border-color:rgba(66,133,244,.4);color:#4285f4;text-decoration:none" href="${mapsUrl}" target="_blank" rel="noopener" title="${tGeo?'Instructor → student → test centre':'Instructor → student'} on Google Maps"><i class="bi bi-google me-1"></i>${tGeo?'Route':'Maps'}</a>
               <button class="abtn" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="openInstrAreaMap('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-map me-1"></i>Area</button>
               <button class="abtn approve" onclick="openCreateAndAssign('${r.instr.id}','${jsEsc(r.instr.full_name)}')"><i class="bi bi-person-plus me-1"></i>Create &amp; Assign</button>
             </div>
@@ -8067,6 +8133,7 @@ async function findClosest(){
       &nbsp;·&nbsp;<span class="chip ${type==='Automatic'?'Automatic':'Manual'}" style="font-size:.62rem;padding:1px 6px">${esc(type)}</span>
       &nbsp;·&nbsp;<i class="bi bi-geo-alt me-1"></i>${esc(postcode)}
       ${avail?`&nbsp;·&nbsp;<i class="bi bi-clock me-1"></i>${esc(avail)}`:''}
+      ${tGeo?`<div style="margin-top:5px"><i class="bi bi-flag-fill me-1" style="color:var(--gold)"></i>Test at <strong style="color:var(--txt)">${esc(testCentre.name)}</strong> (${esc(testCentre.postcode)}) — ${tcStu.toFixed(1)} mi from home. Ranked by who suits both. <a href="${_fcMapsUrl(fmtPostcode(postcode),testCentre.postcode)}" target="_blank" rel="noopener" style="color:#4285f4">Home → test on Maps</a></div>`:''}
     </div>`;
 
     if(matching.length){
@@ -8310,7 +8377,7 @@ function openCreateAndAssign(instrId,instrName){
     if(em)em.value=s.email||'';
     if(ad)ad.value=s.addr||'';
     if(lt&&s.type)lt.value=s.type;
-    if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n');
+    if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
     if(sel){
       const opt=[...sel.options].find(o=>o.value===instrId);
       if(opt){sel.value=instrId;}
@@ -8338,7 +8405,8 @@ function openAssignModal(instrId,instrName,instrPhone){
     postcode:(document.getElementById('fc-postcode')?.value||'').trim().toUpperCase()||(fcStudentData?.postcode||''),
     type:document.getElementById('fc-type')?.value||(fcStudentData?.type||'Manual'),
     avail:(document.getElementById('fc-avail')?.value||'').trim()||(fcStudentData?.avail||''),
-    notes:(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||'')
+    notes:(document.getElementById('fc-notes')?.value||'').trim()||(fcStudentData?.notes||''),
+    testCentre:fcStudentData?.testCentre||null
   };
   fcStudentData=_live;
   const s=_live;
@@ -8351,10 +8419,11 @@ function openAssignModal(instrId,instrName,instrPhone){
     ['🏷️ Postcode', fmtPostcode(s.postcode)||'—'],
     ['🚗 Lesson Type', s.type||'Manual'],
     ...(s.avail?[['🕐 Availability', s.avail]]:[]),
+    ...(s.testCentre?[['🏁 Test centre', s.testCentre.name+' ('+s.testCentre.postcode+')']]:[]),
     ...(s.notes?[['📝 Notes', s.notes]]:[])
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
-  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n---\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}---\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n---\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.testCentre?'🏁 *Test centre:* '+s.testCentre.name+' ('+s.testCentre.postcode+')\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}---\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   // Student WhatsApp
@@ -8445,7 +8514,7 @@ async function confirmAssign(){
       if(em)em.value=s.email||'';
       if(ad)ad.value=s.addr||'';
       if(lt&&s.type)lt.value=s.type;
-      if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n');
+      if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
       // Pre-select the instructor in the dropdown
       if(iSel){
         // Try to find matching option
@@ -8591,7 +8660,8 @@ async function _finishWaitlist(instrId,s){
   return _wlId;
 }
 function resetFindForm(afterAssign){
-  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes','fc-test','fc-test-other'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _fcTestChange(true);
   if(afterAssign)try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
   renderNoJobsAlert(); // refresh alert — counts may have changed after assign
   const fr=document.getElementById('findResults');
@@ -15884,7 +15954,7 @@ document.addEventListener('click',e=>{
       '<div class="xd-card__side">' + (s ? (dist != null ? '<span class="dist-badge' + (dist < 3 ? " close" : "") + '"><i class="bi bi-geo-alt me-1"></i>≈' + dist.toFixed(1) + " mi</span>" : '<span class="dist-badge">No postcode</span>') : "") +
       '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>' + (s ? "Ask" : "WA") + "</a>" : "") +
       (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
-      (s ? '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(s.postcode) + "&destination=" + encodeURIComponent(d.base_postcode || "") + '"><i class="bi bi-google me-1"></i>Maps</a>' : "") +
+      (s ? '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="' + h(_fcMapsUrl(d.base_postcode || "", s.postcode, s.testCentre ? s.testCentre.postcode : "")) + '"><i class="bi bi-google me-1"></i>Maps</a>' : "") +
       (d.phone ? '<button type="button" class="abtn xd-msgbtn" data-xd-msg="e:' + h(d.id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>' : "") +
       '<button type="button" class="abtn" data-xd-editext="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button>' +
       (s ? '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button>' : "") + "</div></div></div></div>";
@@ -16536,6 +16606,7 @@ document.addEventListener('click',e=>{
       '<div class="qa-hello"><div><h2>' + part + esc(who) + ' 👋</h2><p>' + date + ' · DriveSQ admin</p></div>' +
       '<div class="qa-hello__actions"><button type="button" class="qa-pill-btn qa-pill-btn--red" data-qa="bookings"><i class="bi bi-calendar2-check-fill"></i>Website bookings <b class="js-qa-count">0</b></button>' +
       '<button type="button" class="qa-pill-btn" data-qa="find"><i class="bi bi-geo-alt-fill"></i>Find &amp; Assign</button>' +
+      '<button type="button" class="qa-pill-btn qa-pill-btn--gold" data-qa="referrals"><i class="bi bi-cash-coin"></i>Referrals</button>' +
       '<button type="button" class="qa-pill-btn" data-qa="jump"><i class="bi bi-lightning-charge-fill"></i>Jump to… <kbd style="font-size:.6rem;opacity:.7">G</kbd></button></div></div>' +
       '<div class="qa-alert" role="status"><div class="qa-alert__ico"><i class="bi bi-bell-fill"></i></div><div class="qa-alert__txt"><b class="js-qa-alert-title"></b><span>Website bookings are waiting for an instructor. Open one and press <b style="display:inline;font-family:inherit;font-size:inherit">Find &amp; Assign</b>.</span></div>' +
       '<button type="button" class="qa-pill-btn qa-pill-btn--red" data-qa="bookings"><i class="bi bi-arrow-right-circle-fill"></i>Review &amp; assign</button></div>');
@@ -16544,6 +16615,7 @@ document.addEventListener('click',e=>{
       var a = b.getAttribute("data-qa");
       if (a === "bookings") call("openWebBookingsPanel");
       if (a === "find") { call("switchTab", "find"); call("setActiveTab", "find"); }
+      if (a === "referrals") { call("switchTab", "referrals"); call("setActiveTab", "referrals"); }
       if (a === "jump") palette.open();
     });
     var badge = document.getElementById("webBookingsBadge"), prev = -1;
@@ -17554,6 +17626,6 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 
 </script>
 <!-- DSQT:TODAY END -->
-<script src="admin-growth.js?v=20261023a"></script>
+<script src="admin-growth.js?v=20261023b"></script>
 </body>
 </html>
