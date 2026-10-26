@@ -29,6 +29,8 @@ NEW = [
     ("solihull-learner-driver-insurance.html", "Learner driver insurance", "Insurance"),
     ("solihull.html", "Every Solihull page", "All Solihull"),
 ]
+import generate_learner_tools as LT
+NEW = NEW[:-1] + LT.NEW + NEW[-1:]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
 G.PAGES = G.PAGES + [(f, lbl, short) for f, lbl, short in NEW]
 _base_nav = G.nav
@@ -508,7 +510,7 @@ def hub():
     return page(f, "DriveSQ Solihull: Every Tool & Guide | Driving Lessons Solihull",
                 "Every DriveSQ and SQ Driving School page for Solihull: test-centre finder, cost calculator, daylight planner, readiness check, lesson plan and local guides.",
                 "drivesq solihull, driving lessons solihull, solihull learner driver tools", "Everything for learners in Solihull",
-                "Free tools, local guides and lessons from DriveSQ and SQ Driving School.", ["5 free tools", "100+ local guides", "£35/hr"], body, faqs, ["lessons"])
+                "Free tools, local guides and lessons from DriveSQ and SQ Driving School.", ["11 free tools", "100+ local guides", "£35/hr"], body, faqs, ["lessons"])
 
 
 def main():
@@ -517,6 +519,7 @@ def main():
            "solihull-learner-driver-lesson-plan.html": plan(), "solihull-parents-guide-learner-drivers.html": parents(),
            "solihull-new-drivers-first-year.html": newdrivers(), "solihull-theory-test-guide.html": theory(),
            "driving-instructor-training-solihull.html": instructor(), "solihull-learner-driver-insurance.html": insurance(), "solihull.html": hub()}
+    out.update(LT.pages(__import__(__name__)))
     # rebuild the first four pages too, so their nav and cross-links include the new pages
     out.update({"solihull-driving-school.html": G.school(), "driving-instructors-solihull.html": G.instructors(),
                 "solihull-driving-test-pass-rates.html": G.pass_rates(), "driving-instructor-jobs-solihull.html": G.jobs()})
