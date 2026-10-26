@@ -68,10 +68,10 @@ AREAS = [("Shirley", "shirley"), ("Solihull town centre", "solihull-town-centre"
          ("Widney Manor", "widney-manor"), ("Bickenhill", "bickenhill")]
 # 2024-25 car pass rates, passrates.uk analysis of DVSA data
 CENTRES = [("Birmingham (Shirley)", "401 Stratford Road, B90 4AA", 58.1, 9600, None, "shirley"),
-           ("Warwick (Wedgenock House)", "Warwick", 48.4, 10900, None, None),
+           ("Warwick (Wedgenock House)", "Rothwell Road, Warwick CV34", 48.4, 10900, None, "warwick"),
            ("Birmingham (Kings Heath)", "955 Alcester Road South, B14 5JA", 47.0, 8488, None, "kings-heath"),
-           ("Redditch", "Elm Road, B97 6HJ", 46.7, 4700, 44.7, None),
-           ("Coventry", "Bayton Road area, CV7", 42.3, 9100, 41.7, None),
+           ("Redditch", "Elm Road, B97 6HJ", 46.7, 4700, 44.7, "redditch"),
+           ("Coventry", "42 Bayton Road, Exhall CV7 9EJ", 42.3, 9100, 41.7, "coventry"),
            ("Birmingham (Garretts Green)", "Granby Avenue, B33 0SD", 42.0, 21871, 39.9, "garretts-green"),
            ("Birmingham (South Yardley)", "Clay Lane, B26 1EA", 41.6, 12709, 39.4, "south-yardley")]
 NAT = 48.7

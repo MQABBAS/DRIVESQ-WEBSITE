@@ -102,7 +102,7 @@ def tool_schema(fname, name, desc):
 # ───────────────────────── 1. test centre finder ─────────────────────────
 APPROX = {"Birmingham (Shirley)": (52.402, -1.822, "B90 4AA"), "Birmingham (Garretts Green)": (52.474, -1.773, "B33 0SD"),
           "Birmingham (South Yardley)": (52.464, -1.810, "B26 1EA"), "Birmingham (Kings Heath)": (52.414, -1.888, "B14 5JA"),
-          "Redditch": (52.304, -1.952, "B97 6HJ"), "Coventry": (52.467, -1.483, ""), "Warwick (Wedgenock House)": (52.291, -1.597, "")}
+          "Redditch": (52.304, -1.952, "B97 6HJ"), "Coventry": (52.467, -1.483, "CV7 9EJ"), "Warwick (Wedgenock House)": (52.291, -1.597, "")}
 
 
 def finder():
