@@ -26,6 +26,7 @@ NEW = [
     ("solihull-new-drivers-first-year.html", "Your first year after passing", "New drivers"),
     ("solihull-theory-test-guide.html", "Theory test guide", "Theory test"),
     ("driving-instructor-training-solihull.html", "Become a driving instructor", "Instructor training"),
+    ("solihull-learner-driver-insurance.html", "Learner driver insurance", "Insurance"),
     ("solihull.html", "Every Solihull page", "All Solihull"),
 ]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
@@ -53,6 +54,7 @@ GOV = {
     "adi": ("GOV.UK — Become a car driving instructor", "https://www.gov.uk/become-car-driving-instructor"),
     "adi_fees": ("GOV.UK — Approved driving instructor (ADI) fees", "https://www.gov.uk/approved-driving-instructor-adi-fees"),
     "trainee": ("GOV.UK — Trainee driving instructor licence", "https://www.gov.uk/trainee-driving-instructor-licence"),
+    "ins_learner": ("GOV.UK — Driving lessons and learning to drive: insurance", "https://www.gov.uk/driving-lessons-learning-to-drive/practising-with-family-or-friends"),
     "caz": ("Brum Breathes — Birmingham Clean Air Zone", "https://www.brumbreathes.co.uk/"),
     "hc": ("GOV.UK — The Highway Code", "https://www.gov.uk/guidance/the-highway-code"),
     "pr": ("passrates.uk — Birmingham test centres pass rates (2024-25, DVSA data)", "https://passrates.uk/guide/birmingham-driving-test-centres-pass-rates"),
@@ -142,7 +144,9 @@ document.getElementById('tf-go').addEventListener('click',function(){{
         ("south-yardley-driving-test-centre-routes.html", "South Yardley test routes", "Clay Lane and the A45 Coventry Road."),
         ("kings-heath-driving-test-centre-routes.html", "Kings Heath test routes", "Druids Lane and the Maypole roundabouts."),
         ("solihull-driving-test-centres-compared.html", "Every centre compared", "Side by side, with what each is like."),
-        ("driving-test-cancellations-shirley.html", "Shirley cancellations", "How to find an earlier test date legally.")]))
+        ("driving-test-cancellations-shirley.html", "Shirley cancellations", "How to find an earlier test date legally."),
+        ("pass-driving-test-fast-solihull.html", "Pass fast in Solihull", "The quickest honest route to a licence."),
+        ("failed-driving-test-lessons-solihull.html", "Failed your test?", "Rebook and fix the exact faults.")]))
     faqs = [("Which test centre is closest to Solihull?", "For most of the borough it's Birmingham (Shirley) on the A34 Stratford Road. North Solihull (Chelmsley Wood, Kingshurst, Castle Bromwich) is often closer to Garretts Green."),
             ("Which centre near Solihull has the best pass rate?", f"In 2024-25 Shirley had the highest of the nearby centres at 58.1%, against a GB average of about {G.NAT}%."),
             ("Can I take my test at any centre?", "Yes — you can book any centre in Great Britain. Choose one you can practise around."),
@@ -189,7 +193,9 @@ document.getElementById('cc-go').addEventListener('click',function(){{
         ("driving-lesson-prices-solihull.html", "Driving lesson prices in Solihull", "£35/hr, no booking fee — and how Solihull compares."),
         ("intensive-driving-courses-solihull.html", "Intensive courses", "Fewer weeks, same hourly price."),
         ("student-driving-lessons-solihull.html", "Student discount", "10 hours £320 with student ID."),
-        ("nhs-driving-lessons-solihull.html", "NHS discount", "10 hours £320 for NHS staff.")]))
+        ("nhs-driving-lessons-solihull.html", "NHS discount", "10 hours £320 for NHS staff."),
+        ("cheap-driving-lessons-solihull.html", "Affordable lessons", "Seven honest ways to spend less."),
+        ("failed-driving-test-lessons-solihull.html", "Failed your test?", "Fix the faults before your retake.")]))
     faqs = [("How much does it cost to get a driving licence in Solihull?", "Fixed fees are £34 for a provisional licence online, £23 for the theory test and £62 for a weekday practical (£75 evenings/weekends). Lessons are on top — use the calculator for your own estimate."),
             ("How many lessons will I need?", "DVSA says learners need around 45 hours of lessons plus private practice on average. Some people need fewer, some more."),
             ("Do I need insurance to practise with my parents?", "Yes — the car must be insured for you as a learner. Get your own quote and add it to the calculator."),
@@ -294,6 +300,11 @@ document.getElementById('rc-go').addEventListener('click',function(){{var s=0,mi
 <li>Do a full mock test on your centre's roads.</li>
 <li>Book your test — and keep lessons going while you wait so you don't go rusty.</li>
 <li>The week before: a lesson on the test routes at the same time of day as your test.</li></ol>""", alt=True)
+    body += section("Next steps", "Get <span class=\"tr\">test-ready</span>", sq_cards([
+        ("mock-driving-test-solihull.html", "Mock driving test in Solihull", "A full test drive, marked like the real one."),
+        ("failed-driving-test-lessons-solihull.html", "Failed before?", "Fix the exact faults on your report."),
+        ("pass-driving-test-fast-solihull.html", "Pass fast in Solihull", "The quickest honest route."),
+        ("shirley-driving-test-centre-routes.html", "Shirley test routes", "The roads examiners use.")]))
     faqs = [("How do I know I'm ready for my driving test?", "When you can drive independently for a full test-length drive on your centre's roads with only a few minor faults and no serious ones — and your instructor agrees."),
             ("How many faults can I get on the test?", "Up to 15 driving faults (minors) and no serious or dangerous faults."),
             ("Is this an official test?", "No — it's a self-check to help you and your instructor plan. Nothing you enter is saved or sent."),
@@ -415,7 +426,8 @@ def theory():
         ("solihull-driving-test-centres-compared.html", "Choose your practical test centre", "Shirley, Garretts Green and more."),
         ("driving-test-cancellations-shirley.html", "Finding an earlier practical test", "The legal ways to do it."),
         ("intensive-driving-courses-solihull.html", "Intensive courses", "Once your theory is passed."),
-        ("learning-to-drive-in-solihull.html", "Learning to drive in Solihull", "The whole local picture.")]))
+        ("learning-to-drive-in-solihull.html", "Learning to drive in Solihull", "The whole local picture."),
+        ("driving-lessons-overseas-licence-solihull.html", "Drove abroad?", "Exchange your licence or get UK-test-ready.")]))
     faqs = [("Is there a theory test centre in Solihull?", "No. The Solihull centre closed in 2011 and its tests moved to Birmingham and Coventry. Most Solihull learners now use central Birmingham — check your booking confirmation for the address."),
             ("How much is the theory test?", "£23."), ("How long does a theory pass last?", "2 years — you need to pass your practical test within that time."),
             ("What's the pass mark?", "43 out of 50 for multiple choice and 44 out of 75 for hazard perception.")]
@@ -453,14 +465,43 @@ def instructor():
                 ["Parts 1–3", "DVSA fees", "Pupils by postcode"], body, faqs, ["adi", "adi_fees", "trainee"], form_title="Talk to us about instructing", opts=["Qualified ADI", "Trainee (PDI)", "Thinking about training"])
 
 
+def insurance():
+    f = "solihull-learner-driver-insurance.html"
+    body = section("Practising between lessons", "Learner driver insurance in <span class=\"tr\">Solihull</span>", """<p>Private practice with family or friends makes a big difference — but the car must be insured for <b>you</b> as a learner. During lessons with us you're covered by the instructor's insurance, so this is only about practice in a family car.</p>
+<h3 class="mt-3">Your options</h3><ul>
+<li><b>Added as a named learner on the family policy.</b> Ask the insurer — some allow learners at little or no extra cost, others don't.</li>
+<li><b>Standalone learner driver insurance.</b> Separate cover for the learner, often by the month, so a claim doesn't touch the car owner's no-claims bonus.</li>
+<li><b>Short-term cover.</b> By the day or week — handy for a burst of practice before your test.</li></ul>
+<h3 class="mt-3">Two rules people get wrong</h3><ul>
+<li><b>"Fronting" is fraud.</b> If the learner will really be the main driver of a car, they must be insured as the main driver — not listed as a named driver on a parent's policy.</li>
+<li><b>Once you pass, learner cover usually ends.</b> Arrange new insurance before you drive alone — many learner policies stop the day you pass.</li></ul>""")
+    body += section("Supervising", "Who can sit next to <span class=\"tr\">you?</span>", """<p>Your supervisor must be <b>21 or over</b> and have held a full licence for that type of car for <b>3 years</b>. You'll need L plates front and back, and you can't practise on motorways — only with an approved instructor in a dual-control car.</p>
+<p><a href="solihull-parents-guide-learner-drivers.html">Parents' guide with a Solihull practice plan →</a></p>""", alt=True)
+    body += section("Keep costs down", "Spend less on your <span class=\"tr\">licence</span>", sq_cards([
+        ("cheap-driving-lessons-solihull.html", "Affordable lessons in Solihull", "Seven honest ways to spend less."),
+        ("driving-lesson-prices-solihull.html", "Solihull lesson prices", "£35/hr, no booking fee."),
+        ("student-driving-lessons-solihull.html", "Student discount", "10 hours £320."),
+        ("beginner-driving-lessons-solihull.html", "Beginner lessons", "Your first lesson, step by step.")]))
+    faqs = [("Do I need insurance for driving lessons?", "Not for lessons with us — the instructor's car is insured for learners. You need your own learner cover only to practise in a family or friend's car."),
+            ("Can my parent add me to their car insurance?", "Often, yes — ask the insurer. Some add learners cheaply; some don't allow it."),
+            ("What is fronting?", "Insuring a young driver as a named driver on a parent's policy when the young driver is really the main driver. It's fraud and can void the policy."),
+            ("Does learner insurance cover me after I pass?", "Usually not — most learner policies end when you pass. Arrange new cover before driving alone.")]
+    return page(f, "Learner Driver Insurance Solihull: Options & Rules | DriveSQ",
+                "Practising with family in Solihull? Your learner insurance options, the supervisor rules, why fronting is fraud, and what happens when you pass.",
+                "learner driver insurance solihull, insurance to practise with parents, learner driver insurance explained",
+                "Learner driver insurance explained", "Your options for practising in a family car — and the rules people get wrong.",
+                ["Named driver or standalone", "Supervisor rules", "No fronting"], body, faqs, ["ins_learner", "supervise"], form_title="Book lessons in Solihull")
+
+
 # ───────────────────────── 10. hub ─────────────────────────
 def hub():
     f = "solihull.html"
     own = '<div class="dsq-x">' + "".join(f'<a href="{p}"><small>DriveSQ</small><b>{lbl}</b><span>{s}</span></a>' for p, lbl, s in G.PAGES if p != f) + "</div>"
-    sq = G.SQ_LINKS
+    sqp = json.load(open(os.path.join(HERE, "solihull-sq-pages.json"), encoding="utf-8"))
+    order = ["Lesson types", "Test centres", "Areas", "Postcodes", "Roads & junctions", "Schools & colleges", "Workplaces", "Guides & portals"]
+    groups = "".join(f'<h3 class="mt-4">{e(g)}</h3><div class="d-flex flex-wrap gap-2 mt-2">' + "".join(f'<a class="hp" style="text-decoration:none;color:#ddd" href="{SQ}/{p}">{e(t)}</a>' for p, t, gg in sqp if gg == g) + "</div>" for g in order)
     body = section("DriveSQ in Solihull", "Every Solihull <span class=\"tr\">page</span>", "<h3>DriveSQ tools &amp; guides</h3>" + own +
-                   "<h3 class=\"mt-4\">From SQ Driving School (part of DriveSQ)</h3>" + '<div class="dsq-x">' + "".join(f'<a href="{u}"><small>{c}</small><b>{t}</b><span>{d}</span></a>' for u, c, t, d in sq) + "</div>"
-                   + f'<p class="mt-3"><a href="{SQS}all-solihull-guides.html">See all 100+ SQ Driving School Solihull guides — every area, postcode, school and road →</a></p>')
+                   f"<h3 class=\"mt-4\">All {len(sqp)} SQ Driving School Solihull pages</h3><p>SQ Driving School is part of DriveSQ — same instructors, prices and Student Portal.</p>" + groups)
     faqs = [("Are DriveSQ and SQ Driving School the same?", "SQ Driving School is a brand owned and managed by DriveSQ — the same instructors, prices and Student Portal."),
             ("Do you teach everywhere in Solihull?", "Across the borough — Shirley, Solihull town centre, Olton, Knowle, Dorridge, Chelmsley Wood, Castle Bromwich and more."),
             ("How much are lessons in Solihull?", "£35/hr manual or automatic, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students).")]
@@ -475,7 +516,7 @@ def main():
            "solihull-daylight-driving-planner.html": daylight(), "solihull-driving-test-readiness-check.html": readiness(),
            "solihull-learner-driver-lesson-plan.html": plan(), "solihull-parents-guide-learner-drivers.html": parents(),
            "solihull-new-drivers-first-year.html": newdrivers(), "solihull-theory-test-guide.html": theory(),
-           "driving-instructor-training-solihull.html": instructor(), "solihull.html": hub()}
+           "driving-instructor-training-solihull.html": instructor(), "solihull-learner-driver-insurance.html": insurance(), "solihull.html": hub()}
     # rebuild the first four pages too, so their nav and cross-links include the new pages
     out.update({"solihull-driving-school.html": G.school(), "driving-instructors-solihull.html": G.instructors(),
                 "solihull-driving-test-pass-rates.html": G.pass_rates(), "driving-instructor-jobs-solihull.html": G.jobs()})
