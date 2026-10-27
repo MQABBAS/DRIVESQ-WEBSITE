@@ -30,13 +30,15 @@ NEW = [
     ("solihull.html", "Every Solihull page", "All Solihull"),
 ]
 import generate_learner_tools as LT
-NEW = NEW[:-1] + LT.NEW + NEW[-1:]
+NEW = [("driving-lessons-solihull.html", "Driving lessons in Solihull", "Lessons Solihull")] + NEW[:-1] + LT.NEW + [
+    ("solihull-driving-schools-compared.html", "Solihull driving schools compared", "Schools compared"),
+    ("free-learner-driver-resources-solihull.html", "Free learner resources", "Free resources")] + NEW[-1:]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
 G.PAGES = G.PAGES + [(f, lbl, short) for f, lbl, short in NEW]
 _base_nav = G.nav
 def _nav(active):  # keep the bar short: the four core pages plus the hub
     keep = G.PAGES
-    G.PAGES = keep[:4] + [p for p in keep if p[0] == "solihull.html"]
+    G.PAGES = [p for p in keep if p[0] == "driving-lessons-solihull.html"] + keep[:4] + [p for p in keep if p[0] == "solihull.html"]
     try:
         return _base_nav(active)
     finally:
