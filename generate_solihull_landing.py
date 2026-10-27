@@ -208,6 +208,8 @@ def sq_group(cat):
     return [(SQ + "/" + p, t) for p, t, c in SQP if c == cat]
 
 
+_AD = json.load(open(os.path.join(HERE, "_data/solihull_areas.json"), encoding="utf-8"))["areas"] if os.path.exists(os.path.join(HERE, "_data/solihull_areas.json")) else []
+AREA_LINKS = sorted(((f"driving-lessons-{a['slug']}.html", a["name"]) for a in _AD), key=lambda t: t[1])
 TOOLS = [(f, lbl) for f, lbl, _ in [("solihull-driving-test-centre-finder.html", "Test centre finder", 0), ("solihull-learner-driver-cost-calculator.html", "Licence cost calculator", 0),
          ("solihull-driving-test-readiness-check.html", "Test readiness check", 0), ("solihull-learner-driver-lesson-plan.html", "Week-by-week lesson plan", 0),
          ("solihull-daylight-driving-planner.html", "Daylight & sun-glare planner", 0), ("learner-driver-age-checker.html", "When can I start driving?", 0),
@@ -243,7 +245,7 @@ def landing():
             f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>Address</th><th>Pass rate 2024-25</th></tr></thead><tbody>{rows}</tbody></table></div><p class="sol-note mt-2">Find your nearest by postcode: <a href="solihull-driving-test-centre-finder.html">test centre finder</a> · <a href="{SQS}solihull-driving-test-centres-compared.html">all centres compared</a> · <a href="solihull-driving-test-pass-rates.html">pass rates explained</a></p>'),
         sec("areas", "Coverage", "Every area and postcode in Solihull",
             "Door-to-door pick-up across the borough. Each link opens a local guide with roads, test centres, fuel and parking.",
-            '<div class="area-head mt-3">Areas</div>' + chips(sq_group("Areas")) + '<div class="area-head mt-3">Postcodes and sectors</div>' + chips(sq_group("Postcodes")), alt=True),
+            '<div class="area-head mt-3">Areas</div>' + chips(AREA_LINKS) + '<div class="area-head mt-3">Postcodes and sectors</div>' + chips(sq_group("Postcodes")), alt=True),
         sec("tools", "Free tools", "Free tools for Solihull learners",
             "Built by DriveSQ, free for everyone — no sign-up.", chips(TOOLS) + f'<p class="sol-note mt-2">Everything free in one place: <a href="{FREE}">free learner driver resources for Solihull →</a></p>'),
         sec("guides", "Local knowledge", "Solihull roads, routes and lesson guides",
