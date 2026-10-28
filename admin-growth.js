@@ -846,6 +846,7 @@
       return { i, g: ig, miles: haversine(g.lat, g.lon, ig.lat, ig.lon), mins: null, st, lt: i.car_type || "Manual", ok: canTeach(i.car_type || "Manual", s.type), cov: covers(i, oc), credits: (typeof _creditIndex !== "undefined" && _creditIndex[i.id]) || 0, fr: i.instructor_model === "franchise" };
     }));
     S.rows = rows.filter(Boolean).sort((a, b) => a.miles - b.miles);
+    if (!S.rows.length) { S.student = null; return false; }
     const tc = s.testCentre;
     if (tc && tc.lat != null) {
       const toc = outward(tc.postcode);
@@ -911,10 +912,18 @@
   }
   function bar(sc) { return `<div class="gx-bar" title="${comps().map(([k, n]) => n + " " + Math.round(sc.parts[k])).join(" · ")}">${comps().map(([k, , col]) => `<span style="width:${sc.parts[k]}%;background:${col}"></span>`).join("")}</div>`; }
 
+  // never leave Find & Assign blank: Smart Match only hides the normal list once its own panel has drawn a match
   function render() {
     const res = $("#findResults"); if (!res || !S.student) return;
+    try { renderInner(res); }
+    catch (e) {
+      console.error("Smart Match render failed:", e);
+      res.classList.remove("gx-compact");
+      const box = $("#gxMatch", res); if (box) box.innerHTML = '<div class="gx-empty">Smart Match couldn\'t rank this search — the full instructor list is below.</div>';
+    }
+  }
+  function renderInner(res) {
     let box = $("#gxMatch", res); if (!box) { box = document.createElement("div"); box.id = "gxMatch"; res.prepend(box); }
-    res.classList.toggle("gx-compact", S.compact);
     const list = ranked(), best = list[0], n = S.showAll ? list.length : Math.min(list.length, 6);
     const mode = Object.keys(MODES).map(k => `<button data-gxm-mode="${k}" aria-pressed="${S.mode === k}">${MODES[k][0]}</button>`).join("");
     const F = [["near", "Within 5 miles"], ["referral", "Referral only"], ["free", "No student this week"], ["fast", "Books fast"], ["type", "Include other lesson type"]];
@@ -939,7 +948,8 @@
     }
     html += `<button class="gx-btn gxm-more" data-gxm-toggle><i class="bi ${S.compact ? "bi-chevron-down" : "bi-chevron-up"}"></i>${S.compact ? "Show full list, other drivers &amp; area intelligence" : "Hide full list"}</button>`;
     box.innerHTML = html;
-    if (best) drawMap(list.slice(0, Math.max(n, 6)));
+    res.classList.toggle("gx-compact", !!best && S.compact);
+    if (best) drawMap(list.slice(0, Math.max(n, 6))).catch(e => console.warn("Smart Match map", e));
   }
   let _lf = null;
   // one shared loader — admin.html's own maps load the same Leaflet, so wait for that copy instead of adding a second
@@ -1053,7 +1063,7 @@
     else if (t.hasAttribute("data-gxm-f")) { const f = t.getAttribute("data-gxm-f"); S.filters.has(f) ? S.filters.delete(f) : S.filters.add(f); save(); render(); }
     else if (t.hasAttribute("data-gxm-clear")) { S.filters.clear(); save(); render(); }
     else if (t.hasAttribute("data-gxm-all")) { S.showAll = !S.showAll; render(); }
-    else if (t.hasAttribute("data-gxm-toggle")) { S.compact = !S.compact; $("#findResults").classList.toggle("gx-compact", S.compact); render(); }
+    else if (t.hasAttribute("data-gxm-toggle")) { S.compact = !S.compact; render(); }
     else if (t.hasAttribute("data-gxm-cmpgo")) compareModal();
     else if (t.hasAttribute("data-gxm-cmpclear")) { S.cmp.clear(); render(); }
     else if (t.hasAttribute("data-gxm-assign")) { const i = instrs().find(x => x.id === t.getAttribute("data-gxm-assign")); const m = $("#gxmCmpModal"); if (m) m.classList.remove("open"); if (i) openCreateAndAssign(i.id, i.full_name); }
