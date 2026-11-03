@@ -23,7 +23,7 @@
   const SQL_FILE = "supabase/migrations/20261023_growth_tools.sql";
   const LOST = ["Price", "Too far / no instructor nearby", "Booked with another school", "Couldn't reach them", "Times didn't suit", "Wanted automatic/manual we couldn't offer", "Not ready yet / browsing", "Other"];
   const REPLY = { booked: ["✅", "Booked", "g"], not_yet: ["⏳", "Not booked yet", "a"], unreachable: ["📵", "Can't reach them", "r"], not_interested: ["🚫", "Not going ahead", "r"] };
-  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 20, franchiseDef: 45, franchiseBy: {}, channels: ["Google Ads"] };
+  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 25, franchiseDef: 45, franchiseBy: {}, channels: ["Google Ads"] };
 
   const G = { cfg: Object.assign({}, DEF), refs: [], wl: [], spend: {}, followups: {}, push: new Set(), hasRefCols: null, hasWlCols: null, hasSpend: null, hasCfg: null, loaded: false, loading: null, tab: "chase", month: "this", timer: null, running: false, lastRun: 0 };
   const LSK = k => "dsqg_" + k;
@@ -65,8 +65,11 @@
   async function loadCfg() {
     const c = db(); const local = ls.get("cfg", null);
     if (local) Object.assign(G.cfg, local);
+    // referral fee rose from £20 to £25 on 2 November 2026 — lift an old saved default once
+    const _lift = () => { if (Number(G.cfg.refFee) === 20 && !ls.get("fee25", false)) { G.cfg.refFee = 25; ls.set("fee25", true); } };
+    _lift();
     if (!c) return;
-    try { const r = await c.from("growth_settings").select("value").eq("key", "config").maybeSingle(); if (r.error) { G.hasCfg = !missingTable(r.error) ? true : false; return; } G.hasCfg = true; if (r.data && r.data.value) Object.assign(G.cfg, r.data.value); } catch (e) {}
+    try { const r = await c.from("growth_settings").select("value").eq("key", "config").maybeSingle(); if (r.error) { G.hasCfg = !missingTable(r.error) ? true : false; return; } G.hasCfg = true; if (r.data && r.data.value) { Object.assign(G.cfg, r.data.value); if (Number(G.cfg.refFee) === 20) G.cfg.refFee = 25; } } catch (e) {}
   }
   async function saveCfg() {
     ls.set("cfg", G.cfg); const c = db(); if (!c || G.hasCfg === false) return;

@@ -4625,9 +4625,10 @@ async function loadGlobalStats(){
 
 function populateDropdowns(){
   const all=allInstrs.map(i=>`<option value="${i.id}">${esc(i.full_name)} (${esc(i.badge_number||'—')})</option>`).join('');
-  document.getElementById('msg-recipient').innerHTML='<option value="">Select instructor…</option>'+all;
-  document.getElementById('al-instr').innerHTML='<option value="">Select…</option>'+all;
-  document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
+  const _set=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html;};
+  _set('msg-recipient','<option value="">Select instructor…</option>'+all);
+  _set('al-instr','<option value="">Select…</option>'+all);
+  if(document.getElementById('reassign-instr'))document.getElementById('reassign-instr').innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   const cri=document.getElementById('changeReq-instr');
   if(cri)cri.innerHTML='<option value="">Select instructor…</option>'+allInstrs.filter(i=>i.status==='approved').map(i=>`<option value="${i.id}">${esc(i.full_name)}</option>`).join('');
   // Student filter dropdown
@@ -7788,8 +7789,8 @@ function openReassignModal(reqId,studentName,phone,addr,postcode,lessonType,note
 }
 async function confirmReassign(){
   const reqId=document.getElementById('reassign-req-id').value;
-  const instrId=document.getElementById('reassign-instr').value;
-  if(!instrId){showToast('Select an instructor.','error');return;}
+  const instrId=document.getElementById('reassign-instr')?.value;
+  if(!instrId){reassignToFind();return;}
   const name=document.getElementById('reassign-student-name').value;
   const phone=document.getElementById('reassign-student-phone').value;
   const addr=document.getElementById('reassign-student-addr').value;
@@ -8616,32 +8617,10 @@ async function confirmAssign(){
   if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Assign Student';}
 
   if(!profInserted){
-    // Fallback: pre-fill Add Student form with the instructor already selected
-    bootstrap.Modal.getInstance(document.getElementById('assignModal'))?.hide();
-    showToast('Auto-filling Add Student form…','info',3000);
-    setTimeout(()=>{
-      switchTab('add');
-      const nm=document.getElementById('newStudentName');
-      const ph=document.getElementById('newStudentPhone');
-      const em=document.getElementById('newStudentEmail');
-      const ad=document.getElementById('newStudentAddress');
-      const lt=document.getElementById('newStudentType');
-      const nt=document.getElementById('newStudentNotes');
-      const iSel=document.getElementById('newStudentInstructor');
-      if(nm)nm.value=s.name||'';
-      if(ph)ph.value=s.phone||'';
-      if(em)em.value=s.email||'';
-      if(ad)ad.value=s.addr||'';
-      if(lt&&s.type)lt.value=s.type;
-      if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
-      // Pre-select the instructor in the dropdown
-      if(iSel){
-        // Try to find matching option
-        const opt=[...iSel.options].find(o=>o.value===instrId||o.text.toLowerCase().includes(instrName.toLowerCase()));
-        if(opt)iSel.value=opt.value;
-        else{const o=document.createElement('option');o.value=instrId;o.textContent=instrName;iSel.appendChild(o);iSel.value=instrId;}
-      }
-    },400);
+    // Fallback: the roster save failed — open Create Student with every detail pre-filled so nothing is lost
+    closeModal('assignModal');
+    showToast("Couldn't save to the instructor's roster — the details are in Create Student. Check them and press Save.",'warn',7000);
+    openCreateAndAssign(instrId,instrName);
     return;
   }
 
@@ -17672,6 +17651,8 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   function franchise(id){return instrById(id).instructor_model==='franchise';}
   var CATS={booking:['📅','New bookings to assign','#D10A11'],report:['🚩','Instructor reports','#f59e0b'],notbooked:['🚩','Not booked (red flag)','#ef4444'],unsure:['🟣','Unsure if booked (purple)','#a855f7'],nolesson:['⏳','Referred, no booking flag yet','#f97316'],credit:['🔄','Replacement students owed','#f59e0b'],fee:['💷','Referral fees to chase','#f87171'],idle:['🧑‍🏫','Instructors needing students','#60a5fa']};
   var _items=[],_filter='all';
+  var ONE={booking:'New booking to assign',report:'Instructor report',credit:'Replacement student owed',fee:'Referral fee to chase',idle:'Instructor needing students'};
+  function catLabel(k,n){return n===1&&ONE[k]?ONE[k]:CATS[k][1];}
 
   async function build(){
     await pull();
@@ -17727,7 +17708,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     var c=counts(),n=visible().length;if(!el){el=document.createElement('div');el.id='todayBriefing';host.insertBefore(el,host.firstChild);}
     if(!n){el.innerHTML='<div class="tdy-brief tdy-brief--ok">✅ <b>All caught up.</b> Nothing needs chasing right now.</div>';return;}
     el.innerHTML='<div class="tdy-brief"><div class="tdy-brief__head"><span>☀️ <b>Today: '+n+' thing'+(n>1?'s':'')+' to follow up</b></span><button class="btn-p" onclick="openToday()" style="font-size:.78rem;padding:6px 12px"><i class="bi bi-play-fill me-1"></i>Start</button></div><div class="tdy-brief__chips">'+
-      Object.keys(CATS).filter(function(k){return c[k];}).map(function(k){return'<button class="tdy-chip" onclick="openToday(\''+k+'\')">'+CATS[k][0]+' '+c[k]+' '+CATS[k][1].toLowerCase()+'</button>';}).join('')+'</div></div>';
+      Object.keys(CATS).filter(function(k){return c[k];}).map(function(k){return'<button class="tdy-chip" onclick="openToday(\''+k+'\')">'+CATS[k][0]+' '+c[k]+' '+catLabel(k,c[k]).toLowerCase()+'</button>';}).join('')+'</div></div>';
   }
   function render(){
     var el=document.getElementById('todayList');if(!el)return;var vis=visible(),c=counts();
@@ -17761,5 +17742,6 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 <!-- DSQT:TODAY END -->
 <script src="admin-growth.js?v=20261028a"></script>
 <script src="admin-ledger.js?v=20261023a"></script>
+<script src="admin-pro.js?v=20261102a"></script>
 </body>
 </html>
