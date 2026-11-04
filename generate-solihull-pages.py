@@ -163,7 +163,7 @@ def build(fname, title, desc, kw, h1, lead, hero_pills, body, faqs, src, form_ht
 <meta property="og:title" content="{e(title)}"/><meta property="og:description" content="{e(desc)}"/>
 <meta property="og:image" content="https://i.postimg.cc/pLtNygxL/DRIVE-SQ-PASS.jpg"/><meta property="og:url" content="{url}"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<link rel="icon" href="/favicon.ico" sizes="32x32"/><link rel="icon" href="/favicon.svg" type="image/svg+xml"/><link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png"/><link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link rel="icon" href="/favicon.ico?v=2" sizes="32x32"/><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"/><link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png?v=2"/><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2"/>
 """ + "\n".join(f'<script type="application/ld+json">{json.dumps(s, ensure_ascii=False)}</script>' for s in schema) + f"""
 {STYLE}
 {EXTRA_CSS}
