@@ -115,6 +115,60 @@
     }
   });
 
+  /* ───── 5. Student profile → their referral (opens the instructor's referrals with the student highlighted) ───── */
+  const norm = n => String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
+  function refsFor(name, instrId) {
+    let all = []; try { all = Array.isArray(_refData) ? _refData : []; } catch (e) {}
+    const k = norm(name), mine = all.filter(r => norm(r.student_name) === k);
+    const exact = mine.filter(r => !instrId || r.instructor_id === instrId);
+    return (exact.length ? exact : mine).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  function refLabel(name, instrId) {
+    const r = refsFor(name, instrId)[0]; if (!r) return "Referral";
+    const amt = "£" + (parseFloat(r.amount) || 0).toFixed(0);
+    return r.is_cancelled ? "Referral · cancelled" : r.is_credit ? "Referral · credit" : r.is_paid ? "Referral · " + amt + " paid" : "Referral · " + amt + " unpaid";
+  }
+  window.openStudentReferral = async function (name, instrId) {
+    try {
+      let have = []; try { have = _refData || []; } catch (e) {}
+      if (!have.length && typeof loadReferrals === "function") { try { switchTab("referrals"); } catch (e) {} await loadReferrals(); }
+      const r = refsFor(name, instrId)[0];
+      const iid = (r && r.instructor_id) || instrId;
+      if (!iid) { toast("No referral found for " + name + ".", "info", 3000); return; }
+      ["studentDetailModal", "adminStudentProfileModal"].forEach(id => { const m = document.getElementById(id); if (m) m.classList.remove("open"); });
+      try { switchTab("referrals"); setActiveTab("referrals"); } catch (e) {}
+      try { if (r && typeof _refPeriodStart === "function" && new Date(r.created_at) < _refPeriodStart() && typeof setRefPeriod === "function") setRefPeriod("all"); } catch (e) {}
+      await openRefDetail(iid);
+      if (!r) { toast("No referral for " + name + " — showing their instructor's referrals.", "info", 3500); return; }
+      setTimeout(() => {
+        const box = document.getElementById("refDetailRows"); if (!box) return;
+        const k = norm(name);
+        const row = [...box.querySelectorAll("tr")].find(tr => { const c = tr.querySelector("td"); return c && norm(c.innerText).startsWith(k); });
+        if (!row) return;
+        row.scrollIntoView({ block: "center", behavior: "smooth" });
+        row.style.transition = "box-shadow .3s"; row.style.boxShadow = "inset 0 0 0 2px #F5C518";
+        setTimeout(() => { row.style.boxShadow = ""; }, 4000);
+      }, 150);
+    } catch (e) { console.warn("openStudentReferral", e); toast("Couldn't open the referral.", "error"); }
+  };
+  const refBtn = (name, instrId, id) => `<button type="button" class="abtn" id="${id}" onclick="openStudentReferral(${JSON.stringify(name).replace(/"/g, "&quot;")},${JSON.stringify(instrId || "").replace(/"/g, "&quot;")})" style="background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px"><i class="bi bi-cash-coin me-1"></i>${h(refLabel(name, instrId))}</button>`;
+  function addSdButton() {
+    const s = window._sdCurrentStudent, box = document.getElementById("sdActions"); if (!s || !box) return;
+    const old = document.getElementById("proSdRefBtn"); if (old) old.remove();
+    box.insertAdjacentHTML("afterbegin", refBtn(s.name, s.instrId, "proSdRefBtn"));
+  }
+  const _sd = window.openStudentDetail;
+  if (typeof _sd === "function") window.openStudentDetail = async function () { const r = await _sd.apply(this, arguments); try { addSdButton(); } catch (e) {} return r; };
+  const _ap = window.openAdminStudentProfile;
+  if (typeof _ap === "function") window.openAdminStudentProfile = async function (name, phone, instrId) {
+    const r = await _ap.apply(this, arguments);
+    try {
+      const c = document.getElementById("adminStudentProfileContent");
+      if (c && !document.getElementById("proApRefBtn")) c.insertAdjacentHTML("afterbegin", '<div style="margin-bottom:10px">' + refBtn(name, instrId || (window._adminStudentCtx || {}).instrId, "proApRefBtn") + "</div>");
+    } catch (e) {}
+    return r;
+  };
+
   function boot() { showMessageAllOnMobile(); offlineBanner(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
   window.DSQPRO = { REF_FEE, feeFor };
