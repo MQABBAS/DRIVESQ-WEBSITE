@@ -3034,7 +3034,7 @@ async function loadRefData(){
   if(!instr?.id)return;
   try{
     const{data}=await sb.from('referrals')
-      .select('id,student_name,student_phone,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,credit_fulfilled_at,paid_at,created_at,notes,admin_notified,notes_visible')
+      .select('*')
       .eq('instructor_id',instr.id).eq('is_cancelled',false)
       .order('created_at',{ascending:false});
     _refAllData=data||[];
@@ -3105,8 +3105,9 @@ function _refInfo(r){
   const lessons=st.count||0;
   const amt=parseFloat(r.amount)||0;
   const left=_refIsDropPending(r.id)||rosterMap[(r.student_name||'').toLowerCase().trim()]?.status==='drop_pending';
-  const state=r.is_credit?'credit':r.is_paid?'paid':left?'left':lessons>0?'due':'waiting';
-  return{n,st,phone:r.student_phone||st.phone||n.phone||'',addr,postcode,lessons,amt,state,
+  const confirmed=r.flag_color==='green'||r.reply_status==='booked';
+  const state=r.is_credit?'credit':r.is_paid?'paid':left?'left':(confirmed||lessons>0)?'due':'waiting';
+  return{n,st,phone:r.student_phone||st.phone||n.phone||'',addr,postcode,lessons,amt,state,confirmed,flag:r.flag_color||'',
     avail:n.availability||st.availability||'',type:n['lesson type']||n.type||st.lesson_type||'',notes:n.notes||'',email:n.email||'',test:n['test centre']||'',source:n.source||''};
 }
 let _refSearch='';
@@ -3123,7 +3124,7 @@ function _refCard(r){
     const rid=jsEsc(r.id||'');
     const sn=jsEsc(r.student_name||'');
     const _stuEntry=allStudentsArr.find(s=>(s.name||'').toLowerCase().trim()===(r.student_name||'').toLowerCase().trim());
-    const hasNoLesson=!paid&&!showPending&&(_stuEntry?(_stuEntry.count||0)===0:true);
+    const hasNoLesson=!paid&&!showPending&&!(r.flag_color==='green'||r.reply_status==='booked')&&(_stuEntry?(_stuEntry.count||0)===0:true);
     const noLessonAlerted=!!r.admin_notified;
     // Initials
     const initials=(r.student_name||'?').split(' ').filter(Boolean).map(w=>w[0].toUpperCase()).slice(0,2).join('');
@@ -3138,7 +3139,7 @@ function _refCard(r){
           <div style="font-size:.68rem;color:var(--txt3);margin-bottom:5px;display:flex;flex-wrap:wrap;gap:4px 10px">${_ri.postcode?`<span><i class="bi bi-geo-alt me-1"></i>${esc(_ri.postcode)}</span>`:''}${_ri.phone?`<span><i class="bi bi-telephone me-1"></i>${esc(_ri.phone)}</span>`:''}${addedDate?`<span><i class="bi bi-calendar3 me-1"></i>Referred ${addedDate}</span>`:''}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             <span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:700;${paid?'background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)'}">
-              ${paid?`✓ Paid${paidDate?` · ${paidDate}`:''}`:showPending?'Awaiting admin':_ri.lessons>0?`Payment due · pay within 7 days`:'Not due yet — no lesson booked'}
+              ${paid?`✓ Paid${paidDate?` · ${paidDate}`:''}`:showPending?'Awaiting admin':_ri.confirmed?`✅ Booking confirmed with student · payment due`:_ri.lessons>0?`Lesson booked · payment due`:_ri.flag==='purple'?'🟣 DriveSQ is checking with the student':_ri.flag==='red'?'Student says not booked yet — no fee':'Not due yet — no lesson booked'}
             </span>
             ${hasNoLesson?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)"><i class="bi bi-calendar-x me-1"></i>No lesson yet</span>`:''}
             ${showPending?`<span style="font-size:.62rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)" title="${dropReason?.reason?'Reason: '+dropReason.reason+(dropReason.notes?'\nNotes: '+dropReason.notes:''):'Awaiting admin confirmation'}"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin</span>`:''}
@@ -3195,7 +3196,7 @@ function _renderRefTab(){
     return`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px"><i class="bi bi-arrow-repeat" style="color:#f59e0b;font-size:1.1rem"></i><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;color:var(--txt1)">${esc(r.student_name||'Unknown')}</div><div style="font-size:.65rem;color:var(--txt4);margin-top:2px">Left on ${d} · replacement student owed to you</div></div><span style="font-size:.62rem;padding:2px 9px;border-radius:20px;font-weight:700;background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.35)">CREDIT OWED</span></div>`;}).join('');
   const sec=(k,rows,icon,col,t,sub)=>{const r2=rows.filter(match);if(!r2.length)return'';return head(icon,col,t,r2.length,sub)+'<div style="display:flex;flex-direction:column;gap:8px">'+r2.map(_refCard).join('')+'</div>';};
   const f=_refFilter;
-  if(f==='all'||f==='due')html+=sec('due',due,'bi-cash-coin','#f87171','Payment due',`£${sum(due).toFixed(0)} — pay within 7 days of the first lesson`);
+  if(f==='all'||f==='due')html+=sec('due',due,'bi-cash-coin','#f87171','Payment due',`£${sum(due).toFixed(0)} — lesson booked or confirmed by DriveSQ · pay within 7 days`);
   if(f==='all'||f==='waiting')html+=sec('waiting',waiting,'bi-hourglass-split','#fbbf24','Awaiting first lesson','nothing to pay until a lesson is booked');
   if(f==='all')html+=sec('left',left,'bi-person-dash','#f87171','Student left','waiting for admin to confirm');
   if(f==='all'||f==='paid')html+=sec('paid',paidRows,'bi-check-circle','#4ade80','Paid','');
@@ -3211,8 +3212,8 @@ function openRefStudent(id){
   const maps=(i.postcode||i.addr)?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(i.addr||i.postcode):'';
   const dirs=(i.postcode||i.addr)?'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+encodeURIComponent(i.addr||i.postcode):'';
   const feeTxt={paid:`<b style="color:#4ade80">£${i.amt.toFixed(0)} paid</b>${r.paid_at?' on '+d(r.paid_at):''}. Thank you.`,
-    due:`<b style="color:#f87171">£${i.amt.toFixed(0)} due now</b> — ${first} has ${i.lessons} lesson${i.lessons===1?'':'s'} booked with you. Please pay within 7 days of the first lesson.`,
-    waiting:`<b style="color:#fbbf24">Not due yet.</b> The £${(i.amt||REF_FEE_NOW).toFixed(0)} fee becomes due automatically once ${first} books their first lesson with you. If they never book, you pay nothing.`,
+    due:i.confirmed?`<b style="color:#f87171">£${i.amt.toFixed(0)} due now</b> — ✅ booking confirmed: DriveSQ checked with ${first} that a lesson is booked with you${i.lessons?` (${i.lessons} in your diary)`:''}. Please pay within 7 days of the first lesson.`:`<b style="color:#f87171">£${i.amt.toFixed(0)} due now</b> — ${first} has ${i.lessons} lesson${i.lessons===1?'':'s'} booked with you. Please pay within 7 days of the first lesson.`,
+    waiting:i.flag==='purple'?`<b style="color:#a855f7">🟣 DriveSQ is checking with ${first}</b> whether a lesson is booked. Nothing to pay unless they confirm.`:i.flag==='red'?`<b style="color:#fbbf24">${first} told DriveSQ they haven't booked yet.</b> No fee unless a lesson is booked — please get in touch with them.`:`<b style="color:#fbbf24">Not due yet.</b> The £${(i.amt||REF_FEE_NOW).toFixed(0)} fee becomes due automatically once ${first} books their first lesson with you. If they never book, you pay nothing.`,
     left:`<b style="color:#f87171">Marked as left</b> — admin is checking. No fee while this is being reviewed.`,credit:'Replacement student owed to you.'}[i.state];
   const row=(icon,label,val,link)=>val?`<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bdr)"><i class="bi ${icon}" style="color:var(--txt4);width:18px;text-align:center"></i><div style="flex:1;min-width:0"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.05em">${label}</div><div style="font-size:.86rem;color:var(--txt1);word-break:break-word">${link?`<a href="${link}" target="_blank" rel="noopener" style="color:var(--txt1)">${esc(val)}</a>`:esc(val)}</div></div></div>`:'';
   const inRoster=!!_refRoster(nm);
@@ -3231,7 +3232,7 @@ function openRefStudent(id){
     <div style="background:${i.state==='due'?'rgba(239,68,68,.07)':i.state==='paid'?'rgba(74,222,128,.07)':'rgba(251,191,36,.06)'};border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;font-size:.8rem;color:var(--txt2);line-height:1.5;margin-bottom:8px"><i class="bi bi-cash-coin me-1"></i>${feeTxt}</div>
     ${row('bi-geo-alt','Postcode',i.postcode,maps)}${row('bi-house','Address',i.addr)}${row('bi-telephone','Phone',i.phone)}${row('bi-envelope','Email',i.email)}
     ${row('bi-gear','Lesson type',i.type)}${row('bi-clock','Availability',i.avail)}${row('bi-flag','Test centre',i.test)}
-    ${row('bi-journal-text','Lessons with you',i.lessons?`${i.lessons} lesson${i.lessons===1?'':'s'}${st.totalHrs?' · '+(+st.totalHrs).toFixed(1)+' hrs':''}${st.lastDate?' · last '+d(st.lastDate):''}`:'None booked yet')}
+    ${row('bi-journal-text','Lessons with you',i.lessons?`${i.lessons} lesson${i.lessons===1?'':'s'}${st.totalHrs?' · '+(+st.totalHrs).toFixed(1)+' hrs':''}${st.lastDate?' · last '+d(st.lastDate):''}`:i.confirmed?'Booked (confirmed by DriveSQ) — add it to your calendar':'None booked yet')}
     ${row('bi-chat-left-text','Notes from DriveSQ',i.notes)}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
       ${inRoster?`<button class="btn-blue" style="flex:1;padding:9px" onclick="document.getElementById('refStudentModal').classList.remove('open');openStudentMgmt('${jsEsc(nm)}','profile')"><i class="bi bi-person-fill me-1"></i>Full profile</button>`:''}
@@ -3239,6 +3240,7 @@ function openRefStudent(id){
     </div></div>`;
   el.classList.add('open');
 }
+function _stuBookingConfirmed(s){const k=(s.name||'').toLowerCase().trim();return(_refAllData||[]).some(r=>!r.is_credit&&!r.is_cancelled&&(r.student_name||'').toLowerCase().trim()===k&&(r.flag_color==='green'||r.reply_status==='booked'));}
 // Fee badge on each student card (Students section)
 function _studentFeeBadge(s){
   const k=(s.name||'').toLowerCase().trim();
@@ -3246,7 +3248,7 @@ function _studentFeeBadge(s){
   const i=_refInfo(r),a='£'+(i.amt||REF_FEE_NOW).toFixed(0);
   const pill=(bg,bd,c,icon,t,tip)=>`<span title="${tip}" style="background:${bg};color:${c};border:1px solid ${bd};border-radius:8px;padding:1px 7px;font-size:.6rem;font-weight:700;white-space:nowrap"><i class="bi ${icon} me-1"></i>${t}</span>`;
   if(i.state==='paid')return pill('rgba(74,222,128,.1)','rgba(74,222,128,.3)','#4ade80','bi-check-circle','Fee paid','Referral fee paid — thank you');
-  if(i.state==='due')return pill('rgba(239,68,68,.12)','rgba(239,68,68,.35)','#f87171','bi-cash-coin',a+' fee due','Referral fee due — pay within 7 days of the first lesson');
+  if(i.state==='due')return pill('rgba(239,68,68,.12)','rgba(239,68,68,.35)','#f87171','bi-cash-coin',a+' fee due'+(i.confirmed?' · booking confirmed':''),'Referral fee due — pay within 7 days of the first lesson');
   if(i.state==='waiting')return pill('rgba(251,191,36,.1)','rgba(251,191,36,.3)','#fbbf24','bi-hourglass-split',a+' due after 1st lesson','Nothing to pay until a lesson is booked');
   return'';
 }
@@ -4636,7 +4638,7 @@ function renderStudents(students,emptyOverride){
       </div>
       ${(s.count===0&&!hasLogin)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(245,197,24,.07);border-radius:8px;border:1px solid rgba(245,197,24,.18);font-size:.72rem;color:var(--gold);display:flex;align-items:center;gap:8px">
         <i class="bi bi-bell-fill" style="flex-shrink:0"></i>
-        <span><strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.</span>
+        <span>${_stuBookingConfirmed(s)?'<strong>Booking confirmed</strong> — DriveSQ checked with this student that their first lesson is booked. Add it to your calendar so it shows here.':'<strong>New student</strong> — please contact them to book their first lesson. You can also give them access to the theory &amp; practical guide platform.'}</span>
       </div>`:''}
       ${(s.count===0&&!hasLogin&&phone)?`<div style="margin:0 -2px 6px;padding:7px 12px;background:rgba(96,165,250,.07);border-radius:8px;border:1px solid rgba(96,165,250,.18);font-size:.72rem;color:#60a5fa;display:flex;align-items:center;gap:8px">
         <i class="bi bi-phone" style="flex-shrink:0"></i>
