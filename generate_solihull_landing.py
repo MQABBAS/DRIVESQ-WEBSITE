@@ -223,12 +223,60 @@ TOOLS = [(f, lbl) for f, lbl, _ in [("solihull-postcode-checker.html", "Postcode
 
 
 # ─────────────────────────── pages ───────────────────────────
+PLAN_TOOL = """<div class="sol-card reveal" style="padding:24px">
+<form id="planForm" novalidate style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input id="planPc" aria-label="Your postcode" class="form-control" style="flex:1 1 220px;max-width:300px;text-transform:uppercase;font-size:1.05rem;padding:12px 14px" placeholder="Your postcode, e.g. B91 3QJ" maxlength="8" autocomplete="postal-code">
+<button class="dsqx-btn dsqx-btn--red" type="submit"><i class="bi bi-geo-alt-fill"></i>Get my plan</button></form>
+<div id="planOut" aria-live="polite" class="mt-3"></div>
+<p class="sol-note mt-2 mb-0">Runs in your browser — nothing is sent until you book. Distances are straight-line; pass rates 2024-25 (passrates.uk, DVSA data).</p></div>
+<script>(function(){var D=null;function norm(v){var c=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(c)?c.slice(0,-3)+' '+c.slice(-3):'';}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function mi(a,b,c,d){var r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);return 2*3958.8*Math.asin(Math.sqrt(x*x+Math.cos(a*r)*Math.cos(c*r)*y*y));}
+var GM=/^(M\\d{1,2}|BL\\d{1,2}|OL\\d{1,2}|SK(?:[1-8]|1[0-6]|22)|WA1[45]|WN\\d)$/;
+async function run(e){if(e)e.preventDefault();var o=document.getElementById('planOut'),pc=norm(document.getElementById('planPc').value);
+if(!pc){o.innerHTML='<p style="color:#b45309">Please enter your full postcode, e.g. B91 3QJ.</p>';return;}
+if(!D){o.innerHTML='<p>Checking…</p>';try{D=await (await fetch('postcode-coverage.json')).json();}catch(x){o.innerHTML='<p>Couldn\\'t load the postcode list — <a href="#book" data-dsq-book-pc="'+pc+'">book anyway</a>.</p>';return;}}
+var dist=pc.split(' ')[0],sec=dist+' '+pc.split(' ')[1].charAt(0),s=D.sec[sec],g=s?[s.lat,s.lon]:null;
+if(!g&&Object.prototype.hasOwnProperty.call(D.dist,dist)){var ks=Object.keys(D.sec).filter(function(k){return k.split(' ')[0]===dist;});if(ks.length){var b=ks[0];s={a:D.dist[dist],f:D.sec[b].f};g=[ks.reduce(function(t,k){return t+D.sec[k].lat;},0)/ks.length,ks.reduce(function(t,k){return t+D.sec[k].lon;},0)/ks.length];}}
+var book='<a class="dsqx-btn dsqx-btn--red" href="#book" data-dsq-book-pc="'+pc+'"><i class="bi bi-calendar-check-fill"></i>Book lessons at '+pc+'</a> <a class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="https://wa.me/447352932003?text='+encodeURIComponent("Hi DriveSQ! I'd like driving lessons in Solihull. My postcode is "+pc+'.')+'"><i class="bi bi-whatsapp"></i>WhatsApp</a>';
+if(!g){o.innerHTML=GM.test(dist)?'<p style="font-size:1.05rem">✅ <strong>We cover '+pc+'</strong> — that\\'s Greater Manchester, where DriveSQ started.</p><p>'+book+'</p>':'<p>ℹ️ <strong>'+pc+'</strong> is outside the Solihull area on this page. Send a request and we\\'ll check which instructor covers you.</p><p>'+book+'</p>';return;}
+var tc=D.tc.map(function(t){return{t:t,d:mi(g[0],g[1],t.lat,t.lon)};}).sort(function(a,b){return a.d-b.d;}).slice(0,3);
+o.innerHTML='<p style="font-size:1.1rem">✅ <strong>We cover '+pc+'</strong> — '+esc(s.a)+'. Door-to-door pick-up from your address.</p>'+
+'<div class="area-head mt-2">Your nearest test centres</div><div class="sol-kpi" style="margin-top:8px">'+tc.map(function(x){return'<div><b>'+x.d.toFixed(1)+' mi</b><span>'+esc(x.t.n)+' · '+x.t.r+'% pass rate</span></div>';}).join('')+'</div>'+
+'<div class="area-head mt-3">Your plan</div><ol style="margin:6px 0 12px;padding-left:20px"><li>Book below — a real person replies and matches you with an ADI or PDI who covers '+sec+'.</li><li>Get the free DriveSQ Student Portal: theory bank, mock tests and progress tracking.</li><li>Learn on the roads around '+esc(tc[0].t.n.replace('Birmingham (','').replace(')',''))+' test centre, then book your test yourself on GOV.UK.</li></ol>'+
+'<p>'+book+' <a class="dsqx-btn dsqx-btn--ghost" href="'+s.f+'"><i class="bi bi-map"></i>Your local guide ('+sec+')</a></p>';
+var f=document.querySelector('#dsqInlineBookForm [name=postcode]');if(f&&(!f.value||f.value===f.dataset.fromPlan)){f.value=pc;f.dataset.fromPlan=pc;f.dispatchEvent(new Event('input',{bubbles:true}));}
+try{if(window.gtag)gtag('event','postcode_plan',{district:dist});}catch(x){}}
+document.getElementById('planForm').addEventListener('submit',run);})();</script>"""
+PLAN_SEC = sec("plan", "Start with your postcode", "Your postcode, your plan",
+               "Enter your postcode to see if we cover you, your three nearest test centres with their pass rates, and your local area guide — then book in one tap.", PLAN_TOOL)
+HOW_SEC = sec("how", "How it works", "From postcode to pass — four steps", "",
+              cards([("bi-geo-alt", "1 · Check & book", "Enter your postcode and send the form. A real person replies, usually within the hour, and matches you with an instructor who covers your area."),
+                     ("bi-car-front", "2 · First lesson", "Door-to-door pick-up, a licence and eyesight check, then quiet roads near you. Manual or automatic, same price."),
+                     ("bi-phone", "3 · Learn with the portal", "Every lesson is logged in your free DriveSQ Student Portal, with theory, mock tests and your test-readiness checklist."),
+                     ("bi-flag", "4 · Test day", "You book the test yourself on GOV.UK (the 2026 rules). We plan lessons around your date and the roads of your test centre.")]), alt=True)
+COST_TOOL = """<div class="sol-card reveal mt-4" style="padding:22px"><b style="display:block;margin-bottom:10px">Lesson cost planner</b>
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end"><label style="font-size:.85rem;flex:1 1 220px">Hours of lessons: <b id="cpH">20</b><input id="cpR" type="range" min="2" max="60" step="2" value="20" class="form-range"></label>
+<label style="font-size:.85rem"><input id="cpD" type="checkbox"> NHS staff or student</label></div>
+<div class="sol-kpi mt-2"><div><b id="cpT">£700</b><span>lessons total</span></div><div><b id="cpW">10 weeks</b><span>at 2 hours a week</span></div><div><b>£0</b><span>Student Portal</span></div></div>
+<p class="sol-note mt-2 mb-0">£35/hr (lessons of 2 hours+); NHS staff and students £320 per 10-hour block. DVSA test fees are extra — <a href="solihull-learner-driver-cost-calculator.html">full licence cost calculator</a>.</p></div>
+<script>(function(){var r=document.getElementById('cpR'),d=document.getElementById('cpD');function u(){var h=+r.value,t=d.checked?Math.floor(h/10)*320+(h%10)*35:h*35;document.getElementById('cpH').textContent=h;document.getElementById('cpT').textContent='£'+t.toLocaleString('en-GB');document.getElementById('cpW').textContent=Math.ceil(h/2)+' weeks';}r.addEventListener('input',u);d.addEventListener('change',u);u();})();</script>"""
+LATEST_SEC = sec("latest", "New for 2026", "Latest Solihull driving knowledge", "Researched, sourced guides you won't find on other Solihull driving school sites.",
+                 cards([("bi-patch-check", "2026 test booking rules", '<a href="driving-test-rule-changes-2026-solihull.html">Two changes per booking, learners book their own test, nearest-three-centres moves — what it means at Shirley.</a>'),
+                        ("bi-calendar-heart", "Best month for your test", '<a href="best-month-driving-test-solihull.html">Pass rates by month with Solihull daylight, weather and school holidays.</a>'),
+                        ("bi-snow", "Winter driving & gritting", '<a href="winter-driving-solihull.html">What Solihull Council grits (9 routes, 56% of roads) and what that means for lessons.</a>'),
+                        ("bi-calendar3", "Term dates & lesson timing", '<a href="solihull-school-term-dates-driving-lessons.html">2026–27 holidays, bank holidays and a date checker with sunrise and sunset.</a>'),
+                        ("bi-wind", "Clean Air Zone checker", '<a href="birmingham-clean-air-zone-solihull-drivers.html">Will your first car pay Birmingham&#39;s £8 charge? Check by fuel and year.</a>'),
+                        ("bi-sign-merge-right", "M42 J5A & A4545", '<a href="m42-junction-5a-a4545-new-road-solihull.html">Solihull&#39;s newest junction and link road, explained for learners.</a>')]))
+
+
 def landing():
     portal = PORTAL.replace("Free with every DriveSQ lesson", "Free with every Solihull lesson").replace(
         "with a DVSA-approved instructor", "with an ADI or PDI instructor")
     rows = "".join(f'<tr><td>{"<a href=" + chr(34) + SQS + s + "-driving-test-centre-routes.html" + chr(34) + ">" + e(n) + "</a>" if s else e(n)}</td><td>{e(a)}</td><td>{r}%</td></tr>' for n, a, r, s in CENTRES)
     secs = [
-        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>£35</b><span>per hour, manual or auto</span></div><div><b>£0</b><span>Student Portal — free</span></div><div><b>700+</b><span>theory questions</span></div><div><b>14</b><span>full mock tests</span></div><div><b>7</b><span>test centres compared</span></div><div><b>{len(SQP)}+</b><span>Solihull guides</span></div></div></div></section>',
+        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>4.9★</b><span>from 157 Google reviews</span></div><div><b>£35</b><span>per hour, manual or auto</span></div><div><b>£0</b><span>Student Portal — free</span></div><div><b>700+</b><span>theory questions</span></div><div><b>14</b><span>full mock tests</span></div><div><b>7</b><span>test centres compared</span></div><div><b>{len(SQP)}+</b><span>Solihull guides</span></div></div></div></section>',
+        PLAN_SEC,
+        HOW_SEC,
         portal,
         sec("portal-features", "DriveSQ Student Portal", "Everything inside — free for every Solihull learner",
             "Most driving schools give you lessons. DriveSQ gives you lessons plus your own learning app, built and run by us — not a third-party theory app with a referral code.",
@@ -244,13 +292,14 @@ def landing():
             cards([("bi-clock", "£35 an hour", "For lessons of 2 hours or more — £70 for a 2-hour lesson."), ("bi-1-circle", "£40 single hour", "If you only want one hour."),
                    ("bi-box-seam", "£350 for 10 hours", "Block booking."), ("bi-heart-pulse", "£320 for 10 hours", "For NHS staff and students."),
                    ("bi-person-badge", "ADIs and PDIs", "Our team includes ADIs (green badge) and PDIs (trainee, pink badge) — we tell you which you're booking; motorway lessons are always with an ADI."),
-                   ("bi-gift", "Student Portal included", "£0 — free with every lesson.")]) + f'<p class="sol-note mt-3">Full breakdown: <a href="{SQS}driving-lesson-prices-solihull.html">Solihull prices</a> · <a href="solihull-learner-driver-cost-calculator.html">total licence cost calculator</a></p>', alt=True),
+                   ("bi-gift", "Student Portal included", "£0 — free with every lesson.")]) + COST_TOOL + f'<p class="sol-note mt-3">Full breakdown: <a href="{SQS}driving-lesson-prices-solihull.html">Solihull prices</a> · <a href="solihull-learner-driver-cost-calculator.html">total licence cost calculator</a></p>', alt=True),
         sec("test-centres", "Driving test centres", "The 7 test centres Solihull learners use",
             "Pass rates for 2024-25 from passrates.uk's analysis of DVSA data. Each centre links to its SQ Driving School route guide.",
             f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>Address</th><th>Pass rate 2024-25</th></tr></thead><tbody>{rows}</tbody></table></div><p class="sol-note mt-2">Find your nearest by postcode: <a href="solihull-driving-test-centre-finder.html">test centre finder</a> · <a href="{SQS}solihull-driving-test-centres-compared.html">all centres compared</a> · <a href="solihull-driving-test-pass-rates.html">pass rates explained</a></p>'),
         sec("areas", "Coverage", "Every area and postcode in Solihull",
             "Door-to-door pick-up across the borough. Each link opens a local guide with roads, test centres, fuel and parking.",
             '<div class="area-head mt-3">Areas</div>' + chips(AREA_LINKS) + '<div class="area-head mt-3">Postcodes and sectors</div>' + chips(PC_LINKS), alt=True),
+        LATEST_SEC,
         sec("tools", "Free tools", "Free tools for Solihull learners",
             "Built by DriveSQ, free for everyone — no sign-up.", chips(TOOLS) + f'<p class="sol-note mt-2">Everything free in one place: <a href="{FREE}">free learner driver resources for Solihull →</a></p>'),
         sec("guides", "Local knowledge", "Solihull roads, routes and lesson guides",
