@@ -233,7 +233,7 @@ S.push({name:'Great Britain',color:'#111',dash:1,pts:D.trend.labels.map(function
                        ("bi-gear", "Automatic vs manual", '<a href="automatic-vs-manual-pass-rate-solihull.html">Both pass rates, and the rise of automatic tests →</a>'),
                        ("bi-1-circle", "First-time passes", '<a href="first-time-pass-rate-solihull.html">First-attempt rates since 2015 and zero-fault passes →</a>'),
                        ("bi-x-octagon", "Cancellations", '<a href="driving-test-cancellations-solihull.html">How often DVSA cancels — and what you can claim →</a>'),
-                       ("bi-hourglass-split", "Waiting times", '<a href="driving-test-waiting-times-solihull.html">Monthly median waits since 2019 →</a>')],
+                       ("bi-hourglass-split", "Waiting times", '<a href="driving-test-waiting-times-solihull.html">Monthly median waits since 2019 →</a>'),
                        ("bi-list-ol", "Top 10 faults", '<a href="top-driving-test-faults-solihull.html">What fails tests — and where in Solihull →</a>'),
                        ("bi-journal-check", "Theory pass rates", '<a href="theory-test-pass-rates-near-solihull.html">Birmingham, Coventry and more →</a>'),
                        ("bi-arrow-repeat", "Attempts", '<a href="driving-test-attempts-solihull.html">Pass rate by attempt and retake costs →</a>'),
