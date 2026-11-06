@@ -146,7 +146,7 @@ def area_page(a):
     local = ""
     if fuel:
         local += '<div class="sol-card reveal"><b>Fuel stations nearby</b><span><ul class="mt-2 mb-0">' + "".join(f'<li>{e(f["name"])} — {e(f["addr"])} ({d:.1f} mi)</li>' for d, f in fuel) + f'</ul><a href="{SQS}petrol-stations-solihull-learner-guide.html">First fill-up guide →</a></span></div>'
-    local += f'<div class="sol-card reveal"><b>Postcode sectors</b><span>' + " · ".join(f'<a href="{SQS}{D["sector_slugs"][k]}.html">{k}</a>' for k in a["sectors"]) + "</span></div>"
+    local += f'<div class="sol-card reveal"><b>Postcode sectors</b><span>' + " · ".join(f'<a href="driving-lessons-{k.lower().replace(" ", "-")}.html">{k}</a>' for k in a["sectors"]) + "</span></div>"
     if rg:
         local += '<div class="sol-card reveal"><b>Road guides</b><span>' + " · ".join(f'<a href="{SQS}{k}.html">{e(ROADG[k])}</a>' for k in rg) + "</span></div>"
     local += f'<div class="sol-card reveal"><b>More about {e(n)}</b><span><a href="{SQS}driving-lessons-{slug}.html">SQ Driving School\'s {e(n)} guide</a> · <a href="{SQS}car-parks-solihull-learner-guide.html">car parks</a> · <a href="{SQS}hardest-and-easiest-roads-solihull-learners.html">hardest and easiest roads</a></span></div>'

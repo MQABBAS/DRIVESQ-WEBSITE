@@ -32,7 +32,8 @@ NEW = [
 import generate_learner_tools as LT
 NEW = [("driving-lessons-solihull.html", "Driving lessons in Solihull", "Lessons Solihull")] + NEW[:-1] + LT.NEW + [
     ("solihull-driving-schools-compared.html", "Solihull driving schools compared", "Schools compared"),
-    ("free-learner-driver-resources-solihull.html", "Free learner resources", "Free resources")] + NEW[-1:]
+    ("free-learner-driver-resources-solihull.html", "Free learner resources", "Free resources"),
+    ("solihull-postcode-checker.html", "Postcode checker", "Postcodes")] + NEW[-1:]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
 G.PAGES = G.PAGES + [(f, lbl, short) for f, lbl, short in NEW]
 _base_nav = G.nav
