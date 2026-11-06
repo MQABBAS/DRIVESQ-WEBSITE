@@ -19,7 +19,7 @@ L, e, SQS, SITE = A.L, A.e, A.SQS, A.SITE
 PCS = json.load(open(os.path.join(HERE, "_data/solihull_postcodes_full.json"), encoding="utf-8"))
 SD = json.load(open(os.path.join(HERE, "_data/solihull_sectors.json"), encoding="utf-8"))
 SECT, PARK = SD["sectors"], SD["park"]
-# Optional street names per postcode (built from OpenStreetMap by build_solihull_streets.py when available)
+# Street names per postcode (OS Open Roads via build_solihull_streets_os.py) — roads within 60 m of each postcode
 _STP = os.path.join(HERE, "_data/solihull_streets.json")
 STREETS = json.load(open(_STP, encoding="utf-8")) if os.path.exists(_STP) else {"pc": {}}
 
@@ -39,7 +39,7 @@ def finder(code, codes):
     return (f'<div class="sol-card reveal pcf" style="padding:18px"><label style="font-weight:700;display:block;margin-bottom:8px" for="pcf-{code.replace(" ", "")}">Find your postcode{" or road" if has else ""}</label>'
             f'<input id="pcf-{code.replace(" ", "")}" class="form-control pcf-q" style="max-width:360px;width:100%;padding:11px 13px;border:1px solid #ddd;border-radius:12px;font-size:1rem;text-transform:uppercase" data-x placeholder="{"Type a postcode or road, e.g. " + codes[0] if codes else ""}" autocomplete="off">'
             f'<p class="pcf-n sol-note mt-2 mb-2">{len(codes)} postcodes — tap yours to book with it filled in.</p><div class="pcf-g">{items}</div>{roads}'
-            + ('<p class="sol-note mt-2 mb-0">Road names © OpenStreetMap contributors (ODbL).</p>' if has else "") + "</div>")
+            + ('<p class="sol-note mt-2 mb-0">Roads within 60 m of each postcode, nearest first. Contains OS data © Crown copyright and database right 2026 (OS Open Roads).</p>' if has else "") + "</div>")
 
 
 FINDER_ASSETS = """<style>.pcf-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:340px;overflow:auto;padding:2px}
@@ -308,8 +308,10 @@ def checker_page():
             "dist": {d: {"f": slug(d), "n": DNAME.get(d, "")} for d in DISTRICTS}, "sqs": SQS}
     tool = """<div class="sol-card reveal" style="padding:22px"><label for="pcIn" style="font-weight:700;display:block;margin-bottom:8px">Your postcode</label>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="pcIn" class="form-control" style="max-width:260px;text-transform:uppercase" placeholder="e.g. B91 3QJ" maxlength="8" autocomplete="postal-code">
-<button id="pcGo" class="dsqx-btn dsqx-btn--red" type="button"><i class="bi bi-search"></i>Check</button></div><div id="pcOut" aria-live="polite" class="mt-3"></div>
-<p class="sol-note mt-2">Nothing you type is saved or sent anywhere — the lookup runs in your browser.</p></div>
+<button id="pcGo" class="dsqx-btn dsqx-btn--red" type="button"><i class="bi bi-search"></i>Check</button></div><style>#pcOut > p b,#pcOut > p strong{display:inline}</style><div id="pcOut" aria-live="polite" class="mt-3"></div>
+<div style="border-top:1px solid #eee;margin-top:16px;padding-top:14px"><label for="rdIn" style="font-weight:700;display:block;margin-bottom:8px">…or search by road name</label>
+<input id="rdIn" class="form-control" style="max-width:360px" placeholder="e.g. Stratford Road, Widney Manor Road" autocomplete="off"><div id="rdOut" aria-live="polite" class="mt-3"></div></div>
+<p class="sol-note mt-2">Nothing you type is saved or sent anywhere — the lookup runs in your browser. Road names: contains OS data © Crown copyright and database right 2026 (OS Open Roads).</p></div>
 <script>(function(){var D=""" + json.dumps(data) + """,P=null;
 function mi(a,b,c,d){var R=3958.8,r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);var h=x*x+Math.cos(a*r)*Math.cos(c*r)*y*y;return 2*R*Math.asin(Math.sqrt(h));}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -320,13 +322,18 @@ var dist=raw.slice(0,-3),sec=dist+' '+raw.slice(-3,-2),pc=dist+' '+raw.slice(-3)
 if(!g&&D.dist[dist]){var cs=Object.keys(D.sec).filter(function(k){return k.split(' ')[0]===dist;});if(cs.length)g=[cs.reduce(function(t,k){return t+D.sec[k].lat;},0)/cs.length,cs.reduce(function(t,k){return t+D.sec[k].lon;},0)/cs.length];}
 if(g&&D.dist[dist]&&!D.sec[sec]){var best=null,bd=1e9;Object.keys(D.sec).forEach(function(k){if(k.split(' ')[0]!==dist)return;var d=mi(g[0],g[1],D.sec[k].lat,D.sec[k].lon);if(d<bd){bd=d;best=k;}});if(best){D.sec[sec]={a:'next to '+best+' ('+D.sec[best].a+')',f:D.sec[best].f,lat:D.sec[best].lat,lon:D.sec[best].lon};}}
 if(!g||!D.sec[sec]){o.innerHTML='<p><b>'+esc(pc)+'</b> isn\\'t in the Solihull area we cover on these pages. We may still cover you — <a href="https://wa.me/447352932003?text='+encodeURIComponent('Hi DriveSQ! Do you cover '+pc+'?')+'" target="_blank" rel="noopener">ask on WhatsApp</a>.</p>';return;}
-var tc=D.tc.map(function(t){return{t:t,d:mi(g[0],g[1],t.lat,t.lon)};}).sort(function(a,b){return a.d-b.d;}).slice(0,3);
+var rd=(await roads())[pc]||[];var tc=D.tc.map(function(t){return{t:t,d:mi(g[0],g[1],t.lat,t.lon)};}).sort(function(a,b){return a.d-b.d;}).slice(0,3);
 var ar=D.areas.map(function(a){return{a:a,d:mi(g[0],g[1],a.lat,a.lon)};}).sort(function(a,b){return a.d-b.d;}).slice(0,3);
-o.innerHTML='<p style="font-size:1.05rem"><b>'+esc(pc)+'</b> is in sector <a href="'+D.sec[sec].f+'"><b>'+sec+'</b></a> — '+esc(D.sec[sec].a)+'.'+(exact?'':' <span class="sol-note">(new postcode — using the middle of '+sec+')</span>')+'</p>'+
+o.innerHTML=(rd.length?'<p style="margin-bottom:4px">📍 <b>'+rd.map(esc).join(', ')+'</b></p>':'')+'<p style="font-size:1.05rem"><b>'+esc(pc)+'</b> is in sector <a href="'+D.sec[sec].f+'"><b>'+sec+'</b></a> — '+esc(D.sec[sec].a)+'.'+(exact?'':' <span class="sol-note">(new postcode — using the middle of '+sec+')</span>')+'</p>'+
 '<div class="sol-kpi" style="margin-top:10px">'+tc.map(function(x){return'<div><b>'+x.d.toFixed(1)+' mi</b><span>'+esc(x.t.n)+' · '+x.t.r+'% pass rate</span></div>';}).join('')+'</div>'+
 '<p class="mt-3">Nearest areas: '+ar.map(function(x){return'<a href="'+x.a.f+'">'+esc(x.a.n)+'</a> ('+x.d.toFixed(1)+' mi)';}).join(' · ')+'</p>'+
 '<p class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="#book" data-dsq-book-pc="'+esc(pc)+'"><i class="bi bi-calendar-check-fill"></i>Book lessons at '+esc(pc)+'</a> <a class="dsqx-btn dsqx-btn--ghost" href="'+D.sec[sec].f+'"><i class="bi bi-geo-alt-fill"></i>Driving lessons in '+sec+'</a> <a class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="https://wa.me/447352932003?text='+encodeURIComponent('Hi DriveSQ! I\\'d like driving lessons. My postcode is '+pc+'.')+'"><i class="bi bi-whatsapp"></i>Book on WhatsApp</a></p>'+
 '<p class="sol-note">Straight-line distances; pass rates 2025-26 (DVSA).</p>';}
+var R=null,RI=null;async function roads(){if(!R){try{R=(await (await fetch('solihull-streets.json')).json()).pc;}catch(x){R={};}RI={};Object.keys(R).forEach(function(pc){R[pc].forEach(function(n){var k=n.split(' (')[0];(RI[k]=RI[k]||[]).push(pc);});});}return R;}
+var rt=0;document.getElementById('rdIn').addEventListener('input',function(){clearTimeout(rt);rt=setTimeout(async function(){var v=document.getElementById('rdIn').value.trim().toLowerCase(),o=document.getElementById('rdOut');if(v.length<3){o.innerHTML='';return;}await roads();
+var hits=Object.keys(RI).filter(function(k){return k.toLowerCase().indexOf(v)>-1;}).sort(function(a,b){return a.toLowerCase().indexOf(v)-b.toLowerCase().indexOf(v)||a.localeCompare(b);}).slice(0,8);
+if(!hits.length){o.innerHTML='<p>No Solihull road found — try part of the name.</p>';return;}
+o.innerHTML=hits.map(function(k){var pcs=RI[k].sort(),secs={};pcs.forEach(function(p){secs[p.slice(0,-2)]=1;});return'<div style="padding:10px 0;border-bottom:1px solid #f0f0f0"><b>'+esc(k)+'</b> <span class="sol-note">· '+Object.keys(secs).map(function(x){return D.sec[x]?'<a href="'+D.sec[x].f+'">'+x+'</a>':x;}).join(', ')+'</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+pcs.slice(0,24).map(function(p){return'<a href="#book" data-dsq-book-pc="'+p+'" style="padding:4px 9px;border:1px solid #eee;border-radius:8px;text-decoration:none">'+p+'</a>';}).join('')+(pcs.length>24?'<span class="sol-note">+'+(pcs.length-24)+' more</span>':'')+'</div></div>';}).join('');},200);});
 document.getElementById('pcGo').addEventListener('click',function(){run().then(function(){var f=document.querySelector('#dsqInlineBookForm [name=postcode]'),v=document.getElementById('pcIn').value.trim().toUpperCase();if(f&&v&&!f.value){f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));}});});document.getElementById('pcIn').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('pcGo').click();});})();</script>"""
     directory = "".join(f'<div class="area-head mt-3"><a href="{slug(d)}">{e(d)}</a> — {e(DNAME.get(d, ""))}</div>' + L.chips([(slug(k), f"{k} · {SECT[k]['areas'].split(',')[0].split(' (')[0][:38]}") for k in sorted(SECT) if k.split()[0] == d]) for d in DISTRICTS)
     total = sum(len(PCS.get(k, [])) for k in SECT)
@@ -362,6 +369,8 @@ def coverage_json():
 
 def main():
     coverage_json()
+    if STREETS.get("pc"):
+        json.dump({"source": STREETS.get("source", ""), "pc": STREETS["pc"]}, open(os.path.join(HERE, "solihull-streets.json"), "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
     out = dict([sector_page(k) for k in SECT] + [district_page(d) for d in DISTRICTS] + [checker_page()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
