@@ -27,6 +27,15 @@ SRC = {
     "gfaq": ("Solihull Council — gritting FAQs and myth busting", "https://www.solihull.gov.uk/roads-pavements-and-streetcare/gritting-and-grit-bins/gritting-faqs-and-myth-busting"),
     "hc_weather": ("GOV.UK — The Highway Code: driving in adverse weather (226 to 237)", "https://www.gov.uk/guidance/the-highway-code/driving-in-adverse-weather-conditions-226-to-237"),
     "hc_speed": ("GOV.UK — The Highway Code: stopping distances (rule 126)", "https://www.gov.uk/guidance/the-highway-code/general-rules-techniques-and-advice-for-all-drivers-and-riders-103-to-158"),
+    "rules": ("GOV.UK — changes to driving test booking rules in 2026", "https://www.gov.uk/guidance/changes-to-driving-test-booking-rules-in-2026"),
+    "rules_news": ("GOV.UK — end of the road for unofficial driving test booking services", "https://www.gov.uk/government/news/end-of-the-road-for-unofficial-driving-test-booking-services"),
+    "waits_letter": ("Transport Committee correspondence, 20 May 2026 (national average wait 22.1 weeks, median 9)", "https://www.beyondthevote.co.uk/committee-publication/c89c3faa-5abb-4bfa-9c1d-5b64ab36e91b"),
+    "waits_median": ("passrates.uk — DVSA median wait times explained (May 2026: 9.7 weeks GB)", "https://passrates.uk/guide/dvsa-median-wait-times-explained"),
+    "kh": ("passrates.uk — Birmingham (Kings Heath) test centre", "https://passrates.uk/centres/birmingham-kings-heath"),
+    "shirley": ("passrates.uk — Birmingham (Shirley) test centre", "https://passrates.uk/centres/birmingham-shirley"),
+    "nao": ("National Audit Office — investigation into car driving test waiting times (Dec 2025)", "https://www.nao.org.uk/wp-content/uploads/2025/12/investigation-into-car-driving-test-waiting-times-summary.pdf"),
+    "rss": ("GOV.UK — Road Safety Strategy (7 January 2026)", "https://assets.publishing.service.gov.uk/media/69677c093eea543d3e7034ba/road-safety-strategy-large-print.pdf"),
+    "book": ("GOV.UK — book your driving test", "https://www.gov.uk/book-driving-test"),
     "cancel": ("GOV.UK — driving test cancelled because of bad weather", "https://www.gov.uk/driving-test/test-cancelled-bad-weather"),
 }
 # Solihull Council (community schools) calendar 2026–27; academies may differ
@@ -168,8 +177,54 @@ document.getElementById('tdGo').addEventListener('click',run);var i=document.get
                     [("red", "#checker", "bi-search", "Check a date"), ("ghost", "#terms", "bi-table", "Term dates")]), secs, faqs)
 
 
+def rules_2026():
+    f = "driving-test-rule-changes-2026-solihull.html"
+    near = [("Birmingham (Shirley)", "Kings Heath (2.7 mi), South Yardley (3.5 mi), Garretts Green (5.2 mi)"),
+            ("Birmingham (South Yardley)", "Garretts Green (2.1 mi), Shirley (3.5 mi), Kings Heath (4.6 mi)"),
+            ("Birmingham (Kings Heath)", "Shirley (2.7 mi), South Yardley (4.6 mi), Garretts Green (6.7 mi)")]
+    nt = "".join(f'<tr><td><b>{e(a)}</b></td><td>{e(b)}</td></tr>' for a, b in near)
+    secs = [
+        '<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>2</b><span>changes allowed per booking (from 31 Mar 2026)</span></div><div><b>Learner only</b><span>can book or change the test (from 12 May 2026)</span></div><div><b>3</b><span>nearest centres you can move to (from 9 Jun 2026)</span></div><div><b>9.7 wks</b><span>GB median wait, May 2026</span></div></div></div></section>',
+        L.sec("rules", "What changed", "The three booking rule changes of 2026", "All three are now in force for car driving tests in Great Britain. They don't apply to other test types.",
+              L.cards([("bi-arrow-repeat", "31 March — two changes per booking", "You can change the date, time or centre of a booked test twice. Changes DVSA makes (for example bad weather) don't count, and reset you to two."),
+                       ("bi-person-lock", "12 May — only you can book", "Learners must book and manage their own car test on GOV.UK. Instructors, friends and booking apps can no longer do it for you — it's now against the law to book or change a test for someone else."),
+                       ("bi-geo-alt", "9 June — nearby centres only", "You can only move a booked test to one of the three centres nearest to where it's booked, or back to the centre you first booked on that booking."),
+                       ("bi-shield-exclamation", "Why", "DVSA says the changes stop bots and resellers buying up tests and selling them on at a mark-up."),
+                       ("bi-cash-coin", "Avoid swap apps", "Paying a third party to find or swap a test can now break the rules. Only use GOV.UK."),
+                       ("bi-hand-thumbs-up", "What we do", "We help you book it yourself: we agree the right time, sit with you while you use GOV.UK if you want, and plan lessons around the date.")])),
+        L.sec("near", "Solihull centres", "Where can you move a Solihull-area test?",
+              "Our straight-line estimate of the three nearest centres. DVSA's booking service shows your exact options when you change a booking — always go by that.",
+              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test booked at</th><th>Likely three nearest centres</th></tr></thead><tbody>{nt}</tbody></table></div>'
+              '<p class="sol-note mt-2">Distances are straight-line between test centres. Shirley is Solihull\'s own centre (58.1% pass rate in 2024-25).</p>', alt=True),
+        L.sec("waits", "Waiting times", "How long is the wait?", "Two different measures are published — they tell very different stories.",
+              L.cards([("bi-hourglass-split", "Average: about 22 weeks", "The national average wait was 22.1 weeks in May 2026, according to the Roads Minister. Averages are pulled up by the worst centres."),
+                       ("bi-bar-chart-steps", "Median: about 10 weeks", "DVSA started publishing a median in June 2026: 9.7 weeks across Great Britain for May 2026. Half of learners waited less."),
+                       ("bi-geo", "Near Solihull", "Learners tested at Kings Heath in May 2026 had a median wait of 10 weeks from booking to test day."),
+                       ("bi-flag", "The target", "The government aims to bring average waits down to seven weeks by the end of 2027.")])
+              + '<p class="mt-3"><b>What it means for you:</b> book your theory test early, and book the practical as soon as your instructor says you\'re close — then use the two changes wisely.</p>'),
+        L.sec("next", "Coming next?", "Proposed — not law yet", "The Road Safety Strategy (January 2026) asked for views on further changes. None of these is in force.",
+              L.cards([("bi-calendar-range", "Minimum learning period", "A three- or six-month minimum between getting a provisional licence (or passing theory) and taking the practical test, plus possibly minimum supervised hours."),
+                       ("bi-cup-straw", "Lower drink-drive limit", "From 35 to 22 micrograms per 100 ml of breath in England and Wales, matching Scotland — with a possible lower limit for new drivers."),
+                       ("bi-moon-stars", "Why it matters now", "Practise in the dark, in the rain and in heavy traffic anyway. If a minimum period arrives, learners who already have that experience lose nothing.")]), alt=True),
+        L.sec("how", "Booking it yourself", "How to book your test in five minutes", "You need your provisional licence number, your theory test pass certificate number and a card to pay.",
+              '<ol style="font-size:.95rem"><li class="mb-2">Agree a date range with your instructor first.</li><li class="mb-2">Go to <a href="https://www.gov.uk/book-driving-test" target="_blank" rel="noopener">gov.uk/book-driving-test</a> — the only official site.</li><li class="mb-2">Choose Birmingham (Shirley) or your preferred centre. Look for earlier dates when you log in to change it — that\'s free.</li><li class="mb-2">Tell your instructor the date and time straight away so the car is booked.</li><li class="mb-2">Keep the confirmation email. Remember: two changes, and only to nearby centres.</li></ol>'
+              '<p>Plan: <a href="best-month-driving-test-solihull.html">best month for your test</a> · <a href="solihull-driving-test-readiness-check.html">readiness check</a> · <a href="solihull-driving-test-centre-finder.html">test centre finder</a></p>'),
+        sources(["rules", "rules_news", "book", "waits_letter", "waits_median", "kh", "shirley", "nao", "rss"]),
+    ]
+    faqs = [("Can my driving instructor book my driving test for me in 2026?", "No. Since 12 May 2026 learners must book and manage their own car driving test on GOV.UK. Your instructor can help you choose a date, but you have to make the booking."),
+            ("How many times can I change my driving test date?", "Twice per booking since 31 March 2026. Changes DVSA makes, such as for bad weather, don't count and reset you to two."),
+            ("Can I move my Shirley driving test to another centre?", "Only to one of the three centres nearest to where it's booked (since 9 June 2026). By straight-line distance that's likely Kings Heath, South Yardley and Garretts Green — the booking service shows your exact options."),
+            ("Is there a minimum learning period for learner drivers?", "Not yet. The government consulted in 2026 on a three- or six-month minimum learning period, but it is not law.")]
+    return f, page(f, "2026 test rule changes", "Driving Test Rule Changes 2026 Explained for Solihull Learners | DriveSQ",
+                   "The 2026 driving test booking rules: two changes per booking, learners must book their own test, and moves only to the three nearest centres — what it means at Shirley, plus latest waiting times and proposed changes.",
+                   "driving test rule changes 2026, can instructor book driving test, change driving test 2 times, three nearest test centres, shirley driving test",
+                   ("Latest · 2026", '<span class="w">New</span> <span class="w w--red">Test</span> <span class="w">Rules 2026.</span>', "what changed for booking your driving test — and what it means in Solihull",
+                    [("bi-patch-check", "From GOV.UK"), ("bi-geo-alt", "Shirley & nearby"), ("bi-clock-history", "Latest waits")],
+                    [("red", "#rules", "bi-list-check", "What changed"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
 def main():
-    out = dict([best_month(), winter(), term_dates()])
+    out = dict([best_month(), winter(), term_dates(), rules_2026()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
     sm = os.path.join(HERE, "sitemap-1.xml")

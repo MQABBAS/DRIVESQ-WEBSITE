@@ -51,6 +51,10 @@
       'Gearbox: ' + d.gearbox,
       d.postcode ? 'Postcode: ' + d.postcode : '',
       d.email ? 'Email: ' + d.email : '',
+      d.experience ? 'Experience: ' + d.experience : '',
+      d.testDate ? 'Test date: ' + d.testDate : '',
+      d.times ? 'Availability: ' + d.times : '',
+      d.pickup ? 'Pick-up: ' + d.pickup : '',
       d.notes ? 'Notes: ' + d.notes : ''
     ].filter(Boolean).join('\n');
     var full = { student_name: d.name || null, student_phone: d.phone || null, postcode: d.postcode || null, lesson_type: d.gearbox, notes: notes, status: 'waiting', created_at: new Date().toISOString() };
@@ -73,7 +77,7 @@
   function sendEmail(d, fd) {
     if (!fd) {
       fd = new FormData();
-      [['name', d.name], ['phone', d.phone], ['email', d.email], ['postcode', d.postcode], ['service', d.service], ['gearbox', d.gearbox], ['notes', d.notes]].forEach(function (x) { if (x[1]) fd.append(x[0], x[1]); });
+      [['name', d.name], ['phone', d.phone], ['email', d.email], ['postcode', d.postcode], ['service', d.service], ['gearbox', d.gearbox], ['experience', d.experience], ['test_date', d.testDate], ['availability', d.times], ['pick_up', d.pickup], ['notes', d.notes]].forEach(function (x) { if (x[1]) fd.append(x[0], x[1]); });
     }
     fd.append('_subject', 'New booking — ' + (d.name || 'website') + ' (' + d.page + ')');
     fd.append('source', 'drivesq.co.uk' + location.pathname);
@@ -85,7 +89,7 @@
     try {
       return fetch(SB_URL + '/functions/v1/send-push', {
         method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + SB_KEY },
-        body: JSON.stringify({ instructor_id: ADMIN_ID, title: '📅 New website booking', body: (d.name || 'New learner') + ' · ' + (d.postcode || '') + ' · ' + (d.service || 'Lessons') + ' (' + d.gearbox + ')', url: '/admin.html', tag: 'drivesq-admin-' + Date.now() })
+        body: JSON.stringify({ instructor_id: ADMIN_ID, title: '📅 New website booking', body: (d.name || 'New learner') + ' · ' + (d.postcode || '') + ' · ' + (d.service || 'Lessons') + ' (' + d.gearbox + ')' + (d.experience ? ' · ' + d.experience : '') + (d.testDate ? ' · test ' + d.testDate : ''), url: '/admin.html', tag: 'drivesq-admin-' + Date.now() })
       }).catch(function () {});
     } catch (e) { return Promise.resolve(); }
   }
@@ -114,6 +118,9 @@
     f.dataset.dsqAttached = '1';
     var btn = f.querySelector('[type=submit]'), msg = f.querySelector('#dsqInlineBookMsg') || f.appendChild(document.createElement('div'));
     var label = btn ? btn.innerHTML : '';
+    var exp = f.querySelector('[name="experience"]'), tdl = f.querySelector('.dsq-bk-test');
+    var syncTest = function () { if (exp && tdl) tdl.style.display = exp.value === 'Test already booked' ? 'block' : 'none'; };
+    if (exp) { exp.addEventListener('change', syncTest); syncTest(); }
     var say = function (html, good) {
       msg.innerHTML = '<div role="' + (good ? 'status' : 'alert') + '" style="font-size:.85rem;margin-top:8px;border-radius:8px;padding:10px 13px;' +
         (good ? 'color:#4ade80;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25)' : 'color:#fca5a5;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3)') + '">' + html + '</div>';
@@ -122,6 +129,11 @@
       e.preventDefault();
       var val = function (n) { var el = f.querySelector('[name="' + n + '"]'); return el ? clean(el.value) : ''; };
       var d = { formName: 'Book a Lesson form', page: pageLabel(), name: val('name'), phone: val('phone'), email: val('email'), service: val('service'), notes: val('notes') };
+      d.experience = val('experience');
+      d.testDate = d.experience === 'Test already booked' ? val('test_date') : '';
+      if (d.testDate) { var td = new Date(d.testDate + 'T12:00:00'); if (!isNaN(td)) d.testDate = td.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
+      d.times = Array.prototype.map.call(f.querySelectorAll('[name="times"]:checked'), function (x) { return x.value; }).join(', ');
+      var pu = f.querySelector('[name="pickup_diff"]'); d.pickup = pu && pu.checked ? 'Not home — school, college or work (ask)' : '';
       var pcRaw = val('postcode');
       d.postcode = fullPostcode(pcRaw); d.gearbox = gearbox(d.service);
       if (!d.name || !d.phone || !pcRaw || !d.service) { say('Please fill in your name, phone number, postcode and lesson type.'); return; }
@@ -134,7 +146,7 @@
       send(d).then(function (ok) {
         if (btn) { btn.disabled = false; btn.innerHTML = label; }
         if (ok) {
-          f.reset();
+          f.reset(); syncTest();
           say("<strong>✅ Booking request sent!</strong> The DriveSQ team will call or text you on " + esc(d.phone) + " shortly. Want a faster reply? <a href=\"" + waLink(d) + "\" target=\"_blank\" rel=\"noopener\" style=\"color:#4ade80;font-weight:700\">WhatsApp us</a>.", true);
         } else {
           say("Sorry — we couldn't send that just now. Please <a href=\"" + waLink(d) + "\" target=\"_blank\" rel=\"noopener\" style=\"color:#fca5a5;font-weight:700\">WhatsApp us</a> or call <a href=\"tel:+447352932003\" style=\"color:#fca5a5;font-weight:700\">07352 932003</a>.");
