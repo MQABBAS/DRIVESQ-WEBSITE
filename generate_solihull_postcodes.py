@@ -99,15 +99,38 @@ def fuel_near(p, r=2.5):
     return [t for t in f if t[0] <= r][:4]
 
 
-def plan(code, sec, c1):
+def plan(code, sec, c1, dirn, areas, fuel, park):
     r = sec["roads"]
-    st = [("Lessons 1–4: clutch control and moving off", f"Quiet streets in {code}, picked up from your door."),
-          ("Lessons 5–9: junctions and mirrors", f"Side roads off {r[0]}."),
-          ("Lessons 10–14: roundabouts and lane choice", f"{r[1] if len(r) > 1 else r[0]} and the junctions around it."),
-          ("Lessons 15–20: faster roads", "The nearest A-roads and dual carriageways — and, with an ADI, the M42."),
-          ("Lessons 21+: manoeuvres and independent driving", "Real car parks and sat-nav drives, tracked in your Student Portal."),
-          ("Before you book your test: a mock test", f"A full mock test around {c1}, marked like the real thing.")]
+    a0 = areas[0][1] if areas else code
+    f0 = fuel[0][1]["name"] if fuel else ""
+    p0 = PARK.get(park, [[""]])[0][0] if park else ""
+    st = [(f"Lessons 1–4: clutch control and moving off", f"Quiet residential streets around {a0}, picked up from your door."),
+          ("Lessons 5–9: junctions and mirrors", f"Side roads joining {r[0]}."),
+          ("Lessons 10–14: roundabouts and lane choice", f"{r[1] if len(r) > 1 else r[0]}" + (f" and {r[2]}" if len(r) > 2 else "") + "."),
+          ("Lessons 15–20: faster roads", "The nearest A-roads and dual carriageways — and, with an ADI, the M42." + (f" Your first fill-up can be at {f0}." if f0 else "")),
+          ("Lessons 21+: manoeuvres and independent driving", (f"Bay parking at {p0}, " if p0 else "Bay parking in a quiet car park, ") + "then sat-nav drives tracked in your Student Portal."),
+          ("Before you book: a mock test", f"A full mock test on the roads around {c1} test centre, to the {dirn} of {code}.")]
     return '<ol style="padding-left:18px">' + "".join(f'<li class="reveal" style="margin:0 0 12px"><b>{t}</b><br><span style="color:#555">{d}</span></li>' for t, d in st) + "</ol>"
+
+
+def glance(code, ps, codes_full, s1, near_areas, fuel):
+    """facts worked out from the sector's own postcodes"""
+    if not ps:
+        return ""
+    la = [p[0] for p in ps]; lo = [p[1] for p in ps]
+    ns = A.mi((min(la), sum(lo) / len(lo)), (max(la), sum(lo) / len(lo)))
+    ew = A.mi((sum(la) / len(la), min(lo)), (sum(la) / len(la), max(lo)))
+    tc = A.TC[s1]
+    dd = sorted((A.mi((p[1], p[2]), tc), p[0]) for p in codes_full)
+    rows = [("bi-grid-3x3-gap", "Postcodes", f"{len(ps)}"),
+            ("bi-arrows-angle-expand", "Spread", f"about {ns:.1f} miles north–south and {ew:.1f} miles east–west"),
+            ("bi-flag", f"Closest postcode to {A.CEN[s1][0]}", f"{dd[0][1]} — {dd[0][0]:.1f} miles"),
+            ("bi-flag", f"Furthest postcode from it", f"{dd[-1][1]} — {dd[-1][0]:.1f} miles")]
+    if near_areas:
+        rows.append(("bi-pin-map", "Nearest areas", " · ".join(f'<a href="{A.fname(a["slug"])}">{e(a["name"])}</a> ({d:.1f} mi)' for d, a in near_areas)))
+    if fuel:
+        rows.append(("bi-fuel-pump", "Nearest fuel", f'{e(fuel[0][1]["name"])} ({fuel[0][0]:.1f} mi)'))
+    return '<div class="sol-card reveal"><b>' + e(code) + ' at a glance</b><span>' + "".join(f'<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0"><i class="bi {i}" style="color:#D10A11"></i><div><div style="font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.04em">{e(k)}</div><div>{v}</div></div></div>' for i, k, v in rows) + "</span></div>"
 
 
 def faq_and_schema(name, fname, faqs, codes):
@@ -132,6 +155,7 @@ def sector_page(code):
     near = sorted((A.mi(c, (v["lat"], v["lon"])), k) for k, v in SECT.items() if k != code)[:6]
     fuel = fuel_near(c)
     areas = [(A.fname(s), AREA_PAGES[s]) for s in sec["aslugs"] if s in AREA_PAGES]
+    near_areas = sorted(((A.mi(c, A.pt(a)), a) for a in A.AREAS), key=lambda t: t[0])[:3]
     codes = [p[0] for p in PCS.get(code, [])]
     eg = codes[len(codes) // 2] if codes else code
     pick = (f"Of the three closest, {A.CEN[best[1]][0]} had the highest pass rate ({A.CEN[best[1]][2]}%)." if best[1] != s1 else f"{n1} also had the highest pass rate of the three closest.")
@@ -152,8 +176,8 @@ def sector_page(code):
               f'<div class="row g-4 mt-1"><div class="col-lg-7"><div class="reveal">{mapsvg}</div><p class="sol-note mt-2">Each dot is a postcode in {e(code)}. 🏁 marks {e(n1)} test centre when it fits on the map.</p></div>'
               f'<div class="col-lg-5"><div class="sol-card reveal"><b>Roads you\'ll learn on</b><span><ul class="mt-2 mb-0">{"".join(f"<li>{e(r)}</li>" for r in sec["roads"])}</ul></span></div>'
               + (f'<div class="sol-card reveal mt-3"><b>Areas in {e(code)}</b><span>' + " · ".join(f'<a href="{h}">{e(t)}</a>' for h, t in areas) + "</span></div>" if areas else "")
-              + '<div class="sol-card reveal mt-3"><b>Your instructor</b><span>An ADI (green badge) or a PDI (trainee, pink badge) — we tell you which before you book. Motorway lessons are always with an ADI.</span></div></div></div>'),
-        L.sec("plan", "Lesson plan", f"Your lesson plan in {e(code)}", "How lessons usually build up — your instructor adjusts it to you.", plan(code, sec, n1), alt=True),
+              + '<div class="mt-3">' + glance(code, ps, PCS.get(code, []), s1, near_areas, fuel) + '</div></div></div>'),
+        L.sec("plan", "Lesson plan", f"Your lesson plan in {e(code)}", "How lessons usually build up — your instructor adjusts it to you.", plan(code, sec, n1, bearing(c, A.TC[s1]), areas, fuel, sec.get("park")), alt=True),
         L.sec("test-centres", "Driving test centres", f"Which test centre for {e(code)}?", f"Straight-line distances from the middle of {e(code)} to all seven centres. {pick}",
               f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(code)}</th><th>Pass rate 2024-25</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div><p class="sol-note mt-2">Pass rates: passrates.uk analysis of DVSA data. Driving distances are longer than straight-line.</p>'),
         L.sec("postcodes", "Postcodes", f"Every postcode we cover in {e(code)}", f"We pick up from every postcode in {e(code)} — {len(codes)} in the public postcode data. Newer postcodes on recent developments are covered too.",
@@ -169,8 +193,8 @@ def sector_page(code):
     faqs = [(f"Do you give driving lessons in {code}?", f"Yes — door-to-door pick-up anywhere in {code} ({sec['areas']}), manual or automatic, from £35 an hour."),
             (f"Which test centre is nearest to {code}?", f"{n1} ({addr1}), about {d1:.1f} miles away in a straight line. {pick}"),
             (f"Do you cover {eg}?", f"Yes — {eg} is in {code}, and we cover every postcode in it."),
-            (f"How much are driving lessons in {code}?", "£35 an hour for lessons of 2 hours or more, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students)."),
-            ("Is the Student Portal free?", "Yes — every DriveSQ learner gets it free: progress tracking, 700+ theory questions, 14 mock tests and instructor messaging.")]
+            (f"How much are driving lessons in {code}?", f"The same anywhere in {code}: £35 an hour for lessons of 2 hours or more, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students)."),
+            (f"Who will teach me in {code}?", "An ADI (green badge) or a PDI (trainee, pink badge) — we tell you which before you book. Motorway lessons are always with an ADI.")]
     secs += [L.faq_html(faqs), L.booking()]
     hero = L.hero(f"{e(DNAME.get(district, district))} · {e(code)}", f'<span class="w">Driving</span> <span class="w w--red">Lessons</span> <span class="w">{e(code)}.</span>',
                   f"{d1:.1f} miles from {e(n1)} test centre · free DriveSQ Student Portal",
