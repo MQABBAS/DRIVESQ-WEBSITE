@@ -36,6 +36,15 @@ SRC = {
     "nao": ("National Audit Office — investigation into car driving test waiting times (Dec 2025)", "https://www.nao.org.uk/wp-content/uploads/2025/12/investigation-into-car-driving-test-waiting-times-summary.pdf"),
     "rss": ("GOV.UK — Road Safety Strategy (7 January 2026)", "https://assets.publishing.service.gov.uk/media/69677c093eea543d3e7034ba/road-safety-strategy-large-print.pdf"),
     "book": ("GOV.UK — book your driving test", "https://www.gov.uk/book-driving-test"),
+    "caz_pay": ("Brum Breathes — pay a Clean Air Zone charge (vehicle standards, penalties)", "https://www.brumbreathes.co.uk/info/24/individuals-1/3/mean-1"),
+    "caz_org": ("Brum Breathes — guidance for businesses and employers", "https://www.brumbreathes.co.uk/info/23/organisations-1/10/youre-employer-staff-drive-work-birmingham"),
+    "caz_rac": ("RAC — the Birmingham Clean Air Zone: what you need to know", "https://www.rac.co.uk/drive/advice/emissions/the-birmingham-clean-air-zone-what-you-need-to-know"),
+    "caz_gov": ("GOV.UK — check if you need to pay a Clean Air Zone charge", "https://www.gov.uk/clean-air-zones"),
+    "nh_j6": ("National Highways — M42 junction 6 improvement scheme", "https://nationalhighways.co.uk/projects/m42-junction-6-improvement"),
+    "nh_open": ("National Highways — drivers get first outing on brand new road and motorway junction", "https://nationalhighways.co.uk/drivers-get-first-outing-on-brand-new-road-and-motorway-junction"),
+    "nh_full": ("National Highways — brand new road fully opened as M42 improvements scheme reaches final stages", "https://nationalhighways.co.uk/press/brand-new-road-fully-opened-as-m42-improvements-scheme-reaches-final-stages"),
+    "gov_282": ("GOV.UK — £282m investment for M42 junction 6 near Birmingham", "https://www.gov.uk/government/news/282m-investment-for-m42-junction-6-near-birmingham"),
+    "hc_mway": ("GOV.UK — The Highway Code: motorways (253 to 274)", "https://www.gov.uk/guidance/the-highway-code/motorways-253-to-274"),
     "cancel": ("GOV.UK — driving test cancelled because of bad weather", "https://www.gov.uk/driving-test/test-cancelled-bad-weather"),
 }
 # Solihull Council (community schools) calendar 2026–27; academies may differ
@@ -223,8 +232,84 @@ def rules_2026():
                     [("red", "#rules", "bi-list-check", "What changed"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
 
 
+def caz():
+    f = "birmingham-clean-air-zone-solihull-drivers.html"
+    tool = """<div class="sol-card reveal" style="padding:22px"><b style="display:block;margin-bottom:10px">Will my (first) car pay the Birmingham Clean Air Zone charge?</b>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><label style="font-size:.85rem">Fuel<select id="cazFuel" class="form-select" style="min-width:150px"><option value="petrol">Petrol</option><option value="diesel">Diesel</option><option value="hybrid-p">Petrol hybrid</option><option value="hybrid-d">Diesel hybrid</option><option value="ev">Fully electric</option></select></label>
+<label style="font-size:.85rem">First registered (year)<input id="cazYear" class="form-control" type="number" min="1990" max="2026" value="2012" style="max-width:130px"></label>
+<label style="font-size:.85rem">Month<select id="cazMonth" class="form-select"><option value="1">Jan–Aug</option><option value="9">Sep–Dec</option></select></label>
+<button id="cazGo" class="dsqx-btn dsqx-btn--red" type="button"><i class="bi bi-search"></i>Check</button></div>
+<div id="cazOut" aria-live="polite" class="mt-3"></div>
+<p class="sol-note mb-0">A rule of thumb from the Euro standard dates only. Always confirm with the official vehicle checker on GOV.UK before you buy or drive in.</p></div>
+<script>(function(){function run(){var f=document.getElementById('cazFuel').value,y=+document.getElementById('cazYear').value,m=+document.getElementById('cazMonth').value,o=document.getElementById('cazOut'),r,c;
+if(!y){o.innerHTML='<p>Enter a year.</p>';return;}
+if(f==='ev'){r='No charge';c='#16a34a';t='Fully electric cars don\\'t pay.';}
+else if(f==='petrol'||f==='hybrid-p'){if(y>=2006){r='Very likely compliant';c='#16a34a';t='Petrol cars need Euro 4 — required for all new cars from January 2006.';}else if(y>=2005){r='Check it';c='#d97706';t='Some 2005 petrol cars already met Euro 4. Check the exact car.';}else{r='Likely to pay £8 a day';c='#D10A11';t='Most petrol cars before 2005 are below Euro 4.';}}
+else{var ok=y>2015||(y===2015&&m>=9);if(ok){r='Very likely compliant';c='#16a34a';t='Diesel cars need Euro 6 — required for new cars from September 2015.';}else if(y>=2014){r='Check it';c='#d97706';t='Some diesel cars from 2014–15 already met Euro 6. Check the exact car.';}else{r='Likely to pay £8 a day';c='#D10A11';t='Most diesel cars before 2014 are below Euro 6.';}}
+o.innerHTML='<div class="sol-kpi"><div><b style="color:'+c+'">'+r+'</b><span>'+t+'</span></div></div>';}
+document.getElementById('cazGo').addEventListener('click',run);run();})();</script>"""
+    secs = [
+        '<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>£8</b><span>a day for a non-compliant car</span></div><div><b>24/7</b><span>every day of the year</span></div><div><b>6 days</b><span>to pay, before or after your trip</span></div><div><b>£120</b><span>penalty if unpaid (£60 within 14 days)</span></div></div></div></section>',
+        L.sec("zone", "The zone", "Where is it — and does it affect Solihull?",
+              "Birmingham's Clean Air Zone covers the city centre inside the A4540 Middleway ring road. Solihull itself has no clean air zone.",
+              L.cards([("bi-geo", "Inside the Middleway", "Every road inside the A4540 Middleway ring road is in the zone. The Middleway itself is not charged — you can drive around the ring without paying."),
+                       ("bi-signpost", "From Solihull", "The A41 (Warwick Road), A45 (Coventry Road) and A34 (Stratford Road) all lead towards the Middleway. Turn onto the ring rather than crossing it and you stay outside."),
+                       ("bi-car-front", "Driving lessons", "Solihull lessons and test routes from Shirley stay well outside the zone. If a lesson goes into the city centre, it's the instructor's car that has to be compliant — not yours."),
+                       ("bi-train-front", "Going into town", "For a day in the city centre, the train from Solihull, Olton or Shirley to Moor Street or Snow Hill avoids the question altogether."),
+                       ("bi-camera", "How it's enforced", "Number-plate cameras. There are no barriers or tickets — you pay online by vehicle registration."),
+                       ("bi-universal-access", "Exemptions", "Some vehicles are exempt, including motorcycles and vehicles in the disabled tax class. Fully electric cars don't pay. Check Brum Breathes for the full list.")])),
+        L.sec("check", "First-car checker", "Buying your first car? Check it first", "A cheap older diesel can cost £8 every day it goes into Birmingham city centre.", tool, alt=True),
+        L.sec("tips", "New drivers", "What new drivers in Solihull should know", "The zone mostly matters when you start driving on your own.",
+              L.cards([("bi-cash-stack", "Compliant cars are easy to find", "Most petrol cars from 2006 on meet Euro 4 — and small petrol cars are usually cheaper to insure for new drivers too."),
+                       ("bi-exclamation-octagon", "Watch older diesels", "Diesels need Euro 6 (most from September 2015). Older ones are often cheap for a reason."),
+                       ("bi-phone", "Sat-nav routes", "Navigation apps may route you through the centre. Check for 'via Middleway' or set Moor Street car parks carefully."),
+                       ("bi-calendar-x", "Don't forget to pay", "Pay online within six days after entering — or up to six days before. Miss it and the penalty is £120 plus the charge.")])),
+        sources(["caz_pay", "caz_org", "caz_rac", "caz_gov"]),
+    ]
+    faqs = [("Does Solihull have a clean air zone?", "No. Birmingham's Clean Air Zone covers only the city centre inside the A4540 Middleway ring road. Solihull town centre, Shirley and the rest of the borough are outside it."),
+            ("How much is the Birmingham Clean Air Zone charge for a car?", "£8 a day for a car that doesn't meet the standard (Euro 4 petrol or Euro 6 diesel). If you don't pay, the penalty is £120, reduced to £60 if paid within 14 days."),
+            ("Do driving lessons go into the Birmingham Clean Air Zone?", "Solihull lessons and Shirley test routes stay well outside it. Lessons are in the instructor's car, so you'd never pay a charge for a lesson.")]
+    return f, page(f, "Clean Air Zone guide", "Birmingham Clean Air Zone Guide for Solihull Drivers & New Drivers | DriveSQ",
+                   "Birmingham's Clean Air Zone explained for Solihull: where it is, the £8 daily charge, Euro 4 petrol and Euro 6 diesel rules, penalties — plus a first-car checker for new drivers.",
+                   "birmingham clean air zone solihull, birmingham caz charge, is my car caz compliant, first car clean air zone",
+                   ("New drivers · Birmingham", '<span class="w">Clean</span> <span class="w w--red">Air</span> <span class="w">Zone.</span>', "what Solihull drivers need to know — and a first-car checker",
+                    [("bi-geo", "Inside the Middleway"), ("bi-cash", "£8 a day"), ("bi-search", "First-car checker")],
+                    [("red", "#check", "bi-search", "Check a car"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
+def j5a():
+    f = "m42-junction-5a-a4545-new-road-solihull.html"
+    secs = [
+        '<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>J5A</b><span>new M42 junction</span></div><div><b>2.4 km</b><span>A4545 dual carriageway</span></div><div><b>18 Dec 2024</b><span>opened to traffic</span></div><div><b>£282m</b><span>M42 junction 6 scheme</span></div></div></div></section>',
+        L.sec("what", "What changed", "Solihull's newest motorway junction", "Part of National Highways' M42 junction 6 improvement scheme — built to take pressure off the old junction 6 by Birmingham Airport and the NEC.",
+              L.cards([("bi-sign-merge-right", "Junction 5A", "A new M42 junction about 1.8 km south of junction 6."),
+                       ("bi-signpost-split", "The A4545 link road", "A new 2.4 km dual carriageway from junction 5A to the Clock Interchange on the A45, west of Bickenhill."),
+                       ("bi-airplane", "Airport slip road", "A dedicated slip road from the A4545 into Birmingham Airport opened when the scheme's traffic management was removed."),
+                       ("bi-bridge", "Solihull Road bridge", "Rebuilt and reopened in June 2023 as part of the same scheme, with work along Catherine de Barnes Lane in phases after that."),
+                       ("bi-map", "Old maps are wrong", "Older sat-navs and maps don't show J5A or the A4545. Update yours before you rely on it."),
+                       ("bi-cone-striped", "Watch for changes", "Final stages of a big scheme can mean changed lane markings and temporary limits. Read the signs, not your memory.")])),
+        L.sec("learners", "For learners", "How we use it in lessons", "Learners can drive on motorways with an Approved Driving Instructor in a dual-controlled car. J5A is one of the most useful junctions in Solihull to learn.",
+              '<ul style="font-size:.95rem"><li class="mb-2"><b>A new dual carriageway:</b> the A4545 is a modern dual carriageway — good practice for joining, lane discipline and higher speeds before a first motorway lesson. Always check the signed limit.</li>'
+              '<li class="mb-2"><b>Joining the M42:</b> use the slip road to match speed, check mirrors and blind spot, and merge. Never stop on the slip road unless traffic is stationary.</li>'
+              '<li class="mb-2"><b>Clock Interchange:</b> a large junction on the A45 — read the lane signs early and pick your lane before the roundabout.</li>'
+              '<li class="mb-2"><b>Airport and NEC traffic:</b> expect drivers looking for terminals and car parks — give extra room and anticipate late lane changes.</li>'
+              '<li class="mb-2"><b>On your own after passing:</b> consider a motorway refresher or Pass Plus before your first solo M42 trip.</li></ul>'
+              '<p>Motorway lessons are always with an ADI. See also: <a href="winter-driving-solihull.html">winter driving and gritting</a> · <a href="birmingham-clean-air-zone-solihull-drivers.html">Clean Air Zone guide</a></p>', alt=True),
+        sources(["nh_j6", "nh_open", "nh_full", "gov_282", "hc_mway"]),
+    ]
+    faqs = [("When did M42 junction 5A open?", "National Highways opened the A4545 link road and the new junction 5A to traffic on 18 December 2024, with the airport slip road opening later when traffic management was removed."),
+            ("Where does the A4545 go?", "It's a 2.4 km dual carriageway from M42 junction 5A to the Clock Interchange on the A45, west of Bickenhill, near Birmingham Airport and the NEC."),
+            ("Can learner drivers use the M42?", "Yes, with an Approved Driving Instructor in a car with dual controls. DriveSQ motorway lessons are always with an ADI.")]
+    return f, page(f, "M42 J5A & A4545", "M42 Junction 5A & A4545 Link Road Explained: Solihull's New Road | DriveSQ",
+                   "The M42 junction 5A and the 2.4 km A4545 link road to the Clock Interchange (opened December 2024) explained for Solihull drivers and learners — airport, NEC, motorway lessons.",
+                   "m42 junction 5a, a4545 link road, clock interchange, m42 junction 6 improvement, solihull motorway lessons",
+                   ("New road · Solihull", '<span class="w">M42</span> <span class="w w--red">J5A</span> <span class="w">&amp; A4545.</span>', "Solihull's newest junction — and how learners use it",
+                    [("bi-sign-merge-right", "Junction 5A"), ("bi-airplane", "Airport & NEC"), ("bi-person-badge", "ADI motorway lessons")],
+                    [("red", "#what", "bi-info-circle", "What changed"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
 def main():
-    out = dict([best_month(), winter(), term_dates(), rules_2026()])
+    out = dict([best_month(), winter(), term_dates(), rules_2026(), caz(), j5a()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
     sm = os.path.join(HERE, "sitemap-1.xml")
