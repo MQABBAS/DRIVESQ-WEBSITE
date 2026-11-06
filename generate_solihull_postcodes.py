@@ -19,6 +19,35 @@ L, e, SQS, SITE = A.L, A.e, A.SQS, A.SITE
 PCS = json.load(open(os.path.join(HERE, "_data/solihull_postcodes_full.json"), encoding="utf-8"))
 SD = json.load(open(os.path.join(HERE, "_data/solihull_sectors.json"), encoding="utf-8"))
 SECT, PARK = SD["sectors"], SD["park"]
+# Optional street names per postcode (built from OpenStreetMap by build_solihull_streets.py when available)
+_STP = os.path.join(HERE, "_data/solihull_streets.json")
+STREETS = json.load(open(_STP, encoding="utf-8")) if os.path.exists(_STP) else {"pc": {}}
+
+
+def finder(code, codes):
+    """Every postcode in a sector, searchable, each one opens the booking card prefilled (and its roads, when known)."""
+    st = STREETS.get("pc", {})
+    has = any(st.get(p) for p in codes)
+    items = "".join(f'<a href="#book" data-dsq-book-pc="{p}" data-q="{e((p + " " + " ".join(st.get(p, []))).lower())}" class="pcf-i"><b>{p}</b>' + (f'<small>{e(", ".join(st[p][:3]))}</small>' if st.get(p) else "") + "</a>" for p in codes)
+    roads = ""
+    if has:
+        by = {}
+        for p in codes:
+            for r in st.get(p, []): by.setdefault(r, []).append(p)
+        roads = (f'<details class="mt-3"><summary style="cursor:pointer;font-weight:700">Every road in {e(code)} A–Z ({len(by)})</summary><div class="pcf-roads">'
+                 + "".join(f'<div><b>{e(r)}</b> <span>{" · ".join(by[r])}</span></div>' for r in sorted(by)) + "</div></details>")
+    return (f'<div class="sol-card reveal pcf" style="padding:18px"><label style="font-weight:700;display:block;margin-bottom:8px" for="pcf-{code.replace(" ", "")}">Find your postcode{" or road" if has else ""}</label>'
+            f'<input id="pcf-{code.replace(" ", "")}" class="form-control pcf-q" style="max-width:360px;width:100%;padding:11px 13px;border:1px solid #ddd;border-radius:12px;font-size:1rem;text-transform:uppercase" data-x placeholder="{"Type a postcode or road, e.g. " + codes[0] if codes else ""}" autocomplete="off">'
+            f'<p class="pcf-n sol-note mt-2 mb-2">{len(codes)} postcodes — tap yours to book with it filled in.</p><div class="pcf-g">{items}</div>{roads}'
+            + ('<p class="sol-note mt-2 mb-0">Road names © OpenStreetMap contributors (ODbL).</p>' if has else "") + "</div>")
+
+
+FINDER_ASSETS = """<style>.pcf-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:340px;overflow:auto;padding:2px}
+.pcf-i{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;border:1px solid #eee;background:#fafafa;color:#111;text-decoration:none;font-size:.85rem;transition:transform .2s,border-color .2s,box-shadow .2s}
+.pcf-i:hover{transform:translateY(-2px);border-color:#D10A11;box-shadow:0 8px 18px rgba(209,10,17,.12)}.pcf-i small{color:#666;font-size:.72rem;line-height:1.25}.pcf-i[hidden]{display:none}
+.pcf-roads{columns:2 220px;font-size:.85rem;margin-top:8px}.pcf-roads div{break-inside:avoid;padding:3px 0}.pcf-roads span{color:#666}</style>
+<script>(function(){document.querySelectorAll('.pcf').forEach(function(b){var q=b.querySelector('.pcf-q'),n=b.querySelector('.pcf-n'),it=[].slice.call(b.querySelectorAll('.pcf-i')),t=n.textContent;
+q.addEventListener('input',function(){var v=q.value.toLowerCase().replace(/\\s+/g,' ').trim(),c=0;it.forEach(function(a){var on=!v||a.getAttribute('data-q').indexOf(v)>-1||a.getAttribute('data-q').replace(/ /g,'').indexOf(v.replace(/ /g,''))>-1;a.hidden=!on;if(on)c++;});n.textContent=v?(c+' match'+(c===1?'':'es')+(c?' — tap to book with it filled in.':' — try the postcode checker.')):t;});});})();</script>"""
 DISTRICTS = sorted({k.split()[0] for k in SECT}, key=lambda d: (d[:2] != "B9", d))
 DNAME = {"B90": "Shirley, Monkspath & Dickens Heath", "B91": "Solihull town centre & Hillfield", "B92": "Olton, Lyndon, Elmdon & Hampton-in-Arden",
          "B93": "Knowle & Dorridge", "B94": "Hockley Heath & Earlswood", "B36": "Castle Bromwich & Smith's Wood", "B37": "Chelmsley Wood, Kingshurst & Marston Green",
@@ -171,7 +200,7 @@ def sector_page(code):
         local += '<div class="sol-card reveal"><b>Road guides</b><span>' + " · ".join(f'<a href="{SQS}{r}.html">{e(A.ROADG.get(r, r))}</a>' for r in sec["rg"]) + "</span></div>"
     local += f'<div class="sol-card reveal"><b>More about {e(code)}</b><span><a href="{SQS}postcode-{code.lower().replace(" ", "-")}-driving-lessons.html">SQ Driving School\'s {e(code)} guide</a> · <a href="{slug(district)}">all of {district}</a> · <a href="solihull-postcode-checker.html">postcode checker</a></span></div>'
     secs = [
-        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>{d1:.1f} mi</b><span>to {e(n1)} test centre</span></div><div><b>{r1}%</b><span>its pass rate 2024-25</span></div><div><b>{len(ps)}</b><span>postcodes in {e(code)}</span></div><div><b>£35</b><span>per hour, manual or auto</span></div></div></div></section>',
+        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>{d1:.1f} mi</b><span>to {e(n1)} test centre</span></div><div><b>{r1}%</b><span>its pass rate 2025-26 (DVSA)</span></div><div><b>{len(ps)}</b><span>postcodes in {e(code)}</span></div><div><b>£35</b><span>per hour, manual or auto</span></div></div></div></section>',
         L.sec("learn", f"Driving lessons in {e(code)}", f"Learning to drive in {e(code)}", e(intro),
               f'<div class="row g-4 mt-1"><div class="col-lg-7"><div class="reveal">{mapsvg}</div><p class="sol-note mt-2">Each dot is a postcode in {e(code)}. 🏁 marks {e(n1)} test centre when it fits on the map.</p></div>'
               f'<div class="col-lg-5"><div class="sol-card reveal"><b>Roads you\'ll learn on</b><span><ul class="mt-2 mb-0">{"".join(f"<li>{e(r)}</li>" for r in sec["roads"])}</ul></span></div>'
@@ -180,9 +209,8 @@ def sector_page(code):
         L.sec("plan", "Lesson plan", f"Your lesson plan in {e(code)}", "How lessons usually build up — your instructor adjusts it to you.", plan(code, sec, n1, bearing(c, A.TC[s1]), areas, fuel, sec.get("park")), alt=True),
         L.sec("test-centres", "Driving test centres", f"Which test centre for {e(code)}?", f"Straight-line distances from the middle of {e(code)} to all seven centres. {pick}",
               f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(code)}</th><th>Pass rate 2025-26</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div><p class="sol-note mt-2">Pass rates: passrates.uk analysis of DVSA data. Driving distances are longer than straight-line.</p>'),
-        L.sec("postcodes", "Postcodes", f"Every postcode we cover in {e(code)}", f"We pick up from every postcode in {e(code)} — {len(codes)} in the public postcode data. Newer postcodes on recent developments are covered too.",
-              f'<details class="reveal" style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 16px"><summary style="cursor:pointer;font-weight:700">Show all {len(codes)} postcodes in {e(code)}</summary><p style="font-size:.82rem;line-height:1.9;color:#444;margin-top:10px;word-spacing:4px">{" · ".join(e(x) for x in codes)}</p></details>'
-              f'<p class="sol-note mt-2">Not sure which sector you\'re in? <a href="solihull-postcode-checker.html">Check your postcode →</a></p>', alt=True),
+        L.sec("postcodes", "Postcodes", f"Every postcode{' and road' if any(STREETS.get('pc', {}).get(p) for p in codes) else ''} in {e(code)}", f"We pick up from every postcode in {e(code)} — {len(codes)} in the public postcode data. Newer postcodes on recent developments are covered too.",
+              finder(code, codes) + f'<p class="sol-note mt-2">Not sure which sector you\'re in? <a href="solihull-postcode-checker.html">Check your postcode →</a></p>', alt=True),
         L.sec("local", "Local", f"Around {e(code)}", "Fuel, parking and guides for this postcode.", f'<div class="sol-grid">{local}</div>'),
         L.sec("portal-features", "DriveSQ Student Portal", f"Free for every learner in {e(code)}",
               f"Your own learning app from DriveSQ, included with your lessons: track progress, practise 700+ theory questions and know when you're ready for {e(n1)}.",
@@ -201,10 +229,11 @@ def sector_page(code):
                   [("bi-person-badge", "ADI &amp; PDI instructors"), ("bi-phone", "Free Student Portal"), ("bi-gear-wide-connected", "Manual &amp; auto · £35/hr")],
                   [("red", "#book", "bi-calendar-check-fill", "Book a lesson"), ("ghost", "#postcodes", "bi-geo-alt-fill", "Postcodes covered")])
     f = slug(code)
-    return f, L.page(f, f"Driving Lessons {code} | {sec['areas'].split(',')[0].split(' (')[0][:40]} | DriveSQ",
+    html = L.page(f, f"Driving Lessons {code} | {sec['areas'].split(',')[0].split(' (')[0][:40]} | DriveSQ",
                      f"Driving lessons in {code} ({sec['areas'].split(' (')[0]}): £35/hr, {d1:.1f} miles from {n1} test centre, every postcode covered, local lesson plan and the free DriveSQ Student Portal.",
                      f"driving lessons {code.lower()}, driving instructor {code.lower()}, driving school {code.lower()}, automatic driving lessons {code.lower()}",
                      faq_and_schema(code, f, faqs, [code]), hero, secs)
+    return f, html.replace("</body>", FINDER_ASSETS + "\n</body>", 1)
 
 
 def district_page(dist):
