@@ -58,7 +58,7 @@ def head(fname, title, desc, kw, schema):
           ".sol-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}.sol-chips a{display:inline-block;margin:4px 6px 4px 0;padding:6px 12px;border-radius:999px;border:1px solid #eee;background:#fff;color:#333;font-size:.82rem;text-decoration:none}" \
           ".sol-chips a:hover{border-color:#D10A11;color:#D10A11}.sol-note{font-size:.8rem;color:#777}.sol-yes{color:#16a34a;font-weight:700}.sol-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:20px}" \
           ".sol-kpi div{background:#111;color:#fff;border-radius:14px;padding:16px;text-align:center}.sol-kpi b{display:block;font-family:'Oswald',sans-serif;font-size:1.6rem;color:#ff3b42}.sol-kpi span{font-size:.78rem;color:#ccc}" \
-          ".sol-form section{padding:0!important;max-width:none!important}.sol-sec .dsqx-btn--ghost{color:#111!important;border-color:#d6d6d6!important;background:#fff!important}.sol-sec .dsqx-ctas{display:flex;flex-wrap:wrap;gap:10px}</style>\n"
+          ".sol-form section{padding:0!important;max-width:none!important}.sol-form #booking>div{background:#111!important;border-color:rgba(209,10,17,.4)!important;box-shadow:0 18px 50px rgba(0,0,0,.18)}.sol-form #booking select option{color:#f0f0f0}.sol-sec .dsqx-btn--ghost{color:#111!important;border-color:#d6d6d6!important;background:#fff!important}.sol-sec .dsqx-ctas{display:flex;flex-wrap:wrap;gap:10px}</style>\n"
     return hd
 
 
