@@ -166,7 +166,7 @@ def centre_page(s):
               f'<p><b>Address:</b> {e(I["addr"])} · <b>Handy from:</b> {e(I["areas"])}.</p>'),
         L.sec("compare", "Nearby centres", "How it compares with the nearest centres", "2025-26 pass rate, tests and latest median wait.",
               f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Centre</th><th>Pass rate</th><th>Tests</th><th>Median wait</th></tr></thead><tbody>{comp}</tbody></table></div>'
-              f'<p class="mt-2"><a href="{HUB}">Compare all 7 centres →</a> · <a href="solihull-driving-test-centre-finder.html">find your nearest by postcode</a></p>', alt=True),
+              f'<p class="mt-2"><a href="{HUB}">Compare all 7 centres →</a> · <a href="solihull-driving-test-centre-finder.html">find your nearest by postcode</a> · <a href="driving-test-waiting-times-solihull.html">waiting-times tracker</a> · <a href="driving-test-pass-rate-by-age-solihull.html">pass rate by age</a> · <a href="automatic-vs-manual-pass-rate-solihull.html">automatic vs manual</a> · <a href="first-time-pass-rate-solihull.html">first-time passes</a> · <a href="driving-test-cancellations-solihull.html">cancellations</a></p>', alt=True),
         L.sec("prepare", "With DriveSQ", f"Preparing for a test at {e(I['short'])}", "",
               L.cards([("bi-signpost-split", "Lessons on the right roads", f"We teach on the roads around {I['short']} — the junctions and roundabouts you'll actually meet."),
                        ("bi-clipboard-check", "Mock tests", "Full mock tests marked the way examiners mark, so test day holds no surprises."),
@@ -228,6 +228,12 @@ S.push({name:'Great Britain',color:'#111',dash:1,pts:D.trend.labels.map(function
               f'<p class="sol-note mt-2">Great Britain: {gb["p"]}% pass rate from {gb["n"]:,} tests. Median wait is DVSA\'s latest monthly figure.</p>', alt=True),
         L.sec("trend", "Trends", "Pass rates since 2015-16", "Each centre against the Great Britain average. Hover a point for the figure.", '<div class="sol-card reveal" style="padding:18px"><div id="hTrend"></div></div>'),
         L.sec("centres", "Deep dives", "Every centre in detail", "", L.cards([("bi-geo-alt-fill", nm(k), f'<a href="{fname(k)}">{C[k]["years"][Y]["p"]}% pass rate · {C[k]["years"][Y]["n"]:,} tests · charts, ages, months, waits →</a>') for k in rows]), alt=True),
+        L.sec("topics", "More official data", "Explore by topic", "",
+              L.cards([("bi-person", "Pass rate by age", '<a href="driving-test-pass-rate-by-age-solihull.html">Ages 17–25 at every centre, as a heatmap →</a>'),
+                       ("bi-gear", "Automatic vs manual", '<a href="automatic-vs-manual-pass-rate-solihull.html">Both pass rates, and the rise of automatic tests →</a>'),
+                       ("bi-1-circle", "First-time passes", '<a href="first-time-pass-rate-solihull.html">First-attempt rates since 2015 and zero-fault passes →</a>'),
+                       ("bi-x-octagon", "Cancellations", '<a href="driving-test-cancellations-solihull.html">How often DVSA cancels — and what you can claim →</a>'),
+                       ("bi-hourglass-split", "Waiting times", '<a href="driving-test-waiting-times-solihull.html">Monthly median waits since 2019 →</a>')])),
         L.sec("choose", "Choosing a centre", "Does the test centre matter?", "",
               '<ul style="font-size:.95rem"><li class="mb-2"><b>Practise where you\'ll test.</b> Pass rates reflect who tests there as much as the roads — learners who know the local junctions do better.</li>'
               '<li class="mb-2"><b>Moving your test is limited.</b> Since June 2026 you can only move a booking to one of the three nearest centres — <a href="driving-test-rule-changes-2026-solihull.html">the 2026 rules</a>.</li>'

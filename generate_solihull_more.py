@@ -46,7 +46,12 @@ NEW = [("driving-lessons-solihull.html", "Driving lessons in Solihull", "Lessons
     ("driving-lesson-gift-vouchers-solihull.html", "Gift vouchers", "Gift vouchers"),
     ("solihull-pass-by-date-planner.html", "Pass-by-date planner", "Pass-by-date"),
     ("show-me-tell-me-questions-trainer.html", "Show me, tell me trainer", "Show me tell me"),
-    ("solihull-driving-test-centres-data.html", "Test centre data (DVSA)", "Centre data")] + NEW[-1:]
+    ("solihull-driving-test-centres-data.html", "Test centre data (DVSA)", "Centre data"),
+    ("driving-test-pass-rate-by-age-solihull.html", "Pass rate by age", "By age"),
+    ("automatic-vs-manual-pass-rate-solihull.html", "Automatic vs manual pass rates", "Auto vs manual"),
+    ("first-time-pass-rate-solihull.html", "First-time pass rates", "First time"),
+    ("driving-test-cancellations-solihull.html", "DVSA test cancellations", "Cancellations"),
+    ("driving-test-waiting-times-solihull.html", "Test waiting times tracker", "Waiting times")] + NEW[-1:]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
 G.PAGES = G.PAGES + [(f, lbl, short) for f, lbl, short in NEW]
 _base_nav = G.nav
