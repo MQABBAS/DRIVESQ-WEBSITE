@@ -58,6 +58,9 @@ SRC = {
     "taxi_flow": ("Solihull Council — taxi driver application flowchart", "https://www.solihull.gov.uk/sites/default/files/migrated/licensing_taxidriver_flowchart.pdf"),
     "fees": ("GOV.UK — driving test and theory test costs", "https://www.gov.uk/driving-test-cost"),
     "prov": ("GOV.UK — apply for your first provisional driving licence", "https://www.gov.uk/apply-first-provisional-driving-licence"),
+    "hours": ("GOV.UK — driving lessons and learning to drive (average 45 hours of lessons + 22 hours practice)", "https://www.gov.uk/driving-lessons-learning-to-drive"),
+    "smtm": ("GOV.UK — car show me, tell me vehicle safety questions (DVSA)", "https://www.gov.uk/government/publications/car-show-me-tell-me-vehicle-safety-questions"),
+    "test_what": ("GOV.UK — what happens during the driving test", "https://www.gov.uk/driving-test/what-happens-during-test"),
     "cancel": ("GOV.UK — driving test cancelled because of bad weather", "https://www.gov.uk/driving-test/test-cancelled-bad-weather"),
 }
 # Solihull Council (community schools) calendar 2026–27; academies may differ
@@ -446,8 +449,101 @@ document.getElementById('gvFor').addEventListener('input',u);u();})();</script>"
                     [("red", "#choose", "bi-gift", "Choose a voucher"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
 
 
+TELL = [["Tell me how you'd check that the brakes are working before starting a journey.", "Brakes should not feel spongy or slack. Test them as you set off. The car should not pull to one side."], ["Tell me where you'd find the information for the recommended tyre pressures for this car and how tyre pressures should be checked.", "In the manufacturer's guide. Use a reliable pressure gauge, check and adjust when the tyres are cold, don't forget the spare, and refit the valve caps."], ["Tell me how you make sure your head restraint is correctly adjusted so it provides the best protection in the event of a crash.", "The rigid part of the head restraint should be at least as high as the eyes or top of the ears, and as close to the back of the head as is comfortable. (Some restraints aren't adjustable.)"], ["Tell me how you'd check the tyres to ensure that they have sufficient tread depth and that their general condition is safe to use on the road.", "No cuts or bulges, and at least 1.6 mm of tread across the central three-quarters of the tyre's width and all the way around."], ["Tell me how you'd check that the headlights and tail lights are working. You don't need to exit the vehicle.", "Turn on the ignition if needed, switch on the dipped headlights and use the hazard warning lights, then walk round the car. (You don't have to actually check.)"], ["Tell me how you'd know if there was a problem with your anti-lock braking system.", "A warning light on the dashboard should come on if there's a fault with the ABS."], ["Tell me how you'd check the direction indicators are working. You don't need to exit the vehicle.", "Turn on the ignition if needed, switch on the hazard warning lights and walk round the car."], ["Tell me how you'd check the brake lights are working on this car.", "Press the brake pedal and use reflections in windows, garage doors or other cars — or ask someone to help."], ["Tell me how you'd check the power-assisted steering is working before starting a journey.", "If the steering becomes heavy, it may not be working. Hold gentle pressure on the wheel while starting the engine — you should feel a slight movement — or turn the wheel just after moving off."], ["Tell me how you'd switch on the rear fog light(s) and explain when you'd use it/them. You don't need to exit the vehicle.", "Turn on the dipped headlights (and ignition if needed), switch on the fog light and check the warning light. Use them when visibility is seriously reduced, generally less than 100 metres."], ["Tell me how you switch your headlight from dipped to main beam and explain how you'd know the main beam is on.", "Operate the switch (with the ignition or engine on if needed) and check the blue main-beam warning light on the dashboard."], ["Open the bonnet and tell me how you'd check that the engine has sufficient oil.", "Find the dipstick or oil level indicator and check the level is between the minimum and maximum marks."], ["Open the bonnet and tell me how you'd check that the engine has sufficient engine coolant.", "Find the high and low markings on the header tank (or radiator filler cap) and explain how you'd top up to the right level."], ["Open the bonnet and tell me how you'd check that you have a safe level of hydraulic brake fluid.", "Find the reservoir and check the level against the high and low markings."]]
+SHOW = [["When it's safe to do so, can you show me how you wash and clean the rear windscreen?", "Use the rear wash and wiper control — glance at it, keep your eyes mostly on the road."], ["When it's safe to do so, can you show me how you wash and clean the front windscreen?", "Use the front washer and wipers control, briefly, while keeping full control."], ["When it's safe to do so, can you show me how you'd switch on your dipped headlights?", "Operate the headlight switch to dipped — check the green symbol if you're unsure."], ["When it's safe to do so, can you show me how you'd set the rear demister?", "Press the rear demister button (rectangle with wavy arrows) — the light shows it's on."], ["When it's safe to do so, can you show me how you'd operate the horn?", "Briefly press the horn — only when the examiner asks and it's safe."], ["When it's safe to do so, can you show me how you'd demist the front windscreen?", "Set the fan, temperature and air direction to the windscreen (and air conditioning if fitted)."], ["When it's safe to do so, can you show me how you'd open and close the side window?", "Use the window switch, glance only briefly, and keep control of the car."]]
+
+
+def pass_by_date():
+    f = "solihull-pass-by-date-planner.html"
+    tool = """<div class="sol-card reveal" style="padding:22px">
+<div class="row g-3">
+<div class="col-md-4"><label style="font-size:.85rem;display:block">Hours of lessons so far<input id="pbDone" type="number" min="0" max="200" value="0" class="form-control"></label></div>
+<div class="col-md-4"><label style="font-size:.85rem;display:block">Lesson hours per week<select id="pbRate" class="form-select"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="10">10 (semi-intensive)</option></select></label></div>
+<div class="col-md-4"><label style="font-size:.85rem;display:block">Private practice with family?<select id="pbPriv" class="form-select"><option value="0">No</option><option value="1">Yes, regularly</option></select></label></div>
+<div class="col-md-4"><label style="font-size:.85rem;display:block">Theory test passed?<select id="pbTh" class="form-select"><option value="0">Not yet</option><option value="1">Yes</option></select></label></div>
+<div class="col-md-4"><label style="font-size:.85rem;display:block">Target test date (optional)<input id="pbTarget" type="date" class="form-control"></label></div>
+<div class="col-md-4 d-flex align-items-end"><button id="pbGo" class="dsqx-btn dsqx-btn--red w-100" type="button"><i class="bi bi-magic"></i>Plan it</button></div>
+</div><div id="pbOut" aria-live="polite" class="mt-3"></div>
+<p class="sol-note mt-2 mb-0">A guide, not a promise: everyone learns at a different pace and your instructor decides when you're ready. Based on GOV.UK's averages and DVSA's May 2026 median wait.</p></div>
+<script>(function(){var WAIT=10;function add(d,w){var x=new Date(d);x.setDate(x.getDate()+Math.round(w*7));return x;}
+function fmt(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});}
+function run(){var done=Math.max(0,+document.getElementById('pbDone').value||0),rate=+document.getElementById('pbRate').value,priv=document.getElementById('pbPriv').value==='1',th=document.getElementById('pbTh').value==='1',tv=document.getElementById('pbTarget').value,o=document.getElementById('pbOut');
+var need=Math.max(0,45-done),weeks=need/rate,today=new Date(),ready=add(today,weeks),bookBy=add(today,Math.max(0,weeks-WAIT)),thBy=add(today,Math.min(4,Math.max(1,weeks-WAIT-2)));
+var h='<div class="sol-kpi"><div><b>~'+Math.round(need)+' hrs</b><span>more lessons (GOV.UK average is 45)</span></div><div><b>'+Math.ceil(weeks)+' wks</b><span>at '+rate+' hr a week</span></div><div><b style="font-size:1.1rem">'+fmt(ready)+'</b><span>could be test-ready around</span></div></div>';
+h+='<div class="area-head mt-3">Your timeline</div><ol style="margin:6px 0;padding-left:20px">';
+if(!priv)h+='<p class="sol-note">GOV.UK\\'s average assumes about 22 hours of private practice too — without it, you may need more lessons.</p>';h+=th?'<li class="mb-1">Theory ✅ — you can book your practical any time.</li>':'<li class="mb-1"><b>Book your theory test now</b> and aim to pass it by <b>'+fmt(thBy)+'</b> — you need the pass to book the practical. <a href="theory-test-centre-near-solihull.html">Where to sit it</a>.</li>';
+h+='<li class="mb-1"><b>Book your practical around '+fmt(bookBy)+'</b> — waits are about '+WAIT+' weeks (median), so booking then lands near your ready date. You book it yourself on GOV.UK.</li>';
+h+='<li class="mb-1">Keep lessons going at '+rate+' hr a week'+(priv?' plus your family practice':'')+' — then mock tests on your test centre\\'s roads in the final month.</li></ol>';
+if(tv){var t=new Date(tv+'T12:00:00'),wk=(t-today)/(7*864e5);if(wk<=0){h+='<p style="color:#b45309">That date has passed — pick a future date.</p>';}else{var per=need/wk;h+='<p class="mt-2" style="font-size:1.02rem">To be ready by <b>'+fmt(t)+'</b> you\\'d need about <b>'+(per<0.5?'under 1':per.toFixed(1))+' hrs a week</b>'+(per>10?' — that\\'s intensive-course territory; <a href="https://sqdrivingschool.com/solihull/intensive-driving-courses-solihull.html">see intensive courses</a>':per>4?' — a semi-intensive pace':'')+'.'+(wk<WAIT&&!th?' Tests are usually booked about '+WAIT+' weeks ahead, so this is tight.':'')+'</p>';}}
+h+='<p class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="#book"><i class="bi bi-calendar-check-fill"></i>Start my lessons</a></p>';o.innerHTML=h;
+var nt=document.querySelector('#dsqInlineBookForm [name=notes]');if(nt&&(!nt.value||/^From the pass-by-date planner/.test(nt.value)))nt.value='From the pass-by-date planner: '+rate+' hr/week, '+done+' hrs done'+(tv?', aiming for a test around '+tv:'')+'.';}
+document.getElementById('pbGo').addEventListener('click',run);})();</script>"""
+    secs = [
+        L.sec("plan", "Planner", "When could you pass?", "Tell us where you are — get a realistic timeline with when to book your theory and practical tests.", tool),
+        L.sec("facts", "The numbers behind it", "How long does learning to drive take?", "",
+              L.cards([("bi-clock-history", "45 + 22 hours", "GOV.UK says learners need, on average, 45 hours of professional lessons plus 22 hours of private practice."),
+                       ("bi-hourglass-split", "~10 week wait", "DVSA's median wait was 9.7 weeks in May 2026 — so book the practical well before you're ready."),
+                       ("bi-arrow-repeat", "Only 2 changes", "Since March 2026 you can change a booked test only twice, so pick the date carefully."),
+                       ("bi-calendar-heart", "Spring is kinder", "April and February have had the highest pass rates — see the best-month guide.")]) +
+              '<p class="mt-3">More: <a href="best-month-driving-test-solihull.html">best month to test</a> · <a href="driving-test-rule-changes-2026-solihull.html">2026 booking rules</a> · <a href="solihull-driving-test-readiness-check.html">readiness check</a></p>', alt=True),
+        sources(["hours", "waits_median", "rules"]),
+    ]
+    faqs = [("How many driving lessons do I need?", "GOV.UK says learners need on average 45 hours of professional lessons plus 22 hours of private practice. Everyone is different — your instructor will tell you when you're ready."),
+            ("When should I book my practical test?", "Waits have been around 10 weeks (DVSA median, May 2026), so book it about that far ahead of when your instructor expects you to be ready. You need to have passed your theory test first."),
+            ("Can I pass by a certain date?", "Use the planner: it works out how many hours a week you'd need. Over about 4 hours a week is a semi-intensive pace.")]
+    return f, page(f, "Pass-by-date planner", "When Could I Pass My Driving Test? Solihull Pass-by-Date Planner | DriveSQ",
+                   "Free planner: enter your hours, lessons per week and target date to see when you could be test-ready, when to book your theory and practical, and how many hours a week you need — for Solihull learners.",
+                   "how many driving lessons do i need, when could i pass my driving test, driving test planner, how long to learn to drive solihull",
+                   ("Free tool · Solihull", '<span class="w">Pass-by-</span><span class="w w--red">Date</span> <span class="w">Planner.</span>', "when could you pass — and when to book each test",
+                    [("bi-clock-history", "GOV.UK averages"), ("bi-hourglass-split", "Latest waits"), ("bi-calendar-check", "Your timeline")],
+                    [("red", "#plan", "bi-magic", "Plan my test"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
+def show_me_tell_me():
+    f = "show-me-tell-me-questions-trainer.html"
+    tool = """<div class="sol-card reveal" style="padding:22px">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="dsqx-btn dsqx-btn--ghost" type="button" data-m="tell">Tell me (14)</button><button class="dsqx-btn dsqx-btn--ghost" type="button" data-m="show">Show me (7)</button><button class="dsqx-btn dsqx-btn--red" type="button" data-m="mock"><i class="bi bi-shuffle"></i>Test-day mock</button></div>
+<div id="smCard" aria-live="polite" style="border:1px solid rgba(0,0,0,.12);border-radius:14px;padding:18px;min-height:150px"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="smReveal" class="dsqx-btn dsqx-btn--red" type="button"><i class="bi bi-eye"></i>Show answer</button><button id="smOk" class="dsqx-btn dsqx-btn--ghost" type="button">✅ I knew it</button><button id="smNo" class="dsqx-btn dsqx-btn--ghost" type="button">🔁 Again later</button></div>
+<p id="smScore" class="sol-note mt-2 mb-0"></p></div>
+<script>(function(){var T=""" + json.dumps(TELL, ensure_ascii=False) + """,S=""" + json.dumps(SHOW, ensure_ascii=False) + """;
+var deck=[],i=0,ok=0,seen=0,mode='tell',open=false;function esc(x){return String(x).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function shuffle(a){a=a.slice();for(var k=a.length-1;k>0;k--){var r=Math.floor(Math.random()*(k+1)),t=a[k];a[k]=a[r];a[r]=t;}return a;}
+function start(m){mode=m;ok=0;seen=0;i=0;deck=m==='tell'?shuffle(T).map(function(q){return['Tell me',q];}):m==='show'?shuffle(S).map(function(q){return['Show me (while driving)',q];}):[['Tell me — at the start',shuffle(T)[0]],['Show me — while driving',shuffle(S)[0]]];draw();}
+function draw(){open=false;var c=document.getElementById('smCard');if(i>=deck.length){c.innerHTML='<p style="font-size:1.1rem"><b>Done — '+ok+' of '+seen+' known.</b></p><p>'+(mode==='mock'?'On test day you get one tell me question at the start and one show me question while driving. Getting either wrong is one driving fault.':'Press a button above to go again.')+'</p>';document.getElementById('smScore').textContent='';return;}
+var q=deck[i];c.innerHTML='<div class="area-head">'+q[0]+' · '+(i+1)+' of '+deck.length+'</div><p style="font-size:1.08rem;font-weight:600;margin:8px 0 0">'+esc(q[1][0])+'</p><div id="smAns" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.3)">'+esc(q[1][1])+'</div>';
+document.getElementById('smScore').textContent=seen?ok+' of '+seen+' known so far':'';}
+function reveal(){var a=document.getElementById('smAns');if(a){a.style.display='block';open=true;}}
+function next(k){if(i>=deck.length)return;if(!open)reveal();seen++;if(k)ok++;else if(mode!=='mock')deck.push(deck[i]);i++;draw();}
+document.querySelectorAll('[data-m]').forEach(function(b){b.addEventListener('click',function(){start(b.getAttribute('data-m'));});});
+document.getElementById('smReveal').addEventListener('click',reveal);document.getElementById('smOk').addEventListener('click',function(){next(true);});document.getElementById('smNo').addEventListener('click',function(){next(false);});start('tell');})();</script>"""
+    lst = '<ol style="font-size:.92rem">' + "".join(f"<li class='mb-2'><b>{e(q)}</b><br>{e(a)}</li>" for q, a in TELL) + "</ol>"
+    lss = '<ol style="font-size:.92rem">' + "".join(f"<li class='mb-2'><b>{e(q)}</b><br>{e(a)}</li>" for q, a in SHOW) + "</ol>"
+    secs = [
+        L.sec("trainer", "Trainer", "Practise the show me, tell me questions", "Flashcards with every official question. Cards you don't know come back until you do.", tool),
+        L.sec("how", "On test day", "How show me, tell me works in your test", "",
+              L.cards([("bi-1-circle", "Tell me — at the start", "Before you drive, the examiner asks one 'tell me' question: you explain how you'd do a safety check."),
+                       ("bi-2-circle", "Show me — while driving", "While you're driving, you're asked one 'show me' question: you do it, safely."),
+                       ("bi-exclamation-circle", "Get one wrong", "One or both wrong is one driving fault — not a fail on its own."),
+                       ("bi-x-octagon", "Lose control", "If you lose control of the car while doing a 'show me', that's a serious or dangerous fault — a fail.")]) +
+              '<p class="mt-3">In your DriveSQ lessons we practise these in the car you\'ll take your test in. Try also: <a href="cockpit-drill-checklist.html">cockpit drill checklist</a> · <a href="driving-test-fault-counter.html">would I have passed?</a> · <a href="which-lights-should-i-use.html">which lights?</a></p>', alt=True),
+        L.sec("tell-list", "All 14", "Every 'tell me' question and answer", "", lst),
+        L.sec("show-list", "All 7", "Every 'show me' question", "", lss, alt=True),
+        sources(["smtm", "test_what"]),
+    ]
+    faqs = [("How many show me tell me questions are there?", "DVSA publishes 14 'tell me' questions and 7 'show me' questions. You get one of each on your test."),
+            ("What happens if I get a show me tell me question wrong?", "Getting one or both wrong is one driving fault. Losing control while doing a 'show me' is a serious or dangerous fault."),
+            ("When are show me tell me questions asked?", "The 'tell me' question is asked at the start before you drive; the 'show me' question while you're driving.")]
+    return f, page(f, "Show me, tell me trainer", "Show Me Tell Me Questions 2026: Free Trainer + All 21 Answers | DriveSQ Solihull",
+                   "Practise all 14 'tell me' and 7 'show me' driving test questions with a free flashcard trainer and test-day mock — answers in plain English, from DVSA's official list.",
+                   "show me tell me questions, show me tell me questions and answers, tell me questions driving test, show me tell me practice",
+                   ("Free trainer · Test day", '<span class="w">Show Me,</span> <span class="w w--red">Tell Me</span> <span class="w">Trainer.</span>', "all 21 official questions — flashcards and a test-day mock",
+                    [("bi-card-checklist", "14 tell me"), ("bi-hand-index", "7 show me"), ("bi-shuffle", "Test-day mock")],
+                    [("red", "#trainer", "bi-play-fill", "Start practising"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
 def main():
-    out = dict([best_month(), winter(), term_dates(), rules_2026(), caz(), j5a(), adi_pdi(), theory_centres(), taxi(), gifts()])
+    out = dict([best_month(), winter(), term_dates(), rules_2026(), caz(), j5a(), adi_pdi(), theory_centres(), taxi(), gifts(), pass_by_date(), show_me_tell_me()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
     sm = os.path.join(HERE, "sitemap-1.xml")

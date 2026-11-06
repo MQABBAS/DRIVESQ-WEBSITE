@@ -10522,7 +10522,7 @@ function renderWebBookings(){
   const el=document.getElementById('wbList');
   if(!el)return;
   const q=(document.getElementById('wbSearch')?.value||'').toLowerCase().trim();
-  const rows=q?_webBookingsData.filter(r=>(r.student_name||'').toLowerCase().includes(q)||(r.postcode||'').toLowerCase().includes(q)||(r.area||'').toLowerCase().includes(q)):_webBookingsData;
+  const rows=q?_webBookingsData.filter(r=>(r.student_name||'').toLowerCase().includes(q)||(r.postcode||'').toLowerCase().includes(q)||(r.area||'').toLowerCase().includes(q)||(r.student_phone||'').replace(/\s/g,'').includes(q.replace(/\s/g,''))||(r.notes||'').toLowerCase().includes(q)):_webBookingsData;
   if(!rows.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--txt4)"><i class="bi bi-check-circle-fill me-2" style="color:#4ade80"></i>No bookings in this category.</div>';return;}
   const now=new Date();
   el.innerHTML=rows.map(r=>{
@@ -13686,7 +13686,7 @@ function renderTheoryList(rows){
         <option value="rejected">Auto-declined / expired</option>
         <option value="all">All</option>
       </select>
-      <input id="wbSearch" class="dsq-inp" style="max-width:200px;font-size:.8rem" placeholder="🔍 Search name or postcode…" oninput="renderWebBookings()"/>
+      <input id="wbSearch" class="dsq-inp" style="max-width:200px;font-size:.8rem" placeholder="🔍 Name, postcode, phone or ref (DSQ-…)" oninput="renderWebBookings()"/>
       <button class="btn-p" style="font-size:.78rem;padding:5px 12px" onclick="loadWebBookings()"><i class="bi bi-arrow-repeat me-1"></i>Refresh</button>
     </div>
     <!-- List -->
