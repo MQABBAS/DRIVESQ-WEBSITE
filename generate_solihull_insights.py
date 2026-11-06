@@ -45,6 +45,19 @@ SRC = {
     "nh_full": ("National Highways — brand new road fully opened as M42 improvements scheme reaches final stages", "https://nationalhighways.co.uk/press/brand-new-road-fully-opened-as-m42-improvements-scheme-reaches-final-stages"),
     "gov_282": ("GOV.UK — £282m investment for M42 junction 6 near Birmingham", "https://www.gov.uk/government/news/282m-investment-for-m42-junction-6-near-birmingham"),
     "hc_mway": ("GOV.UK — The Highway Code: motorways (253 to 274)", "https://www.gov.uk/guidance/the-highway-code/motorways-253-to-274"),
+    "adi_gov": ("GOV.UK — become a driving instructor", "https://www.gov.uk/become-driving-instructor"),
+    "pdi_gov": ("GOV.UK — trainee driving instructor licence", "https://www.gov.uk/trainee-driving-instructor-licence"),
+    "adi_find": ("GOV.UK — find a driving instructor", "https://www.gov.uk/find-driving-schools-and-lessons"),
+    "pdi_collingwood": ("Collingwood — the PDI to ADI transition", "https://www.collingwood.co.uk/insight/pdi-to-adi-transition/"),
+    "th_close": ("GOV.UK — Solihull theory test centre to close", "https://www.gov.uk/government/news/solihull-theory-test-centre-to-close"),
+    "th_book": ("GOV.UK — book your theory test", "https://www.gov.uk/book-theory-test"),
+    "th_what": ("GOV.UK — theory test pass mark and result", "https://www.gov.uk/theory-test/pass-mark-and-result"),
+    "th_bham": ("Bill Plant — driving theory test centre Birmingham", "https://www.billplant.co.uk/blog/driving-theory-test-centre-birmingham-where-can-you-take-your-test/"),
+    "taxi_guide": ("Solihull Council — private hire and hackney carriage driver licence guide", "https://www.solihull.gov.uk/business/taxi-licensing/private-hire-and-hackney-carriage-driver-licence-guide"),
+    "taxi_policy": ("Solihull Council — Taxi and Private Hire Licensing Policy (2026)", "https://www.solihull.gov.uk/sites/default/files/2026-05/Taxi-Private-Hire-Licensing-Policy.pdf"),
+    "taxi_flow": ("Solihull Council — taxi driver application flowchart", "https://www.solihull.gov.uk/sites/default/files/migrated/licensing_taxidriver_flowchart.pdf"),
+    "fees": ("GOV.UK — driving test and theory test costs", "https://www.gov.uk/driving-test-cost"),
+    "prov": ("GOV.UK — apply for your first provisional driving licence", "https://www.gov.uk/apply-first-provisional-driving-licence"),
     "cancel": ("GOV.UK — driving test cancelled because of bad weather", "https://www.gov.uk/driving-test/test-cancelled-bad-weather"),
 }
 # Solihull Council (community schools) calendar 2026–27; academies may differ
@@ -308,8 +321,133 @@ def j5a():
                     [("red", "#what", "bi-info-circle", "What changed"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
 
 
+def adi_pdi():
+    f = "adi-vs-pdi-driving-instructor-solihull.html"
+    secs = [
+        '<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>Green</b><span>badge — fully qualified ADI</span></div><div><b>Pink</b><span>badge — trainee (PDI)</span></div><div><b>3</b><span>DVSA tests to become an ADI</span></div><div><b>6 months</b><span>a trainee licence lasts</span></div></div></div></section>',
+        L.sec("difference", "The difference", "ADI or PDI — what's the difference?", "Both are allowed by DVSA to give paid driving lessons. Here's what each badge means.",
+              L.cards([("bi-patch-check-fill", "ADI — Approved Driving Instructor", "Has passed all three DVSA qualifying tests (theory, own driving, ability to instruct) and is on the official register. Shows a green badge in the windscreen."),
+                       ("bi-person-badge", "PDI — trainee instructor", "Has passed the first two tests and done at least 40 hours of instructor training, then been granted a trainee licence. Shows a pink badge."),
+                       ("bi-clock-history", "Trainee licence", "Lasts six months and is tied to a sponsoring driving school, with supervision or extra training while they prepare for the final test."),
+                       ("bi-shield-check", "Both are checked", "Every ADI and PDI has a DVSA criminal record check before getting a badge."),
+                       ("bi-signpost-2", "Motorways", "At DriveSQ, motorway lessons are always with an ADI."),
+                       ("bi-eye", "Always check the badge", "Any paid instructor must display a valid badge in the windscreen. If you can't see one, ask.")])),
+        L.sec("choose", "Which to choose", "Is learning with a PDI a good idea?", "Lots of learners pass with trainee instructors — the right person matters more than the badge colour.",
+              '<ul style="font-size:.95rem"><li class="mb-2"><b>What a PDI brings:</b> very recent, detailed training, and they\'re observed and supported by a qualified instructor.</li>'
+              '<li class="mb-2"><b>What an ADI brings:</b> full qualification and more lessons taught — useful for test preparation and motorway lessons.</li>'
+              '<li class="mb-2"><b>Our promise:</b> DriveSQ\'s Solihull team includes ADIs and PDIs. We always tell you which you\'re booking, and you can ask for an ADI.</li>'
+              '<li class="mb-2"><b>Check any instructor:</b> ask to see the badge, check the name and expiry date, and use GOV.UK\'s instructor finder.</li></ul>'
+              '<p>Want to become one? <a href="driving-instructor-training-solihull.html">Instructor training in Solihull</a> · <a href="driving-instructor-jobs-solihull.html">instructor jobs</a></p>', alt=True),
+        sources(["adi_gov", "pdi_gov", "adi_find", "pdi_collingwood"]),
+    ]
+    faqs = [("What is the difference between an ADI and a PDI?", "An ADI (Approved Driving Instructor) has passed all three DVSA qualifying tests and displays a green badge. A PDI is a trainee who has passed the first two tests and holds a six-month trainee licence, shown by a pink badge."),
+            ("Can a PDI charge for driving lessons?", "Yes. A PDI with a valid trainee licence can give paid lessons while working with a sponsoring driving school."),
+            ("Can I choose an ADI in Solihull?", "Yes. DriveSQ tells you whether you're booking an ADI or a PDI, and you can ask for an ADI. Motorway lessons are always with an ADI.")]
+    return f, page(f, "ADI vs PDI", "ADI vs PDI Driving Instructor: Green vs Pink Badge Explained | DriveSQ Solihull",
+                   "ADI or PDI? What the green and pink driving instructor badges mean, how trainee licences work, and how to check any instructor — explained for Solihull learners.",
+                   "adi vs pdi, pink badge driving instructor, green badge driving instructor, trainee driving instructor solihull, approved driving instructor solihull",
+                   ("Instructors · Solihull", '<span class="w">ADI</span> <span class="w w--red">or</span> <span class="w">PDI?</span>', "green badge, pink badge — what it means for your lessons",
+                    [("bi-patch-check", "Green = ADI"), ("bi-person-badge", "Pink = trainee"), ("bi-eye", "How to check")],
+                    [("red", "#difference", "bi-info-circle", "The difference"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
+def theory_centres():
+    f = "theory-test-centre-near-solihull.html"
+    secs = [
+        '<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>£23</b><span>car theory test fee</span></div><div><b>43/50</b><span>multiple-choice pass mark</span></div><div><b>44/75</b><span>hazard perception pass mark</span></div><div><b>0</b><span>theory centres in Solihull itself</span></div></div></div></section>',
+        L.sec("where", "Where to sit it", "Where Solihull learners take the theory test", "Solihull's own theory test centre closed — DVSA merged it into its Birmingham and Coventry centres.",
+              L.cards([("bi-building", "Birmingham city centre", "The usual choice for most of Solihull. From Solihull, Olton or Shirley stations, trains run into Birmingham Moor Street and Snow Hill."),
+                       ("bi-building", "Coventry", "Can be handier from Balsall Common, Meriden, Berkswell and the east of the borough."),
+                       ("bi-building", "Sutton Coldfield", "Another option north of Birmingham — handy from Castle Bromwich and Chelmsley Wood if dates are better there."),
+                       ("bi-envelope-check", "Check the address", "Centres sometimes move. Always use the address in your booking confirmation email, not an old listing."),
+                       ("bi-p-circle", "Parking", "City-centre centres rarely have parking. Allow time and consider the train — and don't drive there yourself on a provisional licence without a supervisor."),
+                       ("bi-person-vcard", "Bring your licence", "Take your photocard provisional licence. Without it you can't sit the test and you lose your fee.")])),
+        L.sec("test", "The test", "What's in the car theory test", "Two parts on the same day, and you must pass both.",
+              '<ul style="font-size:.95rem"><li class="mb-2"><b>Multiple choice:</b> 50 questions in 57 minutes; pass mark 43.</li><li class="mb-2"><b>Hazard perception:</b> 14 video clips, 15 developing hazards; pass mark 44 out of 75.</li><li class="mb-2"><b>Fee:</b> £23. Book only on GOV.UK.</li><li class="mb-2"><b>Valid for:</b> two years — pass your practical within that time.</li><li class="mb-2"><b>Then:</b> book your practical test yourself (the 2026 rules) — <a href="driving-test-rule-changes-2026-solihull.html">what changed</a>.</li></ul>'
+              '<p>Revise free: the DriveSQ Student Portal has 700+ questions and 14 mock tests — <a href="student.html">open it</a> · <a href="solihull-theory-test-guide.html">Solihull theory test guide</a></p>', alt=True),
+        sources(["th_close", "th_book", "th_what", "th_bham", "fees"]),
+    ]
+    faqs = [("Is there a theory test centre in Solihull?", "No. Solihull's theory test centre closed and DVSA moved its tests to the Birmingham and Coventry centres. Sutton Coldfield is another option nearby."),
+            ("What is the pass mark for the theory test?", "43 out of 50 for the multiple-choice part and 44 out of 75 for hazard perception. You must pass both on the same day."),
+            ("How much is the theory test?", "£23 for a car theory test, booked on GOV.UK.")]
+    return f, page(f, "Theory test centres", "Theory Test Centre Near Solihull: Where to Sit It & What to Expect | DriveSQ",
+                   "Where Solihull learners take the driving theory test now Solihull's centre has closed — Birmingham, Coventry or Sutton Coldfield — plus fees, pass marks and how to get there.",
+                   "theory test centre solihull, theory test birmingham, nearest theory test centre solihull, theory test pass mark",
+                   ("Theory · Solihull", '<span class="w">Theory</span> <span class="w w--red">Test</span> <span class="w">Centres.</span>', "where Solihull learners sit the theory test — and what's in it",
+                    [("bi-building", "Birmingham · Coventry"), ("bi-check2-circle", "43/50 + 44/75"), ("bi-phone", "Free mock tests")],
+                    [("red", "#where", "bi-geo-alt", "Where to sit it"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
+def taxi():
+    f = "solihull-taxi-private-hire-driver-lessons.html"
+    secs = [
+        L.sec("steps", "Licensing", "Becoming a taxi or private hire driver in Solihull", "Solihull Council licenses hackney carriage and private hire drivers. Its guide and policy set the requirements — these are the main steps it lists.",
+              L.cards([("bi-heart-pulse", "Medical", "A medical certificate is part of the pre-application criteria."),
+                       ("bi-mortarboard", "Training course", "A Private Hire and Hackney Carriage training course that assesses your suitability."),
+                       ("bi-shield-check", "Safeguarding training", "Since 1 January 2024, no licence is granted until you've completed safeguarding awareness training and provided the certificate."),
+                       ("bi-search", "Checks", "The council must search the national NR3S register of refused and revoked licences, and you must declare all criminal convictions."),
+                       ("bi-file-earmark-text", "Read the policy", "Licence history, driving standards and any assessment are set out in the council's Taxi and Private Hire Licensing Policy — check it before you apply."),
+                       ("bi-envelope", "Ask the council", "Questions about your own case go to Solihull Council's licensing team.")])),
+        L.sec("lessons", "How we help", "Driving lessons for taxi and private hire applicants", "Passengers judge you on smooth, safe driving. We can help you get there.",
+              L.cards([("bi-arrow-repeat", "Refresher lessons", "Polish your driving to a professional standard — smooth braking, planning and positioning."),
+                       ("bi-signpost-split", "Local knowledge", "Airport, NEC, Resorts World, Touchwood and the stations — drop-off rules and busy junctions."),
+                       ("bi-journal-text", "Highway Code refresh", "Rules change. We cover the 2022 hierarchy of road users and other updates."),
+                       ("bi-sign-merge-right", "M42 and A45", "Motorway and dual-carriageway confidence for airport runs, with an ADI."),
+                       ("bi-globe", "Overseas licence holders", "Exchanging or converting a foreign licence? We help you meet the UK standard."),
+                       ("bi-calendar-check", "Flexible times", "Early, evening and weekend slots around shifts.")]) +
+              f'<p class="mt-3">Related: <a href="{SQS}refresher-driving-lessons-solihull.html">refresher lessons</a> · <a href="{SQS}driving-lessons-overseas-licence-solihull.html">overseas licence</a> · <a href="{SQS}birmingham-airport-roads-and-drop-off.html">airport roads &amp; drop-off</a> · <a href="m42-junction-5a-a4545-new-road-solihull.html">M42 J5A</a></p>', alt=True),
+        sources(["taxi_guide", "taxi_policy", "taxi_flow"]),
+    ]
+    faqs = [("Do I need training to be a taxi driver in Solihull?", "Yes. Solihull Council requires a Private Hire and Hackney Carriage training course and, since 1 January 2024, safeguarding awareness training before a licence is granted."),
+            ("Can DriveSQ help me prepare to be a private hire driver?", "Yes — refresher lessons to a professional standard, local route knowledge around the airport and NEC, and motorway practice with an ADI. The licence itself comes from Solihull Council."),
+            ("Where are Solihull's taxi licensing rules?", "In Solihull Council's private hire and hackney carriage driver licence guide and its Taxi and Private Hire Licensing Policy.")]
+    return f, page(f, "Taxi & private hire drivers", "Solihull Taxi & Private Hire Driver Licence: Steps + Driving Lessons | DriveSQ",
+                   "Becoming a taxi or private hire driver in Solihull: the council's medical, training, safeguarding and checks — and refresher driving lessons to a professional standard.",
+                   "solihull taxi licence, solihull private hire licence, taxi driver driving lessons solihull, private hire refresher lessons",
+                   ("Professional drivers · Solihull", '<span class="w">Taxi</span> <span class="w w--red">&amp; Private</span> <span class="w">Hire.</span>', "the council's steps — and lessons to a professional standard",
+                    [("bi-building", "Solihull Council rules"), ("bi-arrow-repeat", "Refresher lessons"), ("bi-airplane", "Airport & NEC")],
+                    [("red", "#steps", "bi-list-check", "The steps"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
+def gifts():
+    f = "driving-lesson-gift-vouchers-solihull.html"
+    tool = """<div class="sol-card reveal" style="padding:22px"><b style="display:block;margin-bottom:10px">Choose a gift</b>
+<div style="display:flex;gap:8px;flex-wrap:wrap" id="gvOpts"></div>
+<div class="sol-kpi mt-3"><div><b id="gvVal">£70</b><span id="gvDesc">One 2-hour lesson</span></div></div>
+<label class="mt-3" style="display:block;font-size:.85rem">Who's it for? (optional)<input id="gvFor" class="form-control" maxlength="40" placeholder="e.g. Amira, for her 17th"></label>
+<p class="mt-3"><a id="gvWa" class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="#"><i class="bi bi-whatsapp"></i>Request this voucher on WhatsApp</a></p>
+<p class="sol-note mb-0">We confirm payment and send the voucher. Lessons are booked once the learner has a provisional licence.</p></div>
+<script>(function(){var O=[[40,'Single 1-hour lesson'],[70,'One 2-hour lesson'],[140,'Two 2-hour lessons'],[350,'10-hour block']],sel=1,box=document.getElementById('gvOpts');
+O.forEach(function(o,i){var b=document.createElement('button');b.type='button';b.className='dsqx-btn dsqx-btn--ghost';b.textContent='£'+o[0];b.onclick=function(){sel=i;u();};box.appendChild(b);});
+function u(){var o=O[sel],w=document.getElementById('gvFor').value.trim();document.getElementById('gvVal').textContent='£'+o[0];document.getElementById('gvDesc').textContent=o[1];
+[].forEach.call(box.children,function(b,i){b.style.outline=i===sel?'2px solid #D10A11':'';});
+document.getElementById('gvWa').href='https://wa.me/447352932003?text='+encodeURIComponent("Hi DriveSQ! I'd like a £"+o[0]+" driving lesson gift voucher ("+o[1]+") for Solihull"+(w?" — for "+w:"")+".");}
+document.getElementById('gvFor').addEventListener('input',u);u();})();</script>"""
+    secs = [
+        L.sec("choose", "Gift vouchers", "Give driving lessons in Solihull", "For 17th birthdays, Christmas, exam results or a new job — a gift they'll actually use.", tool),
+        L.sec("ideas", "Make it a great gift", "What to give with it", "Small extras that help a new learner get going.",
+              L.cards([("bi-person-vcard", "Provisional licence", "£34 online from GOV.UK. They can apply from 15 years 9 months and start driving lessons at 17."),
+                       ("bi-journal-check", "Theory test", "£23 on GOV.UK. Every DriveSQ learner gets free theory practice in the Student Portal."),
+                       ("bi-phone", "Student Portal — free", "Lesson tracking, 700+ questions and 14 mock tests, included with lessons."),
+                       ("bi-sign-stop", "L plates", "Magnetic or stick-on L plates for practice in the family car."),
+                       ("bi-shield", "Learner insurance", "If they'll practise with family — see our learner insurance guide."),
+                       ("bi-calendar-heart", "Plan the test", "Our best-month guide helps plan towards a spring test.")]) +
+              '<p class="mt-3">More: <a href="solihull-learner-driver-insurance.html">learner insurance</a> · <a href="best-month-driving-test-solihull.html">best month for the test</a> · <a href="learner-driver-age-checker.html">when can they start?</a></p>', alt=True),
+        sources(["prov", "fees"]),
+    ]
+    faqs = [("Do you sell driving lesson gift vouchers in Solihull?", "Yes — £40 (1 hour), £70 (2 hours), £140 (two 2-hour lessons) or £350 (10 hours). Request one on WhatsApp; we confirm payment and send the voucher."),
+            ("Can I buy a voucher for someone who isn't 17 yet?", "Yes. They can apply for a provisional licence from 15 years 9 months and start lessons on or after their 17th birthday."),
+            ("Is it the same price for manual and automatic?", "Yes — DriveSQ charges the same for manual and automatic lessons in Solihull.")]
+    return f, page(f, "Gift vouchers", "Driving Lesson Gift Vouchers Solihull — 17th Birthday & Christmas | DriveSQ",
+                   "Driving lesson gift vouchers in Solihull from £40: 1 hour, 2 hours, two lessons or a 10-hour block, manual or automatic — perfect for 17th birthdays and Christmas.",
+                   "driving lesson gift voucher solihull, driving lessons gift, 17th birthday gift driving lessons, christmas driving lesson voucher",
+                   ("Gifts · Solihull", '<span class="w">Gift</span> <span class="w w--red">Driving</span> <span class="w">Lessons.</span>', "vouchers from £40 — 17th birthdays, Christmas and more",
+                    [("bi-gift", "From £40"), ("bi-gear", "Manual or automatic"), ("bi-phone", "Free Student Portal")],
+                    [("red", "#choose", "bi-gift", "Choose a voucher"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")]), secs, faqs)
+
+
 def main():
-    out = dict([best_month(), winter(), term_dates(), rules_2026(), caz(), j5a()])
+    out = dict([best_month(), winter(), term_dates(), rules_2026(), caz(), j5a(), adi_pdi(), theory_centres(), taxi(), gifts()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
     sm = os.path.join(HERE, "sitemap-1.xml")
