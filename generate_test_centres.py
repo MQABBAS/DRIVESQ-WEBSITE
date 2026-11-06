@@ -237,7 +237,7 @@ S.push({name:'Great Britain',color:'#111',dash:1,pts:D.trend.labels.map(function
                        ("bi-list-ol", "Top 10 faults", '<a href="top-driving-test-faults-solihull.html">What fails tests — and where in Solihull →</a>'),
                        ("bi-journal-check", "Theory pass rates", '<a href="theory-test-pass-rates-near-solihull.html">Birmingham, Coventry and more →</a>'),
                        ("bi-arrow-repeat", "Attempts", '<a href="driving-test-attempts-solihull.html">Pass rate by attempt and retake costs →</a>'),
-                       ("bi-calendar3", "By month", '<a href="driving-test-pass-rate-by-month-solihull.html">Each centre's best month →</a>')])),
+                       ("bi-calendar3", "By month", '<a href="driving-test-pass-rate-by-month-solihull.html">Each centre&#39;s best month →</a>')])),
         L.sec("choose", "Choosing a centre", "Does the test centre matter?", "",
               '<ul style="font-size:.95rem"><li class="mb-2"><b>Practise where you\'ll test.</b> Pass rates reflect who tests there as much as the roads — learners who know the local junctions do better.</li>'
               '<li class="mb-2"><b>Moving your test is limited.</b> Since June 2026 you can only move a booking to one of the three nearest centres — <a href="driving-test-rule-changes-2026-solihull.html">the 2026 rules</a>.</li>'
