@@ -92,12 +92,14 @@ def nav(active):
 
 def form(title, sub, options, button="Book Now"):
     opts = "".join(f"<option>{o}</option>" for o in options)
+    offer_html = f'''<div class="dsq-offer" style="display:flex;gap:10px;align-items:flex-start;background:rgba(209,10,17,.14);border:1px solid rgba(209,10,17,.45);border-radius:10px;padding:10px 12px;margin-bottom:16px;color:#f5f5f5;font-size:.85rem"><span style="font-size:1.2rem;line-height:1">🎉</span><span><b>{OFFER}</b> — choose it under lesson type. <span style="color:#bbb;font-size:.78rem">{OFFER_TERMS}</span></span></div>''' if any(str(o).startswith("New learner offer") for o in options) else ""
     st = "background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box"
     return f"""<!-- DRIVESQ-INLINE-BOOKING-V1 -->
 <section id="booking" style="padding:32px 16px;max-width:560px;margin:0 auto">
   <div style="background:linear-gradient(135deg,rgba(209,10,17,.08),rgba(209,10,17,.03));border:1px solid rgba(209,10,17,.2);border-radius:16px;padding:28px">
     <h3 style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#f0f0f0;margin-bottom:6px;display:flex;align-items:center;gap:8px"><i class="bi bi-calendar-check-fill" style="color:#D10A11"></i> {title}</h3>
-    <p style="color:#aaa;font-size:.85rem;margin-bottom:18px">{sub}</p>
+    <p style="color:#aaa;font-size:.85rem;margin-bottom:12px">{sub}</p>
+{offer_html}
     <form id="dsqInlineBookForm" style="display:flex;flex-direction:column;gap:10px">
       <input name="name" placeholder="Full name *" required autocomplete="name" style="{st}">
       <input name="phone" type="tel" placeholder="Phone number *" required autocomplete="tel" style="{st}">
@@ -144,11 +146,13 @@ def form(title, sub, options, button="Book Now"):
     </div>
   </div>
 </section>
-<script src="/booking-capture.js?v=20261108" defer></script>
+<script src="/booking-capture.js?v=20261109" defer></script>
 <!-- /DRIVESQ-INLINE-BOOKING-V1 -->"""
 
 
-LESSON_OPTS = ["Manual Lessons", "Automatic Lessons", "Intensive Course", "Pass Plus", "Theory Help"]
+LESSON_OPTS = ["New learner offer: 10 hours for £330", "Manual Lessons", "Automatic Lessons", "Intensive Course", "Pass Plus", "Theory Help"]
+OFFER = "New learners: your first 10 hours for £330"
+OFFER_TERMS = "For new DriveSQ learners in Solihull: your first 10-hour block, paid in advance, manual or automatic. Can't be combined with the NHS staff and student price (£320)."
 
 
 def crosslinks(exclude=None, n=10):
@@ -252,7 +256,7 @@ def school():
 <div class="col-md-3 reveal"><div class="tc"><div class="tc-ico"><i class="bi bi-3-circle"></i></div><div class="tc-t">Track every skill</div><p>23 skills in your Student Portal.</p></div></div>
 <div class="col-md-3 reveal"><div class="tc"><div class="tc-ico"><i class="bi bi-4-circle"></i></div><div class="tc-t">Test-route practice</div><p>Mock test on your centre's roads, then the real thing.</p></div></div></div></div></section>"""
     faqs = [("Is there a DriveSQ driving school in Solihull?", "Yes. DriveSQ now teaches across Solihull, together with its sister brand SQ Driving School."),
-            ("How much are DriveSQ lessons in Solihull?", "£35 an hour for manual or automatic, £70 for 2 hours and £350 for 10 hours (£320 for NHS staff and students)."),
+            ("How much are DriveSQ lessons in Solihull?", "£35 an hour for manual or automatic, £70 for 2 hours and £350 for 10 hours (£320 for NHS staff and students). New learners get their first 10 hours for £330."),
             ("Which areas of Solihull do you cover?", ", ".join(re.sub("&amp;", "&", n) for n, _ in AREAS) + "."),
             ("Do I get the DriveSQ Student Portal in Solihull?", "Yes — it's free with every lesson.")]
     src = [("ONS — Census 2021: Solihull", "https://www.ons.gov.uk/visualisations/censusareachanges/E08000029/"), ("passrates.uk — Birmingham (Shirley)", "https://passrates.uk/centres/birmingham-shirley")]

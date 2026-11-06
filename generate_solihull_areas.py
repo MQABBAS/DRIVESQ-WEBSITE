@@ -153,7 +153,7 @@ def area_page(a):
     secs.append(L.sec("local", "Local", f"Around {e(n)}", "Fuel, postcodes and guides for this area.", f'<div class="sol-grid">{local}</div>', alt=True))
     secs.append(L.sec("nearby", "Nearby", f"Areas near {e(n)}", "We teach across the whole borough — door-to-door pick-up everywhere.",
                       L.chips([(fname(b["slug"]), f"{b['name']} ({d:.1f} mi)") for d, b in near_areas] + [("driving-lessons-solihull.html", "All of Solihull")])))
-    faqs = [(f"How much are driving lessons in {n}?", "£35 an hour for lessons of 2 hours or more (£70 for 2 hours), £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students). Manual and automatic are the same price."),
+    faqs = [(f"How much are driving lessons in {n}?", "£35 an hour for lessons of 2 hours or more (£70 for 2 hours), £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students). Manual and automatic are the same price. New learners get their first 10 hours for £330."),
             (f"Which driving test centre is nearest to {n}?", f"{n1}, about {d1:.1f} miles away in a straight line ({addr1}). {pick}"),
             (f"Do you pick up from home in {n}?", f"Yes — door-to-door anywhere in {n}, including {a['near'][0]}."),
             (f"Is the Student Portal free for learners in {n}?", "Yes. Every DriveSQ learner gets the Student Portal free: progress tracking, 700+ theory questions, 14 mock tests, a readiness checklist and instructor messaging."),

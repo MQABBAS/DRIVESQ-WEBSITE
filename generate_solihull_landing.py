@@ -155,7 +155,7 @@ SCHOOLS = [
     ("My Four Wheels", "https://myfourwheels.co.uk/locations/solihull", "Says theory test prep software is included with every lesson.", "", "Theory software (per its page)"),
 ]
 FAQS = [
-    ("How much are driving lessons in Solihull with DriveSQ?", "£35 an hour for lessons of 2 hours or more (£70 for 2 hours), £40 for a single hour, and £350 for 10 hours — £320 for NHS staff and students. Manual and automatic are the same price."),
+    ("How much are driving lessons in Solihull with DriveSQ?", "£35 an hour for lessons of 2 hours or more (£70 for 2 hours), £40 for a single hour, and £350 for 10 hours — £320 for NHS staff and students. Manual and automatic are the same price. New learners get their first 10 hours for £330."),
     ("What is the DriveSQ Student Portal?", "A free web app for every DriveSQ learner: lesson tracking, progress charts, 700+ theory questions with 14 mock tests, a test readiness checklist, test-date countdowns and messaging with your instructor. It installs on your phone like an app."),
     ("Is the Student Portal really free?", "Yes — it's included with your lessons. There's nothing to download from an app store and no subscription."),
     ("Who are DriveSQ's instructors?", "Our team includes ADIs (DVSA Approved Driving Instructors, green badge) and PDIs (trainee instructors with a DVSA pink-badge licence). We tell you which you're booking, and motorway lessons are always with an ADI."),
@@ -181,6 +181,7 @@ def biz_schema(fname):
                            {"@type": "Offer", "name": "Single 1-hour driving lesson", "price": "40", "priceCurrency": "GBP"},
                            {"@type": "Offer", "name": "10-hour block", "price": "350", "priceCurrency": "GBP"},
                            {"@type": "Offer", "name": "10-hour block for NHS staff and students", "price": "320", "priceCurrency": "GBP"},
+                           {"@type": "Offer", "name": "New learner offer: first 10 hours", "price": "330", "priceCurrency": "GBP", "description": G.OFFER_TERMS},
                            {"@type": "Offer", "name": "DriveSQ Student Portal", "price": "0", "priceCurrency": "GBP", "itemOffered": {"@id": f"{SITE}/student.html#app"}}]}
 
 
@@ -261,10 +262,10 @@ HOW_SEC = sec("how", "How it works", "From postcode to pass — four steps", "",
                      ("bi-flag", "4 · Test day", "You book the test yourself on GOV.UK (the 2026 rules). We plan lessons around your date and the roads of your test centre.")]), alt=True)
 COST_TOOL = """<div class="sol-card reveal mt-4" style="padding:22px"><b style="display:block;margin-bottom:10px">Lesson cost planner</b>
 <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end"><label style="font-size:.85rem;flex:1 1 220px">Hours of lessons: <b id="cpH">20</b><input id="cpR" type="range" min="2" max="60" step="2" value="20" class="form-range"></label>
-<label style="font-size:.85rem"><input id="cpD" type="checkbox"> NHS staff or student</label></div>
+<label style="font-size:.85rem"><input id="cpN" type="checkbox" checked> New learner (first 10 hrs £330)</label><label style="font-size:.85rem"><input id="cpD" type="checkbox"> NHS staff or student</label></div>
 <div class="sol-kpi mt-2"><div><b id="cpT">£700</b><span>lessons total</span></div><div><b id="cpW">10 weeks</b><span>at 2 hours a week</span></div><div><b>£0</b><span>Student Portal</span></div></div>
-<p class="sol-note mt-2 mb-0">£35/hr (lessons of 2 hours+); NHS staff and students £320 per 10-hour block. DVSA test fees are extra — <a href="solihull-learner-driver-cost-calculator.html">full licence cost calculator</a>.</p></div>
-<script>(function(){var r=document.getElementById('cpR'),d=document.getElementById('cpD');function u(){var h=+r.value,t=d.checked?Math.floor(h/10)*320+(h%10)*35:h*35;document.getElementById('cpH').textContent=h;document.getElementById('cpT').textContent='£'+t.toLocaleString('en-GB');document.getElementById('cpW').textContent=Math.ceil(h/2)+' weeks';}r.addEventListener('input',u);d.addEventListener('change',u);u();})();</script>"""
+<p class="sol-note mt-2 mb-0">£35/hr (lessons of 2 hours+); new learners' first 10 hours £330; NHS staff and students £320 per 10-hour block (not combined). DVSA test fees are extra — <a href="solihull-learner-driver-cost-calculator.html">full licence cost calculator</a>.</p></div>
+<script>(function(){var r=document.getElementById('cpR'),d=document.getElementById('cpD'),n=document.getElementById('cpN');function u(){var h=+r.value,t=d.checked?Math.floor(h/10)*320+(h%10)*35:(n.checked&&h>=10?330+(h-10)*35:h*35);document.getElementById('cpH').textContent=h;document.getElementById('cpT').textContent='£'+t.toLocaleString('en-GB');document.getElementById('cpW').textContent=Math.ceil(h/2)+' weeks';}r.addEventListener('input',u);d.addEventListener('change',function(){if(d.checked)n.checked=false;u();});n.addEventListener('change',function(){if(n.checked)d.checked=false;u();});u();})();</script>"""
 LATEST_SEC = sec("latest", "New for 2026", "Latest Solihull driving knowledge", "Researched, sourced guides you won't find on other Solihull driving school sites.",
                  cards([("bi-patch-check", "2026 test booking rules", '<a href="driving-test-rule-changes-2026-solihull.html">Two changes per booking, learners book their own test, nearest-three-centres moves — what it means at Shirley.</a>'),
                         ("bi-calendar-heart", "Best month for your test", '<a href="best-month-driving-test-solihull.html">Pass rates by month with Solihull daylight, weather and school holidays.</a>'),
@@ -276,7 +277,7 @@ LATEST_SEC = sec("latest", "New for 2026", "Latest Solihull driving knowledge", 
 
 WHY_CARDS = [("bi-phone", "Its own Student Portal", "Built and run by DriveSQ: lesson tracking, progress charts, 700+ theory questions, 14 mock tests, a readiness checklist and instructor messaging — free with every lesson."),
              ("bi-bar-chart", "Official test centre data", '<a href="solihull-driving-test-centres-data.html">DVSA figures for all 7 centres</a> — pass rates by age, month and first attempt, and waiting times. No made-up pass-rate claims.'),
-             ("bi-tag", "No intro-price catch", "£35/hr for 2 hours or more, manual or automatic. Your first lesson costs the same as every other — £70 for 2 hours."),
+             ("bi-tag", "Simple, honest prices", "£35/hr for 2 hours or more, manual or automatic, with no paid assessment lesson. New learners get their first 10 hours for £330."),
              ("bi-tools", "Free tools for every learner", '<a href="solihull-pass-by-date-planner.html">Pass-by-date planner</a>, <a href="show-me-tell-me-questions-trainer.html">show me tell me trainer</a>, postcode checker, cost and readiness tools.'),
              ("bi-map", f"{len(SQP)}+ local guides", "Every Solihull area, postcode sector, road and test centre, via SQ Driving School."),
              ("bi-receipt", "Booking you can track", "Instant postcode check, a booking reference, and a real person who replies — plus WhatsApp if you prefer.")]
@@ -304,7 +305,7 @@ def landing():
         sec("prices", "Prices", "Simple Solihull prices — manual and automatic the same",
             "No booking fees, no fuel surcharge and no automatic premium.",
             cards([("bi-clock", "£35 an hour", "For lessons of 2 hours or more — £70 for a 2-hour lesson."), ("bi-1-circle", "£40 single hour", "If you only want one hour."),
-                   ("bi-box-seam", "£350 for 10 hours", "Block booking."), ("bi-heart-pulse", "£320 for 10 hours", "For NHS staff and students."),
+                   ("bi-stars", "£330 for your first 10 hours", "New learner offer — " + G.OFFER_TERMS), ("bi-box-seam", "£350 for 10 hours", "Block booking."), ("bi-heart-pulse", "£320 for 10 hours", "For NHS staff and students."),
                    ("bi-person-badge", "ADIs and PDIs", "Our team includes ADIs (green badge) and PDIs (trainee, pink badge) — we tell you which you're booking; motorway lessons are always with an ADI."),
                    ("bi-gift", "Student Portal included", "£0 — free with every lesson.")]) + COST_TOOL + f'<p class="sol-note mt-3">Full breakdown: <a href="{SQS}driving-lesson-prices-solihull.html">Solihull prices</a> · <a href="solihull-learner-driver-cost-calculator.html">total licence cost calculator</a></p>', alt=True),
         sec("test-centres", "Driving test centres", "The 7 test centres Solihull learners use",
@@ -339,15 +340,15 @@ def compare_page():
     secs = [
         sec("method", "How we checked", f"Solihull driving schools compared ({CHECKED})",
             "We searched \"driving lessons Solihull\" and read the Solihull page (or homepage) of each school in the results. We only list what each page says — prices and offers change, so check with each school before booking.",
-            f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>School</th><th>Price shown</th><th>What its page says</th><th>Own student portal</th></tr></thead><tbody><tr><td><b>DriveSQ</b></td><td>£35/hr (2 hrs+), £40 single, 10 hrs £350 (£320 NHS/students)</td><td>Manual &amp; automatic same price; ADIs &amp; PDIs; free tools; {len(SQP)}+ local guides via SQ Driving School</td><td class="sol-yes">Yes — free Student Portal</td></tr>{school_rows()}</tbody></table></div>'),
+            f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>School</th><th>Price shown</th><th>What its page says</th><th>Own student portal</th></tr></thead><tbody><tr><td><b>DriveSQ</b></td><td>£35/hr (2 hrs+), £40 single, 10 hrs £350 (£320 NHS/students) · new learners&#39; first 10 hrs £330</td><td>Manual &amp; automatic same price; ADIs &amp; PDIs; free tools; {len(SQP)}+ local guides via SQ Driving School</td><td class="sol-yes">Yes — free Student Portal</td></tr>{school_rows()}</tbody></table></div>'),
         sec("prices", "Prices in context", "What lessons cost in Solihull — and what the totals look like",
             f"Hourly prices on the pages we checked mostly sit between £34 and £37. The bigger differences are in introductory offers, paid assessment lessons and intensive-course totals.",
-            '<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Hours of lessons</th><th>DriveSQ</th><th>DriveSQ — NHS staff &amp; students</th></tr></thead><tbody>'
-            + "".join(f"<tr><td>{h} hours</td><td>£{h * 35:,}</td><td>£{h // 10 * 320 + h % 10 * 35:,}</td></tr>" for h in (10, 20, 30, 40)) +
+            '<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Hours of lessons</th><th>DriveSQ — new learner</th><th>DriveSQ standard</th><th>DriveSQ — NHS staff &amp; students</th></tr></thead><tbody>'
+            + "".join(f"<tr><td>{h} hours</td><td><b>£{330 + (h - 10) * 35:,}</b></td><td>£{h * 35:,}</td><td>£{h // 10 * 320 + h % 10 * 35:,}</td></tr>" for h in (10, 20, 30, 40)) +
             '</tbody></table></div>'
-            + cards([("bi-tag", "Introductory offers", "Some schools discount the first lessons (for example first three lessons £60, or a £15 first lesson). Ask what every lesson after that costs."),
+            + cards([("bi-tag", "Introductory offers", "Some schools discount the first lessons (for example first three lessons £60, or a £15 first lesson). Ask what every lesson after that costs. DriveSQ's offer is on the block, not a teaser: new learners get their first 10 hours for £330, then £35/hr."),
                      ("bi-clipboard", "Paid assessments", "Some schools charge for an assessment lesson before a course (£64–£76 on the pages we checked). At DriveSQ the first lesson is priced like any other: £70 for 2 hours."),
-                     ("bi-lightning-charge", "Intensive courses", "Published 40-hour intensive courses start from £1,825, often including the test fee. 40 hours with DriveSQ at the standard rate is £1,400, with the £62 test fee extra and the test booked by you on GOV.UK."),
+                     ("bi-lightning-charge", "Intensive courses", "Published 40-hour intensive courses start from £1,825, often including the test fee. 40 hours with DriveSQ is £1,380 for a new learner (£1,400 standard), with the £62 test fee extra and the test booked by you on GOV.UK."),
                      ("bi-graph-up", "Pass-rate claims", "Some schools publish their own first-time pass-rate claims, which can't be checked. Every DriveSQ test centre figure comes from DVSA's official data — <a href=\"solihull-driving-test-centres-data.html\">see it here</a>.")])
             + '<p class="sol-note mt-2">Competitor figures are what each page showed when we checked; DVSA test fees are £62 on weekdays and £75 evenings, weekends and bank holidays.</p>', alt=True),
         sec("what-to-ask", "Choosing a school", "Six questions to ask any Solihull driving school", "Whoever you choose, these answers tell you more than a headline price.",

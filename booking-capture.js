@@ -34,7 +34,7 @@
     if (field && field.focus) { try { field.focus(); } catch (e) {} }
     setTimeout(function () { if (d.parentNode) d.remove(); }, 9000);
   }
-  function gearbox(service, extra) { return /auto/i.test(service + ' ' + (extra || '')) ? 'Automatic' : 'Manual'; }
+  function gearbox(service, extra) { var t = service + ' ' + (extra || ''); return /auto/i.test(t) ? 'Automatic' : /manual/i.test(t) ? 'Manual' : /offer|theory/i.test(service || '') ? 'Not stated — ask' : 'Manual'; }
   function pageLabel() {
     var h1 = document.querySelector('h1');
     var main = h1 && h1.querySelector('.dsqx-pft');
@@ -60,7 +60,7 @@
       d.pickup ? 'Pick-up: ' + d.pickup : '',
       d.notes ? 'Notes: ' + d.notes : ''
     ].filter(Boolean).join('\n');
-    var full = { student_name: d.name || null, student_phone: d.phone || null, postcode: d.postcode || null, lesson_type: d.gearbox, notes: notes, status: 'waiting', created_at: new Date().toISOString() };
+    var full = { student_name: d.name || null, student_phone: d.phone || null, postcode: d.postcode || null, lesson_type: /^(Manual|Automatic)$/.test(d.gearbox) ? d.gearbox : null, notes: notes, status: 'waiting', created_at: new Date().toISOString() };
     var base = { student_name: full.student_name, student_phone: full.student_phone, notes: notes, status: 'waiting' };
     var tries = [full,
       Object.assign({}, base, { postcode: full.postcode, lesson_type: full.lesson_type }),

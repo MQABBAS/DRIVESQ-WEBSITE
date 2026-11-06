@@ -205,7 +205,7 @@ document.getElementById('cc-go').addEventListener('click',function(){{
     body += section("Where the money goes", "The fixed costs <span class=\"tr\">everyone pays</span>", f"""<div class="dsq-tw"><table class="dsq-tbl"><thead><tr><th>Item</th><th>Cost</th><th>Paid to</th></tr></thead><tbody>
 <tr><td>Provisional licence (online)</td><td>£{FEES['prov']}</td><td>DVLA</td></tr><tr><td>Theory test</td><td>£{FEES['theory']}</td><td>DVSA</td></tr>
 <tr><td>Practical test — weekday</td><td>£{FEES['prac']}</td><td>DVSA</td></tr><tr><td>Practical test — evening, weekend, bank holiday</td><td>£{FEES['prac_eve']}</td><td>DVSA</td></tr>
-<tr><td>Lessons</td><td>£35/hr · £40 single hour · £350 per 10 hrs (£320 NHS/students)</td><td>DriveSQ / SQ Driving School</td></tr></tbody></table></div>
+<tr><td>Lessons</td><td>£35/hr · £40 single hour · £350 per 10 hrs (£320 NHS/students; new learners' first 10 hrs £330)</td><td>DriveSQ / SQ Driving School</td></tr></tbody></table></div>
 <p><b>Biggest saving:</b> passing first time. A retake costs another test fee plus the lessons in between — the readiness check and a mock test before your real test are the cheapest insurance.</p>""", alt=True)
     body += section("Prices in detail", "More on <span class=\"tr\">prices</span>", sq_cards([
         ("driving-lesson-prices-solihull.html", "Driving lesson prices in Solihull", "£35/hr, no booking fee — and how Solihull compares."),
@@ -453,7 +453,7 @@ def theory():
                 "There's no theory test centre in Solihull any more. Where Solihull learners take it, the pass marks, the £23 fee and a 4-week revision plan.",
                 "theory test solihull, nearest theory test centre solihull, theory test birmingham, theory test pass mark",
                 "Taking your theory test from Solihull", "Where to take it, what's in it, and a 4-week plan to pass first time.",
-                ["£23", "43/50 + 44/75", "Valid 2 years"], body, faqs, ["solihull_closed", "theory", "book_theory"], opts=["Theory Help", "Manual Lessons", "Automatic Lessons"])
+                ["£23", "43/50 + 44/75", "Valid 2 years"], body, faqs, ["solihull_closed", "theory", "book_theory"], opts=["New learner offer: 10 hours for £330", "Theory Help", "Manual Lessons", "Automatic Lessons"])
 
 
 def instructor():
@@ -522,7 +522,7 @@ def hub():
                    f"<h3 class=\"mt-4\">All {len(sqp)} SQ Driving School Solihull pages</h3><p>SQ Driving School is part of DriveSQ — same instructors, prices and Student Portal.</p>" + groups)
     faqs = [("Are DriveSQ and SQ Driving School the same?", "SQ Driving School is a brand owned and managed by DriveSQ — the same instructors, prices and Student Portal."),
             ("Do you teach everywhere in Solihull?", "Across the borough — Shirley, Solihull town centre, Olton, Knowle, Dorridge, Chelmsley Wood, Castle Bromwich and more."),
-            ("How much are lessons in Solihull?", "£35/hr manual or automatic, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students).")]
+            ("How much are lessons in Solihull?", "£35/hr manual or automatic, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students). New learners get their first 10 hours for £330.")]
     return page(f, "DriveSQ Solihull: Every Tool & Guide | Driving Lessons Solihull",
                 "Every DriveSQ and SQ Driving School page for Solihull: test-centre finder, cost calculator, daylight planner, readiness check, lesson plan and local guides.",
                 "drivesq solihull, driving lessons solihull, solihull learner driver tools", "Everything for learners in Solihull",

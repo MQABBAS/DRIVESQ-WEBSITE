@@ -193,7 +193,7 @@ def sector_page(code):
     faqs = [(f"Do you give driving lessons in {code}?", f"Yes — door-to-door pick-up anywhere in {code} ({sec['areas']}), manual or automatic, from £35 an hour."),
             (f"Which test centre is nearest to {code}?", f"{n1} ({addr1}), about {d1:.1f} miles away in a straight line. {pick}"),
             (f"Do you cover {eg}?", f"Yes — {eg} is in {code}, and we cover every postcode in it."),
-            (f"How much are driving lessons in {code}?", f"The same anywhere in {code}: £35 an hour for lessons of 2 hours or more, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students)."),
+            (f"How much are driving lessons in {code}?", f"The same anywhere in {code}: £35 an hour for lessons of 2 hours or more, £40 for a single hour, £350 for 10 hours (£320 for NHS staff and students). New learners get their first 10 hours for £330."),
             (f"Who will teach me in {code}?", "An ADI (green badge) or a PDI (trainee, pink badge) — we tell you which before you book. Motorway lessons are always with an ADI.")]
     secs += [L.faq_html(faqs), L.booking()]
     hero = L.hero(f"{e(DNAME.get(district, district))} · {e(code)}", f'<span class="w">Driving</span> <span class="w w--red">Lessons</span> <span class="w">{e(code)}.</span>',
