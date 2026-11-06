@@ -16,7 +16,7 @@ SITE, SQ = G.SITE, G.SQ
 SQS = SQ + "/solihull/"
 IDX = open(os.path.join(HERE, "index.html"), encoding="utf-8").read()
 SQP = json.load(open(os.path.join(HERE, "solihull-sq-pages.json"), encoding="utf-8"))
-CHECKED = "27 October 2026"
+CHECKED = "8 November 2026"
 WA = "https://wa.me/447352932003"
 LANDING = "driving-lessons-solihull.html"
 COMPARE = "solihull-driving-schools-compared.html"
@@ -134,20 +134,25 @@ INSTRUCTOR_FEATURES = [
     ("bi-bell", "Push notifications", "New students, messages and lesson confirmations — even with the app closed."),
 ]
 CENTRES = [(n, a, r, s) for n, a, r, t, _, s in G.CENTRES]
-# what each school's own Solihull page or site shows — checked 27 October 2026 (search results and public pages)
+# what each school's own Solihull page or site shows — checked 8 November 2026 (search results and public pages)
+# (name, url, what the page says, price shown, learner app/portal)
 SCHOOLS = [
-    ("driveJohnson's", "https://www.drivejohnsons.co.uk/learners/areas-we-cover/solihull/", "National school; automatic lessons; says instructors are observed by a company trainer at least twice a year.", ""),
-    ("BSM", "https://www.bsm.co.uk/locations/solihull", "National school; lists local instructors by name; manual lessons; weekday and weekend availability.", ""),
-    ("Bill Plant", "https://www.billplant.co.uk/driving-lessons/where-to-find-us/solihull/", "National school; automatic lessons advertised from £34/hr nationally; block-booking discounts.", "From £34/hr (automatic, national page)"),
-    ("Acclaim Driving School", "https://www.acclaimdriving.com/solihull-driving-lessons", "Weekly lessons or intensive courses; first two hours as an introduction.", "From £35"),
-    ("RSM Driving School", "https://rsm-drivingschool.co.uk/driving-lessons-solihull/", "Manual and automatic; refresher and intensive courses.", "First three lessons £60"),
-    ("Result Driving School", "https://resultdrivingschool.co.uk/driving-lessons/solihull/", "One-to-one lessons; daytime, evening and weekend; male or female instructor.", ""),
-    ("Style Driving", "https://styledriving.co.uk/", "Says it has over 30 years' experience.", "First lesson £15"),
-    ("Solihull Driver Trainers", "https://www.solihull-driving-school.uk/learning-to-drive-with-solihull-driving-school/automatic-driving-lessons.html", "Automatic lessons in dual-controlled cars.", ""),
-    ("The A Team Driving School", "https://theateamdrivingschool.co.uk/", "Covers Solihull, Shirley, Knowle and Dorridge.", ""),
-    ("Jon's LDC driving school", "https://www.lessonswithjon.co.uk/", "Independent ADI; manual only.", "5 hours £150"),
-    ("Tim's LDC driving school", "https://www.passwithtim.co.uk/", "Independent ADI; manual only.", "5 hours £200"),
-    ("My Four Wheels", "https://myfourwheels.co.uk/locations/solihull", "Says theory test prep software is included with every lesson.", ""),
+    ("driveJohnson's", "https://www.drivejohnsons.co.uk/learners/areas-we-cover/solihull/", "National school; manual and automatic; male and female instructors; says it refunds you if you don't like your first one-hour lesson.", "", "None advertised"),
+    ("RED Driving School", "https://www.reddrivingschool.com/where-to-find-us/birmingham/solihull/", "National school; DVSA-registered instructors; offer of 2 free hours when new learners book 12.", "2 free hours with 12 (new learners)", "Yes — 'Learn to Drive with RED' app (progress log, theory quizzes)"),
+    ("BSM", "https://www.bsm.co.uk/locations/solihull", "National school; lists local instructors by name; weekday, evening and weekend availability.", "", "None advertised"),
+    ("Bill Plant", "https://www.billplant.co.uk/driving-lessons/where-to-find-us/solihull/", "National school; automatic lessons advertised from £34/hr nationally; block-booking discounts.", "From £34/hr (automatic, national page)", "None advertised"),
+    ("SmartLearner", "https://smartlearner.com/solihull", "Manual £36/hr, automatic £37/hr before fees; a 1.5-hour introduction lesson and an automatic beginner package.", "£36–£37/hr", "Appears linked to the DiaryIt app"),
+    ("RSM Driving School", "https://rsm-drivingschool.co.uk/driving-lessons-solihull/", "£35/hr manual or automatic; intensive courses; shows a 4.9 rating from 3,610 reviews on its own page.", "£35/hr · first three lessons £60", "None advertised"),
+    ("Style Driving", "https://styledriving.co.uk/", "Says it has over 30 years' experience; covers Shirley, Knowle and Dorridge.", "£35/hr · 10 lessons £330 · first lesson £15", "None advertised"),
+    ("Solihull Driver Trainers", "https://www.solihull-driving-school.uk/important-information/solihull-driving-school-prices.html", "Paid assessment lesson (£64 manual, £72 automatic); 9–10 day automatic intensive courses.", "Intensive £2,492–£2,762 incl. test fee", "None advertised"),
+    ("APass4U", "https://www.apass4u.co.uk/intensive-driving-courses/west-midlands/solihull/", "Intensive course provider; 2-hour assessment £74 (£76 automatic).", "40 hours from £1,825", "None advertised"),
+    ("Just Pass", "https://justpass.co.uk/driving-lessons-solihull/", "Standard and intensive courses, plus Pass Plus.", "", "None advertised"),
+    ("Acclaim Driving School", "https://www.acclaimdriving.com/solihull-driving-lessons", "Weekly lessons or intensive courses; first two hours as an introduction.", "From £35", "None advertised"),
+    ("Result Driving School", "https://resultdrivingschool.co.uk/driving-lessons/solihull/", "One-to-one lessons; daytime, evening and weekend; male or female instructor.", "", "None advertised"),
+    ("The A Team Driving School", "https://theateamdrivingschool.co.uk/", "Covers Solihull, Shirley, Knowle and Dorridge.", "", "None advertised"),
+    ("Jon's LDC driving school", "https://www.lessonswithjon.co.uk/", "Independent ADI; manual only.", "5 hours £150", "None advertised"),
+    ("Tim's LDC driving school", "https://www.passwithtim.co.uk/", "Independent ADI; manual only.", "5 hours £200", "None advertised"),
+    ("My Four Wheels", "https://myfourwheels.co.uk/locations/solihull", "Says theory test prep software is included with every lesson.", "", "Theory software (per its page)"),
 ]
 FAQS = [
     ("How much are driving lessons in Solihull with DriveSQ?", "£35 an hour for lessons of 2 hours or more (£70 for 2 hours), £40 for a single hour, and £350 for 10 hours — £320 for NHS staff and students. Manual and automatic are the same price."),
@@ -204,7 +209,7 @@ def faq_html(faqs):
 
 
 def school_rows():
-    return "".join(f'<tr><td><a href="{u}" target="_blank" rel="nofollow noopener">{e(n)}</a></td><td>{e(p) or "Not shown on the page we checked"}</td><td>{e(d)}</td><td>{"Theory software (per its page)" if "theory" in d.lower() else "None advertised"}</td></tr>' for n, u, d, p in SCHOOLS)
+    return "".join(f'<tr><td><a href="{u}" target="_blank" rel="nofollow noopener">{e(n)}</a></td><td>{e(p) or "Not shown on the page we checked"}</td><td>{e(d)}</td><td>{e(app)}</td></tr>' for n, u, d, p, app in SCHOOLS)
 
 
 def sq_group(cat):
@@ -269,6 +274,14 @@ LATEST_SEC = sec("latest", "New for 2026", "Latest Solihull driving knowledge", 
                         ("bi-sign-merge-right", "M42 J5A & A4545", '<a href="m42-junction-5a-a4545-new-road-solihull.html">Solihull&#39;s newest junction and link road, explained for learners.</a>')]))
 
 
+WHY_CARDS = [("bi-phone", "Its own Student Portal", "Built and run by DriveSQ: lesson tracking, progress charts, 700+ theory questions, 14 mock tests, a readiness checklist and instructor messaging — free with every lesson."),
+             ("bi-bar-chart", "Official test centre data", '<a href="solihull-driving-test-centres-data.html">DVSA figures for all 7 centres</a> — pass rates by age, month and first attempt, and waiting times. No made-up pass-rate claims.'),
+             ("bi-tag", "No intro-price catch", "£35/hr for 2 hours or more, manual or automatic. Your first lesson costs the same as every other — £70 for 2 hours."),
+             ("bi-tools", "Free tools for every learner", '<a href="solihull-pass-by-date-planner.html">Pass-by-date planner</a>, <a href="show-me-tell-me-questions-trainer.html">show me tell me trainer</a>, postcode checker, cost and readiness tools.'),
+             ("bi-map", f"{len(SQP)}+ local guides", "Every Solihull area, postcode sector, road and test centre, via SQ Driving School."),
+             ("bi-receipt", "Booking you can track", "Instant postcode check, a booking reference, and a real person who replies — plus WhatsApp if you prefer.")]
+
+
 def landing():
     portal = PORTAL.replace("Free with every DriveSQ lesson", "Free with every Solihull lesson").replace(
         "with a DVSA-approved instructor", "with an ADI or PDI instructor")
@@ -282,8 +295,9 @@ def landing():
             "Most driving schools give you lessons. DriveSQ gives you lessons plus your own learning app, built and run by us — not a third-party theory app with a referral code.",
             cards(STUDENT_FEATURES) + f'<div class="dsqx-ctas mt-4"><a class="dsqx-btn dsqx-btn--red" href="student.html"><i class="bi bi-mortarboard-fill"></i>Open the Student Portal</a><a class="dsqx-btn dsqx-btn--ghost" href="{SQS}drivesq-student-portal-solihull.html"><i class="bi bi-info-circle"></i>Student Portal guide</a></div>'),
         sec("compare", "Solihull driving schools compared", "What other Solihull schools publish — and what they don't",
-            f"We read the Solihull pages of {len(SCHOOLS)} driving schools that rank for \"driving lessons Solihull\". None advertised its own free student portal combining lesson tracking, progress charts, a 700+ question theory bank and instructor messaging. Checked {CHECKED}; details can change — follow the links to check.",
+            f"We read the Solihull pages of {len(SCHOOLS)} driving schools that rank for \"driving lessons Solihull\". Two national schools advertise learner apps — RED (\"Learn to Drive with RED\") and SmartLearner (DiaryIt). DriveSQ's Student Portal is built and run by DriveSQ, free with every lesson, and combines lesson tracking, progress charts, 700+ theory questions, 14 mock tests, a readiness checklist and instructor messaging. Checked {CHECKED}; details change — follow the links to check.",
             f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>School</th><th>Price shown</th><th>What its page says</th><th>Own student portal</th></tr></thead><tbody><tr><td><b>DriveSQ</b></td><td>£35/hr (2 hrs+), £40 single, 10 hrs £350</td><td>Manual &amp; automatic same price; ADIs &amp; PDIs; free tools and {len(SQP)}+ local guides</td><td class="sol-yes">Yes — free Student Portal</td></tr>{school_rows()}</tbody></table></div><p class="sol-note mt-2">National theory apps (such as Driving Test Success or Theory Test Pro) are used by many instructors; the comparison is about each school offering its own portal. <a href="{COMPARE}">Full comparison and method →</a></p>', alt=True),
+        sec("why", "Why DriveSQ", "What you get with DriveSQ in Solihull", f"We compared {len(SCHOOLS)} Solihull driving schools' pages ({CHECKED}). These are the things you can check for yourself.", cards(WHY_CARDS) + f'<p class="mt-3"><a href="{COMPARE}">See the full comparison →</a></p>', alt=True),
         sec("instructor-portal", "DriveSQ Instructor Portal", "Instructors in Solihull: run your whole diary from one free portal",
             "ADIs and PDIs who teach with DriveSQ get the Instructor Portal free — and Solihull learners are matched to the postcodes you cover.",
             cards(INSTRUCTOR_FEATURES) + f'<div class="dsqx-ctas mt-4"><a class="dsqx-btn dsqx-btn--red" href="driving-instructor-jobs-solihull.html"><i class="bi bi-briefcase-fill"></i>Instructor jobs in Solihull</a><a class="dsqx-btn dsqx-btn--ghost" href="{SQS}drivesq-instructor-portal-solihull.html"><i class="bi bi-person-badge"></i>Instructor Portal guide</a><a class="dsqx-btn dsqx-btn--ghost" href="driving-instructor-training-solihull.html"><i class="bi bi-mortarboard"></i>Become an instructor</a></div>'),
@@ -326,6 +340,16 @@ def compare_page():
         sec("method", "How we checked", f"Solihull driving schools compared ({CHECKED})",
             "We searched \"driving lessons Solihull\" and read the Solihull page (or homepage) of each school in the results. We only list what each page says — prices and offers change, so check with each school before booking.",
             f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>School</th><th>Price shown</th><th>What its page says</th><th>Own student portal</th></tr></thead><tbody><tr><td><b>DriveSQ</b></td><td>£35/hr (2 hrs+), £40 single, 10 hrs £350 (£320 NHS/students)</td><td>Manual &amp; automatic same price; ADIs &amp; PDIs; free tools; {len(SQP)}+ local guides via SQ Driving School</td><td class="sol-yes">Yes — free Student Portal</td></tr>{school_rows()}</tbody></table></div>'),
+        sec("prices", "Prices in context", "What lessons cost in Solihull — and what the totals look like",
+            f"Hourly prices on the pages we checked mostly sit between £34 and £37. The bigger differences are in introductory offers, paid assessment lessons and intensive-course totals.",
+            '<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Hours of lessons</th><th>DriveSQ</th><th>DriveSQ — NHS staff &amp; students</th></tr></thead><tbody>'
+            + "".join(f"<tr><td>{h} hours</td><td>£{h * 35:,}</td><td>£{h // 10 * 320 + h % 10 * 35:,}</td></tr>" for h in (10, 20, 30, 40)) +
+            '</tbody></table></div>'
+            + cards([("bi-tag", "Introductory offers", "Some schools discount the first lessons (for example first three lessons £60, or a £15 first lesson). Ask what every lesson after that costs."),
+                     ("bi-clipboard", "Paid assessments", "Some schools charge for an assessment lesson before a course (£64–£76 on the pages we checked). At DriveSQ the first lesson is priced like any other: £70 for 2 hours."),
+                     ("bi-lightning-charge", "Intensive courses", "Published 40-hour intensive courses start from £1,825, often including the test fee. 40 hours with DriveSQ at the standard rate is £1,400, with the £62 test fee extra and the test booked by you on GOV.UK."),
+                     ("bi-graph-up", "Pass-rate claims", "Some schools publish their own first-time pass-rate claims, which can't be checked. Every DriveSQ test centre figure comes from DVSA's official data — <a href=\"solihull-driving-test-centres-data.html\">see it here</a>.")])
+            + '<p class="sol-note mt-2">Competitor figures are what each page showed when we checked; DVSA test fees are £62 on weekdays and £75 evenings, weekends and bank holidays.</p>', alt=True),
         sec("what-to-ask", "Choosing a school", "Six questions to ask any Solihull driving school", "Whoever you choose, these answers tell you more than a headline price.",
             cards([("bi-cash-coin", "What's the real hourly price?", "Introductory offers end — ask what lesson 4 onwards costs, and whether automatic costs more."),
                    ("bi-person-badge", "ADI or PDI?", "Ask whether your instructor is a fully qualified ADI (green badge) or a trainee PDI (pink badge). Both are legal; you should be told."),
@@ -334,14 +358,11 @@ def compare_page():
                    ("bi-signpost", "Which test centre will we prepare for?", "Lessons should end on the roads of the centre you'll book."),
                    ("bi-arrow-repeat", "What if I need to change a lesson?", "Know the notice period before you book.")]), alt=True),
         sec("drivesq", "Why DriveSQ", "What's different about DriveSQ in Solihull", "The things you can check for yourself.",
-            cards([("bi-phone", "Its own Student Portal", "Lesson tracking, progress charts, 700+ theory questions, 14 mock tests, a readiness checklist and messaging — free."),
-                   ("bi-tools", "11 free tools", "Test centre finder, cost calculator, readiness check, lesson plan and more."),
-                   ("bi-map", f"{len(SQP)}+ local guides", "Every Solihull area, postcode sector, road and test centre, via SQ Driving School."),
-                   ("bi-gear", "Same price manual or auto", "£35/hr for 2 hours or more.")]) + f'<p class="mt-3"><a class="dsqx-btn dsqx-btn--red" href="{LANDING}"><i class="bi bi-arrow-right"></i>Driving lessons in Solihull</a></p>'),
+cards(WHY_CARDS) + f'<p class="mt-3"><a class="dsqx-btn dsqx-btn--red" href="{LANDING}"><i class="bi bi-arrow-right"></i>Driving lessons in Solihull</a></p>'),
         booking(),
     ]
-    faqs = [("Which driving schools teach in Solihull?", f"National schools such as driveJohnson's, BSM and Bill Plant, and local schools including Acclaim, RSM, Result, Style Driving, Solihull Driver Trainers, The A Team and independent LDC instructors — plus DriveSQ. See the table for what each page says (checked {CHECKED})."),
-            ("Do other Solihull driving schools have a student app?", "Many instructors use national theory apps, and My Four Wheels says it includes theory software. In our check, none advertised its own portal combining lesson tracking, progress charts, a theory bank and messaging like the DriveSQ Student Portal.")]
+    faqs = [("Which driving schools teach in Solihull?", f"National schools such as driveJohnson's, RED, BSM, Bill Plant and SmartLearner, intensive-course providers such as APass4U, and local schools including Acclaim, RSM, Result, Style Driving, Solihull Driver Trainers, Just Pass, The A Team and independent LDC instructors — plus DriveSQ. See the table for what each page says (checked {CHECKED})."),
+            ("Do other Solihull driving schools have a student app?", "Some do: RED has its 'Learn to Drive with RED' app with a progress log and theory quizzes, SmartLearner appears to use the DiaryIt app, and My Four Wheels says it includes theory software. DriveSQ's Student Portal is free with every lesson and combines lesson tracking, progress charts, 700+ theory questions, 14 mock tests, a readiness checklist and instructor messaging.")]
     hero_html = hero(f"Checked {CHECKED}", '<span class="w">Solihull</span> <span class="w w--red">Driving</span> <span class="w">Schools.</span>', "compared honestly — prices, offers and student portals",
                      [("bi-search", f"{len(SCHOOLS) + 1} schools checked"), ("bi-link-45deg", "Every claim linked"), ("bi-phone", "Who has a student portal?")],
                      [("red", "#method", "bi-table", "See the comparison"), ("ghost", LANDING, "bi-geo-alt-fill", "Lessons in Solihull")])
