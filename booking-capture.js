@@ -213,6 +213,120 @@
 })();
 
 /**
+ * DriveSQ postcode coverage (v1)
+ * - Every booking form: as soon as a full postcode is typed, confirm we cover it (Solihull sector + nearest
+ *   test centre, or Greater Manchester) right under the postcode box.
+ * - Any [data-dsq-pc-quick] element becomes a "Check & book" bar: check the postcode, then jump to the
+ *   booking form with the postcode filled in.
+ * - Any link with data-dsq-book-pc="B90 4AA" does the same jump.
+ * Nothing is sent anywhere — the lookup uses /postcode-coverage.json in the browser.
+ */
+(function () {
+  if (window.__dsqCover) return;
+  window.__dsqCover = true;
+  var WA = '447352932003', data = null;
+  var GM = /^(M\d{1,2}|BL\d{1,2}|OL\d{1,2}|SK(?:[1-8]|1[0-6]|22)|WA1[45]|WN\d)$/;
+  function load() { if (!data) data = fetch('/postcode-coverage.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); return data; }
+  function norm(v) { var c = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(c) ? c.slice(0, -3) + ' ' + c.slice(-3) : ''; }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function mi(a, b, c, d) { var r = Math.PI / 180, x = Math.sin((c - a) * r / 2), y = Math.sin((d - b) * r / 2); return 2 * 3958.8 * Math.asin(Math.sqrt(x * x + Math.cos(a * r) * Math.cos(c * r) * y * y)); }
+  function lookup(v) {
+    var pc = norm(v);
+    if (!pc) return Promise.resolve(null);
+    var dist = pc.split(' ')[0], sec = dist + ' ' + pc.split(' ')[1].charAt(0);
+    return load().then(function (D) {
+      if (D && (D.sec[sec] || Object.prototype.hasOwnProperty.call(D.dist, dist))) {
+        var s = D.sec[sec], g = s ? [s.lat, s.lon] : null;
+        if (!g) { var ks = Object.keys(D.sec).filter(function (k) { return k.split(' ')[0] === dist; }); if (ks.length) g = [ks.reduce(function (t, k) { return t + D.sec[k].lat; }, 0) / ks.length, ks.reduce(function (t, k) { return t + D.sec[k].lon; }, 0) / ks.length]; }
+        var tc = g ? D.tc.map(function (t) { return { t: t, d: mi(g[0], g[1], t.lat, t.lon) }; }).sort(function (a, b) { return a.d - b.d; })[0] : null;
+        return { ok: true, pc: pc, kind: 'sol', sec: s ? sec : dist, area: s ? s.a : D.dist[dist], page: s ? s.f : '', tc: tc };
+      }
+      if (GM.test(dist)) return { ok: true, pc: pc, kind: 'gm', sec: dist };
+      return { ok: false, pc: pc, kind: 'other' };
+    });
+  }
+  function message(r) {
+    if (!r) return '';
+    if (r.kind === 'sol') return '✅ <b>We cover ' + esc(r.pc) + '</b>' + (r.area ? ' — ' + esc(r.area) : '') + '.' +
+      (r.tc ? ' Nearest test centre: ' + esc(r.tc.t.n.replace('Birmingham (', '').replace(')', '')) + ', ' + r.tc.d.toFixed(1) + ' mi' + (r.tc.t.r ? ' (' + r.tc.t.r + '% pass rate)' : '') + '.' : '') +
+      (r.page ? ' <a href="/' + r.page + '" style="color:inherit;text-decoration:underline">Your local guide</a>' : '');
+    if (r.kind === 'gm') return '✅ <b>We cover ' + esc(r.pc) + '</b> — Greater Manchester.';
+    return 'ℹ️ We\'ll check which instructor covers <b>' + esc(r.pc) + '</b> — send your request and we\'ll let you know, or <a href="https://wa.me/' + WA + '?text=' + encodeURIComponent('Hi DriveSQ! Do you cover ' + r.pc + '?') + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">ask on WhatsApp</a>.';
+  }
+  function bookForm() { return document.querySelector('#dsqInlineBookForm') || document.querySelector('form[action*="formspree.io"]:not(#joinForm)'); }
+  function goBook(pc) {
+    var f = bookForm(); if (!f) { location.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent("Hi DriveSQ! I'd like to book lessons. My postcode is " + pc + '.'); return; }
+    var el = f.querySelector('[name="postcode"]');
+    if (el && pc) { el.value = pc; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var nm = f.querySelector('[name="name"]');
+    setTimeout(function () { if (nm && !nm.value) { try { nm.focus({ preventScroll: true }); } catch (e) { nm.focus(); } } }, 700);
+  }
+  window.DSQCover = { lookup: lookup, message: message, goBook: goBook };
+
+  /* live check under the postcode box of every booking form */
+  function liveForm(f) {
+    var el = f.querySelector('[name="postcode"]');
+    if (!el || el.dataset.dsqCover) return;
+    el.dataset.dsqCover = '1';
+    var out = document.createElement('div');
+    out.className = 'dsq-pc-live'; out.setAttribute('aria-live', 'polite');
+    out.style.cssText = 'font-size:.8rem;line-height:1.45;margin:-2px 0 2px;display:none';
+    el.insertAdjacentElement('afterend', out);
+    var t = 0, last = '';
+    function check() {
+      var v = norm(el.value);
+      if (!v) { out.style.display = 'none'; last = ''; return; }
+      if (v === last) return; last = v;
+      lookup(v).then(function (r) {
+        if (!r || norm(el.value) !== r.pc) return;
+        out.innerHTML = message(r);
+        out.style.color = r.ok ? '#4ade80' : '#fbbf24';
+        out.style.display = 'block';
+      });
+    }
+    el.addEventListener('input', function () { clearTimeout(t); t = setTimeout(check, 250); });
+    el.addEventListener('blur', check);
+    if (el.value) check();
+  }
+
+  /* "Check & book" bar */
+  function quick(box) {
+    if (box.dataset.dsqReady) return;
+    box.dataset.dsqReady = '1';
+    box.innerHTML = '<form class="dsq-pcq-form" novalidate style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;max-width:460px">' +
+      '<input id="dsqPcq' + (++quick.n) + '" aria-label="Your postcode" name="pcq" autocomplete="postal-code" maxlength="8" placeholder="Your postcode, e.g. B90 4AA" style="flex:1 1 180px;min-width:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:11px 14px;color:#fff;font-size:.95rem;text-transform:uppercase;outline:none">' +
+      '<button type="submit" style="background:#D10A11;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:.92rem;cursor:pointer;white-space:nowrap"><i class="bi bi-geo-alt-fill"></i> Check &amp; book</button></form>' +
+      '<div class="dsq-pcq-out" aria-live="polite" style="margin-top:10px;font-size:.88rem;line-height:1.5;color:#e5e5e5;max-width:520px"></div>';
+    var form = box.querySelector('form'), inp = box.querySelector('input'), out = box.querySelector('.dsq-pcq-out');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = norm(inp.value);
+      if (!v) { out.innerHTML = '<span style="color:#fbbf24">Please enter your full postcode, e.g. B90 4AA.</span>'; inp.focus(); return; }
+      out.textContent = 'Checking…';
+      lookup(v).then(function (r) {
+        out.innerHTML = '<div style="color:' + (r.ok ? '#4ade80' : '#fbbf24') + '">' + message(r) + '</div>' +
+          '<a href="#book" data-dsq-book-pc="' + esc(r.pc) + '" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#fff;color:#111;border-radius:10px;padding:9px 14px;font-weight:700;text-decoration:none">Book lessons at ' + esc(r.pc) + ' <i class="bi bi-arrow-down"></i></a>';
+        try { if (window.gtag) gtag('event', 'postcode_check', { result: r.kind, page: location.pathname }); } catch (x) {}
+      });
+    });
+  }
+  quick.n = 0;
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-dsq-book-pc]');
+    if (!a) return;
+    e.preventDefault();
+    goBook(a.getAttribute('data-dsq-book-pc'));
+  });
+  function scan() {
+    document.querySelectorAll('#dsqInlineBookForm, form[action*="formspree.io"]:not(#joinForm)').forEach(liveForm);
+    document.querySelectorAll('[data-dsq-pc-quick]').forEach(quick);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan); else scan();
+})();
+
+/**
  * DriveSQ enquiry source tracking (v1)
  * Works out where a visitor came from (Google Ads, Google search, Maps, AI assistant, social, direct…)
  * and adds "Source:" and "Landing:" lines to every enquiry saved to the admin waiting list,

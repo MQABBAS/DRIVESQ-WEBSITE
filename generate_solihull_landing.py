@@ -100,6 +100,7 @@ def hero(eyebrow, h1, sub, ticks, ctas):
         <h1 class="hero-h1 dsqx-h1"><span class="dsqx-pft">{h1}</span><span class="dsqx-h1-sub">{sub}</span></h1>
         <ul class="dsqx-hero-ticks">{''.join(f'<li><i class="bi {i}"></i>{t}</li>' for i, t in ticks)}</ul>
         <div class="dsqx-hero-ctas">{''.join(f'<a class="dsqx-btn dsqx-btn--{k}" href="{h}"{" target=_blank rel=noopener" if h.startswith("http") else ""}><i class="bi {i}"></i>{t}</a>' for k, h, i, t in ctas)}</div>
+        <div data-dsq-pc-quick class="dsqx-pcq"></div>
       </div>
     </div>
   </div>
@@ -165,6 +166,8 @@ def biz_schema(fname):
               "Balsall Common", "Meriden", "Hampton-in-Arden", "Monkspath", "Dickens Heath", "Cheswick Green", "Hockley Heath", "Lyndon", "Elmdon"]
     return {"@context": "https://schema.org", "@type": "DrivingSchool", "@id": f"{SITE}/{LANDING}#school", "name": "DriveSQ — Driving Lessons in Solihull",
             "url": f"{SITE}/{fname}", "telephone": "+44 7352 932003", "priceRange": "£35–£350", "foundingDate": "2025",
+            "aggregateRating": {"@type": "AggregateRating", "ratingValue": "4.9", "bestRating": "5", "reviewCount": "157"},
+            "potentialAction": {"@type": "ReserveAction", "name": "Book driving lessons", "target": {"@type": "EntryPoint", "urlTemplate": f"{SITE}/{fname}#book", "actionPlatform": ["https://schema.org/DesktopWebPlatform", "https://schema.org/MobileWebPlatform"]}},
             "areaServed": [{"@type": "AdministrativeArea", "name": "Metropolitan Borough of Solihull"}] + [{"@type": "Place", "name": p} for p in places],
             "sameAs": [SQ + "/driving-lessons-solihull.html", "https://www.instagram.com/drive_sq_academy/", "https://www.facebook.com/profile.php?id=100092258175464"],
             "subOrganization": {"@type": "Organization", "name": "SQ Driving School", "url": SQ},

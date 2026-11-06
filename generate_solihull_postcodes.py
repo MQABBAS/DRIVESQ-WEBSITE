@@ -296,9 +296,9 @@ var ar=D.areas.map(function(a){return{a:a,d:mi(g[0],g[1],a.lat,a.lon)};}).sort(f
 o.innerHTML='<p style="font-size:1.05rem"><b>'+esc(pc)+'</b> is in sector <a href="'+D.sec[sec].f+'"><b>'+sec+'</b></a> — '+esc(D.sec[sec].a)+'.'+(exact?'':' <span class="sol-note">(new postcode — using the middle of '+sec+')</span>')+'</p>'+
 '<div class="sol-kpi" style="margin-top:10px">'+tc.map(function(x){return'<div><b>'+x.d.toFixed(1)+' mi</b><span>'+esc(x.t.n)+' · '+x.t.r+'% pass rate</span></div>';}).join('')+'</div>'+
 '<p class="mt-3">Nearest areas: '+ar.map(function(x){return'<a href="'+x.a.f+'">'+esc(x.a.n)+'</a> ('+x.d.toFixed(1)+' mi)';}).join(' · ')+'</p>'+
-'<p class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="'+D.sec[sec].f+'"><i class="bi bi-geo-alt-fill"></i>Driving lessons in '+sec+'</a> <a class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="https://wa.me/447352932003?text='+encodeURIComponent('Hi DriveSQ! I\\'d like driving lessons. My postcode is '+pc+'.')+'"><i class="bi bi-whatsapp"></i>Book on WhatsApp</a></p>'+
+'<p class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="#book" data-dsq-book-pc="'+esc(pc)+'"><i class="bi bi-calendar-check-fill"></i>Book lessons at '+esc(pc)+'</a> <a class="dsqx-btn dsqx-btn--ghost" href="'+D.sec[sec].f+'"><i class="bi bi-geo-alt-fill"></i>Driving lessons in '+sec+'</a> <a class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="https://wa.me/447352932003?text='+encodeURIComponent('Hi DriveSQ! I\\'d like driving lessons. My postcode is '+pc+'.')+'"><i class="bi bi-whatsapp"></i>Book on WhatsApp</a></p>'+
 '<p class="sol-note">Straight-line distances; pass rates 2024-25 (passrates.uk, DVSA data).</p>';}
-document.getElementById('pcGo').addEventListener('click',run);document.getElementById('pcIn').addEventListener('keydown',function(e){if(e.key==='Enter')run();});})();</script>"""
+document.getElementById('pcGo').addEventListener('click',function(){run().then(function(){var f=document.querySelector('#dsqInlineBookForm [name=postcode]'),v=document.getElementById('pcIn').value.trim().toUpperCase();if(f&&v&&!f.value){f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));}});});document.getElementById('pcIn').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('pcGo').click();});})();</script>"""
     directory = "".join(f'<div class="area-head mt-3"><a href="{slug(d)}">{e(d)}</a> — {e(DNAME.get(d, ""))}</div>' + L.chips([(slug(k), f"{k} · {SECT[k]['areas'].split(',')[0].split(' (')[0][:38]}") for k in sorted(SECT) if k.split()[0] == d]) for d in DISTRICTS)
     total = sum(len(PCS.get(k, [])) for k in SECT)
     secs = [L.sec("checker", "Postcode checker", "Check your postcode", f"Type any postcode in or around Solihull to see its sector, your nearest test centres and the closest areas — {total:,} postcodes in {len(SECT)} sectors.", tool),
@@ -318,7 +318,21 @@ document.getElementById('pcGo').addEventListener('click',run);document.getElemen
                      [L.faq_schema(faqs), L.crumbs("Postcode checker", f)], hero, secs)
 
 
+def _short(t, n=44):
+    t = t.split(",")[0].split(" (")[0].strip()
+    return t if len(t) <= n else t[:n].rsplit(" ", 1)[0].rstrip(" —-'s") + "…"
+
+
+def coverage_json():
+    """Small file the booking forms use to confirm coverage as soon as a postcode is typed (booking-capture.js)."""
+    cov = {"sec": {k: {"a": _short(v["areas"]), "f": slug(k), "lat": round(v["lat"], 4), "lon": round(v["lon"], 4)} for k, v in SECT.items()},
+           "dist": {d: DNAME.get(d, "") for d in DISTRICTS},
+           "tc": [{"n": A.CEN[s][0], "r": A.CEN[s][2], "lat": p[0], "lon": p[1]} for s, p in A.TC.items()]}
+    json.dump(cov, open(os.path.join(HERE, "postcode-coverage.json"), "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
+
+
 def main():
+    coverage_json()
     out = dict([sector_page(k) for k in SECT] + [district_page(d) for d in DISTRICTS] + [checker_page()])
     for f, h in out.items():
         open(os.path.join(HERE, f), "w", encoding="utf-8").write(h)
