@@ -102,7 +102,7 @@ def best_month():
                        ("bi-cloud-drizzle", "October to December", "The lowest pass rates nationally. The clocks go back on 25 October 2026, sunset is before 16:30 by mid-November, low winter sun causes glare, and November has the most wet days at Birmingham Airport."),
                        ("bi-backpack", "School holidays", "Fewer school runs usually mean calmer roads around Solihull's schools — handy for lessons, though test slots still go fast."),
                        ("bi-calendar-check", "What matters most", "Being ready. A learner who can drive a full test calmly on their centre's roads beats any calendar. Book when your instructor says you're ready — then, if you can choose, aim for spring."),
-                       ("bi-building", "Shirley test centre", "Solihull's own centre had a 58.1% pass rate in 2024-25 — well above the national average, whatever the month."),
+                       ("bi-building", "Shirley test centre", "Solihull's own centre had a 56.6% pass rate in 2025-26 (DVSA) — well above the national average, whatever the month."),
                        ("bi-journal-check", "Theory test too", "For the theory test, February had the highest average pass rate nationally (56.4%).")]), alt=True),
         L.sec("plan", "Plan backwards", "Working back from a spring test", "Test waiting times vary, so plan early.",
               '<ol style="font-size:.95rem"><li class="mb-2"><b>Autumn:</b> start lessons and pass your theory test.</li><li class="mb-2"><b>Winter:</b> build skills — use the dark evenings to practise night driving and wet roads (it counts on the test too).</li><li class="mb-2"><b>January–February:</b> mock tests on your centre\'s roads; book the practical as soon as your instructor agrees.</li><li class="mb-2"><b>March–April:</b> test day — lighter, drier, and historically the best months.</li></ol>'
@@ -220,7 +220,7 @@ def rules_2026():
         L.sec("near", "Solihull centres", "Where can you move a Solihull-area test?",
               "Our straight-line estimate of the three nearest centres. DVSA's booking service shows your exact options when you change a booking — always go by that.",
               f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test booked at</th><th>Likely three nearest centres</th></tr></thead><tbody>{nt}</tbody></table></div>'
-              '<p class="sol-note mt-2">Distances are straight-line between test centres. Shirley is Solihull\'s own centre (58.1% pass rate in 2024-25).</p>', alt=True),
+              '<p class="sol-note mt-2">Distances are straight-line between test centres. Shirley is Solihull\'s own centre (56.6% pass rate in 2025-26, DVSA).</p>', alt=True),
         L.sec("waits", "Waiting times", "How long is the wait?", "Two different measures are published — they tell very different stories.",
               L.cards([("bi-hourglass-split", "Average: about 22 weeks", "The national average wait was 22.1 weeks in May 2026, according to the Roads Minister. Averages are pulled up by the worst centres."),
                        ("bi-bar-chart-steps", "Median: about 10 weeks", "DVSA started publishing a median in June 2026: 9.7 weeks across Great Britain for May 2026. Half of learners waited less."),

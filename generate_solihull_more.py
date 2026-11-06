@@ -45,7 +45,8 @@ NEW = [("driving-lessons-solihull.html", "Driving lessons in Solihull", "Lessons
     ("solihull-taxi-private-hire-driver-lessons.html", "Taxi & private hire drivers", "Taxi drivers"),
     ("driving-lesson-gift-vouchers-solihull.html", "Gift vouchers", "Gift vouchers"),
     ("solihull-pass-by-date-planner.html", "Pass-by-date planner", "Pass-by-date"),
-    ("show-me-tell-me-questions-trainer.html", "Show me, tell me trainer", "Show me tell me")] + NEW[-1:]
+    ("show-me-tell-me-questions-trainer.html", "Show me, tell me trainer", "Show me tell me"),
+    ("solihull-driving-test-centres-data.html", "Test centre data (DVSA)", "Centre data")] + NEW[-1:]
 # make the base generator aware of the new pages (breadcrumbs + DriveSQ cross-link cards)
 G.PAGES = G.PAGES + [(f, lbl, short) for f, lbl, short in NEW]
 _base_nav = G.nav
@@ -145,11 +146,11 @@ document.getElementById('tf-go').addEventListener('click',function(){{
   var rows=L.map(function(c,i){{return '<tr><td>'+(i===0?'<span class="best">★ </span>':'')+(c.sq?'<a href="{SQS}'+c.sq+'-driving-test-centre-routes.html">'+c.n+'</a>':c.n)+'</td><td>'+c.d.toFixed(1)+' mi</td><td>'+c.r+'%</td><td>'+c.t.toLocaleString('en-GB')+'</td></tr>';}}).join('');
   var b=L[0];o.innerHTML='<div class="k"><div><b>'+b.n.replace('Birmingham (','').replace(')','')+'</b><span>best match for you</span></div><div><b>'+b.d.toFixed(1)+' mi</b><span>straight-line distance</span></div><div><b>'+b.r+'%</b><span>pass rate 2024-25</span></div></div>'+
    '<div class="dsq-tw"><table class="dsq-tbl"><thead><tr><th>Centre</th><th>Distance</th><th>Pass rate</th><th>Tests a year</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-   '<p class="note">Distances are straight-line. Pass rates: passrates.uk analysis of DVSA data, 2024-25 (GB ≈ {G.NAT}%). A higher pass rate doesn\\'t guarantee a pass — practising the centre\\'s roads matters more.</p>';
+   '<p class="note">Distances are straight-line. Pass rates: DVSA, 2025-26 (GB {G.NAT}%). A higher pass rate doesn\\'t guarantee a pass — practising the centre\\'s roads matters more.</p>';
  }}).catch(function(){{o.innerHTML='<p class="note">The postcode lookup isn\\'t responding — message us and we\\'ll help you choose.</p>';}});
 }});}})();</script>"""
     body = section("Free tool", "Which driving test centre <span class=\"tr\">suits you?</span>",
-                   "<p>Enter your postcode and choose what matters most. We rank all seven test centres Solihull learners use by straight-line distance and 2024-25 pass rate.</p>" + tool)
+                   "<p>Enter your postcode and choose what matters most. We rank all seven test centres Solihull learners use by straight-line distance and 2025-26 pass rate (DVSA).</p>" + tool)
     body += section("How to choose", "Distance, pass rate &mdash; or <span class=\"tr\">waiting time?</span>", """<ul>
 <li><b>Practise where you test.</b> Lessons on your centre's roads beat a slightly higher pass rate somewhere you've never driven.</li>
 <li><b>Earlier date vs closer centre.</b> If a centre further away has a test weeks sooner, it can be worth it — but book extra lessons on its routes.</li>
@@ -165,14 +166,14 @@ document.getElementById('tf-go').addEventListener('click',function(){{
         ("pass-driving-test-fast-solihull.html", "Pass fast in Solihull", "The quickest honest route to a licence."),
         ("failed-driving-test-lessons-solihull.html", "Failed your test?", "Rebook and fix the exact faults.")]))
     faqs = [("Which test centre is closest to Solihull?", "For most of the borough it's Birmingham (Shirley) on the A34 Stratford Road. North Solihull (Chelmsley Wood, Kingshurst, Castle Bromwich) is often closer to Garretts Green."),
-            ("Which centre near Solihull has the best pass rate?", f"In 2024-25 Shirley had the highest of the nearby centres at 58.1%, against a GB average of about {G.NAT}%."),
+            ("Which centre near Solihull has the best pass rate?", f"In 2025-26 Shirley had the highest of the nearby centres at {G.CENTRES[0][2]}%, against a GB average of {G.NAT}%."),
             ("Can I take my test at any centre?", "Yes — you can book any centre in Great Britain. Choose one you can practise around."),
             ("How accurate is the distance?", "It's a straight-line distance from your postcode. Driving distance will be a little longer.")]
     return page(f, "Solihull Driving Test Centre Finder | Nearest & Best Pass Rate | DriveSQ",
-                "Free tool: enter your postcode to rank the 7 test centres Solihull learners use by distance and 2024-25 pass rate, with route guides for each.",
+                "Free tool: enter your postcode to rank the 7 test centres Solihull learners use by distance and 2025-26 pass rate, with route guides for each.",
                 "solihull driving test centre, nearest driving test centre solihull, best test centre solihull, shirley test centre",
                 "Solihull driving test centre finder", "Enter your postcode to see which of the seven centres Solihull learners use is closest — and which has the best pass rate.",
-                ["7 centres ranked", "2024-25 pass rates", "Free, no sign-up"], body, faqs, ["pr", "book", "fees"], tool_schema(f, "Solihull driving test centre finder", "Ranks test centres near Solihull by distance and pass rate."))
+                ["7 centres ranked", "2025-26 pass rates", "Free, no sign-up"], body, faqs, ["pr", "book", "fees"], tool_schema(f, "Solihull driving test centre finder", "Ranks test centres near Solihull by distance and pass rate."))
 
 
 # ───────────────────────── 2. cost calculator ─────────────────────────

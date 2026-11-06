@@ -160,7 +160,7 @@ def sector_page(code):
     eg = codes[len(codes) // 2] if codes else code
     pick = (f"Of the three closest, {A.CEN[best[1]][0]} had the highest pass rate ({A.CEN[best[1]][2]}%)." if best[1] != s1 else f"{n1} also had the highest pass rate of the three closest.")
     intro = (f"{code} covers {sec['areas']}. It's {kp}, so lessons here focus on {kfocus}. {kstart} "
-             f"From the middle of {code}, {n1} test centre is about {d1:.1f} miles to the {bearing(c, A.TC[s1])} in a straight line ({r1}% pass rate in 2024-25).")
+             f"From the middle of {code}, {n1} test centre is about {d1:.1f} miles to the {bearing(c, A.TC[s1])} in a straight line ({r1}% pass rate in 2025-26, DVSA).")
     mapsvg = svg_map([(code, "#D10A11", ps)], f"Map of the {len(ps)} postcodes in {code}", [(n1, A.TC[s1])])
     local = ""
     if fuel:
@@ -179,7 +179,7 @@ def sector_page(code):
               + '<div class="mt-3">' + glance(code, ps, PCS.get(code, []), s1, near_areas, fuel) + '</div></div></div>'),
         L.sec("plan", "Lesson plan", f"Your lesson plan in {e(code)}", "How lessons usually build up — your instructor adjusts it to you.", plan(code, sec, n1, bearing(c, A.TC[s1]), areas, fuel, sec.get("park")), alt=True),
         L.sec("test-centres", "Driving test centres", f"Which test centre for {e(code)}?", f"Straight-line distances from the middle of {e(code)} to all seven centres. {pick}",
-              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(code)}</th><th>Pass rate 2024-25</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div><p class="sol-note mt-2">Pass rates: passrates.uk analysis of DVSA data. Driving distances are longer than straight-line.</p>'),
+              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(code)}</th><th>Pass rate 2025-26</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div><p class="sol-note mt-2">Pass rates: passrates.uk analysis of DVSA data. Driving distances are longer than straight-line.</p>'),
         L.sec("postcodes", "Postcodes", f"Every postcode we cover in {e(code)}", f"We pick up from every postcode in {e(code)} — {len(codes)} in the public postcode data. Newer postcodes on recent developments are covered too.",
               f'<details class="reveal" style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 16px"><summary style="cursor:pointer;font-weight:700">Show all {len(codes)} postcodes in {e(code)}</summary><p style="font-size:.82rem;line-height:1.9;color:#444;margin-top:10px;word-spacing:4px">{" · ".join(e(x) for x in codes)}</p></details>'
               f'<p class="sol-note mt-2">Not sure which sector you\'re in? <a href="solihull-postcode-checker.html">Check your postcode →</a></p>', alt=True),
@@ -240,7 +240,7 @@ def district_page(dist):
         L.sec("sectors", "Postcode sectors", f"Every sector in {e(dist)}", "Tap a sector for its full local guide.",
               f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Sector</th><th>Covers</th><th>Postcodes</th><th>Nearest test centre</th></tr></thead><tbody>{rows}</tbody></table></div>', alt=True),
         L.sec("test-centres", "Driving test centres", f"Test centres from {e(dist)}", "Straight-line distances from the middle of the district.",
-              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(dist)}</th><th>Pass rate 2024-25</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div>'),
+              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>From {e(dist)}</th><th>Pass rate 2025-26</th></tr></thead><tbody>{centre_rows(rk)}</tbody></table></div>'),
     ]
     inner = ""
     if aslugs:
@@ -297,7 +297,7 @@ o.innerHTML='<p style="font-size:1.05rem"><b>'+esc(pc)+'</b> is in sector <a hre
 '<div class="sol-kpi" style="margin-top:10px">'+tc.map(function(x){return'<div><b>'+x.d.toFixed(1)+' mi</b><span>'+esc(x.t.n)+' · '+x.t.r+'% pass rate</span></div>';}).join('')+'</div>'+
 '<p class="mt-3">Nearest areas: '+ar.map(function(x){return'<a href="'+x.a.f+'">'+esc(x.a.n)+'</a> ('+x.d.toFixed(1)+' mi)';}).join(' · ')+'</p>'+
 '<p class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="#book" data-dsq-book-pc="'+esc(pc)+'"><i class="bi bi-calendar-check-fill"></i>Book lessons at '+esc(pc)+'</a> <a class="dsqx-btn dsqx-btn--ghost" href="'+D.sec[sec].f+'"><i class="bi bi-geo-alt-fill"></i>Driving lessons in '+sec+'</a> <a class="dsqx-btn dsqx-btn--wa" target="_blank" rel="noopener" href="https://wa.me/447352932003?text='+encodeURIComponent('Hi DriveSQ! I\\'d like driving lessons. My postcode is '+pc+'.')+'"><i class="bi bi-whatsapp"></i>Book on WhatsApp</a></p>'+
-'<p class="sol-note">Straight-line distances; pass rates 2024-25 (passrates.uk, DVSA data).</p>';}
+'<p class="sol-note">Straight-line distances; pass rates 2025-26 (DVSA).</p>';}
 document.getElementById('pcGo').addEventListener('click',function(){run().then(function(){var f=document.querySelector('#dsqInlineBookForm [name=postcode]'),v=document.getElementById('pcIn').value.trim().toUpperCase();if(f&&v&&!f.value){f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));}});});document.getElementById('pcIn').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('pcGo').click();});})();</script>"""
     directory = "".join(f'<div class="area-head mt-3"><a href="{slug(d)}">{e(d)}</a> — {e(DNAME.get(d, ""))}</div>' + L.chips([(slug(k), f"{k} · {SECT[k]['areas'].split(',')[0].split(' (')[0][:38]}") for k in sorted(SECT) if k.split()[0] == d]) for d in DISTRICTS)
     total = sum(len(PCS.get(k, [])) for k in SECT)

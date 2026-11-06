@@ -126,7 +126,7 @@ def area_page(a):
     rows = "".join(f'<tr><td><a href="{SQS}{s}-driving-test-centre-routes.html">{e(CEN[s][0])}</a></td><td>{d:.1f} miles</td><td>{CEN[s][2]}%</td></tr>' for d, s in ranked)
     rg = [k for k, v in ROADG.items() if any(w.split(" (")[0].lower() in v.lower() or v.split(" ")[0].lower() in w.lower() for w in a["roads"])][:3]
     intro = (WHY.get(slug, "") + " " + f"{n} is {kp} in {where} ({', '.join(a['pcs'])}). Lessons here focus on {kfocus}. {kstart} "
-             f"The nearest test centre is {n1}, about {d1:.1f} miles away in a straight line, with a {r1}% pass rate in 2024-25.")
+             f"The nearest test centre is {n1}, about {d1:.1f} miles away in a straight line, with a {r1}% pass rate in 2025-26 (DVSA).")
     pick = (f"Of the three closest centres, {CEN[best3[1]][0]} had the highest pass rate ({CEN[best3[1]][2]}%)." if best3[1] != s1 else f"{n1} also had the highest pass rate of the three closest centres.")
     secs = [
         f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>{d1:.1f} mi</b><span>to {e(n1)} test centre</span></div><div><b>{r1}%</b><span>{e(n1)} pass rate 2024-25</span></div><div><b>£35</b><span>per hour, manual or auto</span></div><div><b>£0</b><span>DriveSQ Student Portal</span></div></div></div></section>',
@@ -137,7 +137,7 @@ def area_page(a):
               f'<div class="sol-card reveal mt-3"><b>Your instructor</b><span>An ADI (green badge) or a PDI (trainee, pink badge) — we tell you which before you book. Motorway lessons are always with an ADI.</span></div></div></div>'),
         L.sec("test-centres", "Driving test centres", f"Which test centre for {e(n)}?",
               f"Straight-line distances from {e(n)} to all seven centres Solihull learners use. {pick} Most learners do best at the centre whose roads they've practised most.",
-              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>Distance from {e(n)}</th><th>Pass rate 2024-25</th></tr></thead><tbody>{rows}</tbody></table></div>'
+              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Test centre</th><th>Distance from {e(n)}</th><th>Pass rate 2025-26</th></tr></thead><tbody>{rows}</tbody></table></div>'
               f'<p class="sol-note mt-2">Pass rates: passrates.uk analysis of DVSA data. Driving distances are longer than straight-line. <a href="solihull-driving-test-centre-finder.html">Find yours by postcode →</a></p>', alt=True),
         L.sec("portal-features", "DriveSQ Student Portal", f"Free for every learner in {e(n)}",
               f"Your own learning app from DriveSQ, included with your lessons. Use its readiness checklist to judge when you're ready for {e(n1)}, and message your instructor between lessons in {e(n)}.",

@@ -66,15 +66,13 @@ AREAS = [("Shirley", "shirley"), ("Solihull town centre", "solihull-town-centre"
          ("Bentley Heath", "bentley-heath"), ("Elmdon", "elmdon"), ("Lyndon", "lyndon"), ("Fordbridge", "fordbridge"), ("Hampton-in-Arden", "hampton-in-arden"),
          ("Berkswell", "berkswell"), ("Catherine-de-Barnes", "catherine-de-barnes"), ("Tidbury Green", "tidbury-green"), ("Blythe Valley", "blythe-valley"),
          ("Widney Manor", "widney-manor"), ("Bickenhill", "bickenhill")]
-# 2024-25 car pass rates, passrates.uk analysis of DVSA data
-CENTRES = [("Birmingham (Shirley)", "401 Stratford Road, B90 4AA", 58.1, 9600, None, "shirley"),
-           ("Warwick (Wedgenock House)", "Rothwell Road, Warwick CV34", 48.4, 10900, None, "warwick"),
-           ("Birmingham (Kings Heath)", "955 Alcester Road South, B14 5JA", 47.0, 8488, None, "kings-heath"),
-           ("Redditch", "Elm Road, B97 6HJ", 46.7, 4700, 44.7, "redditch"),
-           ("Coventry", "42 Bayton Road, Exhall CV7 9EJ", 42.3, 9100, 41.7, "coventry"),
-           ("Birmingham (Garretts Green)", "Granby Avenue, B33 0SD", 42.0, 21871, 39.9, "garretts-green"),
-           ("Birmingham (South Yardley)", "Clay Lane, B26 1EA", 41.6, 12709, 39.4, "south-yardley")]
-NAT = 48.7
+# Official DVSA figures, 2025-26 (DRT122A/C via _data/dvsa_centres.json — rebuild with build_dvsa_centres.py)
+_DV = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_data", "dvsa_centres.json"), encoding="utf-8"))
+_ADDR = {"shirley": "401 Stratford Road, B90 4AA", "warwick": "Rothwell Road, Warwick CV34", "kings-heath": "955 Alcester Road South, B14 5JA", "redditch": "Elm Road, B97 6HJ",
+         "coventry": "42 Bayton Road, Exhall CV7 9EJ", "garretts-green": "Granby Avenue, B33 0SD", "south-yardley": "Clay Lane, B26 1EA"}
+PR_YEAR, PR_SRC = "2025-26", "DVSA"
+CENTRES = sorted([(c["name"], _ADDR[k], c["years"][PR_YEAR]["p"], c["years"][PR_YEAR]["n"], (c["first"].get(PR_YEAR) or {}).get("p"), k) for k, c in _DV["centres"].items()], key=lambda x: -x[2])
+NAT = _DV["national"]["years"][PR_YEAR]["p"]
 
 
 def e(s):
@@ -235,7 +233,7 @@ def school():
 <div class="stat"><div class="stat-num">&pound;<span class="counter" data-t="35">35</span></div><div class="stat-lbl">per hour</div></div><div class="stat-sep d-none d-md-block"></div>
 <div class="stat"><div class="stat-num"><span class="counter" data-t="{len(AREAS)}">{len(AREAS)}</span></div><div class="stat-lbl">Solihull areas</div></div><div class="stat-sep d-none d-md-block"></div>
 <div class="stat"><div class="stat-num"><span class="counter" data-t="23">23</span></div><div class="stat-lbl">skills tracked</div></div><div class="stat-sep d-none d-md-block"></div>
-<div class="stat"><div class="stat-num">58.1%</div><div class="stat-lbl">Shirley pass rate</div></div></div></div></div>
+<div class="stat"><div class="stat-num">{_DV["centres"]["shirley"]["years"][PR_YEAR]["p"]}%</div><div class="stat-lbl">Shirley pass rate</div></div></div></div></div>
 <section class="sw"><div class="container"><div class="row g-5"><div class="col-lg-7 reveal"><span class="eye">Driving school Solihull</span>
 <h2 class="sec-t">A Manchester driving school, <span class="tr">now in Solihull</span></h2>
 <div class="prose mt-3"><p>DriveSQ started in Greater Manchester, where we built our own booking system, a Student Portal for learners and an Instructor Portal for our instructors. Solihull is the first area we've opened outside Greater Manchester, and lessons here run on exactly the same system — same prices, same portals, same way of working.</p>
@@ -293,36 +291,39 @@ def instructors():
 
 
 def pass_rates():
+    C = _DV["centres"]; Y = PR_YEAR
+    sh, gg, sy = C["shirley"], C["garretts-green"], C["south-yardley"]
+    shp, ggp, syp = sh["years"][Y]["p"], gg["years"][Y]["p"], sy["years"][Y]["p"]
+    sh1718, sh2425 = sh["years"]["2017-18"]["p"], sh["years"]["2024-25"]["p"]
+    ggf = (gg["first"].get(Y) or {}).get("p")
+    bham = [k for k in C if k in ("shirley", "garretts-green", "south-yardley", "kings-heath")]
+    bavg = round(100 * sum(C[k]["years"][Y]["pass"] for k in bham) / sum(C[k]["years"][Y]["n"] for k in bham), 1)
+    low = min(C, key=lambda k: C[k]["years"][Y]["p"])
     rows = "".join(f'<tr><td>{f"<a href={chr(34)}{SQ}/solihull/{s}-driving-test-centre-routes.html{chr(34)}>{n}</a>" if s else n}</td><td>{a}</td><td><b>{r}%</b></td><td>{f"{ft}%" if ft else "—"}</td><td>{t:,}</td><td>{1 / (r / 100):.1f}</td><td>&pound;{62 / (r / 100):.0f}</td></tr>' for n, a, r, t, ft, s in CENTRES)
-    b = bars([(n.replace("Birmingham (", "").replace(")", "").replace(" (Wedgenock House", ""), r, "g" if r >= NAT else "") for n, a, r, t, ft, s in CENTRES] + [("UK average", NAT, "n")])
+    b = bars([(n.replace("Birmingham (", "").replace(")", "").replace(" (Wedgenock House", ""), r, "g" if r >= NAT else "") for n, a, r, t, ft, s in CENTRES] + [("GB average", NAT, "n")])
     body = f"""<section class="sw"><div class="container"><span class="eye">Solihull driving test pass rates</span><h2 class="sec-t">Every centre Solihull learners use, <span class="tr">ranked</span></h2>
-<p class="sec-s">2024-25 car test pass rates from passrates.uk's analysis of DVSA data. UK average: {NAT}%.</p>
+<p class="sec-s">2025-26 car test pass rates from DVSA's official tables (April 2025 to March 2026). Great Britain average: {NAT}%.</p>
 <div class="mt-3">{b}</div>
 <div class="dsq-tw reveal"><table class="dsq-tbl"><thead><tr><th>Centre</th><th>Location</th><th>Pass rate</th><th>First attempt</th><th>Tests</th><th>Avg attempts*</th><th>Avg test fees*</th></tr></thead><tbody>{rows}</tbody></table></div>
-<p class="dsq-src">*If every attempt had the same chance of passing: average attempts = 1 &divide; pass rate; average spent on weekday test fees = &pound;62 &divide; pass rate. Real learners improve between attempts, so treat these as a baseline. Test volumes for some centres are rounded.</p></div></section>
-<section class="sg"><div class="container"><div class="row g-5"><div class="col-lg-7 reveal"><span class="eye">What the numbers mean</span><h2 class="sec-t">Shirley's <span class="tr">16-point lead</span></h2>
-<div class="prose mt-3"><p><b>Shirley</b>, Solihull's own centre on the A34, had a 58.1% pass rate in 2024-25 — the highest of any Birmingham-area centre and up from 44.9% in 2017-18. At the other end, <b>Garretts Green</b> — the busiest centre in Birmingham with almost 22,000 tests, and the nearest for north Solihull — passed 42.0%, with just 39.9% passing first time. Across Birmingham's five centres, passrates.uk puts the average at 45.4%.</p>
-<p>That gap is worth real money. On the simple model in the table, an average Garretts Green candidate spends about &pound;148 on weekday test fees before passing; at Shirley it's about &pound;107. Every failed attempt also usually means extra lessons and another wait.</p>
-<h3>Should you book Shirley instead?</h3><p>If you live in south Solihull, Shirley is probably your nearest centre anyway. If you live in Chelmsley Wood or Kingshurst, travelling to Shirley means being tested on roads you don't know — which can cancel out the advantage. Since June 2026 a booked test can only be moved to one of the three centres nearest it, so choose carefully. SQ Driving School's <a href="{SQ}/solihull/solihull-driving-test-centres-compared.html">comparison by postcode</a> helps.</p>
-<h3>The West Midlands context</h3><p>The region's pass rate runs several points below the GB average, and nearby Wolverhampton had the lowest pass rate in Britain in 2024-25 (33.4%). Solihull's Shirley centre is a notable exception.</p></div></div>
-<div class="col-lg-5 reveal"><div class="hl-box"><strong><i class="bi bi-graph-up-arrow me-1"></i>Key figures</strong><ul class="mt-2 mb-0"><li>Shirley 58.1% (2024-25), 44.9% (2017-18)</li><li>Garretts Green 42.0%, first attempt 39.9%</li><li>South Yardley 41.6% &mdash; lowest in Birmingham</li><li>Birmingham five-centre average 45.4%</li><li>UK average 48.7%</li></ul></div>
+<p class="dsq-src">*If every attempt had the same chance of passing: average attempts = 1 &divide; pass rate; average spent on weekday test fees = &pound;62 &divide; pass rate. Real learners improve between attempts, so treat these as a baseline. <a href="solihull-driving-test-centres-data.html">Full data explorer with charts →</a></p></div></section>
+<section class="sg"><div class="container"><div class="row g-5"><div class="col-lg-7 reveal"><span class="eye">What the numbers mean</span><h2 class="sec-t">Shirley's <span class="tr">{shp - ggp:.0f}-point lead</span></h2>
+<div class="prose mt-3"><p><b>Shirley</b>, Solihull's own centre on the A34, had a {shp}% pass rate in 2025-26 — the highest of the centres Solihull learners use — after {sh2425}% the year before and {sh1718}% in 2017-18. <b>Garretts Green</b> — the busiest centre near Solihull with {gg["years"][Y]["n"]:,} tests, and the nearest for north Solihull — passed {ggp}%, with {ggf}% passing first time. Across the four Birmingham centres here the combined rate was {bavg}%.</p>
+<p>That gap is worth real money. On the simple model in the table, an average Garretts Green candidate spends about &pound;{62 / (ggp / 100):.0f} on weekday test fees before passing; at Shirley it's about &pound;{62 / (shp / 100):.0f}. Every failed attempt also usually means extra lessons and another wait.</p>
+<h3>Should you book Shirley instead?</h3><p>If you live in south Solihull, Shirley is probably your nearest centre anyway. If you live in Chelmsley Wood or Kingshurst, travelling to Shirley means being tested on roads you don't know — which can cancel out the advantage. Shirley's waits have also lengthened in 2026. Since June 2026 a booked test can only be moved to one of the three centres nearest it, so choose carefully. SQ Driving School's <a href="{SQ}/solihull/solihull-driving-test-centres-compared.html">comparison by postcode</a> helps.</p></div></div>
+<div class="col-lg-5 reveal"><div class="hl-box"><strong><i class="bi bi-graph-up-arrow me-1"></i>Key figures (DVSA 2025-26)</strong><ul class="mt-2 mb-0"><li>Shirley {shp}% ({sh2425}% in 2024-25, {sh1718}% in 2017-18)</li><li>Garretts Green {ggp}%, first attempt {ggf}%</li><li>{C[low]["name"]} {C[low]["years"][Y]["p"]}% &mdash; lowest of the seven</li><li>Four Birmingham centres combined {bavg}%</li><li>Great Britain {NAT}%</li></ul></div>
 <div class="hl-box green mt-3"><strong><i class="bi bi-lightbulb me-1"></i>What actually moves your odds</strong><p class="mt-2 mb-0" style="font-size:.88rem">Being genuinely test-ready. DriveSQ learners see all 23 skills in their Student Portal and do a full mock test before booking.</p></div></div></div></div></section>"""
-    faqs = [("What is the driving test pass rate in Solihull?", "Shirley, Solihull's only test centre, had a 58.1% car pass rate in 2024-25 — the highest in the Birmingham area."),
-            ("Which test centre near Solihull is easiest?", "By pass rate, Shirley (58.1%). But the best centre for you is usually the one whose roads you've practised."),
-            ("What is the pass rate at Garretts Green?", "42.0% in 2024-25 from 21,871 tests, with 39.9% passing first time."),
-            ("What is the UK average driving test pass rate?", "48.7% in 2024-25, according to passrates.uk's analysis of DVSA data.")]
-    src = [("passrates.uk — Birmingham test centres", "https://passrates.uk/guide/birmingham-driving-test-centres-pass-rates"), ("passrates.uk — Birmingham (Shirley)", "https://passrates.uk/centres/birmingham-shirley"),
-           ("passrates.uk — Garretts Green", "https://passrates.uk/centres/birmingham-garretts-green"), ("passrates.uk — South Yardley", "https://passrates.uk/centres/birmingham-south-yardley"),
-           ("passrates.uk — Kings Heath", "https://passrates.uk/centres/birmingham-kings-heath"), ("passrates.uk — Coventry", "https://passrates.uk/centres/coventry"),
-           ("passrates.uk — Warwick", "https://passrates.uk/centres/warwick-wedgenock-house"), ("passrates.uk — Redditch", "https://passrates.uk/centres/redditch"),
-           ("passrates.uk — UK pass rate 2024-25", "https://passrates.uk/guide/driving-test-pass-rate-2024-2025"), ("DVSA — Car driving test data by test centre", "https://www.gov.uk/government/statistical-data-sets/car-driving-test-data-by-test-centre"),
+    faqs = [("What is the driving test pass rate in Solihull?", f"Shirley, Solihull's only test centre, had a {shp}% car pass rate in 2025-26 according to DVSA — the highest of the centres Solihull learners use."),
+            ("Which test centre near Solihull is easiest?", f"By pass rate, Shirley ({shp}%). But the best centre for you is usually the one whose roads you've practised."),
+            ("What is the pass rate at Garretts Green?", f"{ggp}% in 2025-26 from {gg['years'][Y]['n']:,} tests, with {ggf}% passing first time."),
+            ("What is the average driving test pass rate?", f"{NAT}% across Great Britain in 2025-26, according to DVSA.")]
+    src = [("DVSA via GOV.UK — car driving test data by test centre", "https://www.gov.uk/government/statistical-data-sets/car-driving-test-data-by-test-centre"),
            ("GOV.UK — Driving test cost", "https://www.gov.uk/driving-test-cost")]
-    ds = [{"@context": "https://schema.org", "@type": "Dataset", "name": "Driving test pass rates for centres used by Solihull learners, 2024-25", "description": "Pass rates, first-attempt rates, test volumes and modelled attempts and fees for seven test centres near Solihull.", "url": f"{SITE}/solihull-driving-test-pass-rates.html", "creator": {"@type": "Organization", "name": "DriveSQ"}, "license": "https://creativecommons.org/licenses/by/4.0/", "spatialCoverage": "Solihull, West Midlands"}]
+    ds = [{"@context": "https://schema.org", "@type": "Dataset", "name": "Driving test pass rates for centres used by Solihull learners, 2025-26", "description": "Pass rates, first-attempt rates, test volumes and modelled attempts and fees for seven test centres near Solihull, from DVSA data.", "url": f"{SITE}/solihull-driving-test-pass-rates.html", "creator": {"@type": "GovernmentOrganization", "name": "Driver and Vehicle Standards Agency"}, "license": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/", "spatialCoverage": "Solihull, West Midlands"}]
     return build("solihull-driving-test-pass-rates.html", "Solihull Driving Test Pass Rates 2026: Every Centre Ranked | DriveSQ",
-                 "Driving test pass rates for every centre Solihull learners use — Shirley 58.1%, Warwick, Kings Heath, Redditch, Coventry, Garretts Green, South Yardley — with attempts and costs explained.",
+                 f"Driving test pass rates for every centre Solihull learners use (DVSA 2025-26) — Shirley {_DV['centres']['shirley']['years'][PR_YEAR]['p']}%, Warwick, Redditch, Kings Heath, Garretts Green, South Yardley, Coventry — with attempts and costs explained.",
                  "Solihull driving test pass rate, Shirley test centre pass rate, Garretts Green pass rate, easiest test centre Birmingham",
                  'Solihull Driving Test <span class="r">Pass Rates</span>', "Seven test centres, one table: pass rates, first-attempt rates, how many attempts the average learner needs and what it costs — for everyone learning to drive in Solihull.",
-                 ["Shirley 58.1%", "7 centres", "UK avg 48.7%", "Updated Oct 2026"], body, faqs, src,
+                 [f"Shirley {C['shirley']['years'][Y]['p']}%", "7 centres", f"GB avg {NAT}%", "DVSA 2025-26"], body, faqs, src,
                  form("Book lessons for your test", "Learning for a test at Shirley or Garretts Green? Book lessons with DriveSQ.", LESSON_OPTS), ds)
 
 
@@ -331,7 +332,7 @@ def jobs():
 <h2 class="sec-t">Teach in Solihull with <span class="tr">DriveSQ</span></h2>
 <div class="prose mt-3"><p>DriveSQ has opened in Solihull and is taking on more driving instructors. Our booking system brings in learners and assigns them to the nearest suitable instructor by postcode, so you spend your time teaching rather than chasing pupils.</p>
 <h3>What you get</h3><ul><li><b>Pupils matched by postcode</b> from DriveSQ and SQ Driving School bookings across B90&ndash;B94, B36 and B37.</li><li><b>The DriveSQ Instructor Portal</b> — diary, pupils, progress records and messaging in one place.</li><li><b>A Student Portal for your pupils</b> — they see the skills you record, which keeps them motivated.</li><li><b>Local test guides</b> — SQ's <a href="{SQ}/solihull/shirley-driving-test-centre-routes.html">Shirley</a> and <a href="{SQ}/solihull/garretts-green-driving-test-centre-routes.html">Garretts Green</a> route guides to share with pupils.</li></ul>
-<h3>Why Solihull?</h3><p>Solihull had 216,245 residents at the 2021 Census, and about 9% are aged 16&ndash;24. Its test centre at Shirley had the best pass rate in the Birmingham area in 2024-25 (58.1%), and the M42 on the doorstep makes it ideal for motorway lessons.</p>
+<h3>Why Solihull?</h3><p>Solihull had 216,245 residents at the 2021 Census, and about 9% are aged 16&ndash;24. Its test centre at Shirley had the best pass rate of the centres Solihull learners use in 2025-26 ({_DV["centres"]["shirley"]["years"][PR_YEAR]["p"]}% — DVSA), and the M42 on the doorstep makes it ideal for motorway lessons.</p>
 <h3>Who we're looking for</h3><ul><li>Qualified ADIs (green badge), manual or automatic</li><li>Trainee instructors (PDIs) — talk to us</li><li>Your own dual-controlled car</li><li>Patient, reliable and happy to use the Instructor Portal</li></ul></div></div>
 <div class="col-lg-5 reveal"><div class="hl-box"><strong><i class="bi bi-geo me-1"></i>Areas we're recruiting for</strong><p class="mt-2 mb-0" style="font-size:.88rem">Shirley, Monkspath, Dickens Heath, Solihull town centre, Olton, Knowle, Dorridge, Chelmsley Wood, Kingshurst, Castle Bromwich, Marston Green, Balsall Common.</p></div>
 <div class="hl-box green mt-3"><strong><i class="bi bi-laptop me-1"></i>Already with DriveSQ?</strong><p class="mt-2 mb-0" style="font-size:.88rem"><a href="{SITE}/dashboard.html">Instructor Portal login</a>.</p></div></div></div></div></section>"""
