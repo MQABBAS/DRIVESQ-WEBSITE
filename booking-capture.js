@@ -139,13 +139,14 @@
 
   /* ---------- floating "Book a lesson" button on phones (hidden while the form is on screen) ---------- */
   function stickyBook() {
-    var f = document.querySelector('#dsqInlineBookForm');
+    var form0 = document.querySelector('#dsqInlineBookForm');
+    var f = (form0 && (form0.closest('[data-dsq-bc]') || form0.closest('#booking'))) || form0;
     if (!f || document.getElementById('dsqStickyBook') || !window.IntersectionObserver) return;
     var b = document.createElement('a');
     b.id = 'dsqStickyBook'; b.href = '#'; b.setAttribute('aria-label', 'Book a driving lesson');
     b.innerHTML = '📅 Book a lesson';
     b.style.cssText = 'position:fixed;left:12px;bottom:16px;z-index:900;background:#D10A11;color:#fff;font-weight:700;font-size:.92rem;border-radius:999px;padding:12px 18px;box-shadow:0 10px 28px rgba(0,0,0,.35);text-decoration:none;transition:opacity .25s,transform .25s;opacity:0;transform:translateY(20px);pointer-events:none';
-    b.addEventListener('click', function (e) { e.preventDefault(); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); var n = f.querySelector('[name="name"]'); setTimeout(function () { if (n && !n.value) try { n.focus({ preventScroll: true }); } catch (x) {} }, 700); });
+    b.addEventListener('click', function (e) { e.preventDefault(); if (window.DSQBookCard) DSQBookCard.tab('quick'); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); var n = window.DSQBookCard ? null : f.querySelector('[name="name"]'); setTimeout(function () { if (n && !n.value) try { n.focus({ preventScroll: true }); } catch (x) {} }, 700); });
     document.body.appendChild(b);
     var formOn = false, scrolled = false;
     function upd() { var show = window.innerWidth < 768 && scrolled && !formOn; b.style.opacity = show ? '1' : '0'; b.style.transform = show ? 'none' : 'translateY(20px)'; b.style.pointerEvents = show ? 'auto' : 'none'; }
@@ -256,7 +257,9 @@
   }
   function init() {
     scan(document);
-    stickyBook();
+    if (document.querySelector('#dsqInlineBookForm') && !document.querySelector('[data-dsqx-bc]') && !window.__dsqBookCard) {
+      var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261109'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
+    } else stickyBook();
     if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && (n.matches('#dsqInlineBookForm') || n.matches('form[action*="formspree.io"]'))) scan(n.parentNode || document); else scan(n); } }); }); }).observe(document.body, { childList: true, subtree: true });
   }
   window.DSQBooking = { send: send, fullPostcode: fullPostcode };
@@ -306,6 +309,15 @@
   }
   function bookForm() { return document.querySelector('#dsqInlineBookForm') || document.querySelector('form[action*="formspree.io"]:not(#joinForm)'); }
   function goBook(pc) {
+    if (window.DSQBookCard) {
+      var c = DSQBookCard.card, q = c.querySelector('[name=qpc]');
+      DSQBookCard.tab('quick');
+      if (q && pc) { q.value = pc; q.dispatchEvent(new Event('input', { bubbles: true })); }
+      var ff = bookForm(), el = ff && ff.querySelector('[name="postcode"]');
+      if (el && pc && !el.value) { el.value = pc; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     var f = bookForm(); if (!f) { location.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent("Hi DriveSQ! I'd like to book lessons. My postcode is " + pc + '.'); return; }
     var el = f.querySelector('[name="postcode"]');
     if (el && pc) { el.value = pc; el.dispatchEvent(new Event('input', { bubbles: true })); }

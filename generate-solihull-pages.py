@@ -146,7 +146,7 @@ def form(title, sub, options, button="Book Now"):
     </div>
   </div>
 </section>
-<script src="/booking-capture.js?v=20261109" defer></script>
+<script src="/booking-capture.js?v=20261110" defer></script>
 <!-- /DRIVESQ-INLINE-BOOKING-V1 -->"""
 
 
