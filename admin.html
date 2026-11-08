@@ -5645,8 +5645,8 @@ async function viewInstr(id){
     <div class="det-grid mt-3 mb-2" id="instrDetailGrid"></div>
     <div class="d-flex gap-2 flex-wrap mb-2">
       <button class="abtn view" onclick="requestBadgePhoto()"><i class="bi bi-card-image me-1"></i>Request Badge Photo</button>
-      <label class="abtn approve" id="badgeUploadBtn-${id}" style="cursor:pointer;margin:0" title="Upload badge photo directly"><i class="bi bi-upload me-1"></i>Upload Badge Photo<input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="adminUploadBadgeDirect(event,'${id}')"/></label>
-      <label class="abtn" id="carPhotoUploadBtn-${id}" style="cursor:pointer;margin:0;border-color:rgba(96,165,250,.4);color:#60a5fa" title="Upload car photos (up to 10)"><i class="bi bi-car-front me-1"></i>Upload Car Photos<input type="file" accept="image/jpeg,image/png,image/webp" multiple style="display:none" onchange="adminUploadCarPhotos(event,'${id}')"/></label>
+      <label class="abtn approve" id="badgeUploadBtn-${id}" style="cursor:pointer;margin:0" title="Upload badge photo directly"><i class="bi bi-upload me-1"></i><span class="lbl">Upload Badge Photo</span><input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="adminUploadBadgeDirect(event,'${id}')"/></label>
+      <label class="abtn" id="carPhotoUploadBtn-${id}" style="cursor:pointer;margin:0;border-color:rgba(96,165,250,.4);color:#60a5fa" title="Upload car photos (up to 10 at a time — phone photos are resized automatically)"><i class="bi bi-car-front me-1"></i><span class="lbl">Upload Car Photos</span><input type="file" accept="image/*,.heic,.heif" multiple style="display:none" onchange="adminUploadCarPhotos(event,'${id}')"/></label>
       <button class="abtn approve" onclick="openAddLessonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Lesson</button>
       <button class="btn-s" style="font-size:.72rem;padding:4px 10px;min-height:30px" onclick="openSqlModal()"><i class="bi bi-code-slash me-1"></i>SQL Helper</button>
     </div>`;
@@ -5680,7 +5680,7 @@ function renderInstrDetail(instr){
     ...(()=>{
       let urls=[];try{urls=JSON.parse(instr.car_photo_urls||'[]');}catch(e){}
       if(!urls.length)return[];
-      const thumbs=urls.map((u,i)=>`<a href="${esc(u)}" target="_blank" style="display:inline-block;margin:2px"><img src="${esc(u)}?t=${Date.now()}" alt="Car photo ${i+1}" style="width:90px;height:68px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,.12);cursor:pointer" onerror="this.style.display='none'"/></a>`).join('');
+      const thumbs=urls.map((u,i)=>`<div style="position:relative;display:inline-block;margin:2px"><a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Car photo ${i+1}" loading="lazy" style="width:110px;height:82px;object-fit:cover;border-radius:8px;border:${i===0?'2px solid #F5C518':'1px solid rgba(255,255,255,.12)'};cursor:pointer" onerror="this.style.opacity=.3"></a>${i===0?'<span style="position:absolute;left:4px;bottom:4px;background:#F5C518;color:#111;font-size:.58rem;font-weight:700;border-radius:4px;padding:1px 5px">MAIN</span>':`<button type="button" title="Make main photo" onclick="adminMainCarPhoto('${instr.id}',${i})" style="position:absolute;left:4px;bottom:4px;border:0;border-radius:4px;background:rgba(0,0,0,.65);color:#fff;font-size:.58rem;padding:1px 5px;cursor:pointer">★ Main</button>`}<button type="button" title="Remove photo" onclick="adminRemoveCarPhoto('${instr.id}',${i})" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:.8rem;line-height:22px;padding:0;cursor:pointer">×</button></div>`).join('');
       return[['Car Photos',`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${thumbs}<div style="font-size:.68rem;color:var(--txt4);align-self:center;margin-left:4px">${urls.length} photo${urls.length!==1?'s':''} — click to open full size</div></div>`]];
     })(),
   ];
@@ -7344,7 +7344,7 @@ async function adminUploadBadgeDirect(e,instrId){
   if(!allowed.includes(file.type)){showToast('Use JPG, PNG or WebP.','error');return;}
   if(file.size>5*1024*1024){showToast('File too large (max 5MB).','error');return;}
   const btn=document.getElementById('badgeUploadBtn-'+instrId);
-  if(btn)btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Uploading…';
+  const _bl=btn&&btn.querySelector('.lbl');if(_bl)_bl.textContent='Uploading…';
   showToast('Uploading badge photo…','info',8000);
   try{
     const ext=_mimeToExt[file.type]||file.name.split('.').pop().toLowerCase()||'jpg';
@@ -7362,50 +7362,101 @@ async function adminUploadBadgeDirect(e,instrId){
     showToast('Upload failed: '+err.message,'error',8000);
     console.error('adminUploadBadgeDirect:',err);
   }finally{
-    if(btn)btn.innerHTML='<i class="bi bi-upload me-1"></i>Upload Badge Photo';
+    if(_bl)_bl.textContent='Upload Badge Photo';
   }
 }
 
 let _carPhotoUploadInProgress=false;
+/* Resize/convert any photo the browser can read to a JPEG (max 1600px) — handles big phone photos and HEIC where supported */
+function _prepCarImage(file,maxSide=1600,quality=0.82){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      try{
+        let w=img.naturalWidth,h=img.naturalHeight;const k=Math.min(1,maxSide/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+        const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+        c.toBlob(b=>{URL.revokeObjectURL(url);b?resolve(b):reject(new Error('could not convert '+file.name));},'image/jpeg',quality);
+      }catch(err){URL.revokeObjectURL(url);reject(err);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error(/hei[cf]/i.test(file.type+file.name)?`${file.name} is a HEIC photo this browser can't open — upload it from an iPhone (Safari), or export it as JPG first.`:`${file.name} isn't an image this browser can open.`));};
+    img.src=url;
+  });
+}
+function _carPhotoList(instrId){const c=allInstrs.find(i=>i.id===instrId);let u=[];try{u=JSON.parse(c?.car_photo_urls||'[]');}catch(x){}return Array.isArray(u)?u:[];}
+function _carPhotoColumnHelp(err){
+  const m=String(err&&err.message||err||'');
+  if(/car_photo_urls/i.test(m)&&/column|schema|does not exist|could not find/i.test(m)){
+    const sql="alter table public.instructors add column if not exists car_photo_urls text default '[]';";
+    try{navigator.clipboard&&navigator.clipboard.writeText(sql).catch(()=>{});}catch(x){}
+    showToast('Your database has no car photo column yet. The fix has been copied — paste it into Supabase → SQL Editor and run it, then upload again:  '+sql,'error',20000);
+    console.warn('Run in Supabase SQL Editor:\n'+sql);return true;
+  }
+  if(/row-level security|policy|not authorized|unauthorized|403/i.test(m)){
+    showToast('Supabase storage refused the upload (bucket "instructor-files" policy). Allow uploads to car-photos/ for admins in Storage → Policies, then try again.','error',15000);return true;
+  }
+  return false;
+}
+async function _saveCarPhotos(instrId,urls){
+  const{error}=await sb.from('instructors').update({car_photo_urls:JSON.stringify(urls)}).eq('id',instrId);
+  if(error)throw error;
+  const cached=allInstrs.find(i=>i.id===instrId);if(cached)cached.car_photo_urls=JSON.stringify(urls);
+  if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
+}
 async function adminUploadCarPhotos(e,instrId){
   const files=[...e.target.files].slice(0,10);
   e.target.value='';
   if(!files.length)return;
   if(_carPhotoUploadInProgress){showToast('Upload already in progress…','warn');return;}
-  const allowed=['image/jpeg','image/png','image/webp'];
   for(const f of files){
-    if(!allowed.includes(f.type)){showToast('Use JPG, PNG or WebP only.','error');return;}
-    if(f.size>5*1024*1024){showToast(`${f.name} is too large (max 5MB each).`,'error');return;}
+    if(!/^image\//.test(f.type)&&!/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){showToast(`${f.name} isn't a photo.`,'error');return;}
+    if(f.size>30*1024*1024){showToast(`${f.name} is too large (max 30MB before resizing).`,'error');return;}
   }
   _carPhotoUploadInProgress=true;
-  const btn=document.getElementById('carPhotoUploadBtn-'+instrId);
-  if(btn)btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Uploading…';
-  showToast(`Uploading ${files.length} car photo${files.length!==1?'s':''}…`,'info',15000);
+  const btn=document.getElementById('carPhotoUploadBtn-'+instrId),lbl=btn&&btn.querySelector('.lbl');
+  const say=t=>{if(lbl)lbl.textContent=t;};
+  const newUrls=[],failed=[];
   try{
-    const cached=allInstrs.find(i=>i.id===instrId);
-    let existing=[];try{existing=JSON.parse(cached?.car_photo_urls||'[]');}catch(x){}
-    const newUrls=[];
-    for(const file of files){
-      const ext=_mimeToExt[file.type]||'jpg';
-      const path=`car-photos/${instrId}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.${ext}`;
-      const{error:upErr}=await sb.storage.from('instructor-files').upload(path,file,{upsert:false,contentType:file.type});
-      if(upErr)throw upErr;
-      const{data:{publicUrl}}=sb.storage.from('instructor-files').getPublicUrl(path);
-      newUrls.push(publicUrl);
+    for(let n=0;n<files.length;n++){
+      const file=files[n];say(`Uploading ${n+1} of ${files.length}…`);
+      try{
+        const blob=await _prepCarImage(file);
+        const path=`car-photos/${instrId}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+        const{error:upErr}=await sb.storage.from('instructor-files').upload(path,blob,{upsert:false,contentType:'image/jpeg',cacheControl:'31536000'});
+        if(upErr)throw upErr;
+        newUrls.push(sb.storage.from('instructor-files').getPublicUrl(path).data.publicUrl);
+      }catch(err){
+        if(_carPhotoColumnHelp(err))throw err;
+        failed.push(err.message||file.name);console.error('car photo',file.name,err);
+      }
     }
-    const merged=[...existing,...newUrls];
-    const{error:dbErr}=await sb.from('instructors').update({car_photo_urls:JSON.stringify(merged)}).eq('id',instrId);
-    if(dbErr)throw dbErr;
-    if(cached)cached.car_photo_urls=JSON.stringify(merged);
-    if(viewingId===instrId){viewingData=allInstrs.find(i=>i.id===instrId);if(viewingData)renderInstrDetail(viewingData);}
-    showToast(`✅ ${newUrls.length} car photo${newUrls.length!==1?'s':''} uploaded! (${merged.length} total)`,'success',5000);
+    if(newUrls.length){
+      const merged=[..._carPhotoList(instrId),...newUrls];
+      await _saveCarPhotos(instrId,merged);
+      showToast(`✅ ${newUrls.length} car photo${newUrls.length!==1?'s':''} uploaded (${merged.length} total)${failed.length?` — ${failed.length} failed: ${failed[0]}`:''}`,failed.length?'warn':'success',failed.length?12000:5000);
+      try{_sfx('upload');}catch(x){}
+    }else if(failed.length){showToast('Car photo upload failed: '+failed[0],'error',10000);}
   }catch(err){
-    showToast('Car photo upload failed: '+err.message,'error',8000);
+    if(!_carPhotoColumnHelp(err))showToast('Car photo upload failed: '+(err.message||err),'error',10000);
     console.error('adminUploadCarPhotos:',err);
   }finally{
-    _carPhotoUploadInProgress=false;
-    if(btn)btn.innerHTML='<i class="bi bi-car-front me-1"></i>Upload Car Photos';
+    _carPhotoUploadInProgress=false;say('Upload Car Photos');
   }
+}
+async function adminRemoveCarPhoto(instrId,idx){
+  const urls=_carPhotoList(instrId);const u=urls[idx];if(!u)return;
+  if(!confirm('Remove this car photo?'))return;
+  urls.splice(idx,1);
+  try{
+    await _saveCarPhotos(instrId,urls);
+    const m=u.split('?')[0].match(/\/object\/public\/instructor-files\/(.+)$/);
+    if(m){const{error}=await sb.storage.from('instructor-files').remove([decodeURIComponent(m[1])]);if(error)console.warn('storage remove',error);}
+    showToast('Car photo removed.','success');
+  }catch(err){if(!_carPhotoColumnHelp(err))showToast('Could not remove the photo: '+err.message,'error',8000);}
+}
+async function adminMainCarPhoto(instrId,idx){
+  const urls=_carPhotoList(instrId);if(!urls[idx]||idx===0)return;
+  urls.unshift(urls.splice(idx,1)[0]);
+  try{await _saveCarPhotos(instrId,urls);showToast('Main car photo updated.','success');}catch(err){if(!_carPhotoColumnHelp(err))showToast('Could not update: '+err.message,'error',8000);}
 }
 
 function togglePwd(){
