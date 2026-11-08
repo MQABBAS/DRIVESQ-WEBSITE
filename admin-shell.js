@@ -23,7 +23,8 @@
   var BADGES = { today: ['todayTabBadge', 'qaTodayBadge'], growth: ['gxTabBadge'], finance: ['financeBadge'], pending: ['pendingBadge'], messages: ['inboxBadge'], freehour: ['freehourBadge'], '@webbookings': ['webBookingsBadge'], '@reports': ['qaReportsBadge'] };
   var QUICK = [['New customer', 'bi-person-plus-fill', 'adminNewCustomer()'], ['Website bookings', 'bi-globe2', 'openWebBookingsPanel()'], ['Find & assign', 'bi-geo-alt-fill', "dsqShellGo('find')"],
     ['Add student', 'bi-person-badge', "dsqShellGo('students');setTimeout(function(){try{openCreateStudentModal()}catch(e){}},300)"], ['Add lesson', 'bi-calendar-plus', 'openAddLessonModal(null)'],
-    ['Search everything', 'bi-search', 'openGlobalSearch()'], ['Bulk message', 'bi-send-fill', "dsqShellGo('bulk')"], ['Add instructor', 'bi-person-plus', "dsqShellGo('add')"]];
+    ['Search everything', 'bi-search', 'openGlobalSearch()'], ['Bulk message', 'bi-send-fill', "dsqShellGo('bulk')"], ['Add instructor', 'bi-person-plus', "dsqShellGo('add')"],
+    ['Reports', 'bi-flag-fill', 'openReportsInbox()'], ['Theory progress', 'bi-book-fill', 'openTheoryProgressModal()'], ['Today', 'bi-sun-fill', 'openToday()'], ['All sections', 'bi-grid-3x3-gap-fill', 'dsqShellMenu()']];
   var CARD_PANELS = ['students', 'instructors', 'lessons', 'pending', 'revenue', 'analytics', 'requests', 'transfers', 'feedback'];
   var PIN_KEY = 'dsq_admin_pins', REC_KEY = 'dsq_admin_recent';
   var ALL = {}; GROUPS.forEach(function (g) { g.items.forEach(function (it) { ALL[it[0]] = { id: it[0], label: it[1], icon: it[2], group: g.label }; }); });
@@ -42,7 +43,7 @@
     'body.qa-side-on{--qa-sw:72px}body.qa-side-on #mainPage{width:auto!important;margin-left:calc(var(--qa-sw) + 6px)!important;margin-right:6px!important;max-width:calc(100vw - var(--qa-sw) - 12px)!important}' +
     'body.qa-side-on #mobTabBar{display:none!important}body.qa-side-on.dsq-sh-fullside{--qa-sw:244px}}' +
     /* pinned group in the sidebar */
-    '.qa-side .dsq-pin-grp .qa-side__item i{color:#F5C518}' +
+    '.qa-side .dsq-pin-grp .qa-side__item i{color:#F5C518}.qa-side .dsq-menu-item i{color:#D10A11!important}.qa-side .dsq-menu-item{margin-bottom:4px}' +
     /* pin button in the section header */
     '.dsq-pin{margin-left:auto;flex:none;border:1px solid var(--bdr);background:none;color:var(--txt3);border-radius:999px;padding:5px 12px;font-size:.78rem;cursor:pointer;white-space:nowrap}' +
     '.dsq-pin.on{color:#F5C518;border-color:rgba(245,197,24,.55);background:rgba(245,197,24,.08)}.qa-crumb .dsq-pin+.qa-crumb__help{margin-left:8px}' +
@@ -69,9 +70,9 @@
     '.dsq-sh-fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:301;width:56px;height:56px;border-radius:50%;border:0;background:linear-gradient(135deg,#ff2d35,#D10A11);color:#fff;font-size:1.6rem;box-shadow:0 10px 24px rgba(209,10,17,.45);display:none;cursor:pointer}' +
     '@media (max-width:699px){body.dsq-sh-on .dsq-sh-fab{display:grid;place-items:center}}' +
     /* phone: wide tables become cards */
-    '@media (max-width:699px){table.dsq-sh-cards,table.dsq-sh-cards tbody,table.dsq-sh-cards tr,table.dsq-sh-cards td{display:block;width:100%!important}' +
+    '@media (max-width:699px){table.dsq-sh-cards,table.dsq-sh-cards tbody,table.dsq-sh-cards tr,table.dsq-sh-cards td{display:block;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box}*:has(> table.dsq-sh-cards){min-width:0!important;overflow-x:visible!important}' +
     'table.dsq-sh-cards thead{display:none}table.dsq-sh-cards tr{border:1px solid var(--bdr,rgba(255,255,255,.1));border-radius:14px;margin:0 0 10px;padding:6px 10px;background:rgba(127,127,127,.04)}' +
-    'table.dsq-sh-cards td{display:flex;justify-content:space-between;align-items:center;gap:12px;border:0!important;padding:6px 0!important;text-align:right;min-height:30px}' +
+    'table.dsq-sh-cards td{display:flex!important;justify-content:space-between;align-items:center;gap:12px;border:0!important;padding:6px 0!important;text-align:right;min-height:30px;white-space:normal!important;overflow-wrap:anywhere}table.dsq-sh-cards td > *{max-width:60%;min-width:0}table.dsq-sh-cards td:has(button,.abtn,a.btn,.btn-s){flex-wrap:wrap;justify-content:flex-end;gap:6px}table.dsq-sh-cards td:has(button,.abtn,a.btn,.btn-s) > *{max-width:none}table.dsq-sh-cards td:has(button,.abtn,a.btn,.btn-s)::before{width:100%;max-width:100%;text-align:left}table.dsq-sh-cards td > div:has(> button,> .abtn){display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}' +
     'table.dsq-sh-cards td::before{content:attr(data-label);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--txt4,#888);text-align:left;flex:none;max-width:45%}' +
     'table.dsq-sh-cards td[data-label=""]::before{display:none}table.dsq-sh-cards td[data-label=""]{justify-content:flex-start;flex-wrap:wrap}}' +
     '@media (pointer:coarse){.abtn,.btn-s,.qa-btn,.qa-side__item{min-height:40px}}' +
@@ -129,6 +130,7 @@
     try { window._mobSetActive && window._mobSetActive(id); } catch (e) {}
   }
   window.dsqShellGo = go;
+  window.dsqShellMenu = function () { setTimeout(function () { openSheet('menu'); }, 0); };
 
   function pinButton() {
     var cr = document.querySelector('#mainPage .qa-crumb'); if (!cr) return;
@@ -148,9 +150,9 @@
     fixIcons();
     var sc = document.querySelector('.qa-side .qa-side__scroll'); if (!sc) return;
     var old = sc.querySelector('.dsq-pin-grp'); if (old) old.remove();
-    var p = pins(); if (!p.length) return;
+    var p = pins();
     var d = document.createElement('div'); d.className = 'dsq-pin-grp';
-    d.innerHTML = '<div class="qa-side__grp">★ Pinned</div>' + p.map(function (id) { var it = ALL[id]; return '<button type="button" class="qa-side__item' + (id === current() ? ' is-on' : '') + '" data-go="' + id + '" title="' + esc(it.label) + '"><i class="bi ' + it.icon + '"></i><span class="qa-lbl">' + esc(it.label) + '</span></button>'; }).join('');
+    d.innerHTML = '<button type="button" class="qa-side__item dsq-menu-item" data-shmenu="1" title="All sections, actions and settings (Ctrl + .)"><i class="bi bi-grid-3x3-gap-fill"></i><span class="qa-lbl">All sections &amp; actions</span></button>' + (p.length ? '<div class="qa-side__grp">★ Pinned</div>' : '') + p.map(function (id) { var it = ALL[id]; return '<button type="button" class="qa-side__item' + (id === current() ? ' is-on' : '') + '" data-go="' + id + '" title="' + esc(it.label) + '"><i class="bi ' + it.icon + '"></i><span class="qa-lbl">' + esc(it.label) + '</span></button>'; }).join('');
     sc.insertBefore(d, sc.firstChild);
   }
   function cardify() {
@@ -195,6 +197,7 @@
       if (t.hasAttribute('data-go')) go(t.getAttribute('data-go'));
       else if (t.hasAttribute('data-run')) { closeSheet(); try { (new Function(t.getAttribute('data-run')))(); } catch (x) { console.warn(x); } }
       else if (t.hasAttribute('data-quick')) openSheet('quick');
+      else if (t.hasAttribute('data-shmenu')) openSheet('menu');
       else if (t.hasAttribute('data-pin')) { var id = t.getAttribute('data-pin'), p = pins(), i = p.indexOf(id); if (i > -1) p.splice(i, 1); else p.push(id); lsSet(PIN_KEY, p); pinButton(); sidePins(); window.showToast && showToast(i > -1 ? 'Unpinned' : 'Pinned — it\'s now at the top of the sidebar and menu', 'success'); }
     });
     document.addEventListener('keydown', function (e) {
