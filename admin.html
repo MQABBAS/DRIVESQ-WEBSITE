@@ -15932,6 +15932,17 @@ document.addEventListener('click',e=>{
     if (!quiet) toast(S.fnOk ? "✅ Email sending is connected" : "⚠️ " + LS.get("fnerr", ""), S.fnOk ? "success" : "error", 7000);
     if (S.tab === "setup") render();
   }
+  /* used by the automatic welcome emails (DSQ-WELCOME) — same function, key and name as the Email tab */
+  window.DSQMailSend = {
+    ready: () => !!LS.get("key", ""),
+    send: async (messages) => {
+      const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": LS.get("key", ""), Authorization: "Bearer " + SB_ANON },
+        body: JSON.stringify({ fn_name: FN.split("/").pop(), action: "send", messages }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || j.message || ("Email service returned " + r.status));
+      return j.results || [];
+    }
+  };
   async function sendTest() {
     const to = norm(LS.get("testto", "")) || norm(prompt("Send the test to which email address?", "") || "");
     if (!EMAIL_RE.test(to)) { toast("Add a valid test email address", "warn"); return; }
@@ -18172,5 +18183,171 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 })();
 </script>
 <!-- DSQ-REFMSG END -->
+<!-- DSQ-WELCOME START -->
+<script id="dsq-welcome">
+/* Automatic welcome emails (admin). Runs while admin is open: on load and every 10 minutes, only when Email is connected.
+   1. Website booking received (waiting_list, with "Email:" in the notes, last 14 days) → "We've got your booking"
+   2. Student marked booked (referral: instructor says booked / green flag / fee paid) with an email we can match
+      (student account, booking notes, draw entry or email contact, by phone then name) → "You're booked in"
+   Each send is written into that record's notes ("📧 … welcome email sent"), so nobody gets the same email twice.
+   Unsubscribed contacts are skipped by the email function. Auto mode can be switched off in Referrals. */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const toast = (m, t, ms) => { try { showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const KEY = "dsq_welcome_auto", RE_EMAIL = /^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/;
+  const auto = () => { try { return localStorage.getItem(KEY) !== "0"; } catch (e) { return true; } };
+  const ph10 = p => String(p || "").replace(/\D/g, "").slice(-10);
+  const nm = n => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const stamp = () => { const d = new Date(); return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
+  const MARK_BOOKED = "📧 Welcome email sent (booked)", MARK_WEB = "📧 Welcome email sent (booking received)";
+  const OFFER = { value: "10 hours for £330", label: "New learner offer — your first 10-hour block, paid in advance (normally £350). Manual or automatic." };
+  const PORTAL_INFO = "https://www.drivesq.co.uk/drivesq-student-portal.html", PORTAL_LOGIN = "https://www.drivesq.co.uk/student.html", WA = "https://wa.me/447352932003";
+
+  function designBooked(instr) {
+    return { theme: "night", banner: "drive", subject: "You're booked in, {{first_name}}! Welcome to DriveSQ 🚗", preheader: "Everything you need to know before your first lesson" + (instr ? " with " + instr : "") + ".",
+      headline: "You're **booked in!**", greeting: "Hi {{first_name}},",
+      body: "Welcome to DriveSQ — we're really pleased to have you with us." + (instr ? " Your instructor is **" + instr + "**." : "") + "\n\n" +
+        "**Before your first lesson**\n- Have your **provisional driving licence** ready — your instructor will ask to see it\n- Wear comfortable shoes you can feel the pedals in, and bring your glasses or lenses if you need them to drive\n- Be at your pick-up point a few minutes early\n\n" +
+        "**What happens in your first lesson**\n- We start somewhere quiet — no pressure, at your own pace\n- You'll learn the controls, moving off and stopping safely\n- At the end you'll talk through your progress and plan your next lessons\n\n" +
+        "**Your free DriveSQ Student Portal**\n- 700+ theory questions and 14 full mock tests\n- Hazard perception practice\n- Your lesson log, progress and test-readiness checklist",
+      highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Open my Student Portal", buttonUrl: PORTAL_LOGIN,
+      secondaryText: "Need to change a lesson? Contact " + (instr || "your instructor") + " directly. Any other questions — just reply to this email or [WhatsApp us](" + WA + ").",
+      signoff: "See you on the road,\nThe DriveSQ team" };
+  }
+  function designWeb() {
+    return { theme: "night", banner: "drive", subject: "Welcome to DriveSQ, {{first_name}} — we've got your details ✅", preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
+      headline: "We've got your **booking request**", greeting: "Hi {{first_name}},",
+      body: "Thanks for booking with DriveSQ — we've received your details and we're on it.\n\n" +
+        "**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Prefer to chat? Reply to this email or WhatsApp us any time\n\n" +
+        "**In the meantime — explore your free Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\n" +
+        "Don't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
+      highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Explore the Student Portal", buttonUrl: PORTAL_INFO,
+      secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")",
+      signoff: "Speak soon,\nThe DriveSQ team" };
+  }
+  function message(design, to, name) {
+    const M = window.DSQMail, c = { name: name || "", email: to };
+    return { to, subject: M.personalise(design.subject, c).replace(/&amp;/g, "&"), html: M.personalise(M.build(design), c), text: M.personalise(M.text(design), c) };
+  }
+
+  /* ---------- where emails live ---------- */
+  async function emailIndex() {
+    const byPh = new Map(), byName = new Map();
+    const add = (email, name, phone) => { email = String(email || "").trim().toLowerCase(); if (!RE_EMAIL.test(email)) return; const p = ph10(phone); if (p && !byPh.has(p)) byPh.set(p, email); const n = nm(name); if (n) byName.set(n, byName.has(n) && byName.get(n) !== email ? null : email); };
+    const q = async (t, cols) => { try { const r = await sb.from(t).select(cols).limit(5000); return r.data || []; } catch (e) { return []; } };
+    (await q("student_accounts", "full_name,email,phone")).forEach(x => add(x.email, x.full_name, x.phone));
+    (await q("waiting_list", "student_name,student_phone,notes")).forEach(x => { const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i); if (m) add(m[1], x.student_name, x.student_phone); });
+    (await q("draw_entries", "student_name,student_email,student_phone")).forEach(x => add(x.student_email, x.student_name, x.student_phone));
+    (await q("email_contacts", "email,name,phone")).forEach(x => add(x.email, x.name, x.phone));
+    return r => byPh.get(ph10(r.student_phone)) || (byName.get(nm(r.student_name)) || null);
+  }
+  const isBooked = r => !r.is_cancelled && !r.is_credit && (r.reply_status === "booked" || r.flag_color === "green" || r.is_paid);
+  async function referrals() { try { if (typeof _refData !== "undefined" && _refData && _refData.length) return _refData; } catch (e) {}
+    const r = await sb.from("referrals").select("*").order("created_at", { ascending: false }).limit(3000); return r.data || []; }
+
+  /* ---------- find who's due ---------- */
+  async function pending(opts) {
+    const days = opts && opts.all ? 100000 : 60, cutoff = Date.now() - days * 864e5;
+    const find = await emailIndex(), seen = new Set(), booked = [], web = [];
+    for (const r of await referrals()) {
+      if (!isBooked(r) || /Welcome email sent \(booked\)/.test(r.admin_notes || "") || new Date(r.created_at) < cutoff) continue;
+      const email = find(r); if (!email || seen.has(email)) continue; seen.add(email);
+      const ins = (typeof allInstrs !== "undefined" ? allInstrs : []).find(i => i.id === r.instructor_id) || {};
+      booked.push({ kind: "booked", id: r.id, row: r, email, name: r.student_name, instr: (ins.full_name || "").split(" ")[0] });
+    }
+    try {
+      const since = new Date(Date.now() - (opts && opts.all ? 365 : 14) * 864e5).toISOString();
+      const w = await sb.from("waiting_list").select("id,student_name,student_phone,notes,created_at,status").gte("created_at", since).order("created_at", { ascending: false }).limit(1000);
+      for (const x of w.data || []) {
+        const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i), email = m && m[1].toLowerCase();
+        if (!email || !RE_EMAIL.test(email) || /Welcome email sent/.test(x.notes || "") || seen.has(email)) continue;
+        seen.add(email); web.push({ kind: "web", id: x.id, row: x, email, name: x.student_name });
+      }
+    } catch (e) {}
+    return { booked, web };
+  }
+
+  /* ---------- send + log ---------- */
+  async function logSent(item) {
+    if (item.kind === "booked") {
+      const r = item.row, notes = (r.admin_notes ? r.admin_notes.trim() + "\n" : "") + stamp() + " · " + MARK_BOOKED + " to " + item.email;
+      const u = await sb.from("referrals").update({ admin_notes: notes }).eq("id", r.id); if (!u.error) r.admin_notes = notes;
+    } else {
+      const notes = (item.row.notes ? item.row.notes.trim() + "\n" : "") + stamp() + " · " + MARK_WEB + " to " + item.email;
+      const u = await sb.from("waiting_list").update({ notes }).eq("id", item.id); if (!u.error) item.row.notes = notes;
+    }
+  }
+  let busy = false;
+  async function run(opts) {
+    if (busy || !window.DSQMailSend || !window.DSQMail || !DSQMailSend.ready()) return { sent: 0, skipped: 0, failed: 0, none: !(window.DSQMailSend && DSQMailSend.ready()) };
+    busy = true; const out = { sent: 0, skipped: 0, failed: 0, errors: [] };
+    try {
+      const p = await pending(opts), items = p.web.concat(p.booked).slice(0, 90);   // stay under the free plan's 100/day
+      for (let i = 0; i < items.length; i += 50) {
+        const chunk = items.slice(i, i + 50);
+        const msgs = chunk.map(it => message(it.kind === "booked" ? designBooked(it.instr) : designWeb(), it.email, it.name));
+        let res = [];
+        try { res = await DSQMailSend.send(msgs); } catch (e) { out.failed += chunk.length; out.errors.push(e.message); continue; }
+        for (let k = 0; k < chunk.length; k++) {
+          const st = res[k] && res[k].status;
+          if (st === "sent" || st === "skipped") { await logSent(chunk[k]); st === "sent" ? out.sent++ : out.skipped++; }   // skipped = unsubscribed → don't retry
+          else { out.failed++; if (res[k] && res[k].error) out.errors.push(res[k].error); }
+        }
+      }
+    } finally { busy = false; }
+    try { localStorage.setItem("dsq_welcome_last", JSON.stringify({ at: Date.now(), ...out })); } catch (e) {}
+    if (out.sent) toast("📧 Sent " + out.sent + " welcome email" + (out.sent > 1 ? "s" : ""), "success", 5000);
+    if (out.failed) toast("⚠️ " + out.failed + " welcome email(s) failed: " + (out.errors[0] || ""), "error", 8000);
+    try { if (typeof _openRefInstrId !== "undefined" && _openRefInstrId && document.getElementById("refDetailModal").classList.contains("open")) openRefDetail(_openRefInstrId); } catch (e) {}
+    card(); return out;
+  }
+
+  /* ---------- Referrals card ---------- */
+  async function card() {
+    const panel = document.getElementById("panel-referrals"); if (!panel) return;
+    let c = document.getElementById("dsqWelcomeCard");
+    if (!c) { c = document.createElement("div"); c.id = "dsqWelcomeCard"; c.style.cssText = "margin:0 0 12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(37,211,102,.08));border:1px solid rgba(96,165,250,.3)"; panel.insertBefore(c, panel.firstChild); }
+    const ready = window.DSQMailSend && DSQMailSend.ready();
+    let last = null; try { last = JSON.parse(localStorage.getItem("dsq_welcome_last") || "null"); } catch (e) {}
+    let n = null; if (ready) { try { const p = await pending({}); n = p.booked.length + p.web.length; } catch (e) {} }
+    c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <div style="flex:1;min-width:220px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic welcome emails</b>
+        <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? (auto() ? "On — website bookings get “We've got your details”, booked students get “You're booked in” (with the 10 hours for £330 offer). Checked every 10 minutes while admin is open." : "Off — nothing is sent automatically.") : "Connect Email first (Email → Setup) to switch these on."}
+        ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} sent${last.skipped ? ", " + last.skipped + " unsubscribed" : ""}${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${n != null ? `<br><b>${n}</b> waiting to be sent now.` : ""}</div></div>
+      ${ready ? `<label style="font-size:.78rem;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="dsqWelAuto" ${auto() ? "checked" : ""}> Auto-send</label>
+      <button type="button" class="btn-s" id="dsqWelPrev" style="font-size:.76rem"><i class="bi bi-eye me-1"></i>Preview</button>
+      <button type="button" class="btn-p" id="dsqWelNow" style="font-size:.76rem"><i class="bi bi-send me-1"></i>Send now</button>
+      <button type="button" class="btn-s" id="dsqWelAll" style="font-size:.76rem" title="Also email students marked booked more than 60 days ago">Older bookings…</button>` : ""}</div>`;
+  }
+  function preview() {
+    let m = document.getElementById("dsqWelPrevM");
+    if (!m) { m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "dsqWelPrevM"; m.style.zIndex = "10220"; m.innerHTML = '<div class="dsq-modal" style="max-width:760px;width:96vw"><button class="modal-x" type="button" data-wclose><i class="bi bi-x-lg"></i></button><div style="display:flex;gap:6px;margin-bottom:8px"><button type="button" class="btn-p" data-wtab="web">Booking received</button><button type="button" class="btn-s" data-wtab="booked">Booked with instructor</button></div><iframe id="dsqWelFrame" style="width:100%;height:70vh;border:0;border-radius:12px;background:#fff"></iframe></div>'; document.body.appendChild(m);
+      m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-wclose]")) m.classList.remove("open"); const t = e.target.closest("[data-wtab]"); if (t) { show(t.getAttribute("data-wtab")); [].forEach.call(m.querySelectorAll("[data-wtab]"), b => b.className = b === t ? "btn-p" : "btn-s"); } }); }
+    const show = k => { const d = k === "web" ? designWeb() : designBooked("Dawood"); document.getElementById("dsqWelFrame").srcdoc = DSQMail.personalise(DSQMail.build(d), { name: "Sam Learner" }).replace(/\{\{unsubscribe_url\}\}/g, "#"); };
+    show("web"); m.classList.add("open");
+  }
+  document.addEventListener("click", async e => {
+    const t = e.target.closest("#dsqWelPrev,#dsqWelNow,#dsqWelAll"); if (!t) return;
+    if (t.id === "dsqWelPrev") return preview();
+    t.disabled = true;
+    if (t.id === "dsqWelNow") { const r = await run({}); if (!r.sent && !r.failed) toast("Nobody waiting — everyone's been welcomed ✓", "success", 3000); }
+    if (t.id === "dsqWelAll") { const p = await pending({ all: true }); const n = p.booked.length + p.web.length;
+      if (!n) toast("Nobody waiting — everyone's been welcomed ✓", "success", 3000);
+      else if (confirm(`Send welcome emails to ${n} student${n > 1 ? "s" : ""}, including bookings older than 60 days?\n\n(Up to 90 today — run again tomorrow for more on the free plan.)`)) await run({ all: true }); }
+    t.disabled = false;
+  });
+  document.addEventListener("change", e => { if (e.target && e.target.id === "dsqWelAuto") { try { localStorage.setItem(KEY, e.target.checked ? "1" : "0"); } catch (er) {} card(); if (e.target.checked) run({}); } });
+
+  /* ---------- triggers ---------- */
+  const tick = () => { if (auto()) run({}); else card(); };
+  ["setRefFlag", "markRefPaid"].forEach(fn => { const o = window[fn]; if (typeof o === "function") window[fn] = async function () { const r = await o.apply(this, arguments); setTimeout(tick, 1500); return r; }; });
+  function start() { setTimeout(tick, 8000); setInterval(tick, 10 * 60 * 1000); }
+  window.DSQWelcome = { run, pending, preview };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+})();
+</script>
+<!-- DSQ-WELCOME END -->
 </body>
 </html>
