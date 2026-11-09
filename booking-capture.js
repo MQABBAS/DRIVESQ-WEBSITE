@@ -257,7 +257,7 @@
   }
   function init() {
     scan(document);
-    if (!window.__dsqAssist) { var as = document.createElement('script'); as.src = '/dsq-assist.js?v=20261110'; as.defer = true; document.head.appendChild(as); }
+    if (!window.__dsqAssist) { var as = document.createElement('script'); as.src = '/dsq-assist.js?v=20261111'; as.defer = true; document.head.appendChild(as); }
     if (document.querySelector('#dsqInlineBookForm') && !document.querySelector('[data-dsqx-bc]') && !window.__dsqBookCard) {
       var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261111'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
     } else stickyBook();

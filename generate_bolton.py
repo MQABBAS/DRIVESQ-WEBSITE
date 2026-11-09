@@ -64,7 +64,7 @@ def sources(keys, note="Official statistics on GOV.UK (Open Government Licence v
 
 def more(exclude):
     items = [(F_TC, "Bolton test centre data"), (F_CMP, "Bolton-area centres compared"), (F_TH, "Bolton theory test pass rates"), (F_RD, "Bolton road safety data"),
-             (F_TOWN, "Bolton bus lanes & town centre"), ("driving-lessons-students-bolton.html", "Student lessons in Bolton"), ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
+             (F_TOWN, "Bolton bus lanes & town centre"), ("driving-lesson-prices-bolton.html", "Bolton prices & cost calculator"), ("driving-lessons-students-bolton.html", "Student lessons in Bolton"), ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
              ("intensive-driving-course-bolton.html", "Intensive courses in Bolton"), (HUB, "Driving lessons in Bolton")]
     try: ar = L.chips([(AF[w], w) for w in AF if AF[w] != exclude])
     except NameError: ar = ""
@@ -521,7 +521,61 @@ def students():
                     "student driving lessons bolton, driving lessons for students bolton, bolton college driving lessons, university driving lessons bolton, cheap driving lessons bolton students",
                     hero, secs, faqs, data, script, [], (1, 5, 8, 2, 9))
 
-PAGES = [test_centre, compare, theory, roads, town, areas, students]
+F_PRICE = "driving-lesson-prices-bolton.html"
+SRC.update({"prov": ("GOV.UK — Apply for your first provisional driving licence (£34 online, £43 by post)", "https://www.gov.uk/apply-first-provisional-driving-licence"),
+            "tfee": ("GOV.UK — Book your theory test (£23)", "https://www.gov.uk/book-theory-test"),
+            "pfee": ("GOV.UK — Book your driving test (cars £62 to £75)", "https://www.gov.uk/book-driving-test")})
+
+
+def prices():
+    f = F_PRICE; b = C["bolton"]; yb = b["years"][Y]; fb = b["first"][Y]; th = X["theory"]["centres"]["Bolton"]["years"][Y]
+    rows = [("Pay as you go", "2-hour lessons", "£70 per lesson", "£35/hr", "Try us first, or fit lessons around shifts"),
+            ("10-hour block", "10 hours", "£350", "£35/hr", "Most learners' first step"),
+            ("Students & NHS staff", "10 hours", "£320", "£32/hr", "College, sixth-form, university and NHS staff"),
+            ("Intensive / semi-intensive", "Planned to your test date", "Quoted for you", "—", "We plan hours around your experience and test date")]
+    tbl = "".join(f'<tr><td><b>{a}</b></td><td>{h}</td><td><b>{p_}</b></td><td>{r}</td><td style="font-size:.84rem">{n}</td></tr>' for a, h, p_, r, n in rows)
+    calc = ('<div class="sol-card reveal" style="padding:22px"><div class="row g-3">'
+            '<div class="col-sm-4"><label class="dsq-lbl" style="font-size:.8rem;font-weight:700">Hours of lessons</label><input type="range" id="pcH" min="10" max="60" step="2" value="30" style="width:100%"><div><b id="pcHv">30</b> hours</div></div>'
+            '<div class="col-sm-4"><label style="font-size:.8rem;font-weight:700">Price</label><select id="pcP" class="form-select form-select-sm"><option value="35">Pay as you go / blocks — £35/hr</option><option value="32">Student or NHS — £32/hr (10-hour blocks)</option></select></div>'
+            '<div class="col-sm-4"><label style="font-size:.8rem;font-weight:700">Test day</label><select id="pcT" class="form-select form-select-sm"><option value="62">Weekday test (£62)</option><option value="75">Evening / weekend test (£75)</option></select>'
+            '<label style="font-size:.8rem;display:block;margin-top:6px"><input type="checkbox" id="pcL" checked> I still need a provisional licence (£34)</label></div></div>'
+            '<div id="pcOut" class="mt-3" style="font-size:1rem"></div><p class="sol-note mt-2 mb-0">Lesson prices are DriveSQ\'s. Licence and test fees are DVSA/DVLA\'s official fees on GOV.UK. Everyone needs a different number of hours — your instructor gives you an honest estimate after the first lesson.</p></div>')
+    secs = [
+        kpis([(35, 0, "", "£ per hour, manual or automatic"), (350, 0, "", "£ for a 10-hour block"), (320, 0, "", "£ for 10 hours — students & NHS"), (62, 0, "", "£ DVSA practical test (weekday)")]),
+        L.sec("prices", "One clear price list", "Driving lesson prices in Bolton (2026)", "No hidden extras and the same price for manual and automatic. Pick-up anywhere in BL1–BL7.",
+              f'<div class="sol-wrap reveal"><table class="sol-tbl"><thead><tr><th>Option</th><th>Hours</th><th>Price</th><th>Per hour</th><th>Best for</th></tr></thead><tbody>{tbl}</tbody></table></div>'),
+        L.sec("fees", "Official fees", "What you pay DVLA and DVSA", "These go to the government, not to us — check the latest on GOV.UK.",
+              L.cards([("bi-card-heading", "Provisional licence: £34", "£34 when you apply online (£43 by post). You need it before your first lesson."),
+                       ("bi-journal-check", "Theory test: £23", f"Bolton's theory pass rate was {th['p']}% in {Y} — the Student Portal (700+ questions, 14 mocks) is free with lessons."),
+                       ("bi-car-front", "Practical test: £62–£75", "£62 for a weekday car test, up to £75 at evenings, weekends and bank holidays."),
+                       ("bi-arrow-repeat", "Retests cost the same again", f"Only {fb['p']}% passed first time at Bolton in {Y}. Being properly ready saves the fee, another wait and more lessons.")]), alt=True),
+        L.sec("calc", "Cost calculator", "What will learning to drive cost you?", "Move the slider to the number of hours you think you'll need.", calc),
+        L.sec("value", "What's included", "What every DriveSQ lesson includes", "",
+              L.cards([("bi-person-badge", "DVSA-approved instructors", "Dual-control cars, manual or automatic."),
+                       ("bi-geo-alt", "Pick-up across Bolton", "Home, college, work — anywhere in BL1–BL7."),
+                       ("bi-phone", "Free Student Portal", "Theory practice, mock tests, lesson log and test-readiness checklist."),
+                       ("bi-signpost-split", "Local test preparation", f'Mock tests on roads around Bolton test centre (Weston Street) — <a href="{F_TC}">see the official data</a>.')]), alt=True),
+        photos((4, 9, 2, 6, 1)),
+        more(f), sources(("prov", "tfee", "pfee", "dvsa"), "DriveSQ prices; official fees from GOV.UK, checked 9 November 2026.")]
+    faqs = [("How much are driving lessons in Bolton?", "£35 an hour with DriveSQ, manual or automatic. A 10-hour block is £350, and students and NHS staff get 10 hours for £320."),
+            ("Is automatic more expensive than manual?", "Not with DriveSQ — both are £35/hr."),
+            ("How much does the driving test cost?", "The DVSA car practical test costs £62 on weekdays and up to £75 for evenings, weekends and bank holidays. The theory test is £23 (GOV.UK)."),
+            ("How much is a provisional licence?", "£34 online or £43 by post (GOV.UK)."),
+            ("How many lessons will I need?", "Everyone is different. After your first lesson your instructor gives you an honest estimate and plan; use the calculator above to budget.")]
+    data = {}
+    script = """var h=document.getElementById('pcH'),pp=document.getElementById('pcP'),t=document.getElementById('pcT'),l=document.getElementById('pcL');
+function draw(){var hrs=+h.value,rate=+pp.value,les=hrs*rate,tot=les+23+(+t.value)+(l.checked?34:0);document.getElementById('pcHv').textContent=hrs;
+document.getElementById('pcOut').innerHTML='Lessons: <b>£'+les.toLocaleString('en-GB')+'</b> · theory £23 · practical £'+t.value+(l.checked?' · licence £34':'')+'<div style="font-family:Oswald,sans-serif;font-size:1.6rem;color:#D10A11;margin-top:6px">Total ≈ £'+tot.toLocaleString('en-GB')+'</div>';}
+[h,pp,t,l].forEach(function(x){x.addEventListener('input',draw);x.addEventListener('change',draw);});draw();"""
+    hero = L.hero("Prices · Bolton 2026", '<span class="w">Driving lesson</span> <span class="w w--red">prices</span> <span class="w">Bolton.</span>', "one clear price list, the official test fees and a cost calculator",
+                  [("bi-cash", "£35/hr manual or auto"), ("bi-mortarboard", "£320 students & NHS"), ("bi-calculator", "Cost calculator")], [("red", "#prices", "bi-cash", "See prices"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
+    desc = "Driving lesson prices in Bolton 2026: £35/hr manual or automatic, 10 hours £350, students & NHS £320. Official GOV.UK test and licence fees and a full cost calculator."
+    return f, build(f, "Driving lesson prices Bolton", "Driving Lesson Prices Bolton 2026 | £35/hr | DriveSQ", desc,
+                    "driving lesson prices bolton, how much are driving lessons bolton, cheap driving lessons bolton, driving lessons bolton price, automatic driving lessons price bolton",
+                    hero, secs, faqs, data, script, [{"@context": "https://schema.org", "@type": "OfferCatalog", "name": "DriveSQ driving lessons in Bolton",
+                                                      "itemListElement": [{"@type": "Offer", "name": a, "price": p_.replace("£", "").split(" ")[0], "priceCurrency": "GBP"} for a, h_, p_, r, n in rows if p_.startswith("£")]}], (4, 9, 2, 6, 1))
+
+PAGES = [test_centre, compare, theory, roads, town, areas, students, prices]
 
 
 def main():
