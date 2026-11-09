@@ -15917,8 +15917,18 @@ document.addEventListener('click',e=>{
       const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": key, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify({ action: "status" }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.ok) { S.fnOk = j.resend ? true : false; LS.set("from", j.from || ""); LS.set("fnerr", j.resend ? "" : "RESEND_API_KEY isn't set in Supabase secrets"); }
-      else { S.fnOk = false; LS.set("fnerr", r.status === 401 ? "The key doesn't match EMAIL_ADMIN_KEY in Supabase" : r.status === 404 ? "The send-email function isn't deployed yet" : (j.error || "Email service returned " + r.status)); }
-    } catch (e) { S.fnOk = false; LS.set("fnerr", "Couldn't reach the send-email function — is it deployed?"); }
+      else {
+        S.fnOk = false;
+        const said = String(j.error || j.message || j.msg || "").trim(), fn = FN.split("/").pop();
+        let why;
+        if (r.status === 401 && /admin email key/i.test(said)) why = "The password in admin doesn't match the EMAIL_ADMIN_KEY secret in Supabase (function '" + fn + "' is working). Retype both — no spaces.";
+        else if (r.status === 401 && !j.hasOwnProperty("ok")) why = "Supabase blocked the call before it reached '" + fn + "' (" + (said || "401") + "). In Supabase → Edge Functions → " + fn + " → turn OFF 'Verify JWT', save, then Save & test again.";
+        else if (r.status === 404) why = "No email function found (tried send-email, sendemail, send_email). Check it's deployed in Supabase → Edge Functions.";
+        else if (r.status >= 500) why = "The function '" + fn + "' crashed (" + r.status + (said ? ": " + said : "") + "). Open it in Supabase → Logs to see why.";
+        else why = said || ("Email service returned " + r.status);
+        LS.set("fnerr", why);
+      }
+    } catch (e) { S.fnOk = false; LS.set("fnerr", "Couldn't reach the email function (tried send-email, sendemail, send_email) — check it's deployed in Supabase → Edge Functions, and that 'Verify JWT' is off."); }
     if (!quiet) toast(S.fnOk ? "✅ Email sending is connected" : "⚠️ " + LS.get("fnerr", ""), S.fnOk ? "success" : "error", 7000);
     if (S.tab === "setup") render();
   }
