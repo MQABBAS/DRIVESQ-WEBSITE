@@ -1487,6 +1487,21 @@ body.day-mode .dsqd-note{color:#92400e}
 .xd-msgm__subj { margin-bottom:8px; font-size:.84rem; }
 .xd-msgm__ta { font-size:.86rem; line-height:1.5; min-height:130px; resize:vertical; }
 .xd-msgm__warn { margin:8px 0 0; font-size:.72rem; color:#fbbf24; } .xd-msgm__warn i { margin-right:5px; }
+.xd-tag--acct { background:rgba(37,211,102,.12); border-color:rgba(37,211,102,.4); color:#4ade80; }
+.xd-msgm__acct { display:flex; align-items:center; gap:8px; margin:8px 0 0; padding:8px 10px; border-radius:10px; background:rgba(245,197,24,.07); border:1px solid rgba(245,197,24,.22); font-size:.74rem; color:var(--txt2,#ddd); }
+.xd-msgm__acct i { color:var(--gold,#f5c518); font-size:1rem; } .xd-msgm__acct span { flex:1; min-width:0; } .xd-msgm__acct .btn-s { flex-shrink:0; white-space:nowrap; }
+.xd-item__btns { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:flex-end; }
+.xd-acctm { max-width:560px; } .xd-acctm h5 { font-family:'Oswald',sans-serif; margin-bottom:6px; }
+.xd-acctm .dsq-lbl small { font-weight:400; opacity:.7; }
+.xd-pass { display:flex; gap:6px; } .xd-pass .dsq-inp { flex:1; min-width:0; font-family:ui-monospace,Menlo,monospace; letter-spacing:.5px; }
+.xd-acctm__err { margin-top:10px; padding:8px 10px; border-radius:8px; background:rgba(209,10,17,.1); border:1px solid rgba(209,10,17,.35); color:#f87171; font-size:.78rem; }
+.xd-acctm .xd-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:14px; }
+.xd-acctm__done { text-align:center; } .xd-acctm__done > i { font-size:2.2rem; color:#4ade80; } .xd-acctm__done p { font-size:.8rem; color:var(--txt3,#bbb); }
+.xd-acctm__login { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0 4px; text-align:left; }
+.xd-acctm__login > div { padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); min-width:0; }
+.xd-acctm__login small { display:block; font-size:.66rem; color:var(--txt3,#aaa); } .xd-acctm__login b { display:block; font-size:.86rem; overflow-wrap:anywhere; }
+.xd-acctm .xd-wa { background:#25d366; border-color:#25d366; color:#06210f; text-decoration:none; }
+@media (max-width:520px){ .xd-acctm__login { grid-template-columns:1fr; } .xd-acctm .xd-actions > * { flex:1 1 100%; justify-content:center; } .xd-msgm__acct { flex-wrap:wrap; } }
 .xd-msgm__foot { display:flex; align-items:center; gap:8px; margin-top:12px; }
 .xd-msgm__count { flex:1; font-size:.68rem; color:var(--txt4,#888); }
 .xd-msgm__foot .btn-s, .xd-msgm__foot .btn-p { font-size:.8rem; padding:7px 16px; }
@@ -16096,7 +16111,7 @@ document.addEventListener('click',e=>{
       : "Hi " + (d.full_name || "").split(" ")[0] + ", it's DriveSQ.";
     return '<div class="dist-card mb-2 xd-ext' + (ok ? "" : " is-dim") + '" data-xd-ext="' + h(d.id) + '" data-instr-search="' + h(searchText(d)) + '" data-instr-model="other">' +
       '<div class="xd-ext__row"><div class="xd-ext__mark" title="Not a DriveSQ instructor">NOT<br>DRIVESQ</div>' +
-      '<div class="xd-card__main"><div class="xd-card__name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span></div>" +
+      '<div class="xd-card__main"><div class="xd-card__name">' + h(d.full_name) + ' <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span>" + (acctOf(d) ? ' <span class="xd-tag xd-tag--acct" title="Has a DriveSQ portal account — gets in-app messages and notifications like your instructors"><i class="bi bi-person-check-fill"></i> Account</span>' : "") + "</div>" +
       '<div class="xd-card__meta"><i class="bi bi-geo-alt"></i>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + (d.phone ? " · " + h(d.phone) : "") + "</div>" +
       (cov ? '<div class="xd-cov"><i class="bi bi-patch-check-fill"></i>Covers ' + h(oc) + "</div>" : "") +
       (!ok ? '<div class="xd-warn"><i class="bi bi-exclamation-triangle"></i>Teaches ' + h(d.car_type) + " only — student wants " + h(want) + "</div>" : "") +
@@ -16105,7 +16120,10 @@ document.addEventListener('click',e=>{
       '<div class="xd-card__btns">' + (wa ? '<a class="abtn wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '"><i class="bi bi-whatsapp me-1"></i>' + (s ? "Ask" : "WA") + "</a>" : "") +
       (d.phone ? '<a class="abtn" href="tel:' + h(String(d.phone).replace(/\s/g, "")) + '"><i class="bi bi-telephone me-1"></i>Call</a>' : "") +
       (s ? '<a class="abtn" target="_blank" rel="noopener" style="color:#4285f4;border-color:rgba(66,133,244,.4)" href="' + h(_fcMapsUrl(d.base_postcode || "", s.postcode, s.testCentre ? s.testCentre.postcode : "")) + '"><i class="bi bi-google me-1"></i>Maps</a>' : "") +
-      (d.phone ? '<button type="button" class="abtn xd-msgbtn" data-xd-msg="e:' + h(d.id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>' : "") +
+      (acctOf(d) ? '<button type="button" class="abtn xd-msgbtn" data-xd-msg="i:' + h(acctOf(d).id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>' +
+        '<button type="button" class="abtn approve" data-xd-sendstu="' + h(d.id) + '"><i class="bi bi-person-plus me-1"></i>' + (s ? "Create student &amp; send" : "Send a student") + "</button>"
+        : (d.phone ? '<button type="button" class="abtn xd-msgbtn" data-xd-msg="e:' + h(d.id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>' : "") +
+          '<button type="button" class="abtn xd-acctbtn" data-xd-acct="' + h(d.id) + '"' + (s ? ' data-xd-then="student"' : "") + '><i class="bi bi-person-badge me-1"></i>' + (s ? "Create account &amp; send student" : "Create account") + "</button>") +
       '<button type="button" class="abtn" data-xd-editext="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button>' +
       (s ? '<button type="button" class="abtn approve" data-xd-pass="' + h(d.id) + '"><i class="bi bi-box-arrow-up-right me-1"></i>Passed on</button>' : "") + "</div></div></div></div>";
   }
@@ -16227,7 +16245,9 @@ document.addEventListener('click',e=>{
     const list = drivers.map(d => editing === String(d.id) ? form(d) :
       '<div class="xd-item' + (d.active === false ? " is-off" : "") + '"><div><b>' + h(d.full_name) + '</b> <span class="xd-tag">' + h(d.label || "Not DriveSQ") + '</span> <span class="xd-tag xd-tag--type">' + h(d.car_type || "Manual") + "</span>" + (d.active === false ? ' <span class="xd-tag xd-tag--off">Hidden</span>' : "") +
       '<small>' + h(d.base_postcode || "—") + (d.coverage_postcodes ? " · covers " + h(d.coverage_postcodes) : "") + (d.phone ? " · " + h(d.phone) : "") + "</small>" + (d.notes ? '<small class="xd-item__note">' + h(d.notes) + "</small>" : "") + "</div>" +
-      '<button type="button" class="btn-s" data-xd-editd="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button></div>').join("");
+      '<span class="xd-item__btns">' + (acctOf(d) ? '<span class="xd-tag xd-tag--acct"><i class="bi bi-person-check-fill"></i> Account</span><button type="button" class="btn-s" data-xd-msg="i:' + h(acctOf(d).id) + '"><i class="bi bi-chat-dots me-1"></i>Message</button>'
+        : '<button type="button" class="btn-s" data-xd-acct="' + h(d.id) + '"><i class="bi bi-person-badge me-1"></i>Create account</button>') +
+      '<button type="button" class="btn-s" data-xd-editd="' + h(d.id) + '"><i class="bi bi-pencil me-1"></i>Edit</button></span></div>').join("");
     body.innerHTML = '<p class="xd-hint">Drivers or schools who aren\'t DriveSQ instructors but you can pass learners to. They appear in Find &amp; Assign with their label, closest first.</p>' +
       (editing === "new" ? form({}) : '<button type="button" class="btn-p mb-2" data-xd-new><i class="bi bi-plus-lg me-1"></i>Add a driver</button>') +
       (drivers.length ? '<div class="xd-list">' + list + "</div>" : (editing === "new" ? "" : '<div class="xd-empty">No other drivers yet.</div>'));
@@ -16281,6 +16301,113 @@ document.addEventListener('click',e=>{
   document.addEventListener("submit", e => { const f = e.target.closest("[data-xd-form]"); if (!f) return; e.preventDefault(); saveDriver(f); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdModal"); if (m) m.classList.remove("open"); } });
 
+  /* ---------- portal accounts for other drivers ----------
+     A driver who isn't a DriveSQ instructor can be given a normal instructor login (dashboard.html). From then on they get
+     messages exactly like every other instructor — in-app + phone notification, in Messages, Bulk and Send-to-all — and
+     students can be created and sent to them with the usual Create Student flow. They stay marked NOT DRIVESQ here, and
+     their instructor note says so. The link is external_drivers.instructor_id, or the same phone number if that column
+     isn't there yet (supabase/migrations/20261109_external_driver_accounts.sql). */
+  const phoneKey = p => { const d = String(p || "").replace(/\D/g, "").replace(/^44/, "0"); return d.length >= 10 ? d.slice(-10) : ""; };
+  function acctOf(d) {
+    if (!d) return null; const all = instrs();
+    if (d.instructor_id) { const i = all.find(x => String(x.id) === String(d.instructor_id)); if (i) return i; }
+    const k = phoneKey(d.phone); return k ? (all.find(x => phoneKey(x.phone) === k) || null) : null;
+  }
+  const genPass = () => { const a = "abcdefghjkmnpqrstuvwxyz", A = "ABCDEFGHJKLMNPQRSTUVWXYZ", n = "23456789", pick = x => x[Math.floor(Math.random() * x.length)]; return pick(A) + pick(a) + pick(a) + pick(a) + pick(n) + pick(n) + pick(n) + pick(a); };
+  function acctModal() {
+    let m = $("#xdAcct"); if (m) return m;
+    m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "xdAcct"; m.style.zIndex = "10170";
+    m.innerHTML = '<div class="dsq-modal xd-acctm" role="dialog" aria-labelledby="xdAcctT"><button class="modal-x" type="button" data-xd-acctclose><i class="bi bi-x-lg"></i></button><div class="xd-acctm__body"></div></div>';
+    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); });
+    document.body.appendChild(m); return m;
+  }
+  function openAcct(id, then) {
+    const d = drivers.find(x => String(x.id) === String(id)); if (!d) return;
+    const ex = acctOf(d); if (ex) { toast(d.full_name + " already has an account", ""); if (then === "student") sendStudent(d); return; }
+    const m = acctModal(), b = $(".xd-acctm__body", m); m._d = d; m._then = then || "";
+    try { const mm = $("#xdMsg"); if (mm) mm.classList.remove("open"); } catch (e) {}
+    b.innerHTML = '<h5 id="xdAcctT"><i class="bi bi-person-badge me-2" style="color:var(--gold)"></i>Create account — ' + h(d.full_name) + '</h5>' +
+      '<p class="xd-hint">Gives ' + h(d.full_name.split(" ")[0]) + ' an instructor login at <b>drivesq.co.uk/dashboard.html</b>. They\'ll get your messages in-app with a phone notification, exactly like your DriveSQ instructors, and you can send them students. They stay marked <b>NOT DRIVESQ</b> (' + h(d.label || "Not DriveSQ") + ').</p>' +
+      '<form data-xd-acctform><div class="row g-2">' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Name *</label><input class="dsq-inp" name="full_name" required maxlength="80" value="' + h(d.full_name || "") + '"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Phone *</label><input class="dsq-inp" name="phone" type="tel" required maxlength="20" value="' + h(d.phone || "") + '"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Badge number * <small>(their login)</small></label><input class="dsq-inp" name="badge" required maxlength="20" style="text-transform:uppercase" placeholder="ADI / PDI badge no."></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Badge type</label><select class="dsq-inp" name="badge_type"><option>ADI</option><option>PDI</option></select></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" name="email" type="email" maxlength="120" placeholder="name@email.com"></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Password *</label><div class="xd-pass"><input class="dsq-inp" name="password" required minlength="6" maxlength="40" value="' + genPass() + '"><button type="button" class="btn-s" data-xd-newpass title="New password"><i class="bi bi-arrow-repeat"></i></button></div></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Model</label><select class="dsq-inp" name="model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select></div>' +
+      '<div class="col-sm-6"><label class="dsq-lbl">Gearbox</label><input class="dsq-inp" value="' + h(d.car_type || "Manual") + '" disabled></div>' +
+      '</div><div class="xd-acctm__err" hidden></div><div class="xd-actions"><button type="button" class="btn-s" data-xd-acctclose>Cancel</button><button type="submit" class="btn-p"><i class="bi bi-person-check me-1"></i>' + (m._then === "student" ? "Create account &amp; send student" : "Create account") + "</button></div></form>";
+    m.classList.add("open"); setTimeout(() => { const f = $('[name="badge"]', b); f && f.focus(); }, 60);
+  }
+  async function createAcct(f) {
+    const m = acctModal(), d = m._d; if (!d) return;
+    const v = n => (f.elements[n].value || "").trim(), err = $(".xd-acctm__err", m), btn = $('button[type="submit"]', f);
+    const showErr = t => { err.textContent = t; err.hidden = false; };
+    const badge = v("badge").toUpperCase().replace(/\s+/g, ""), pass = v("password"), email = v("email").toLowerCase();
+    if (!v("full_name") || !v("phone") || !badge) return showErr("Name, phone and badge number are needed.");
+    if (pass.length < 6) return showErr("Password needs at least 6 characters.");
+    err.hidden = true; btn.disabled = true; const label0 = btn.innerHTML; btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Creating…';
+    const c = db();
+    try {
+      const dup = await c.from("instructors").select("id,full_name").eq("badge_number", badge).maybeSingle();
+      if (dup.data) { btn.disabled = false; btn.innerHTML = label0; return showErr("Badge " + badge + " is already registered to " + dup.data.full_name + "."); }
+    } catch (e) {}
+    const note = "NOT DRIVESQ — " + (d.label || "Not DriveSQ") + (d.notes ? " · " + d.notes : "");
+    const full = { full_name: v("full_name"), badge_number: badge, badge_type: f.elements.badge_type.value, instructor_model: f.elements.model.value,
+      phone: v("phone"), email: email || null, area: d.base_postcode || null, coverage_postcodes: (d.coverage_postcodes || d.base_postcode || "").toUpperCase() || null,
+      car_type: d.car_type === "Both" ? "Manual & Automatic" : (d.car_type || "Manual"), status: "approved", password: pass, password_hash: btoa(pass),
+      assign_note: note.slice(0, 600), created_at: new Date().toISOString(), show_lessons: true };
+    // Same fallbacks as Create Instructor: drop optional columns the database may not have yet
+    const optional = ["assign_note", "car_type", "coverage_postcodes", "instructor_model"];
+    let row = Object.assign({}, full), r = null;
+    for (let k = 0; k <= optional.length; k++) {
+      r = await c.from("instructors").insert([row]).select("id").maybeSingle();
+      if (!r.error) break;
+      const msg = r.error.message || "", col = optional.find(o => o in row && msg.includes(o)) || (k < optional.length ? optional.filter(o => o in row)[0] : null);
+      if (/email/i.test(msg) && /null|not-null/i.test(msg)) break;
+      if (!col) break; delete row[col];
+    }
+    btn.disabled = false; btn.innerHTML = label0;
+    if (r.error || !r.data) { const msg = (r.error && r.error.message) || "unknown error"; return showErr(/email/i.test(msg) && /null|not-null/i.test(msg) ? "Your database needs an email for instructors — add their email and try again." : /duplicate|unique/i.test(msg) ? "That badge number or email is already used by another account." : "Couldn't create the account: " + msg); }
+    const newId = r.data.id;
+    try { await c.from("external_drivers").update({ instructor_id: newId, phone: v("phone"), updated_at: new Date().toISOString() }).eq("id", d.id); } catch (e) {}
+    d.instructor_id = newId; d.phone = v("phone");
+    try { if (typeof loadInstrs === "function") await loadInstrs(); if (typeof populateDropdowns === "function") populateDropdowns(); } catch (e) {}
+    try { window.sendPushToInstructor && window.sendPushToInstructor(newId, full.full_name, "Welcome to DriveSQ", "Your instructor account is ready.", "/dashboard.html"); } catch (e) {}
+    try { await c.from("admin_messages").insert([{ instructor_id: newId, subject: "👋 Welcome to DriveSQ", body: "Hi " + full.full_name.split(" ")[0] + ",\n\nYour DriveSQ instructor account is ready. You'll get messages from the DriveSQ team and any learners we send you right here, with a notification on your phone.\n\nTip: add DriveSQ to your home screen and allow notifications so you don't miss a new learner.", message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]); } catch (e) {}
+    const login = "Hi " + full.full_name.split(" ")[0] + ", it's DriveSQ 🚗 Your account is ready, so I can send you learners and messages straight to your phone.\n\nLog in: https://drivesq.co.uk/dashboard.html\nBadge number: " + badge + "\nPassword: " + pass + "\n\nAdd it to your home screen and allow notifications. You can change the password in your Profile.";
+    const wa = waNum(full.phone), b = $(".xd-acctm__body", m), then = m._then;
+    b.innerHTML = '<div class="xd-acctm__done"><i class="bi bi-check-circle-fill"></i><h5>Account created for ' + h(full.full_name) + '</h5>' +
+      '<p>They now get in-app messages and notifications like your DriveSQ instructors, and appear in Messages, Bulk and Send-to-all. Still marked NOT DRIVESQ in Find &amp; Assign.</p>' +
+      '<div class="xd-acctm__login"><div><small>Log in at</small><b>drivesq.co.uk/dashboard.html</b></div><div><small>Badge number</small><b>' + h(badge) + '</b></div><div><small>Password</small><b>' + h(pass) + "</b></div></div>" +
+      '<div class="xd-actions">' + (wa ? '<a class="btn-p xd-wa" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(login) + '"><i class="bi bi-whatsapp me-1"></i>Send login on WhatsApp</a>' : "") +
+      '<button type="button" class="btn-s" data-xd-copylogin><i class="bi bi-clipboard me-1"></i>Copy login</button>' +
+      '<button type="button" class="btn-s" data-xd-msg="i:' + h(newId) + '"><i class="bi bi-chat-dots me-1"></i>Message in-app</button>' +
+      (then === "student" ? '<button type="button" class="btn-p" data-xd-sendstu="' + h(d.id) + '"><i class="bi bi-person-plus me-1"></i>Next: create student &amp; send</button>' : '<button type="button" class="btn-s" data-xd-sendstu="' + h(d.id) + '"><i class="bi bi-person-plus me-1"></i>Send them a student</button>') + "</div></div>";
+    m._login = login;
+    toast("✅ Account created for " + full.full_name, "success");
+    refreshResults(); if ($("#xdModal") && $("#xdModal").classList.contains("open")) renderManager();
+  }
+  function sendStudent(d) {
+    const i = acctOf(d); if (!i) return openAcct(d.id, "student");
+    const am = $("#xdAcct"); if (am) am.classList.remove("open");
+    const xm = $("#xdModal"); if (xm) xm.classList.remove("open");
+    // Same flow as every DriveSQ instructor: Create Student → portal account + roster + push + in-app message + WhatsApp buttons
+    if (typeof window.openCreateAndAssign === "function" && student()) return window.openCreateAndAssign(i.id, i.full_name);
+    try { window.openCreateStudentModal(); setTimeout(() => { const sel = $("#cs-instr"); if (!sel) return; if (![...sel.options].some(o => o.value === String(i.id))) { const o = document.createElement("option"); o.value = i.id; o.textContent = i.full_name; sel.appendChild(o); } sel.value = i.id; }, 80); } catch (e) { toast("Open Create Student and pick " + i.full_name, "warn"); }
+  }
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-xd-acct],[data-xd-acctclose],[data-xd-sendstu],[data-xd-newpass],[data-xd-copylogin]"); if (!t) return;
+    if (t.hasAttribute("data-xd-acct")) { e.preventDefault(); return ensureDrivers().then(() => openAcct(t.getAttribute("data-xd-acct"), t.getAttribute("data-xd-then"))); }
+    if (t.hasAttribute("data-xd-acctclose")) return acctModal().classList.remove("open");
+    if (t.hasAttribute("data-xd-newpass")) { const f = t.closest("form"); if (f) f.elements.password.value = genPass(); return; }
+    if (t.hasAttribute("data-xd-copylogin")) { const tx = acctModal()._login || ""; try { navigator.clipboard.writeText(tx).then(() => toast("Login copied", "success"), () => toast("Copy failed — select and copy by hand", "warn")); } catch (er) {} return; }
+    if (t.hasAttribute("data-xd-sendstu")) { const d = drivers.find(x => String(x.id) === t.getAttribute("data-xd-sendstu")); if (d) sendStudent(d); }
+  });
+  document.addEventListener("submit", e => { const f = e.target.closest("[data-xd-acctform]"); if (!f) return; e.preventDefault(); createAcct(f); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#xdAcct"); if (m) m.classList.remove("open"); } });
+
   /* ---------- direct message: WhatsApp, text or in-app (DriveSQ instructors) ---------- */
   let msgTo = null;
   function learnerDetails(s) {
@@ -16312,6 +16439,7 @@ document.addEventListener('click',e=>{
   }
   function openMsg(ref) {
     const kind = ref.slice(0, 1), id = ref.slice(2), s = student();
+    { const am = $("#xdAcct"); if (am) am.classList.remove("open"); }
     if (kind === "i") { const i = instrs().find(x => String(x.id) === id); if (!i) return; msgTo = { kind, id, name: i.full_name, phone: i.phone, inApp: true, label: "DriveSQ instructor" }; }
     else if (kind === "e") { const d = drivers.find(x => String(x.id) === id); if (!d) return; msgTo = { kind, id, name: d.full_name, phone: d.phone, inApp: false, label: (d.label || "Not DriveSQ") }; }
     else { if (!s) return; msgTo = { kind: "s", id: "", name: s.name, phone: s.phone, inApp: false, label: "Learner" }; }
@@ -16324,6 +16452,7 @@ document.addEventListener('click',e=>{
       '<div class="xd-msgm__lbl">Message</div><div class="xd-tpls">' + tpl.map((t, k) => '<button type="button" data-xd-tpl="' + k + '">' + h(t[0]) + "</button>").join("") + "</div>" +
       '<input class="dsq-inp xd-msgm__subj" maxlength="80" placeholder="Subject (in-app only)" value="Message from DriveSQ admin">' +
       '<textarea class="dsq-inp xd-msgm__ta" rows="6" maxlength="1500" placeholder="Type your message…"></textarea>' +
+      (msgTo.kind === "e" ? '<p class="xd-msgm__acct"><i class="bi bi-person-badge"></i><span>No portal account yet, so only WhatsApp or text. Give them an account to message them in-app with notifications, the same as your DriveSQ instructors.</span><button type="button" class="btn-s" data-xd-acct="' + h(msgTo.id) + '">Create account</button></p>' : "") +
       (msgTo.kind === "e" ? '<p class="xd-msgm__warn"><i class="bi bi-shield-exclamation"></i>Only send a learner\'s details to a driver outside DriveSQ once the learner is happy to be passed on.</p>' : "") +
       '<div class="xd-msgm__foot"><span class="xd-msgm__count">0 / 1500</span><button type="button" class="btn-s" data-xd-msgclose>Cancel</button><button type="button" class="btn-p" data-xd-send><i class="bi bi-send me-1"></i>Send</button></div>';
     m._tpl = tpl; setChannel(ch); useTpl(0); m.classList.add("open");
@@ -16349,7 +16478,9 @@ document.addEventListener('click',e=>{
       const subj = $(".xd-msgm__subj", m).value.trim() || "Message from DriveSQ admin", btn = $("[data-xd-send]", m); btn.disabled = true;
       const r = await db().from("admin_messages").insert([{ instructor_id: msgTo.id, subject: subj, body: text, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
       btn.disabled = false; if (r.error) return toast("Couldn't send: " + r.error.message, "error", 6000);
-      toast("✅ Sent to " + msgTo.name + "'s portal", "success");
+      try { window.sendPushToInstructor && window.sendPushToInstructor(msgTo.id, msgTo.name, subj, text.slice(0, 140), "/dashboard.html"); } catch (e) {}
+      try { window.loadMessages && window.loadMessages(); } catch (e) {}
+      toast("✅ Sent to " + msgTo.name + "'s portal + phone notification", "success");
     }
     m.classList.remove("open");
   }
