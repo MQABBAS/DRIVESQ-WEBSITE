@@ -4906,7 +4906,7 @@ function _renderFlagMonitor(){
           ${sw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${sw}?text=${encodeURIComponent(ms)}"><i class="bi bi-whatsapp"></i>Ask student</a>`:''}
           ${iw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${iw}?text=${encodeURIComponent(mi)}"><i class="bi bi-whatsapp"></i>Ask instructor</a>`:''}
           ${f!=='green'?`<button type="button" class="rfm-a" onclick="_flagReassign('${r.id}')"><i class="bi bi-arrow-left-right"></i>Reassign</button>`:''}
-          <button type="button" class="rfm-a" onclick="openRefDetail('${r.instructor_id}')"><i class="bi bi-person"></i>Instructor</button></div></div>`;
+          <button type="button" class="rfm-a" onclick="openRefDetail('${r.instructor_id}',false)"><i class="bi bi-person"></i>Instructor</button></div></div>`;
     }).join(''):'<div style="padding:12px;font-size:.78rem;color:var(--txt4)">Nothing here 👍</div>'}</div>`;
   }
   box.innerHTML=html;
@@ -5651,6 +5651,7 @@ async function viewInstr(id){
         <button class="abtn" style="border-color:rgba(245,197,24,.4);color:var(--gold)" onclick="openEditForId('${id}');setTimeout(()=>{const el=document.getElementById('edit-coverage');if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});}},400)" title="Edit covered postcodes"><i class="bi bi-geo-alt me-1"></i>Coverage</button>
         <button class="abtn edit" onclick="openEditForId('${id}')"><i class="bi bi-pencil me-1"></i>Edit</button>
         <button class="abtn msg" onclick="openMsgModal('${id}')"><i class="bi bi-envelope me-1"></i>Message</button>
+        <button class="abtn" id="instrRefBtn-${id}" style="border-color:rgba(37,211,102,.45);color:#4ade80" onclick="openInstrReferrals('${id}')" title="All referrals for this instructor, all time"><i class="bi bi-cash-coin me-1"></i>Referrals <span class="ref-cnt"></span></button>
         ${waBtn}
         <button onclick="toggleGuideMode('${id}','${jsEsc(instr.full_name)}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:8px;padding:7px 14px;font-size:.78rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;display:flex;align-items:center;gap:5px"><i class="bi bi-mortarboard-fill me-1"></i>Guide Mode</button>
         ${blockBtnHtml}
@@ -5666,6 +5667,7 @@ async function viewInstr(id){
       <button class="btn-s" style="font-size:.72rem;padding:4px 10px;min-height:30px" onclick="openSqlModal()"><i class="bi bi-code-slash me-1"></i>SQL Helper</button>
     </div>`;
   renderInstrDetail(instr);
+  _instrRefCount(id);
   switchTab('calendar');
   await Promise.all([loadAdminLessons(),loadInstrRoster()]);
 }
@@ -10913,7 +10915,7 @@ function renderReferrals(){
     const lastNotifiedAt=g.rows.filter(r=>r.instructor_notified_at).map(r=>r.instructor_notified_at).sort().pop();
     const notifiedBadge=lastNotifiedAt&&g.due>0?`<span style="font-size:.58rem;color:#94a3b8;background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.2);border-radius:5px;padding:1px 7px;white-space:nowrap"><i class="bi bi-bell-fill me-1" style="font-size:.5rem"></i>Notified ${new Date(lastNotifiedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>`:'';
 
-    return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:14px;overflow:hidden;cursor:pointer;transition:all .18s" onclick="openRefDetail('${g.id}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(0,0,0,.18)';this.style.borderColor='${cardAccent}'" onmouseleave="this.style.boxShadow='';this.style.borderColor='${cardBorder}'">
+    return`<div style="background:var(--card-bg);border:1px solid ${cardBorder};border-radius:14px;overflow:hidden;cursor:pointer;transition:all .18s" onclick="openRefDetail('${g.id}',false)" onmouseenter="this.style.boxShadow='0 4px 20px rgba(0,0,0,.18)';this.style.borderColor='${cardAccent}'" onmouseleave="this.style.boxShadow='';this.style.borderColor='${cardBorder}'">
       <div style="padding:14px 16px">
         <!-- Header row: avatar + name + amounts -->
         <div style="display:flex;align-items:center;gap:12px">
@@ -10946,13 +10948,37 @@ function renderReferrals(){
   }).join('');
 }
 
-async function openRefDetail(instrId){
+/* Instructor profile → Referrals: every referral for that instructor, all time (same window as the Referrals tab) */
+async function _ensureRefData(){
+  if(_refData&&_refData.length)return true;
+  try{const{data,error}=await sb.from('referrals').select('*').order('created_at',{ascending:false});if(error)throw error;_refData=data||[];try{_buildUnpaidRefIndex();}catch(e){}return true;}
+  catch(e){showToast('Could not load referrals: '+e.message,'error');return false;}
+}
+async function openInstrReferrals(instrId){
+  const b=document.getElementById('instrRefBtn-'+instrId);if(b)b.disabled=true;
+  const ok=await _ensureRefData();if(b)b.disabled=false;if(!ok)return;
+  openRefDetail(instrId,true);
+}
+async function _instrRefCount(instrId){
+  try{
+    let rows=(_refData||[]).filter(r=>r.instructor_id===instrId);
+    if(!(_refData&&_refData.length)){const{data}=await sb.from('referrals').select('id,amount,is_paid,is_cancelled,is_credit').eq('instructor_id',instrId);rows=data||[];}
+    const due=rows.filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit).reduce((t,r)=>t+(parseFloat(r.amount)||0),0);
+    const el=document.querySelector('#instrRefBtn-'+instrId+' .ref-cnt');
+    if(el)el.innerHTML=`<span style="background:rgba(255,255,255,.08);border-radius:999px;padding:0 7px;margin-left:2px">${rows.length}</span>`+(due>0?` <span style="background:rgba(248,113,113,.15);color:#f87171;border-radius:999px;padding:0 7px">£${due.toFixed(0)} due</span>`:'');
+  }catch(e){}
+}
+let _refDetailAll=false; // true when opened from an instructor's profile (all-time list)
+async function openRefDetail(instrId,allTime){
+  if(allTime!==undefined)_refDetailAll=!!allTime;
   _openRefInstrId=instrId;
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Unknown Instructor',area:''};
   document.getElementById('refDetailInstrName').textContent=instr.full_name;
-  document.getElementById('refDetailSub').textContent=(instr.area||'')+(instr.phone?' · '+instr.phone:'');
+  document.getElementById('refDetailSub').innerHTML=esc((instr.area||'')+(instr.phone?' · '+instr.phone:''))+
+    ` · <span style="color:var(--gold);font-weight:700">${_refDetailAll?'All time':(_refPeriod==='week'?'This week':_refPeriod==='month'?'This month':'All time')}</span>`+
+    (_refDetailAll?'':` <button type="button" onclick="openRefDetail('${instrId}',true)" style="background:none;border:0;color:#60a5fa;text-decoration:underline;font-size:.74rem;cursor:pointer;padding:0 0 0 6px">Show all time</button>`);
 
-  const start=_refPeriodStart();
+  const start=_refDetailAll?new Date(0):_refPeriodStart();
   const rows=_refData.filter(r=>r.instructor_id===instrId&&new Date(r.created_at)>=start)
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
@@ -11000,7 +11026,7 @@ async function openRefDetail(instrId){
     return lines.join('\n');
   };
   const _nowStr=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
-  const _periodLabel=_refPeriod==='week'?'This Week':_refPeriod==='month'?'This Month':'All Time';
+  const _periodLabel=_refDetailAll?'All Time':_refPeriod==='week'?'This Week':_refPeriod==='month'?'This Month':'All Time';
   const _disclaimer=`⚠️ Please note: If any student listed above has not yet confirmed or booked their first lesson, kindly let us know as soon as possible. The total amount due may be adjusted accordingly.`;
 
   // ── FULL STATEMENT ──────────────────────────────
@@ -12509,7 +12535,7 @@ function _renderIncomeTab(){
           ${g.due>0?`<div style="text-align:right"><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Outstanding</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#f87171">£${g.due.toFixed(2)}</div></div>`:''}
           <div style="text-align:right"><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Total</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:var(--gold)">£${total.toFixed(2)}</div></div>
           <div style="text-align:right"><div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.5px">Rate</div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:${col}">${pct}%</div></div>
-          <button onclick="openRefDetail('${g.id}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap">View →</button>
+          <button onclick="openRefDetail('${g.id}',false)" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;white-space:nowrap">View →</button>
         </div>
       </div>
       <div style="margin-top:8px;height:5px;background:var(--bdr);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${col},${col}99);transition:width .5s"></div></div>
