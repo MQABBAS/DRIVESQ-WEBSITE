@@ -25,6 +25,8 @@ SHORT = {"bolton": "Bolton", "atherton": "Atherton", "bury": "Bury", "chorley": 
          "west-didsbury": "West Didsbury", "sale": "Sale", "bredbury": "Bredbury"}
 COLS = {"bolton": "#D10A11", "atherton": "#2563eb", "bury": "#16a34a", "chorley": "#d97706", "blackburn": "#7c3aed", "cheetham-hill": "#0891b2", "rochdale": "#db2777"}
 HUB = "driving-lessons-bolton.html"
+PLACE = "Bolton"
+EXAMPLE_PC = "BL1 1RU"   # generate_wythenshawe.py reuses this module with PLACE/HUB changed
 MOVE = [("atherton", 6), ("bury", 7), ("cheetham-hill", 11)]   # GOV.UK: centres a Bolton test can be moved to, approx. miles
 F_TOWN = "bolton-town-centre-driving-guide-bus-lanes.html"
 F_TC, F_CMP, F_TH, F_RD = "bolton-driving-test-centre-pass-rate-wait-time.html", "bolton-area-driving-test-centres-compared.html", "bolton-theory-test-pass-rates.html", "bolton-road-accident-statistics.html"
@@ -75,12 +77,12 @@ def photos(picks, title="Recent DriveSQ passes"):
 
 
 def faq_block(faqs):
-    return L.faq_html(faqs).replace("Driving lessons in Solihull: FAQs", "Bolton learners: FAQs")
+    return L.faq_html(faqs).replace("Driving lessons in Solihull: FAQs", f"{PLACE} learners: FAQs")
 
 
 def crumbs(name, f):
     return {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": L.SITE + "/"},
-            {"@type": "ListItem", "position": 2, "name": "Bolton", "item": f"{L.SITE}/{HUB}"}, {"@type": "ListItem", "position": 3, "name": name, "item": f"{L.SITE}/{f}"}]}
+            {"@type": "ListItem", "position": 2, "name": PLACE, "item": f"{L.SITE}/{HUB}"}, {"@type": "ListItem", "position": 3, "name": name, "item": f"{L.SITE}/{f}"}]}
 
 
 def dataset(name, desc, creator, src):
@@ -100,12 +102,12 @@ def portal_sec():
 
 
 def build(f, crumb, title, desc, kw, hero, secs, faqs, data, script, extra_schema, picks):
-    booking = '<div class="sol-form" id="book">' + G.form("Book driving lessons in Bolton", "A real person replies, usually within the hour. Goes straight to the DriveSQ team.", OPTS) + "</div>"
+    booking = '<div class="sol-form" id="book">' + G.form(f"Book driving lessons in {PLACE}", "A real person replies, usually within the hour. Goes straight to the DriveSQ team.", OPTS) + "</div>"
     schema = [L.faq_schema(faqs), crumbs(crumb, f), PH.schema(L.SITE, picks)] + extra_schema
     i = next((k for k, x in enumerate(secs) if 'id="passes"' in x), len(secs))
     secs = secs[:i] + [portal_sec()] + secs[i:]
     html = L.page(f, title, desc, kw, schema, hero, [CSS] + secs + [faq_block(faqs), booking])
-    html = html.replace("Driving lessons in Solihull", "Driving lessons in Bolton").replace("B90 4AA", "BL1 1RU")
+    html = html.replace("Driving lessons in Solihull", f"Driving lessons in {PLACE}").replace("B90 4AA", EXAMPLE_PC)
     return html.replace("</body>", f'<script type="application/json" id="pdata">{json.dumps(data)}</script>\n{CHART}\n<script>(function(){{var D=JSON.parse(document.getElementById("pdata").textContent);{script}}})();</script>\n</body>', 1)
 
 
