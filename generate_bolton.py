@@ -25,6 +25,7 @@ SHORT = {"bolton": "Bolton", "atherton": "Atherton", "bury": "Bury", "chorley": 
 COLS = {"bolton": "#D10A11", "atherton": "#2563eb", "bury": "#16a34a", "chorley": "#d97706", "blackburn": "#7c3aed", "cheetham-hill": "#0891b2", "rochdale": "#db2777"}
 HUB = "driving-lessons-bolton.html"
 MOVE = [("atherton", 6), ("bury", 7), ("cheetham-hill", 11)]   # GOV.UK: centres a Bolton test can be moved to, approx. miles
+F_TOWN = "bolton-town-centre-driving-guide-bus-lanes.html"
 F_TC, F_CMP, F_TH, F_RD = "bolton-driving-test-centre-pass-rate-wait-time.html", "bolton-area-driving-test-centres-compared.html", "bolton-theory-test-pass-rates.html", "bolton-road-accident-statistics.html"
 SRC = {"dvsa": ("DVSA — Car driving test and theory test data by centre (DRT122A–F, DRT112A)", "https://www.gov.uk/government/statistical-data-sets/driving-test-and-theory-test-data-cars"),
        "rules": ("GOV.UK — Changes to driving test booking rules in 2026", "https://www.gov.uk/guidance/changes-to-driving-test-booking-rules-in-2026"),
@@ -34,6 +35,15 @@ SRC = {"dvsa": ("DVSA — Car driving test and theory test data by centre (DRT12
        "release": ("GOV.UK — Driving test appointments: release dates and finding earlier tests", "https://www.gov.uk/guidance/driving-test-appointments-release-dates-and-finding-earlier-tests"),
        "foi": ("DVSA FOI release — most times a candidate has failed a practical test at Bolton DTC since 2004", "https://www.gov.uk/government/publications/the-most-times-a-candidate-has-failed-a-motorcycle-and-car-practical-driving-test-at-bolton-dtc-since-2004/the-most-times-a-candidate-has-failed-a-motorcycle-and-car-practical-driving-test-at-bolton-dtc-since-2004"),
        "ras": ("DfT — Road safety statistics data tables (RAS0403: casualties by local authority)", "https://www.gov.uk/government/statistical-data-sets/reported-road-accidents-vehicles-and-casualties-tables-for-great-britain"),
+       "bl_news": ("Bolton Council — Bus lane enforcement ramps up in Bolton (3 October 2023)", "https://www.bolton.gov.uk/news/article/1626/bus-lane-enforcement-ramps-up-in-bolton"),
+       "bl_list": ("Bolton Council — Bus lane locations and hours of operation (PDF)", "https://www.bolton.gov.uk/downloads/file/5203/bus-lane-locations-and-hours-of-operation"),
+       "bl_pcn": ("Bolton Council — Pay a bus lane penalty charge", "https://www.bolton.gov.uk/parking-permits/pay-bus-lane-penalty-charge-notice-pcn"),
+       "bl_gate": ("Bolton Council — PHV in bus lane/gate (Deansgate bus gate, 18 September 2024)", "https://www.bolton.gov.uk/directory-record/5709/phv-in-bus-lanegate"),
+       "mte": ("Bolton Council — Moving traffic enforcement consultation (2023)", "https://www.bolton.gov.uk/directory-record/4182/moving-traffic-enforcement-offenses-consultation"),
+       "20mph": ("Bolton Council — Twenty's plenty for Bolton (16 February 2017)", "https://www.bolton.gov.uk/news/article/28/twenty-s-plenty-for-bolton"),
+       "tce": ("Bolton Council — Active travel improvements in Bolton town centre (consultation closed 27 March 2026)", "https://www.bolton.gov.uk/directory-record/6924/active-travel-have-your-say-on-walking-and-cycling-improvements-in-bolton-town-centre"),
+       "caz": ("GOV.UK — Government backs local plans for clean air in Greater Manchester (23 January 2025)", "https://www.gov.uk/government/news/government-backs-local-plans-for-clean-air-in-greater-manchester--2"),
+       "hc141": ("The Highway Code — rule 141 (bus lanes)", "https://www.gov.uk/guidance/the-highway-code/using-the-road-159-to-203"),
        "rasrep": ("DfT — Reported road casualties Great Britain: final results 2025", "https://www.gov.uk/government/statistics/reported-road-casualties-great-britain-annual-report-2025")}
 OPTS = ["Manual Lessons", "Automatic Lessons", "Intensive Course", "Test Preparation", "Pass Plus", "Theory Help"]
 CSS = ("<style>.rs-split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}@media (max-width:900px){.rs-split{grid-template-columns:1fr}}"
@@ -48,7 +58,7 @@ def sources(keys, note="Official statistics on GOV.UK (Open Government Licence v
 
 def more(exclude):
     items = [(F_TC, "Bolton test centre data"), (F_CMP, "Bolton-area centres compared"), (F_TH, "Bolton theory test pass rates"), (F_RD, "Bolton road safety data"),
-             ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
+             (F_TOWN, "Bolton bus lanes & town centre"), ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
              ("intensive-driving-course-bolton.html", "Intensive courses in Bolton"), (HUB, "Driving lessons in Bolton")]
     return L.sec("more", "Keep reading", "More for Bolton learners", "", L.chips([x for x in items if x[0] != exclude]))
 
@@ -290,7 +300,75 @@ DSQCharts.bars(document.getElementById('chB'),D.bo,{digits:0,max:520});DSQCharts
                        hero, secs, faqs, data, script, [dataset("Bolton road casualties 2016–2025", desc, "Department for Transport", SRC["ras"][1])], (6, 2, 4, 7, 9))
 
 
-PAGES = [test_centre, compare, theory, roads]
+# Bolton Council bus lane list (PDF, checked 9 Nov 2026): road, where, hours ('peak' = Mon–Fri 07:00–10:00 and 16:00–19:00)
+LANES = [("Newbrook Road", "west side, near Wellington Road and Fletcher Street", "peak"),
+         ("St Helens Road", "east side, approaching Plodder Lane", "peak"), ("St Helens Road", "west side, Plodder Lane to Sonning Drive", "peak"),
+         ("St Helens Road", "north side, Campbell Road towards Dean Church Lane", "peak"), ("St Helens Road", "south-east side, Henry Lee Street to Morris Green Lane", "peak"),
+         ("St Helens Road", "south-west side, Blackledge Street to Church Avenue", "peak"),
+         ("Derby Street", "north-west side, Peace Street to University Way", "peak"), ("Derby Street", "north-west side, Willows Lane to Gibbon Street", "peak"),
+         ("Deane Road", "north side, Gilnow Lane to Salisbury Street", "peak"),
+         ("Knowsley Street", "east side, St George's Road to Corporation Street", "all"), ("St George's Road", "south side, Bridge Street to Knowsley Street", "all"),
+         ("Bridge Street", "east side, St George's Street to Bow Street", "all"), ("Deansgate (bus gate)", "between Bradshawgate and Crown Street", "all"),
+         ("Great Moor Street", "Bradshawgate to Mawdsley Street", "all")]
+BOXES = ["Blackburn Road / Lawson Street", "Trinity Street / Newport Street", "Topp Way / Higher Bridge Street", "Bridge Street / St George's Street", "Cricketers Way / Leigh Road"]
+
+
+def town():
+    f = F_TOWN; npk = sum(1 for l in LANES if l[2] == "peak"); nall = len(LANES) - npk
+    tool = ('<div class="sol-card reveal" style="padding:20px"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px">'
+            '<label style="font-size:.8rem">Day<br><select id="blDay" class="form-select form-select-sm"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label>'
+            '<label style="font-size:.8rem">Time<br><input id="blTime" type="time" class="form-control form-control-sm" value="08:30"></label>'
+            '<button type="button" class="dsqx-btn dsqx-btn--red" id="blNow">Right now</button><span id="blSum" style="font-weight:700"></span></div>'
+            '<div class="sol-wrap"><table class="sol-tbl" style="margin-top:0"><thead><tr><th>Bus lane</th><th>Where</th><th>Hours</th><th>At that time</th></tr></thead><tbody id="blRows"></tbody></table></div>'
+            '<p class="sol-note mt-2 mb-0">Hours from Bolton Council\'s published list. Always follow the times on the blue sign at the start of each lane — signs and temporary orders override this table.</p></div>')
+    secs = [
+        kpis([(len(LANES), 0, "", "bus lanes in Bolton borough"), (nall, 0, "", "enforced 24 hours a day"), (70, 0, "", "£ penalty (£35 if paid in 21 days)"), (2500, 0, "", "residential streets at 20mph (2017)")]),
+        L.sec("checker", "Bus lane checker", "Is that bus lane in force right now?",
+              f"All {len(LANES)} bus lanes Bolton Council lists. {npk} work at peak times (Monday–Friday 7–10am and 4–7pm); {nall} — mostly in the town centre — are enforced all day, every day. Pick a day and time, or tap “Right now”.", tool),
+        L.sec("rules", "Cameras and fines", "Cameras have enforced Bolton's bus lanes since 9 October 2023",
+              "Before then, enforcement relied on traffic wardens and the police. Now automatic number plate recognition cameras catch every vehicle in a bus lane during its hours.",
+              L.cards([("bi-camera-video", "£70 penalty", "Bolton Council posts a £70 Penalty Charge Notice to the registered keeper — reduced by 50% to £35 if paid within 21 days."),
+                       ("bi-sign-stop", "Deansgate bus gate: 24/7", "The bus gate on Deansgate (Bradshawgate to Crown Street) is enforceable at all times. The council reported one survey day with over 600 vehicles driving through it."),
+                       ("bi-taxi-front", "Private hire can't use them", "Bolton Council has reminded private hire drivers they can't enter bus lanes or bus gates in Bolton — only vehicles the signs allow."),
+                       ("bi-book", "Highway Code rule 141", "Don't drive or stop in a bus lane during its hours of operation unless the signs say you may. Outside those hours you can use the lane.")]), alt=True),
+        L.sec("boxes", "Yellow boxes", "Five box junctions the council wants cameras on",
+              "In 2023 Bolton Council consulted on taking over moving-traffic enforcement (box junctions, banned turns) from Greater Manchester Police, starting with five junctions. Whether or not cameras are live when you drive, the rule is the same: don't enter the box unless your exit is clear (turning right is the exception when only oncoming traffic stops you).",
+              '<div class="sol-grid">' + "".join(f'<div class="sol-card reveal"><i class="bi bi-grid-3x3"></i><b>{e(x)}</b><span>Proposed camera site, 2023 consultation</span></div>' for x in BOXES) + "</div>"),
+        L.sec("20mph", "20mph", "Two-thirds of residential roads are 20mph",
+              "By February 2017 almost 2,500 residential streets — around 50,000 households — had a 20mph limit. The first phase covered every residential road in Farnworth, Great Lever, Halliwell, Kearsley, Little Lever and Darcy Lever, Rumworth, and Tonge with the Haulgh; more have followed.",
+              L.cards([("bi-speedometer", "Read the limit, not the road", "A wide road can still be 20mph. Look for the repeater signs and the start/end signs at each zone — examiners notice."),
+                       ("bi-house", "Estates and schools", "20mph zones are where children, parked cars and junctions are closest together. Keep scanning and keep a speed you can stop from."),
+                       ("bi-gear", "Gear choice", "In a manual, 20mph usually means second or third gear. Practise smooth, steady speed — no coasting.")]), alt=True),
+        L.sec("changes", "What's changing", "Town-centre roadworks and changes to plan around",
+              "",
+              L.cards([("bi-cone-striped", "Town Centre East — Phase One (2026)", "Bolton Council says its Town Centre East walking and cycling improvements, consulted on in 2020, will be built in 2026. Expect layout changes and temporary signs around the east of the centre."),
+                       ("bi-bicycle", "Phase Two consulted (closed March 2026)", "Further walking and cycling changes linking the town centre with Queens Park and Central, and Halliwell, funded by the City Region Sustainable Transport Settlement."),
+                       ("bi-wind", "No Clean Air Zone charge", "The government backed Greater Manchester's investment-led clean air plan in January 2025 — there's no charging Clean Air Zone for drivers."),
+                       ("bi-bus-front", "Bee Network buses", "Bolton's buses are run by the Bee Network — expect frequent buses pulling out at stops and bus lanes. Give them priority when it's safe.")])),
+        photos((0, 7, 4, 2, 6)),
+        more(F_TOWN),
+        sources(("bl_list", "bl_news", "bl_pcn", "bl_gate", "mte", "20mph", "tce", "caz", "hc141"), "Bolton Council and GOV.UK pages, checked 9 November 2026.")]
+    faqs = [("How many bus lanes are there in Bolton?", f"Bolton Council lists {len(LANES)} bus lanes across the borough: {npk} operate Monday–Friday 7–10am and 4–7pm, and {nall} in the town centre operate all day, every day."),
+            ("How much is a bus lane fine in Bolton?", "£70, reduced by 50% to £35 if you pay within 21 days of the Penalty Charge Notice being served (Bolton Council)."),
+            ("When is the Deansgate bus gate in Bolton enforced?", "At all times — 24 hours a day, Monday to Sunday, between Bradshawgate and Crown Street."),
+            ("Can I drive in a Bolton bus lane outside its hours?", "Yes. Outside the times shown on the blue sign at the start of the lane, you can drive in it (Highway Code rule 141). The peak-hours lanes in Bolton are Monday–Friday 7–10am and 4–7pm."),
+            ("Are there yellow box junction cameras in Bolton?", "Bolton Council consulted in 2023 on enforcing five box junctions with cameras: Blackburn Road/Lawson Street, Trinity Street/Newport Street, Topp Way/Higher Bridge Street, Bridge Street/St George's Street and Cricketers Way/Leigh Road. Never enter a box unless your exit is clear.")]
+    data = {"lanes": [{"r": a, "w": b, "h": c} for a, b, c in LANES]}
+    script = """var dS=document.getElementById('blDay'),tS=document.getElementById('blTime');
+function on(h,d,m){if(h==='all')return true;if(d<1||d>5)return false;return (m>=420&&m<600)||(m>=960&&m<1140);}
+function draw(){var d=+dS.value,p=tS.value.split(':'),m=(+p[0])*60+(+p[1]),n=0;document.getElementById('blRows').innerHTML=D.lanes.map(function(l){var a=on(l.h,d,m);if(a)n++;return '<tr><td><b>'+l.r+'</b></td><td>'+l.w+'</td><td>'+(l.h==='all'?'All day, every day':'Mon–Fri 7–10am, 4–7pm')+'</td><td>'+(a?'<b style="color:#D10A11">⛔ In force — keep out</b>':'<span style="color:#16a34a;font-weight:700">✓ Not in force</span>')+'</td></tr>';}).join('');
+document.getElementById('blSum').textContent=n+' of '+D.lanes.length+' bus lanes in force';}
+function now(){var t=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/London'}));dS.value=String(t.getDay());tS.value=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);draw();}
+dS.onchange=draw;tS.oninput=draw;document.getElementById('blNow').onclick=now;now();"""
+    hero = L.hero("Bolton Council data · checked Nov 2026", '<span class="w">Driving in</span> <span class="w w--red">Bolton</span> <span class="w">town centre.</span>', "bus lanes, the Deansgate bus gate, box junctions and 20mph — with a live bus lane checker",
+                  [("bi-camera-video", f"{len(LANES)} bus lanes"), ("bi-clock", "Live 'in force now' check"), ("bi-cone-striped", "2026 changes")], [("red", "#checker", "bi-clock", "Check a bus lane"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
+    desc = f"Driving in Bolton town centre: all {len(LANES)} bus lanes and their hours with a live 'in force now' checker, the 24/7 Deansgate bus gate, £70 fines, box junction cameras, 20mph zones and 2026 roadworks — from Bolton Council."
+    return f, build(f, "Bolton town centre driving guide", "Bolton Bus Lanes, Bus Gate & Town Centre Driving Guide (2026) | DriveSQ", desc,
+                    "bolton bus lanes, bolton bus lane times, bolton bus lane fine, deansgate bus gate bolton, bolton yellow box junction, driving in bolton town centre, bolton 20mph",
+                    hero, secs, faqs, data, script, [], (0, 7, 4, 2, 6))
+
+
+PAGES = [test_centre, compare, theory, roads, town]
 
 
 def main():
