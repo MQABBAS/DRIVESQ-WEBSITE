@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Build _data/dvsa_centres.json from DVSA's official tables (GOV.UK, Open Government Licence):
 DRT122A (pass rates), DRT122B (cancellations), DRT122C (first attempts), DRT122D (by age), DRT122E (automatic), DRT122F (waiting times).
-Usage: python3 build_dvsa_centres.py <folder with the .ods files>"""
+Usage: python3 build_dvsa_centres.py <folder with the .ods files> [sol|gm]
+  sol (default) -> _data/dvsa_centres.json     (the 7 centres Solihull learners use)
+  gm            -> _data/dvsa_centres_gm.json  (Bolton and the Greater Manchester / Lancashire centres around it)"""
 import json, os, re, sys, zipfile
 from xml.etree.ElementTree import iterparse
 T = '{urn:oasis:names:tc:opendocument:xmlns:table:1.0}'; O = '{urn:oasis:names:tc:opendocument:xmlns:office:1.0}'
 CEN = {'Birmingham (Shirley)': 'shirley', 'Birmingham (Garretts Green)': 'garretts-green', 'Birmingham (South Yardley)': 'south-yardley',
        'Birmingham (Kings Heath)': 'kings-heath', 'Coventry': 'coventry', 'Redditch': 'redditch', 'Warwick (Wedgenock House)': 'warwick'}
+GM = {'Bolton (Manchester)': 'bolton', 'Atherton (Manchester)': 'atherton', 'Bury (Manchester)': 'bury', 'Chorley': 'chorley', 'Blackburn with Darwen': 'blackburn',
+      'Cheetham Hill (Manchester)': 'cheetham-hill', 'Rochdale (Manchester)': 'rochdale', 'West Didsbury (Manchester)': 'west-didsbury', 'Sale (Manchester)': 'sale', 'Bredbury (Manchester)': 'bredbury'}
+SET = sys.argv[2] if len(sys.argv) > 2 else 'sol'
+if SET == 'gm': CEN = GM
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 SRC = sys.argv[1] if len(sys.argv) > 1 else '.'
 
@@ -94,7 +100,7 @@ for sh, rows in sheets('drt122d').items():
     for r in rows:
         ne = [v for v in r if v != '']
         if len(ne) == 1: cur = r[0]; continue
-        if cur in CEN and len(r) >= 11 and r[0] == '' and r[1] and r[1] != '16' and num(r[10]) is not None:
+        if cur in CEN and len(r) >= 11 and r[0] == '' and r[1].isdigit() and r[1] != '16' and num(r[10]) is not None:
             D[CEN[cur]]["age"].append({"age": r[1], "n": inum(r[8]), "p": num(r[10])})
 # F: waiting times
 for sh, rows in sheets('drt122f').items():
@@ -103,7 +109,7 @@ for sh, rows in sheets('drt122f').items():
             D[CEN[r[2]]]["waits"].append({"mo": r[3], "wk10": num(r[5]), "med": num(r[6]), "in7": num(r[7]), "avail": inum(r[11]), "booked": inum(r[12])})
 out = {"source": "DVSA via GOV.UK: car driving test data by test centre (DRT122A-E, data to March 2026) and DRT122F waiting times (to August 2026). Open Government Licence v3.0.",
        "built": "2026-11-08", "national": NAT, "centres": D}
-json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_data", "dvsa_centres.json"), "w"), separators=(",", ":"))
+json.dump(out, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_data", "dvsa_centres_gm.json" if SET == "gm" else "dvsa_centres.json"), "w"), separators=(",", ":"))
 for s, c in D.items():
     y = c["years"].get("2025-26", {}); w = c["waits"][-1] if c["waits"] else {}
     print(f"{s:15} 25-26 {y.get('p')}% n={y.get('n')} m={y.get('m')} f={y.get('f')} | years={len(c['years'])} months={len(c['months'])} sum={sum(m['n'] or 0 for m in c['months'])} | first={c['first'].get('2025-26')} auto={c['auto'].get('2025-26')} | cancel={c['cancel']} | ages={len(c['age'])} | wait {w.get('mo')} med={w.get('med')} wk10={w.get('wk10')}")
