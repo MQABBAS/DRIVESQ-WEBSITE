@@ -562,7 +562,9 @@ def main():
             x = x.replace("</urlset>", f"  <url>{loc}<lastmod>{today}</lastmod></url>\n</urlset>")
     open(sm, "w", encoding="utf-8").write(x)
     idx = os.path.join(HERE, "sitemap.xml")
-    open(idx, "w", encoding="utf-8").write(re.sub(r"(sitemap-1\.xml</loc><lastmod>)[^<]*", r"\g<1>" + today, open(idx, encoding="utf-8").read()))
+    cur = open(idx, encoding="utf-8").read()   # read BEFORE opening for write (opening with "w" empties the file)
+    if "sitemap-1.xml" in cur:
+        open(idx, "w", encoding="utf-8").write(re.sub(r"(sitemap-1\.xml</loc><lastmod>)[^<]*", r"\g<1>" + today, cur))
     print("wrote", len(out), "pages")
 
 
