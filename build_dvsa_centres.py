@@ -10,7 +10,7 @@ T = '{urn:oasis:names:tc:opendocument:xmlns:table:1.0}'; O = '{urn:oasis:names:t
 CEN = {'Birmingham (Shirley)': 'shirley', 'Birmingham (Garretts Green)': 'garretts-green', 'Birmingham (South Yardley)': 'south-yardley',
        'Birmingham (Kings Heath)': 'kings-heath', 'Coventry': 'coventry', 'Redditch': 'redditch', 'Warwick (Wedgenock House)': 'warwick'}
 GM = {'Bolton (Manchester)': 'bolton', 'Atherton (Manchester)': 'atherton', 'Bury (Manchester)': 'bury', 'Chorley': 'chorley', 'Blackburn with Darwen': 'blackburn',
-      'Cheetham Hill (Manchester)': 'cheetham-hill', 'Rochdale (Manchester)': 'rochdale', 'West Didsbury (Manchester)': 'west-didsbury', 'Sale (Manchester)': 'sale', 'Bredbury (Manchester)': 'bredbury'}
+      'Cheetham Hill (Manchester)': 'cheetham-hill', 'Rochdale (Manchester)': 'rochdale', 'West Didsbury (Manchester)': 'west-didsbury', 'Sale (Manchester)': 'sale', 'Bredbury (Manchester)': 'bredbury', 'Chadderton': 'chadderton'}
 SET = sys.argv[2] if len(sys.argv) > 2 else 'sol'
 if SET == 'gm': CEN = GM
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
