@@ -27,6 +27,12 @@
     '.dsq-proof__rail img{width:100%;height:100%;object-fit:cover;object-position:50% 35%;display:block}' +
     '.dsq-proof__rail figcaption{position:absolute;left:0;right:0;bottom:0;padding:18px 6px 5px;font-size:.62rem;font-weight:700;text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.75))}' +
     '@keyframes dsqRail{to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.dsq-proof__rail{animation:none}.dsq-proof__win{overflow-x:auto}}' +
+    '.dsq-portal{box-sizing:border-box;width:100%;max-width:620px;margin:12px auto 0;padding:16px;border-radius:22px;background:linear-gradient(135deg,#0b1220,#13213d);color:#e8eefc;font-family:Inter,system-ui,sans-serif;box-shadow:0 14px 40px rgba(0,0,0,.22);text-align:left}' +
+    '.dsq-portal__top{display:flex;align-items:center;gap:10px}.dsq-portal__ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#60a5fa);font-weight:800;font-family:Oswald,Inter,sans-serif;color:#fff;flex:none}' +
+    '.dsq-portal__top b{display:block;font-family:Oswald,Inter,sans-serif;font-size:1.05rem;letter-spacing:.3px;color:#fff}.dsq-portal__top small{color:#9fb3d9;font-size:.74rem}' +
+    '.dsq-portal__list{list-style:none;margin:12px 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:.8rem}.dsq-portal__list li::before{content:"✓ ";color:#4ade80;font-weight:700}.dsq-portal__list b{color:#fff}' +
+    '.dsq-portal__btns{display:flex;flex-wrap:wrap;gap:8px}.dsq-portal__btns a{flex:1;min-width:140px;text-align:center;padding:9px 12px;border-radius:999px;background:#2563eb;color:#fff;font-weight:700;font-size:.84rem;text-decoration:none}.dsq-portal__btns a.o{background:transparent;border:1px solid #3b5a99;color:#cfe0ff}' +
+    '@media (max-width:420px){.dsq-portal__list{grid-template-columns:1fr}}' +
     /* assistant */
     '.sqx-l{position:fixed;left:16px;bottom:20px;z-index:950;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 16px 10px 10px;background:#0b0b0b;color:#fff;font:700 .9rem Inter,system-ui,sans-serif;box-shadow:0 12px 30px rgba(0,0,0,.35);cursor:pointer;transition:transform .2s}' +
     '.sqx-l:hover{transform:translateY(-2px)}.sqx-l i{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#D10A11,#ff4d55);font-style:normal;font-size:.95rem}' +
@@ -55,6 +61,11 @@
     d.innerHTML = '<div class="dsq-proof__top"><span><span class="dsq-proof__stars" aria-hidden="true">★★★★★</span><b>4.9</b> from 157 Google reviews</span><a href="' + REVIEWS + '" target="_blank" rel="noopener">Real DriveSQ passes</a></div>' +
       '<div class="dsq-proof__win"><div class="dsq-proof__rail" aria-label="Recent DriveSQ passes">' + figs + figs.replace(/alt="[^"]*"/g, 'alt="" aria-hidden="true"') + '</div></div>';
     card.parentNode.insertBefore(d, card.nextSibling);
+    var pt = document.createElement('div'); pt.className = 'dsq-portal';
+    pt.innerHTML = '<div class="dsq-portal__top"><span class="dsq-portal__ic">SQ</span><div><b>Free DriveSQ Student Portal</b><small>Included with every DriveSQ lesson booking</small></div></div>' +
+      '<ul class="dsq-portal__list"><li><b>700+</b> theory questions in all 14 DVSA categories</li><li><b>14</b> full timed mock tests</li><li>Hazard perception practice</li><li>Lesson log, progress charts &amp; test countdowns</li><li>Test-readiness checklist</li><li>Works offline on your phone</li></ul>' +
+      '<div class="dsq-portal__btns"><a href="/drivesq-student-portal.html">See what\'s inside</a><a href="/student.html" class="o">Student log in</a></div>';
+    d.parentNode.insertBefore(pt, d.nextSibling);
   }
   function findCards() { [].forEach.call(document.querySelectorAll('.dsq-bc, [data-dsqx-bc]'), proof); }
 
@@ -84,6 +95,7 @@
     [/(auto|manual|gear|clutch|electric|ev\b)/, function () { botSay('We teach <b>both manual and automatic</b> at the same price (£35/hr). Automatic means fewer controls to learn; manual gives you a licence for both. Not sure? <a href="/manual-or-automatic-decider.html">Try the 1-minute decider</a>.', bookBtn()); }],
     [/(intensive|crash|fast|quick|week|asap|urgent|soon)/, function () { botSay('Yes — we run <b>intensive and semi-intensive courses</b>. We plan the hours around your experience and your test date, so tell us both when you book (or if you need a test found for you).', bookBtn('Plan my course') + waBtn('Hi DriveSQ! I\'m interested in an intensive course.')); }],
     [/(wait|waiting|test date|book.*test|test centre|center|pass rate|examiner)/, function () { botSay('Test centres and waiting times change every month. ' + (SOL ? 'See <a href="/solihull-driving-test-centres-data.html">pass rates &amp; waits for every centre near Solihull</a> (official DVSA data).' : 'See <a href="/driving-test-waiting-times-manchester.html">Manchester test waiting times</a>.') + ' Already have a test date? Add it when you book and we\'ll plan your lessons to it.', bookBtn()); }],
+    [/(portal|app\b|login|log in|sign in|track|progress)/, function () { botSay('The <b>DriveSQ Student Portal</b> is free with your lessons: 700+ theory questions across all 14 DVSA categories, 14 timed mock tests, hazard perception practice, your lesson log, progress charts, test countdowns and a test-readiness checklist — and it works offline.', '<a href="/drivesq-student-portal.html">See the portal</a><a href="/student.html">Student log in</a>' + bookBtn()); }],
     [/(theory|hazard|mock|highway code)/, function () { botSay('Every DriveSQ learner gets the free <b>Student Portal</b>: 700+ theory questions, 14 full mock tests, progress tracking and a test-readiness checklist.', bookBtn() + '<a href="/student.html">Student Portal</a>'); }],
     [/(how many (hours|lessons)|hours do i need|how long)/, function () { botSay('It depends on you — we\'ll give you an honest estimate after your first lesson. As a guide, DVSA says people who pass take around <b>45 hours of lessons plus 22 hours of private practice</b> on average (<a href="https://www.gov.uk/driving-lessons-learning-to-drive" target="_blank" rel="noopener">GOV.UK</a>).', bookBtn()); }],
     [/(age|old|17|16|provisional|licence|license)/, function () { botSay('You can apply for a provisional licence from 15 years 9 months and start driving a car at 17 (<a href="https://www.gov.uk/apply-first-provisional-driving-licence" target="_blank" rel="noopener">apply on GOV.UK</a>). You need it before your first lesson.', '<a href="/learner-driver-age-checker.html">When can I start?</a>' + bookBtn()); }],
@@ -125,7 +137,7 @@
     box = document.createElement('div'); box.className = 'sqx'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'SQ Assistant');
     box.innerHTML = '<div class="sqx__h"><i>SQ</i><div><b>SQ Assistant</b><small>Instant answers · a real person replies to bookings</small></div><button type="button" class="sqx__x" aria-label="Close">×</button></div>' +
       '<div class="sqx__b" aria-live="polite"></div>' +
-      '<div class="sqx__chips">' + ['💷 Prices', '📍 Do you cover my area?', '⚙️ Manual or automatic?', '⚡ Intensive courses', '🗓️ Test waiting times', '📚 Theory test', '🙋 Talk to a person'].map(function (c) { return '<button type="button">' + c + '</button>'; }).join('') + '</div>' +
+      '<div class="sqx__chips">' + ['💷 Prices', '📍 Do you cover my area?', '📱 Student Portal', '⚙️ Manual or automatic?', '⚡ Intensive courses', '🗓️ Test waiting times', '📚 Theory test', '🙋 Talk to a person'].map(function (c) { return '<button type="button">' + c + '</button>'; }).join('') + '</div>' +
       '<form class="sqx__f"><input type="text" maxlength="200" placeholder="Ask a question or type your postcode…" aria-label="Your question"><button type="submit" aria-label="Send">➤</button></form>' +
       '<div class="sqx__note">Automated answers from DriveSQ\'s published prices and official DVSA data. Nothing you type is sent unless you tap WhatsApp.</div>';
     document.body.appendChild(box);

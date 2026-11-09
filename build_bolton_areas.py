@@ -17,6 +17,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CP, RL = sys.argv[1], sys.argv[2]
 WARDS = ["Queens Park & Central", "Halliwell", "Great Lever", "Rumworth", "Tonge with the Haulgh", "Breightmet", "Astley Bridge",
          "Smithills", "Little Lever & Darcy Lever", "Hulton", "Heaton, Lostock & Chew Moor"]
+OUTER = ["Bromley Cross", "Bradshaw", "Horwich North", "Horwich South & Blackrod", "Westhoughton North & Hunger Hill", "Westhoughton South",
+         "Farnworth North", "Farnworth South", "Kearsley"]
+INNER = list(WARDS); WARDS = WARDS + OUTER
 to_ll = Transformer.from_crs("EPSG:27700", "EPSG:4326", always_xy=True)
 to_bng = Transformer.from_crs("EPSG:4326", "EPSG:27700", always_xy=True)
 LOC = json.load(open(os.path.join(HERE, "_data", "dvsa_locations_bolton.json")))
@@ -25,6 +28,7 @@ LANE_ROADS = {"Newbrook Road": "peak", "St Helens Road": "peak", "Derby Street":
 BOXES = [("Blackburn Road", "Lawson Street"), ("Trinity Street", "Newport Street"), ("Topp Way", "Higher Bridge Street"), ("Bridge Street", "St George's Street"), ("Cricketers Way", "Leigh Road")]
 norm = lambda s: re.sub(r"[’'`]", "", s).lower().strip()
 
+# (Deane Road colleges are added below as a point of interest)
 # ---- ward names + postcodes
 names = {}
 for ws in openpyxl.load_workbook(os.path.join(CP, "Doc", "Codelist.xlsx"), read_only=True).worksheets:
@@ -103,6 +107,12 @@ def box_ward(a, b):
             if d < best[0]: best = (d, ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2))
     return (ward_at(*best[1]), round(best[0])) if best[1] else (None, None)
 boxes = {f"{a} / {b}": box_ward(a, b) for a, b in BOXES}
+# each bus lane pinned by the cross street named in Bolton Council's list
+LANE_PIN = [("Newbrook Road", "Wellington Road"), ("St Helens Road", "Plodder Lane"), ("St Helens Road", "Dean Church Lane"), ("St Helens Road", "Morris Green Lane"),
+            ("St Helens Road", "Church Avenue"), ("Derby Street", "University Way"), ("Derby Street", "Gibbon Street"), ("Deane Road", "Gilnow Lane"),
+            ("Knowsley Street", "Corporation Street"), ("St George's Road", "Knowsley Street"), ("Bridge Street", "Bow Street"), ("Deansgate", "Crown Street"), ("Great Moor Street", "Mawdsley Street")]
+lane_w = {f"{a}|{b}": box_ward(a, b) for a, b in LANE_PIN}
+print("lanes", lane_w)
 
 def miles(lat1, lon1, lat2, lon2):
     R = math.pi / 180; x = math.sin((lat2 - lat1) * R / 2); y = math.sin((lon2 - lon1) * R / 2)
@@ -121,10 +131,16 @@ for w in WARDS:
         pcs.append([pc, nr[0][0] if nr else ""])
     tc = sorted(({"k": k, "mi": round(miles(lat, lon, v["lat"], v["lon"]), 1)} for k, v in LOC["practical"].items()), key=lambda d: d["mi"])
     th = sorted(({"name": t["name"], "mi": round(miles(lat, lon, t["lat"], t["lon"]), 1)} for t in LOC["theory"]), key=lambda d: d["mi"])
-    lanes = sorted({k for k in LANE_ROADS if any(norm(k) == norm(n) for n in named)})
-    out["wards"][w] = {"postcodes": len(us), "districts": dict(dist.most_common()), "sectors": dict(sorted(secs.items())), "lat": round(lat, 5), "lon": round(lon, 5),
+    lanes = sorted({k for k, (lw, dd) in lane_w.items() if lw == w and dd is not None and dd < 60 for k in [k.split("|")[0]]})
+    out["wards"][w] = {"inner": w in INNER, "postcodes": len(us), "districts": dict(dist.most_common()), "sectors": dict(sorted(secs.items())), "lat": round(lat, 5), "lon": round(lon, 5),
                        "roads": named, "main": main, "longest": [k for k, _ in sorted(rd.items(), key=lambda kv: -kv[1])[:8]],
                        "tc": tc, "theory": th, "lanes": {k: LANE_ROADS[k] for k in lanes}, "boxes": [k for k, (bw, d) in boxes.items() if bw == w and d is not None and d < 40], "pcs": pcs}
+# Deane Road (University / Bolton College): distances from postcode BL3 5AB
+u = next((x for x in units if x[0] == "BL3 5AB"), None)
+if u:
+    lon, lat = to_ll.transform(u[1], u[2])
+    out["deane_road"] = {"pc": "BL3 5AB", "ward": u[3], "tc": sorted(({"k": k, "mi": round(miles(lat, lon, v["lat"], v["lon"]), 1)} for k, v in LOC["practical"].items()), key=lambda d: d["mi"]),
+                         "theory": sorted(({"name": t["name"], "mi": round(miles(lat, lon, t["lat"], t["lon"]), 1)} for t in LOC["theory"]), key=lambda d: d["mi"])}
 json.dump(out, open(os.path.join(HERE, "_data", "bolton_areas.json"), "w"), separators=(",", ":"))
 for w, d in out["wards"].items():
     print(f"{w:28} pcs={d['postcodes']:4} roads={len(d['roads']):3} main={[m[1] for m in d['main']][:6]} tc={[(t['k'], t['mi']) for t in d['tc'][:3]]} lanes={list(d['lanes'])} boxes={d['boxes']}")

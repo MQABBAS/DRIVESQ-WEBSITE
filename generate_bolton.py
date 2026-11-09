@@ -62,12 +62,12 @@ def sources(keys, note="Official statistics on GOV.UK (Open Government Licence v
 
 def more(exclude):
     items = [(F_TC, "Bolton test centre data"), (F_CMP, "Bolton-area centres compared"), (F_TH, "Bolton theory test pass rates"), (F_RD, "Bolton road safety data"),
-             (F_TOWN, "Bolton bus lanes & town centre"), ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
+             (F_TOWN, "Bolton bus lanes & town centre"), ("driving-lessons-students-bolton.html", "Student lessons in Bolton"), ("bolton-driving-test-routes-guide.html", "Bolton test routes guide"), ("automatic-driving-lessons-bolton.html", "Automatic lessons in Bolton"),
              ("intensive-driving-course-bolton.html", "Intensive courses in Bolton"), (HUB, "Driving lessons in Bolton")]
     try: ar = L.chips([(AF[w], w) for w in AF if AF[w] != exclude])
     except NameError: ar = ""
     return L.sec("more", "Keep reading", "More for Bolton learners", "", L.chips([x for x in items if x[0] != exclude]) +
-                 ('<h3 style="font-family:Oswald,sans-serif;font-size:1.1rem;margin-top:18px">Inner Bolton neighbourhoods</h3>' + ar if ar else ""))
+                 ('<h3 style="font-family:Oswald,sans-serif;font-size:1.1rem;margin-top:18px">Bolton neighbourhoods</h3>' + ar if ar else ""))
 
 
 def photos(picks, title="Recent DriveSQ passes"):
@@ -88,9 +88,22 @@ def dataset(name, desc, creator, src):
             "license": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/", "isBasedOn": src, "spatialCoverage": "Bolton, Greater Manchester"}
 
 
+def portal_sec():
+    return L.sec("portal", "Free with your lessons", "The DriveSQ Student Portal",
+                 "Every DriveSQ learner gets free access to the Student Portal — your theory revision, test prep and lesson progress in one app on your phone.",
+                 L.cards([("bi-journal-check", "700+ theory questions", "DVSA-style questions across all 14 official categories, each with an explanation."),
+                          ("bi-stopwatch", "14 timed mock tests", "Full 50-question mocks with instant results, so you know when you're ready to book the real thing."),
+                          ("bi-camera-video", "Hazard perception", "Practise spotting developing hazards — the part of the theory test most people underestimate."),
+                          ("bi-graph-up-arrow", "Lessons & progress", "Your lesson log, progress charts, test countdowns and a test-readiness checklist your instructor updates."),
+                          ("bi-wifi-off", "Works offline", "Revise on the bus or between lectures — no signal needed.")]) +
+                 '<div class="dsqx-ctas mt-3"><a class="dsqx-btn dsqx-btn--red" href="drivesq-student-portal.html"><i class="bi bi-phone me-1"></i>See inside the portal</a><a class="dsqx-btn dsqx-btn--ghost" href="student.html"><i class="bi bi-box-arrow-in-right me-1"></i>Student log in</a></div>', alt=True)
+
+
 def build(f, crumb, title, desc, kw, hero, secs, faqs, data, script, extra_schema, picks):
     booking = '<div class="sol-form" id="book">' + G.form("Book driving lessons in Bolton", "A real person replies, usually within the hour. Goes straight to the DriveSQ team.", OPTS) + "</div>"
     schema = [L.faq_schema(faqs), crumbs(crumb, f), PH.schema(L.SITE, picks)] + extra_schema
+    i = next((k for k, x in enumerate(secs) if 'id="passes"' in x), len(secs))
+    secs = secs[:i] + [portal_sec()] + secs[i:]
     html = L.page(f, title, desc, kw, schema, hero, [CSS] + secs + [faq_block(faqs), booking])
     html = html.replace("Driving lessons in Solihull", "Driving lessons in Bolton").replace("B90 4AA", "BL1 1RU")
     return html.replace("</body>", f'<script type="application/json" id="pdata">{json.dumps(data)}</script>\n{CHART}\n<script>(function(){{var D=JSON.parse(document.getElementById("pdata").textContent);{script}}})();</script>\n</body>', 1)
@@ -434,7 +447,7 @@ def area(w, idx):
         L.sec("finder", "Postcode check", f"Is your postcode in {w}?", "Type your full postcode to see your nearest road, nearest test centre and book.", finder, alt=True),
         L.sec("az", "Street index", f"Every named road in {w} (A–Z)", "Your instructor picks you up from home, college or work anywhere in the area.", f'<div class="sol-card reveal" style="padding:18px">{az}</div>'),
         photos(((idx) % 10, (idx + 3) % 10, (idx + 5) % 10, (idx + 7) % 10, (idx + 9) % 10)),
-        L.sec("near", "Nearby", "Other inner Bolton areas", "", L.chips([(AF[o], o) for o in others])),
+        L.sec("near", "Nearby", "Other Bolton areas", "", L.chips([(AF[o], o) for o in others])),
         more(f),
         sources(("finder", "tfinder", "dvsa", "move", "cpo", "bl_list", "20mph"), "DVSA and Bolton Council pages and Ordnance Survey open data, checked 9 November 2026.")]
     faqs = [(f"What's the nearest driving test centre to {w}?", f"{SHORT[nk]} test centre ({LOCS['practical'][nk]['addr']}), about {near['mi']} miles in a straight line from the middle of {w}. Its pass rate was {ny['p']}% in {Y} (DVSA)."),
@@ -449,7 +462,7 @@ if(!v){o.innerHTML='';return;}if(!r){o.innerHTML='ℹ️ <b>'+raw.replace(/[<>&"
 o.innerHTML='✅ <b>'+r[0]+'</b> is in <b>'+D.ward+'</b>'+(r[1]?' — nearest road: <b>'+r[1]+'</b>':'')+'.<br>Nearest test centres: '+D.near.map(function(n){return n.n+' ('+n.mi+' mi, '+n.p+'% pass rate)';}).join(' · ')+
 '<div class="mt-2"><a class="dsqx-btn dsqx-btn--red" href="#" data-dsq-book-pc="'+r[0]+'">📅 Book lessons from '+r[0]+'</a></div>';}
 document.getElementById('arGo').onclick=go;document.getElementById('arPc').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go();}});"""
-    hero = L.hero(f"Inner Bolton · {dists}", f'<span class="w">Driving lessons</span> <span class="w w--red">{e(w)}.</span>', f"nearest test centres, local roads, bus lanes and a postcode check for {w}",
+    hero = L.hero(f"{'Inner Bolton' if d.get('inner') else 'Bolton'} · {dists}", f'<span class="w">Driving lessons</span> <span class="w w--red">{e(w)}.</span>', f"nearest test centres, local roads, bus lanes and a postcode check for {w}",
                   [("bi-geo-alt", f"{near['mi']} mi to {SHORT[nk]} test centre"), ("bi-signpost-split", f"{len(d['roads'])} local roads"), ("bi-cash", "£35/hr manual or automatic")],
                   [("red", "#centres", "bi-geo-alt", "Nearest test centres"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Driving lessons in {w}, Bolton ({dists}): nearest test centre {SHORT[nk]} ({near['mi']} mi, {ny['p']}% pass rate), theory centre, main roads, bus lanes and a postcode check. Manual or automatic £35/hr."
@@ -461,7 +474,52 @@ document.getElementById('arGo').onclick=go;document.getElementById('arPc').addEv
 def areas():
     return [area(w, i) for i, w in enumerate(A)]
 
-PAGES = [test_centre, compare, theory, roads, town, areas]
+F_STU = "driving-lessons-students-bolton.html"
+
+
+def students():
+    f = F_STU; dr = json.load(open(os.path.join(HERE, "_data", "bolton_areas.json")))["deane_road"]; b = C["bolton"]
+    ages = {a["age"]: a for a in b["age"]}; tc = dr["tc"][:4]
+    trows = "".join(f'<tr><td><b>{e(SHORT[t["k"]])}</b><small style="display:block;color:#777">{e(LOCS["practical"][t["k"]]["addr"])}</small></td><td data-l="From Deane Road"><b>{t["mi"]} mi</b></td><td data-l="Pass rate">{C[t["k"]]["years"][Y]["p"]}%</td><td data-l="Median wait">{lastwait(t["k"])["med"]} wks</td><td></td></tr>' for t in tc)
+    th = X["theory"]["centres"]["Bolton"]["years"][Y]
+    secs = [
+        kpis([(320, 0, "", "£ — 10 hours for students & NHS staff"), (dr["tc"][0]["mi"], 1, " mi", "Deane Road to Bolton test centre"), (dr["theory"][0]["mi"], 1, " mi", "to Bolton theory test centre"), (ages["17"]["p"], 1, "%", "pass rate at 17 in Bolton")]),
+        L.sec("price", "Student price", "10 hours for £320 — manual or automatic",
+              "Students and NHS staff get 10 hours of lessons for £320 (normally £350). Lessons fit around lectures, college and part-time work, with pick-up from campus, home or work.",
+              L.cards([("bi-mortarboard", "Who it's for", "College, sixth-form and university students in Bolton — and NHS staff. Pick the NHS/student package when you book."),
+                       ("bi-clock-history", "Around your timetable", "Book lessons between lectures, after college or at weekends. Your instructor works to your free slots."),
+                       ("bi-geo-alt", "Pick-up from campus", "We pick up from Deane Road, the town centre or home — anywhere in Bolton."),
+                       ("bi-gear", "Manual or automatic", "Same price either way. Automatic is quicker to learn; manual gives you a licence for both.")])),
+        L.sec("age", "Start young", f"In Bolton, 17-year-olds pass most often — {ages['17']['p']}%",
+              f"DVSA's {Y} figures for Bolton test centre: {ages['17']['p']}% at 17, {ages['18']['p']}% at 18, {ages['19']['p']}% at 19 and {ages['20']['p']}% at 20. Learning while you're at college, with time to practise, pays off.",
+              card("chAge"), alt=True),
+        L.sec("centres", "Test centres", "Test centres from Deane Road",
+              f"Straight-line distances from Deane Road (BL3 5AB) to DVSA's own centre locations, with {Y} pass rates and the latest median waits.",
+              f'<div class="sol-wrap reveal"><table class="sol-tbl bt-cent"><thead><tr><th>Centre</th><th>Distance</th><th>Pass rate</th><th>Median wait</th><th></th></tr></thead><tbody>{trows}</tbody></table></div>'
+              + f'<p class="mt-3">Theory test: <b>{e(LOCS["theory"][0]["addr"])}</b> — about {dr["theory"][0]["mi"]} miles from Deane Road. {th["p"]}% of theory tests there were passes in {Y}.</p>'),
+        L.sec("local", "Local know-how", "Driving around the campus area", "",
+              L.cards([("bi-sign-turn-right", "Deane Road bus lane", "The north side of Deane Road, between Gilnow Lane and Salisbury Street, is a bus lane Monday–Friday 7–10am and 4–7pm. Cameras issue £70 penalties."),
+                       ("bi-sign-stop", "Town-centre bus gate", "Deansgate (Bradshawgate to Crown Street) is a 24/7 bus gate. Plan routes into town around it."),
+                       ("bi-speedometer", "20mph streets", "Many residential streets around Deane Road are 20mph — read the repeater signs."),
+                       ("bi-map", "Full town-centre guide", f'<a href="{F_TOWN}">All 14 bus lanes with a live checker</a>.')]), alt=True),
+        photos((1, 5, 8, 2, 9)),
+        more(f),
+        sources(("dvsa", "finder", "tfinder", "bl_list", "cpo"), "DVSA, Bolton Council and Ordnance Survey data, checked 9 November 2026.")]
+    faqs = [("Is there a student discount for driving lessons in Bolton?", "Yes — students and NHS staff get 10 hours for £320, manual or automatic (normally £350 for 10 hours, or £35/hr)."),
+            ("How far is Bolton test centre from Deane Road?", f"About {dr['tc'][0]['mi']} miles in a straight line — the centre is at {LOCS['practical']['bolton']['addr']}."),
+            ("Where is the theory test centre in Bolton?", f"{LOCS['theory'][0]['addr']} — about {dr['theory'][0]['mi']} miles from Deane Road."),
+            ("What age is best to learn to drive in Bolton?", f"In {Y}, Bolton test centre's pass rate was highest at 17 ({ages['17']['p']}%) and fell to {ages['19']['p']}% at 19 (DVSA)."),
+            ("Do students get the Student Portal?", "Yes — every DriveSQ learner gets the free Student Portal: 700+ theory questions, 14 mock tests, hazard perception and progress tracking.")]
+    data = {"age": [{"label": "Age " + a["age"], "value": a["p"], "note": f'{a["n"]:,} tests', "hi": a["age"] == "17"} for a in b["age"]]}
+    script = """DSQCharts.bars(document.getElementById('chAge'),D.age,{unit:'%',max:80});"""
+    hero = L.hero("Students & sixth form · Bolton", '<span class="w">Student</span> <span class="w w--red">driving lessons</span> <span class="w">Bolton.</span>', "10 hours for £320, lessons around your timetable and a free revision portal",
+                  [("bi-mortarboard", "£320 for 10 hours"), ("bi-geo-alt", "Pick-up from campus"), ("bi-phone", "Free Student Portal")], [("red", "#price", "bi-mortarboard", "Student price"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
+    desc = f"Student driving lessons in Bolton: 10 hours for £320 (manual or automatic), pick-up from Deane Road, nearest test centres and theory centre, and Bolton's DVSA pass rates by age ({ages['17']['p']}% at 17). Free Student Portal included."
+    return f, build(f, "Student driving lessons Bolton", "Student Driving Lessons in Bolton — £320 for 10 Hours | DriveSQ", desc,
+                    "student driving lessons bolton, driving lessons for students bolton, bolton college driving lessons, university driving lessons bolton, cheap driving lessons bolton students",
+                    hero, secs, faqs, data, script, [], (1, 5, 8, 2, 9))
+
+PAGES = [test_centre, compare, theory, roads, town, areas, students]
 
 
 def main():
