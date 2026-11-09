@@ -70,7 +70,11 @@ def nav():
 
 def page(fname, title, desc, kw, schema, hero_html, sections):
     foot = relink(FOOT).replace("Manchester's #1 DVSA-approved driving school.", "Driving lessons in Solihull and Greater Manchester.")
-    return head(fname, title, desc, kw, schema) + "</head>\n<body>\n<div id=\"page-loader\" hidden></div>\n" + nav() + "\n" + hero_html + "\n<main id=\"main\">\n" + "\n".join(sections) + "\n</main>\n" + foot
+    # booking card straight after the title/hero; all the page's information follows it
+    bk = [x for x in sections if "DRIVESQ-INLINE-BOOKING-V1" in x]
+    rest = [x for x in sections if "DRIVESQ-INLINE-BOOKING-V1" not in x]
+    top = ('<div class="dsq-book-top" data-dsq-top>' + bk[0] + "</div>\n") if bk else ""
+    return head(fname, title, desc, kw, schema) + "</head>\n<body>\n<div id=\"page-loader\" hidden></div>\n" + nav() + "\n" + hero_html + "\n<main id=\"main\">\n" + top + "\n".join(rest + bk[1:]) + "\n</main>\n" + foot
 
 
 def sec(sid, eye, title, sub, inner, alt=False):

@@ -258,7 +258,7 @@
   function init() {
     scan(document);
     if (document.querySelector('#dsqInlineBookForm') && !document.querySelector('[data-dsqx-bc]') && !window.__dsqBookCard) {
-      var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261109'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
+      var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261111'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
     } else stickyBook();
     if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && (n.matches('#dsqInlineBookForm') || n.matches('form[action*="formspree.io"]'))) scan(n.parentNode || document); else scan(n); } }); }); }).observe(document.body, { childList: true, subtree: true });
   }

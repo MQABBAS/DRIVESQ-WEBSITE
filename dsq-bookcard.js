@@ -10,7 +10,8 @@
   var WA = '447352932003';
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var CSS = '.dsq-bc{box-sizing:border-box;position:relative;width:100%;max-width:620px;margin:0 auto;min-width:0;background:rgba(17,17,17,.92);-webkit-backdrop-filter:blur(12px) saturate(1.2);backdrop-filter:blur(12px) saturate(1.2);border:1px solid rgba(255,255,255,.09);border-radius:26px;padding:22px 20px;box-shadow:0 18px 50px rgba(0,0,0,.35);color:#f0f0f0;font-family:Inter,system-ui,sans-serif;text-align:left}' +
+  var CSS = '.dsq-book-top{padding-top:28px;padding-bottom:8px}.dsq-book-top section#booking{margin-top:0}' +
+    '.dsq-bc{box-sizing:border-box;position:relative;width:100%;max-width:620px;margin:0 auto;min-width:0;background:rgba(17,17,17,.92);-webkit-backdrop-filter:blur(12px) saturate(1.2);backdrop-filter:blur(12px) saturate(1.2);border:1px solid rgba(255,255,255,.09);border-radius:26px;padding:22px 20px;box-shadow:0 18px 50px rgba(0,0,0,.35);color:#f0f0f0;font-family:Inter,system-ui,sans-serif;text-align:left}' +
     '.dsq-bc *{box-sizing:border-box}' +
     '.dsq-bc__tabs{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;padding:4px;margin:-4px 0 18px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}' +
     '.dsq-bc__tabs button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:7px;border:0;background:none;color:#a3a3a3;padding:10px 8px;border-radius:10px;font:800 .98rem/1 "Barlow Condensed",Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:color .25s;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}' +

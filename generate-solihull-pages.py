@@ -215,8 +215,8 @@ def build(fname, title, desc, kw, h1, lead, hero_pills, body, faqs, src, form_ht
 <div class="d-flex flex-wrap gap-2 mt-4"><a class="btn-red-lg" href="#booking"><i class="bi bi-calendar-check-fill"></i> {"Apply now" if "jobs" in fname else "Book a lesson"}</a><a class="btn-wa-lg" href="https://wa.me/447352932003" target="_blank" rel="nofollow noopener"><i class="bi bi-whatsapp"></i> WhatsApp</a></div>
 {"" if "instructor" in fname else '<div data-dsq-pc-quick></div>'}
 </div></section>
+<div class="dsq-book-top" data-dsq-top>{form_html}</div>
 {body}
-{form_html}
 {crosslinks(fname)}
 {faq_html(faqs)}
 {sources(src)}
