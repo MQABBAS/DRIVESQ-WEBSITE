@@ -32,7 +32,8 @@
     var x = function (i) { return L + (W - L - R) * (labels.length < 2 ? 0.5 : i / (labels.length - 1)); };
     var y = function (v) { return Tp + (H - Tp - B) * (1 - (v - min) / (max - min)); };
     var g = '';
-    for (var t = min; t <= max; t += (max - min > 30 ? 10 : 5)) g += '<line class="dsqc-grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(t) + '" y2="' + y(t) + '"/><text class="dsqc-axis" x="' + (L - 6) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + t + (o.unit || '') + '</text>';
+    var raw = (max - min) / 6, mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), stp = [1, 2, 2.5, 5, 10].map(function (k) { return k * mag; }).filter(function (k) { return k >= raw; })[0] || 10;
+    for (var t = Math.ceil(min / stp) * stp; t <= max + 1e-9; t += stp) g += '<line class="dsqc-grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(t) + '" y2="' + y(t) + '"/><text class="dsqc-axis" x="' + (L - 6) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + t + (o.unit || '') + '</text>';
     var step = Math.ceil(labels.length / 7);
     labels.forEach(function (lb, i) { if (i % step === 0 || i === labels.length - 1) g += '<text class="dsqc-axis" x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + lb + '</text>'; });
     var paths = '', dots = '';

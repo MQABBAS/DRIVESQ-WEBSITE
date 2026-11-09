@@ -91,7 +91,7 @@ def chart_data(s):
                      "age": {a["age"]: a["p"] for a in c["age"] if a["age"] != "Total"}, "gb": NAT["years"][Y]["p"]}}
 
 
-SCRIPT = """<script src="dsq-charts.js?v=1"></script>
+SCRIPT = """<script src="dsq-charts.js?v=2"></script>
 <script>(function(){var D=JSON.parse(document.getElementById('cdata').textContent),R='#D10A11',G='#6b7280';
 DSQCharts.line(document.getElementById('chTrend'),{label:'Pass rate by year',unit:'%',series:[{name:D.name,color:R,pts:D.trend.labels.map(function(l,i){return[l,D.trend.c[i]];})},{name:'Great Britain',color:G,dash:1,pts:D.trend.labels.map(function(l,i){return[l,D.trend.gb[i]];})}]});
 var mx=Math.max.apply(null,D.months.map(function(m){return m[1];})),mn=Math.min.apply(null,D.months.map(function(m){return m[1];}));
@@ -212,7 +212,7 @@ def hub():
     trend["series"] = {INFO[k]["short"]: [C[k]["years"].get(y, {}).get("p") for y in sorted(NAT["years"]) if y >= "2015-16"] for k in ORDER}
     trend["gb"] = [NAT["years"][y]["p"] for y in sorted(NAT["years"]) if y >= "2015-16"]
     explorer = """<div class="sol-card reveal" style="padding:22px"><div id="mxBtns" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div><div id="mxOut"></div><p id="mxNote" class="sol-note mt-2 mb-0"></p></div>"""
-    script = """<script src="dsq-charts.js?v=1"></script><script>(function(){var D=JSON.parse(document.getElementById('hdata').textContent),b=document.getElementById('mxBtns'),cur='pass';
+    script = """<script src="dsq-charts.js?v=2"></script><script>(function(){var D=JSON.parse(document.getElementById('hdata').textContent),b=document.getElementById('mxBtns'),cur='pass';
 function draw(){var m=D.metrics[cur],v=m[2],ks=Object.keys(v).filter(function(k){return v[k]!=null;}).sort(function(a,c){return cur==='wait'?v[a]-v[c]:v[c]-v[a];});
 var items=ks.map(function(k){return{label:D.names[k],value:v[k],hi:k==='shirley'};});if(m[3]!=null)items.push({label:'Great Britain',value:m[3],note:'average'});
 DSQCharts.bars(document.getElementById('mxOut'),items,{unit:m[1],digits:cur==='tests'?0:1});document.getElementById('mxNote').textContent=m[0]+(cur==='wait'?' — shortest first.':' — highest first.')+' Source: DVSA.';

@@ -16,7 +16,7 @@ C, NAT, Y, ORDER, INFO = TC.C, TC.NAT, TC.Y, TC.ORDER, TC.INFO
 TODAY = "2026-11-09"
 SHORT = {k: INFO[k]["short"] for k in ORDER}
 COLS = {"shirley": "#D10A11", "garretts-green": "#2563eb", "south-yardley": "#16a34a", "kings-heath": "#d97706", "coventry": "#7c3aed", "redditch": "#0891b2", "warwick": "#db2777"}
-CHART = '<script src="dsq-charts.js?v=1"></script>'
+CHART = '<script src="dsq-charts.js?v=2"></script>'
 SRC_DVSA = TC.SRC[0]
 EXTRA_SRC = {"cancel": ("GOV.UK — claim expenses if DVSA cancelled your driving test", "https://www.gov.uk/guidance/claim-expenses-if-dvsa-cancelled-your-driving-test"),
              "weather": ("GOV.UK — driving test cancelled because of bad weather", "https://www.gov.uk/driving-test/test-cancelled-bad-weather"),
