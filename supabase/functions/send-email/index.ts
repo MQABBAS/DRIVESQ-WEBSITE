@@ -11,8 +11,9 @@
 //   EMAIL_FROM         e.g.  DriveSQ <hello@drivesq.co.uk>   (domain verified in Resend)
 //   EMAIL_REPLY_TO     optional, e.g. qaimabbasmohammed@gmail.com
 //   UNSUBSCRIBE_SECRET optional; defaults to EMAIL_ADMIN_KEY
-// Deploy without JWT verification so mailbox one-click unsubscribe POSTs work:
-//   supabase functions deploy send-email --no-verify-jwt
+//   EMAIL_FUNCTION_NAME optional; the name you deployed this function as (send-email, sendemail…). Admin also sends it.
+// Turn OFF "Verify JWT" for this function (dashboard: function → Details/Settings) so the unsubscribe link and
+// mailbox one-click unsubscribe work. CLI:  supabase functions deploy send-email --no-verify-jwt
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,7 +25,18 @@ const ADMIN_KEY = Deno.env.get("EMAIL_ADMIN_KEY") || "";
 const FROM = Deno.env.get("EMAIL_FROM") || "DriveSQ <hello@drivesq.co.uk>";
 const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") || "";
 const UNSUB_SECRET = Deno.env.get("UNSUBSCRIBE_SECRET") || ADMIN_KEY;
-const FN_URL = SUPABASE_URL + "/functions/v1/send-email";
+// The function can be deployed as send-email, sendemail or send_email — unsubscribe links use whichever name it runs under.
+const FN_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
+function fnUrl(req: Request, hint?: string) {
+  let name = Deno.env.get("EMAIL_FUNCTION_NAME") || "";
+  if (!FN_NAME_RE.test(name) && hint && FN_NAME_RE.test(hint)) name = hint;
+  if (!FN_NAME_RE.test(name)) {
+    const seg = new URL(req.url).pathname.split("/").filter(Boolean);
+    const i = seg.indexOf("v1"); const g = i >= 0 ? seg[i + 1] : seg[0];
+    name = g && FN_NAME_RE.test(g) ? g : "send-email";
+  }
+  return SUPABASE_URL + "/functions/v1/" + name;
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -45,8 +57,8 @@ function safeEqual(a: string, b: string) {
   let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
 }
-async function unsubUrl(email: string) {
-  return FN_URL + "?unsubscribe=1&e=" + encodeURIComponent(norm(email)) + "&t=" + (await sign(email));
+async function unsubUrl(email: string, base: string) {
+  return base + "?unsubscribe=1&e=" + encodeURIComponent(norm(email)) + "&t=" + (await sign(email));
 }
 function esc(s: string) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)); }
 
@@ -90,6 +102,7 @@ serve(async (req) => {
   if (body.action !== "send") return json({ ok: false, error: "Unknown action" }, 400);
   if (!RESEND_KEY) return json({ ok: false, error: "RESEND_API_KEY is not set" }, 500);
 
+  const base = fnUrl(req, String(body.fn_name || ""));
   const msgs: any[] = Array.isArray(body.messages) ? body.messages : [];
   if (!msgs.length) return json({ ok: false, error: "No messages" }, 400);
   if (msgs.length > 100) return json({ ok: false, error: "Max 100 emails per call" }, 400);
@@ -103,7 +116,7 @@ serve(async (req) => {
     const m = msgs[i], e = emails[i];
     if (!EMAIL_RE.test(e)) { results[i] = { to: e, status: "failed", error: "Invalid email address" }; continue; }
     if (blocked.has(e) && !body.test) { results[i] = { to: e, status: "skipped", error: "Unsubscribed" }; continue; }
-    const u = await unsubUrl(e);
+    const u = await unsubUrl(e, base);
     const html = String(m.html || "").split("{{unsubscribe_url}}").join(u);
     const text = String(m.text || "").split("{{unsubscribe_url}}").join(u);
     const mail: any = {

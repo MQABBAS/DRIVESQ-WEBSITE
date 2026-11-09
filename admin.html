@@ -15812,7 +15812,7 @@ document.addEventListener('click',e=>{
       const messages = batch.map(s => ({ send_id: s.id, to: s.email, subject: personaliseText(full.subject, s), html: M.personalise(full.html, s), text: personaliseText(full.text_body || "", s) }));
       let res = null;
       try {
-        const resp = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": key, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify({ action: "send", campaign_id: camp.id, messages }) });
+        const resp = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": key, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify({ fn_name: FN.split("/").pop(), action: "send", campaign_id: camp.id, messages }) });
         res = await resp.json().catch(() => ({}));
         if (!resp.ok || !res.ok) throw new Error(res.error || ("Email service returned " + resp.status));
       } catch (e) { errorStop = e.message || String(e); break; }
@@ -15930,7 +15930,7 @@ document.addEventListener('click',e=>{
     const d = design(), me = { name: "Sam Patel", email: to };
     const btn = $("#panel-email [data-test]"); if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i>Sending…'; }
     try {
-      const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": key, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify({ action: "send", test: true, messages: [{ to, subject: "[TEST] " + personaliseText(d.subject, me), html: M.personalise(finalHTML(d), me), text: personaliseText(M.text(d), me) }] }) });
+      const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": key, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify({ fn_name: FN.split("/").pop(), action: "send", test: true, messages: [{ to, subject: "[TEST] " + personaliseText(d.subject, me), html: M.personalise(finalHTML(d), me), text: personaliseText(M.text(d), me) }] }) });
       const j = await r.json().catch(() => ({})), x = (j.results || [])[0];
       if (r.ok && x && x.status === "sent") toast("📬 Test sent to " + to, "success", 6000); else toast("Test not sent: " + ((x && x.error) || j.error || r.status), "error", 8000);
     } catch (e) { toast("Test not sent: " + (e.message || e), "error"); }
