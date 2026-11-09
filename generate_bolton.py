@@ -121,6 +121,15 @@ def rules_sec(alt=False):
                           ("bi-calendar-week", "When new dates appear", "DVSA releases a new week of tests at 6am every Monday, about 24 weeks ahead. Most centres have no cancellation list."),
                           ("bi-cash-coin", "Refunds", "Cancel at least 10 full working days before the test for a full refund.")]), alt=alt)
 
+def short_title(*opts):
+    """first option that fits in 60 characters, with ' | DriveSQ' when there's room"""
+    for o in opts:
+        if len(o + " | DriveSQ") <= 60: return o + " | DriveSQ"
+    for o in opts:
+        if len(o) <= 60: return o
+    return opts[-1][:60]
+
+
 def lastwait(k): return [w for w in C[k]["waits"] if w["med"] is not None][-1]
 def lab(y): return y[2:4] + "/" + y[5:]
 
@@ -187,7 +196,7 @@ DSQCharts.line(document.getElementById('chWait'),{label:'Median wait',min:0,digi
                   [("bi-graph-up", f"{yb['p']}% pass rate"), ("bi-hourglass-split", f"{w['med']}-week median wait"), ("bi-calendar3", f"{len(years)} years of data")],
                   [("red", "#trend", "bi-bar-chart", "See the data"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Bolton driving test centre from official DVSA data: {yb['p']}% pass rate in {Y} ({yb['n']:,} tests), {w['med']}-week median wait ({wm}), first-time passes, pass rate by age, automatic vs manual and DVSA cancellations."
-    return F_TC, build(F_TC, "Bolton test centre data", f"Bolton Driving Test Centre Pass Rate & Waiting Times ({Y} DVSA data) | DriveSQ", desc,
+    return F_TC, build(F_TC, "Bolton test centre data", "Bolton Driving Test Centre: Pass Rate & Waits 2026 | DriveSQ", desc,
                        "bolton driving test centre pass rate, bolton test centre waiting times, bolton driving test centre, bolton pass rate 2026, bolton first time pass rate",
                        hero, secs, faqs, data, script, [dataset("Bolton driving test centre statistics", desc, "Driver and Vehicle Standards Agency", SRC["dvsa"][1])], (3, 4, 9, 7, 8))
 
@@ -238,7 +247,7 @@ DSQCharts.line(document.getElementById('chW'),{label:'Median waits',min:0,digits
     hero = L.hero("Official DVSA data · Bolton area", '<span class="w">Bolton-area</span> <span class="w w--red">test centres</span> <span class="w">compared.</span>', "Bolton, Atherton, Bury, Chorley, Blackburn, Cheetham Hill and Rochdale side by side",
                   [("bi-trophy", "Pass rates"), ("bi-hourglass-split", "Waiting times"), ("bi-sliders", "Pick what matters")], [("red", "#pick", "bi-sliders", "Find my centre"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Compare the driving test centres around Bolton on DVSA data: pass rates ({SHORT[hi]} {row[hi]['p']}%, Bolton {row['bolton']['p']}%), waiting times ({SHORT[fast]} {row[fast]['wait']} weeks), first-time and automatic pass rates and cancellations."
-    return F_CMP, build(F_CMP, "Bolton-area centres compared", f"Driving Test Centres Near Bolton Compared: Pass Rates & Waits ({Y}) | DriveSQ", desc,
+    return F_CMP, build(F_CMP, "Bolton-area centres compared", "Test Centres Near Bolton Compared (2026) | DriveSQ", desc,
                         "driving test centres near bolton, easiest test centre near bolton, atherton vs bolton test centre, bury test centre pass rate, chorley test centre pass rate, shortest driving test wait bolton",
                         hero, secs, faqs, data, script, [dataset("Driving test centres near Bolton compared", desc, "Driver and Vehicle Standards Agency", SRC["dvsa"][1])], (0, 1, 2, 5, 6))
 
@@ -272,7 +281,7 @@ DSQCharts.line(document.getElementById('chMo'),{label:'Bolton theory monthly',un
     hero = L.hero("Official DVSA data · Bolton", '<span class="w">Bolton</span> <span class="w w--red">Theory</span> <span class="w">Test.</span>', "pass rates at the Bolton theory centre — and how to pass first time",
                   [("bi-journal-check", f"{yb['p']}% pass rate"), ("bi-people", f"{yb['n']:,} tests a year"), ("bi-mortarboard", "700+ free practice questions")], [("red", "#why", "bi-bar-chart", "See the data"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Bolton theory test pass rate from DVSA data: {yb['p']}% in {Y} from {yb['n']:,} tests, below the Great Britain {g['p']}%. Monthly figures, men vs women, nearby centres and how to pass first time."
-    return F_TH, build(F_TH, "Bolton theory test pass rates", f"Bolton Theory Test Pass Rate ({Y} DVSA data) & How to Pass | DriveSQ", desc,
+    return F_TH, build(F_TH, "Bolton theory test pass rates", "Bolton Theory Test Pass Rate 2026 & How to Pass | DriveSQ", desc,
                        "bolton theory test pass rate, theory test centre bolton, bolton theory test, theory test pass rate manchester, how to pass theory test first time",
                        hero, secs, faqs, data, script, [dataset("Bolton theory test centre pass rates", desc, "Driver and Vehicle Standards Agency", SRC["dvsa"][1])], (8, 0, 3, 5, 1))
 
@@ -319,7 +328,7 @@ DSQCharts.bars(document.getElementById('chB'),D.bo,{digits:0,max:520});DSQCharts
     hero = L.hero("Official DfT data · 2016–2025", '<span class="w">Bolton</span> <span class="w w--red">road</span> <span class="w">safety.</span>', "ten years of crash and casualty data — and what it means for learners",
                   [("bi-graph-down", f"{round(100 * (c16 - c25) / c16)}% fewer casualties"), ("bi-geo", "vs 9 GM boroughs"), ("bi-shield-check", "Final 2025 figures")], [("red", "#trend", "bi-graph-up", "See the data"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Bolton road casualties from official DfT data: {c25} people hurt and {k25} killed or seriously injured in 2025. Ten-year trends, Greater Manchester comparison and what it means for learner drivers."
-    return F_RD, build(F_RD, "Bolton road safety data", "Bolton Road Accident Statistics 2016–2025 (DfT data) | DriveSQ", desc,
+    return F_RD, build(F_RD, "Bolton road safety data", "Bolton Road Accident Statistics 2016–2025 | DriveSQ", desc,
                        "bolton road accidents, bolton road accident statistics, bolton crash statistics, most dangerous roads bolton, bolton road safety, greater manchester road casualties",
                        hero, secs, faqs, data, script, [dataset("Bolton road casualties 2016–2025", desc, "Department for Transport", SRC["ras"][1])], (6, 2, 4, 7, 9))
 
@@ -387,7 +396,7 @@ dS.onchange=draw;tS.oninput=draw;document.getElementById('blNow').onclick=now;no
     hero = L.hero("Bolton Council data · checked Nov 2026", '<span class="w">Driving in</span> <span class="w w--red">Bolton</span> <span class="w">town centre.</span>', "bus lanes, the Deansgate bus gate, box junctions and 20mph — with a live bus lane checker",
                   [("bi-camera-video", f"{len(LANES)} bus lanes"), ("bi-clock", "Live 'in force now' check"), ("bi-cone-striped", "2026 changes")], [("red", "#checker", "bi-clock", "Check a bus lane"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Driving in Bolton town centre: all {len(LANES)} bus lanes and their hours with a live 'in force now' checker, the 24/7 Deansgate bus gate, £70 fines, box junction cameras, 20mph zones and 2026 roadworks — from Bolton Council."
-    return f, build(f, "Bolton town centre driving guide", "Bolton Bus Lanes, Bus Gate & Town Centre Driving Guide (2026) | DriveSQ", desc,
+    return f, build(f, "Bolton town centre driving guide", "Bolton Bus Lanes & Town Centre Driving Guide | DriveSQ", desc,
                     "bolton bus lanes, bolton bus lane times, bolton bus lane fine, deansgate bus gate bolton, bolton yellow box junction, driving in bolton town centre, bolton 20mph",
                     hero, secs, faqs, data, script, [], (0, 7, 4, 2, 6))
 
@@ -468,7 +477,7 @@ document.getElementById('arGo').onclick=go;document.getElementById('arPc').addEv
                   [("bi-geo-alt", f"{near['mi']} mi to {SHORT[nk]} test centre"), ("bi-signpost-split", f"{len(d['roads'])} local roads"), ("bi-cash", "£35/hr manual or automatic")],
                   [("red", "#centres", "bi-geo-alt", "Nearest test centres"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Driving lessons in {w}, Bolton ({dists}): nearest test centre {SHORT[nk]} ({near['mi']} mi, {ny['p']}% pass rate), theory centre, main roads, bus lanes and a postcode check. Manual or automatic £35/hr."
-    return f, build(f, f"Driving lessons {w}", f"Driving Lessons {w}, Bolton ({dists}) — Test Centres & Local Roads | DriveSQ", desc,
+    return f, build(f, f"Driving lessons {w}", short_title(f"Driving Lessons {w}, Bolton", f"Driving Lessons {w}"), desc,
                     f"driving lessons {w.lower()}, driving lessons {w.lower()} bolton, driving instructor {w.lower()}, nearest test centre {w.lower()}, " + ", ".join(f"driving lessons {x.lower()}" for x in d["districts"]),
                     hero, secs, faqs, data, script, [], ((idx) % 10, (idx + 3) % 10, (idx + 5) % 10, (idx + 7) % 10, (idx + 9) % 10))
 
@@ -517,7 +526,7 @@ def students():
     hero = L.hero("Students & sixth form · Bolton", '<span class="w">Student</span> <span class="w w--red">driving lessons</span> <span class="w">Bolton.</span>', "10 hours for £320, lessons around your timetable and a free revision portal",
                   [("bi-mortarboard", "£320 for 10 hours"), ("bi-geo-alt", "Pick-up from campus"), ("bi-phone", "Free Student Portal")], [("red", "#price", "bi-mortarboard", "Student price"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Student driving lessons in Bolton: 10 hours for £320 (manual or automatic), pick-up from Deane Road, nearest test centres and theory centre, and Bolton's DVSA pass rates by age ({ages['17']['p']}% at 17). Free Student Portal included."
-    return f, build(f, "Student driving lessons Bolton", "Student Driving Lessons in Bolton — £320 for 10 Hours | DriveSQ", desc,
+    return f, build(f, "Student driving lessons Bolton", "Student Driving Lessons Bolton | £320 for 10 Hours", desc,
                     "student driving lessons bolton, driving lessons for students bolton, bolton college driving lessons, university driving lessons bolton, cheap driving lessons bolton students",
                     hero, secs, faqs, data, script, [], (1, 5, 8, 2, 9))
 

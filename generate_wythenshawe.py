@@ -112,7 +112,7 @@ DSQCharts.line(document.getElementById('chY'),{label:'Pass rate by year',unit:'%
     hero = L.hero("Official DVSA data · Wythenshawe M22", '<span class="w">Manual</span> <span class="w w--red">vs automatic</span> <span class="w">Wythenshawe.</span>', "pass rates, waits and distances at the test centres Wythenshawe learners use",
                   [("bi-gear", "Manual vs automatic"), ("bi-geo-alt", "West Didsbury · Sale · Bredbury"), ("bi-hourglass-split", "Latest waits")], [("red", "#gear", "bi-bar-chart", "See the comparison"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Manual vs automatic driving test pass rates for Wythenshawe (M22/M23) learners: West Didsbury {sp['west-didsbury']['manual']}% manual / {sp['west-didsbury']['auto']}% automatic, Sale, Bredbury and Cheetham Hill — waits, distances, addresses and 2026 rules."
-    return f, B.build(f, "Manual vs automatic test data", f"Manual vs Automatic Driving Tests near Wythenshawe ({Y} DVSA) | DriveSQ", desc,
+    return f, B.build(f, "Manual vs automatic test data", "Manual vs Automatic Tests near Wythenshawe | DriveSQ", desc,
                       "automatic driving lessons wythenshawe, manual driving lessons wythenshawe, west didsbury test centre pass rate, sale test centre pass rate, automatic driving test pass rate manchester, driving test centre near wythenshawe",
                       hero, secs, faqs, data, script, [B.dataset("Driving test centres near Wythenshawe", desc, "Driver and Vehicle Standards Agency", B.SRC["dvsa"][1])], (2, 6, 9, 0, 4))
 
@@ -156,7 +156,7 @@ def guide():
     hero = L.hero("TfGM · Highway Code · DfT", '<span class="w">Trams, airport</span> <span class="w w--red">&amp; motorways.</span>', "what makes learning to drive in Wythenshawe different — and how we teach it",
                   [("bi-train-front", f"{len(tr)} tram stops"), ("bi-sign-merge-right", "M56 & M60"), ("bi-airplane", "Manchester Airport")], [("red", "#trams", "bi-train-front", "Tram rules"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Learning to drive in Wythenshawe: all {len(tr)} Metrolink Airport line stops (TfGM) and the Highway Code tram rules, the M56/M60 and airport roads, and Manchester road safety data — manual or automatic lessons £35/hr."
-    return f, B.build(f, "Trams, airport & motorways", "Driving in Wythenshawe: Trams, Airport & M56/M60 Guide | DriveSQ", desc,
+    return f, B.build(f, "Trams, airport & motorways", "Wythenshawe Trams, Airport & M56 Driving Guide | DriveSQ", desc,
                       "driving lessons wythenshawe, learner driver trams manchester, metrolink tram rules drivers, motorway lessons m56, driving near manchester airport, wythenshawe driving guide",
                       hero, secs, faqs, data, script, [], (8, 3, 1, 7, 5))
 
@@ -208,7 +208,7 @@ document.getElementById('arGo').onclick=go;document.getElementById('arPc').addEv
                   [("bi-geo-alt", f"{near['mi']} mi to {SH[nk]}"), ("bi-gear", "Manual & automatic £35/hr"), ("bi-train-front", f"{len(d['trams'])} tram stops" if d["trams"] else "Near the Metrolink")],
                   [("red", "#centres", "bi-geo-alt", "Nearest test centres"), ("ghost", "#book", "bi-calendar-check-fill", "Book lessons")])
     desc = f"Manual and automatic driving lessons in {w}, Wythenshawe ({dists}): nearest test centre {SH[nk]} ({near['mi']} mi; {sp['manual']}% manual, {sp['auto']}% automatic), theory centre, trams, motorways, postcode check. £35/hr."
-    return f, B.build(f, f"Driving lessons {w}", f"Driving Lessons {w}, Wythenshawe ({dists}) — Manual & Automatic | DriveSQ", desc,
+    return f, B.build(f, f"Driving lessons {w}", B.short_title(f"Driving Lessons {w}, Wythenshawe", f"Driving Lessons {w} {dists}", f"Driving Lessons {w}"), desc,
                       f"driving lessons {w.lower()}, automatic driving lessons {w.lower()}, manual driving lessons {w.lower()}, driving instructor {w.lower()}, driving lessons wythenshawe {dists.lower()}",
                       hero, secs, faqs, data, script, [], ((idx * 2) % 10, (idx * 2 + 3) % 10, (idx * 2 + 5) % 10, (idx * 2 + 7) % 10, (idx * 2 + 9) % 10))
 
