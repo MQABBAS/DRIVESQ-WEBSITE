@@ -3132,6 +3132,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
       <button id="refDetailMarkAllPaidBtn" onclick="markAllRefPaid(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Mark all outstanding referrals for this instructor as paid in one click"><i class="bi bi-check-all me-1"></i>Mark All Paid</button>
       <button id="refDetailExportBtn" onclick="exportInstrRefCSV(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:#818cf8;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap"><i class="bi bi-download me-1"></i>Export CSV</button>
       <button id="refDetailNotifyBtn" onclick="notifyInstructorRef(document.getElementById('refDetailInstrId').value)" style="display:none;align-items:center;gap:6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="Send instructor a message about outstanding referral payment"><i class="bi bi-bell-fill me-1"></i>Notify Instructor</button>
+      <button id="refDetailNudgeBtn" onclick="refNudgeNotBooked(document.getElementById('refDetailInstrId').value)" style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer"><i class="bi bi-megaphone me-1"></i>📣 Nudge not booked</button>
       <button id="refDetailLogBtn" onclick="openInstrLog(document.getElementById('refDetailInstrId').value)" style="align-items:center;gap:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap" title="View all messages, actions and history for this instructor"><i class="bi bi-journal-text me-1"></i>Instructor Log</button>
     </div>
     <input type="hidden" id="refDetailInstrId" value=""/>
@@ -11167,9 +11168,11 @@ async function openRefDetail(instrId,allTime){
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
             ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
               :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
-            ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;font-style:italic;margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Admin-only note (click to edit)"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes)}${notesVisible?'':' <span style="font-size:.55rem;color:var(--txt4)">(hidden)</span>'}</div>`
+            ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;font-style:italic;margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Admin-only note (click to edit)"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes).replace(/\n/g,'<br>')}${notesVisible?'':' <span style="font-size:.55rem;color:var(--txt4)">(hidden)</span>'}</div>`
               :`<div style="font-size:.58rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Add private admin note"><i class="bi bi-lock me-1"></i>Add private note…</div>`}
             <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">
+              <button onclick="refMsgOpen('${r.id}')" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);color:#25d366;border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;font-weight:700;white-space:nowrap" title="Friendly message templates — logged in notes"><i class="bi bi-chat-dots-fill me-1"></i>Message</button>
+              <button data-rfq onclick="refQuickNote('${r.id}',this)" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;font-weight:700;white-space:nowrap" title="Quick note shortcuts"><i class="bi bi-journal-plus me-1"></i>Note</button>
               <button onclick="toggleContacted('${r.id}')" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap">
                 ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
               </button>
@@ -17951,5 +17954,205 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 <script src="admin-ledger.js?v=20261023a"></script>
 <script src="admin-pro.js?v=20261105a"></script>
 <script src="admin-shell.js?v=20261108d"></script>
+<!-- DSQ-REFMSG START -->
+<script id="dsq-refmsg">
+/* Referral messages + quick notes (admin → Referrals).
+   💬 Message: friendly templates to the student or their instructor by WhatsApp, text or in-app; the best template is
+   suggested from the instructor's reply / payment status. Every send is logged as a dated line in the private notes and
+   marks the student as contacted. 📝 Note: one-tap note shortcuts (replied — booked, no reply yet…). 📣 Nudge not booked:
+   list of this instructor's students who still haven't booked, one tap each. */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const toast = (m, t, ms) => { try { showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const refs = () => { try { return _refData || []; } catch (e) { return []; } };
+  const instrs = () => { try { return allInstrs || []; } catch (e) { return []; } };
+  const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
+  const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (!d) return ""; if (d[0] === "0") d = "44" + d.slice(1); else if (!d.startsWith("44")) d = "44" + d; return d; };
+  const stamp = () => { const d = new Date(); return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " " + d.toTimeString().slice(0, 5); };
+  const SIGN_KEY = "dsq_ref_signoff";
+  const signoff = () => { try { return localStorage.getItem(SIGN_KEY) || "— DriveSQ"; } catch (e) { return "— DriveSQ"; } };
+  const ageDays = r => Math.floor((Date.now() - new Date(r.created_at)) / 864e5);
+
+  const STU = [
+    { id: "nudge", ic: "📅", label: "Booking nudge", log: "Booking nudge", t: c => `Hi ${c.s} 😊 It's DriveSQ. Just checking in — have you managed to book your first lesson with ${c.i} yet? If it's easier, reply with a few days and times that suit you and we'll help arrange it.` },
+    { id: "checkin", ic: "🚗", label: "How's it going?", log: "Check-in (how's it going?)", t: c => `Hi ${c.s}, it's DriveSQ 🚗 How are your lessons with ${c.i} going? We'd love to hear — and if anything isn't right, just tell us. We're here to help.` },
+    { id: "reach", ic: "📞", label: "Can't reach you", log: "Can't-reach message", t: c => `Hi ${c.s}, ${c.i} has been trying to reach you about your driving lessons. What's the best time or number to contact you?` },
+    { id: "still", ic: "🤔", label: "Still interested?", log: "Still-interested message", t: c => `Hi ${c.s}, we haven't heard from you in a while — are you still looking for driving lessons? Just reply yes or no, no pressure at all.` },
+    { id: "change", ic: "🔁", label: "Instructor change offer", log: "Instructor-change offer", t: c => `Hi ${c.s}, if your lesson times or instructor aren't working for you, we can find you another instructor near you. Just let us know.` },
+    { id: "ready", ic: "🎯", label: "Test-ready check", log: "Test-ready check", t: c => `Hi ${c.s}, how close do you feel to your test? Your DriveSQ Student Portal has 14 full mock tests to check you're ready — and ${c.i} can book a mock test with you.` },
+    { id: "review", ic: "⭐", label: "Review request", log: "Review request", t: c => `Congratulations on passing, ${c.s}! 🎉 Would you mind leaving us a quick Google review? It really helps other learners find us.${c.review ? "\n" + c.review : ""}` },
+    { id: "blank", ic: "✏️", label: "Write my own", log: "Message", t: () => "" }];
+  const INS = [
+    { id: "i_update", ic: "📋", label: "How's the student doing?", log: "Asked instructor for an update", t: c => `Hi ${c.i}, it's DriveSQ. How's ${c.sf} getting on with lessons? Just a quick update when you get a chance — thanks!` },
+    { id: "i_booked", ic: "📅", label: "Have they booked?", log: "Asked instructor if booked", t: c => `Hi ${c.i}, quick one — has ${c.sf} booked their first lesson with you yet? Let us know if you can't get hold of them.` },
+    { id: "i_contact", ic: "📞", label: "Please contact the student", log: "Asked instructor to contact the student", t: c => `Hi ${c.i}, could you get in touch with ${c.sf}${c.phone ? " (" + c.phone + ")" : ""} to arrange their lessons? They're keen to get started. Thanks!` },
+    { id: "blank", ic: "✏️", label: "Write my own", log: "Message to instructor", t: () => "" }];
+  const NOTES = [["✅", "Replied — booked lessons", "green"], ["👍", "Replied — lessons going well", null], ["⏳", "Replied — not booked yet", "purple"], ["🔇", "No reply yet — chase again", null],
+                 ["📞", "Called — no answer / left voicemail", null], ["🔁", "Wants a different instructor", null], ["🗓️", "Booked for a later date", null], ["❌", "Not going ahead", "red"]];
+
+  function suggest(r) {
+    if (r.reply_status === "unreachable") return "reach";
+    if (r.reply_status === "not_interested") return "still";
+    if (r.reply_status === "booked" || r.is_paid) return ageDays(r) > 60 ? "ready" : "checkin";
+    if (r.reply_status === "not_yet") return "nudge";
+    return ageDays(r) >= 3 ? "nudge" : "checkin";
+  }
+  function ctx(r) {
+    const ins = instrs().find(i => i.id === r.instructor_id) || {};
+    let review = ""; try { review = typeof GOOGLE_REVIEW_URL !== "undefined" ? GOOGLE_REVIEW_URL : ""; } catch (e) {}
+    return { s: first(r.student_name), sf: r.student_name || "your student", i: first(ins.full_name) || "your instructor", phone: r.student_phone || "", ins, review };
+  }
+
+  async function appendNote(r, line, markContacted) {
+    const txt = stamp() + " · " + line;
+    const notes = (r.admin_notes ? r.admin_notes.trim() + "\n" : "") + txt;
+    const { error } = await sb.from("referrals").update({ admin_notes: notes }).eq("id", r.id);
+    if (error) { toast("Note not saved: " + error.message, "error", 5000); return false; }
+    r.admin_notes = notes;
+    if (markContacted && !r.is_contacted) { const u = await sb.from("referrals").update({ is_contacted: true }).eq("id", r.id); if (!u.error) r.is_contacted = true; }
+    return true;
+  }
+  const refresh = () => { try { if (typeof _openRefInstrId !== "undefined" && _openRefInstrId) openRefDetail(_openRefInstrId); } catch (e) {} };
+
+  /* ---------- message window ---------- */
+  let cur = null;
+  function modal() {
+    let m = $("#refMsgModal"); if (m) return m;
+    m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "refMsgModal"; m.style.zIndex = "10200";
+    m.innerHTML = '<div class="dsq-modal rfmsg" role="dialog" aria-labelledby="rfmsgT"><button class="modal-x" type="button" data-rfm="close"><i class="bi bi-x-lg"></i></button><div class="rfmsg__b"></div></div>';
+    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); });
+    document.body.appendChild(m);
+    const st = document.createElement("style");
+    st.textContent = ".rfmsg{max-width:560px}.rfmsg__who{display:flex;gap:10px;align-items:center;margin-bottom:10px}.rfmsg__who i{font-size:1.5rem;color:#25d366}.rfmsg__who b{display:block;font-family:'Oswald',sans-serif;font-size:1.1rem}.rfmsg__who small{color:var(--txt3);font-size:.74rem}" +
+      ".rfmsg__seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.rfmsg__seg button,.rfmsg__tpl button,.rfn-chips button{border:1px solid var(--bdr,#333);background:transparent;color:var(--txt2,#ddd);border-radius:999px;padding:5px 11px;font-size:.76rem;cursor:pointer}" +
+      ".rfmsg__seg button.on{background:var(--red,#D10A11);border-color:var(--red,#D10A11);color:#fff}.rfmsg__tpl{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.rfmsg__tpl button.on{background:rgba(37,211,102,.15);border-color:#25d366;color:#4ade80}.rfmsg__tpl button .sg{font-size:.6rem;color:#f5c518;margin-left:4px}" +
+      ".rfmsg__lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--txt4,#888);margin-top:6px}.rfmsg textarea{width:100%;min-height:130px}.rfmsg__foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.rfmsg__foot .sp{flex:1}" +
+      ".rfmsg__done{margin-top:12px;padding:12px;border-radius:12px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.3)}.rfmsg__done b{color:#4ade80}" +
+      ".rfn-pop{position:fixed;z-index:10210;background:var(--card-bg,#151515);border:1px solid var(--bdr,#333);border-radius:14px;padding:10px;box-shadow:0 18px 40px rgba(0,0,0,.45);max-width:300px}.rfn-chips{display:flex;flex-direction:column;gap:5px}.rfn-chips button{text-align:left;border-radius:10px}" +
+      ".rfn-chips button:hover,.rfmsg__seg button:hover,.rfmsg__tpl button:hover{border-color:#f5c518}.rfnudge-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bdr,#333)}.rfnudge-row div{flex:1;min-width:150px}.rfnudge-row small{display:block;color:var(--txt3);font-size:.72rem}";
+    document.head.appendChild(st);
+    return m;
+  }
+  function open(refId, to) {
+    const r = refs().find(x => String(x.id) === String(refId)); if (!r) return;
+    const c = ctx(r); cur = { r, c, to: to || "student", tpl: null, ch: null };
+    render(); modal().classList.add("open");
+  }
+  function render() {
+    const { r, c, to } = cur, list = to === "student" ? STU : INS, sg = to === "student" ? suggest(r) : "i_update";
+    if (!cur.tpl || !list.some(t => t.id === cur.tpl)) cur.tpl = sg;
+    const phone = to === "student" ? r.student_phone : c.ins.phone;
+    const chans = [["wa", "bi-whatsapp", "WhatsApp", !!waNum(phone)], ["sms", "bi-chat-text", "Text", !!phone], ["app", "bi-app-indicator", to === "student" ? "Student Portal" : "Instructor Portal", true]].filter(x => x[3]);
+    if (!cur.ch || !chans.some(x => x[0] === cur.ch)) cur.ch = chans[0][0];
+    const said = r.reply_status ? ({ booked: "Booked", not_yet: "Not booked yet", unreachable: "Can't reach them", not_interested: "Not going ahead" }[r.reply_status] || r.reply_status) : "no reply from instructor yet";
+    const t = list.find(x => x.id === cur.tpl);
+    $(".rfmsg__b", modal()).innerHTML =
+      `<div class="rfmsg__who"><i class="bi bi-chat-dots-fill"></i><div><b id="rfmsgT">Message ${h(to === "student" ? r.student_name : (c.ins.full_name || "instructor"))}</b><small>${to === "student" ? "Student of " + h(c.ins.full_name || "—") : "Instructor for " + h(r.student_name)} · referred ${ageDays(r)} day${ageDays(r) === 1 ? "" : "s"} ago · instructor says: ${h(said)}${r.is_paid ? " · fee paid" : ""}</small></div></div>` +
+      `<div class="rfmsg__lbl">Send to</div><div class="rfmsg__seg"><button type="button" data-rfm-to="student" class="${to === "student" ? "on" : ""}">🎓 Student</button><button type="button" data-rfm-to="instructor" class="${to === "instructor" ? "on" : ""}">🚗 Instructor</button></div>` +
+      `<div class="rfmsg__lbl">Message</div><div class="rfmsg__tpl">${list.map(x => `<button type="button" data-rfm-tpl="${x.id}" class="${x.id === cur.tpl ? "on" : ""}">${x.ic} ${h(x.label)}${x.id === sg ? '<span class="sg">suggested</span>' : ""}</button>`).join("")}</div>` +
+      `<textarea class="dsq-inp" id="rfmsgTa" maxlength="1200">${h(t.t(c) + (t.t(c) ? "\n\n" + signoff() : ""))}</textarea>` +
+      `<div class="rfmsg__lbl">Send by</div><div class="rfmsg__seg">${chans.map(x => `<button type="button" data-rfm-ch="${x[0]}" class="${x[0] === cur.ch ? "on" : ""}"><i class="bi ${x[1]} me-1"></i>${x[2]}</button>`).join("")}</div>` +
+      `<div class="rfmsg__foot"><label style="font-size:.72rem;color:var(--txt3)">Sign-off <input class="dsq-inp" id="rfmsgSign" style="width:160px;padding:4px 8px;font-size:.78rem;display:inline-block" value="${h(signoff())}"></label><span class="sp"></span>` +
+      `<button type="button" class="btn-s" data-rfm="close">Cancel</button><button type="button" class="btn-p" data-rfm="send"><i class="bi bi-send me-1"></i>Send &amp; log</button></div>` +
+      `<p style="font-size:.7rem;color:var(--txt4);margin:8px 0 0">Sending adds a dated line to the private notes${to === "student" ? " and marks the student as contacted" : ""}.</p>`;
+  }
+  async function send() {
+    const { r, c, to } = cur, text = $("#rfmsgTa").value.trim(), ch = cur.ch;
+    if (!text) return toast("Write a message first", "warn");
+    const t = (to === "student" ? STU : INS).find(x => x.id === cur.tpl);
+    const chName = { wa: "WhatsApp", sms: "text", app: to === "student" ? "Student Portal" : "Instructor Portal" }[ch];
+    if (ch === "wa") window.open("https://wa.me/" + waNum(to === "student" ? r.student_phone : c.ins.phone) + "?text=" + encodeURIComponent(text), "_blank", "noopener");
+    else if (ch === "sms") location.href = "sms:" + String(to === "student" ? r.student_phone : c.ins.phone).replace(/[^\d+]/g, "") + "?&body=" + encodeURIComponent(text);
+    else if (to === "instructor") {
+      const { error } = await sb.from("admin_messages").insert([{ instructor_id: r.instructor_id, subject: "About " + (r.student_name || "your student"), body: text, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
+      if (error) return toast("Couldn't send: " + error.message, "error", 6000);
+      try { sendPushToInstructor(r.instructor_id, c.ins.full_name || "", "Message from DriveSQ", text.slice(0, 120), "/dashboard.html"); } catch (e) {}
+    } else {
+      const ph = String(r.student_phone || "").replace(/\D/g, "").slice(-10);
+      let acc = null;
+      try {
+        const q = await sb.from("student_accounts").select("id,phone,full_name,instructor_id").eq("instructor_id", r.instructor_id).limit(500);
+        acc = (q.data || []).find(a => ph && String(a.phone || "").replace(/\D/g, "").slice(-10) === ph) || (q.data || []).find(a => (a.full_name || "").trim().toLowerCase() === (r.student_name || "").trim().toLowerCase());
+      } catch (e) {}
+      if (!acc) return toast(r.student_name + " has no Student Portal account yet — use WhatsApp or text", "warn", 6000);
+      const { error } = await sb.from("student_messages").insert([{ student_account_id: acc.id, instructor_id: r.instructor_id, sender: "admin", subject: t.log, message: text, sent_at: new Date().toISOString(), is_read: false }]);
+      if (error) return toast("Couldn't send: " + error.message, "error", 6000);
+    }
+    const ok = await appendNote(r, (to === "instructor" ? `💬 ${t.log} via ${chName} — waiting for reply` : `💬 ${t.log} sent via ${chName} — waiting for reply`), to === "student");
+    if (ok) toast("✅ Logged in notes: " + t.log, "success");
+    afterSend();
+    refresh();
+  }
+  function afterSend() {
+    const { r } = cur;
+    $(".rfmsg__b", modal()).insertAdjacentHTML("beforeend", `<div class="rfmsg__done"><b>✓ Sent and noted.</b> When ${h(first(r.student_name))} replies, tap one to add it to the notes:<div class="rfn-chips" style="margin-top:8px">` +
+      NOTES.map((n, k) => `<button type="button" data-rfn="${k}" data-ref="${h(r.id)}">${n[0]} ${h(n[1])}</button>`).join("") + "</div></div>");
+    const s = $("[data-rfm=send]", modal()); if (s) { s.disabled = true; s.innerHTML = "Sent ✓"; }
+  }
+
+  /* ---------- quick notes ---------- */
+  let pop = null;
+  function quick(refId, btn) {
+    if (pop) { pop.remove(); pop = null; }
+    const r = refs().find(x => String(x.id) === String(refId)); if (!r) return;
+    pop = document.createElement("div"); pop.className = "rfn-pop";
+    pop.innerHTML = `<div style="font-size:.72rem;color:var(--txt3);margin-bottom:6px">Quick note for <b>${h(r.student_name)}</b></div><div class="rfn-chips">` +
+      STU.filter(t => t.id !== "blank").slice(0, 4).map(t => `<button type="button" data-rfn-sent="${t.id}" data-ref="${h(r.id)}">💬 ${h(t.log)} sent — waiting for reply</button>`).join("") +
+      NOTES.map((n, k) => `<button type="button" data-rfn="${k}" data-ref="${h(r.id)}">${n[0]} ${h(n[1])}</button>`).join("") +
+      `<button type="button" data-rfn-own="${h(r.id)}">✏️ Write my own…</button></div>`;
+    document.body.appendChild(pop);
+    const b = btn.getBoundingClientRect(), pw = Math.min(300, innerWidth - 16);
+    pop.style.left = Math.max(8, Math.min(b.left, innerWidth - pw - 8)) + "px";
+    const below = b.bottom + 6, hgt = pop.offsetHeight;
+    pop.style.top = (below + hgt > innerHeight - 8 ? Math.max(8, b.top - hgt - 6) : below) + "px";
+  }
+  async function noteFromChip(refId, k) {
+    const r = refs().find(x => String(x.id) === String(refId)); if (!r) return;
+    const n = NOTES[k];
+    if (await appendNote(r, `${n[0]} ${n[1]}`, false)) {
+      if (n[2] && typeof setRefFlag === "function" && r.flag_color !== n[2]) { try { await setRefFlag(r.id, n[2]); } catch (e) {} }
+      toast("📝 Note added", "success", 1600); refresh();
+    }
+  }
+
+  /* ---------- nudge everyone not booked (current instructor) ---------- */
+  function nudge(instrId) {
+    const list = refs().filter(r => r.instructor_id === instrId && !r.is_cancelled && !r.is_credit && !r.is_paid && r.reply_status !== "booked" && r.reply_status !== "not_interested" && (r.reply_status === "not_yet" || ageDays(r) >= 7));
+    const ins = instrs().find(i => i.id === instrId) || {};
+    cur = null;
+    $(".rfmsg__b", modal()).innerHTML = `<div class="rfmsg__who"><i class="bi bi-megaphone-fill" style="color:#f5c518"></i><div><b>Nudge not-booked students</b><small>${h(ins.full_name || "")} · not paid, not booked, referred 7+ days ago or instructor says "not booked yet"</small></div></div>` +
+      (list.length ? list.map(r => { const c = ctx(r), txt = STU[0].t(c) + "\n\n" + signoff(), w = waNum(r.student_phone);
+        return `<div class="rfnudge-row"><div><b>${h(r.student_name)}</b><small>referred ${ageDays(r)} days ago${r.reply_status === "not_yet" ? " · instructor says not booked yet" : ""}${/Booking nudge/.test(r.admin_notes || "") ? " · already nudged before" : ""}</small></div>` +
+          (w ? `<a class="btn-p" style="padding:5px 12px;font-size:.78rem" href="https://wa.me/${w}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener" data-rfn-nudged="${h(r.id)}"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>` : '<small style="color:var(--txt4)">no phone</small>') +
+          `<button type="button" class="btn-s" style="padding:5px 10px;font-size:.78rem" data-rfm-open="${h(r.id)}">More…</button></div>`; }).join("")
+        : '<p style="color:var(--txt3)">Nobody to nudge — every student has booked, paid or was referred less than 7 days ago. 🎉</p>') +
+      '<p style="font-size:.7rem;color:var(--txt4);margin:10px 0 0">Each WhatsApp tap logs "Booking nudge sent — waiting for reply" in that student\'s notes.</p>';
+    modal().classList.add("open");
+  }
+
+  /* ---------- wiring ---------- */
+  document.addEventListener("click", async e => {
+    const t = e.target.closest("[data-rfm],[data-rfm-to],[data-rfm-tpl],[data-rfm-ch],[data-rfn],[data-rfn-sent],[data-rfn-own],[data-rfn-nudged],[data-rfm-open]");
+    if (pop && !e.target.closest(".rfn-pop") && !e.target.closest("[data-rfq]")) { pop.remove(); pop = null; }
+    if (!t) return;
+    if (t.hasAttribute("data-rfm")) { const a = t.getAttribute("data-rfm"); if (a === "close") modal().classList.remove("open"); if (a === "send" && cur) { try { localStorage.setItem(SIGN_KEY, $("#rfmsgSign").value.trim() || "— DriveSQ"); } catch (er) {} send(); } return; }
+    if (t.hasAttribute("data-rfm-to") && cur) { cur.to = t.getAttribute("data-rfm-to"); cur.tpl = null; cur.ch = null; return render(); }
+    if (t.hasAttribute("data-rfm-tpl") && cur) { cur.tpl = t.getAttribute("data-rfm-tpl"); return render(); }
+    if (t.hasAttribute("data-rfm-ch") && cur) { const keep = $("#rfmsgTa").value; cur.ch = t.getAttribute("data-rfm-ch"); render(); $("#rfmsgTa").value = keep; return; }
+    if (t.hasAttribute("data-rfm-open")) return open(t.getAttribute("data-rfm-open"));
+    if (t.hasAttribute("data-rfn")) { const k = +t.getAttribute("data-rfn"), id = t.getAttribute("data-ref"); if (pop) { pop.remove(); pop = null; } t.disabled = true; return noteFromChip(id, k); }
+    if (t.hasAttribute("data-rfn-sent")) { const r = refs().find(x => String(x.id) === t.getAttribute("data-ref")), tp = STU.find(x => x.id === t.getAttribute("data-rfn-sent")); if (pop) { pop.remove(); pop = null; }
+      if (r && await appendNote(r, `💬 ${tp.log} sent — waiting for reply`, true)) { toast("📝 Note added", "success", 1600); refresh(); } return; }
+    if (t.hasAttribute("data-rfn-own")) { const r = refs().find(x => String(x.id) === t.getAttribute("data-rfn-own")); if (pop) { pop.remove(); pop = null; }
+      const v = r && prompt("Note for " + r.student_name + " (saved with today's date):", ""); if (v && v.trim() && await appendNote(r, "📝 " + v.trim(), false)) { toast("📝 Note added", "success", 1600); refresh(); } return; }
+    if (t.hasAttribute("data-rfn-nudged")) { const r = refs().find(x => String(x.id) === t.getAttribute("data-rfn-nudged")); if (r && await appendNote(r, "💬 Booking nudge sent via WhatsApp — waiting for reply", true)) { t.outerHTML = '<span style="color:#4ade80;font-size:.78rem">✓ sent &amp; noted</span>'; refresh(); } return; }
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = $("#refMsgModal"); if (m) m.classList.remove("open"); if (pop) { pop.remove(); pop = null; } } });
+  window.refMsgOpen = open; window.refQuickNote = quick; window.refNudgeNotBooked = nudge;
+})();
+</script>
+<!-- DSQ-REFMSG END -->
 </body>
 </html>
