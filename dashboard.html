@@ -1726,10 +1726,10 @@ button:focus:not(:focus-visible) { outline: none !important }
         <div style="background:rgba(66,133,244,.07);border:1px solid rgba(66,133,244,.2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
           <div style="font-size:1.4rem">⭐</div>
           <div style="flex:1">
-            <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--txt);margin-bottom:2px">Enjoying DriveSQ? Leave a Review</div>
-            <div style="font-size:.72rem;color:var(--txt3)">Help other learners find DriveSQ on Google — takes 30 seconds</div>
+            <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--txt);margin-bottom:2px">Ask your learners for a Google review</div>
+            <div style="font-size:.72rem;color:var(--txt3)">At the end of each lesson: the DriveSQ Google tag, a QR code or WhatsApp</div>
           </div>
-          <a href="https://g.page/r/Cf5Ww977kUeEBM/review" target="_blank" style="background:rgba(66,133,244,.12);border:1px solid rgba(66,133,244,.25);color:#60a5fa;border-radius:8px;padding:7px 12px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;text-decoration:none;white-space:nowrap"><i class="bi bi-google me-1"></i>Review Us</a>
+          <button type="button" onclick="dsqReviewAsk({})" style="background:#f5c518;border:0;color:#1a1200;border-radius:8px;padding:7px 12px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;margin-right:6px;cursor:pointer">Ask now</button><a href="https://g.page/r/Cf5Ww977kUeEEBM/review" target="_blank" style="background:rgba(66,133,244,.12);border:1px solid rgba(66,133,244,.25);color:#60a5fa;border-radius:8px;padding:7px 12px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:700;text-decoration:none;white-space:nowrap"><i class="bi bi-google me-1"></i>Review Us</a>
         </div>
       </div>
 
@@ -7988,5 +7988,108 @@ async function loadMyFeedback(){
     <button onclick="confirmCancelDrop()" style="flex:1;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:8px;color:#4ade80;padding:10px;font-size:.8rem;font-weight:700;cursor:pointer">Yes, Cancel</button>
   </div>
 </div>
+<!-- DSQ-REVIEWASK: end-of-lesson Google review prompt (tag / QR / WhatsApp) -->
+<style>
+.rv-ov{position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:0}
+.rv-ov.open{display:flex}
+.rv-sh{background:var(--dk2,#16161a);color:var(--txt,#f4f4f5);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;border:1px solid rgba(245,197,24,.25);padding:18px 16px 22px;box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+@media(min-width:640px){.rv-ov{align-items:center}.rv-sh{border-radius:20px}}
+.rv-h{display:flex;gap:10px;align-items:flex-start}.rv-h h4{font-family:Oswald,sans-serif;font-size:1.15rem;margin:0;line-height:1.2}.rv-h small{display:block;color:var(--txt3,#a1a1aa);font-size:.78rem;margin-top:3px}
+.rv-x{margin-left:auto;background:none;border:0;color:var(--txt3,#a1a1aa);font-size:1.3rem;line-height:1;cursor:pointer}
+.rv-say{background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.25);border-radius:12px;padding:10px 12px;font-size:.84rem;margin:12px 0;line-height:1.45}
+.rv-say b{color:#f5c518;font-family:Oswald,sans-serif;font-weight:600;display:block;font-size:.78rem;letter-spacing:.03em;margin-bottom:3px}
+.rv-way{display:flex;gap:10px;align-items:center;background:rgba(127,127,127,.06);border:1px solid rgba(127,127,127,.2);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.rv-way .n{width:26px;height:26px;border-radius:50%;background:#D10A11;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex:none}
+.rv-way div{flex:1;font-size:.82rem;line-height:1.4}.rv-way b{font-size:.88rem}
+.rv-btn{border:0;border-radius:10px;padding:9px 12px;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.rv-wa{background:#25D366;color:#06210f}.rv-qrb{background:#f5c518;color:#1a1200}.rv-gh{background:rgba(127,127,127,.12);color:var(--txt,#fff);border:1px solid rgba(127,127,127,.35)}
+.rv-qr{display:none;text-align:center;margin:6px 0 10px}.rv-qr.open{display:block}.rv-qr img{width:min(78vw,300px);height:auto;background:#fff;border-radius:16px;padding:10px}
+.rv-qr p{font-size:.78rem;color:var(--txt3,#a1a1aa);margin:6px 0 0}
+.rv-rules{font-size:.72rem;color:var(--txt3,#a1a1aa);border-top:1px solid rgba(127,127,127,.25);margin-top:10px;padding-top:10px;line-height:1.5}
+.rv-foot{display:flex;gap:8px;margin-top:12px}.rv-foot .rv-btn{flex:1;justify-content:center}
+.rv-nudge{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:10040;max-width:520px;margin:0 auto;background:linear-gradient(135deg,#2a0306,#16161a);border:1px solid rgba(245,197,24,.45);border-radius:14px;padding:11px 12px;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.5);color:#fff;font-size:.82rem;animation:rvIn .35s ease}
+@keyframes rvIn{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+.rv-nudge b{font-family:Oswald,sans-serif;font-size:.92rem;display:block}
+</style>
+<div class="rv-ov" id="rvSheet" onclick="if(event.target===this)dsqReviewClose()"><div class="rv-sh" role="dialog" aria-modal="true" aria-labelledby="rvTitle">
+  <div class="rv-h"><div style="font-size:1.7rem">⭐</div><div><h4 id="rvTitle">Ask for a Google review</h4><small id="rvSub">Before they go home — once you've parked and the engine is off.</small></div><button class="rv-x" onclick="dsqReviewClose()" aria-label="Close">×</button></div>
+  <div class="rv-say"><b>WHAT TO SAY</b><span id="rvSay"></span></div>
+  <div class="rv-way"><span class="n">1</span><div><b>Our DriveSQ Google tag</b><br>Hand them the DriveSQ review tag — they tap it on the back of their phone (or scan its QR code) and Google opens the review page.</div></div>
+  <div class="rv-way"><span class="n">2</span><div><b>Show the QR on your screen</b><br>They scan it with their phone camera.</div><button class="rv-btn rv-qrb" onclick="document.getElementById('rvQr').classList.toggle('open')"><i class="bi bi-qr-code"></i>QR</button></div>
+  <div class="rv-qr" id="rvQr"><img src="email/review-qr.png" alt="QR code for the DriveSQ Google review page" width="300" height="300"><p>Scan with the camera · opens DriveSQ on Google</p></div>
+  <div class="rv-way"><span class="n">3</span><div><b>Send them the link</b><br>So they can do it when they get home.</div><a class="rv-btn rv-wa" id="rvWa" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i>WhatsApp</a></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rv-btn rv-gh" onclick="dsqReviewCopy()"><i class="bi bi-link-45deg"></i>Copy link</button><a class="rv-btn rv-gh" id="rvSms"><i class="bi bi-chat-dots"></i>Text message</a></div>
+  <div class="rv-rules"><b>Keep it fair (Google policy &amp; UK consumer law):</b> ask every learner, not only the happy ones · ask for an <i>honest</i> review · never offer money, discounts or free lessons for a review · never write or post a review for them, or on their phone · never ask while they're driving.</div>
+  <div class="rv-foot"><button class="rv-btn rv-gh" onclick="dsqReviewMark('asked')"><i class="bi bi-check2"></i>I've asked</button><button class="rv-btn rv-gh" onclick="dsqReviewMark('done')"><i class="bi bi-star-fill" style="color:#f5c518"></i>Already reviewed</button></div>
+</div></div>
+<script>
+(function(){
+  "use strict";
+  var URL_RV = "https://g.page/r/Cf5Ww977kUeEEBM/review", KEY = "dsq_rv_asks", cur = null;
+  function store(){ try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { return {}; } }
+  function save(s){ try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  function skey(l){ var p = String((l && l.student_phone) || "").replace(/\D/g, "").slice(-10); return p || String((l && l.student_name) || "").trim().toLowerCase(); }
+  function first(n){ return String(n || "").trim().split(/\s+/)[0] || ""; }
+  function me(){ try { return first(instr && instr.full_name); } catch (e) { return ""; } }
+  function text(l){ var f = first(l && l.student_name); return "Hi" + (f ? " " + f : "") + ", thanks for your lesson today! 🚗 If you've got a minute, we'd really appreciate an honest Google review of your lessons with DriveSQ — it helps other learners find a good instructor:\n" + URL_RV + "\n\nThank you!" + (me() ? " — " + me() + ", DriveSQ" : " — DriveSQ"); }
+  function endTs(l){ if (!l || !l.lesson_date || !l.start_time) return 0; var t = String(l.start_time).split(":"); var d = new Date(l.lesson_date + "T00:00:00"); d.setHours(+t[0] || 0, (+t[1] || 0) + Math.round((parseFloat(l.duration_hours) || 1) * 60), 0, 0); return d.getTime(); }
+  /* should we nudge for this student? never if they've reviewed; at most twice, three weeks apart */
+  function due(l){ var s = store()[skey(l)]; return !s || (!s.done && (s.n || 0) < 2 && Date.now() - (s.last || 0) > 21 * 864e5); }
+  window.dsqReviewAsk = function(l){
+    cur = l || {}; var f = first(cur.student_name);
+    document.getElementById("rvTitle").textContent = f ? "Ask " + f + " for a Google review" : "Ask for a Google review";
+    document.getElementById("rvSay").textContent = "“Thanks for today" + (f ? ", " + f : "") + "! If you're happy with your lessons, could you leave us an honest Google review? It really helps other learners find us — just tap this tag with your phone.”";
+    var wa = typeof waLink === "function" && cur.student_phone ? waLink(cur.student_phone, text(cur)) : "https://wa.me/?text=" + encodeURIComponent(text(cur));
+    document.getElementById("rvWa").href = wa;
+    var ph = String(cur.student_phone || "").replace(/[^\d+]/g, "");
+    document.getElementById("rvSms").href = "sms:" + ph + "?&body=" + encodeURIComponent(text(cur));
+    document.getElementById("rvQr").classList.remove("open");
+    var n = document.getElementById("rvNudge"); if (n) n.remove();
+    document.getElementById("rvSheet").classList.add("open");
+  };
+  window.dsqReviewClose = function(){ document.getElementById("rvSheet").classList.remove("open"); };
+  window.dsqReviewCopy = function(){ var t = text(cur || {}); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ try { showToast("Review message copied ✓", "success"); } catch (e) {} }, function(){ prompt("Copy this message:", t); }); };
+  window.dsqReviewMark = function(kind){
+    if (cur && (cur.student_name || cur.student_phone)) { var s = store(), k = skey(cur), o = s[k] || { n: 0 }; o.n = (o.n || 0) + 1; o.last = Date.now(); if (kind === "done") o.done = true; o.name = cur.student_name || o.name; s[k] = o; save(s); }
+    if (cur && cur.id) { var s2 = store(); s2["l:" + cur.id] = 1; save(s2); }
+    dsqReviewClose(); try { showToast(kind === "done" ? "Great — we won't remind you about " + (first(cur.student_name) || "them") + " again ⭐" : "Thanks for asking ⭐", "success"); } catch (e) {}
+  };
+  /* add the button to the lesson details once the lesson has started */
+  if (typeof openDetail === "function") {
+    var _od = openDetail;
+    openDetail = async function(id){
+      await _od.apply(this, arguments);
+      try {
+        var l = typeof detailData !== "undefined" ? detailData : null, box = document.getElementById("detMaps");
+        if (!l || !box || Date.now() < endTs(l) - 20 * 60e3) return;
+        var b = document.createElement("button"); b.type = "button"; b.className = "mt-2 w-100"; b.style.cssText = "border:0;border-radius:8px;padding:10px;font-weight:700;background:#f5c518;color:#1a1200;cursor:pointer";
+        b.innerHTML = '<i class="bi bi-star-fill me-1"></i>Ask ' + esc(first(l.student_name) || "student") + ' for a Google review'; b.onclick = function(){ closeModal("detailModal"); dsqReviewAsk(l); };
+        box.appendChild(b);
+      } catch (e) {}
+    };
+  }
+  /* nudge when a lesson has just finished (within the last 45 minutes) */
+  var cache = { at: 0, rows: [] };
+  async function check(){
+    try {
+      if (!instr || !instr.id || typeof sb === "undefined" || document.hidden || document.getElementById("rvNudge") || document.getElementById("rvSheet").classList.contains("open")) return;
+      if (Date.now() - cache.at > 5 * 60e3) { var tk = todayKey(); var r = await sb.from("lessons").select("id,student_name,student_phone,lesson_date,start_time,duration_hours,lesson_type").eq("instructor_id", instr.id).eq("lesson_date", tk); cache = { at: Date.now(), rows: (r && r.data) || [] }; }
+      var now = Date.now(), s = store();
+      var l = cache.rows.filter(function(x){ var e = endTs(x); return e && now >= e - 5 * 60e3 && now <= e + 45 * 60e3 && !s["l:" + x.id] && !/mock/i.test(x.lesson_type || "") && due(x); }).sort(function(a, b){ return endTs(b) - endTs(a); })[0];
+      if (!l) return;
+      s["l:" + l.id] = 1; save(s);   // nudge once per lesson
+      var n = document.createElement("div"); n.className = "rv-nudge"; n.id = "rvNudge";
+      n.innerHTML = '<div style="font-size:1.5rem">⭐</div><div style="flex:1"><b>' + esc(first(l.student_name) || "Your") + "'s lesson has finished</b>Ask for a Google review before they go home.</div>" +
+        '<button class="rv-btn rv-qrb" id="rvNGo">Ask now</button><button class="rv-x" id="rvNX" aria-label="Not now" style="font-size:1.1rem">×</button>';
+      document.body.appendChild(n);
+      document.getElementById("rvNGo").onclick = function(){ dsqReviewAsk(l); };
+      document.getElementById("rvNX").onclick = function(){ n.remove(); };
+      try { if (typeof localNotify === "function") localNotify("⭐ Ask " + (first(l.student_name) || "your learner") + " for a Google review", "Lesson finished — show them the DriveSQ Google tag before they go home.", "/dashboard.html"); } catch (e) {}
+    } catch (e) {}
+  }
+  setInterval(check, 60e3); setTimeout(check, 8000);
+})();
+</script>
+
 </body>
 </html>

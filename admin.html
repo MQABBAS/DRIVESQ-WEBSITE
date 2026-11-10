@@ -7486,6 +7486,8 @@ function togglePwd(){
 }
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
+  const _oldEmail=((allInstrs||[]).find(i=>i.id===id)||{}).email||'';
+  const _catchUp=()=>{try{const i=(allInstrs||[]).find(x=>x.id===id);if(i&&window.DSQAutoMail&&DSQAutoMail.catchUp)DSQAutoMail.catchUp(i,_oldEmail);}catch(e){}};
   { const em=document.getElementById('edit-email'); em.value=em.value.trim().toLowerCase();
     if(em.value&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(em.value)){showToast('That email address doesn\'t look right — please check it.','error');em.focus();return;}
     const dup=em.value&&(allInstrs||[]).find(i=>i.id!==id&&String(i.email||'').trim().toLowerCase()===em.value);
@@ -7536,12 +7538,12 @@ async function saveEdit(){
       const{error:e3}=await sb.from('instructors').update(safeBase).eq('id',id);
       if(e3){showToast('Failed to save: '+e3.message,'error',6000);console.error('saveEdit error:',e3);return;}
       showToast('Saved (instructor_model column not in DB yet — add it in Supabase to persist this field)','warn',7000);
-      closeModal('editModal');await loadInstrs();return;
+      closeModal('editModal');await loadInstrs();_catchUp();return;
     }
   }
 
   showToast('Changes saved ✓','success');closeModal('editModal');
-  await loadInstrs();
+  await loadInstrs();_catchUp();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);renderInstrDetail(viewingData);updateBlockBtn();}
 }
 
@@ -8083,13 +8085,14 @@ async function createInstructor(){
       if(e3){showToast('Failed. Email or badge may already exist.','error');return;}
       showToast('Account created (add instructor_model column in Supabase to save the model label)','warn',7000);
       ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
-      await loadInstrs();populateDropdowns();return;
+      await loadInstrs();populateDropdowns();_newInstrCatchUp(badge);return;
     }
   }
   showToast(`✅ Account created for ${name}!`,'success');
   ['ai-name','ai-badge','ai-phone','ai-email','ai-area','ai-coverage','ai-address','ai-password'].forEach(id=>document.getElementById(id).value='');
-  await loadInstrs();populateDropdowns();
+  await loadInstrs();populateDropdowns();_newInstrCatchUp(badge);
 }
+function _newInstrCatchUp(badge){try{const i=(allInstrs||[]).find(x=>String(x.badge_number||'')===String(badge));if(i&&window.DSQAutoMail&&DSQAutoMail.catchUp)DSQAutoMail.catchUp(i,'');}catch(e){}}
 
 /* ══ FIND CLOSEST ══ */
 
@@ -16443,6 +16446,7 @@ document.addEventListener('click',e=>{
     try { await c.from("external_drivers").update({ instructor_id: newId, phone: v("phone"), updated_at: new Date().toISOString() }).eq("id", d.id); } catch (e) {}
     d.instructor_id = newId; d.phone = v("phone");
     try { if (typeof loadInstrs === "function") await loadInstrs(); if (typeof populateDropdowns === "function") populateDropdowns(); } catch (e) {}
+    try { const ni = (allInstrs || []).find(x => x.id === newId); if (ni && window.DSQAutoMail && DSQAutoMail.catchUp) DSQAutoMail.catchUp(ni, ""); } catch (e) {}
     try { window.sendPushToInstructor && window.sendPushToInstructor(newId, full.full_name, "Welcome to DriveSQ", "Your instructor account is ready.", "/dashboard.html"); } catch (e) {}
     try { await c.from("admin_messages").insert([{ instructor_id: newId, subject: "👋 Welcome to DriveSQ", body: "Hi " + full.full_name.split(" ")[0] + ",\n\nYour DriveSQ instructor account is ready. You'll get messages from the DriveSQ team and any learners we send you right here, with a notification on your phone.\n\nTip: add DriveSQ to your home screen and allow notifications so you don't miss a new learner.", message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]); } catch (e) {}
     const login = "Hi " + full.full_name.split(" ")[0] + ", it's DriveSQ 🚗 Your account is ready, so I can send you learners and messages straight to your phone.\n\nLog in: https://drivesq.co.uk/dashboard.html\nBadge number: " + badge + "\nPassword: " + pass + "\n\nAdd it to your home screen and allow notifications. You can change the password in your Profile.";
@@ -18393,6 +18397,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     ["Professional standards", "- Be on time and let students know early if you're running late\n- Keep messages and conversations professional and respectful\n- Take payments only as agreed with DriveSQ and the student"],
     ["Test preparation", "- Use mock tests on local routes before booking or confirming a test\n- Practise show me / tell me questions\n- Point students to the 14 theory mock tests in their Student Portal"],
     ["Weather and visibility", "- Check lights, demisting and tyres before lessons in bad weather\n- Teach longer stopping distances on wet and icy roads\n- Reschedule if conditions aren't safe for a learner"],
+    ["Google reviews", "- At the end of the lesson, once you've parked and the engine is off, ask for an honest Google review before they go home\n- Hand them the DriveSQ Google review tag to tap with their phone, show the QR code in your portal, or send the link on WhatsApp — your portal reminds you when a lesson finishes\n- Ask every learner, not only the happy ones; never offer discounts or free lessons for a review, and never write one for them"],
     ["Reviews and passes", "- After a pass, ask the student for a Google review — it helps every DriveSQ instructor\n- Send us pass photos (with the student's permission) for the website"],
     ["Lesson records", "- Log every lesson in the portal so students can see their progress\n- Note the topics covered and what to work on next time"],
     ["Planning a quality lesson", "- Read last lesson's notes and agree one or two clear goals with the learner at the start\n- Choose a practice area that suits their level, and adapt the plan if it's too easy or too hard\n- Finish with the learner reflecting on their own performance (DVSA looks for this)"],
@@ -18505,7 +18510,51 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const tick = () => run({});
   ["setRefFlag", "markRefPaid", "cancelRef"].forEach(fn => { const o = window[fn]; if (typeof o === "function") window[fn] = async function () { const r = await o.apply(this, arguments); setTimeout(() => run({ noWeekly: true }), 1500); return r; }; });
   function start() { setTimeout(tick, 8000); setInterval(tick, 10 * 60 * 1000); }
-  window.DSQAutoMail = { run, plan, preview, due, design };
+  /* ---------- catch-up: an instructor's email is added or changed → send the latest all-instructor emails ---------- */
+  async function catchUp(ins, oldEmail) {
+    const email = String((ins && ins.email) || "").trim().toLowerCase(), name = (ins && ins.full_name) || "";
+    if (!ins || !RE_EMAIL.test(email) || email === String(oldEmail || "").trim().toLowerCase()) return null;
+    if (ins.status && ins.status !== "approved") return null;
+    if (!window.DSQMailSend || !window.DSQMail || !DSQMailSend.ready()) { toast("ℹ️ Email isn't connected (Email → Setup), so " + (first(name) || "they") + " didn't get the latest instructor emails.", "warn", 8000); return null; }
+    const out = [];
+    // keep the Email tab's contact list in step, so future instructor campaigns include them
+    try {
+      const ex = await sb.from("email_contacts").select("id,sources").eq("email", email).maybeSingle();
+      if (ex.data) { if (!(ex.data.sources || []).includes("instructors")) await sb.from("email_contacts").update({ sources: (ex.data.sources || []).concat("instructors"), updated_at: new Date().toISOString() }).eq("id", ex.data.id); }
+      else await sb.from("email_contacts").insert([{ email, name: name || null, phone: ins.phone || null, sources: ["instructors"], tags: [], consent_note: "Instructor email added by admin", status: "subscribed" }]);
+    } catch (e) {}
+    // 1. latest Email-tab campaign that went to the instructors (last 60 days)
+    try {
+      const pool = new Set(instrs().filter(i => i.id !== ins.id).map(i => String(i.email || "").trim().toLowerCase()).filter(e => RE_EMAIL.test(e)));
+      const since = new Date(Date.now() - 60 * 864e5).toISOString();
+      const cs = await q("email_campaigns", "id,subject,design,status,created_at", x => x.gte("created_at", since).in("status", ["sent", "sending", "paused"]).order("created_at", { ascending: false }));
+      for (const c of cs.slice(0, 15)) {
+        if (!c.design || !pool.size) continue;
+        const sends = await q("email_sends", "email", x => x.eq("campaign_id", c.id));
+        const hit = sends.filter(r => pool.has(String(r.email || "").toLowerCase())).length;
+        if (hit < Math.max(2, Math.ceil(pool.size * 0.6))) continue;          // it wasn't an all-instructor email
+        if (sends.some(r => String(r.email || "").toLowerCase() === email)) break;   // they already have it
+        const rs = await DSQMailSend.send([msg(c.design, email, name)]);
+        const st = (rs[0] && rs[0].status) || "sent";
+        try { await sb.from("email_sends").insert([{ campaign_id: c.id, email, name: name || null, status: st === "skipped" ? "skipped" : "sent" }]); } catch (e) {}
+        if (st === "sent") out.push("“" + String(c.subject || "").slice(0, 60) + "”");
+        break;
+      }
+    } catch (e) {}
+    // 2. this week's bulletin, if it has already gone out to the others
+    try {
+      const since = weekStart().toISOString();
+      const wk = await q("admin_messages", "instructor_id,subject", x => x.gte("created_at", since).ilike("subject", "📋 DriveSQ weekly reminders%"));
+      if (wk.some(m => m.instructor_id !== ins.id)) {
+        const d = weeklyDesign(ins);
+        if (wk.some(m => m.instructor_id === ins.id)) { const rs = await DSQMailSend.send([msg(d, email, name)]); if (rs[0] && rs[0].status === "sent") out.push("this week's reminders"); }
+        else { await sendInstructor(Object.assign({}, ins, { email }), d.subject, d, d.body, d.preheader); out.push("this week's reminders"); }
+      }
+    } catch (e) {}
+    if (out.length) toast("📧 Sent " + (first(name) || "them") + " the latest instructor email" + (out.length > 1 ? "s" : "") + ": " + out.join(" + "), "success", 7000);
+    return out;
+  }
+  window.DSQAutoMail = { run, plan, preview, due, design, catchUp };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
 </script>
@@ -18532,7 +18581,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     { id: "review", ic: "⭐", name: "Google review reminder", theme: "classic", banner: "review", btn: ["Our Google review link", REVIEW],
       subject: i => `${first(i.full_name)}, a quick favour — Google reviews from your students`,
       headline: "Help learners **find us**",
-      body: i => `Google reviews are one of the main reasons new learners choose DriveSQ — and every review helps all of our instructors.\n\n**When to ask**\n- Straight after a pass, while the excitement is fresh\n- At the end of a lesson that went really well\n\n**How to ask**\n- Send the link below by WhatsApp with a short thank-you\n- Ask them to mention you by name and the area they learned in\n\n**Please don't**\n- Offer discounts, free lessons or anything else in return for a review\n- Write, edit or post a review for a student — reviews must be their own words\n\n(Incentivised and fake reviews break Google's rules and UK consumer law.)` },
+      body: i => `Google reviews are one of the main reasons new learners choose DriveSQ — and every review helps all of our instructors.\n\n**When to ask**\n- At the end of a lesson, before they go home — once you've parked and the engine is off\n- Straight after a pass, while the excitement is fresh\n- Ask every learner, not only the ones you think are happy\n\n**How to ask**\n- Hand them the **DriveSQ Google review tag** — they tap it with their phone (or scan its QR code)\n- Or tap **Ask now** in your Instructor Portal: it shows a QR code on your screen and sends the link on WhatsApp\n- Your portal reminds you when a lesson has just finished\n- Ask them to mention you by name and the area they learned in\n\n**Please don't**\n- Ask while they're driving\n- Offer discounts, free lessons or anything else in return for a review\n- Write, edit or post a review for a student — reviews must be their own words\n\n(Incentivised and fake reviews break Google's rules and UK consumer law.)` },
     { id: "pass", ic: "📸", name: "Pass photos & videos", theme: "classic", banner: "camera", btn: ["Send them on WhatsApp", WA],
       subject: i => `Pass photos & videos, ${first(i.full_name)} — please send us your passes`,
       headline: "Share your **passes**",
