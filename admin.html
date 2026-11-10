@@ -18252,7 +18252,8 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && ageDays(r.created_at) >= 3 && (r.reply_status === "not_yet" || r.flag_color === "purple" || !r.reply_status);
 
   /* which student email is due for a referral (or null) */
-  function due(r, all) {
+  function due(r, all) { const k = due0(r, all); return k && hasLeft(r) && ["B", "B2", "C"].includes(k) ? null : k; }
+  function due0(r, all) {
     const m = marks(r.admin_notes), age = ageDays(r.created_at);
     if (m.some(x => x.date && new Date(x.date).toDateString() === new Date().toDateString() && x.k !== "I")) return null;   // one per day
     if (isBooked(r)) {
@@ -18331,7 +18332,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     (await q("email_contacts", "email,name,phone")).forEach(x => add(x.email, x.name, x.phone));
     return r => byPh.get(ph10(r.student_phone)) || byName.get(nm(r.student_name)) || null;
   }
-  async function loadRefs() { REFS = await q("referrals", "*", x => x.order("created_at", { ascending: false })); try { if (typeof _refData !== "undefined" && _refData && _refData.length >= REFS.length) REFS = _refData; } catch (e) {} return REFS; }
+  async function loadRefs() { await loadLeft(); REFS = await q("referrals", "*", x => x.order("created_at", { ascending: false })); try { if (typeof _refData !== "undefined" && _refData && _refData.length >= REFS.length) REFS = _refData; } catch (e) {} return REFS; }
 
   async function plan(opts) {
     const all = !!(opts && opts.all), find = await emailIndex(), seen = new Set(), out = [];
@@ -18357,11 +18358,27 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const MKOF = { web: MK.web, A: MK.A, Anew: MK.A + " (new instructor)", AB: MK.AB, B: MK.B, B2: MK.B2, C: MK.C, D: MK.D };
 
   /* ---------- instructor reminders ---------- */
-  function instrList() {
+  /* ---------- students who have left (never listed for instructors, never sent "ready to start" emails) ---------- */
+  const LEFT_ST = ["inactive", "drop_pending", "deleted_by_instructor", "left"];
+  let LEFT = { at: 0, keys: new Set() };
+  async function loadLeft(force) {
+    if (!force && Date.now() - LEFT.at < 10 * 60e3) return LEFT;
+    const keys = new Set(), add = (iid, name, phone) => { const p = ph10(phone); if (p) keys.add((iid || "") + "|" + p); if (name) keys.add((iid || "") + "|" + nm(name)); };
+    (await q("student_accounts", "*")).forEach(x => { if (LEFT_ST.includes(String(x.status || "").toLowerCase())) add(x.instructor_id, x.full_name || x.name, x.phone); });
+    (await q("student_profiles", "*")).forEach(x => { if (LEFT_ST.includes(String(x.status || "").toLowerCase())) add(x.instructor_id, x.name || x.full_name, x.phone); });
+    LEFT = { at: Date.now(), keys }; return LEFT;
+  }
+  const hasLeft = r => /student (has )?left|has left|marked as left|left drivesq|🚪/i.test(r.admin_notes || "") ||
+    (ph10(r.student_phone) && LEFT.keys.has(r.instructor_id + "|" + ph10(r.student_phone))) || (r.student_name && LEFT.keys.has(r.instructor_id + "|" + nm(r.student_name)));
+  /* only students the instructor has actually marked: 🟣 Unsure / Not booked yet, or 🚩 Can't reach */
+  const markedUnsure = r => r.reply_status === "not_yet" || (!r.reply_status && r.flag_color === "purple");
+  const markedUnreach = r => r.reply_status === "unreachable";
+  function instrList(onlyUnreach) {
     const by = new Map();
     for (const r of REFS) {
-      if (r.is_cancelled || r.is_credit || isBooked(r) || isCancelled(r) || ageDays(r.created_at) < 3 || ageDays(r.created_at) > 60) continue;
-      if (!(isUnsure(r) || isUnreach(r))) continue;
+      if (r.is_cancelled || r.is_credit || isBooked(r) || reassigned(r) || r.reply_status === "not_interested" || ageDays(r.created_at) < 3 || ageDays(r.created_at) > 60) continue;
+      if (!(markedUnreach(r) || (!onlyUnreach && markedUnsure(r)))) continue;
+      if (hasLeft(r)) continue;
       if (marks(r.admin_notes).filter(x => x.k === "I").length >= 2) continue;
       if (!by.has(r.instructor_id)) by.set(r.instructor_id, []);
       by.get(r.instructor_id).push(r);
@@ -18369,7 +18386,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     return by;
   }
   function instrDesign(ins, rs) {
-    const st = r => r.reply_status === "unreachable" ? "can't reach — we've emailed them too" : r.reply_status === "not_yet" ? "not booked yet" : "no update yet";
+    const st = r => r.reply_status === "unreachable" ? "you marked: can't reach" : "you marked: unsure / not booked yet";
     return { theme: "clean", banner: "none", subject: `${first(ins.full_name)}, ${rs.length} student${rs.length > 1 ? "s" : ""} need${rs.length > 1 ? "" : "s"} a quick call`, preheader: "Please contact them and update their status in your portal.",
       headline: `${rs.length} student${rs.length > 1 ? "s" : ""} to **contact**`, greeting: `Hi ${first(ins.full_name)},`,
       body: rs.map((r, i) => `${i + 1}. **${r.student_name || "Student"}** · ${fmtPhone(r.student_phone) || "no number"} · referred ${ageDays(r.created_at)} days ago · ${st(r)}`).join("\n") +
@@ -18436,8 +18453,9 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       let chaseOn = false;   // Growth → Chase already reminds instructors (with one-tap reply links) — never double up
       try { const G = window.DSQG && DSQG.G; if (G && G.hasRefCols === null && typeof DSQG.load === "function") await DSQG.load(); chaseOn = !!(G && G.cfg && G.cfg.autoChase && G.hasRefCols); } catch (e) {}
       res.chaseOn = chaseOn;
-      if (on("I") && !opts.noInstr && !chaseOn) {
-        for (const [iid, rs] of instrList()) {
+      if (on("I") && !opts.noInstr) {
+        await loadLeft();
+        for (const [iid, rs] of instrList(chaseOn)) {   // Growth → Chase already covers "unsure" students — then only "can't reach" ones go here
           const ins = instrs().find(i => i.id === iid); if (!ins || ins.status === "suspended") continue;
           if (await recentAdminMsg(iid, "📣 Students to contact", 48)) continue;
           const d = instrDesign(ins, rs), subject = "📣 Students to contact: " + rs.map(r => first(r.student_name)).join(", ");
@@ -18555,6 +18573,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     return out;
   }
   window.DSQAutoMail = { run, plan, preview, due, design, catchUp };
+  window.DSQLeft = { load: loadLeft, has: hasLeft };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
 </script>

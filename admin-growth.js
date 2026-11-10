@@ -179,7 +179,9 @@
     G.running = true; G.lastRun = now(); let sent = 0;
     try {
       if (!G.loaded) await load();
-      const due = G.refs.filter(r => chaseState(r) === "due");
+      try { if (window.DSQLeft) await DSQLeft.load(); } catch (e) {}
+      const left = r => { try { return !!(window.DSQLeft && DSQLeft.has(r)); } catch (e) { return false; } };
+      const due = G.refs.filter(r => chaseState(r) === "due" && !left(r));
       const byI = {}; due.forEach(r => (byI[r.instructor_id] = byI[r.instructor_id] || []).push(r));
       for (const id of Object.keys(byI)) {
         const instr = iById(id); if (!instr.id || !canAuto(instr)) continue;
@@ -190,7 +192,9 @@
           mine.forEach(r => { try { sendPushToInstructor(id, instr.full_name, "📝 Has " + first(r.student_name) + " booked yet?", "One tap to update DriveSQ — no login.", refLink(r)); } catch (e) {} });
           ch.push("app");
         }
-        if (G.cfg.useEmail && /@/.test(instr.email || "") && await sendEmail(instr.email, chaseEmail(instr, mine))) ch.push("email");
+        // emails only name students the instructor has marked "not booked yet / unsure" — unmarked students get the one-tap app prompt only
+        const mineE = mine.filter(r => r.reply_status === "not_yet" || (!r.reply_status && r.flag_color === "purple"));
+        if (G.cfg.useEmail && mineE.length && /@/.test(instr.email || "") && await sendEmail(instr.email, chaseEmail(instr, mineE))) ch.push("email");
         const c = db(); await c.from("referrals").update({ chase_channel: ch.join("+") || "none" }).in("id", mine.map(r => r.id));
         mine.forEach(r => { r.chase_channel = ch.join("+"); }); if (ch.length) sent += mine.length;
       }
