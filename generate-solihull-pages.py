@@ -152,7 +152,7 @@ def form(title, sub, options, button="Book Now"):
 
 LESSON_OPTS = ["New learner offer: 10 hours for £330", "Manual Lessons", "Automatic Lessons", "Intensive Course", "Pass Plus", "Theory Help"]
 OFFER = "New learners: your first 10 hours for £330"
-OFFER_TERMS = "For new DriveSQ learners in Solihull: your first 10-hour block, paid in advance, manual or automatic. Can't be combined with the NHS staff and student price (£320)."
+OFFER_TERMS = "For new DriveSQ learners in every area we cover: your first 10-hour block, paid in advance, manual or automatic. Can't be combined with the NHS staff and student price (£320)."
 
 
 def crosslinks(exclude=None, n=10):

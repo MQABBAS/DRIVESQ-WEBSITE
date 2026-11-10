@@ -84,13 +84,13 @@
   }
   var PRICE = function () {
     return 'Our prices (manual or automatic, same price):<ul><li><b>£35/hr</b> — pay as you go in 2-hour lessons (£70)</li><li><b>10-hour block: £350</b></li>' +
-      (SOL ? '<li>🎉 <b>New learners in Solihull: first 10 hours for £330</b> (paid in advance)</li>' : '') +
+      '<li>🎉 <b>New learners: first 10 hours for £330</b> (paid in advance)</li>' +
       '<li><b>NHS staff &amp; students: 10 hours for £320</b></li><li>Intensive &amp; semi-intensive courses planned around your test date</li></ul>';
   };
   var INTENTS = [
     [/\b(hi|hello|hey|salam|salaam|morning|evening)\b/, function () { botSay('Hi! 👋 I\'m the SQ Assistant. Ask me about prices, your area, manual vs automatic, intensive courses or tests — or book in under a minute.', bookBtn()); }],
     [/(price|cost|how much|£|fee|charge|rate|cheap|afford)/, function () { botSay(PRICE(), bookBtn('Book at these prices')); }],
-    [/(offer|deal|discount|promo|first 10|330)/, function () { botSay(SOL ? '🎉 <b>New learner offer:</b> your first 10 hours for <b>£330</b> — for new DriveSQ learners in Solihull, first 10-hour block, paid in advance, manual or automatic. Can\'t be combined with the NHS/student price (£320).' : 'Our best value is a <b>10-hour block for £350</b>, or <b>£320</b> for NHS staff and students. In Solihull, new learners also get their first 10 hours for £330.', bookBtn()); }],
+    [/(offer|deal|discount|promo|first 10|330)/, function () { botSay('🎉 <b>New learner offer:</b> your first 10 hours for <b>£330</b> — for new DriveSQ learners in every area we cover: first 10-hour block, paid in advance, manual or automatic. Can\'t be combined with the NHS/student price (£320). After that, 10-hour blocks are usually <b>£350</b>' + (SOL ? '' : ' (£330 in our inner Manchester deal postcodes)') + '.', bookBtn()); }],
     [/(nhs|nurse|doctor|student|uni|college)/, function () { botSay('NHS staff and students get <b>10 hours for £320</b> (manual or automatic). Just pick that package when you book and mention it in your notes.', bookBtn()); }],
     [/(auto|manual|gear|clutch|electric|ev\b)/, function () { botSay('We teach <b>both manual and automatic</b> at the same price (£35/hr). Automatic means fewer controls to learn; manual gives you a licence for both. Not sure? <a href="/manual-or-automatic-decider.html">Try the 1-minute decider</a>.', bookBtn()); }],
     [/(intensive|crash|fast|quick|week|asap|urgent|soon)/, function () { botSay('Yes — we run <b>intensive and semi-intensive courses</b>. We plan the hours around your experience and your test date, so tell us both when you book (or if you need a test found for you).', bookBtn('Plan my course') + waBtn('Hi DriveSQ! I\'m interested in an intensive course.')); }],
