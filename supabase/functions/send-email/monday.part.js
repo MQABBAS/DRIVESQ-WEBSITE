@@ -4,7 +4,7 @@
 // POST { action: "monday", cron: true }          — from Supabase Cron; waits until 7am UK time on Monday
 //   • every approved instructor  → 📋 DriveSQ weekly reminders (rules + this week's focus)
 //   • franchise instructors      → 💰 weekly franchise fee reminder (fee from admin → Growth settings)
-//   • referral instructors       → 🧾 statement of students marked BOOKED and not yet paid, with each referral's amount
+//   • referral instructors       → 🧾 statement of students CONFIRMED BOOKED BY ADMIN and not yet paid, with each referral's amount
 // Each one also goes to the Instructor Portal (admin_messages) and as a push notification.
 const LONDON = "Europe/London";
 function londonParts(d = new Date()) {
@@ -55,10 +55,10 @@ function statementDesign(ins, ws, rows, paid) {
     subject: `🧾 Your DriveSQ referral statement: ${money(total)} for ${n} booked student${n > 1 ? "s" : ""} (w/c ${wc})`,
     preheader: `${n} booked student${n > 1 ? "s" : ""} · ${money(total)} in referral fees`,
     headline: "Referral **statement**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
-    body: `Here's your weekly statement of students you've marked as **booked**, with the referral fee for each one.\n\n` + rows.map(line).join("\n") +
+    body: `Here's your weekly statement of students we've **confirmed as booked** (with the student and with you), with the referral fee for each one.\n\n` + rows.map(line).join("\n") +
       `\n\n**Total: ${money(total)}**` +
       (paid.length ? `\n\n**Paid since last week — thank you**\n` + paid.map((r) => `- ${r.student_name || "Student"} · ${money(r._amt)}`).join("\n") : "") +
-      `\n\nIf anything looks wrong — for example a student didn't actually book — just reply to this email or update their status in your portal and we'll correct it.`,
+      `\n\nIf anything looks wrong — for example a student didn't actually book — just reply to this email and we'll check and correct it.`,
     highlightValue: money(total), highlightLabel: `Referral fees for ${n} booked student${n > 1 ? "s" : ""}`,
     buttonText: "Open my Instructor Portal", buttonUrl: PORTAL_URL,
     secondaryText: "Questions? Reply to this email or [WhatsApp us](https://wa.me/447352932003).",
@@ -102,7 +102,8 @@ async function monday(sb, req, body) {
   const { data: unsubRows } = await sb.from("email_contacts").select("email_key").neq("status", "subscribed").limit(10000);
   const unsub = new Set((unsubRows || []).map((r) => r.email_key));
 
-  const isBooked = (r) => r.reply_status === "booked" || r.flag_color === "green";
+  // booked = confirmed by admin (same rule as _refAdminBooked in admin.html): admin's ✅, not just the instructor saying so
+  const isBooked = (r) => { if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = n.lastIndexOf("✅ Booked — confirmed by admin"), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
   const lastWeek = ws.getTime() - 7 * 864e5;
   const jobs = [];
   for (const ins of instructors || []) {

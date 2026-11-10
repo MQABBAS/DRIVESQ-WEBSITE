@@ -3413,6 +3413,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Number</label><input class="dsq-inp" id="edit-badge"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Type</label><select class="dsq-inp" id="edit-type"><option value="ADI">ADI</option><option value="PDI">PDI</option></select></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Instructor Model</label><select class="dsq-inp" id="edit-model"><option value="referral">Referral</option><option value="franchise">Franchise</option><option value="unsure">Unsure</option></select></div>
+      <div class="col-12 col-sm-6" id="edit-frfee-wrap" style="display:none"><label class="dsq-lbl">Weekly franchise fee (£)</label><input type="number" min="0" step="1" class="dsq-inp" id="edit-frfee" placeholder="Default"/><div style="font-size:.66rem;color:var(--txt4);margin-top:3px">Used in their Monday 7am fee reminder. Leave blank for the default (Growth → settings).</div></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge Expiry Date</label><input class="dsq-inp" id="edit-badge-expiry" type="date" oninput="updateBadgeExpiryStatus(this.value)"/></div>
       <div class="col-12 col-sm-6 d-flex align-items-end"><div id="edit-badge-expiry-status" style="font-size:.74rem;padding:6px 10px;border-radius:6px;width:100%;text-align:center"></div></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Lesson Types</label>
@@ -4814,12 +4815,38 @@ const REF_FLAG={
   red:{e:'🚩',l:'Not booked',d:'No lesson booked',c:'#f87171',bg:'rgba(239,68,68,'}
 };
 // instructor's one-tap reply (ref.html) → flag. Only fills an empty or purple flag, never overrides green/red set by admin
-const REPLY_FLAG={booked:'green',not_yet:'purple',unreachable:'red',not_interested:'red'};
+// an instructor saying "booked" is not enough — it goes 🟣 to check; only admin's ✅ (confirmed with student & instructor) counts as booked
+const REPLY_FLAG={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red'};
+const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
+/* booked = confirmed by admin: green flag set by admin (or paid). Older green flags that came from an instructor's "booked" reply need confirming once. */
+function _refAdminBooked(r){
+  if(!r||r.is_cancelled||r.is_credit)return false;
+  if(r.is_paid)return true;
+  if(r.flag_color!=='green')return false;
+  const n=String(r.admin_notes||''),a=n.lastIndexOf(REF_CONFIRM_MK),b=n.lastIndexOf(REF_UNCONFIRM_MK);
+  return a>b||(a<0&&r.reply_status!=='booked');
+}
+window._refAdminBooked=_refAdminBooked;
+async function confirmRefBooked(refId){
+  const r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);if(!r)return;
+  const notes=[r.admin_notes||'',new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+REF_CONFIRM_MK].filter(Boolean).join('\n');
+  const{error}=await sb.from('referrals').update({flag_color:'green',admin_notes:notes}).eq('id',refId);
+  if(error){showToast('Not saved: '+error.message,'error');return;}
+  r.flag_color='green';r.admin_notes=notes;showToast('✅ '+(r.student_name||'Student')+' confirmed as booked','success',2500);
+  try{if(_openRefInstrId)openRefDetail(_openRefInstrId);}catch(e){}renderReferrals();
+}
 function _refFlagOf(r){return r.flag_color||(r.is_paid?'green':null);} // a paid fee means the lesson was booked
 async function _saveRefFlag(refId,color){
-  const{error}=await sb.from('referrals').update({flag_color:color||null}).eq('id',refId);
+  const r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);
+  const patch={flag_color:color||null};
+  // admin's own ✅ is the booking confirmation — note it (and its removal) so statements and emails can tell it apart
+  if(r&&(color==='green'||r.flag_color==='green')){
+    const mk=color==='green'?REF_CONFIRM_MK:REF_UNCONFIRM_MK;
+    patch.admin_notes=[r.admin_notes||'',new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+mk].filter(Boolean).join('\n');
+  }
+  const{error}=await sb.from('referrals').update(patch).eq('id',refId);
   if(error){showToast('Flag save failed: '+error.message,'error');return false;}
-  const r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);if(r)r.flag_color=color||null;
+  if(r){r.flag_color=color||null;if(patch.admin_notes)r.admin_notes=patch.admin_notes;}
   return true;
 }
 function _flagToast(color,name){
@@ -5685,7 +5712,9 @@ function renderInstrDetail(instr){
   const ltChipHtml=`<span style="background:${ltBg};border:1px solid ${ltBorder};color:${ltColor};border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700">${ltLabel}</span>`;
   const covPCs=instr.coverage_postcodes?instr.coverage_postcodes.split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean):[];
   const covHtml=covPCs.length?covPCs.map(c=>`<span style="background:rgba(245,197,24,.13);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-right:3px">${esc(c)}</span>`).join(''):'<span style="color:var(--txt4);font-size:.75rem">—</span>';
+  if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   const fields=[
+    ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
     ['Area',instr.area],['Covered Postcodes',covHtml],['Address',instr.address],
@@ -7300,6 +7329,7 @@ function openEditModal(){
   document.getElementById('edit-badge').value=instr.badge_number||'';
   document.getElementById('edit-type').value=instr.badge_type||'ADI';
   document.getElementById('edit-model').value=instr.instructor_model||'unsure';
+  _frFeeFill(instr);
   document.getElementById('edit-lesson-types').value=instr.car_type||'Manual';
   document.getElementById('edit-phone').value=instr.phone||'';
   document.getElementById('edit-email').value=instr.email||'';
@@ -7484,6 +7514,34 @@ function togglePwd(){
   el.style.filter=pwdRevealed?'none':'blur(4px)';
   document.getElementById('editModal').querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
 }
+/* weekly franchise fee per instructor — stored with the Growth settings (growth_settings.config.franchiseBy) */
+let _frCfgCache=null;
+async function _frCfg(force){
+  if(_frCfgCache&&!force)return _frCfgCache;
+  try{const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();_frCfgCache=Object.assign({franchiseDef:50,franchiseBy:{}},(r.data&&r.data.value)||{});}
+  catch(e){_frCfgCache={franchiseDef:50,franchiseBy:{}};}
+  if(!_frCfgCache.franchiseBy)_frCfgCache.franchiseBy={};
+  return _frCfgCache;
+}
+function _frFeeOf(id){const c=_frCfgCache;if(!c)return null;const v=parseFloat((c.franchiseBy||{})[id]);return isNaN(v)?(parseFloat(c.franchiseDef)||0):v;}
+async function _frFeeFill(instr){
+  const w=document.getElementById('edit-frfee-wrap'),inp=document.getElementById('edit-frfee'),sel=document.getElementById('edit-model');
+  const show=()=>{w.style.display=sel.value==='franchise'?'':'none';};sel.onchange=show;show();
+  inp.value='';const c=await _frCfg(true);const v=(c.franchiseBy||{})[instr.id];
+  inp.value=v===undefined||v===null||v===''?'':v;inp.placeholder='Default £'+(parseFloat(c.franchiseDef)||0);
+}
+async function _frFeeSave(id){
+  const inp=document.getElementById('edit-frfee');if(!inp||document.getElementById('edit-model').value!=='franchise')return;
+  const raw=inp.value.trim();
+  try{
+    const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();   // always merge into the latest settings
+    const cfg=Object.assign({franchiseDef:50,franchiseBy:{}},(r.data&&r.data.value)||{});cfg.franchiseBy=Object.assign({},cfg.franchiseBy||{});
+    if(raw==='')delete cfg.franchiseBy[id];else cfg.franchiseBy[id]=Math.max(0,parseFloat(raw)||0);
+    const u=await sb.from('growth_settings').upsert({key:'config',value:cfg,updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(u.error)throw u.error;
+    _frCfgCache=cfg;try{if(window.DSQG&&DSQG.G&&DSQG.G.cfg)DSQG.G.cfg.franchiseBy=cfg.franchiseBy;}catch(e){}
+  }catch(e){showToast('Franchise fee not saved: '+(e.message||e),'warn',6000);}
+}
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
   const _oldEmail=((allInstrs||[]).find(i=>i.id===id)||{}).email||'';
@@ -7538,10 +7596,11 @@ async function saveEdit(){
       const{error:e3}=await sb.from('instructors').update(safeBase).eq('id',id);
       if(e3){showToast('Failed to save: '+e3.message,'error',6000);console.error('saveEdit error:',e3);return;}
       showToast('Saved (instructor_model column not in DB yet — add it in Supabase to persist this field)','warn',7000);
-      closeModal('editModal');await loadInstrs();_catchUp();return;
+      await _frFeeSave(id);closeModal('editModal');await loadInstrs();_catchUp();return;
     }
   }
 
+  await _frFeeSave(id);
   showToast('Changes saved ✓','success');closeModal('editModal');
   await loadInstrs();_catchUp();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);renderInstrDetail(viewingData);updateBlockBtn();}
@@ -11184,7 +11243,7 @@ async function openRefDetail(instrId,allTime){
               <button onclick="toggleContacted('${r.id}')" style="background:${isContacted?'rgba(74,222,128,.12)':'rgba(100,116,139,.1)'};border:1px solid ${isContacted?'rgba(74,222,128,.3)':'rgba(100,116,139,.25)'};color:${isContacted?'#4ade80':'#94a3b8'};border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;white-space:nowrap">
                 ${isContacted?'<i class="bi bi-telephone-fill me-1"></i>Contacted':'<i class="bi bi-telephone me-1"></i>Not Contacted'}
               </button>
-              <button onclick="setRefFlag('${r.id}','green')" style="background:${fc==='green'?'rgba(74,222,128,.25)':'rgba(74,222,128,.06)'};border:1px solid ${fc==='green'?'rgba(74,222,128,.6)':'rgba(74,222,128,.25)'};color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Green — lesson confirmed booked">✅ Booked</button>
+              <button onclick="setRefFlag('${r.id}','green')" style="background:${fc==='green'?'rgba(74,222,128,.25)':'rgba(74,222,128,.06)'};border:1px solid ${fc==='green'?'rgba(74,222,128,.6)':'rgba(74,222,128,.25)'};color:#4ade80;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Green — lesson confirmed booked">✅ Booked</button>${fc==='green'&&!_refAdminBooked(r)?`<button onclick="confirmRefBooked('${r.id}')" style="background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.5);color:#f5c518;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="The instructor said booked — confirm once you've checked with the student">Confirm booked?</button>`:''}
               <button onclick="setRefFlag('${r.id}','red')" style="background:${fc==='red'?'rgba(239,68,68,.25)':'rgba(239,68,68,.06)'};border:1px solid ${fc==='red'?'rgba(239,68,68,.6)':'rgba(239,68,68,.25)'};color:#f87171;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Red — not booked">🚩 Not booked</button>
               <button onclick="setRefFlag('${r.id}','purple')" style="background:${fc==='purple'?'rgba(168,85,247,.25)':'rgba(168,85,247,.06)'};border:1px solid ${fc==='purple'?'rgba(168,85,247,.6)':'rgba(168,85,247,.25)'};color:#a855f7;border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;font-weight:700" title="Purple — unsure if booked, check">🟣 Unsure</button>
               ${r.notes?`<button onclick="setRefNotesVisible('${r.id}',${!notesVisible})" style="background:${notesVisible?'rgba(96,165,250,.15)':'rgba(100,116,139,.08)'};border:1px solid ${notesVisible?'rgba(96,165,250,.35)':'rgba(100,116,139,.2)'};color:${notesVisible?'#60a5fa':'#94a3b8'};border-radius:6px;padding:2px 7px;font-size:.58rem;cursor:pointer;white-space:nowrap" title="${notesVisible?'Hide note from instructor':'Show note to instructor'}"><i class="bi bi-eye${notesVisible?'':'-slash'} me-1"></i>${notesVisible?'Visible':'Hidden'}</button>`:''}
@@ -18254,10 +18313,10 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 
   /* ---------- statuses ---------- */
   const reassigned = r => /Reassigned to /.test(r.admin_notes || "");
-  const isBooked = r => !r.is_cancelled && !r.is_credit && (r.reply_status === "booked" || r.flag_color === "green" || r.is_paid);
+  const isBooked = r => !r.is_cancelled && !r.is_credit && (typeof window._refAdminBooked === "function" ? window._refAdminBooked(r) : (r.flag_color === "green" || r.is_paid));   // booked = confirmed by admin
   const isCancelled = r => !reassigned(r) && !r.is_credit && (r.is_cancelled || r.reply_status === "not_interested" || r.flag_color === "red") && !isBooked(r);
   const isUnreach = r => !r.is_cancelled && !isBooked(r) && r.reply_status === "unreachable";
-  const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && ageDays(r.created_at) >= 3 && (r.reply_status === "not_yet" || r.flag_color === "purple" || !r.reply_status);
+  const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && r.reply_status !== "booked" && ageDays(r.created_at) >= 3 && (r.reply_status === "not_yet" || r.flag_color === "purple" || !r.reply_status);
 
   /* which student email is due for a referral (or null) */
   function due(r, all) { const k = due0(r, all); return k && hasLeft(r) && ["B", "B2", "C"].includes(k) ? null : k; }
@@ -18533,7 +18592,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       <b style="color:#f59e0b">🗓️ Monday emails need one update</b> — to send weekly reminders, franchise fee reminders and referral statements at 7am every Monday (even when admin is closed), update the email function in Supabase:
       Edge Functions → your email function → Code → replace everything with <a href="https://github.com/MQABBAS/DRIVESQ-WEBSITE/blob/main/supabase/functions/send-email/index.ts" target="_blank" rel="noopener">this file</a> → Deploy. Until then admin sends the weekly reminders when it's open.</div>`;
     return `<div style="margin-top:10px;padding:9px 11px;border-radius:10px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.28);font-size:.76rem">
-      <b>🗓️ Monday 7am instructor emails</b> — 📋 weekly reminders to everyone · 💰 franchise fee reminder to franchise instructors (fee from Growth → settings) · 🧾 statement of <b>booked, unpaid</b> students with each referral's amount to referral instructors. Also sent to their portal and phone. Never twice in a week.
+      <b>🗓️ Monday 7am instructor emails</b> — 📋 weekly reminders to everyone · 💰 franchise fee reminder to franchise instructors (fee from Growth → settings) · 🧾 statement of students <b>you've confirmed as booked</b> (unpaid) with each referral's amount to referral instructors. Also sent to their portal and phone. Never twice in a week.
       <br>${L ? `Last run ${new Date(L.at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} (${L.by === "cron" ? "automatic" : "from admin"}): ${L.F || 0} fee, ${L.R || 0} statement${L.R === 1 ? "" : "s"}, ${L.W || 0} weekly reminders${L.failed ? `, <span style="color:#f87171">${L.failed} failed</span>` : ""}.` : "Not run yet."}
       ${thisWeek ? " ✅ This week is done." : ""}
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button type="button" class="btn-s" style="font-size:.74rem" onclick="dsqMondayPreview()"><i class="bi bi-eye me-1"></i>Preview</button><button type="button" class="btn-p" style="font-size:.74rem" id="monNow"><i class="bi bi-send me-1"></i>Send this week's now</button></div>

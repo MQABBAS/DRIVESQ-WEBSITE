@@ -23,7 +23,7 @@
   const SQL_FILE = "supabase/migrations/20261023_growth_tools.sql";
   const LOST = ["Price", "Too far / no instructor nearby", "Booked with another school", "Couldn't reach them", "Times didn't suit", "Wanted automatic/manual we couldn't offer", "Not ready yet / browsing", "Other"];
   const REPLY = { booked: ["✅", "Booked", "g"], not_yet: ["⏳", "Not booked yet", "a"], unreachable: ["📵", "Can't reach them", "r"], not_interested: ["🚫", "Not going ahead", "r"] };
-  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 25, franchiseDef: 45, franchiseBy: {}, channels: ["Google Ads"] };
+  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 25, franchiseDef: 50, franchiseBy: {}, channels: ["Google Ads"] };
 
   const G = { cfg: Object.assign({}, DEF), refs: [], wl: [], spend: {}, followups: {}, push: new Set(), hasRefCols: null, hasWlCols: null, hasSpend: null, hasCfg: null, loaded: false, loading: null, tab: "chase", month: "this", timer: null, running: false, lastRun: 0 };
   const LSK = k => "dsqg_" + k;
@@ -137,6 +137,7 @@
     const age = days(r.created_at);
     if (age > 45) return null;
     if (r.reply_status === "booked") return "replied";
+    try { if (window._refAdminBooked && window._refAdminBooked(r)) return "replied"; } catch (e) {}   // admin already confirmed it as booked
     if (r.reply_status === "not_interested" || r.reply_status === "unreachable") return r.lost_reason ? null : "replied";
     const n = r.chase_count || 0;
     if (n >= G.cfg.max) return "maxed";
