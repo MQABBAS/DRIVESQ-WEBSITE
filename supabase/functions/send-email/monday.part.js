@@ -109,8 +109,9 @@ async function monday(sb, req, body) {
   const { data: refs } = ids.length ? await sb.from("referrals").select("*").in("instructor_id", ids).limit(10000) : { data: [] };
   const { data: done } = ids.length ? await sb.from("admin_messages").select("instructor_id,subject").in("instructor_id", ids).gte("created_at", since) : { data: [] };
   const already = (iid, prefix) => (done || []).some((m) => m.instructor_id === iid && String(m.subject || "").startsWith(prefix));
-  const { data: unsubRows } = await sb.from("email_contacts").select("email_key").neq("status", "subscribed").limit(10000);
+  const { data: unsubRows } = await sb.from("email_contacts").select("email_key,tags").neq("status", "subscribed").limit(10000);
   const unsub = new Set((unsubRows || []).map((r) => r.email_key));
+  const optOutAll = new Set((unsubRows || []).filter((r) => (r.tags || []).includes("opt_out_all")).map((r) => r.email_key));   // admin → instructor profile → "Opt out of emails"
 
   // booked = confirmed by admin (same rule as _refAdminBooked in admin.html): admin's ✅, not just the instructor saying so
   const isBooked = (r) => { if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = n.lastIndexOf("✅ Booked — confirmed by admin"), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
@@ -149,6 +150,7 @@ async function monday(sb, req, body) {
       const res = { instructor: j.ins.full_name, kind: j.kind, subject: d.subject, email: e || null, status: "portal only" };
       out.push(res);
       if (!EMAIL_RE.test(e)) continue;
+      if (optOutAll.has(e)) { res.status = "portal only (opted out of emails)"; continue; }
       if (!d.transactional && unsub.has(e)) { res.status = "skipped (unsubscribed)"; continue; }
       const u = await unsubUrl(e, base), c = { name: j.ins.full_name, email: e };
       const mail = { from: FROM, to: [e], subject: d.subject, html: personalise(build(d), c).split("{{unsubscribe_url}}").join(u), text: personalise(text(d), c).split("{{unsubscribe_url}}").join(u),

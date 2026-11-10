@@ -5720,7 +5720,9 @@ function renderInstrDetail(instr){
   const covPCs=instr.coverage_postcodes?instr.coverage_postcodes.split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean):[];
   const covHtml=covPCs.length?covPCs.map(c=>`<span style="background:rgba(245,197,24,.13);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-right:3px">${esc(c)}</span>`).join(''):'<span style="color:var(--txt4);font-size:.75rem">—</span>';
   if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
+  if(instr.email)setTimeout(()=>_emailPrefFill(instr),0);
   const fields=[
+    ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
@@ -7520,6 +7522,37 @@ function togglePwd(){
   const el=document.getElementById('edit-pwd-txt');
   el.style.filter=pwdRevealed?'none':'blur(4px)';
   document.getElementById('editModal').querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
+}
+/* instructor email opt-out — stored on the Email contacts list (email_contacts): status unsubscribed + tag opt_out_all.
+   The email function then sends them nothing by email (not even fee reminders); portal messages and WhatsApp carry on. */
+async function _emailPrefGet(email){
+  const k=String(email||'').trim().toLowerCase();if(!k)return null;
+  try{const r=await sb.from('email_contacts').select('id,status,tags,unsubscribe_note').eq('email_key',k).maybeSingle();return r.data||{};}catch(e){return {};}
+}
+async function _emailPrefFill(instr){
+  const el=document.getElementById('emailPref-'+instr.id);if(!el)return;
+  const c=await _emailPrefGet(instr.email);
+  const out=c&&c.status&&c.status!=='subscribed';
+  const all=out&&(c.tags||[]).includes('opt_out_all');
+  el.innerHTML=out
+    ?`<span style="color:#f87171;font-weight:700">🚫 Opted out of emails</span><span style="color:var(--txt4)"> — ${all?'no emails at all (portal & WhatsApp only)':'unsubscribed from marketing emails; fee reminders still sent'}</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(74,222,128,.4);color:#4ade80" onclick="setInstrEmailOptOut('${instr.id}',false)">Opt back in</button>`
+    :`<span style="color:#4ade80;font-weight:700">✅ Receiving emails</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(248,113,113,.4);color:#f87171" onclick="setInstrEmailOptOut('${instr.id}',true)">🚫 Opt out of emails</button>`;
+}
+async function setInstrEmailOptOut(id,out){
+  const instr=(allInstrs||[]).find(i=>i.id===id);if(!instr||!instr.email){showToast('This instructor has no email address','warn');return;}
+  const email=String(instr.email).trim().toLowerCase(),now=new Date().toISOString();
+  if(out&&!confirm(`Stop ALL DriveSQ emails to ${instr.full_name} (${email})?\n\nThey won't get weekly reminders, fee reminders, statements or student updates by email. Everything still goes to their Instructor Portal, and you can still message them on WhatsApp.\n\nYou can opt them back in at any time.`))return;
+  try{
+    const c=await _emailPrefGet(email);
+    const tags=Array.from(new Set(((c&&c.tags)||[]).filter(t=>t!=='opt_out_all').concat(out?['opt_out_all']:[])));
+    const patch=out?{status:'unsubscribed',unsubscribed_at:now,unsubscribe_note:'Instructor opted out (set by admin)',tags,updated_at:now}:{status:'subscribed',unsubscribed_at:null,unsubscribe_note:null,tags,updated_at:now};
+    let r;
+    if(c&&c.id)r=await sb.from('email_contacts').update(patch).eq('id',c.id);
+    else r=await sb.from('email_contacts').insert([Object.assign({email,name:instr.full_name||null,phone:instr.phone||null,sources:['instructors'],consent_note:'Instructor email added by admin'},patch)]);
+    if(r.error)throw r.error;
+    showToast(out?`🚫 ${instr.full_name} won't receive any DriveSQ emails`:`✅ ${instr.full_name} will receive DriveSQ emails again`,'success',5000);
+  }catch(e){showToast('Not saved: '+(e.message||e),'error',7000);}
+  _emailPrefFill(instr);
 }
 /* weekly franchise fee per instructor — stored with the Growth settings (growth_settings.config.franchiseBy) */
 let _frCfgCache=null;
@@ -18308,7 +18341,13 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const WA = "https://wa.me/447352932003", PORTAL = "https://www.drivesq.co.uk/student.html", PORTAL_INFO = "https://www.drivesq.co.uk/drivesq-student-portal.html", BOOK = "https://www.drivesq.co.uk/#book-60";
   const OFFER = { value: "10 hours for £330", label: "New learner offer — your first 10-hour block, paid in advance (normally £350). Manual or automatic." };
   const TYPES = { web: "Website booking received", A: "Booked — you're booked in", B: "Unsure — ready to get started?", C: "Can't reach — instructor trying to reach you", D: "Cancelled — can we help?", I: "Instructor reminders (students to contact)", W: "Monday instructor emails (reminders, fees, statements)" };
-  const on = k => { try { return localStorage.getItem("dsq_am_" + k) !== "0"; } catch (e) { return true; } };
+  /* Automatic emails only go to NEW students — referred or booked on/after this date. Older students: by hand only ("Older bookings…"). */
+  const AUTOMAIL_START = new Date("2026-11-10T00:00:00");
+  const isNew = r => r && r.created_at && new Date(r.created_at) >= AUTOMAIL_START;
+  /* default: booked students and website bookings only. Unsure / can't-reach / cancelled emails are off unless you tick them. */
+  const DEFAULT_OFF = ["B", "C", "D"];
+  try { if (localStorage.getItem("dsq_am_v2") !== "1") { DEFAULT_OFF.forEach(k => localStorage.setItem("dsq_am_" + k, "0")); localStorage.setItem("dsq_am_v2", "1"); } } catch (e) {}
+  const on = k => { try { return localStorage.getItem("dsq_am_" + k) !== "0"; } catch (e) { return !DEFAULT_OFF.includes(k); } };
   const instrs = () => { try { return allInstrs || []; } catch (e) { return []; } };
   const instrOf = r => instrs().find(i => i.id === r.instructor_id) || {};
 
@@ -18420,6 +18459,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   async function plan(opts) {
     const all = !!(opts && opts.all), find = await emailIndex(), seen = new Set(), out = [];
     for (const r of await loadRefs()) {
+      if (!all && !isNew(r)) continue;   // older students are never emailed automatically
       const k = due(r, all); if (!k || !on(k[0] === "A" ? "A" : k[0])) continue;
       const email = find(r); if (!email || seen.has(email)) continue; seen.add(email);
       out.push({ kind: k, rec: "ref", r, email, name: r.student_name, ins: instrOf(r) });
@@ -18428,7 +18468,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       const since = new Date(Date.now() - (all ? 365 : 14) * 864e5).toISOString();
       for (const x of await q("waiting_list", "id,student_name,student_phone,notes,created_at", y => y.gte("created_at", since).order("created_at", { ascending: false }))) {
         const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i), email = m && m[1].toLowerCase();
-        if (!email || !RE_EMAIL.test(email) || /Welcome email sent/.test(x.notes || "") || seen.has(email)) continue;
+        if (!email || !RE_EMAIL.test(email) || /Welcome email sent/.test(x.notes || "") || seen.has(email) || (!all && !isNew(x))) continue;
         seen.add(email); out.push({ kind: "web", rec: "wl", r: x, email, name: x.student_name });
       }
     }
@@ -18641,7 +18681,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     if (ready) { try { waiting = (await plan({})).length; } catch (e) {} escal = REFS.filter(r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && (isUnsure(r) || isUnreach(r)) && ageDays(r.created_at) >= 10 && ageDays(r.created_at) <= 60).slice(0, 12); }
     c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
       <div style="flex:1;min-width:240px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic emails &amp; instructor reminders</b>
-        <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
+        <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. <b>Only new students</b> (referred or booked from " + AUTOMAIL_START.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + ") are emailed automatically — older students only by hand. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
         ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}${last && last.held ? `<br><b style="color:#f5c518">First run is waiting for you:</b> preview the emails, untick any type you don't want, then press <b>Send now</b>. After that it runs automatically.` : ""}</div>
         ${ready ? (() => { const miss = instrs().filter(i => i.status === "approved" && !RE_EMAIL.test(String(i.email || "").trim())); return miss.length ? `<br><span style="color:#f59e0b">⚠️ ${miss.length} instructor${miss.length > 1 ? "s have" : " has"} no email (weekly bulletin goes to their portal only): ${miss.slice(0, 8).map(i => `<a href="#" onclick="event.preventDefault();openEditForId('${i.id}')" style="color:#f59e0b;text-decoration:underline">${(i.full_name || "Instructor").replace(/[<>&"]/g, "")}</a>`).join(", ")}${miss.length > 8 ? "…" : ""}</span>` : ""; })() : ""}
         ${ready && last && last.chaseOn ? `<br><b>Growth → Chase</b> asks about unsure students (one-tap reply links); students marked <b>can't reach</b> are sent from here — nobody is listed twice.` : ""}
@@ -18724,7 +18764,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     if (out.length) toast("📧 Sent " + (first(name) || "them") + " the latest instructor email" + (out.length > 1 ? "s" : "") + ": " + out.join(" + "), "success", 7000);
     return out;
   }
-  window.DSQAutoMail = { run, plan, preview, due, design, catchUp };
+  window.DSQAutoMail = { run, plan, preview, due, design, catchUp, _marks: marks, _isBooked: isBooked };
   window.DSQLeft = { load: loadLeft, has: hasLeft };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
