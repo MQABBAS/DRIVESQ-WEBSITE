@@ -18350,9 +18350,9 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   /* Automatic emails only go to NEW students — referred or booked on/after this date. Older students: by hand only ("Older bookings…"). */
   const AUTOMAIL_START = new Date("2026-11-10T00:00:00");
   const isNew = r => r && r.created_at && new Date(r.created_at) >= AUTOMAIL_START;
-  /* default: booked students and website bookings only. Unsure / can't-reach / cancelled emails are off unless you tick them. */
-  const DEFAULT_OFF = ["B", "C", "D"];
-  try { if (localStorage.getItem("dsq_am_v2") !== "1") { DEFAULT_OFF.forEach(k => localStorage.setItem("dsq_am_" + k, "0")); localStorage.setItem("dsq_am_v2", "1"); } } catch (e) {}
+  /* all student emails on by default (booked, website booking, unsure, can't reach, cancelled) — but only for NEW students (see AUTOMAIL_START) */
+  const DEFAULT_OFF = [];
+  try { if (localStorage.getItem("dsq_am_v3") !== "1") { ["B", "C", "D"].forEach(k => localStorage.removeItem("dsq_am_" + k)); localStorage.setItem("dsq_am_v3", "1"); } } catch (e) {}
   const on = k => { try { return localStorage.getItem("dsq_am_" + k) !== "0"; } catch (e) { return !DEFAULT_OFF.includes(k); } };
   const instrs = () => { try { return allInstrs || []; } catch (e) { return []; } };
   const instrOf = r => instrs().find(i => i.id === r.instructor_id) || {};
