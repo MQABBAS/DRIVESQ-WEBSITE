@@ -18358,9 +18358,9 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     const r = await q("admin_messages", "id,subject,created_at", x => x.eq("instructor_id", instrId).gte("created_at", since));
     return r.some(m => String(m.subject || "").startsWith(prefix));
   }
-  async function sendInstructor(ins, subject, d, body) {
+  async function sendInstructor(ins, subject, d, body, pushText) {
     await sb.from("admin_messages").insert([{ instructor_id: ins.id, subject, body, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
-    try { sendPushToInstructor(ins.id, ins.full_name || "", subject, body.slice(0, 120), "/dashboard.html"); } catch (e) {}
+    try { sendPushToInstructor(ins.id, ins.full_name || "", subject, String(pushText || body).replace(/\*\*/g, "").slice(0, 120), "/dashboard.html"); } catch (e) {}
     if (RE_EMAIL.test(String(ins.email || "").trim())) { try { await DSQMailSend.send([msg(d, String(ins.email).trim().toLowerCase(), ins.full_name)]); } catch (e) {} }
   }
 
@@ -18425,7 +18425,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
         const since = weekStart().toISOString();
         const sent = await q("admin_messages", "instructor_id,subject", x => x.gte("created_at", since).ilike("subject", "📋 DriveSQ weekly reminders%"));
         const done = new Set(sent.map(m => m.instructor_id));
-        for (const ins of instrs().filter(i => i.status === "approved" && !done.has(i.id))) { const d = weeklyDesign(ins); await sendInstructor(ins, d.subject, d, plain(d)); res.weekly++; }
+        for (const ins of instrs().filter(i => i.status === "approved" && !done.has(i.id))) { const d = weeklyDesign(ins); await sendInstructor(ins, d.subject, d, d.body, d.preheader); res.weekly++; }
       }
     } finally { busy = false; }
     try { localStorage.setItem("dsq_am_last", JSON.stringify({ at: Date.now(), ...res })); } catch (e) {}

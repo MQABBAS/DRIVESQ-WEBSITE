@@ -76,6 +76,23 @@ a{color:var(--red);text-decoration:none}
 /* BANNERS */
 .reminder-banner{background:linear-gradient(135deg,rgba(209,10,17,.1),rgba(209,10,17,.05));border:1px solid rgba(209,10,17,.3);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px}
 @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.wb-banner{border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;background:linear-gradient(135deg,#0b1220,#152a52);border:1px solid rgba(96,165,250,.45);color:#e8eefc;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.25)}
+.wb-banner .wb-ic{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#60a5fa);display:grid;place-items:center;font-size:1.25rem;flex-shrink:0}
+.wb-banner small{display:block;font-size:.66rem;letter-spacing:1.5px;text-transform:uppercase;color:#93c5fd;font-weight:700}.wb-banner b{display:block;font-family:'Oswald',sans-serif;font-size:1.02rem;color:#fff}
+.wb-banner .wb-go{margin-left:auto;background:#2563eb;color:#fff;border:0;border-radius:999px;padding:7px 14px;font-weight:700;font-size:.78rem;white-space:nowrap}
+.notif-item.wb-item{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(37,99,235,.04));border-left:3px solid #60a5fa}
+.wb-ov{position:fixed;inset:0;z-index:10050;background:rgba(5,7,12,.72);backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:18px 12px}
+.wb-ov.open{display:flex}.wb-card{width:100%;max-width:680px;background:#0f1117;color:#e9ebf1;border:1px solid #23262f;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);font-family:Inter,system-ui,sans-serif}
+.wb-head{padding:22px 22px 18px;background:linear-gradient(135deg,#111827,#1e3a8a);position:relative}.wb-head .wb-brand{font-family:'Oswald',sans-serif;font-size:.9rem;letter-spacing:.6px;color:#bfdbfe}.wb-head .wb-brand b{color:#fff}.wb-head .wb-brand i{color:#ff4d55;font-style:normal}
+.wb-head h2{font-family:'Oswald',sans-serif;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.1;margin:10px 0 4px;color:#fff;text-transform:uppercase}.wb-head .wb-wc{font-size:.8rem;color:#c7d2fe}
+.wb-x{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.12);border:0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:1.1rem;cursor:pointer}
+.wb-body{padding:18px 20px 6px}.wb-sec{margin-bottom:18px}.wb-sec h3{font-family:'Oswald',sans-serif;font-size:1.05rem;margin:0 0 10px;color:#fff;display:flex;align-items:center;gap:8px}.wb-sec h3 span{font-size:.62rem;letter-spacing:1.2px;text-transform:uppercase;background:#2563eb;color:#fff;border-radius:999px;padding:2px 8px;font-family:Inter}
+.wb-focus{background:linear-gradient(135deg,rgba(37,99,235,.18),rgba(37,99,235,.05));border:1px solid rgba(96,165,250,.35);border-radius:16px;padding:12px 14px}
+.wb-li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:.9rem;line-height:1.45;color:#d6dae3}.wb-li:not(:last-child){border-bottom:1px solid rgba(255,255,255,.06)}.wb-li .t{color:#4ade80;font-weight:800;flex-shrink:0}
+.wb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.wb-tile{background:#161a23;border:1px solid #262b36;border-radius:14px;padding:12px;font-size:.86rem;line-height:1.45;color:#cfd4de}.wb-tile .ic{font-size:1.3rem;display:block;margin-bottom:4px}.wb-tile b{display:block;color:#fff;font-size:.92rem;margin-bottom:2px}
+.wb-foot{display:flex;flex-wrap:wrap;gap:8px;padding:6px 20px 20px}.wb-foot a,.wb-foot button{flex:1;min-width:150px;text-align:center;border-radius:999px;padding:11px 14px;font-weight:700;font-size:.86rem;text-decoration:none;cursor:pointer;border:0}
+.wb-foot .p{background:#2563eb;color:#fff}.wb-foot .s{background:#1b1f29;color:#e5e7eb;border:1px solid #2c3140}
+.wb-past{padding:0 20px 18px;font-size:.78rem;color:#9aa3b2}.wb-past button{background:#161a23;border:1px solid #262b36;color:#cfd4de;border-radius:999px;padding:5px 11px;margin:4px 6px 0 0;font-size:.74rem;cursor:pointer}
 .msg-banner{border-radius:10px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:.82rem}
 .msg-banner.general{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2)}
 .msg-banner.warning{background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2)}
@@ -4927,15 +4944,48 @@ async function loadNotifications(){
       loadRefData().catch(()=>{});
     }
   }
-  unread.forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
+  _wbMsgs=msgs.filter(isWB);
+  unread.filter(isWB).slice(0,1).forEach(m=>{const t=_wbTopic(m);const div=document.createElement('div');div.className='msg-banner wb-banner';div.style.cssText='padding:12px 14px';div.onclick=e=>{if(!e.target.closest('.mb-dismiss'))openWeekly(m.id);};div.innerHTML=`<div class="wb-ic">📋</div><div style="min-width:0"><small>This week's reminders</small><b>${esc(t.topic)}</b></div><button class="wb-go" type="button">Read</button>`;bc.appendChild(div);});
+  unread.filter(m=>!isWB(m)).forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
   if(!msgs.length){list.innerHTML='<div style="padding:20px;text-align:center;font-size:.8rem;color:var(--txt4)">No notifications</div>';return;}
   const tc={general:'#60a5fa',warning:'#fbbf24',franchise_fee:'#f87171',badge_request:'#60a5fa',drop_request_approved:'#f87171',drop_request_kept:'#60a5fa'};
   list.innerHTML=msgs.map(m=>{
     const isNewStudent=m.subject&&m.subject.includes('New Student Assigned');
     const viewStudentBtn=isNewStudent?`<button onclick="event.stopPropagation();toggleNotif();switchTab('students');setMobActive('students');loadStudents();markRead('${m.id}')" style="margin-top:6px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:6px;padding:4px 10px;font-size:.7rem;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;letter-spacing:.3px"><i class="bi bi-people-fill me-1"></i>View Students</button>`:'';
+    if(isWB(m)){const t=_wbTopic(m);return`<div class="notif-item wb-item ${m.is_read?'':'unread'}" onclick="openWeekly('${m.id}')"><div class="ni-type" style="color:#60a5fa">📋 Weekly reminders${t.wc?' · '+esc(t.wc):''}</div><div class="ni-subj">${esc(t.topic)}</div><div class="ni-body">Tap to read this week's focus and the every-lesson basics.</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div>`;}
     return`<div class="notif-item ${m.is_read?'':'unread'} ${m.message_type}" onclick="markRead('${m.id}')"><div class="ni-type" style="color:${tc[m.message_type]||'#60a5fa'}">${icons[m.message_type]||'📢'} ${(m.message_type||'').replace('_',' ')}</div><div class="ni-subj">${esc(m.subject)}</div><div class="ni-body">${esc(m.body)}</div><div class="ni-time">${new Date(m.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${viewStudentBtn}</div>`;
   }).join('');
+}
+
+/* ── Weekly reminders bulletin (from DriveSQ admin): branded banner, notification card and reader ── */
+const WB_PREFIX='📋 DriveSQ weekly reminders';
+const isWB=m=>String(m&&m.subject||'').startsWith(WB_PREFIX);
+let _wbMsgs=[];
+function _wbTopic(m){const s=String(m.subject||'');const t=s.replace(WB_PREFIX,'').replace(/^[:\s—-]+/,'');const mm=t.match(/^(.*?)\s*\((w\/c[^)]*)\)\s*$/);return mm?{topic:mm[1]||'This week',wc:mm[2]}:{topic:t.replace(/^w\/c.*/,'')||'This week',wc:(t.match(/w\/c.*/)||[''])[0]};}
+function _wbInline(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:#93c5fd">$1</a>');}
+const WB_ICONS=[['provisional','🪪'],['eyesight','👁️'],['phone','📵'],['l plates','🚗'],['badge','🪪'],['portal','📲'],['seat belt','🔒']];
+function _wbIcon(t){t=t.toLowerCase();for(const [k,i] of WB_ICONS)if(t.includes(k))return i;return '✅';}
+function _wbParse(body){const secs=[];let cur=null,guide=null;String(body||'').split('\n').forEach(l=>{const x=l.trim();if(!x)return;
+  const g=x.match(/\[([^\]]+)\]\((https?:[^)\s]+)\)/);if(/Lesson Quality Guide/i.test(x)&&g){guide=g[2];return;}
+  const h=x.match(/^\*\*(.+?)\*\*$/);if(h){cur={title:h[1],items:[]};secs.push(cur);return;}
+  if(/^[-•]\s+/.test(x)){if(!cur){cur={title:'',items:[]};secs.push(cur);}cur.items.push(x.replace(/^[-•]\s+/,''));return;}
+  if(!cur){cur={title:'',items:[]};secs.push(cur);}cur.items.push(x);});return{secs,guide};}
+function openWeekly(id){
+  const m=_wbMsgs.find(x=>String(x.id)===String(id));if(!m)return;
+  const {topic,wc}=_wbTopic(m),{secs,guide}=_wbParse(m.body);
+  let ov=document.getElementById('wbOv');if(!ov){ov=document.createElement('div');ov.id='wbOv';ov.className='wb-ov';ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-wbx]'))ov.classList.remove('open');const b=e.target.closest('[data-wbopen]');if(b)openWeekly(b.getAttribute('data-wbopen'));});document.body.appendChild(ov);}
+  const body=secs.map((s,i)=>{const focus=/focus/i.test(s.title),basics=/basics|every lesson/i.test(s.title);
+    const title=s.title.replace(/^This week's focus:\s*/i,'');
+    if(basics)return`<div class="wb-sec"><h3>${esc(s.title)} <span>Every lesson</span></h3><div class="wb-grid">${s.items.map(it=>{const mm=it.match(/^\*\*(.+?):?\*\*:?\s*(.*)$/);return`<div class="wb-tile"><span class="ic">${_wbIcon(it)}</span>${mm?`<b>${esc(mm[1].replace(/:$/,''))}</b>${_wbInline(mm[2].replace(/^[\s:—-]*([a-z])/,(x,c)=>c.toUpperCase()))}`:_wbInline(it)}</div>`;}).join('')}</div></div>`;
+    return`<div class="wb-sec ${focus?'wb-focus':''}">${s.title?`<h3>${esc(title)} ${focus?'<span>This week</span>':''}</h3>`:''}${s.items.map(it=>`<div class="wb-li"><span class="t">✓</span><span>${_wbInline(it)}</span></div>`).join('')}</div>`;}).join('');
+  const past=_wbMsgs.filter(x=>x.id!==m.id).slice(0,6);
+  ov.innerHTML=`<div class="wb-card" role="dialog" aria-label="Weekly reminders"><div class="wb-head"><button class="wb-x" data-wbx aria-label="Close">✕</button><div class="wb-brand"><b>Drive</b><i>SQ</i> · Weekly reminders</div><h2>${esc(topic)}</h2><div class="wb-wc">${esc(wc||'')}${wc?' · ':''}from the DriveSQ team</div></div>
+    <div class="wb-body">${body}</div>
+    <div class="wb-foot">${guide?`<a class="p" href="${esc(guide)}">📘 Open the Lesson Quality Guide</a>`:''}<button class="s" data-wbx onclick="markRead('${m.id}')">Got it ✓</button></div>
+    ${past.length?`<div class="wb-past">Previous weeks:<br>${past.map(x=>`<button data-wbopen="${x.id}">${esc(_wbTopic(x).topic)}</button>`).join('')}</div>`:''}</div>`;
+  ov.classList.add('open');ov.scrollTop=0;
+  if(!m.is_read)markRead(m.id);
 }
 async function dismissMsg(id){await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);loadNotifications();}
 async function markRead(id){await sb.from('admin_messages').update({is_read:true}).eq('id',id);loadNotifications();}
