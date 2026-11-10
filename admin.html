@@ -15089,6 +15089,12 @@ document.addEventListener('click',e=>{
     drive: { file: "banner-drive.gif", alt: "DriveSQ — Pass First Time" },
     gift: { file: "banner-gift.gif", alt: "DriveSQ Free Hour Draw — chance to win a free lesson" },
     pass: { file: "banner-pass.gif", alt: "Congratulations — another DriveSQ pass" },
+    welcome: { file: "banner-welcome.gif", alt: "Welcome to DriveSQ — booking received" },
+    booked: { file: "banner-booked.gif", alt: "You're booked in with DriveSQ" },
+    ready: { file: "banner-ready.gif", alt: "Ready to start your driving lessons with DriveSQ?" },
+    review: { file: "banner-review.gif", alt: "Help learners find DriveSQ — leave a Google review" },
+    camera: { file: "banner-camera.gif", alt: "Share your DriveSQ pass photos" },
+    weekly: { file: "banner-weekly.gif", alt: "DriveSQ weekly reminders for instructors" },
     none: null
   };
   var FONT = "'Barlow Condensed','Arial Narrow',Arial,Helvetica,sans-serif", BODYF = "Inter,'Segoe UI',Arial,Helvetica,sans-serif";
@@ -15215,11 +15221,11 @@ document.addEventListener('click',e=>{
   var GROUPS = ["New enquiries & bookings", "During lessons", "Tests & passing", "Offers & newsletters", "Instructors", "General"];
   var PURPOSES = {
     followup: { name: "Still looking for lessons? (enquiry follow-up)", banner: "drive", group: "New enquiries & bookings", tone: "friendly", theme: "clean" },
-    welcome: { name: "Welcome a new student", banner: "drive", group: "New enquiries & bookings", theme: "night" },
-    firstlesson: { name: "Your first lesson — what to expect", banner: "drive", group: "New enquiries & bookings", theme: "clean" },
+    welcome: { name: "Welcome a new student", banner: "welcome", group: "New enquiries & bookings", theme: "night" },
+    firstlesson: { name: "Your first lesson — what to expect", banner: "booked", group: "New enquiries & bookings", theme: "clean" },
     waitlist: { name: "We're finding your instructor", banner: "drive", group: "New enquiries & bookings", theme: "clean" },
     rebook: { name: "Book your next lessons / we miss you", banner: "drive", group: "During lessons" },
-    review: { name: "How are your lessons going? (review request)", banner: "none", group: "During lessons", theme: "clean" },
+    review: { name: "How are your lessons going? (review request)", banner: "review", group: "During lessons", theme: "clean" },
     referral: { name: "Refer a friend", banner: "gift", group: "During lessons", tone: "exciting" },
     theory: { name: "Theory test & Student Portal", banner: "drive", group: "During lessons", theme: "night" },
     theorypass: { name: "Congratulations on your theory test", banner: "pass", group: "Tests & passing", tone: "exciting", theme: "bold" },
@@ -15479,7 +15485,7 @@ document.addEventListener('click',e=>{
         <section class="dsqm-card">
           <header><h3><i class="bi bi-palette-fill"></i>Design</h3></header>
           <div class="dsqm-f"><span>Style</span><div class="dsqm-swatches">${Object.keys(M.THEMES).map(k => `<button type="button" class="dsqm-sw dsqm-sw--${k}" data-theme="${k}"><i></i>${h(M.THEMES[k].name)}</button>`).join("")}</div></div>
-          <div class="dsqm-f"><span>Animated banner</span><div class="dsqm-banners">${Object.keys(M.BANNERS).map(k => `<button type="button" class="dsqm-bn" data-banner="${k}">${k === "none" ? '<span class="dsqm-bn__none">No banner</span>' : `<img src="email/banner-${k}.gif" alt="">`}<small>${{ drive: "DriveSQ car", gift: "Gift / draw", pass: "Pass day", none: "None" }[k]}</small></button>`).join("")}</div></div>
+          <div class="dsqm-f"><span>Animated banner</span><div class="dsqm-banners">${Object.keys(M.BANNERS).map(k => `<button type="button" class="dsqm-bn" data-banner="${k}">${k === "none" ? '<span class="dsqm-bn__none">No banner</span>' : `<img src="email/banner-${k}.gif" alt="">`}<small>${({ drive: "DriveSQ car", gift: "Gift / draw", pass: "Pass day", welcome: "Welcome", booked: "Booked in", ready: "Ready to start", review: "Google review", camera: "Pass photos", weekly: "Weekly (instructors)", none: "None" }[k] || k)}</small></button>`).join("")}</div></div>
         </section>
 
         <section class="dsqm-card">
@@ -18283,19 +18289,19 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     const base = { theme: "night", banner: "drive", greeting: "Hi {{first_name}},", signoff: "See you on the road,\nThe DriveSQ team" };
     switch (kind) {
       case "web": { const bs = bookingSummary(rec);
-        return { ...base, subject: "Welcome to DriveSQ, {{first_name}} — we've received your booking" + (bs.ref ? " (" + bs.ref + ")" : ""), preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
+        return { ...base, banner: "welcome", subject: "Welcome to DriveSQ, {{first_name}} — we've received your booking" + (bs.ref ? " (" + bs.ref + ")" : ""), preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
         headline: "We've got your **booking request**", body: "Thank you for choosing DriveSQ. We've received your details and we're already matching you with an instructor." +
           (bs.rows.length ? "\n\n**Your booking**\n" + bs.rows.map(r => "- " + r[0] + ": **" + r[1] + "**").join("\n") : "") + "\n\n**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Questions? Reply to this email or WhatsApp us — a real person will answer\n\n**In the meantime — explore the Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\nDon't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
         highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Explore the Student Portal", buttonUrl: PORTAL_INFO,
         secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")" + (bs.ref ? " · Please quote **" + bs.ref + "** if you contact us." : ""), signoff: "Speak soon,\nThe DriveSQ team" }; }
       case "A": case "Anew": case "AB": {
         const intro = kind === "AB" ? "Welcome back to DriveSQ — great to have you with us again." : kind === "Anew" ? "Welcome to DriveSQ — you're booked in with your new instructor." : "Welcome to DriveSQ — we're really pleased to have you with us.";
-        return { ...base, theme: kind === "AB" ? "night" : "classic", subject: kind === "AB" ? "Welcome back, {{first_name}} — you're booked in again" : kind === "Anew" ? "You're booked in with " + iname + ", {{first_name}}" : "You're booked in, {{first_name}} — welcome to DriveSQ 🚗", preheader: "Your instructor's details and everything you need for your first lesson with " + iname + ".",
+        return { ...base, banner: "booked", theme: kind === "AB" ? "night" : "classic", subject: kind === "AB" ? "Welcome back, {{first_name}} — you're booked in again" : kind === "Anew" ? "You're booked in with " + iname + ", {{first_name}}" : "You're booked in, {{first_name}} — welcome to DriveSQ 🚗", preheader: "Your instructor's details and everything you need for your first lesson with " + iname + ".",
           headline: kind === "AB" ? "Welcome **back!**" : "You're **booked in!**", body: intro + "\n\n" + instrBox(ins) + "\n\n" + FIRST_TXT + "\n\n" + PORTAL_TXT + (kind === "AB" ? "\n\nYour Student Portal is still open with everything you've done so far." : ""),
           highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Open my Student Portal", buttonUrl: PORTAL,
           secondaryText: "Need to change a lesson? Contact " + iname + " directly. Anything else — just reply to this email or [WhatsApp us](" + WA + ")." };
       }
-      case "B": case "B2": return { ...base, theme: "clean", banner: kind === "B2" ? "none" : "drive", subject: kind === "B2" ? "Still keen to learn to drive, {{first_name}}?" : "Ready to book your first lesson with " + iname + ", {{first_name}}?", preheader: kind === "B2" ? "Your instructor is holding a space for you." : "Your instructor " + iname + " is ready to book your first lesson.",
+      case "B": case "B2": return { ...base, theme: "clean", banner: kind === "B2" ? "none" : "ready", subject: kind === "B2" ? "Still keen to learn to drive, {{first_name}}?" : "Ready to book your first lesson with " + iname + ", {{first_name}}?", preheader: kind === "B2" ? "Your instructor is holding a space for you." : "Your instructor " + iname + " is ready to book your first lesson.",
         headline: kind === "B2" ? "Still **keen?**" : "Ready to **get started?**",
         body: (kind === "B2" ? "Just a friendly reminder — " + iname + " is still holding a space for you." : "Your instructor **" + iname + "** is ready to book your first lesson with you.") + "\n\n" + instrBox(ins) + "\n\n- Reply to " + iname + "'s message, or call or WhatsApp them\n- Or tell us the days and times that suit you and we'll help arrange it\n- Manual or automatic — the same price, £35/hr",
         highlightValue: kind === "B2" ? "" : OFFER.value, highlightLabel: kind === "B2" ? "" : OFFER.label, buttonText: "Book my first lesson", buttonUrl: BOOK,
@@ -18396,7 +18402,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const weekNo = () => Math.floor(weekStart().getTime() / (7 * 864e5));
   function weeklyDesign(ins) {
     const f = FOCUS[weekNo() % FOCUS.length], wc = weekStart().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-    return { theme: "clean", banner: "none", subject: `📋 DriveSQ weekly reminders: ${f[0]} (w/c ${wc})`, preheader: `This week's focus: ${f[0]} — plus the basics for every lesson.`,
+    return { theme: "clean", banner: "weekly", subject: `📋 DriveSQ weekly reminders: ${f[0]} (w/c ${wc})`, preheader: `This week's focus: ${f[0]} — plus the basics for every lesson.`,
       headline: `${f[0]}`, greeting: `Hi ${first(ins.full_name) || "there"},`,
       body: `**This week's focus: ${f[0]}**\n${f[1]}\n\n${STANDING}`, buttonText: "Open my Instructor Portal", buttonUrl: "https://www.drivesq.co.uk/dashboard.html",
       signoff: "Thanks for all you do,\nThe DriveSQ team", footerNote: "You're getting this because you're a DriveSQ instructor." };
@@ -18523,11 +18529,11 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       subject: i => `Welcome to DriveSQ, ${first(i.full_name)} — let's get you started`,
       headline: "Welcome to **DriveSQ**",
       body: i => `We're delighted to have you on the DriveSQ team.\n\n**Your Instructor Portal**\n- Log in at drivesq.co.uk/dashboard.html with your badge number${i.badge_number ? " (**" + i.badge_number + "**)" : ""} and your password\n- Add a profile photo and photos of your car\n- Set the postcodes you cover and your availability, so we can send you the right students\n- Add your email in My Profile so you receive reminders and updates\n\n**How referrals work**\n- We send you students near the postcodes you cover\n- Please contact each new student within 24 hours\n- Update their status in the portal: **Booked / Not booked yet / Can't reach / Not going ahead**\n- Log every lesson so students can track their progress in their Student Portal\n\n**Standards we work to**\n- Read the Lesson Quality Guide — DVSA's 17 standards-check competencies and the legal basics\n- Every Monday you'll get a short weekly reminder in your portal and by email\n\nAny questions at all, just reply or WhatsApp us.` },
-    { id: "review", ic: "⭐", name: "Google review reminder", theme: "classic", banner: "pass", btn: ["Our Google review link", REVIEW],
+    { id: "review", ic: "⭐", name: "Google review reminder", theme: "classic", banner: "review", btn: ["Our Google review link", REVIEW],
       subject: i => `${first(i.full_name)}, a quick favour — Google reviews from your students`,
       headline: "Help learners **find us**",
       body: i => `Google reviews are one of the main reasons new learners choose DriveSQ — and every review helps all of our instructors.\n\n**When to ask**\n- Straight after a pass, while the excitement is fresh\n- At the end of a lesson that went really well\n\n**How to ask**\n- Send the link below by WhatsApp with a short thank-you\n- Ask them to mention you by name and the area they learned in\n\n**Please don't**\n- Offer discounts, free lessons or anything else in return for a review\n- Write, edit or post a review for a student — reviews must be their own words\n\n(Incentivised and fake reviews break Google's rules and UK consumer law.)` },
-    { id: "pass", ic: "📸", name: "Pass photos & videos", theme: "classic", banner: "pass", btn: ["Send them on WhatsApp", WA],
+    { id: "pass", ic: "📸", name: "Pass photos & videos", theme: "classic", banner: "camera", btn: ["Send them on WhatsApp", WA],
       subject: i => `Pass photos & videos, ${first(i.full_name)} — please send us your passes`,
       headline: "Share your **passes**",
       body: i => `Your students' pass days are the best advert DriveSQ has. Please send us pass photos and short videos so we can celebrate them on our website and social media.\n\n**Before you take a photo**\n- Ask the student's permission to share it online — and a parent or guardian's for anyone under 18\n- If they'd rather not, that's fine — just don't send it\n\n**For a great photo**\n- Student holding their pass certificate beside the DriveSQ car with the roof sign\n- Cover or blur the certificate's licence number and personal details\n- Portrait and landscape both work; good light, nothing behind them that identifies their home\n\nSend them to us on WhatsApp (07352 932003) with the student's first name, the test centre and "permission given".` },
