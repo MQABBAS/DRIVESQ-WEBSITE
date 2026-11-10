@@ -15949,6 +15949,14 @@ document.addEventListener('click',e=>{
   /* used by the automatic welcome emails (DSQ-WELCOME) — same function, key and name as the Email tab */
   window.DSQMailSend = {
     ready: () => !!LS.get("key", ""),
+    fnName: () => FN.split("/").pop(),
+    call: async (payload) => {   // other actions of the email function (status, monday …)
+      const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": LS.get("key", ""), Authorization: "Bearer " + SB_ANON },
+        body: JSON.stringify(Object.assign({ fn_name: FN.split("/").pop() }, payload)) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || j.message || ("Email service returned " + r.status));
+      return j;
+    },
     send: async (messages) => {
       const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": LS.get("key", ""), Authorization: "Bearer " + SB_ANON },
         body: JSON.stringify({ fn_name: FN.split("/").pop(), action: "send", messages }) });
@@ -18224,7 +18232,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (!d) return ""; if (d[0] === "0") d = "44" + d.slice(1); return d; };
   const WA = "https://wa.me/447352932003", PORTAL = "https://www.drivesq.co.uk/student.html", PORTAL_INFO = "https://www.drivesq.co.uk/drivesq-student-portal.html", BOOK = "https://www.drivesq.co.uk/#book-60";
   const OFFER = { value: "10 hours for £330", label: "New learner offer — your first 10-hour block, paid in advance (normally £350). Manual or automatic." };
-  const TYPES = { web: "Website booking received", A: "Booked — you're booked in", B: "Unsure — ready to get started?", C: "Can't reach — instructor trying to reach you", D: "Cancelled — can we help?", I: "Instructor reminders (students to contact)", W: "Weekly instructor bulletin (Mondays)" };
+  const TYPES = { web: "Website booking received", A: "Booked — you're booked in", B: "Unsure — ready to get started?", C: "Can't reach — instructor trying to reach you", D: "Cancelled — can we help?", I: "Instructor reminders (students to contact)", W: "Monday instructor emails (reminders, fees, statements)" };
   const on = k => { try { return localStorage.getItem("dsq_am_" + k) !== "0"; } catch (e) { return true; } };
   const instrs = () => { try { return allInstrs || []; } catch (e) { return []; } };
   const instrOf = r => instrs().find(i => i.id === r.instructor_id) || {};
@@ -18464,7 +18472,10 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
           res.instr++;
         }
       }
-      if (on("W") && !opts.noWeekly && (new Date().getDay() !== 1 || new Date().getHours() >= 8)) {
+      const mon = on("W") && !opts.noWeekly ? await monStatus() : null;
+      if (mon && mon.feat) {   // Monday emails live in the email function (runs at 7am by Supabase Cron) — admin is only the backup
+        if (mondayDue(opts.manual)) { try { const j = await DSQMailSend.call({ action: "monday" }); res.weekly += j.W || 0; res.monday = j; MON.last = j.portal ? j : MON.last; } catch (e) { res.errors.push("Monday emails: " + e.message); } }
+      } else if (on("W") && !opts.noWeekly && (new Date().getDay() !== 1 || new Date().getHours() >= 8)) {
         const since = weekStart().toISOString();
         const sent = await q("admin_messages", "instructor_id,subject", x => x.gte("created_at", since).ilike("subject", "📋 DriveSQ weekly reminders%"));
         const done = new Set(sent.map(m => m.instructor_id));
@@ -18479,12 +18490,77 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     card(); return res;
   }
 
+  /* ---------- Monday emails (email function: weekly reminders + franchise fee + referral statement) ---------- */
+  let MON = { feat: null, last: null, at: 0 };
+  async function monStatus(force) {
+    if (!force && MON.feat !== null && Date.now() - MON.at < 10 * 60e3) return MON;
+    try { const j = await DSQMailSend.call({ action: "status" }); MON = { feat: (j.features || []).includes("monday"), last: j.monday_last || null, at: Date.now() }; }
+    catch (e) { MON = { feat: false, last: MON.last, at: Date.now() }; }
+    return MON;
+  }
+  function mondayDue(manual) {   // from 7am Monday (UK) to Sunday; at most one try an hour — the function never sends anything twice in a week
+    const d = new Date(); if (d.getDay() === 1 && d.getHours() < 7) return false;
+    if (manual) return true;
+    let t = 0; try { t = +localStorage.getItem("dsq_mon_try") || 0; } catch (e) {}
+    if (Date.now() - t < 3600e3) return false;
+    try { localStorage.setItem("dsq_mon_try", String(Date.now())); } catch (e) {}
+    return true;
+  }
+  const KIND = { F: "💰 Franchise fee", R: "🧾 Referral statement", W: "📋 Weekly reminders" };
+  async function mondayPreview() {
+    let m = document.getElementById("monPrevM");
+    if (!m) { m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "monPrevM"; m.style.zIndex = "10220";
+      m.innerHTML = '<div class="dsq-modal" style="max-width:820px;width:96vw"><button class="modal-x" type="button" data-monclose><i class="bi bi-x-lg"></i></button><h5 style="font-family:Oswald,sans-serif;margin:0 0 4px">This week\'s Monday emails</h5><div id="monSub" style="font-size:.76rem;color:var(--txt3);margin-bottom:8px"></div><div id="monList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:22vh;overflow:auto"></div><iframe id="monFrame" style="width:100%;height:58vh;border:0;border-radius:12px;background:#fff"></iframe></div>';
+      document.body.appendChild(m);
+      m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-monclose]")) m.classList.remove("open"); const t = e.target.closest("[data-monjob]"); if (t) show(+t.getAttribute("data-monjob")); }); }
+    let jobs = [];
+    const show = i => { $$("#monList [data-monjob]").forEach((b, k) => { b.className = k === i ? "btn-p" : "btn-s"; }); const j = jobs[i]; if (j) document.getElementById("monFrame").srcdoc = j.html.replace(/\{\{unsubscribe_url\}\}/g, "#"); };
+    m.classList.add("open"); document.getElementById("monSub").textContent = "Loading…"; document.getElementById("monList").innerHTML = ""; document.getElementById("monFrame").srcdoc = "";
+    try { const j = await DSQMailSend.call({ action: "monday", dry: true }); jobs = j.jobs || []; }
+    catch (e) { document.getElementById("monSub").textContent = "Couldn't load: " + e.message; return; }
+    const tot = k => jobs.filter(j => j.kind === k).length;
+    document.getElementById("monSub").innerHTML = jobs.length ? `Still to send this week: ${tot("F")} franchise fee · ${tot("R")} referral statement${tot("R") === 1 ? "" : "s"} · ${tot("W")} weekly reminders. Instructors without an email get them in their portal.` : "Everything for this week has already been sent ✓";
+    document.getElementById("monList").innerHTML = jobs.map((j, i) => `<button type="button" class="btn-s" style="font-size:.72rem;padding:4px 10px" data-monjob="${i}">${KIND[j.kind]} · ${esc(j.name || "")}${j.amount ? " · £" + j.amount : ""}${j.email ? "" : " (portal only)"}</button>`).join("");
+    show(0);
+  }
+  window.dsqMondayPreview = mondayPreview;
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  function mondayHTML() {
+    if (MON.feat === null) return "";
+    const L = MON.last, ws = weekStart().getTime(), thisWeek = L && new Date(L.week).getTime() >= ws - 36e5;
+    if (!MON.feat) return `<div style="margin-top:10px;padding:9px 11px;border-radius:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.35);font-size:.76rem">
+      <b style="color:#f59e0b">🗓️ Monday emails need one update</b> — to send weekly reminders, franchise fee reminders and referral statements at 7am every Monday (even when admin is closed), update the email function in Supabase:
+      Edge Functions → your email function → Code → replace everything with <a href="https://github.com/MQABBAS/DRIVESQ-WEBSITE/blob/main/supabase/functions/send-email/index.ts" target="_blank" rel="noopener">this file</a> → Deploy. Until then admin sends the weekly reminders when it's open.</div>`;
+    return `<div style="margin-top:10px;padding:9px 11px;border-radius:10px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.28);font-size:.76rem">
+      <b>🗓️ Monday 7am instructor emails</b> — 📋 weekly reminders to everyone · 💰 franchise fee reminder to franchise instructors (fee from Growth → settings) · 🧾 statement of <b>booked, unpaid</b> students with each referral's amount to referral instructors. Also sent to their portal and phone. Never twice in a week.
+      <br>${L ? `Last run ${new Date(L.at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} (${L.by === "cron" ? "automatic" : "from admin"}): ${L.F || 0} fee, ${L.R || 0} statement${L.R === 1 ? "" : "s"}, ${L.W || 0} weekly reminders${L.failed ? `, <span style="color:#f87171">${L.failed} failed</span>` : ""}.` : "Not run yet."}
+      ${thisWeek ? " ✅ This week is done." : ""}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button type="button" class="btn-s" style="font-size:.74rem" onclick="dsqMondayPreview()"><i class="bi bi-eye me-1"></i>Preview</button><button type="button" class="btn-p" style="font-size:.74rem" id="monNow"><i class="bi bi-send me-1"></i>Send this week's now</button></div>
+      ${L && L.by === "cron" ? "" : `<details style="margin-top:6px"><summary style="cursor:pointer;color:#60a5fa">Switch on 7am every Monday (one-time, 2 minutes)</summary><ol style="margin:6px 0 0;padding-left:18px;line-height:1.6">
+        <li>Supabase → <b>Integrations → Cron</b> → enable it if asked → <b>Create job</b>.</li>
+        <li>Name <code>monday-instructor-emails</code> · Schedule <code>0 6,7 * * 1</code> (6 and 7am UTC, so it's 7am UK in summer and winter).</li>
+        <li>Type <b>Supabase Edge Function</b> → your email function (${esc((DSQMailSend && DSQMailSend.fnName && DSQMailSend.fnName()) || "send-email")}) → method POST.</li>
+        <li>Add header <code>x-admin-key</code> = your EMAIL_ADMIN_KEY (the same one you entered in Email → Setup).</li>
+        <li>Body: <code>{"action":"monday","cron":true}</code> → Save. It waits for 7am UK and never sends twice in a week.</li></ol>
+        Until then, admin sends them the first time it's opened after 7am on Monday.</details>`}</div>`;
+  }
+  document.addEventListener("click", async e => {
+    const t = e.target.closest("#monNow"); if (!t) return;
+    if (!confirm("Send this week's Monday emails now to everyone who hasn't had them yet?")) return;
+    t.disabled = true;
+    try { const j = await DSQMailSend.call({ action: "monday" }); MON.last = j.portal ? j : MON.last; toast(j.portal ? `📧 Monday emails: ${j.F || 0} fee, ${j.R || 0} statement(s), ${j.W || 0} weekly reminders${j.failed ? " · " + j.failed + " failed" : ""}` : "Everything for this week was already sent ✓", j.failed ? "warn" : "success", 7000); }
+    catch (er) { toast("Monday emails failed: " + er.message, "error", 8000); }
+    t.disabled = false; card();
+  });
+
   /* ---------- Referrals card ---------- */
   async function card() {
     const panel = document.getElementById("panel-referrals"); if (!panel) return;
     let c = document.getElementById("dsqWelcomeCard");
     if (!c) { c = document.createElement("div"); c.id = "dsqWelcomeCard"; c.style.cssText = "margin:0 0 12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(37,211,102,.08));border:1px solid rgba(96,165,250,.3)"; panel.insertBefore(c, panel.firstChild); }
     const ready = window.DSQMailSend && DSQMailSend.ready();
+    if (ready) { try { await monStatus(); } catch (e) {} }
     let last = null; try { last = JSON.parse(localStorage.getItem("dsq_am_last") || "null"); } catch (e) {}
     let waiting = null, escal = [];
     if (ready) { try { waiting = (await plan({})).length; } catch (e) {} escal = REFS.filter(r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && (isUnsure(r) || isUnreach(r)) && ageDays(r.created_at) >= 10 && ageDays(r.created_at) <= 60).slice(0, 12); }
@@ -18493,8 +18569,9 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
         <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
         ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}${last && last.held ? `<br><b style="color:#f5c518">First run is waiting for you:</b> preview the emails, untick any type you don't want, then press <b>Send now</b>. After that it runs automatically.` : ""}</div>
         ${ready ? (() => { const miss = instrs().filter(i => i.status === "approved" && !RE_EMAIL.test(String(i.email || "").trim())); return miss.length ? `<br><span style="color:#f59e0b">⚠️ ${miss.length} instructor${miss.length > 1 ? "s have" : " has"} no email (weekly bulletin goes to their portal only): ${miss.slice(0, 8).map(i => `<a href="#" onclick="event.preventDefault();openEditForId('${i.id}')" style="color:#f59e0b;text-decoration:underline">${(i.full_name || "Instructor").replace(/[<>&"]/g, "")}</a>`).join(", ")}${miss.length > 8 ? "…" : ""}</span>` : ""; })() : ""}
-        ${ready && last && last.chaseOn ? `<br>Instructor reminders are handled by <b>Growth → Chase</b> (one-tap reply links), so they're not sent twice.` : ""}
+        ${ready && last && last.chaseOn ? `<br><b>Growth → Chase</b> asks about unsure students (one-tap reply links); students marked <b>can't reach</b> are sent from here — nobody is listed twice.` : ""}
         ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px">${Object.keys(TYPES).map(k => `<label style="font-size:.72rem;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" data-amt="${k}" ${on(k) ? "checked" : ""}>${TYPES[k]}</label>`).join("")}</div>` : ""}
+        ${ready ? mondayHTML() : ""}
         ${escal.length ? `<div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);font-size:.76rem"><b style="color:#f87171">⚠️ Needs your call</b> — not booked 10+ days after referral: ${escal.map(r => `<a href="#" data-amref="${r.instructor_id}" style="color:var(--txt);text-decoration:underline">${(r.student_name || "Student").replace(/[<>&"]/g, "")}</a> (${(first(instrOf(r).full_name) || "—").replace(/[<>&"]/g, "")}, ${ageDays(r.created_at)}d)`).join(" · ")}</div>` : ""}
       </div>
       ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:6px"><button type="button" class="btn-s" id="amPrev" style="font-size:.76rem"><i class="bi bi-eye me-1"></i>Preview</button><button type="button" class="btn-p" id="amNow" style="font-size:.76rem"><i class="bi bi-send me-1"></i>Send now</button><button type="button" class="btn-s" id="amAll" style="font-size:.76rem">Older bookings…</button></div>` : ""}</div>`;
