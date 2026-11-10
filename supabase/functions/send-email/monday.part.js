@@ -39,9 +39,10 @@ function franchiseDesign(ins, ws, fee) {
   const wc = ukDate(ws, { weekday: "long", day: "numeric", month: "long" });
   return { theme: "classic", banner: "none", transactional: true,
     subject: `💰 DriveSQ franchise fee: ${money(fee)} due today (w/c ${ukDate(ws, { day: "numeric", month: "short" })})`,
-    preheader: `Good morning ${firstName(ins.full_name)} — your weekly franchise fee is due today. Already paid? Please ignore this email.`,
-    headline: "Weekly franchise **fee**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
-    body: `Just a friendly reminder that this week's DriveSQ franchise fee is due today.\n\n✅ **Already paid? Please ignore this email** — thank you.\n\n- **Week:** commencing ${wc}\n- **Amount:** ${money(fee)}\n- **Due:** today\n\nPlease pay the usual way.`,
+    preheader: `Hi ${firstName(ins.full_name)} — your weekly franchise fee is due today. Already paid? Please ignore this email.`,
+    headline: "Weekly franchise **fee**", greeting: `Hi ${firstName(ins.full_name) || "there"},`,
+    body: `Just a friendly reminder that this week's DriveSQ franchise fee is due today.\n\n✅ **Already paid? Please ignore this email** — thank you.\n\n- **Week:** commencing ${wc}\n- **Amount:** ${money(fee)}\n- **Due:** today\n\nPlease pay the usual way.\n\n` +
+      `**How this amount is worked out**\n- It's your weekly franchise fee as agreed with DriveSQ: **${money(fee)} a week**\n- One fee per week (Monday to Sunday) — it doesn't change with the number of students or lessons that week\n- This reminder is sent automatically every Monday, so a payment made over the weekend may not show yet — if you've paid, please ignore it\n- Think the amount is wrong? Just reply and we'll check it`,
     highlightValue: money(fee), highlightLabel: `Franchise fee · week commencing ${wc}`,
     buttonText: "Open my Instructor Portal", buttonUrl: PORTAL_URL,
     secondaryText: "Any questions about your fee? Just reply to this email or [WhatsApp us](https://wa.me/447352932003).",
@@ -54,14 +55,20 @@ function statementDesign(ins, ws, rows, paid) {
   return { theme: "classic", banner: "none", transactional: true,
     subject: `🧾 Your DriveSQ referral statement: ${money(total)} for ${n} booked student${n > 1 ? "s" : ""} (w/c ${wc})`,
     preheader: `${n} booked student${n > 1 ? "s" : ""} · ${money(total)} in referral fees · already paid? Please ignore this email.`,
-    headline: "Referral **statement**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
+    headline: "Referral **statement**", greeting: `Hi ${firstName(ins.full_name) || "there"},`,
     body: `Here's your weekly statement of students we have down as **booked**, with the referral fee for each one.\n\n` +
       `✅ **Already paid? Please ignore this email** — thank you, and sorry for the reminder.\n\n` +
       `⚠️ **Please check this list — we may have made a mistake.** Tell us for each student whether they **booked** a lesson with you or **not**.\n\n` +
       rows.map(line).join("\n") +
       `\n\n**Total: ${money(total)}**` +
       `\n\n**Did any of these students NOT book?**\n- Just reply to this email or [WhatsApp us](https://wa.me/447352932003) with their name\n- If a student didn't book, their fee is **£0** — we'll remove it and send you a corrected total\n- If they all booked, there's nothing else you need to do` +
-      (paid.length ? `\n\n**Paid since last week — thank you**\n` + paid.map((r) => `- ${r.student_name || "Student"} · ${money(r._amt)}`).join("\n") : ""),
+      (paid.length ? `\n\n**Paid since last week — thank you**\n` + paid.map((r) => `- ${r.student_name || "Student"} · ${money(r._amt)}`).join("\n") : "") +
+      `\n\n**How your total is worked out**\n` +
+      `- **Who is on the list:** students we referred to you who we've confirmed have booked a lesson with you (we check with you and with the student), and whose fee hasn't been paid yet\n` +
+      `- **The fee for each student:** the referral fee recorded for that student in our referral records — it's shown next to each name (usually £25)\n` +
+      `- **The total:** those fees added together — ${rows.map((r) => money(r._amt)).join(" + ")} = **${money(total)}**\n` +
+      `- **Not included:** students who haven't booked, students who cancelled or didn't go ahead, students moved to another instructor, replacement students we owe you, and any fee you've already paid\n` +
+      `- **When it's made:** automatically every Monday from our records at that moment — so a payment made over the weekend may not show yet. If you've paid, please ignore this email`,
     highlightValue: money(total), highlightLabel: `Referral fees for ${n} student${n > 1 ? "s" : ""} marked booked · not booked = **£0**, just tell us`,
     buttonText: "Open my Instructor Portal", buttonUrl: PORTAL_URL,
     secondaryText: "Not booked, or something not right? Reply to this email or [WhatsApp us](https://wa.me/447352932003) — no charge for students who didn't book.",
