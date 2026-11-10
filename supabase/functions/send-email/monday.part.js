@@ -55,13 +55,15 @@ function statementDesign(ins, ws, rows, paid) {
     subject: `🧾 Your DriveSQ referral statement: ${money(total)} for ${n} booked student${n > 1 ? "s" : ""} (w/c ${wc})`,
     preheader: `${n} booked student${n > 1 ? "s" : ""} · ${money(total)} in referral fees`,
     headline: "Referral **statement**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
-    body: `Here's your weekly statement of students we've **confirmed as booked** (with the student and with you), with the referral fee for each one.\n\n` + rows.map(line).join("\n") +
+    body: `Here's your weekly statement of students we have down as **booked**, with the referral fee for each one.\n\n` +
+      `⚠️ **Please check this list — we may have made a mistake.** Tell us for each student whether they **booked** a lesson with you or **not**.\n\n` +
+      rows.map(line).join("\n") +
       `\n\n**Total: ${money(total)}**` +
-      (paid.length ? `\n\n**Paid since last week — thank you**\n` + paid.map((r) => `- ${r.student_name || "Student"} · ${money(r._amt)}`).join("\n") : "") +
-      `\n\nIf anything looks wrong — for example a student didn't actually book — just reply to this email and we'll check and correct it.`,
-    highlightValue: money(total), highlightLabel: `Referral fees for ${n} booked student${n > 1 ? "s" : ""}`,
+      `\n\n**Did any of these students NOT book?**\n- Just reply to this email or [WhatsApp us](https://wa.me/447352932003) with their name\n- If a student didn't book, their fee is **£0** — we'll remove it and send you a corrected total\n- If they all booked, there's nothing else you need to do` +
+      (paid.length ? `\n\n**Paid since last week — thank you**\n` + paid.map((r) => `- ${r.student_name || "Student"} · ${money(r._amt)}`).join("\n") : ""),
+    highlightValue: money(total), highlightLabel: `Referral fees for ${n} student${n > 1 ? "s" : ""} marked booked · not booked = **£0**, just tell us`,
     buttonText: "Open my Instructor Portal", buttonUrl: PORTAL_URL,
-    secondaryText: "Questions? Reply to this email or [WhatsApp us](https://wa.me/447352932003).",
+    secondaryText: "Not booked, or something not right? Reply to this email or [WhatsApp us](https://wa.me/447352932003) — no charge for students who didn't book.",
     signoff: "Thank you,\nThe DriveSQ team", footerNote: "You're getting this because you're a DriveSQ referral instructor." };
 }
 
