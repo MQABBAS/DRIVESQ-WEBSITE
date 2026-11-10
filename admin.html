@@ -18394,7 +18394,12 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     if (busy || !window.DSQMailSend || !window.DSQMail || !DSQMailSend.ready()) return res;
     busy = true;
     try {
-      const items = (await plan(opts)).slice(0, 80);
+      let items = (await plan(opts)).slice(0, 80);
+      let firstDone = false; try { firstDone = localStorage.getItem("dsq_am_firstdone") === "1"; } catch (e) {}
+      if (!firstDone && items.length > 15 && !opts.manual) {   // first big backlog waits for a human to review it
+        res.held = items.length; items = [];
+        if (!opts.quiet) toast("📧 " + res.held + " automatic emails are ready — review them in Referrals and press Send now", "warn", 9000);
+      } else if (items.length || opts.manual) { try { localStorage.setItem("dsq_am_firstdone", "1"); } catch (e) {} }
       for (let i = 0; i < items.length; i += 40) {
         const ch = items.slice(i, i + 40); let rs = [];
         try { rs = await DSQMailSend.send(ch.map(it => msg(design(it.kind, it.ins), it.email, it.name))); } catch (e) { res.failed += ch.length; res.errors.push(e.message); continue; }
@@ -18440,7 +18445,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
       <div style="flex:1;min-width:240px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic emails &amp; instructor reminders</b>
         <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
-        ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}</div>
+        ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}${last && last.held ? `<br><b style="color:#f5c518">First run is waiting for you:</b> preview the emails, untick any type you don't want, then press <b>Send now</b>. After that it runs automatically.` : ""}</div>
         ${ready && last && last.chaseOn ? `<br>Instructor reminders are handled by <b>Growth → Chase</b> (one-tap reply links), so they're not sent twice.` : ""}
         ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px">${Object.keys(TYPES).map(k => `<label style="font-size:.72rem;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" data-amt="${k}" ${on(k) ? "checked" : ""}>${TYPES[k]}</label>`).join("")}</div>` : ""}
         ${escal.length ? `<div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);font-size:.76rem"><b style="color:#f87171">⚠️ Needs your call</b> — not booked 10+ days after referral: ${escal.map(r => `<a href="#" data-amref="${r.instructor_id}" style="color:var(--txt);text-decoration:underline">${(r.student_name || "Student").replace(/[<>&"]/g, "")}</a> (${(first(instrOf(r).full_name) || "—").replace(/[<>&"]/g, "")}, ${ageDays(r.created_at)}d)`).join(" · ")}</div>` : ""}
@@ -18467,8 +18472,8 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     const t = e.target.closest("#amPrev,#amNow,#amAll"); if (!t) return;
     if (t.id === "amPrev") return preview();
     t.disabled = true;
-    if (t.id === "amNow") { const r = await run({}); if (!r.sent && !r.instr && !r.weekly && !r.failed) toast("Nothing waiting — everyone's up to date ✓", "success", 3000); }
-    if (t.id === "amAll") { const p = await plan({ all: true }); if (!p.length) toast("Nothing waiting ✓", "success", 3000); else if (confirm(`Send ${p.length} student email(s), including bookings older than 60 days?\n\n(Up to 80 per run — run again tomorrow for more on the free plan.)`)) await run({ all: true, noInstr: true, noWeekly: true }); }
+    if (t.id === "amNow") { const r = await run({ manual: true }); if (!r.sent && !r.instr && !r.weekly && !r.failed) toast("Nothing waiting — everyone's up to date ✓", "success", 3000); }
+    if (t.id === "amAll") { const p = await plan({ all: true }); if (!p.length) toast("Nothing waiting ✓", "success", 3000); else if (confirm(`Send ${p.length} student email(s), including bookings older than 60 days?\n\n(Up to 80 per run — run again tomorrow for more on the free plan.)`)) await run({ all: true, noInstr: true, noWeekly: true, manual: true }); }
     t.disabled = false;
   });
   document.addEventListener("change", e => { const k = e.target && e.target.getAttribute && e.target.getAttribute("data-amt"); if (!k) return; try { localStorage.setItem("dsq_am_" + k, e.target.checked ? "1" : "0"); } catch (er) {} card(); });
