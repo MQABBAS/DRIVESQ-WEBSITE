@@ -7525,7 +7525,7 @@ function togglePwd(){
 let _frCfgCache=null;
 async function _frCfg(force){
   if(_frCfgCache&&!force)return _frCfgCache;
-  try{const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();_frCfgCache=Object.assign({franchiseDef:50,franchiseBy:{}},(r.data&&r.data.value)||{});}
+  try{const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();_frCfgCache=Object.assign({franchiseDef:50,franchiseBy:{}},(r.data&&r.data.value)||{});if(r.error)_frCfgCache._missing=/growth_settings|PGRST205|schema cache|does not exist/i.test(r.error.message||'');}
   catch(e){_frCfgCache={franchiseDef:50,franchiseBy:{}};}
   if(!_frCfgCache.franchiseBy)_frCfgCache.franchiseBy={};
   return _frCfgCache;
@@ -7536,6 +7536,8 @@ async function _frFeeFill(instr){
   const show=()=>{w.style.display=sel.value==='franchise'?'':'none';};sel.onchange=show;show();
   inp.value='';const c=await _frCfg(true);const v=(c.franchiseBy||{})[instr.id];
   inp.value=v===undefined||v===null||v===''?'':v;inp.placeholder='Default £'+(parseFloat(c.franchiseDef)||0);
+  let warn=document.getElementById('edit-frfee-warn');if(!warn){warn=document.createElement('div');warn.id='edit-frfee-warn';warn.style.cssText='font-size:.7rem;color:#f87171;margin-top:4px;font-weight:600';inp.parentNode.appendChild(warn);}
+  warn.textContent=c._missing?'⚠️ Can\'t save yet: run the database update 20261110_growth_tools_core.sql once in Supabase → SQL Editor.':'';
 }
 async function _frFeeSave(id){
   const inp=document.getElementById('edit-frfee');if(!inp||document.getElementById('edit-model').value!=='franchise')return;
@@ -7547,7 +7549,11 @@ async function _frFeeSave(id){
     const u=await sb.from('growth_settings').upsert({key:'config',value:cfg,updated_at:new Date().toISOString()},{onConflict:'key'});
     if(u.error)throw u.error;
     _frCfgCache=cfg;try{if(window.DSQG&&DSQG.G&&DSQG.G.cfg)DSQG.G.cfg.franchiseBy=cfg.franchiseBy;}catch(e){}
-  }catch(e){showToast('Franchise fee not saved: '+(e.message||e),'warn',6000);}
+  }catch(e){
+    const m=String((e&&e.message)||e);
+    if(/growth_settings|PGRST205|schema cache|does not exist/i.test(m))showToast('⚠️ Franchise fee NOT saved — your database is missing the settings table. Run the database update 20261110_growth_tools_core.sql once in Supabase → SQL Editor, then save again.','error',12000);
+    else showToast('Franchise fee not saved: '+m,'warn',8000);
+  }
 }
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
@@ -11037,7 +11043,7 @@ async function openInstrReferrals(instrId){
 async function _instrRefCount(instrId){
   try{
     let rows=(_refData||[]).filter(r=>r.instructor_id===instrId);
-    if(!(_refData&&_refData.length)){const{data}=await sb.from('referrals').select('id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').eq('instructor_id',instrId);rows=data||[];}
+    if(!(_refData&&_refData.length)){const{data}=await sb.from('referrals').select('*').eq('instructor_id',instrId);rows=data||[];}
     const due=rows.filter(_refOwes).reduce((t,r)=>t+(parseFloat(r.amount)||0),0);
     const el=document.querySelector('#instrRefBtn-'+instrId+' .ref-cnt');
     if(el)el.innerHTML=`<span style="background:rgba(255,255,255,.08);border-radius:999px;padding:0 7px;margin-left:2px">${rows.length}</span>`+(due>0?` <span style="background:rgba(248,113,113,.15);color:#f87171;border-radius:999px;padding:0 7px">£${due.toFixed(0)} due</span>`:'');
@@ -17682,7 +17688,7 @@ document.addEventListener('click',e=>{
     const since7 = new Date(Date.now() - 7 * 864e5).toISOString(), today0 = new Date(); today0.setHours(0, 0, 0, 0);
     const [waiting, refs, sreq, resch, transf, chg, pend, enqWeek, logs] = await Promise.all([
       q(c.from("waiting_list").select("id,student_name,student_phone,postcode,created_at,notes").eq("status", "waiting").order("created_at", { ascending: true })),
-      q(c.from("referrals").select("id,student_name,instructor_id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes,created_at").eq("is_paid", false).eq("is_cancelled", false).lt("created_at", since7)),
+      q(c.from("referrals").select("*").eq("is_paid", false).eq("is_cancelled", false).lt("created_at", since7)),
       q(c.from("student_requests").select("id,student_name,created_at").eq("status", "pending")),
       q(c.from("reschedule_requests").select("id,created_at").eq("status", "pending")),
       q(c.from("transfer_requests").select("id,created_at").eq("status", "pending")),
@@ -17787,8 +17793,8 @@ document.addEventListener('click',e=>{
     box.innerHTML = `<div class="section-label"><i class="bi bi-heart-pulse me-2" style="color:var(--gold)"></i>Instructor health — last 30 days</div><div style="font-size:.8rem;color:var(--txt3)">Loading…</div>`;
     const c = db(); const since = new Date(Date.now() - 30 * 864e5).toISOString();
     const [refs30, unpaidAll, ins] = await Promise.all([
-      q(c.from("referrals").select("instructor_id,is_paid,is_cancelled,is_credit,amount,flag_color,reply_status,admin_notes,created_at").gte("created_at", since)),
-      q(c.from("referrals").select("instructor_id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes,created_at").eq("is_paid", false).eq("is_cancelled", false)),
+      q(c.from("referrals").select("*").gte("created_at", since)),
+      q(c.from("referrals").select("*").eq("is_paid", false).eq("is_cancelled", false)),
       q(c.from("instructors").select("id,full_name,status,last_login,instructor_model").eq("status", "approved"))
     ]);
     const list = (ins.length ? ins : instrs().filter(i => i.status === "approved")).map(i => {
@@ -17999,7 +18005,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       (m.data||[]).filter(function(x){return!franchise(x.instructor_id);}).forEach(function(x){items.push({key:'report:'+x.id,cat:'report',pri:0,title:x.subject||'Report',desc:(instrById(x.instructor_id).full_name||'Instructor')+' · '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>DAY,acts:[['Open report','openReportsInbox']]});});
     }catch(x){}
     // 3. referrals: fees to chase, credits owed
-    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,student_phone,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,flag_color,reply_status,admin_notes,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
+    var refs=[];try{var rf=await sb.from('referrals').select('*').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
     // an instructor's one-tap reply counts until the flag is set by hand (empty/purple only)
     refs.forEach(function(x){var rf=typeof REPLY_FLAG!=='undefined'&&REPLY_FLAG[x.reply_status];x._fc=rf&&(!x.flag_color||x.flag_color==='purple')?rf:x.flag_color;});
     var owe={};refs.filter(function(x){return (window._refOwes?window._refOwes(x):(!x.is_paid&&!x.is_cancelled&&!x.is_credit&&x._fc!=='red'))&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
