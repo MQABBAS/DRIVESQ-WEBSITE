@@ -109,9 +109,12 @@ async function monday(sb, req, body) {
   const { data: refs } = ids.length ? await sb.from("referrals").select("*").in("instructor_id", ids).limit(10000) : { data: [] };
   const { data: done } = ids.length ? await sb.from("admin_messages").select("instructor_id,subject").in("instructor_id", ids).gte("created_at", since) : { data: [] };
   const already = (iid, prefix) => (done || []).some((m) => m.instructor_id === iid && String(m.subject || "").startsWith(prefix));
-  const { data: unsubRows } = await sb.from("email_contacts").select("email_key,tags").neq("status", "subscribed").limit(10000);
-  const unsub = new Set((unsubRows || []).map((r) => r.email_key));
-  const optOutAll = new Set((unsubRows || []).filter((r) => (r.tags || []).includes("opt_out_all")).map((r) => r.email_key));   // admin → instructor profile → "Opt out of emails"
+  const { data: contactRows } = await sb.from("email_contacts").select("email_key,status,tags").limit(10000);
+  const unsub = new Set((contactRows || []).filter((r) => r.status && r.status !== "subscribed").map((r) => r.email_key));
+  // instructor opt-outs set from the instructor profile in admin (tags on the contact): all · fees & statements · weekly reminders
+  const tagged = (tag) => new Set((contactRows || []).filter((r) => (r.tags || []).includes(tag)).map((r) => r.email_key));
+  const optOutAll = tagged("opt_out_all"), optOutFees = tagged("opt_out_fees"), optOutWeekly = tagged("opt_out_weekly");
+  (contactRows || []).forEach((r) => { if (r.status && r.status !== "subscribed" && !(r.tags || []).some((t) => t === "opt_out_fees" || t === "opt_out_weekly")) optOutAll.add(r.email_key); });
 
   // booked = confirmed by admin (same rule as _refAdminBooked in admin.html): admin's ✅, not just the instructor saying so
   const isBooked = (r) => { if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = n.lastIndexOf("✅ Booked — confirmed by admin"), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
@@ -150,7 +153,9 @@ async function monday(sb, req, body) {
       const res = { instructor: j.ins.full_name, kind: j.kind, subject: d.subject, email: e || null, status: "portal only" };
       out.push(res);
       if (!EMAIL_RE.test(e)) continue;
-      if (optOutAll.has(e)) { res.status = "portal only (opted out of emails)"; continue; }
+      if (optOutAll.has(e)) { res.status = "portal only (opted out of all emails)"; continue; }
+      if ((j.kind === "F" || j.kind === "R") && optOutFees.has(e)) { res.status = "portal only (opted out of fee emails)"; continue; }
+      if (j.kind === "W" && optOutWeekly.has(e)) { res.status = "portal only (opted out of weekly reminders)"; continue; }
       if (!d.transactional && unsub.has(e)) { res.status = "skipped (unsubscribed)"; continue; }
       const u = await unsubUrl(e, base), c = { name: j.ins.full_name, email: e };
       const mail = { from: FROM, to: [e], subject: d.subject, html: personalise(build(d), c).split("{{unsubscribe_url}}").join(u), text: personalise(text(d), c).split("{{unsubscribe_url}}").join(u),

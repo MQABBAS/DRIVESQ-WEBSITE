@@ -7523,34 +7523,40 @@ function togglePwd(){
   el.style.filter=pwdRevealed?'none':'blur(4px)';
   document.getElementById('editModal').querySelector('.pwd-reveal').innerHTML=pwdRevealed?'<i class="bi bi-eye-slash me-1"></i>Hide':'<i class="bi bi-eye me-1"></i>Reveal';
 }
-/* instructor email opt-out — stored on the Email contacts list (email_contacts): status unsubscribed + tag opt_out_all.
-   The email function then sends them nothing by email (not even fee reminders); portal messages and WhatsApp carry on. */
+/* instructor email opt-outs — stored as tags on the Email contacts list (email_contacts):
+   opt_out_all     → no DriveSQ emails at all (contact also marked unsubscribed)
+   opt_out_fees    → no franchise fee reminders / referral statements
+   opt_out_weekly  → no Monday weekly reminders
+   Portal messages and WhatsApp always carry on. The email function reads the same tags. */
+const INSTR_OPTS=[['opt_out_all','🚫 Everything','No DriveSQ emails at all'],['opt_out_fees','💰 Fees & statements','No franchise fee reminders or referral statements'],['opt_out_weekly','📋 Weekly reminders','No Monday weekly reminders']];
 async function _emailPrefGet(email){
   const k=String(email||'').trim().toLowerCase();if(!k)return null;
   try{const r=await sb.from('email_contacts').select('id,status,tags,unsubscribe_note').eq('email_key',k).maybeSingle();return r.data||{};}catch(e){return {};}
 }
 async function _emailPrefFill(instr){
   const el=document.getElementById('emailPref-'+instr.id);if(!el)return;
-  const c=await _emailPrefGet(instr.email);
-  const out=c&&c.status&&c.status!=='subscribed';
-  const all=out&&(c.tags||[]).includes('opt_out_all');
-  el.innerHTML=out
-    ?`<span style="color:#f87171;font-weight:700">🚫 Opted out of emails</span><span style="color:var(--txt4)"> — ${all?'no emails at all (portal & WhatsApp only)':'unsubscribed from marketing emails; fee reminders still sent'}</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(74,222,128,.4);color:#4ade80" onclick="setInstrEmailOptOut('${instr.id}',false)">Opt back in</button>`
-    :`<span style="color:#4ade80;font-weight:700">✅ Receiving emails</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(248,113,113,.4);color:#f87171" onclick="setInstrEmailOptOut('${instr.id}',true)">🚫 Opt out of emails</button>`;
+  const c=await _emailPrefGet(instr.email),tags=(c&&c.tags)||[];
+  const all=tags.includes('opt_out_all')||(c&&c.status&&c.status!=='subscribed'&&!tags.some(t=>t==='opt_out_fees'||t==='opt_out_weekly'));
+  const outs=INSTR_OPTS.filter(o=>o[0]==='opt_out_all'?all:tags.includes(o[0]));
+  const btn=(o,on)=>`<button class="abtn" title="${o[2]}" style="font-size:.68rem;padding:3px 9px;margin:2px 4px 2px 0;border-color:${on?'rgba(248,113,113,.5)':'rgba(100,116,139,.35)'};color:${on?'#f87171':'var(--txt3)'};${on?'background:rgba(248,113,113,.1);':''}" onclick="setInstrEmailOptOut('${instr.id}','${o[0]}',${on?'false':'true'})">${on?'🚫 Opted out: '+o[1].replace(/^\S+ /,''):o[1]}</button>`;
+  el.innerHTML=`<div style="font-size:.76rem;margin-bottom:4px">${outs.length?`<span style="color:#f87171;font-weight:700">Opted out of: ${outs.map(o=>o[1].replace(/^\S+ /,'')).join(', ')}</span>`:'<span style="color:#4ade80;font-weight:700">✅ Receiving all emails</span>'}<span style="color:var(--txt4)"> · portal messages &amp; WhatsApp always continue</span></div>
+    <div style="font-size:.66rem;color:var(--txt4);margin-bottom:3px">Tap to opt out / back in:</div>${INSTR_OPTS.map(o=>btn(o,o[0]==='opt_out_all'?all:tags.includes(o[0]))).join('')}`;
 }
-async function setInstrEmailOptOut(id,out){
+async function setInstrEmailOptOut(id,kind,out){
   const instr=(allInstrs||[]).find(i=>i.id===id);if(!instr||!instr.email){showToast('This instructor has no email address','warn');return;}
+  const o=INSTR_OPTS.find(x=>x[0]===kind)||INSTR_OPTS[0];
   const email=String(instr.email).trim().toLowerCase(),now=new Date().toISOString();
-  if(out&&!confirm(`Stop ALL DriveSQ emails to ${instr.full_name} (${email})?\n\nThey won't get weekly reminders, fee reminders, statements or student updates by email. Everything still goes to their Instructor Portal, and you can still message them on WhatsApp.\n\nYou can opt them back in at any time.`))return;
+  if(out&&!confirm(`${o[1].replace(/^\S+ /,'')} — opt ${instr.full_name} out?\n\n${o[2]}. Everything still goes to their Instructor Portal, and you can still message them on WhatsApp.\n\nYou can opt them back in at any time.`))return;
   try{
     const c=await _emailPrefGet(email);
-    const tags=Array.from(new Set(((c&&c.tags)||[]).filter(t=>t!=='opt_out_all').concat(out?['opt_out_all']:[])));
-    const patch=out?{status:'unsubscribed',unsubscribed_at:now,unsubscribe_note:'Instructor opted out (set by admin)',tags,updated_at:now}:{status:'subscribed',unsubscribed_at:null,unsubscribe_note:null,tags,updated_at:now};
+    let tags=((c&&c.tags)||[]).filter(t=>t!==kind);if(out)tags.push(kind);
+    const all=tags.includes('opt_out_all');
+    const patch={tags,updated_at:now,status:all?'unsubscribed':'subscribed',unsubscribed_at:all?now:null,unsubscribe_note:all?'Instructor opted out of all emails (set by admin)':null};
     let r;
     if(c&&c.id)r=await sb.from('email_contacts').update(patch).eq('id',c.id);
     else r=await sb.from('email_contacts').insert([Object.assign({email,name:instr.full_name||null,phone:instr.phone||null,sources:['instructors'],consent_note:'Instructor email added by admin'},patch)]);
     if(r.error)throw r.error;
-    showToast(out?`🚫 ${instr.full_name} won't receive any DriveSQ emails`:`✅ ${instr.full_name} will receive DriveSQ emails again`,'success',5000);
+    showToast(out?`🚫 ${instr.full_name}: opted out of ${o[1].replace(/^\S+ /,'').toLowerCase()}`:`✅ ${instr.full_name}: back in for ${o[1].replace(/^\S+ /,'').toLowerCase()}`,'success',5000);
   }catch(e){showToast('Not saved: '+(e.message||e),'error',7000);}
   _emailPrefFill(instr);
 }
@@ -18522,10 +18528,19 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     const r = await q("admin_messages", "id,subject,created_at", x => x.eq("instructor_id", instrId).gte("created_at", since));
     return r.some(m => String(m.subject || "").startsWith(prefix));
   }
-  async function sendInstructor(ins, subject, d, body, pushText) {
+  /* instructor opt-outs (tags on email_contacts, set from the instructor profile): opt_out_all · opt_out_fees · opt_out_weekly */
+  async function instrOptOuts(email) {
+    try { const r = await sb.from("email_contacts").select("status,tags").eq("email_key", String(email || "").trim().toLowerCase()).maybeSingle(); const t = (r.data && r.data.tags) || [];
+      if (r.data && r.data.status && r.data.status !== "subscribed" && !t.includes("opt_out_fees") && !t.includes("opt_out_weekly")) t.push("opt_out_all"); return t; } catch (e) { return []; }
+  }
+  async function sendInstructor(ins, subject, d, body, pushText, kind) {
     await sb.from("admin_messages").insert([{ instructor_id: ins.id, subject, body, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
     try { sendPushToInstructor(ins.id, ins.full_name || "", subject, String(pushText || body).replace(/\*\*/g, "").slice(0, 120), "/dashboard.html"); } catch (e) {}
-    if (RE_EMAIL.test(String(ins.email || "").trim())) { try { await DSQMailSend.send([msg(d, String(ins.email).trim().toLowerCase(), ins.full_name)]); } catch (e) {} }
+    if (RE_EMAIL.test(String(ins.email || "").trim())) {
+      const outs = await instrOptOuts(ins.email);
+      if (outs.includes("opt_out_all") || (kind === "W" && outs.includes("opt_out_weekly")) || (kind === "F" && outs.includes("opt_out_fees"))) return;   // portal + push only
+      try { await DSQMailSend.send([msg(d, String(ins.email).trim().toLowerCase(), ins.full_name)]); } catch (e) {}
+    }
   }
 
   /* ---------- weekly bulletin ---------- */
@@ -18594,7 +18609,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
         const since = weekStart().toISOString();
         const sent = await q("admin_messages", "instructor_id,subject", x => x.gte("created_at", since).ilike("subject", "📋 DriveSQ weekly reminders%"));
         const done = new Set(sent.map(m => m.instructor_id));
-        for (const ins of instrs().filter(i => i.status === "approved" && !done.has(i.id))) { const d = weeklyDesign(ins); await sendInstructor(ins, d.subject, d, d.body, d.preheader); res.weekly++; }
+        for (const ins of instrs().filter(i => i.status === "approved" && !done.has(i.id))) { const d = weeklyDesign(ins); await sendInstructor(ins, d.subject, d, d.body, d.preheader, "W"); res.weekly++; }
       }
     } finally { busy = false; }
     try { localStorage.setItem("dsq_am_last", JSON.stringify({ at: Date.now(), ...res })); } catch (e) {}
@@ -18758,7 +18773,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       if (wk.some(m => m.instructor_id !== ins.id)) {
         const d = weeklyDesign(ins);
         if (wk.some(m => m.instructor_id === ins.id)) { const rs = await DSQMailSend.send([msg(d, email, name)]); if (rs[0] && rs[0].status === "sent") out.push("this week's reminders"); }
-        else { await sendInstructor(Object.assign({}, ins, { email }), d.subject, d, d.body, d.preheader); out.push("this week's reminders"); }
+        else { await sendInstructor(Object.assign({}, ins, { email }), d.subject, d, d.body, d.preheader, "W"); out.push("this week's reminders"); }
       }
     } catch (e) {}
     if (out.length) toast("📧 Sent " + (first(name) || "them") + " the latest instructor email" + (out.length > 1 ? "s" : "") + ": " + out.join(" + "), "success", 7000);
