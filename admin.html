@@ -7486,7 +7486,9 @@ function togglePwd(){
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
   { const em=document.getElementById('edit-email'); em.value=em.value.trim().toLowerCase();
-    if(em.value&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(em.value)){showToast('That email address doesn\'t look right — please check it.','error');em.focus();return;} }
+    if(em.value&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(em.value)){showToast('That email address doesn\'t look right — please check it.','error');em.focus();return;}
+    const dup=em.value&&(allInstrs||[]).find(i=>i.id!==id&&String(i.email||'').trim().toLowerCase()===em.value);
+    if(dup){showToast('That email is already used by '+dup.full_name+' — each instructor needs their own email.','error',6000);em.focus();return;} }
   const base={
     full_name:document.getElementById('edit-name').value.trim(),
     badge_number:document.getElementById('edit-badge').value.trim(),
@@ -15185,7 +15187,7 @@ document.addEventListener('click',e=>{
       /* footer */
       '<table role="presentation" class="dsq-wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px"><tr><td class="dsq-pad" align="center" style="padding:20px 30px 6px;font-family:' + BODYF + ';font-size:12px;line-height:19px;color:' + th.foot + '">' +
       esc(d.footerNote || "You're getting this email because you booked or asked about driving lessons with DriveSQ.") +
-      '<br>DriveSQ Driving School · Greater Manchester, UK<br><a href="{{unsubscribe_url}}" style="color:' + th.foot + ';text-decoration:underline">Unsubscribe</a> from DriveSQ emails</td></tr></table>' +
+      '<br>DriveSQ Driving School · Greater Manchester &amp; Solihull, UK<br><a href="{{unsubscribe_url}}" style="color:' + th.foot + ';text-decoration:underline">Unsubscribe</a> from DriveSQ emails</td></tr></table>' +
       "<!--[if mso]></td></tr></table><![endif]-->" +
       "</td></tr></table></body></html>";
     return html;
@@ -18268,32 +18270,41 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   }
   const PORTAL_TXT = "**📱 Your Student Portal is now open**\n- Theory practice: 700+ questions and 14 full mock tests\n- Hazard perception and practical video guides\n- Track your booked lessons, progress and test-readiness checklist\n- Log in with your phone number — no password needed";
   const FIRST_TXT = "**Before your first lesson**\n- Have your **provisional driving licence** ready — your instructor will check it\n- Wear comfortable shoes you can feel the pedals in, and bring glasses or lenses if you need them to drive\n- Be at your pick-up point a few minutes early\n\n**What happens on your first lesson**\n- We start somewhere quiet, at your own pace\n- You'll learn the controls, moving off and stopping safely\n- At the end you'll talk through your progress and plan your next lessons";
-  function design(kind, ins) {
+  /* the booking summary a website visitor gave us (from the booking notes) */
+  function bookingSummary(rec) {
+    const n = String(rec && rec.notes || ""), get = k => { const m = n.match(new RegExp("^" + k + ":\\s*(.+)$", "mi")); return m ? m[1].trim() : ""; };
+    const pc = get("Postcode").toUpperCase().replace(/\s+/g, " "), out = pc ? pc.split(" ")[0] : "";
+    const rows = [["Reference", get("Ref")], ["Lessons", get("Gearbox")], ["Package", get("Package")], ["Area", out], ["Preferred start", get("Start")], ["Test date", get("Test date")]].filter(r => r[1]);
+    return { ref: get("Ref"), rows };
+  }
+  function design(kind, ins, rec) {
     const iname = first(ins && ins.full_name) || "your instructor";
     const base = { theme: "night", banner: "drive", greeting: "Hi {{first_name}},", signoff: "See you on the road,\nThe DriveSQ team" };
     switch (kind) {
-      case "web": return { ...base, subject: "Welcome to DriveSQ, {{first_name}} — we've got your details ✅", preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
-        headline: "We've got your **booking request**", body: "Thanks for booking with DriveSQ — we've received your details and we're on it.\n\n**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Prefer to chat? Reply to this email or WhatsApp us any time\n\n**In the meantime — explore the Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\nDon't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
+      case "web": { const bs = bookingSummary(rec);
+        return { ...base, subject: "Welcome to DriveSQ, {{first_name}} — we've received your booking" + (bs.ref ? " (" + bs.ref + ")" : ""), preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
+        headline: "We've got your **booking request**", body: "Thank you for choosing DriveSQ. We've received your details and we're already matching you with an instructor." +
+          (bs.rows.length ? "\n\n**Your booking**\n" + bs.rows.map(r => "- " + r[0] + ": **" + r[1] + "**").join("\n") : "") + "\n\n**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Questions? Reply to this email or WhatsApp us — a real person will answer\n\n**In the meantime — explore the Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\nDon't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
         highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Explore the Student Portal", buttonUrl: PORTAL_INFO,
-        secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")", signoff: "Speak soon,\nThe DriveSQ team" };
+        secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")" + (bs.ref ? " · Please quote **" + bs.ref + "** if you contact us." : ""), signoff: "Speak soon,\nThe DriveSQ team" }; }
       case "A": case "Anew": case "AB": {
         const intro = kind === "AB" ? "Welcome back to DriveSQ — great to have you with us again." : kind === "Anew" ? "Welcome to DriveSQ — you're booked in with your new instructor." : "Welcome to DriveSQ — we're really pleased to have you with us.";
-        return { ...base, subject: kind === "AB" ? "Welcome back, {{first_name}} — you're booked in again 🚗" : "You're booked in, {{first_name}}! Welcome to DriveSQ 🚗", preheader: "Your instructor's details and everything you need for your first lesson.",
+        return { ...base, theme: kind === "AB" ? "night" : "classic", subject: kind === "AB" ? "Welcome back, {{first_name}} — you're booked in again" : kind === "Anew" ? "You're booked in with " + iname + ", {{first_name}}" : "You're booked in, {{first_name}} — welcome to DriveSQ 🚗", preheader: "Your instructor's details and everything you need for your first lesson with " + iname + ".",
           headline: kind === "AB" ? "Welcome **back!**" : "You're **booked in!**", body: intro + "\n\n" + instrBox(ins) + "\n\n" + FIRST_TXT + "\n\n" + PORTAL_TXT + (kind === "AB" ? "\n\nYour Student Portal is still open with everything you've done so far." : ""),
           highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Open my Student Portal", buttonUrl: PORTAL,
           secondaryText: "Need to change a lesson? Contact " + iname + " directly. Anything else — just reply to this email or [WhatsApp us](" + WA + ")." };
       }
-      case "B": case "B2": return { ...base, subject: kind === "B2" ? "Still keen to learn, {{first_name}}? 🚗" : "Ready to start your driving lessons, {{first_name}}?", preheader: kind === "B2" ? "Your instructor is holding a space for you." : "Your instructor " + iname + " is ready to book your first lesson.",
+      case "B": case "B2": return { ...base, theme: "clean", banner: kind === "B2" ? "none" : "drive", subject: kind === "B2" ? "Still keen to learn to drive, {{first_name}}?" : "Ready to book your first lesson with " + iname + ", {{first_name}}?", preheader: kind === "B2" ? "Your instructor is holding a space for you." : "Your instructor " + iname + " is ready to book your first lesson.",
         headline: kind === "B2" ? "Still **keen?**" : "Ready to **get started?**",
         body: (kind === "B2" ? "Just a friendly reminder — " + iname + " is still holding a space for you." : "Your instructor **" + iname + "** is ready to book your first lesson with you.") + "\n\n" + instrBox(ins) + "\n\n- Reply to " + iname + "'s message, or call or WhatsApp them\n- Or tell us the days and times that suit you and we'll help arrange it\n- Manual or automatic — the same price, £35/hr",
-        highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Book my first lesson", buttonUrl: BOOK,
-        secondaryText: "Not the right time? Just reply and let us know — no pressure at all.", signoff: "Speak soon,\nThe DriveSQ team" };
+        highlightValue: kind === "B2" ? "" : OFFER.value, highlightLabel: kind === "B2" ? "" : OFFER.label, buttonText: "Book my first lesson", buttonUrl: BOOK,
+        secondaryText: "Not the right time? Just reply and let us know — there's no pressure at all.", signoff: "Kind regards,\nThe DriveSQ team" };
       case "C": return { ...base, banner: "none", theme: "clean", subject: iname + " has been trying to reach you, {{first_name}}", preheader: "Your instructor wants to arrange your driving lessons.",
         headline: "Your instructor is **trying to reach you**", body: "Your instructor **" + iname + "** has been trying to contact you about your driving lessons.\n\n" + instrBox(ins) + "\n\nGive them a quick call or WhatsApp — or reply to this email with the best time and number to reach you.",
-        buttonText: "WhatsApp DriveSQ", buttonUrl: WA, signoff: "Thanks,\nThe DriveSQ team" };
-      case "D": return { ...base, banner: "none", theme: "clean", subject: "Sorry it didn't work out, {{first_name}} — can we help?", preheader: "Different instructor or different times? We can match you again.",
+        buttonText: "WhatsApp DriveSQ", buttonUrl: WA, signoff: "Kind regards,\nThe DriveSQ team" };
+      case "D": return { ...base, banner: "none", theme: "classic", subject: "We're sorry your lessons didn't go ahead, {{first_name}}", preheader: "Different instructor or different times? We can match you again.",
         headline: "Can we **help?**", body: "We're sorry your lessons didn't go ahead this time.\n\n- Want a different instructor or different times? Reply and we'll match you again\n- Your Student Portal stays open for theory practice and mock tests\n\nNot for you right now? That's absolutely fine — we won't keep chasing you.",
-        buttonText: "Find me a new instructor", buttonUrl: BOOK, secondaryText: "[WhatsApp us](" + WA + ") · [Student Portal](" + PORTAL + ")", signoff: "All the best,\nThe DriveSQ team" };
+        buttonText: "Find me a new instructor", buttonUrl: BOOK, secondaryText: "[WhatsApp us](" + WA + ") · [Student Portal](" + PORTAL + ")", signoff: "Kind regards,\nThe DriveSQ team" };
     }
   }
   const msg = (d, to, name) => { const M = window.DSQMail, c = { name: name || "", email: to }; return { to, subject: M.personalise(d.subject, c).replace(/&amp;/g, "&").replace(/&#39;/g, "'"), html: M.personalise(M.build(d), c), text: M.personalise(M.text(d), c) }; };
@@ -18352,7 +18363,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       headline: `${rs.length} student${rs.length > 1 ? "s" : ""} to **contact**`, greeting: `Hi ${first(ins.full_name)},`,
       body: rs.map((r, i) => `${i + 1}. **${r.student_name || "Student"}** · ${fmtPhone(r.student_phone) || "no number"} · referred ${ageDays(r.created_at)} days ago · ${st(r)}`).join("\n") +
         "\n\nWe've also sent each student a friendly email asking them to book with you.\n\nOnce you've spoken to them, please update their status in your portal: **Booked / Not booked yet / Can't reach / Not going ahead**.",
-      buttonText: "Open my Instructor Portal", buttonUrl: "https://www.drivesq.co.uk/dashboard.html", signoff: "Thanks,\nThe DriveSQ team",
+      buttonText: "Open my Instructor Portal", buttonUrl: "https://www.drivesq.co.uk/dashboard.html", signoff: "Kind regards,\nThe DriveSQ team",
       footerNote: "You're getting this because you're a DriveSQ instructor." };
   }
   async function recentAdminMsg(instrId, prefix, hours) {
@@ -18407,7 +18418,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       } else if (items.length || opts.manual) { try { localStorage.setItem("dsq_am_firstdone", "1"); } catch (e) {} }
       for (let i = 0; i < items.length; i += 40) {
         const ch = items.slice(i, i + 40); let rs = [];
-        try { rs = await DSQMailSend.send(ch.map(it => msg(design(it.kind, it.ins), it.email, it.name))); } catch (e) { res.failed += ch.length; res.errors.push(e.message); continue; }
+        try { rs = await DSQMailSend.send(ch.map(it => msg(design(it.kind, it.ins, it.r), it.email, it.name))); } catch (e) { res.failed += ch.length; res.errors.push(e.message); continue; }
         for (let k = 0; k < ch.length; k++) { const s = rs[k] && rs[k].status; if (s === "sent" || s === "skipped") { await note(ch[k], MKOF[ch[k].kind] + (s === "skipped" ? " (unsubscribed — not sent)" : " to " + ch[k].email)); s === "sent" ? res.sent++ : res.skipped++; } else { res.failed++; if (rs[k] && rs[k].error) res.errors.push(rs[k].error); } }
       }
       let chaseOn = false;   // Growth → Chase already reminds instructors (with one-tap reply links) — never double up
@@ -18468,7 +18479,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     const demoR = [{ student_name: "Sam Learner", student_phone: "07700900123", created_at: new Date(Date.now() - 5 * 864e5).toISOString(), reply_status: "not_yet" }, { student_name: "Amy Khan", student_phone: "07700900456", created_at: new Date(Date.now() - 4 * 864e5).toISOString() }];
     function show(k) {
       document.getElementById("amTabs").innerHTML = P.map(p => `<button type="button" class="${p[0] === k ? "btn-p" : "btn-s"}" style="font-size:.72rem;padding:4px 10px" data-amtab="${p[0]}">${p[1]}</button>`).join("");
-      const d = k === "I" ? instrDesign(demoIns, demoR) : k === "W" ? weeklyDesign(demoIns) : design(k, demoIns);
+      const d = k === "I" ? instrDesign(demoIns, demoR) : k === "W" ? weeklyDesign(demoIns) : design(k, demoIns, { notes: "[WEB]\nRef: DSQ-48213\nPackage: 10-hour block\nGearbox: Automatic\nPostcode: M14 5AA\nStart: Within 2 weeks" });
       document.getElementById("amFrame").srcdoc = DSQMail.personalise(DSQMail.build(d), { name: "Sam Learner" }).replace(/\{\{unsubscribe_url\}\}/g, "#");
     }
     show("A"); m.classList.add("open");
