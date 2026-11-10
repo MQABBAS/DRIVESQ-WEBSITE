@@ -4918,7 +4918,7 @@ function _renderFlagMonitor(){
   const box=document.getElementById('refFlagMonitor');if(!box)return;
   const rows=_flagRows();
   const grp={green:[],purple:[],red:[],none:[]};
-  rows.forEach(r=>{const f=_refFlagOf(r);(grp[f]||grp.none).push(r);});
+  rows.forEach(r=>{let f=_refFlagOf(r);if(f==='green'&&!_refAdminBooked(r))f='purple';(grp[f]||grp.none).push(r);});   // a ✅ that only came from the instructor still needs checking
   const overdueUnsure=grp.purple.filter(r=>_flagAge(r)>=3).length, overdueNone=grp.none.filter(r=>_flagAge(r)>=2).length;
   const tile=(k,e,l,sub,col,n)=>`<button type="button" class="rfm-tile${window._flagView===k?' on':''}" style="--c:${col}" onclick="_flagSetView('${k}')"><span class="rfm-n">${n}</span><span class="rfm-l">${e} ${l}</span><span class="rfm-s">${sub}</span></button>`;
   let html=`<div class="rfm-head"><b><i class="bi bi-flag-fill me-1"></i>Booking flags</b><span>last 90 days · ✅ booked · 🟣 unsure · 🚩 not booked</span></div><div class="rfm-tiles">
