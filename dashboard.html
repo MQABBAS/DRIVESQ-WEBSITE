@@ -1633,7 +1633,7 @@ button:focus:not(:focus-visible) { outline: none !important }
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Full Name</label><input class="dsq-inp" id="pName" placeholder="Full name"/></div>
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Badge <span style="color:var(--txt4);font-size:.6rem">(fixed)</span></label><input class="dsq-inp" id="pBadge" disabled style="color:var(--txt4);cursor:not-allowed"/></div>
             <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="pPhone" placeholder="07xxx xxx xxx"/></div>
-            <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="pEmail" type="email" placeholder="you@email.com"/></div>
+            <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="pEmail" type="email" placeholder="you@email.com" autocomplete="email"/><div style="font-size:.66rem;color:var(--txt4);margin-top:3px"><i class="bi bi-envelope me-1"></i>DriveSQ sends your student reminders and weekly updates here.</div></div>
             <div class="col-12"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="pArea" placeholder="e.g. M19, Didsbury"/></div>
             <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="color:var(--txt4);font-size:.6rem;font-weight:400">(outward codes you travel to)</span></label><input class="dsq-inp" id="pCoverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/><div style="font-size:.63rem;color:var(--txt4);margin-top:3px">Separate with commas. Helps the system match you to new students in your area.</div></div>
           </div>
@@ -4945,6 +4945,8 @@ async function loadNotifications(){
     }
   }
   _wbMsgs=msgs.filter(isWB);
+  try{ if(instr&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(String(instr.email||'').trim())&&!localStorage.getItem('dsq_noemail_hide')){
+    const div=document.createElement('div');div.className='msg-banner general';div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">📧</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2)">Add your email address</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">So DriveSQ can send your student reminders and weekly updates. <a href="#" onclick="event.preventDefault();switchTab('profile');setMobActive('profile');setTimeout(()=>{const e=document.getElementById('pEmail');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},300)" style="color:#60a5fa;font-weight:600">Add it in My Profile →</a></div></div><button class="mb-dismiss" onclick="try{localStorage.setItem('dsq_noemail_hide','1')}catch(e){};this.parentNode.remove()">✕</button>`;bc.appendChild(div);} }catch(e){}
   unread.filter(isWB).slice(0,1).forEach(m=>{const t=_wbTopic(m);const div=document.createElement('div');div.className='msg-banner wb-banner';div.style.cssText='padding:12px 14px';div.onclick=e=>{if(!e.target.closest('.mb-dismiss'))openWeekly(m.id);};div.innerHTML=`<div class="wb-ic">📋</div><div style="min-width:0"><small>This week's reminders</small><b>${esc(t.topic)}</b></div><button class="wb-go" type="button">Read</button>`;bc.appendChild(div);});
   unread.filter(m=>!isWB(m)).forEach(m=>{const div=document.createElement('div');div.className=`msg-banner ${m.message_type}`;div.innerHTML=`<span style="font-size:1rem;flex-shrink:0">${icons[m.message_type]||'📢'}</span><div class="flex-grow-1"><div style="font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;color:var(--txt2);margin-bottom:1px">${esc(m.subject)}</div><div style="font-size:.74rem;color:var(--txt3);line-height:1.45">${esc(m.body)}</div></div><button class="mb-dismiss" onclick="dismissMsg('${m.id}')">✕</button>`;bc.appendChild(div);});
   const list=document.getElementById('notifList');
@@ -5150,6 +5152,8 @@ async function saveProfile(){
     if(newPwd!==confirmPwd){showToast('Passwords do not match.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
     if(newPwd.length<6){showToast('Password must be at least 6 characters.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;return;}
   }
+  { const em=document.getElementById('pEmail'); em.value=em.value.trim().toLowerCase();
+    if(em.value&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(em.value)){showToast('Please check your email address.');btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Save All Changes';btn.disabled=false;em.focus();return;} }
   const badgeExpiry=document.getElementById('pBadgeExpiry')?.value||null;
   const coveragePostcodes=(document.getElementById('pCoverage')?.value||'').toUpperCase().trim()||null;
   const updates={full_name:document.getElementById('pName').value.trim(),phone:document.getElementById('pPhone').value.trim(),email:document.getElementById('pEmail').value.trim(),area:document.getElementById('pArea').value.trim(),car_model:document.getElementById('pCarModel').value.trim(),car_plate:document.getElementById('pCarPlate').value.trim().toUpperCase(),car_type:document.getElementById('pCarType').value,badge_expiry:badgeExpiry||null,coverage_postcodes:coveragePostcodes};

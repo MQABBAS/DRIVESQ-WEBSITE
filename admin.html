@@ -3423,7 +3423,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
         </select>
       </div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="edit-phone" type="tel"/></div>
-      <div class="col-12 col-sm-6"><label class="dsq-lbl">Email</label><input class="dsq-inp" id="edit-email" type="email"/></div>
+      <div class="col-12 col-sm-6"><label class="dsq-lbl">Email <span style="font-weight:400;color:var(--txt4);font-size:.68rem">— used for student reminders &amp; the weekly bulletin</span></label><input class="dsq-inp" id="edit-email" type="email" placeholder="instructor@email.com" autocomplete="off"/></div>
       <div class="col-12 col-sm-6"><label class="dsq-lbl">Area / Postcode</label><input class="dsq-inp" id="edit-area"/></div>
       <div class="col-12"><label class="dsq-lbl">Covered Postcodes <span style="font-size:.7rem;color:var(--txt4);font-weight:400">(outward codes the instructor covers)</span></label><input class="dsq-inp" id="edit-coverage" placeholder="e.g. M19, M20, M21, SK4" style="text-transform:uppercase"/></div>
       <div class="col-12"><label class="dsq-lbl">Address</label><input class="dsq-inp" id="edit-address"/></div>
@@ -5686,7 +5686,7 @@ function renderInstrDetail(instr){
   const covHtml=covPCs.length?covPCs.map(c=>`<span style="background:rgba(245,197,24,.13);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-right:3px">${esc(c)}</span>`).join(''):'<span style="color:var(--txt4);font-size:.75rem">—</span>';
   const fields=[
     ['Lesson Types',ltChipHtml],
-    ['Email',instr.email],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
+    ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
     ['Area',instr.area],['Covered Postcodes',covHtml],['Address',instr.address],
     ['Status',`<span class="chip ${instr.status}">${instr.status}</span>`],
     ['Last Login',instr.last_login?fmtDT(instr.last_login):'Never'],
@@ -7485,6 +7485,8 @@ function togglePwd(){
 }
 async function saveEdit(){
   const id=document.getElementById('edit-id').value;
+  { const em=document.getElementById('edit-email'); em.value=em.value.trim().toLowerCase();
+    if(em.value&&!/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/.test(em.value)){showToast('That email address doesn\'t look right — please check it.','error');em.focus();return;} }
   const base={
     full_name:document.getElementById('edit-name').value.trim(),
     badge_number:document.getElementById('edit-badge').value.trim(),
@@ -18449,6 +18451,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       <div style="flex:1;min-width:240px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic emails &amp; instructor reminders</b>
         <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
         ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}${last && last.held ? `<br><b style="color:#f5c518">First run is waiting for you:</b> preview the emails, untick any type you don't want, then press <b>Send now</b>. After that it runs automatically.` : ""}</div>
+        ${ready ? (() => { const miss = instrs().filter(i => i.status === "approved" && !RE_EMAIL.test(String(i.email || "").trim())); return miss.length ? `<br><span style="color:#f59e0b">⚠️ ${miss.length} instructor${miss.length > 1 ? "s have" : " has"} no email (weekly bulletin goes to their portal only): ${miss.slice(0, 8).map(i => `<a href="#" onclick="event.preventDefault();openEditForId('${i.id}')" style="color:#f59e0b;text-decoration:underline">${(i.full_name || "Instructor").replace(/[<>&"]/g, "")}</a>`).join(", ")}${miss.length > 8 ? "…" : ""}</span>` : ""; })() : ""}
         ${ready && last && last.chaseOn ? `<br>Instructor reminders are handled by <b>Growth → Chase</b> (one-tap reply links), so they're not sent twice.` : ""}
         ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px">${Object.keys(TYPES).map(k => `<label style="font-size:.72rem;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" data-amt="${k}" ${on(k) ? "checked" : ""}>${TYPES[k]}</label>`).join("")}</div>` : ""}
         ${escal.length ? `<div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);font-size:.76rem"><b style="color:#f87171">⚠️ Needs your call</b> — not booked 10+ days after referral: ${escal.map(r => `<a href="#" data-amref="${r.instructor_id}" style="color:var(--txt);text-decoration:underline">${(r.student_name || "Student").replace(/[<>&"]/g, "")}</a> (${(first(instrOf(r).full_name) || "—").replace(/[<>&"]/g, "")}, ${ageDays(r.created_at)}d)`).join(" · ")}</div>` : ""}
