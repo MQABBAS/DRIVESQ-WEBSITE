@@ -4827,6 +4827,13 @@ function _refAdminBooked(r){
   return a>b||(a<0&&r.reply_status!=='booked');
 }
 window._refAdminBooked=_refAdminBooked;
+/* one rule for money everywhere: a referral fee is OWED once admin has confirmed the student booked (✅) and it isn't paid.
+   Unpaid referrals that could still become a fee (no flag, 🟣, or a ✅ that came from the instructor) are AWAITING your ✅.
+   🚩 not booked / not going ahead = no fee. */
+function _refAmt(r){return parseFloat(r&&r.amount)||0;}
+function _refOwes(r){return !!r&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&_refAmt(r)>0&&_refAdminBooked(r);}
+function _refAwaiting(r){return !!r&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&_refAmt(r)>0&&!_refAdminBooked(r)&&r.flag_color!=='red'&&r.reply_status!=='not_interested'&&r.reply_status!=='unreachable';}
+window._refOwes=_refOwes;window._refAwaiting=_refAwaiting;
 async function confirmRefBooked(refId){
   const r=(typeof _refData!=='undefined'?_refData:[]).find(x=>x.id===refId);if(!r)return;
   const notes=[r.admin_notes||'',new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+REF_CONFIRM_MK].filter(Boolean).join('\n');
@@ -5200,7 +5207,7 @@ async function setRefNotesVisible(refId,visible){
 async function notifyInstructorRef(instrId){
   const instr=allInstrs.find(i=>i.id===instrId);
   if(!instr){showToast('Instructor not found','error');return;}
-  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&r.flag_color!=='red'&&(parseFloat(r.amount)||0)>0); // 🚩 not booked = no fee
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&_refOwes(r)); // only students admin confirmed as booked
   const totalDue=unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const names=unpaid.map(r=>r.student_name).join(', ');
   const body=`Hi ${instr.full_name||'Instructor'},\n\nThis is a reminder that you have ${unpaid.length} outstanding referral fee${unpaid.length!==1?'s':''} totalling £${totalDue.toFixed(2)} due to DriveSQ.\n\nStudents: ${names||'—'}\n\nPlease arrange payment at your earliest convenience.\n\nThank you,\nDriveSQ Admin`;
@@ -10877,7 +10884,7 @@ function renderReferrals(){
     if(r.is_credit){if(!r.credit_fulfilled)byInstr[r.instructor_id].credits++;return;} // credit — not in financials
     if(r.is_cancelled)return; // voided — skip from financial totals
     if(r.is_paid)byInstr[r.instructor_id].paid+=parseFloat(r.amount)||0;
-    else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
+    else if(_refOwes(r))byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;   // owed = confirmed booked & unpaid
   });
 
   let totalDue=0,totalPaid=0,totalCount=rows.length,instrOwing=0;
@@ -11030,8 +11037,8 @@ async function openInstrReferrals(instrId){
 async function _instrRefCount(instrId){
   try{
     let rows=(_refData||[]).filter(r=>r.instructor_id===instrId);
-    if(!(_refData&&_refData.length)){const{data}=await sb.from('referrals').select('id,amount,is_paid,is_cancelled,is_credit').eq('instructor_id',instrId);rows=data||[];}
-    const due=rows.filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit).reduce((t,r)=>t+(parseFloat(r.amount)||0),0);
+    if(!(_refData&&_refData.length)){const{data}=await sb.from('referrals').select('id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').eq('instructor_id',instrId);rows=data||[];}
+    const due=rows.filter(_refOwes).reduce((t,r)=>t+(parseFloat(r.amount)||0),0);
     const el=document.querySelector('#instrRefBtn-'+instrId+' .ref-cnt');
     if(el)el.innerHTML=`<span style="background:rgba(255,255,255,.08);border-radius:999px;padding:0 7px;margin-left:2px">${rows.length}</span>`+(due>0?` <span style="background:rgba(248,113,113,.15);color:#f87171;border-radius:999px;padding:0 7px">£${due.toFixed(0)} due</span>`:'');
   }catch(e){}
@@ -11052,9 +11059,10 @@ async function openRefDetail(instrId,allTime){
 
   // Exclude cancelled/credit rows from financial totals
   const activeRows=rows.filter(r=>!r.is_cancelled&&!r.is_credit);
-  const due=activeRows.filter(r=>!r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const due=activeRows.filter(_refOwes).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const paid=activeRows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  document.getElementById('refDetailDue').textContent='£'+due.toFixed(2);
+  const awaitRows=activeRows.filter(_refAwaiting),awaitAmt=awaitRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  document.getElementById('refDetailDue').innerHTML='£'+due.toFixed(2)+(awaitRows.length?`<div style="font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;color:#a855f7;margin-top:2px">+ £${awaitAmt.toFixed(2)} awaiting your ✅ (${awaitRows.length} student${awaitRows.length>1?'s':''}) — not counted</div>`:'');
   document.getElementById('refDetailPaid').textContent='£'+paid.toFixed(2);
 
   // Credit banner
@@ -11078,7 +11086,7 @@ async function openRefDetail(instrId,allTime){
     );
     return _extractPostcode(r.address||cached?.address||'');
   };
-  const _unpaidRows=activeRows.filter(r=>!r.is_paid);
+  const _unpaidRows=activeRows.filter(_refOwes);   // only students confirmed booked — same as the Monday email statement
   const _paidRows=activeRows.filter(r=>r.is_paid);
   const _divider='━━━━━━━━━━━━━━━━━━━━━━━';
   const _thin='─────────────────────────';
@@ -11184,11 +11192,11 @@ async function openRefDetail(instrId,allTime){
   const _hiddenId=document.getElementById('refDetailInstrId');
   if(_hiddenId)_hiddenId.value=instrId;
   const _mapBtn=document.getElementById('refDetailMarkAllPaidBtn');
-  if(_mapBtn){const _hasDue=activeRows.some(r=>!r.is_paid);_mapBtn.style.display=_hasDue?'inline-flex':'none';}
+  if(_mapBtn){const _hasDue=activeRows.some(_refOwes);_mapBtn.style.display=_hasDue?'inline-flex':'none';}
   const _expBtn=document.getElementById('refDetailExportBtn');
   if(_expBtn)_expBtn.style.display='inline-flex';
   const _notifyBtn=document.getElementById('refDetailNotifyBtn');
-  if(_notifyBtn){const _hasDue=activeRows.some(r=>!r.is_paid&&(parseFloat(r.amount)||0)>0);_notifyBtn.style.display=_hasDue?'inline-flex':'none';}
+  if(_notifyBtn){const _hasDue=activeRows.some(_refOwes);_notifyBtn.style.display=_hasDue?'inline-flex':'none';}
 
   const tbody=document.getElementById('refDetailRows');
   if(!rows.length){tbody.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)">No referrals in this period.</div>';openModal('refDetailModal');return;}
@@ -11251,7 +11259,7 @@ async function openRefDetail(instrId,allTime){
               ${stuWaNum?`<a href="${buildReviewWaLink(stuWaNum)}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:var(--gold);border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:600;text-decoration:none;white-space:nowrap" title="Ask student to leave a Google review"><i class="bi bi-star-fill"></i>Review</a>`:''}
             </div>
           </td>
-          <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':'#f87171'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
+          <td style="padding:8px 8px;text-align:right;font-family:'Oswald',sans-serif;font-weight:700;color:${isCancelled||isCredit?'var(--txt4)':isPaid?'#4ade80':_refOwes(r)?'#f87171':'var(--txt3)'};white-space:nowrap;${isCancelled||isCredit?'text-decoration:line-through;':''}">
             £${(parseFloat(r.amount)||0).toFixed(2)}
           </td>
           <td style="padding:8px 8px;text-align:center">
@@ -11261,9 +11269,11 @@ async function openRefDetail(instrId,allTime){
                 ?(creditFulfilled
                   ?`<span style="background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">✓ FULFILLED${creditFulfilledStr?' '+creditFulfilledStr:''}</span>`
                   :`<span style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">⟳ CREDIT OWED</span>`)
-              :`<span style="background:${isPaid?'rgba(74,222,128,.12)':'rgba(248,113,113,.12)'};border:1px solid ${isPaid?'rgba(74,222,128,.3)':'rgba(248,113,113,.3)'};color:${isPaid?'#4ade80':'#f87171'};border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">
-              ${isPaid?`✓ PAID${paidDateStr?' '+paidDateStr:''}`:`UNPAID${dueSinceStr?' · since '+dueSinceStr:''}`}
-            </span>`}
+              :(()=>{const pill=(bg,bd,c,t,tip)=>`<span title="${tip||''}" style="background:${bg};border:1px solid ${bd};color:${c};border-radius:20px;padding:2px 9px;font-size:.65rem;font-weight:700;white-space:nowrap">${t}</span>`;
+                if(isPaid)return pill('rgba(74,222,128,.12)','rgba(74,222,128,.3)','#4ade80',`✓ PAID${paidDateStr?' '+paidDateStr:''}`);
+                if(_refOwes(r))return pill('rgba(248,113,113,.12)','rgba(248,113,113,.3)','#f87171',`OWED${dueSinceStr?' · since '+dueSinceStr:''}`,'Confirmed booked — fee is owed');
+                if(_refAwaiting(r))return pill('rgba(168,85,247,.12)','rgba(168,85,247,.35)','#a855f7',r.reply_status==='booked'?'INSTRUCTOR SAYS BOOKED · ✅ to confirm':'AWAITING ✅ BOOKED','Not counted as owed until you confirm it booked');
+                return pill('rgba(148,163,184,.1)','rgba(148,163,184,.25)','#94a3b8',(parseFloat(r.amount)||0)>0?'NO FEE · not booked':'NO FEE','Not booked — no referral fee');})()}
           </td>
           <td style="padding:8px 8px;text-align:right;font-size:.72rem;color:var(--txt3);white-space:nowrap" title="${new Date(r.created_at).toLocaleString('en-GB')}">${dateStr}</td>
           <td style="padding:8px 8px;text-align:center">
@@ -11550,7 +11560,7 @@ function updateAccounting(){
     const rows=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
     const count=rows.length;
     const paid=rows.filter(r=>r.is_paid).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const due=rows.filter(r=>!r.is_paid&&r.flag_color!=='red').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const due=rows.filter(_refOwes).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);   // owed = confirmed booked & unpaid
     const total=paid+due;
     const cEl=document.getElementById(`acc-${key}-count`);
     const pEl=document.getElementById(`acc-${key}-paid`);
@@ -11646,7 +11656,7 @@ async function markRefUnpaid(refId){
 
 async function markAllRefPaid(instrId){
   if(!instrId)return;
-  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&r.flag_color!=='red'&&(parseFloat(r.amount)||0)>0); // 🚩 not booked = no fee
+  const unpaid=_refData.filter(r=>r.instructor_id===instrId&&_refOwes(r)); // only fees owed (confirmed booked)
   if(!unpaid.length){showToast('No outstanding referrals to mark paid','info');return;}
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'this instructor'};
   if(!confirm(`Mark all ${unpaid.length} outstanding referral(s) for ${instr.full_name} as PAID?\n\nTotal: £${unpaid.reduce((s,r)=>s+(parseFloat(r.amount)||0),0).toFixed(2)}`))return;
@@ -11751,7 +11761,7 @@ function _finBuildKPIs(){
   const owedOut=_finLessons.filter(l=>l.instructor_pay&&!l.instructor_pay_settled).reduce((a,l)=>a+(parseFloat(l.instructor_pay)||0),0);
 
   // Owed by instructors: outstanding charges (use referrals + instructor_charges)
-  const refOwedIn=(_refData||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const refOwedIn=(_refData||[]).filter(_refOwes).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);   // confirmed booked & unpaid
   const chargeOwedIn=_finCharges.filter(c=>c.status==='outstanding'||c.status==='partially_settled').reduce((a,c)=>a+(parseFloat(c.amount)||0)-(parseFloat(c.settled_amount)||0),0);
   const owedIn=refOwedIn+chargeOwedIn;
 
@@ -11822,7 +11832,7 @@ function _finGetInstrLedger(){
   });
 
   // Referral fees owed (from existing referrals table)
-  (_refData||[]).filter(r=>!r.is_paid&&!r.is_cancelled&&!r.is_credit&&(parseFloat(r.amount)||0)>0).forEach(r=>{
+  (_refData||[]).filter(_refOwes).forEach(r=>{
     ensure(r.instructor_id);
     map[r.instructor_id].chargesOwed+=(parseFloat(r.amount)||0);
     map[r.instructor_id].charges.push({id:r.id,type:'referral',description:`Referral — ${r.student_name}`,amount:r.amount,status:'outstanding',settled_amount:0,_isRef:true});
@@ -12484,7 +12494,7 @@ function _renderPLTable(){
     const mExp=r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===year&&d.getMonth()===month;};
     const income=refRows.filter(r=>r.is_paid&&mRef(r)).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
     const expenses=_expData.filter(mExp).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const outstanding=refRows.filter(r=>!r.is_paid&&mRef(r)).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const outstanding=refRows.filter(r=>_refOwes(r)&&mRef(r)).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
     const profit=income-expenses;
     const margin=income>0?Math.round(profit/income*100):null;
     const label=new Date(year,month,1).toLocaleDateString('en-GB',{month:'short',year:'numeric'});
@@ -12541,7 +12551,7 @@ function _renderIncomeTab(){
     if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,paid:0,due:0,rows:[]};
     byInstr[r.instructor_id].rows.push(r);
     if(r.is_paid)byInstr[r.instructor_id].paid+=parseFloat(r.amount)||0;
-    else byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;
+    else if(_refOwes(r))byInstr[r.instructor_id].due+=parseFloat(r.amount)||0;   // owed = confirmed booked & unpaid
   });
   const groups=Object.values(byInstr).sort((a,b)=>(b.paid+b.due)-(a.paid+a.due));
 
@@ -17672,7 +17682,7 @@ document.addEventListener('click',e=>{
     const since7 = new Date(Date.now() - 7 * 864e5).toISOString(), today0 = new Date(); today0.setHours(0, 0, 0, 0);
     const [waiting, refs, sreq, resch, transf, chg, pend, enqWeek, logs] = await Promise.all([
       q(c.from("waiting_list").select("id,student_name,student_phone,postcode,created_at,notes").eq("status", "waiting").order("created_at", { ascending: true })),
-      q(c.from("referrals").select("id,student_name,instructor_id,amount,is_paid,is_cancelled,created_at").eq("is_paid", false).eq("is_cancelled", false).lt("created_at", since7)),
+      q(c.from("referrals").select("id,student_name,instructor_id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes,created_at").eq("is_paid", false).eq("is_cancelled", false).lt("created_at", since7)),
       q(c.from("student_requests").select("id,student_name,created_at").eq("status", "pending")),
       q(c.from("reschedule_requests").select("id,created_at").eq("status", "pending")),
       q(c.from("transfer_requests").select("id,created_at").eq("status", "pending")),
@@ -17683,13 +17693,13 @@ document.addEventListener('click',e=>{
     ]);
     const paidWeek = await q(c.from("referrals").select("id").eq("is_paid", true).gte("paid_at", since7));
     const uniq = rows => { const seen = new Set(); return rows.filter(r => { let p = String(r.student_phone || "").replace(/\D/g, ""); if (p.indexOf("44") === 0) p = "0" + p.slice(2); if (p.length < 10) return true; if (seen.has(p)) return false; seen.add(p); return true; }); };
-    return { waiting: uniq(waiting), enqWeek: uniq(enqWeek.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))), unpaid: refs.filter(r => (parseFloat(r.amount) || 0) > 0), sreq, resch, transf, chg, pend, paidWeek, logs, today0 };
+    return { waiting: uniq(waiting), enqWeek: uniq(enqWeek.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))), unpaid: refs.filter(r => window._refAwaiting ? window._refAwaiting(r) : (parseFloat(r.amount) || 0) > 0) /* not confirmed booked yet */, sreq, resch, transf, chg, pend, paidWeek, logs, today0 };
   }
   function items(d) {
     const out = [];
     const old = d.waiting.filter(w => Date.now() - new Date(w.created_at) > 36e5);
     if (d.waiting.length) out.push({ cls: old.length ? "red" : "amber", n: d.waiting.length, t: "Enquir" + (d.waiting.length === 1 ? "y" : "ies") + " waiting for an instructor", dsc: (old.length ? old.length + " waiting over 1 hour · " : "") + "oldest " + ago(d.waiting[0].created_at) + " · " + d.waiting.slice(0, 3).map(w => w.student_name || "Unnamed").join(", "), tab: "waitlist" });
-    if (d.unpaid.length) { const o = d.unpaid.reduce((a, r) => Math.max(a, days(r.created_at)), 0); out.push({ cls: o > 14 ? "red" : "amber", n: d.unpaid.length, t: "Not booked after 7 days", dsc: "£" + d.unpaid.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toFixed(0) + " unpaid · oldest " + o + " days · " + d.unpaid.slice(0, 3).map(r => (r.student_name || "?") + (instrName(r.instructor_id) ? " (" + instrName(r.instructor_id).split(" ")[0] + ")" : "")).join(", "), tab: "referrals" }); }
+    if (d.unpaid.length) { const o = d.unpaid.reduce((a, r) => Math.max(a, days(r.created_at)), 0); out.push({ cls: o > 14 ? "red" : "amber", n: d.unpaid.length, t: "Not confirmed booked after 7 days", dsc: "£" + d.unpaid.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toFixed(0) + " in fees waiting for your ✅ · oldest " + o + " days · " + d.unpaid.slice(0, 3).map(r => (r.student_name || "?") + (instrName(r.instructor_id) ? " (" + instrName(r.instructor_id).split(" ")[0] + ")" : "")).join(", "), tab: "referrals" }); }
     if (d.sreq.length) out.push({ cls: "blue", n: d.sreq.length, t: "Student request" + (d.sreq.length === 1 ? "" : "s") + " to approve", dsc: d.sreq.slice(0, 3).map(r => r.student_name || "Student").join(", "), tab: "requests" });
     if (d.resch.length) out.push({ cls: "blue", n: d.resch.length, t: "Reschedule request" + (d.resch.length === 1 ? "" : "s"), dsc: "oldest " + ago(d.resch[0].created_at), tab: "requests" });
     if (d.transf.length + d.chg.length) out.push({ cls: "blue", n: d.transf.length + d.chg.length, t: "Transfer / instructor change requests", dsc: "Waiting for your decision", tab: "transfers" });
@@ -17777,18 +17787,18 @@ document.addEventListener('click',e=>{
     box.innerHTML = `<div class="section-label"><i class="bi bi-heart-pulse me-2" style="color:var(--gold)"></i>Instructor health — last 30 days</div><div style="font-size:.8rem;color:var(--txt3)">Loading…</div>`;
     const c = db(); const since = new Date(Date.now() - 30 * 864e5).toISOString();
     const [refs30, unpaidAll, ins] = await Promise.all([
-      q(c.from("referrals").select("instructor_id,is_paid,is_cancelled,amount,created_at").gte("created_at", since)),
-      q(c.from("referrals").select("instructor_id,amount,created_at").eq("is_paid", false).eq("is_cancelled", false)),
-      q(c.from("instructors").select("id,full_name,status,last_login,model").eq("status", "approved"))
+      q(c.from("referrals").select("instructor_id,is_paid,is_cancelled,is_credit,amount,flag_color,reply_status,admin_notes,created_at").gte("created_at", since)),
+      q(c.from("referrals").select("instructor_id,amount,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes,created_at").eq("is_paid", false).eq("is_cancelled", false)),
+      q(c.from("instructors").select("id,full_name,status,last_login,instructor_model").eq("status", "approved"))
     ]);
     const list = (ins.length ? ins : instrs().filter(i => i.status === "approved")).map(i => {
       const g = refs30.filter(r => r.instructor_id === i.id && !r.is_cancelled);
-      const b = g.filter(r => r.is_paid).length;
-      const u = unpaidAll.filter(r => r.instructor_id === i.id && (parseFloat(r.amount) || 0) > 0);
+      const b = g.filter(r => window._refAdminBooked ? window._refAdminBooked(r) : r.is_paid).length;   // booked = confirmed by admin (or paid)
+      const u = unpaidAll.filter(r => r.instructor_id === i.id && (window._refOwes ? window._refOwes(r) : (parseFloat(r.amount) || 0) > 0));   // fees owed
       const oldest = u.reduce((a, r) => Math.max(a, days(r.created_at)), 0);
       const flags = [];
       if (g.length >= 3 && b / g.length < 0.4) flags.push(["r", "Low booking rate"]);
-      if (oldest > 14) flags.push(["r", "Unpaid " + oldest + "d"]); else if (oldest > 7) flags.push(["a", "Unpaid " + oldest + "d"]);
+      if (oldest > 14) flags.push(["r", "Fee owed " + oldest + "d"]); else if (oldest > 7) flags.push(["a", "Fee owed " + oldest + "d"]);
       if (!i.last_login || days(i.last_login) > 7) flags.push(["a", i.last_login ? "No login " + days(i.last_login) + "d" : "Never logged in"]);
       if (!flags.length && g.length) flags.push(["g", "Healthy"]);
       return { i, given: g.length, booked: b, rate: g.length ? Math.round(b / g.length * 100) : null, unpaid: u.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0), oldest, flags, score: flags.filter(f => f[0] === "r").length * 10 + flags.filter(f => f[0] === "a").length };
@@ -17796,7 +17806,7 @@ document.addEventListener('click',e=>{
     box.innerHTML = `<div class="section-label"><i class="bi bi-heart-pulse me-2" style="color:var(--gold)"></i>Instructor health — last 30 days</div>
       <div style="font-size:.74rem;color:var(--txt3);margin:-4px 0 10px">Given = students assigned · Booked = referral paid · problems shown first</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="dsqmon-health"><thead><tr><th>Instructor</th><th class="n">Given</th><th class="n">Booked</th><th class="n">Rate</th><th class="n hide-s">Unpaid</th><th class="hide-s">Status</th></tr></thead><tbody>
-      ${list.map(r => `<tr><td><div style="font-weight:600">${h(r.i.full_name || r.i.name || "—")}</div><div style="font-size:.68rem;color:var(--txt3)">${h(r.i.model || "")}${r.i.last_login ? (r.i.model ? " · " : "") + "last login " + ago(r.i.last_login) + " ago" : ""}</div><div class="show-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</div></td><td class="n">${r.given}</td><td class="n">${r.booked}</td><td class="n">${r.rate == null ? "—" : r.rate + "%"}</td><td class="n hide-s">${r.unpaid ? "£" + r.unpaid.toFixed(0) : "—"}</td><td class="hide-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</td></tr>`).join("") || `<tr><td colspan="6" style="color:var(--txt3)">No approved instructors.</td></tr>`}
+      ${list.map(r => `<tr><td><div style="font-weight:600">${h(r.i.full_name || r.i.name || "—")}</div><div style="font-size:.68rem;color:var(--txt3)">${h(r.i.instructor_model ? r.i.instructor_model[0].toUpperCase() + r.i.instructor_model.slice(1) : "")}${r.i.last_login ? (r.i.model ? " · " : "") + "last login " + ago(r.i.last_login) + " ago" : ""}</div><div class="show-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</div></td><td class="n">${r.given}</td><td class="n">${r.booked}</td><td class="n">${r.rate == null ? "—" : r.rate + "%"}</td><td class="n hide-s">${r.unpaid ? "£" + r.unpaid.toFixed(0) : "—"}</td><td class="hide-s">${r.flags.map(f => `<span class="dsqmon-flag ${f[0]}">${h(f[1])}</span>`).join("")}</td></tr>`).join("") || `<tr><td colspan="6" style="color:var(--txt3)">No approved instructors.</td></tr>`}
       </tbody></table></div>`;
   }
 
@@ -17989,10 +17999,10 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       (m.data||[]).filter(function(x){return!franchise(x.instructor_id);}).forEach(function(x){items.push({key:'report:'+x.id,cat:'report',pri:0,title:x.subject||'Report',desc:(instrById(x.instructor_id).full_name||'Instructor')+' · '+ago(x.created_at)+' ago',urgent:(now-new Date(x.created_at))>DAY,acts:[['Open report','openReportsInbox']]});});
     }catch(x){}
     // 3. referrals: fees to chase, credits owed
-    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,student_phone,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,flag_color,reply_status,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
+    var refs=[];try{var rf=await sb.from('referrals').select('id,instructor_id,student_name,student_phone,amount,is_paid,is_cancelled,is_credit,credit_fulfilled,flag_color,reply_status,admin_notes,created_at').order('created_at',{ascending:true}).limit(2000);refs=rf.data||[];}catch(x){}
     // an instructor's one-tap reply counts until the flag is set by hand (empty/purple only)
     refs.forEach(function(x){var rf=typeof REPLY_FLAG!=='undefined'&&REPLY_FLAG[x.reply_status];x._fc=rf&&(!x.flag_color||x.flag_color==='purple')?rf:x.flag_color;});
-    var owe={};refs.filter(function(x){return!x.is_paid&&!x.is_cancelled&&!x.is_credit&&x._fc!=='red'&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
+    var owe={};refs.filter(function(x){return (window._refOwes?window._refOwes(x):(!x.is_paid&&!x.is_cancelled&&!x.is_credit&&x._fc!=='red'))&&(now-new Date(x.created_at))>14*DAY&&!franchise(x.instructor_id);}).forEach(function(x){var o=owe[x.instructor_id]=owe[x.instructor_id]||{n:0,amt:0,oldest:x.created_at};o.n++;o.amt+=parseFloat(x.amount)||0;});
     Object.keys(owe).forEach(function(id){var o=owe[id],i=instrById(id),msg='Hi '+first(i.full_name)+', hope you\'re well! Just a reminder that £'+o.amt.toFixed(0)+' in referral fees ('+o.n+' student'+(o.n>1?'s':'')+') is outstanding. Could you send it over when you get a chance? Thanks — DriveSQ';
       items.push({key:'fee:'+id+':'+o.n,cat:'fee',pri:2,title:(i.full_name||'Instructor')+' owes £'+o.amt.toFixed(0),desc:o.n+' unpaid referral'+(o.n>1?'s':'')+' · oldest '+ago(o.oldest),urgent:(now-new Date(o.oldest))>30*DAY,
         acts:[wa(i.phone,msg)?['WhatsApp reminder','url',wa(i.phone,msg)]:null,['Referrals','tab','referrals']]});});

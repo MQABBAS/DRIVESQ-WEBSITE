@@ -89,7 +89,7 @@ async function monday(sb, req, body) {
   const cfgRow = await sb.from("growth_settings").select("value").eq("key", "config").maybeSingle();
   const cfg = Object.assign({ franchiseDef: 50, franchiseBy: {}, refFee: 25 }, (cfgRow.data && cfgRow.data.value) || {});
   const feeFor = (id) => { const v = parseFloat((cfg.franchiseBy || {})[id]); return isNaN(v) ? parseFloat(cfg.franchiseDef) || 0 : v; };
-  const refAmt = (r) => { if (r.amount === null || r.amount === undefined || r.amount === "") return parseFloat(cfg.refFee) || 25; const a = parseFloat(r.amount); return isNaN(a) ? parseFloat(cfg.refFee) || 25 : a; };
+  const refAmt = (r) => parseFloat(r.amount) || 0;   // the amount in the Referrals section, exactly as admin shows it (blank = no fee)
 
   let insQ = sb.from("instructors").select("*").eq("status", "approved");
   if (body.instructor_id) insQ = insQ.eq("id", body.instructor_id);
