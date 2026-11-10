@@ -39,9 +39,9 @@ function franchiseDesign(ins, ws, fee) {
   const wc = ukDate(ws, { weekday: "long", day: "numeric", month: "long" });
   return { theme: "classic", banner: "none", transactional: true,
     subject: `💰 DriveSQ franchise fee: ${money(fee)} due today (w/c ${ukDate(ws, { day: "numeric", month: "short" })})`,
-    preheader: `Good morning ${firstName(ins.full_name)} — your weekly franchise fee is due today.`,
+    preheader: `Good morning ${firstName(ins.full_name)} — your weekly franchise fee is due today. Already paid? Please ignore this email.`,
     headline: "Weekly franchise **fee**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
-    body: `Just a friendly reminder that this week's DriveSQ franchise fee is due today.\n\n- **Week:** commencing ${wc}\n- **Amount:** ${money(fee)}\n- **Due:** today\n\nPlease pay the usual way. If you've already paid, thank you — you can ignore this email.`,
+    body: `Just a friendly reminder that this week's DriveSQ franchise fee is due today.\n\n✅ **Already paid? Please ignore this email** — thank you.\n\n- **Week:** commencing ${wc}\n- **Amount:** ${money(fee)}\n- **Due:** today\n\nPlease pay the usual way.`,
     highlightValue: money(fee), highlightLabel: `Franchise fee · week commencing ${wc}`,
     buttonText: "Open my Instructor Portal", buttonUrl: PORTAL_URL,
     secondaryText: "Any questions about your fee? Just reply to this email or [WhatsApp us](https://wa.me/447352932003).",
@@ -53,9 +53,10 @@ function statementDesign(ins, ws, rows, paid) {
     (r.postcode || r.area ? ` · ${r.postcode || r.area}` : "") + ` · referred ${ukDate(r.created_at)} · **${money(r._amt)}**`;
   return { theme: "classic", banner: "none", transactional: true,
     subject: `🧾 Your DriveSQ referral statement: ${money(total)} for ${n} booked student${n > 1 ? "s" : ""} (w/c ${wc})`,
-    preheader: `${n} booked student${n > 1 ? "s" : ""} · ${money(total)} in referral fees`,
+    preheader: `${n} booked student${n > 1 ? "s" : ""} · ${money(total)} in referral fees · already paid? Please ignore this email.`,
     headline: "Referral **statement**", greeting: `Good morning ${firstName(ins.full_name) || "there"},`,
     body: `Here's your weekly statement of students we have down as **booked**, with the referral fee for each one.\n\n` +
+      `✅ **Already paid? Please ignore this email** — thank you, and sorry for the reminder.\n\n` +
       `⚠️ **Please check this list — we may have made a mistake.** Tell us for each student whether they **booked** a lesson with you or **not**.\n\n` +
       rows.map(line).join("\n") +
       `\n\n**Total: ${money(total)}**` +
