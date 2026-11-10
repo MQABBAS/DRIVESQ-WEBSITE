@@ -18183,125 +18183,249 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 })();
 </script>
 <!-- DSQ-REFMSG END -->
-<!-- DSQ-WELCOME START -->
-<script id="dsq-welcome">
-/* Automatic welcome emails (admin). Runs while admin is open: on load and every 10 minutes, only when Email is connected.
-   1. Website booking received (waiting_list, with "Email:" in the notes, last 14 days) → "We've got your booking"
-   2. Student marked booked (referral: instructor says booked / green flag / fee paid) with an email we can match
-      (student account, booking notes, draw entry or email contact, by phone then name) → "You're booked in"
-   Each send is written into that record's notes ("📧 … welcome email sent"), so nobody gets the same email twice.
-   Unsubscribed contacts are skipped by the email function. Auto mode can be switched off in Referrals. */
+<!-- DSQ-AUTOMAIL START -->
+<script id="dsq-automail">
+/* Automatic emails & reminders (admin). Run while admin is open: on load, every 10 minutes and right after a referral is
+   flagged / paid. Only when Email is connected (Email → Setup). Each send is logged in the record's notes so nothing repeats.
+   Students (by referral status, instructor = the referral's instructor, name + number from their profile):
+     web  website booking received → "We've got your details"
+     A    booked → "You're booked in" (or "Welcome back" after a cancellation; "Your new instructor" after a reassignment)
+     B    unsure / not booked yet / no update, 3+ days → "Ready to get started?" (+ one reminder 7 days later)
+     C    instructor can't reach them → "Your instructor is trying to reach you"
+     D    cancelled / not going ahead (not reassignments) → "Sorry it didn't work out — can we help?"
+   Instructors: summary of students to contact (portal + notification + email), max every 2 days, each student max twice;
+   weekly bulletin of rules & reminders every Monday (portal + notification + email).
+   Max one automatic email per student per day; unsubscribed contacts are skipped by the email function. */
 (function () {
   "use strict";
-  const $ = (s, r) => (r || document).querySelector(s);
-  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const toast = (m, t, ms) => { try { showToast(m, t || "", ms); } catch (e) { console.log(m); } };
-  const KEY = "dsq_welcome_auto", RE_EMAIL = /^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/;
-  const auto = () => { try { return localStorage.getItem(KEY) !== "0"; } catch (e) { return true; } };
+  const RE_EMAIL = /^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/;
   const ph10 = p => String(p || "").replace(/\D/g, "").slice(-10);
   const nm = n => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const stamp = () => { const d = new Date(); return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
-  const MARK_BOOKED = "📧 Welcome email sent (booked)", MARK_WEB = "📧 Welcome email sent (booking received)";
+  const first = n => String(n || "").trim().split(/\s+/)[0] || "";
+  const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const ageDays = d => Math.floor((Date.now() - new Date(d)) / 864e5);
+  const fmtPhone = p => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "0" ? d.slice(0, 5) + " " + d.slice(5) : String(p || "").trim(); };
+  const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (!d) return ""; if (d[0] === "0") d = "44" + d.slice(1); return d; };
+  const WA = "https://wa.me/447352932003", PORTAL = "https://www.drivesq.co.uk/student.html", PORTAL_INFO = "https://www.drivesq.co.uk/drivesq-student-portal.html", BOOK = "https://www.drivesq.co.uk/#book-60";
   const OFFER = { value: "10 hours for £330", label: "New learner offer — your first 10-hour block, paid in advance (normally £350). Manual or automatic." };
-  const PORTAL_INFO = "https://www.drivesq.co.uk/drivesq-student-portal.html", PORTAL_LOGIN = "https://www.drivesq.co.uk/student.html", WA = "https://wa.me/447352932003";
+  const TYPES = { web: "Website booking received", A: "Booked — you're booked in", B: "Unsure — ready to get started?", C: "Can't reach — instructor trying to reach you", D: "Cancelled — can we help?", I: "Instructor reminders (students to contact)", W: "Weekly instructor bulletin (Mondays)" };
+  const on = k => { try { return localStorage.getItem("dsq_am_" + k) !== "0"; } catch (e) { return true; } };
+  const instrs = () => { try { return allInstrs || []; } catch (e) { return []; } };
+  const instrOf = r => instrs().find(i => i.id === r.instructor_id) || {};
 
-  function designBooked(instr) {
-    return { theme: "night", banner: "drive", subject: "You're booked in, {{first_name}}! Welcome to DriveSQ 🚗", preheader: "Everything you need to know before your first lesson" + (instr ? " with " + instr : "") + ".",
-      headline: "You're **booked in!**", greeting: "Hi {{first_name}},",
-      body: "Welcome to DriveSQ — we're really pleased to have you with us." + (instr ? " Your instructor is **" + instr + "**." : "") + "\n\n" +
-        "**Before your first lesson**\n- Have your **provisional driving licence** ready — your instructor will ask to see it\n- Wear comfortable shoes you can feel the pedals in, and bring your glasses or lenses if you need them to drive\n- Be at your pick-up point a few minutes early\n\n" +
-        "**What happens in your first lesson**\n- We start somewhere quiet — no pressure, at your own pace\n- You'll learn the controls, moving off and stopping safely\n- At the end you'll talk through your progress and plan your next lessons\n\n" +
-        "**Your free DriveSQ Student Portal**\n- 700+ theory questions and 14 full mock tests\n- Hazard perception practice\n- Your lesson log, progress and test-readiness checklist",
-      highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Open my Student Portal", buttonUrl: PORTAL_LOGIN,
-      secondaryText: "Need to change a lesson? Contact " + (instr || "your instructor") + " directly. Any other questions — just reply to this email or [WhatsApp us](" + WA + ").",
-      signoff: "See you on the road,\nThe DriveSQ team" };
+  /* ---------- markers (in referral admin_notes / waiting_list notes) ---------- */
+  const MK = { A: "📧 Booked email sent", AB: "📧 Welcome-back email sent", B: "📧 Unsure email sent", B2: "📧 Unsure reminder sent", C: "📧 Can't-reach email sent", D: "📧 Cancelled email sent", I: "📣 Instructor reminded", web: "📧 Welcome email sent (booking received)" };
+  const lines = s => String(s || "").split("\n");
+  function marks(notes) {   // [{k, date}] in order
+    const out = [];
+    lines(notes).forEach(l => {
+      let k = null;
+      if (l.includes(MK.AB)) k = "AB"; else if (l.includes(MK.A) || l.includes("Welcome email sent (booked)")) k = "A";
+      else if (l.includes(MK.B2)) k = "B2"; else if (l.includes(MK.B)) k = "B"; else if (l.includes(MK.C)) k = "C"; else if (l.includes(MK.D)) k = "D"; else if (l.includes(MK.I)) k = "I";
+      if (k) { const d = Date.parse((l.split(" · ")[0] || "").trim()); out.push({ k, date: isNaN(d) ? 0 : d }); }
+    });
+    return out;
   }
-  function designWeb() {
-    return { theme: "night", banner: "drive", subject: "Welcome to DriveSQ, {{first_name}} — we've got your details ✅", preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
-      headline: "We've got your **booking request**", greeting: "Hi {{first_name}},",
-      body: "Thanks for booking with DriveSQ — we've received your details and we're on it.\n\n" +
-        "**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Prefer to chat? Reply to this email or WhatsApp us any time\n\n" +
-        "**In the meantime — explore your free Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\n" +
-        "Don't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
-      highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Explore the Student Portal", buttonUrl: PORTAL_INFO,
-      secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")",
-      signoff: "Speak soon,\nThe DriveSQ team" };
-  }
-  function message(design, to, name) {
-    const M = window.DSQMail, c = { name: name || "", email: to };
-    return { to, subject: M.personalise(design.subject, c).replace(/&amp;/g, "&"), html: M.personalise(M.build(design), c), text: M.personalise(M.text(design), c) };
-  }
+  const lastIdx = (m, ks) => { for (let i = m.length - 1; i >= 0; i--) if (ks.includes(m[i].k)) return i; return -1; };
 
-  /* ---------- where emails live ---------- */
+  /* ---------- statuses ---------- */
+  const reassigned = r => /Reassigned to /.test(r.admin_notes || "");
+  const isBooked = r => !r.is_cancelled && !r.is_credit && (r.reply_status === "booked" || r.flag_color === "green" || r.is_paid);
+  const isCancelled = r => !reassigned(r) && !r.is_credit && (r.is_cancelled || r.reply_status === "not_interested" || r.flag_color === "red") && !isBooked(r);
+  const isUnreach = r => !r.is_cancelled && !isBooked(r) && r.reply_status === "unreachable";
+  const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && ageDays(r.created_at) >= 3 && (r.reply_status === "not_yet" || r.flag_color === "purple" || !r.reply_status);
+
+  /* which student email is due for a referral (or null) */
+  function due(r, all) {
+    const m = marks(r.admin_notes), age = ageDays(r.created_at);
+    if (m.some(x => x.date && new Date(x.date).toDateString() === new Date().toDateString() && x.k !== "I")) return null;   // one per day
+    if (isBooked(r)) {
+      const iA = lastIdx(m, ["A", "AB"]), iD = lastIdx(m, ["D"]);
+      if (iA < 0) return age <= 60 || all ? (newInstr(r, all) ? "Anew" : "A") : null;
+      if (iD > iA) return "AB";
+      return null;
+    }
+    if (age > 120 && !all) return null;
+    if (isCancelled(r)) { const iD = lastIdx(m, ["D"]), iA = lastIdx(m, ["A", "AB"]); return iD < 0 || iA > iD ? "D" : null; }
+    if (isUnreach(r)) return m.some(x => x.k === "C") ? null : "C";
+    if (isUnsure(r)) {
+      const b = m.filter(x => x.k === "B"), b2 = m.some(x => x.k === "B2");
+      if (!b.length) return "B";
+      if (!b2 && b[0].date && Date.now() - b[b.length - 1].date >= 7 * 864e5) return "B2";
+    }
+    return null;
+  }
+  let REFS = [];
+  function newInstr(r) { const p = ph10(r.student_phone), n = nm(r.student_name); return REFS.some(o => o.id !== r.id && o.instructor_id !== r.instructor_id && reassigned(o) && ((p && ph10(o.student_phone) === p) || (n && nm(o.student_name) === n))); }
+
+  /* ---------- emails ---------- */
+  function instrBox(ins) {
+    const ph = fmtPhone(ins.phone), w = waNum(ins.phone);
+    return ph ? `**Your instructor: ${first(ins.full_name) || ins.full_name}**\n📞 ${ph}${w ? " · [WhatsApp " + first(ins.full_name) + "](https://wa.me/" + w + ")" : ""}` : `**Your instructor: ${first(ins.full_name) || "your DriveSQ instructor"}** — they'll contact you directly.`;
+  }
+  const PORTAL_TXT = "**📱 Your Student Portal is now open**\n- Theory practice: 700+ questions and 14 full mock tests\n- Hazard perception and practical video guides\n- Track your booked lessons, progress and test-readiness checklist\n- Log in with your phone number — no password needed";
+  const FIRST_TXT = "**Before your first lesson**\n- Have your **provisional driving licence** ready — your instructor will check it\n- Wear comfortable shoes you can feel the pedals in, and bring glasses or lenses if you need them to drive\n- Be at your pick-up point a few minutes early\n\n**What happens on your first lesson**\n- We start somewhere quiet, at your own pace\n- You'll learn the controls, moving off and stopping safely\n- At the end you'll talk through your progress and plan your next lessons";
+  function design(kind, ins) {
+    const iname = first(ins && ins.full_name) || "your instructor";
+    const base = { theme: "night", banner: "drive", greeting: "Hi {{first_name}},", signoff: "See you on the road,\nThe DriveSQ team" };
+    switch (kind) {
+      case "web": return { ...base, subject: "Welcome to DriveSQ, {{first_name}} — we've got your details ✅", preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
+        headline: "We've got your **booking request**", body: "Thanks for booking with DriveSQ — we've received your details and we're on it.\n\n**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Prefer to chat? Reply to this email or WhatsApp us any time\n\n**In the meantime — explore the Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\nDon't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
+        highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Explore the Student Portal", buttonUrl: PORTAL_INFO,
+        secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WA + ")", signoff: "Speak soon,\nThe DriveSQ team" };
+      case "A": case "Anew": case "AB": {
+        const intro = kind === "AB" ? "Welcome back to DriveSQ — great to have you with us again." : kind === "Anew" ? "Welcome to DriveSQ — you're booked in with your new instructor." : "Welcome to DriveSQ — we're really pleased to have you with us.";
+        return { ...base, subject: kind === "AB" ? "Welcome back, {{first_name}} — you're booked in again 🚗" : "You're booked in, {{first_name}}! Welcome to DriveSQ 🚗", preheader: "Your instructor's details and everything you need for your first lesson.",
+          headline: kind === "AB" ? "Welcome **back!**" : "You're **booked in!**", body: intro + "\n\n" + instrBox(ins) + "\n\n" + FIRST_TXT + "\n\n" + PORTAL_TXT + (kind === "AB" ? "\n\nYour Student Portal is still open with everything you've done so far." : ""),
+          highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Open my Student Portal", buttonUrl: PORTAL,
+          secondaryText: "Need to change a lesson? Contact " + iname + " directly. Anything else — just reply to this email or [WhatsApp us](" + WA + ")." };
+      }
+      case "B": case "B2": return { ...base, subject: kind === "B2" ? "Still keen to learn, {{first_name}}? 🚗" : "Ready to start your driving lessons, {{first_name}}?", preheader: kind === "B2" ? "Your instructor is holding a space for you." : "Your instructor " + iname + " is ready to book your first lesson.",
+        headline: kind === "B2" ? "Still **keen?**" : "Ready to **get started?**",
+        body: (kind === "B2" ? "Just a friendly reminder — " + iname + " is still holding a space for you." : "Your instructor **" + iname + "** is ready to book your first lesson with you.") + "\n\n" + instrBox(ins) + "\n\n- Reply to " + iname + "'s message, or call or WhatsApp them\n- Or tell us the days and times that suit you and we'll help arrange it\n- Manual or automatic — the same price, £35/hr",
+        highlightValue: OFFER.value, highlightLabel: OFFER.label, buttonText: "Book my first lesson", buttonUrl: BOOK,
+        secondaryText: "Not the right time? Just reply and let us know — no pressure at all.", signoff: "Speak soon,\nThe DriveSQ team" };
+      case "C": return { ...base, banner: "none", theme: "clean", subject: iname + " has been trying to reach you, {{first_name}}", preheader: "Your instructor wants to arrange your driving lessons.",
+        headline: "Your instructor is **trying to reach you**", body: "Your instructor **" + iname + "** has been trying to contact you about your driving lessons.\n\n" + instrBox(ins) + "\n\nGive them a quick call or WhatsApp — or reply to this email with the best time and number to reach you.",
+        buttonText: "WhatsApp DriveSQ", buttonUrl: WA, signoff: "Thanks,\nThe DriveSQ team" };
+      case "D": return { ...base, banner: "none", theme: "clean", subject: "Sorry it didn't work out, {{first_name}} — can we help?", preheader: "Different instructor or different times? We can match you again.",
+        headline: "Can we **help?**", body: "We're sorry your lessons didn't go ahead this time.\n\n- Want a different instructor or different times? Reply and we'll match you again\n- Your Student Portal stays open for theory practice and mock tests\n\nNot for you right now? That's absolutely fine — we won't keep chasing you.",
+        buttonText: "Find me a new instructor", buttonUrl: BOOK, secondaryText: "[WhatsApp us](" + WA + ") · [Student Portal](" + PORTAL + ")", signoff: "All the best,\nThe DriveSQ team" };
+    }
+  }
+  const msg = (d, to, name) => { const M = window.DSQMail, c = { name: name || "", email: to }; return { to, subject: M.personalise(d.subject, c).replace(/&amp;/g, "&").replace(/&#39;/g, "'"), html: M.personalise(M.build(d), c), text: M.personalise(M.text(d), c) }; };
+
+  /* ---------- data ---------- */
+  async function q(t, cols, f) { try { let x = sb.from(t).select(cols); if (f) x = f(x); const r = await x.limit(5000); return r.data || []; } catch (e) { return []; } }
   async function emailIndex() {
     const byPh = new Map(), byName = new Map();
     const add = (email, name, phone) => { email = String(email || "").trim().toLowerCase(); if (!RE_EMAIL.test(email)) return; const p = ph10(phone); if (p && !byPh.has(p)) byPh.set(p, email); const n = nm(name); if (n) byName.set(n, byName.has(n) && byName.get(n) !== email ? null : email); };
-    const q = async (t, cols) => { try { const r = await sb.from(t).select(cols).limit(5000); return r.data || []; } catch (e) { return []; } };
     (await q("student_accounts", "full_name,email,phone")).forEach(x => add(x.email, x.full_name, x.phone));
     (await q("waiting_list", "student_name,student_phone,notes")).forEach(x => { const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i); if (m) add(m[1], x.student_name, x.student_phone); });
     (await q("draw_entries", "student_name,student_email,student_phone")).forEach(x => add(x.student_email, x.student_name, x.student_phone));
     (await q("email_contacts", "email,name,phone")).forEach(x => add(x.email, x.name, x.phone));
-    return r => byPh.get(ph10(r.student_phone)) || (byName.get(nm(r.student_name)) || null);
+    return r => byPh.get(ph10(r.student_phone)) || byName.get(nm(r.student_name)) || null;
   }
-  const isBooked = r => !r.is_cancelled && !r.is_credit && (r.reply_status === "booked" || r.flag_color === "green" || r.is_paid);
-  async function referrals() { try { if (typeof _refData !== "undefined" && _refData && _refData.length) return _refData; } catch (e) {}
-    const r = await sb.from("referrals").select("*").order("created_at", { ascending: false }).limit(3000); return r.data || []; }
+  async function loadRefs() { REFS = await q("referrals", "*", x => x.order("created_at", { ascending: false })); try { if (typeof _refData !== "undefined" && _refData && _refData.length >= REFS.length) REFS = _refData; } catch (e) {} return REFS; }
 
-  /* ---------- find who's due ---------- */
-  async function pending(opts) {
-    const days = opts && opts.all ? 100000 : 60, cutoff = Date.now() - days * 864e5;
-    const find = await emailIndex(), seen = new Set(), booked = [], web = [];
-    for (const r of await referrals()) {
-      if (!isBooked(r) || /Welcome email sent \(booked\)/.test(r.admin_notes || "") || new Date(r.created_at) < cutoff) continue;
+  async function plan(opts) {
+    const all = !!(opts && opts.all), find = await emailIndex(), seen = new Set(), out = [];
+    for (const r of await loadRefs()) {
+      const k = due(r, all); if (!k || !on(k[0] === "A" ? "A" : k[0])) continue;
       const email = find(r); if (!email || seen.has(email)) continue; seen.add(email);
-      const ins = (typeof allInstrs !== "undefined" ? allInstrs : []).find(i => i.id === r.instructor_id) || {};
-      booked.push({ kind: "booked", id: r.id, row: r, email, name: r.student_name, instr: (ins.full_name || "").split(" ")[0] });
+      out.push({ kind: k, rec: "ref", r, email, name: r.student_name, ins: instrOf(r) });
     }
-    try {
-      const since = new Date(Date.now() - (opts && opts.all ? 365 : 14) * 864e5).toISOString();
-      const w = await sb.from("waiting_list").select("id,student_name,student_phone,notes,created_at,status").gte("created_at", since).order("created_at", { ascending: false }).limit(1000);
-      for (const x of w.data || []) {
+    if (on("web")) {
+      const since = new Date(Date.now() - (all ? 365 : 14) * 864e5).toISOString();
+      for (const x of await q("waiting_list", "id,student_name,student_phone,notes,created_at", y => y.gte("created_at", since).order("created_at", { ascending: false }))) {
         const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i), email = m && m[1].toLowerCase();
         if (!email || !RE_EMAIL.test(email) || /Welcome email sent/.test(x.notes || "") || seen.has(email)) continue;
-        seen.add(email); web.push({ kind: "web", id: x.id, row: x, email, name: x.student_name });
+        seen.add(email); out.push({ kind: "web", rec: "wl", r: x, email, name: x.student_name });
       }
-    } catch (e) {}
-    return { booked, web };
+    }
+    return out;
+  }
+  async function note(it, text) {
+    if (it.rec === "wl") { const n = (it.r.notes ? it.r.notes.trim() + "\n" : "") + today() + " · " + text; const u = await sb.from("waiting_list").update({ notes: n }).eq("id", it.r.id); if (!u.error) it.r.notes = n; return; }
+    const n = (it.r.admin_notes ? it.r.admin_notes.trim() + "\n" : "") + today() + " · " + text; const u = await sb.from("referrals").update({ admin_notes: n }).eq("id", it.r.id); if (!u.error) it.r.admin_notes = n;
+  }
+  const MKOF = { web: MK.web, A: MK.A, Anew: MK.A + " (new instructor)", AB: MK.AB, B: MK.B, B2: MK.B2, C: MK.C, D: MK.D };
+
+  /* ---------- instructor reminders ---------- */
+  function instrList() {
+    const by = new Map();
+    for (const r of REFS) {
+      if (r.is_cancelled || r.is_credit || isBooked(r) || isCancelled(r) || ageDays(r.created_at) < 3 || ageDays(r.created_at) > 60) continue;
+      if (!(isUnsure(r) || isUnreach(r))) continue;
+      if (marks(r.admin_notes).filter(x => x.k === "I").length >= 2) continue;
+      if (!by.has(r.instructor_id)) by.set(r.instructor_id, []);
+      by.get(r.instructor_id).push(r);
+    }
+    return by;
+  }
+  function instrDesign(ins, rs) {
+    const st = r => r.reply_status === "unreachable" ? "can't reach — we've emailed them too" : r.reply_status === "not_yet" ? "not booked yet" : "no update yet";
+    return { theme: "clean", banner: "none", subject: `${first(ins.full_name)}, ${rs.length} student${rs.length > 1 ? "s" : ""} need${rs.length > 1 ? "" : "s"} a quick call`, preheader: "Please contact them and update their status in your portal.",
+      headline: `${rs.length} student${rs.length > 1 ? "s" : ""} to **contact**`, greeting: `Hi ${first(ins.full_name)},`,
+      body: rs.map((r, i) => `${i + 1}. **${r.student_name || "Student"}** · ${fmtPhone(r.student_phone) || "no number"} · referred ${ageDays(r.created_at)} days ago · ${st(r)}`).join("\n") +
+        "\n\nWe've also sent each student a friendly email asking them to book with you.\n\nOnce you've spoken to them, please update their status in your portal: **Booked / Not booked yet / Can't reach / Not going ahead**.",
+      buttonText: "Open my Instructor Portal", buttonUrl: "https://www.drivesq.co.uk/dashboard.html", signoff: "Thanks,\nThe DriveSQ team",
+      footerNote: "You're getting this because you're a DriveSQ instructor." };
+  }
+  async function recentAdminMsg(instrId, prefix, hours) {
+    const since = new Date(Date.now() - hours * 3600e3).toISOString();
+    const r = await q("admin_messages", "id,subject,created_at", x => x.eq("instructor_id", instrId).gte("created_at", since));
+    return r.some(m => String(m.subject || "").startsWith(prefix));
+  }
+  async function sendInstructor(ins, subject, d, body) {
+    await sb.from("admin_messages").insert([{ instructor_id: ins.id, subject, body, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
+    try { sendPushToInstructor(ins.id, ins.full_name || "", subject, body.slice(0, 120), "/dashboard.html"); } catch (e) {}
+    if (RE_EMAIL.test(String(ins.email || "").trim())) { try { await DSQMailSend.send([msg(d, String(ins.email).trim().toLowerCase(), ins.full_name)]); } catch (e) {} }
   }
 
-  /* ---------- send + log ---------- */
-  async function logSent(item) {
-    if (item.kind === "booked") {
-      const r = item.row, notes = (r.admin_notes ? r.admin_notes.trim() + "\n" : "") + stamp() + " · " + MARK_BOOKED + " to " + item.email;
-      const u = await sb.from("referrals").update({ admin_notes: notes }).eq("id", r.id); if (!u.error) r.admin_notes = notes;
-    } else {
-      const notes = (item.row.notes ? item.row.notes.trim() + "\n" : "") + stamp() + " · " + MARK_WEB + " to " + item.email;
-      const u = await sb.from("waiting_list").update({ notes }).eq("id", item.id); if (!u.error) item.row.notes = notes;
-    }
+  /* ---------- weekly bulletin ---------- */
+  const STANDING = "**Every lesson — the basics**\n- **Provisional licence:** check it's valid and the details match before the first drive\n- **Eyesight:** before the first lesson, check they can read a number plate from 20 metres (with glasses or lenses if they wear them)\n- **No phone:** you MUST NOT use a hand-held phone while supervising a learner (Highway Code rule 149) — put it on Do Not Disturb\n- **L plates** on the front and back, dual controls checked, seat belts on (rule 99)\n- **ADI badge** (or trainee licence) on display in the car\n- **Update the portal** after each lesson — status, lesson log and progress";
+  const FOCUS = [
+    ["First lessons", "- Start somewhere quiet and explain the controls clearly\n- Set expectations for the first few lessons and agree a plan\n- Leave time at the end to talk through progress"],
+    ["New referrals", "- Contact new students within 24 hours of being referred\n- Update their status straight away: Booked / Not booked yet / Can't reach / Not going ahead\n- If you can't take a student, tell us so we can reassign them quickly"],
+    ["Rest and fatigue", "- Don't teach tired — tiredness increases the risk of collision (Highway Code rule 91)\n- Build breaks into long teaching days and keep water in the car"],
+    ["Professional standards", "- Be on time and let students know early if you're running late\n- Keep messages and conversations professional and respectful\n- Take payments only as agreed with DriveSQ and the student"],
+    ["Test preparation", "- Use mock tests on local routes before booking or confirming a test\n- Practise show me / tell me questions\n- Point students to the 14 theory mock tests in their Student Portal"],
+    ["Weather and visibility", "- Check lights, demisting and tyres before lessons in bad weather\n- Teach longer stopping distances on wet and icy roads\n- Reschedule if conditions aren't safe for a learner"],
+    ["Reviews and passes", "- After a pass, ask the student for a Google review — it helps every DriveSQ instructor\n- Send us pass photos (with the student's permission) for the website"],
+    ["Lesson records", "- Log every lesson in the portal so students can see their progress\n- Note the topics covered and what to work on next time"]];
+  const weekStart = () => { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - day); return d; };
+  const weekNo = () => Math.floor(weekStart().getTime() / (7 * 864e5));
+  function weeklyDesign(ins) {
+    const f = FOCUS[weekNo() % FOCUS.length], wc = weekStart().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return { theme: "clean", banner: "none", subject: `📋 DriveSQ weekly reminders — w/c ${wc}`, preheader: `This week: ${f[0]}. Plus the basics for every lesson.`,
+      headline: `Weekly **reminders**`, greeting: `Hi ${first(ins.full_name) || "there"},`,
+      body: `**This week's focus: ${f[0]}**\n${f[1]}\n\n${STANDING}`, buttonText: "Open my Instructor Portal", buttonUrl: "https://www.drivesq.co.uk/dashboard.html",
+      signoff: "Thanks for all you do,\nThe DriveSQ team", footerNote: "You're getting this because you're a DriveSQ instructor." };
   }
+  const plain = d => window.DSQMail.text(d).split("\n—\n")[0];
+
+  /* ---------- run ---------- */
   let busy = false;
   async function run(opts) {
-    if (busy || !window.DSQMailSend || !window.DSQMail || !DSQMailSend.ready()) return { sent: 0, skipped: 0, failed: 0, none: !(window.DSQMailSend && DSQMailSend.ready()) };
-    busy = true; const out = { sent: 0, skipped: 0, failed: 0, errors: [] };
+    opts = opts || {};
+    const res = { sent: 0, skipped: 0, failed: 0, instr: 0, weekly: 0, errors: [] };
+    if (busy || !window.DSQMailSend || !window.DSQMail || !DSQMailSend.ready()) return res;
+    busy = true;
     try {
-      const p = await pending(opts), items = p.web.concat(p.booked).slice(0, 90);   // stay under the free plan's 100/day
-      for (let i = 0; i < items.length; i += 50) {
-        const chunk = items.slice(i, i + 50);
-        const msgs = chunk.map(it => message(it.kind === "booked" ? designBooked(it.instr) : designWeb(), it.email, it.name));
-        let res = [];
-        try { res = await DSQMailSend.send(msgs); } catch (e) { out.failed += chunk.length; out.errors.push(e.message); continue; }
-        for (let k = 0; k < chunk.length; k++) {
-          const st = res[k] && res[k].status;
-          if (st === "sent" || st === "skipped") { await logSent(chunk[k]); st === "sent" ? out.sent++ : out.skipped++; }   // skipped = unsubscribed → don't retry
-          else { out.failed++; if (res[k] && res[k].error) out.errors.push(res[k].error); }
+      const items = (await plan(opts)).slice(0, 80);
+      for (let i = 0; i < items.length; i += 40) {
+        const ch = items.slice(i, i + 40); let rs = [];
+        try { rs = await DSQMailSend.send(ch.map(it => msg(design(it.kind, it.ins), it.email, it.name))); } catch (e) { res.failed += ch.length; res.errors.push(e.message); continue; }
+        for (let k = 0; k < ch.length; k++) { const s = rs[k] && rs[k].status; if (s === "sent" || s === "skipped") { await note(ch[k], MKOF[ch[k].kind] + (s === "skipped" ? " (unsubscribed — not sent)" : " to " + ch[k].email)); s === "sent" ? res.sent++ : res.skipped++; } else { res.failed++; if (rs[k] && rs[k].error) res.errors.push(rs[k].error); } }
+      }
+      let chaseOn = false;   // Growth → Chase already reminds instructors (with one-tap reply links) — never double up
+      try { const G = window.DSQG && DSQG.G; if (G && G.hasRefCols === null && typeof DSQG.load === "function") await DSQG.load(); chaseOn = !!(G && G.cfg && G.cfg.autoChase && G.hasRefCols); } catch (e) {}
+      res.chaseOn = chaseOn;
+      if (on("I") && !opts.noInstr && !chaseOn) {
+        for (const [iid, rs] of instrList()) {
+          const ins = instrs().find(i => i.id === iid); if (!ins || ins.status === "suspended") continue;
+          if (await recentAdminMsg(iid, "📣 Students to contact", 48)) continue;
+          const d = instrDesign(ins, rs), subject = "📣 Students to contact: " + rs.map(r => first(r.student_name)).join(", ");
+          await sendInstructor(ins, subject, d, plain(d));
+          for (const r of rs) await note({ rec: "ref", r }, MK.I + " (" + first(ins.full_name) + ")");
+          res.instr++;
         }
       }
+      if (on("W") && !opts.noWeekly && (new Date().getDay() !== 1 || new Date().getHours() >= 8)) {
+        const since = weekStart().toISOString();
+        const sent = await q("admin_messages", "instructor_id,subject", x => x.gte("created_at", since).ilike("subject", "📋 DriveSQ weekly reminders%"));
+        const done = new Set(sent.map(m => m.instructor_id));
+        for (const ins of instrs().filter(i => i.status === "approved" && !done.has(i.id))) { const d = weeklyDesign(ins); await sendInstructor(ins, d.subject, d, plain(d)); res.weekly++; }
+      }
     } finally { busy = false; }
-    try { localStorage.setItem("dsq_welcome_last", JSON.stringify({ at: Date.now(), ...out })); } catch (e) {}
-    if (out.sent) toast("📧 Sent " + out.sent + " welcome email" + (out.sent > 1 ? "s" : ""), "success", 5000);
-    if (out.failed) toast("⚠️ " + out.failed + " welcome email(s) failed: " + (out.errors[0] || ""), "error", 8000);
+    try { localStorage.setItem("dsq_am_last", JSON.stringify({ at: Date.now(), ...res })); } catch (e) {}
+    const bits = [res.sent && res.sent + " student email" + (res.sent > 1 ? "s" : ""), res.instr && res.instr + " instructor reminder" + (res.instr > 1 ? "s" : ""), res.weekly && res.weekly + " weekly bulletin" + (res.weekly > 1 ? "s" : "")].filter(Boolean);
+    if (bits.length) toast("📧 Sent " + bits.join(", "), "success", 5000);
+    if (res.failed) toast("⚠️ " + res.failed + " email(s) failed: " + (res.errors[0] || ""), "error", 8000);
     try { if (typeof _openRefInstrId !== "undefined" && _openRefInstrId && document.getElementById("refDetailModal").classList.contains("open")) openRefDetail(_openRefInstrId); } catch (e) {}
-    card(); return out;
+    card(); return res;
   }
 
   /* ---------- Referrals card ---------- */
@@ -18310,44 +18434,52 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     let c = document.getElementById("dsqWelcomeCard");
     if (!c) { c = document.createElement("div"); c.id = "dsqWelcomeCard"; c.style.cssText = "margin:0 0 12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(37,211,102,.08));border:1px solid rgba(96,165,250,.3)"; panel.insertBefore(c, panel.firstChild); }
     const ready = window.DSQMailSend && DSQMailSend.ready();
-    let last = null; try { last = JSON.parse(localStorage.getItem("dsq_welcome_last") || "null"); } catch (e) {}
-    let n = null; if (ready) { try { const p = await pending({}); n = p.booked.length + p.web.length; } catch (e) {} }
-    c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-      <div style="flex:1;min-width:220px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic welcome emails</b>
-        <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? (auto() ? "On — website bookings get “We've got your details”, booked students get “You're booked in” (with the 10 hours for £330 offer). Checked every 10 minutes while admin is open." : "Off — nothing is sent automatically.") : "Connect Email first (Email → Setup) to switch these on."}
-        ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} sent${last.skipped ? ", " + last.skipped + " unsubscribed" : ""}${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${n != null ? `<br><b>${n}</b> waiting to be sent now.` : ""}</div></div>
-      ${ready ? `<label style="font-size:.78rem;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="dsqWelAuto" ${auto() ? "checked" : ""}> Auto-send</label>
-      <button type="button" class="btn-s" id="dsqWelPrev" style="font-size:.76rem"><i class="bi bi-eye me-1"></i>Preview</button>
-      <button type="button" class="btn-p" id="dsqWelNow" style="font-size:.76rem"><i class="bi bi-send me-1"></i>Send now</button>
-      <button type="button" class="btn-s" id="dsqWelAll" style="font-size:.76rem" title="Also email students marked booked more than 60 days ago">Older bookings…</button>` : ""}</div>`;
+    let last = null; try { last = JSON.parse(localStorage.getItem("dsq_am_last") || "null"); } catch (e) {}
+    let waiting = null, escal = [];
+    if (ready) { try { waiting = (await plan({})).length; } catch (e) {} escal = REFS.filter(r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && (isUnsure(r) || isUnreach(r)) && ageDays(r.created_at) >= 10 && ageDays(r.created_at) <= 60).slice(0, 12); }
+    c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
+      <div style="flex:1;min-width:240px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic emails &amp; instructor reminders</b>
+        <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
+        ${last ? `<br>Last run ${new Date(last.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: ${last.sent} student email(s), ${last.instr || 0} instructor reminder(s), ${last.weekly || 0} weekly bulletin(s)${last.failed ? ", " + last.failed + " failed" : ""}.` : ""}${waiting != null ? `<br><b>${waiting}</b> student email(s) waiting.` : ""}</div>
+        ${ready && last && last.chaseOn ? `<br>Instructor reminders are handled by <b>Growth → Chase</b> (one-tap reply links), so they're not sent twice.` : ""}
+        ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px">${Object.keys(TYPES).map(k => `<label style="font-size:.72rem;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" data-amt="${k}" ${on(k) ? "checked" : ""}>${TYPES[k]}</label>`).join("")}</div>` : ""}
+        ${escal.length ? `<div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);font-size:.76rem"><b style="color:#f87171">⚠️ Needs your call</b> — not booked 10+ days after referral: ${escal.map(r => `<a href="#" data-amref="${r.instructor_id}" style="color:var(--txt);text-decoration:underline">${(r.student_name || "Student").replace(/[<>&"]/g, "")}</a> (${(first(instrOf(r).full_name) || "—").replace(/[<>&"]/g, "")}, ${ageDays(r.created_at)}d)`).join(" · ")}</div>` : ""}
+      </div>
+      ${ready ? `<div style="display:flex;flex-wrap:wrap;gap:6px"><button type="button" class="btn-s" id="amPrev" style="font-size:.76rem"><i class="bi bi-eye me-1"></i>Preview</button><button type="button" class="btn-p" id="amNow" style="font-size:.76rem"><i class="bi bi-send me-1"></i>Send now</button><button type="button" class="btn-s" id="amAll" style="font-size:.76rem">Older bookings…</button></div>` : ""}</div>`;
   }
   function preview() {
-    let m = document.getElementById("dsqWelPrevM");
-    if (!m) { m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "dsqWelPrevM"; m.style.zIndex = "10220"; m.innerHTML = '<div class="dsq-modal" style="max-width:760px;width:96vw"><button class="modal-x" type="button" data-wclose><i class="bi bi-x-lg"></i></button><div style="display:flex;gap:6px;margin-bottom:8px"><button type="button" class="btn-p" data-wtab="web">Booking received</button><button type="button" class="btn-s" data-wtab="booked">Booked with instructor</button></div><iframe id="dsqWelFrame" style="width:100%;height:70vh;border:0;border-radius:12px;background:#fff"></iframe></div>'; document.body.appendChild(m);
-      m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-wclose]")) m.classList.remove("open"); const t = e.target.closest("[data-wtab]"); if (t) { show(t.getAttribute("data-wtab")); [].forEach.call(m.querySelectorAll("[data-wtab]"), b => b.className = b === t ? "btn-p" : "btn-s"); } }); }
-    const show = k => { const d = k === "web" ? designWeb() : designBooked("Dawood"); document.getElementById("dsqWelFrame").srcdoc = DSQMail.personalise(DSQMail.build(d), { name: "Sam Learner" }).replace(/\{\{unsubscribe_url\}\}/g, "#"); };
-    show("web"); m.classList.add("open");
+    const P = [["web", "Booking received"], ["A", "A · Booked"], ["AB", "A · Welcome back"], ["Anew", "A · New instructor"], ["B", "B · Unsure"], ["B2", "B · Reminder"], ["C", "C · Can't reach"], ["D", "D · Cancelled"], ["I", "Instructor reminder"], ["W", "Weekly bulletin"]];
+    let m = document.getElementById("amPrevM");
+    if (!m) { m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "amPrevM"; m.style.zIndex = "10220";
+      m.innerHTML = '<div class="dsq-modal" style="max-width:780px;width:96vw"><button class="modal-x" type="button" data-amclose><i class="bi bi-x-lg"></i></button><div id="amTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div><iframe id="amFrame" style="width:100%;height:68vh;border:0;border-radius:12px;background:#fff"></iframe></div>'; document.body.appendChild(m);
+      m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-amclose]")) m.classList.remove("open"); const t = e.target.closest("[data-amtab]"); if (t) show(t.getAttribute("data-amtab")); }); }
+    const demoIns = instrs().find(i => i.phone) || { full_name: "Dawood Khan", phone: "07700900001", id: "x" };
+    const demoR = [{ student_name: "Sam Learner", student_phone: "07700900123", created_at: new Date(Date.now() - 5 * 864e5).toISOString(), reply_status: "not_yet" }, { student_name: "Amy Khan", student_phone: "07700900456", created_at: new Date(Date.now() - 4 * 864e5).toISOString() }];
+    function show(k) {
+      document.getElementById("amTabs").innerHTML = P.map(p => `<button type="button" class="${p[0] === k ? "btn-p" : "btn-s"}" style="font-size:.72rem;padding:4px 10px" data-amtab="${p[0]}">${p[1]}</button>`).join("");
+      const d = k === "I" ? instrDesign(demoIns, demoR) : k === "W" ? weeklyDesign(demoIns) : design(k, demoIns);
+      document.getElementById("amFrame").srcdoc = DSQMail.personalise(DSQMail.build(d), { name: "Sam Learner" }).replace(/\{\{unsubscribe_url\}\}/g, "#");
+    }
+    show("A"); m.classList.add("open");
   }
   document.addEventListener("click", async e => {
-    const t = e.target.closest("#dsqWelPrev,#dsqWelNow,#dsqWelAll"); if (!t) return;
-    if (t.id === "dsqWelPrev") return preview();
+    const a = e.target.closest("[data-amref]"); if (a) { e.preventDefault(); try { await openInstrReferrals(a.getAttribute("data-amref")); } catch (er) {} return; }
+    const t = e.target.closest("#amPrev,#amNow,#amAll"); if (!t) return;
+    if (t.id === "amPrev") return preview();
     t.disabled = true;
-    if (t.id === "dsqWelNow") { const r = await run({}); if (!r.sent && !r.failed) toast("Nobody waiting — everyone's been welcomed ✓", "success", 3000); }
-    if (t.id === "dsqWelAll") { const p = await pending({ all: true }); const n = p.booked.length + p.web.length;
-      if (!n) toast("Nobody waiting — everyone's been welcomed ✓", "success", 3000);
-      else if (confirm(`Send welcome emails to ${n} student${n > 1 ? "s" : ""}, including bookings older than 60 days?\n\n(Up to 90 today — run again tomorrow for more on the free plan.)`)) await run({ all: true }); }
+    if (t.id === "amNow") { const r = await run({}); if (!r.sent && !r.instr && !r.weekly && !r.failed) toast("Nothing waiting — everyone's up to date ✓", "success", 3000); }
+    if (t.id === "amAll") { const p = await plan({ all: true }); if (!p.length) toast("Nothing waiting ✓", "success", 3000); else if (confirm(`Send ${p.length} student email(s), including bookings older than 60 days?\n\n(Up to 80 per run — run again tomorrow for more on the free plan.)`)) await run({ all: true, noInstr: true, noWeekly: true }); }
     t.disabled = false;
   });
-  document.addEventListener("change", e => { if (e.target && e.target.id === "dsqWelAuto") { try { localStorage.setItem(KEY, e.target.checked ? "1" : "0"); } catch (er) {} card(); if (e.target.checked) run({}); } });
+  document.addEventListener("change", e => { const k = e.target && e.target.getAttribute && e.target.getAttribute("data-amt"); if (!k) return; try { localStorage.setItem("dsq_am_" + k, e.target.checked ? "1" : "0"); } catch (er) {} card(); });
 
-  /* ---------- triggers ---------- */
-  const tick = () => { if (auto()) run({}); else card(); };
-  ["setRefFlag", "markRefPaid"].forEach(fn => { const o = window[fn]; if (typeof o === "function") window[fn] = async function () { const r = await o.apply(this, arguments); setTimeout(tick, 1500); return r; }; });
+  const tick = () => run({});
+  ["setRefFlag", "markRefPaid", "cancelRef"].forEach(fn => { const o = window[fn]; if (typeof o === "function") window[fn] = async function () { const r = await o.apply(this, arguments); setTimeout(() => run({ noWeekly: true }), 1500); return r; }; });
   function start() { setTimeout(tick, 8000); setInterval(tick, 10 * 60 * 1000); }
-  window.DSQWelcome = { run, pending, preview };
+  window.DSQAutoMail = { run, plan, preview, due, design };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
 </script>
-<!-- DSQ-WELCOME END -->
+<!-- DSQ-AUTOMAIL END -->
 </body>
 </html>
