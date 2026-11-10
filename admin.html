@@ -5652,6 +5652,7 @@ async function viewInstr(id){
         <button class="abtn" style="border-color:rgba(245,197,24,.4);color:var(--gold)" onclick="openEditForId('${id}');setTimeout(()=>{const el=document.getElementById('edit-coverage');if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});}},400)" title="Edit covered postcodes"><i class="bi bi-geo-alt me-1"></i>Coverage</button>
         <button class="abtn edit" onclick="openEditForId('${id}')"><i class="bi bi-pencil me-1"></i>Edit</button>
         <button class="abtn msg" onclick="openMsgModal('${id}')"><i class="bi bi-envelope me-1"></i>Message</button>
+        <button class="abtn" style="border-color:rgba(96,165,250,.45);color:#60a5fa" onclick="instrMailOpen('${id}')" title="Professional emails: joining, Google reviews, pass photos, standards, custom"><i class="bi bi-envelope-paper-heart me-1"></i>Email</button>
         <button class="abtn" id="instrRefBtn-${id}" style="border-color:rgba(37,211,102,.45);color:#4ade80" onclick="openInstrReferrals('${id}')" title="All referrals for this instructor, all time"><i class="bi bi-cash-coin me-1"></i>Referrals <span class="ref-cnt"></span></button>
         ${waBtn}
         <button onclick="toggleGuideMode('${id}','${jsEsc(instr.full_name)}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:8px;padding:7px 14px;font-size:.78rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;display:flex;align-items:center;gap:5px"><i class="bi bi-mortarboard-fill me-1"></i>Guide Mode</button>
@@ -18503,5 +18504,120 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
 })();
 </script>
 <!-- DSQ-AUTOMAIL END -->
+<!-- DSQ-INSTRMAIL START -->
+<script id="dsq-instrmail">
+/* Instructor profile → "Email" button: professional, editable emails to one instructor (joining, Google reviews,
+   pass photos & videos, professional standards, profile update, thank you, custom). Sent by email (branded, via the
+   connected send-email function) and/or to their Instructor Portal with a phone notification. */
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const h = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const toast = (m, t, ms) => { try { showToast(m, t || "", ms); } catch (e) { console.log(m); } };
+  const RE_EMAIL = /^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/;
+  const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
+  const SITE = "https://www.drivesq.co.uk", PORTAL = SITE + "/dashboard.html", GUIDE = SITE + "/instructor-lesson-guide.html", WA = "https://wa.me/447352932003";
+  const REVIEW = (() => { try { return GOOGLE_REVIEW_URL; } catch (e) { return "https://g.page/r/Cf5Ww977kUeEEBM/review"; } })();
+  const T = [
+    { id: "join", ic: "👋", name: "Joining / welcome", theme: "night", banner: "drive", btn: ["Open my Instructor Portal", PORTAL],
+      subject: i => `Welcome to DriveSQ, ${first(i.full_name)} — let's get you started`,
+      headline: "Welcome to **DriveSQ**",
+      body: i => `We're delighted to have you on the DriveSQ team.\n\n**Your Instructor Portal**\n- Log in at drivesq.co.uk/dashboard.html with your badge number${i.badge_number ? " (**" + i.badge_number + "**)" : ""} and your password\n- Add a profile photo and photos of your car\n- Set the postcodes you cover and your availability, so we can send you the right students\n- Add your email in My Profile so you receive reminders and updates\n\n**How referrals work**\n- We send you students near the postcodes you cover\n- Please contact each new student within 24 hours\n- Update their status in the portal: **Booked / Not booked yet / Can't reach / Not going ahead**\n- Log every lesson so students can track their progress in their Student Portal\n\n**Standards we work to**\n- Read the Lesson Quality Guide — DVSA's 17 standards-check competencies and the legal basics\n- Every Monday you'll get a short weekly reminder in your portal and by email\n\nAny questions at all, just reply or WhatsApp us.` },
+    { id: "review", ic: "⭐", name: "Google review reminder", theme: "classic", banner: "pass", btn: ["Our Google review link", REVIEW],
+      subject: i => `${first(i.full_name)}, a quick favour — Google reviews from your students`,
+      headline: "Help learners **find us**",
+      body: i => `Google reviews are one of the main reasons new learners choose DriveSQ — and every review helps all of our instructors.\n\n**When to ask**\n- Straight after a pass, while the excitement is fresh\n- At the end of a lesson that went really well\n\n**How to ask**\n- Send the link below by WhatsApp with a short thank-you\n- Ask them to mention you by name and the area they learned in\n\n**Please don't**\n- Offer discounts, free lessons or anything else in return for a review\n- Write, edit or post a review for a student — reviews must be their own words\n\n(Incentivised and fake reviews break Google's rules and UK consumer law.)` },
+    { id: "pass", ic: "📸", name: "Pass photos & videos", theme: "classic", banner: "pass", btn: ["Send them on WhatsApp", WA],
+      subject: i => `Pass photos & videos, ${first(i.full_name)} — please send us your passes`,
+      headline: "Share your **passes**",
+      body: i => `Your students' pass days are the best advert DriveSQ has. Please send us pass photos and short videos so we can celebrate them on our website and social media.\n\n**Before you take a photo**\n- Ask the student's permission to share it online — and a parent or guardian's for anyone under 18\n- If they'd rather not, that's fine — just don't send it\n\n**For a great photo**\n- Student holding their pass certificate beside the DriveSQ car with the roof sign\n- Cover or blur the certificate's licence number and personal details\n- Portrait and landscape both work; good light, nothing behind them that identifies their home\n\nSend them to us on WhatsApp (07352 932003) with the student's first name, the test centre and "permission given".` },
+    { id: "standards", ic: "🎯", name: "Professional standards", theme: "clean", banner: "none", btn: ["Open the Lesson Quality Guide", GUIDE],
+      subject: i => `${first(i.full_name)}, a reminder of our lesson standards`,
+      headline: "Our **standards**",
+      body: i => `Thank you for everything you do. A quick reminder of the standards every DriveSQ lesson should meet:\n\n- **On time, every time** — let the student know early if you're running late\n- **No hand-held phone** while supervising a learner (Highway Code rule 149)\n- **Provisional licence and eyesight check** before the first drive; L plates front and back\n- **Clear goals, safe practice areas and a reflection** at the end of every lesson\n- **Honest test readiness** — mock tests first, never rushing a learner to test\n- **Professional, respectful communication**, and student details used only for their lessons\n- **Update the portal** after every lesson\n\nThe Lesson Quality Guide covers all of this in more detail, including DVSA's 17 standards-check competencies.` },
+    { id: "profile", ic: "🗓️", name: "Update your profile", theme: "clean", banner: "none", btn: ["Update my profile", PORTAL],
+      subject: i => `${first(i.full_name)}, please check your DriveSQ profile`,
+      headline: "Keep your **profile** up to date",
+      body: i => `So we can send you the right students, please take two minutes to check your profile in the Instructor Portal:\n\n- **Postcodes you cover** — add or remove areas\n- **Availability** — the days and times you can take new learners\n- **Manual / automatic** — what you teach\n- **Car details and photos**\n- **Your email address** — for reminders and updates\n\nThank you!` },
+    { id: "thanks", ic: "🙏", name: "Thank you / great work", theme: "night", banner: "pass", btn: ["Open my Instructor Portal", PORTAL],
+      subject: i => `Thank you, ${first(i.full_name)} — great work`,
+      headline: "Thank **you**",
+      body: i => `We wanted to say a proper thank you for your hard work with your DriveSQ students.\n\nThe care you put into your lessons shows — in your students' progress, their passes and the feedback we hear.\n\nKeep up the great work, and let us know if there's anything we can do to support you.` },
+    { id: "custom", ic: "✏️", name: "Custom email", theme: "clean", banner: "none", btn: ["", ""], subject: i => `A message from DriveSQ`, headline: "", body: () => "" }];
+  let cur = null;
+  function modal() {
+    let m = $("#imModal"); if (m) return m;
+    m = document.createElement("div"); m.className = "dsq-overlay"; m.id = "imModal"; m.style.zIndex = "10230";
+    m.innerHTML = '<div class="dsq-modal" style="max-width:1080px;width:97vw"><button class="modal-x" type="button" data-imx><i class="bi bi-x-lg"></i></button><div class="im-b"></div></div>';
+    m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-imx]")) m.classList.remove("open"); });
+    document.body.appendChild(m);
+    const st = document.createElement("style");
+    st.textContent = ".im-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}@media(max-width:860px){.im-grid{grid-template-columns:1fr}}" +
+      ".im-tpl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}.im-tpl button{border:1px solid var(--bdr,#333);background:transparent;color:var(--txt2,#ddd);border-radius:999px;padding:6px 12px;font-size:.78rem;cursor:pointer}.im-tpl button.on{background:var(--red,#D10A11);border-color:var(--red,#D10A11);color:#fff}" +
+      ".im-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.6px;color:var(--txt4,#888);margin-top:8px}.im-b textarea{min-height:260px;font-size:.84rem}.im-frame{width:100%;height:560px;border:0;border-radius:12px;background:#f3eee8}" +
+      ".im-ch{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:.8rem}.im-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}.im-warn{font-size:.74rem;color:#f59e0b;margin-top:6px}";
+    document.head.appendChild(st); return m;
+  }
+  function design() {
+    const t = T.find(x => x.id === cur.tpl), i = cur.ins;
+    return { theme: t.theme, banner: t.banner, subject: $("#imSubj").value, preheader: $("#imSubj").value, headline: $("#imHead").value, greeting: "Hi " + first(i.full_name) + ",",
+      body: $("#imBody").value, buttonText: t.btn[0], buttonUrl: t.btn[1], signoff: "Kind regards,\nThe DriveSQ team", footerNote: "You're getting this email because you're a DriveSQ instructor." };
+  }
+  function preview() { const f = $("#imFrame"); if (f && window.DSQMail) f.srcdoc = DSQMail.build(design()).replace(/\{\{unsubscribe_url\}\}/g, "#"); }
+  function open(id) {
+    const ins = (typeof allInstrs !== "undefined" ? allInstrs : []).find(x => String(x.id) === String(id)); if (!ins) return;
+    cur = { ins, tpl: "join" }; render(); modal().classList.add("open");
+  }
+  function render() {
+    const { ins } = cur, t = T.find(x => x.id === cur.tpl), hasEmail = RE_EMAIL.test(String(ins.email || "").trim()), ready = window.DSQMailSend && DSQMailSend.ready();
+    $(".im-b", modal()).innerHTML = `<h5 style="font-family:Oswald,sans-serif;margin-bottom:2px"><i class="bi bi-envelope-paper-heart me-2" style="color:#60a5fa"></i>Email ${h(ins.full_name)}</h5>
+      <div style="font-size:.76rem;color:var(--txt3)">${hasEmail ? h(ins.email) : "No email on file — this will go to their Instructor Portal only"}</div>
+      <div class="im-tpl">${T.map(x => `<button type="button" data-imt="${x.id}" class="${x.id === cur.tpl ? "on" : ""}">${x.ic} ${h(x.name)}</button>`).join("")}</div>
+      <div class="im-grid"><div>
+        <div class="im-lbl">Subject</div><input class="dsq-inp" id="imSubj" maxlength="150" value="${h(t.subject(ins))}">
+        <div class="im-lbl">Heading</div><input class="dsq-inp" id="imHead" maxlength="80" value="${h(t.headline.replace(/\*\*/g, ""))}" placeholder="Optional big heading">
+        <div class="im-lbl">Message <span style="text-transform:none;letter-spacing:0">— **bold**, lines starting "- " become ticked bullet points</span></div>
+        <textarea class="dsq-inp" id="imBody" maxlength="5000" placeholder="Write your message…">${h(t.body(ins))}</textarea>
+        <div class="im-ch"><label><input type="checkbox" id="imEmail" ${hasEmail && ready ? "checked" : "disabled"}> Send by email</label><label><input type="checkbox" id="imApp" checked> Also send to their portal + phone notification</label></div>
+        ${!ready ? '<div class="im-warn">Email isn\'t connected yet (Email → Setup) — it will go to their portal only.</div>' : ""}
+        <div class="im-foot"><button type="button" class="btn-s" data-imx>Cancel</button><button type="button" class="btn-s" id="imTest"${ready ? "" : " disabled"}><i class="bi bi-eye me-1"></i>Send me a test</button><button type="button" class="btn-p" id="imSend"><i class="bi bi-send me-1"></i>Send to ${h(first(ins.full_name))}</button></div>
+      </div><div><div class="im-lbl">Preview</div><iframe class="im-frame" id="imFrame" title="Email preview"></iframe></div></div>`;
+    preview();
+  }
+  async function send(test) {
+    const { ins } = cur, d = design(), body = d.body.trim();
+    if (!d.subject.trim() || !body) return toast("Add a subject and a message", "warn");
+    const btn = $(test ? "#imTest" : "#imSend"); btn.disabled = true;
+    try {
+      const M = window.DSQMail, msg = to => ({ to, subject: d.subject, html: M.build(d), text: M.text(d) });
+      if (test) {
+        let to = ""; try { to = JSON.parse(localStorage.getItem("dsqm_testto") || '""'); } catch (e) {}
+        to = to || prompt("Send the test to which email address?", "") || "";
+        if (!RE_EMAIL.test(to.trim())) { toast("Add a valid test email address", "warn"); return; }
+        const r = await DSQMailSend.send([msg(to.trim().toLowerCase())]); toast(r[0] && r[0].status === "sent" ? "📬 Test sent to " + to : "Test not sent: " + ((r[0] && r[0].error) || "unknown"), r[0] && r[0].status === "sent" ? "success" : "error", 6000); return;
+      }
+      const did = [];
+      if ($("#imEmail").checked) { const r = await DSQMailSend.send([msg(String(ins.email).trim().toLowerCase())]); if (r[0] && r[0].status === "sent") did.push("email"); else toast("Email not sent: " + ((r[0] && r[0].error) || "unknown"), "error", 7000); }
+      if ($("#imApp").checked) {
+        const plainBody = body.replace(/\*\*/g, "") + (d.buttonUrl ? "\n\n" + d.buttonText + ": " + d.buttonUrl : "");
+        const ins_ = await sb.from("admin_messages").insert([{ instructor_id: ins.id, subject: d.subject, body: plainBody, message_type: "general", is_read: false, dismissed: false, created_at: new Date().toISOString() }]);
+        if (!ins_.error) { did.push("portal"); try { sendPushToInstructor(ins.id, ins.full_name || "", d.subject, plainBody.slice(0, 120), "/dashboard.html"); } catch (e) {} }
+        else toast("Portal message not sent: " + ins_.error.message, "error", 6000);
+      }
+      if (did.length) { toast("✅ Sent to " + ins.full_name + " (" + did.join(" + ") + ")", "success", 5000); modal().classList.remove("open"); }
+    } catch (e) { toast("Not sent: " + (e.message || e), "error", 7000); }
+    finally { btn.disabled = false; }
+  }
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-imt],#imSend,#imTest"); if (!t || !cur) return;
+    if (t.hasAttribute("data-imt")) { cur.tpl = t.getAttribute("data-imt"); return render(); }
+    if (t.id === "imSend") return send(false);
+    if (t.id === "imTest") return send(true);
+  });
+  let deb = 0; document.addEventListener("input", e => { if (e.target && /^im(Subj|Head|Body)$/.test(e.target.id)) { clearTimeout(deb); deb = setTimeout(preview, 250); } });
+  window.instrMailOpen = open;
+})();
+</script>
+<!-- DSQ-INSTRMAIL END -->
 </body>
 </html>
