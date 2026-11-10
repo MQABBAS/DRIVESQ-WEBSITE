@@ -92,7 +92,7 @@
       '<div class="dsq-bc__step" data-step="3" hidden><div class="dsq-bc__q">Last step — your details</div>' +
       '<input class="dsq-bc__in" name="qname" autocomplete="name" placeholder="Full name" aria-label="Full name">' +
       '<input class="dsq-bc__in" name="qphone" type="tel" autocomplete="tel" placeholder="Mobile number" aria-label="Mobile number">' +
-      '<input class="dsq-bc__in" name="qemail" type="email" autocomplete="email" placeholder="Email (optional)" aria-label="Email (optional)">' +
+      '<input class="dsq-bc__in" name="qemail" type="email" autocomplete="email" placeholder="Email (for your booking confirmation)" aria-label="Email" required aria-required="true">' +
       '<div class="dsq-bc__err" role="alert"></div><div class="dsq-bc__nav"><button type="button" class="dsq-bc__back" data-nav="2">Back</button><button type="button" class="dsq-bc__go" data-send>Send booking ✓</button></div>' +
       '<p style="font-size:.72rem;color:#8a8a8a;margin:10px 0 0">No payment now. We\'ll call or text to confirm. <a href="/privacy.html" style="color:#8a8a8a">Privacy</a></p></div>' +
       '<div class="dsq-bc__step" data-step="4" hidden></div></div>' +
@@ -159,7 +159,8 @@
       var name = g('qname'), phone = g('qphone'), email = g('qemail');
       if (!nameOk(name)) { err.textContent = 'Please enter your name.'; card.querySelector('[name=qname]').focus(); return; }
       if (!phoneOk(phone)) { err.textContent = "That mobile number doesn't look right — please check it."; card.querySelector('[name=qphone]').focus(); return; }
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { err.textContent = "That email doesn't look right — check it or leave it blank."; return; }
+      if (!email) { err.textContent = "Please enter your email — we send your booking confirmation there."; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { err.textContent = "That email doesn't look right — please check it."; return; }
       err.textContent = '';
       var pk = PKGS.filter(function (p) { return p.id === st.pkg; })[0] || {};
       var service = pk.id === 'offer' ? 'New learner offer: 10 hours for £330' : pk.id === 'int' ? 'Intensive Course' : pk.id === 'nhs' ? 'NHS/student 10 hours £320' : pk.id === 'block' ? '10-hour block £350' : pk.id === 'payg' ? '2-hour lessons (pay as you go)' : 'Not sure — advise me';

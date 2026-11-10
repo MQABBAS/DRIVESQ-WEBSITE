@@ -105,7 +105,7 @@ def form(title, sub, options, button="Book Now"):
       <input name="phone" type="tel" placeholder="Phone number *" required autocomplete="tel" style="{st}">
       <input name="postcode" placeholder="Postcode * (e.g. B90 4AA)" required autocomplete="postal-code" style="{st};text-transform:uppercase">
       <select name="service" required style="{st};background:rgba(30,30,30,.95)"><option value="">Choose *</option>{opts}</select>
-      <input name="email" type="email" placeholder="Email (optional)" autocomplete="email" style="{st}">
+      <input name="email" type="email" placeholder="Email (for your booking confirmation)" required aria-required="true" autocomplete="email" style="{st}">
       <textarea name="notes" placeholder="Anything we should know? (optional)" maxlength="500" rows="3" style="{st}"></textarea>
       <div class="dsq-bk-extra" style="display:flex;flex-direction:column;gap:10px">
         <select name="start" aria-label="When do you want to start?" style="background:rgba(30,30,30,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box"><option value="">When do you want to start? (optional)</option><option>As soon as possible</option><option>Within 2 weeks</option><option>Within a month</option><option>In a few months</option><option>Just looking for now</option></select>
@@ -146,7 +146,7 @@ def form(title, sub, options, button="Book Now"):
     </div>
   </div>
 </section>
-<script src="/booking-capture.js?v=20261114" defer></script>
+<script src="/booking-capture.js?v=20261115" defer></script>
 <!-- /DRIVESQ-INLINE-BOOKING-V1 -->"""
 
 

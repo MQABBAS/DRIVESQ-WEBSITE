@@ -224,7 +224,7 @@ footer a:hover{color:var(--gold)}
             </select>
           </div>
         </div>
-        <div class="f-group"><label>Email (optional)</label><input class="f-inp" id="b-email" type="email" placeholder="For booking confirmation"/></div>
+        <div class="f-group"><label>Email *</label><input class="f-inp" id="b-email" type="email" placeholder="For booking confirmation" required aria-required="true"/></div>
         <div class="f-group"><label>Notes (optional)</label><textarea class="f-inp" id="b-notes" rows="2" placeholder="e.g. nervous driver, theory passed, availability…"></textarea></div>
         <button class="btn-book" id="bookBtn" onclick="submitBooking()"><i class="bi bi-calendar-check"></i>Request My Lesson</button>
         <p class="form-note">We reply within 2 hours · No card required to book</p>
@@ -254,7 +254,7 @@ footer a:hover{color:var(--gold)}
         <option>Pass Plus</option>
         <option>Theory Help</option>
       </select>
-      <input name="email" type="email" placeholder="Email (optional)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
+      <input name="email" type="email" placeholder="Email (for your booking confirmation)" required aria-required="true" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box">
       <div class="dsq-bk-extra" style="display:flex;flex-direction:column;gap:10px">
         <select name="start" aria-label="When do you want to start?" style="background:rgba(30,30,30,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box"><option value="">When do you want to start? (optional)</option><option>As soon as possible</option><option>Within 2 weeks</option><option>Within a month</option><option>In a few months</option><option>Just looking for now</option></select>
         <select name="experience" aria-label="Your driving so far" style="background:rgba(30,30,30,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;color:#f0f0f0;font-size:.88rem;outline:none;width:100%;box-sizing:border-box"><option value="">Your driving so far (optional)</option><option>Complete beginner</option><option>Had some lessons</option><option>Test already booked</option><option>Failed a test, want to retake</option><option>Passed, want a refresher or Pass Plus</option></select>
@@ -294,7 +294,7 @@ footer a:hover{color:var(--gold)}
     </div>
   </div>
 </section>
-<script src="/booking-capture.js?v=20261114" defer></script>
+<script src="/booking-capture.js?v=20261115" defer></script>
 <!-- /DRIVESQ-INLINE-BOOKING-V1 --></div>
 
 
@@ -936,7 +936,8 @@ async function submitBooking(){
   if(!/[A-Za-z].*[A-Za-z]/.test(name)){alert('Please enter your name.');document.getElementById('b-name').focus();return;}
   {let d=phone.replace(/\D/g,'');if(d.indexOf('44')===0)d='0'+d.slice(2);if(!/^0\d{9,10}$/.test(d)){alert("That phone number doesn't look right — please check it.");document.getElementById('b-phone').focus();return;}}
   if(!/^[A-Z]{1,2}[0-9][A-Z0-9]?\s*[0-9][A-Z]{2}$/.test(postcode)){alert('Please enter your full postcode, e.g. M19 2AB.');document.getElementById('b-postcode').focus();return;}
-  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){alert("That email doesn't look right — check it or leave it blank.");document.getElementById('b-email').focus();return;}
+  if(!email){alert("Please enter your email — we send your booking confirmation there.");document.getElementById('b-email').focus();return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){alert("That email doesn't look right — please check it.");document.getElementById('b-email').focus();return;}
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i>Sending…';
   const notesStr=['[WEB][FAILSWORTH SEO PAGE] Book a Lesson form','Package: '+lessonType,'Gearbox: '+(/auto/i.test(lessonType)?'Automatic':'Manual'),'Postcode: '+postcode,email?'Email: '+email:'',notes?'Notes: '+notes:''].filter(Boolean).join('\n');
   let supaOk=false,formOk=false;

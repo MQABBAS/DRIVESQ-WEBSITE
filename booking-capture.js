@@ -186,7 +186,8 @@
       d.postcode = fullPostcode(pcRaw); d.gearbox = gearbox(d.service);
       if (!d.name || !d.phone || !pcRaw || !d.service) { say('Please fill in your name, phone number, postcode and lesson type.'); return; }
       if (!nameOk(d.name)) { say('Please enter your name.'); return; }
-      if (!emailOk(d.email)) { say("That email doesn't look right — check it or leave it blank."); return; }
+      if (!d.email) { say('Please enter your email — we send your booking confirmation there.'); var emI = f.querySelector('[name="email"]'); if (emI) emI.focus(); return; }
+      if (!emailOk(d.email)) { say("That email doesn't look right — please check it."); return; }
       if (!phoneOk(d.phone)) { say("That phone number doesn't look right — please check it."); return; }
       if (!d.postcode) { say('Please enter your full postcode, e.g. M19 2AB.'); return; }
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending…'; }
@@ -224,7 +225,7 @@
       if (!nameOk(d.name)) return formError(form, 'Please enter your name.', F('name'));
       if (phoneEl && !phoneOk(d.phone)) return formError(form, d.phone ? "That phone number doesn't look right — please check it." : 'Please enter your phone number so we can contact you.', phoneEl);
       if (!phoneEl && !d.email) return formError(form, 'Please enter your email so we can reply.', emEl);
-      if (emEl && emEl.required && !d.email) return formError(form, 'Please enter your email address.', emEl);
+      if (emEl && !d.email) return formError(form, 'Please enter your email — we send your booking confirmation there.', emEl);   // email is required on every booking form
       if (!emailOk(d.email)) return formError(form, "That email doesn't look right — please check it.", emEl);
       if (pcEl && !fullPostcode(g('postcode'))) return formError(form, 'Please enter your <strong>full postcode</strong>, e.g. M19 2AB.', pcEl);
       if (svcEl && svcEl.required && !clean(svcEl.value)) return formError(form, 'Please choose a lesson type.', svcEl);
@@ -259,7 +260,7 @@
     scan(document);
     if (!window.__dsqAssist) { var as = document.createElement('script'); as.src = '/dsq-assist.js?v=20261111'; as.defer = true; document.head.appendChild(as); }
     if (document.querySelector('#dsqInlineBookForm') && !document.querySelector('[data-dsqx-bc]') && !window.__dsqBookCard) {
-      var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261111'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
+      var bc = document.createElement('script'); bc.src = '/dsq-bookcard.js?v=20261115'; bc.defer = true; bc.onload = function () { stickyBook(); }; document.head.appendChild(bc);
     } else stickyBook();
     if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && (n.matches('#dsqInlineBookForm') || n.matches('form[action*="formspree.io"]'))) scan(n.parentNode || document); else scan(n); } }); }); }).observe(document.body, { childList: true, subtree: true });
   }
