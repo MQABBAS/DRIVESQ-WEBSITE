@@ -146,7 +146,7 @@ SCHOOLS = [
     ("BSM", "https://www.bsm.co.uk/locations/solihull", "National school; lists local instructors by name; weekday, evening and weekend availability.", "", "None advertised"),
     ("Bill Plant", "https://www.billplant.co.uk/driving-lessons/where-to-find-us/solihull/", "National school; automatic lessons advertised from £34/hr nationally; block-booking discounts.", "From £34/hr (automatic, national page)", "None advertised"),
     ("SmartLearner", "https://smartlearner.com/solihull", "Manual £36/hr, automatic £37/hr before fees; a 1.5-hour introduction lesson and an automatic beginner package.", "£36–£37/hr", "Appears linked to the DiaryIt app"),
-    ("RSM Driving School", "https://rsm-drivingschool.co.uk/driving-lessons-solihull/", "£35/hr manual or automatic; intensive courses; shows a 4.9 rating from 3,610 reviews on its own page.", "£35/hr · first three lessons £60", "None advertised"),
+    ("RSM Driving School", "https://rsm-drivingschool.co.uk/driving-lessons-solihull/", "£35/hr manual or automatic; intensive courses; shows a 5 rating from 3,610 reviews on its own page.", "£35/hr · first three lessons £60", "None advertised"),
     ("Style Driving", "https://styledriving.co.uk/", "Says it has over 30 years' experience; covers Shirley, Knowle and Dorridge.", "£35/hr · 10 lessons £330 · first lesson £15", "None advertised"),
     ("Solihull Driver Trainers", "https://www.solihull-driving-school.uk/important-information/solihull-driving-school-prices.html", "Paid assessment lesson (£64 manual, £72 automatic); 9–10 day automatic intensive courses.", "Intensive £2,492–£2,762 incl. test fee", "None advertised"),
     ("APass4U", "https://www.apass4u.co.uk/intensive-driving-courses/west-midlands/solihull/", "Intensive course provider; 2-hour assessment £74 (£76 automatic).", "40 hours from £1,825", "None advertised"),
@@ -175,7 +175,7 @@ def biz_schema(fname):
               "Balsall Common", "Meriden", "Hampton-in-Arden", "Monkspath", "Dickens Heath", "Cheswick Green", "Hockley Heath", "Lyndon", "Elmdon"]
     return {"@context": "https://schema.org", "@type": "DrivingSchool", "@id": f"{SITE}/{LANDING}#school", "name": "DriveSQ — Driving Lessons in Solihull",
             "url": f"{SITE}/{fname}", "telephone": "+44 7352 932003", "priceRange": "£35–£350", "foundingDate": "2025",
-            "aggregateRating": {"@type": "AggregateRating", "ratingValue": "4.9", "bestRating": "5", "reviewCount": "157"},
+            "aggregateRating": {"@type": "AggregateRating", "ratingValue": "5", "bestRating": "5", "reviewCount": "180"},
             "potentialAction": {"@type": "ReserveAction", "name": "Book driving lessons", "target": {"@type": "EntryPoint", "urlTemplate": f"{SITE}/{fname}#book", "actionPlatform": ["https://schema.org/DesktopWebPlatform", "https://schema.org/MobileWebPlatform"]}},
             "areaServed": [{"@type": "AdministrativeArea", "name": "Metropolitan Borough of Solihull"}] + [{"@type": "Place", "name": p} for p in places],
             "sameAs": [SQ + "/driving-lessons-solihull.html", "https://www.instagram.com/drive_sq_academy/", "https://www.facebook.com/profile.php?id=100092258175464"],
@@ -292,7 +292,7 @@ def landing():
         "with a DVSA-approved instructor", "with an ADI or PDI instructor")
     rows = "".join(f'<tr><td><a href="{s}-driving-test-centre-pass-rate-wait-time.html"><b>{e(n)}</b></a><br><a class="sol-note" href="{SQS}{s}-driving-test-centre-routes.html">route guide</a></td><td>{e(a)}</td><td>{r}%</td></tr>' for n, a, r, s in CENTRES)
     secs = [
-        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>4.9★</b><span>from 157 Google reviews</span></div><div><b>£35</b><span>per hour, manual or auto</span></div><div><b>£0</b><span>Student Portal — free</span></div><div><b>700+</b><span>theory questions</span></div><div><b>14</b><span>full mock tests</span></div><div><b>7</b><span>test centres compared</span></div><div><b>{len(SQP)}+</b><span>Solihull guides</span></div></div></div></section>',
+        f'<section class="sol-sec" style="padding-top:36px"><div class="container"><div class="sol-kpi reveal"><div><b>5★</b><span>from 180 Google reviews</span></div><div><b>£35</b><span>per hour, manual or auto</span></div><div><b>£0</b><span>Student Portal — free</span></div><div><b>700+</b><span>theory questions</span></div><div><b>14</b><span>full mock tests</span></div><div><b>7</b><span>test centres compared</span></div><div><b>{len(SQP)}+</b><span>Solihull guides</span></div></div></div></section>',
         PLAN_SEC,
         HOW_SEC,
         portal,
