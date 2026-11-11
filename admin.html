@@ -3665,6 +3665,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
     <h5 id="sdTitle">Student Details</h5>
     <div class="modal-sub" id="sdSub">—</div>
     <div id="sdBody"></div>
+    <div id="sdRecords"></div>
     <div class="mt-3 d-flex gap-2 flex-wrap" id="sdActions"></div>
     <div class="mt-3" id="sdProgressSection" style="display:none">
       <div class="section-label"><i class="bi bi-graph-up me-2" style="color:var(--green)"></i>Progress &amp; Performance</div>
@@ -5326,6 +5327,7 @@ async function openRefStudentDetail(studentName, instrId){
   document.getElementById('sdLessons').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">No lesson history — student has not logged in to the app yet.</div>';
   document.getElementById('sdMessages').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">—</div>';
   openModal('studentDetailModal');
+  loadStudentRecords({name:studentName,phone:phone,instrId:instrId,acctEmail:acct?.email||null,address:acct?.address||''});
 }
 
 // ── Follow Up List ───────────────────────────────────────────────────────
@@ -6877,7 +6879,68 @@ async function openStudentDetail(idx,_directData){
   // Open modal immediately with cached data — progress/messages load async after
   openModal('studentDetailModal');
   // Load heavier data (progress, messages, theory) asynchronously after modal is visible
-  requestAnimationFrame(()=>loadStudentProgress(s));
+  requestAnimationFrame(()=>{loadStudentProgress(s);loadStudentRecords(s);});
+}
+
+/* ══ STUDENT RECORDS + EMAILS SENT (student detail) ══
+   Pulls everything we hold on the student (account, instructor's profile, referral, website booking) and
+   every email that went to them (automatic emails noted on the referral/booking, Email-tab campaigns). */
+async function loadStudentRecords(s){
+  const box=document.getElementById('sdRecords');if(!box)return;
+  box.innerHTML='<div style="font-size:.74rem;color:var(--txt4);padding:8px 0"><i class="bi bi-hourglass-split me-1"></i>Loading records…</div>';
+  const name=String(s.name||'').trim(),lname=name.toLowerCase(),instrId=s.instrId||null;
+  const ph10=p=>String(p||'').replace(/\D/g,'').slice(-10),p10=ph10(s.phone);
+  const sameStudent=r=>(p10&&ph10(r.student_phone||r.phone)===p10)||(lname&&String(r.student_name||r.full_name||r.name||'').trim().toLowerCase()===lname);
+  const q=async(pr)=>{try{const r=await pr;return r.data||[];}catch(e){return[];}};
+  const [accts,profs,refs,wls]=await Promise.all([
+    s.acctId?q(sb.from('student_accounts').select('*').eq('id',s.acctId)):q(sb.from('student_accounts').select('*').ilike('full_name',name||'~')),
+    (s.profileId||s.rosterId)?q(sb.from('student_profiles').select('*').eq('id',s.profileId||s.rosterId)):(instrId?q(sb.from('student_profiles').select('*').eq('instructor_id',instrId).ilike('name',name||'~')):Promise.resolve([])),
+    q(sb.from('referrals').select('*').ilike('student_name',name||'~').order('created_at',{ascending:false})),
+    q(sb.from('waiting_list').select('*').ilike('student_name',name||'~').order('created_at',{ascending:false}))
+  ]);
+  const acct=accts.find(sameStudent)||accts[0]||null,prof=profs.find(sameStudent)||profs[0]||null;
+  const myRefs=refs.filter(sameStudent),myWl=wls.filter(sameStudent);
+  const wlNote=k=>{for(const w of myWl){const m=String(w.notes||'').match(new RegExp('^'+k+':\\s*(.+)$','mi'));if(m)return m[1].trim();}return'';};
+  const email=String(acct?.email||prof?.email||s.acctEmail||s.email||wlNote('Email')||'').trim().toLowerCase();
+  const address=acct?.address||prof?.address||s.address||'';
+  const pcm=String(address).toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/),postcode=pcm?pcm[1].replace(/\s+/,' '):(myWl[0]?.postcode||wlNote('Postcode')||'');
+  const [sends,contact]=await Promise.all([
+    email?q(sb.from('email_sends').select('email,status,sent_at,created_at,campaign_id,email_campaigns(subject)').eq('email',email).order('created_at',{ascending:false}).limit(50)):Promise.resolve([]),
+    email?q(sb.from('email_contacts').select('status,unsubscribed_at,last_sent_at').eq('email_key',email).limit(1)):Promise.resolve([])
+  ]);
+  const unsub=contact[0]&&contact[0].status&&contact[0].status!=='subscribed';
+  // emails sent: automatic ones are noted on the referral / website booking; Email-tab campaigns are in email_sends
+  const events=[];
+  const noteLines=t=>String(t||'').split('\n').filter(l=>/📧|email sent/i.test(l));
+  const stamp=(l,fallback)=>{const d=Date.parse((l.split(' · ')[0]||'').trim());return isNaN(d)?new Date(fallback):new Date(d);};
+  myRefs.forEach(r=>noteLines(r.admin_notes).forEach(l=>events.push({at:stamp(l,r.created_at),what:l.replace(/^[^·]*·\s*/,''),src:'automatic'})));
+  myWl.forEach(w=>noteLines(w.notes).forEach(l=>events.push({at:stamp(l,w.created_at),what:l.replace(/^[^·]*·\s*/,''),src:'automatic'})));
+  sends.forEach(x=>{if(x.status==='pending')return;events.push({at:new Date(x.sent_at||x.created_at),what:(x.email_campaigns&&x.email_campaigns.subject?x.email_campaigns.subject:'Email campaign')+(x.status==='sent'?'':' · '+x.status),src:'campaign'});});
+  events.sort((a,b)=>b.at-a.at);
+  const fmt=d=>isNaN(d)?'':d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  const row=(l,v,extra)=>`<div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">${l}</div><div class="det-val ${v?'':'empty'}" style="font-size:.8rem">${v||'<span style="color:var(--txt4)">Not recorded</span>'}${extra||''}</div></div></div>`;
+  const source=myWl.length?'Website booking'+(wlNote('Ref')?' · ref '+esc(wlNote('Ref')):''):myRefs.length?'Referral':(acct?'Student Portal sign-up':'—');
+  const refLine=myRefs.map(r=>{const fc=r.is_cancelled?'cancelled':_refAdminBooked(r)?'✅ booked'+(r.is_paid?' · fee paid':' · fee owed'):r.flag_color==='purple'?'🟣 unsure':r.flag_color==='red'?'🚩 not booked':'no flag';const i=(allInstrs||[]).find(x=>x.id===r.instructor_id);return `${fmt(new Date(r.created_at))} → ${esc(i?i.full_name:'?')} · ${fc}`;}).join('<br>');
+  box.innerHTML=`
+    <div class="section-label mt-3"><i class="bi bi-person-vcard-fill me-2" style="color:var(--gold)"></i>Contact &amp; Records</div>
+    <div class="row g-2">
+      ${row('Full name',esc(name))}
+      ${row('Phone',s.phone?`<a href="tel:${esc(s.phone)}" style="color:var(--red)">${esc(s.phone)}</a>`:'')}
+      ${row('Email',email?`<a href="mailto:${esc(email)}" style="color:var(--red)">${esc(email)}</a>${unsub?' <span style="color:#f87171;font-size:.68rem;font-weight:700">· UNSUBSCRIBED</span>':''}`:'',email?'':' <button class="abtn" style="margin-left:6px;font-size:.66rem;padding:2px 8px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openStudentEditModal()">Add email</button>')}
+      ${row('Full address',address?esc(address):'')}
+      ${row('Postcode',postcode?esc(postcode):'')}
+      ${row('Source',source)}
+      ${row('Gearbox / package',[wlNote('Gearbox'),wlNote('Package'),prof?.lesson_type].filter(Boolean).map(esc).join(' · '))}
+      ${row('Wants to start',esc(wlNote('Start')||wlNote('Start date')||''))}
+      ${row('Emergency contact',acct&&(acct.emergency_contact||acct.emergency_phone)?esc([acct.emergency_contact,acct.emergency_phone].filter(Boolean).join(' · ')):'')}
+      ${row('Student code',acct?.student_code?esc(acct.student_code):'')}
+      ${row('Account',acct?`Student Portal account · ${esc(acct.status||'active')}${acct.last_login?' · last login '+fmt(new Date(acct.last_login)):' · never logged in'}`:'No Student Portal account yet')}
+      ${row('Instructor profile',prof?`On ${esc(((allInstrs||[]).find(x=>x.id===prof.instructor_id)||{}).full_name||'instructor')}'s roster · ${esc(prof.status||'active')}${prof.availability?' · '+esc(prof.availability):''}`:'')}
+      ${row('Referrals',refLine)}
+    </div>
+    <div class="section-label mt-3"><i class="bi bi-envelope-check-fill me-2" style="color:#60a5fa"></i>Emails sent to this student <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(${events.length})</span></div>
+    ${events.length?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:6px 10px">${events.map(e=>`<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.76rem"><span style="color:var(--txt3);white-space:nowrap;min-width:92px">${fmt(e.at)}</span><span style="flex:1;color:var(--txt2)">${esc(e.what)}</span><span style="font-size:.62rem;color:${e.src==='campaign'?'#a855f7':'#60a5fa'};white-space:nowrap">${e.src}</span></div>`).join('')}</div>`
+      :`<div style="font-size:.76rem;color:var(--txt4);padding:6px 0">${email?'No emails sent yet.':'No email on record — nothing can be sent until one is added.'}</div>`}`;
 }
 
 /* ══ EDIT STUDENT ══ */
@@ -6901,6 +6964,7 @@ function openRosterStudentEdit(profileId,name,phone,address,lessonType,instrId){
   document.getElementById('sdLessons').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">No lesson history found.</div>';
   document.getElementById('sdMessages').innerHTML='<div style="color:var(--txt4);font-size:.78rem;padding:6px 0">—</div>';
   openModal('studentDetailModal');
+  loadStudentRecords({name:name,phone:phone,address:address,instrId:instrId,profileId:profileId});
 }
 
 function openStudentEditModal(){
@@ -6955,6 +7019,7 @@ async function saveStudentEdit(){
     ops.push(sb.from('student_profiles').update({
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
+      ...(newEmail?{email:newEmail}:{}),
       ...(newAddr?{address:newAddr}:{}),
       lesson_type:newType,
       notes:newNotes
@@ -6964,6 +7029,7 @@ async function saveStudentEdit(){
     ops.push(sb.from('student_profiles').update({
       name:newName,
       ...(newPhone?{phone:newPhone}:{}),
+      ...(newEmail?{email:newEmail}:{}),
       ...(newAddr?{address:newAddr}:{}),
       lesson_type:newType,
       notes:newNotes
