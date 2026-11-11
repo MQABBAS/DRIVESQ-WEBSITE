@@ -4920,7 +4920,7 @@ function _renderFlagMonitor(){
   const rows=_flagRows();
   const grp={green:[],purple:[],red:[],none:[]};
   rows.forEach(r=>{let f=_refFlagOf(r);if(f==='green'&&!_refAdminBooked(r))f='purple';(grp[f]||grp.none).push(r);});   // a ✅ that only came from the instructor still needs checking
-  const overdueUnsure=grp.purple.filter(r=>_flagAge(r)>=3).length, overdueNone=grp.none.filter(r=>_flagAge(r)>=2).length;
+  const overdueUnsure=grp.purple.filter(r=>_flagAge(r)>=3&&!_isFranchiseInstr(r.instructor_id)).length, overdueNone=grp.none.filter(r=>_flagAge(r)>=2&&!_isFranchiseInstr(r.instructor_id)).length;
   const tile=(k,e,l,sub,col,n)=>`<button type="button" class="rfm-tile${window._flagView===k?' on':''}" style="--c:${col}" onclick="_flagSetView('${k}')"><span class="rfm-n">${n}</span><span class="rfm-l">${e} ${l}</span><span class="rfm-s">${sub}</span></button>`;
   let html=`<div class="rfm-head"><b><i class="bi bi-flag-fill me-1"></i>Booking flags</b><span>last 90 days · ✅ booked · 🟣 unsure · 🚩 not booked</span></div><div class="rfm-tiles">
     ${tile('red','🚩','Not booked',grp.red.length?'Reassign or chase':'None',REF_FLAG.red.c,grp.red.length)}
@@ -5154,7 +5154,7 @@ function _scheduleUnfiledCheck(){
   const today=new Date().toDateString();
   if(lastCheck===today)return;
   localStorage.setItem('dsq_ref_unfiled_check',today);
-  const act=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid);
+  const act=_refData.filter(r=>!r.is_cancelled&&!r.is_credit&&!r.is_paid&&!_isFranchiseInstr(r.instructor_id));   // franchise instructors run their own students
   const unfiled=act.filter(r=>!r.flag_color&&(parseFloat(r.amount)||0)>0&&_flagAge(r)>=2);
   const red=act.filter(r=>r.flag_color==='red'&&_flagAge(r)<=60);
   const unsure=act.filter(r=>r.flag_color==='purple'&&_flagAge(r)>=3&&_flagAge(r)<=60);
@@ -18574,6 +18574,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       if (r.is_cancelled || r.is_credit || isBooked(r) || reassigned(r) || r.reply_status === "not_interested" || ageDays(r.created_at) < 3 || ageDays(r.created_at) > 60) continue;
       if (!(markedUnreach(r) || (!onlyUnreach && markedUnsure(r)))) continue;
       if (hasLeft(r)) continue;
+      if (instrOf(r).instructor_model === "franchise") continue;   // franchise instructors manage their own students — no follow-up reminders
       if (marks(r.admin_notes).filter(x => x.k === "I").length >= 2) continue;
       if (!by.has(r.instructor_id)) by.set(r.instructor_id, []);
       by.get(r.instructor_id).push(r);
@@ -18759,7 +18760,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
     if (ready) { try { await monStatus(); } catch (e) {} }
     let last = null; try { last = JSON.parse(localStorage.getItem("dsq_am_last") || "null"); } catch (e) {}
     let waiting = null, escal = [];
-    if (ready) { try { waiting = (await plan({})).length; } catch (e) {} escal = REFS.filter(r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && (isUnsure(r) || isUnreach(r)) && ageDays(r.created_at) >= 10 && ageDays(r.created_at) <= 60).slice(0, 12); }
+    if (ready) { try { waiting = (await plan({})).length; } catch (e) {} escal = REFS.filter(r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && instrOf(r).instructor_model !== "franchise" && (isUnsure(r) || isUnreach(r)) && ageDays(r.created_at) >= 10 && ageDays(r.created_at) <= 60).slice(0, 12); }
     c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
       <div style="flex:1;min-width:240px"><b style="font-family:Oswald,sans-serif;font-size:1rem"><i class="bi bi-envelope-heart me-1" style="color:#60a5fa"></i>Automatic emails &amp; instructor reminders</b>
         <div style="font-size:.74rem;color:var(--txt3);margin-top:2px">${ready ? "Checked every 10 minutes while admin is open. <b>Only new students</b> (referred or booked from " + AUTOMAIL_START.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + ") are emailed automatically — older students only by hand. Each email goes once per student and is logged in their notes." : "Connect Email first (Email → Setup) to switch these on."}
