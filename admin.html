@@ -6382,6 +6382,17 @@ async function adminDeleteStudent(skipConfirm){
   if(typeof renderStudentsTable==='function') renderStudentsTable(allStudentsCache);
   _adminStudentCtx=null;
 
+  // ── STEP 1b: hide from the instructor's dashboard straight away, even if a hard delete is blocked by database rules ──
+  //   the dashboard only lists profiles whose status isn't inactive/removed, and accounts linked to the instructor
+  try{
+    const _hide=[];
+    if(profileId)_hide.push(sb.from('student_profiles').update({status:'removed',updated_at:new Date().toISOString()}).eq('id',profileId));
+    if(instrId)_hide.push(sb.from('student_profiles').update({status:'removed',updated_at:new Date().toISOString()}).eq('instructor_id',instrId).ilike('name',name));
+    if(accId)_hide.push(sb.from('student_accounts').update({instructor_id:null,status:'inactive',updated_at:new Date().toISOString()}).eq('id',accId));
+    if(instrId)_hide.push(sb.from('student_accounts').update({instructor_id:null,status:'inactive',updated_at:new Date().toISOString()}).eq('instructor_id',instrId).ilike('full_name',name));
+    await Promise.all(_hide.map(q=>q.then(()=>{},()=>{})));
+  }catch(e){}
+
   // ── STEP 2: Delete from database ─────────────────────────────────────────
   const errs=[];
   // Tables where RLS may block but failure is non-critical (data is orphaned, not dangerous)
@@ -6421,6 +6432,16 @@ async function adminDeleteStudent(skipConfirm){
       else await tryDel('student_profiles',sb.from('student_profiles').delete().ilike('name',name));
     }
     if(accId) await tryDel('student_accounts',sb.from('student_accounts').delete().eq('id',accId));
+    else if(instrId) await tryDel('student_accounts',sb.from('student_accounts').delete().eq('instructor_id',instrId).ilike('full_name',name));
+
+    // tell the instructor, so their dashboard and their expectations match
+    if(instrId){
+      try{
+        const _i=allInstrs.find(x=>x.id===instrId);
+        await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'🗑️ Student removed: '+name,body:'Hi '+((_i&&_i.full_name)||'').split(' ')[0]+',\n\n'+name+' has been removed from your students by the DriveSQ admin team. They no longer appear in your Students list or lesson calendar.\n\nIf you think this is a mistake, reply here or WhatsApp us.\n\n— DriveSQ',message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);
+        sendPushToInstructor(instrId,(_i&&_i.full_name)||'','🗑️ Student removed: '+name,'Removed from your Students list by admin.','/dashboard.html');
+      }catch(e){}
+    }
 
     if(errs.length){
       console.warn('adminDeleteStudent DB errors (student removed from UI regardless):',errs);
