@@ -6267,6 +6267,35 @@ async function _adminMoveStudent(s,picked,reason,overrides){
 
 /* Student profile → Reassign: open Find Closest Instructor with everything we know about the student filled in.
    Choosing an instructor there moves the existing profile, progress and portal account (no duplicate account). */
+/* Student profile → Reassign. If the student has an open referral we use the Referrals reassign (it removes them from the old
+   instructor, deletes the unpaid referral, moves their account and creates the new referral). Otherwise the Find & Assign move. */
+async function adminReassignStudent(){
+  const ctx=_adminStudentCtx;
+  if(!ctx||!ctx.name){showToast('No student loaded — open the student first.','error');return;}
+  const nm=String(ctx.name||'').trim().toLowerCase(),p10=String(ctx.phone||(window._sdCurrentStudent&&window._sdCurrentStudent.phone)||'').replace(/\D/g,'').slice(-10);
+  let refs=(_refData||[]);
+  if(!refs.length){try{const{data}=await sb.from('referrals').select('*').order('created_at',{ascending:false});refs=data||[];if(refs.length)_refData=refs;}catch(e){}}
+  const mine=refs.filter(r=>!r.is_cancelled&&!r.is_credit&&(!ctx.instrId||r.instructor_id===ctx.instrId)&&((p10&&String(r.student_phone||'').replace(/\D/g,'').slice(-10)===p10)||String(r.student_name||'').trim().toLowerCase()===nm))
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  if(mine.length){
+    document.getElementById('studentDetailModal')?.classList.remove('open');document.getElementById('adminStudentProfileModal')?.classList.remove('open');
+    await openRefReassign(mine[0].id,ctx.name,mine[0].instructor_id);
+    return;
+  }
+  return adminReassignViaFind();
+}
+/* Student profile → open this student's row in the Referrals section */
+async function adminOpenStudentReferral(){
+  const ctx=_adminStudentCtx;if(!ctx||!ctx.instrId){showToast('No instructor on record for this student.','warn');return;}
+  document.getElementById('studentDetailModal')?.classList.remove('open');document.getElementById('adminStudentProfileModal')?.classList.remove('open');
+  switchTab('referrals');try{setActiveTab('referrals');}catch(e){}
+  setTimeout(async()=>{
+    try{await openRefDetail(ctx.instrId,true);}catch(e){}
+    setTimeout(()=>{const nm=String(ctx.name||'').trim().toLowerCase();const rows=[...document.querySelectorAll('#refDetailRows [data-ref-row], #refDetailRows > *')];
+      const hit=rows.find(el=>el.textContent.trim().toLowerCase().startsWith(nm)||el.textContent.toLowerCase().includes(nm));
+      if(hit){hit.scrollIntoView({behavior:'smooth',block:'center'});hit.style.outline='2px solid #F5C518';setTimeout(()=>hit.style.outline='',4000);}},700);
+  },400);
+}
 async function adminReassignViaFind(){
   const ctx=_adminStudentCtx;
   if(!ctx||!ctx.name){showToast('No student loaded — open the student first.','error');return;}
@@ -6941,7 +6970,8 @@ async function openStudentDetail(idx,_directData){
     ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
     ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 14px;font-size:.82rem;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-star-fill"></i>Request Google Review</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
-    <button class="btn-p" onclick="adminReassignViaFind()" title="Opens Find Closest Instructor with this student's details filled in" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-geo-alt-fill me-1"></i>${s.instrId?'Reassign — Find Closest':'Assign — Find Closest'}</button><button class="abtn" onclick="adminReassignStudent(null)" title="Pick an instructor from a list instead" style="font-size:.72rem;min-height:36px;padding:6px 10px"><i class="bi bi-list-ul me-1"></i>Quick pick</button>
+    <button class="btn-p" onclick="adminReassignStudent()" title="Move this student to another instructor — the old instructor loses them automatically" style="font-size:.82rem;min-height:36px;padding:6px 12px"><i class="bi bi-geo-alt-fill me-1"></i>${s.instrId?'Reassign — Find Closest':'Assign — Find Closest'}</button>
+    <button class="abtn" onclick="adminOpenStudentReferral()" title="Open this student's row in the Referrals section" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-cash-coin me-1"></i>Open in Referrals</button><button class="abtn" onclick="adminReassignStudent(null)" title="Pick an instructor from a list instead" style="font-size:.72rem;min-height:36px;padding:6px 10px"><i class="bi bi-list-ul me-1"></i>Quick pick</button>
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>
     <button id="_sdFlagBtn" class="abtn" onclick="toggleStuFlagFromDetail(window._sdCurrentStudent)" style="background:${_isStuFlagged(s)?'rgba(239,68,68,.15)':'rgba(100,116,139,.1)'};border:1px solid ${_isStuFlagged(s)?'rgba(239,68,68,.35)':'rgba(100,116,139,.25)'};color:${_isStuFlagged(s)?'#f87171':'var(--txt3)'};border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-flag${_isStuFlagged(s)?'-fill':''} me-1"></i>${_isStuFlagged(s)?'Unflag Student':'Flag Student'}</button>
     <button class="abtn" onclick="adminDeleteStudentFromDetail()" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-trash3-fill me-1"></i>Delete Student</button>`;
