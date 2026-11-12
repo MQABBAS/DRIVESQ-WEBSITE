@@ -10812,7 +10812,7 @@ async function updateWaitlistStatus(id,status,instrId=null){
 let _webBookingsData=[];
 async function loadWebBookingsBadge(){
   try{
-    const{data}=await sb.from('waiting_list').select('id').ilike('notes','%[WEB]%').eq('status','waiting');
+    const{data}=await sb.from('waiting_list').select('id').or('notes.ilike.%[WEB]%,notes.ilike.%[WHATSAPP]%,notes.ilike.%[CALL]%,notes.ilike.%[OTHER]%,notes.ilike.%[SQ DRIVING SCHOOL]%').eq('status','waiting');
     const count=(data||[]).length;
     const badge=document.getElementById('webBookingsBadge');
     if(badge){badge.textContent=count;badge.style.display=count>0?'inline-flex':'none';}
@@ -10827,7 +10827,7 @@ async function loadWebBookings(){
   if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   const statusF=document.getElementById('wbStatusFilter')?.value||'open';
-  let q=sb.from('waiting_list').select('*').ilike('notes','%[WEB]%').order('created_at',{ascending:false});
+  let q=sb.from('waiting_list').select('*').or('notes.ilike.%[WEB]%,notes.ilike.%[WHATSAPP]%,notes.ilike.%[CALL]%,notes.ilike.%[OTHER]%,notes.ilike.%[SQ DRIVING SCHOOL]%').order('created_at',{ascending:false});   // website, WhatsApp, phone and SQ Driving School bookings — newest first
   if(statusF==='open')q=q.in('status',['waiting','assigned']);else if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">'+error.message+'</div>';return;}
@@ -10852,13 +10852,18 @@ function renderWebBookings(){
     const _rid=String(r.id); // always use string for safe onclick and querySelector
     const _statusCol=r.status==='assigned'?'#4ade80':(r.status==='cancelled'||r.status==='rejected')?'#94a3b8':'#fbbf24';
     const _isAssigned=r.status==='assigned';
-    const _aIns=_isAssigned?(allInstrs||[]).find(i=>i.id===(r.assigned_instructor_id||r.instructor_id)):null;
+    const _ph10=String(r.student_phone||'').replace(/\D/g,'').slice(-10),_nm=String(r.student_name||'').trim().toLowerCase();
+    const _refFor=_isAssigned&&!(r.assigned_instructor_id||r.instructor_id)?(_refData||[]).filter(x=>!x.is_cancelled&&((_ph10&&String(x.student_phone||'').replace(/\D/g,'').slice(-10)===_ph10)||(_nm&&String(x.student_name||'').trim().toLowerCase()===_nm))).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]:null;
+    const _aIns=_isAssigned?(allInstrs||[]).find(i=>i.id===(r.assigned_instructor_id||r.instructor_id||(_refFor&&_refFor.instructor_id))):null;
+    const _chan=/\[WHATSAPP\]/i.test(r.notes||'')?['WhatsApp','#25d366','bi-whatsapp']:/\[CALL\]/i.test(r.notes||'')?['Phone call','#60a5fa','bi-telephone-fill']:/\[OTHER\]/i.test(r.notes||'')?['Other','#94a3b8','bi-chat-dots']:null;
+    const _isNewOpen=isNew&&r.status==='waiting';
     const _when=new Date(r.created_at),_time=_when.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),_date=_when.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-    return `<div style="background:${_isAssigned?'rgba(74,222,128,.07)':'var(--card-bg)'};border:1px solid ${_isAssigned?'rgba(74,222,128,.45)':isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-left:${_isAssigned?'4px solid #4ade80':isUrgent?'4px solid #f87171':'4px solid #fbbf24'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
+    return `<div style="background:${_isAssigned?'rgba(74,222,128,.07)':_isNewOpen?'rgba(245,197,24,.09)':'var(--card-bg)'};border:1px solid ${_isAssigned?'rgba(74,222,128,.45)':_isNewOpen?'rgba(245,197,24,.55)':isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};box-shadow:${_isNewOpen?'0 0 0 2px rgba(245,197,24,.15)':'none'};border-left:${_isAssigned?'4px solid #4ade80':isUrgent?'4px solid #f87171':'4px solid #fbbf24'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
       <div class="d-flex align-items-start gap-2 flex-wrap">
         <div style="flex:1;min-width:160px">
           <div class="d-flex align-items-center gap-2 mb-1">
-            ${isNew?'<span style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#4ade80;padding:1px 7px">NEW</span>':''}
+            ${_isNewOpen?'<span style="background:#F5C518;border-radius:20px;font-size:.62rem;font-weight:800;color:#1a1200;padding:2px 9px;letter-spacing:.3px">★ NEW BOOKING</span>':isNew?'<span style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#4ade80;padding:1px 7px">NEW</span>':''}
+            ${_chan?`<span style="background:${_chan[1]}22;border:1px solid ${_chan[1]}66;border-radius:20px;font-size:.6rem;font-weight:700;color:${_chan[1]};padding:1px 7px"><i class="bi ${_chan[2]} me-1"></i>${_chan[0]}</span>`:''}
             ${isUrgent?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">⚠ URGENT</span>':''}
             ${/\[SQ DRIVING SCHOOL\]/i.test(r.notes||'')?'<span title="Booked on sqdrivingschool.com" style="background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#60a5fa;padding:1px 7px">SQ DRIVING SCHOOL</span>':'<span title="Booked on drivesq.co.uk" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">DRIVESQ</span>'}
             ${(()=>{const _s=((r.notes||'').match(/(?:^|\n)\s*Source:\s*([^\n]+)/i)||[])[1];return _s?`<span title="Where they came from" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);border-radius:20px;font-size:.6rem;font-weight:700;color:var(--gold);padding:1px 7px">${esc(_s.trim())}</span>`:'';})()}
@@ -14021,7 +14026,7 @@ function renderTheoryList(rows){
     <button class="modal-x" onclick="closeModal('webBookingsModal')"><i class="bi bi-x-lg"></i></button>
     <div class="d-flex align-items-center gap-2 mb-3">
       <i class="bi bi-calendar-check-fill" style="color:var(--gold);font-size:1.2rem"></i>
-      <h5 class="mb-0" style="font-family:'Oswald',sans-serif">Website Booking Requests</h5>
+      <h5 class="mb-0" style="font-family:'Oswald',sans-serif">Bookings &amp; Enquiries <span style="font-size:.7rem;font-weight:400;color:var(--txt3)">website · WhatsApp · phone — newest first</span></h5>
       <span id="wbTotalBadge" class="ms-auto" style="background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);border-radius:20px;padding:2px 10px;font-size:.72rem;color:var(--gold);font-weight:700">Loading…</span>
     </div>
     <!-- Important note -->
@@ -17248,7 +17253,9 @@ document.addEventListener('click',e=>{
     "nervous learner": "bi-heart-fill", nervous: "bi-heart-fill", contact: "bi-telephone-fill", page: "bi-link-45deg", postcode: "bi-geo-alt-fill", address: "bi-house-fill", note: "bi-chat-left-text", notes: "bi-chat-left-text", service: "bi-box-seam", "message from learner": "bi-chat-quote-fill" };
   function parseNotes(notes) {
     var lines = String(notes || "").split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean), src = "Website form", wiz = false, facts = [];
+    if (/\[WHATSAPP\]/i.test(notes)) src = "WhatsApp enquiry"; else if (/\[CALL\]/i.test(notes)) src = "Phone enquiry"; else if (/\[OTHER\]/i.test(notes)) src = "Enquiry"; else if (/\[SQ DRIVING SCHOOL\]/i.test(notes) && !/\[WEB\]/i.test(notes)) src = "SQ Driving School";
     lines.forEach(function (l, i) {
+      if (/\[WHATSAPP\]|\[CALL\]|\[OTHER\]/i.test(l)) return;
       if (/\[WEB\]/i.test(l)) {
         var rest = l.replace(/\[WEB\]/ig, "").trim(), tag = (rest.match(/^\[([^\]]+)\]/) || [])[1];
         if (/book in 60 seconds/i.test(rest)) { src = "Book in 60 seconds"; wiz = true; if (/updated/i.test(rest)) src += " · updated"; }
@@ -17634,7 +17641,7 @@ document.addEventListener('click',e=>{
         ${table("Website pages that bring enquiries", "bi-file-earmark-text", group(rows.filter(r => line(r.notes, "Landing") || line(r.notes, "Page")), r => line(r.notes, "Landing") || line(r.notes, "Page")).slice(0, 12), "Page")}
         <div class="dsq-card p-3"><div class="section-label"><i class="bi bi-list-ul me-2" style="color:var(--gold)"></i>Latest enquiries</div>
           ${rows.length ? `<div class="dsqe-scroll"><table class="t3"><thead><tr><th>Date</th><th>Name</th><th>Status</th></tr></thead><tbody>
-          ${rows.slice(0, 40).map(r => `<tr><td class="muted">${fmtD(r.created_at)}</td><td>${h(r.student_name || "—")}${r._repeats ? ` <span class="muted">(contacted ${r._repeats + 1}×)</span>` : ""}<div class="muted">${h(sourceOf(r))}</div></td><td><span class="st ${stCls(r._state)}" style="white-space:normal">${h(r._state)}</span></td></tr>`).join("")}
+          ${rows.slice(0, 40).map(r => `<tr><td class="muted">${fmtD(r.created_at)}<div class="muted" style="font-size:.68rem">${new Date(r.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</div></td><td>${h(r.student_name || "—")}${r._repeats ? ` <span class="muted">(contacted ${r._repeats + 1}×)</span>` : ""}<div class="muted">${h(sourceOf(r))}${(() => { const i = (r.assigned_instructor_id || r.instructor_id) && (typeof allInstrs !== "undefined" ? allInstrs : []).find(x => x.id === (r.assigned_instructor_id || r.instructor_id)); return i ? " · → " + h(i.full_name) : ""; })()}</div></td><td><span class="st ${stCls(r._state)}" style="white-space:normal">${h(r._state)}</span></td></tr>`).join("")}
           </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}
         </div>
       </div>`;
