@@ -1575,6 +1575,7 @@ body.day-mode .dsqd-note{color:#92400e}
         <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
+        <button class="theme-toggle" id="waAppBtn" onclick="toggleWaApp()" title="Which WhatsApp opens when you tap a WhatsApp button" style="font-size:.66rem;font-weight:700;width:auto;padding:0 8px;gap:4px"><i class="bi bi-whatsapp"></i><span id="waAppLbl">Business</span></button>
         <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night mode"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
         <button class="btn-s" onclick="doLogout()" style="font-size:.72rem;padding:5px 11px"><i class="bi bi-box-arrow-right me-1"></i>Sign Out</button>
       </div>
@@ -3910,6 +3911,40 @@ function applyTheme(){
   if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta);}
   meta.content=useDay?'#ffffff':'#080808';
 }
+/* ── Which WhatsApp app opens from admin's WhatsApp buttons ──
+   Android lets a link name the app: WhatsApp Business is the package com.whatsapp.w4b, personal WhatsApp is com.whatsapp.
+   Every wa.me link/open() in admin is routed through here. iPhone can't be told which app to use (Apple decides),
+   so there we open wa.me as normal. Setting lives on this device only. */
+const WA_APPS={business:{pkg:'com.whatsapp.w4b',label:'Business'},personal:{pkg:'com.whatsapp',label:'Personal'},ask:{pkg:null,label:'Ask'}};
+function waAppPref(){try{return localStorage.getItem('dsq_wa_app')||'business';}catch(e){return 'business';}}
+function waAppLabelRefresh(){const l=document.getElementById('waAppLbl');if(l)l.textContent=WA_APPS[waAppPref()].label;}
+function toggleWaApp(){
+  const order=['business','personal','ask'],cur=waAppPref(),next=order[(order.indexOf(cur)+1)%order.length];
+  try{localStorage.setItem('dsq_wa_app',next);}catch(e){}
+  waAppLabelRefresh();
+  const isAndroid=/Android/i.test(navigator.userAgent),isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+  showToast(next==='ask'?'WhatsApp buttons will let the phone choose the app':'WhatsApp buttons will open WhatsApp '+WA_APPS[next].label+(isAndroid?'':isIOS?' — on iPhone, Apple decides which app opens, so this only works on Android':' (takes effect on your Android phone)'),'success',6000);
+}
+/* turn a wa.me / api.whatsapp.com link into one that opens the chosen app (Android only) */
+function waAppUrl(url){
+  try{
+    const pref=waAppPref();const app=WA_APPS[pref];
+    if(!app||!app.pkg||!/Android/i.test(navigator.userAgent))return url;
+    const u=new URL(url,location.href);
+    if(!/(^|\.)wa\.me$|(^|\.)whatsapp\.com$/i.test(u.hostname))return url;
+    let phone=u.searchParams.get('phone')||'';const m=u.pathname.match(/^\/(\d{6,15})/);if(m)phone=m[1];
+    const text=u.searchParams.get('text')||'';
+    return 'intent://send?phone='+encodeURIComponent(phone)+(text?'&text='+encodeURIComponent(text):'')+'#Intent;scheme=whatsapp;package='+app.pkg+';S.browser_fallback_url='+encodeURIComponent(url)+';end';
+  }catch(e){return url;}
+}
+document.addEventListener('click',function(e){
+  const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+  const h=a.getAttribute('href')||'';if(!/wa\.me\/|api\.whatsapp\.com\/send/i.test(h))return;
+  const v=waAppUrl(a.href);if(v===a.href)return;
+  e.preventDefault();location.href=v;
+},true);
+(function(){const _o=window.open;window.open=function(u,t,f){try{if(typeof u==='string'&&/wa\.me\/|api\.whatsapp\.com\/send/i.test(u)){const v=waAppUrl(u);if(v!==u){location.href=v;return null;}}}catch(e){}return _o.apply(this,arguments);};})();
+document.addEventListener('DOMContentLoaded',waAppLabelRefresh);
 function toggleTheme(){
   const h=new Date().getHours();const autoDay=h>=7&&h<20;
   if(manualTheme==='auto')manualTheme=autoDay?'night':'day';
