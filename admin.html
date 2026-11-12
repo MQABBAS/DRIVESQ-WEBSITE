@@ -9066,9 +9066,24 @@ function _finishReassign(instrId){
     const _old=(_refData||[]).find(x=>x.id===_oldRefId);
     const _newName=(allInstrs.find(i=>i.id===instrId)||{}).full_name||'new instructor';
     const _stamp='Reassigned to '+_newName+' on '+new Date().toLocaleDateString('en-GB');
-    const _upd={admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};
-    if(!_old||!_old.is_paid)_upd.is_cancelled=true;
-    sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{if(_old)Object.assign(_old,_upd);try{_buildUnpaidRefIndex();}catch(e){}}).catch(()=>{});
+    if(_old&&_old.is_paid){
+      // the fee was paid — keep the record for the money, but mark it moved
+      const _upd={admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};
+      sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{Object.assign(_old,_upd);try{_buildUnpaidRefIndex();}catch(e){}}).catch(()=>{});
+    }else{
+      // unpaid — remove the student from the old instructor's referrals completely
+      sb.from('referrals').delete().eq('id',_oldRefId).then(res=>{
+        if(res&&res.error){const _upd={is_cancelled:true,admin_notes:[(_old&&_old.admin_notes)||'',_stamp].filter(Boolean).join('\n')};return sb.from('referrals').update(_upd).eq('id',_oldRefId).then(()=>{if(_old)Object.assign(_old,_upd);});}
+        _refData=(_refData||[]).filter(x=>x.id!==_oldRefId);
+      }).then(()=>{try{_buildUnpaidRefIndex();renderReferrals();}catch(e){}}).catch(()=>{});
+    }
+  }
+  // take the student off the old instructor completely: their roster profile goes, their account moves to the new instructor
+  if(oldInstrId&&oldInstrId!==instrId&&rName){
+    sb.from('student_profiles').delete().eq('instructor_id',oldInstrId).ilike('name',rName).then(res=>{
+      if(res&&res.error)return sb.from('student_profiles').update({status:'removed'}).eq('instructor_id',oldInstrId).ilike('name',rName);
+    }).catch(()=>{});
+    sb.from('student_accounts').update({instructor_id:instrId,status:'active',updated_at:new Date().toISOString()}).eq('instructor_id',oldInstrId).ilike('full_name',rName).then(()=>{}).catch(()=>{});
   }
   if(reqId)sb.from('student_requests').update({instructor_id:instrId,status:'pending',responded_at:null}).eq('id',reqId).then(()=>{}).catch(()=>{});
   if(oldInstrId&&oldInstrId!==instrId){
@@ -11626,7 +11641,7 @@ async function refReassignToFind(refId){
     _set('fc-avail',avail);_set('fc-notes',[notes,oldI?('Reassigning from '+(oldI.full_name||oldI.name||'previous instructor')):''].filter(Boolean).join('\n'));
     const lt=document.getElementById('fc-type');if(lt)lt.value=/auto/i.test(type)?'Automatic':(['Intensive','Mock Test'].includes(type)?type:'Manual');
     _saveFcDraft();
-    showToast('Reassigning '+name+' — pick the new instructor below','info',4000);
+    showToast('Reassigning '+name+' — pick the new instructor below. '+(oldI?oldI.full_name.split(' ')[0]+' will lose this student automatically.':''),'info',6000);
     if(postcode)findClosest();
   },300);
 }
