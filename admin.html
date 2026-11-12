@@ -10884,6 +10884,7 @@ function renderWebBookings(){
         ${_isAssigned?`<span style="font-size:.74rem;color:#4ade80;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>Already assigned${_aIns?' to '+esc(_aIns.full_name):''}</span><button class="btn-s" style="font-size:.7rem;padding:3px 9px;margin-left:auto" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')" title="Pick a different instructor"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
         ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
         ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline('${_rid}',this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
+        <button class="btn-s" style="font-size:.7rem;padding:4px 9px;color:#f87171;border-color:rgba(248,113,113,.35);margin-left:auto" title="Remove this booking from the list permanently" onclick="event.stopPropagation();wbRemove('${_rid}')"><i class="bi bi-trash3 me-1"></i>Remove</button>
       </div>
     </div>`;
   }).join('');
@@ -10916,8 +10917,21 @@ function openWbDetail(id){
   const _wbRid=String(r.id);
   actions.innerHTML=(r.status==='waiting'?`<button class="btn-p" style="font-size:.8rem" onclick="closeModal('wbDetailModal');closeModal('webBookingsModal');openWbCreateStudent('${_wbRid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:'')
     +(waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+r.student_name.split(' ')[0]+', this is DriveSQ! We have received your booking request and will be in contact shortly to arrange your first lesson. 🚗')}" target="_blank" style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:9px;padding:6px 14px;font-size:.8rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:'')
-    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline('${_wbRid}',null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'');
+    +(r.status==='waiting'?`<button class="btn-s" style="font-size:.78rem" onclick="closeModal('wbDetailModal');wbDecline('${_wbRid}',null)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:'')
+    +`<button class="btn-s" style="font-size:.76rem;color:#f87171;border-color:rgba(248,113,113,.35)" onclick="wbRemove('${_wbRid}')"><i class="bi bi-trash3 me-1"></i>Remove</button>`;
   openModal('wbDetailModal');
+}
+/* Remove a booking/enquiry from the list for good (the student's account, profile and referral are not touched) */
+async function wbRemove(id){
+  const r=(_webBookingsData||[]).find(x=>String(x.id)===String(id))||{};
+  if(!confirm(`Remove ${r.student_name||'this booking'} from the bookings list?\n\nThis deletes the booking entry only. If they've already been assigned, the student stays on the instructor's roster and in Referrals.`))return;
+  const{error}=await sb.from('waiting_list').delete().eq('id',id);
+  if(error){showToast('Could not remove: '+error.message,'error',6000);return;}
+  _webBookingsData=(_webBookingsData||[]).filter(x=>String(x.id)!==String(id));
+  try{closeModal('wbDetailModal');}catch(e){}
+  renderWebBookings();loadWebBookingsBadge();
+  const tb=document.getElementById('wbTotalBadge');if(tb)tb.textContent=_webBookingsData.length+' booking'+(_webBookingsData.length!==1?'s':'');
+  showToast('🗑️ Booking removed','success',2500);
 }
 async function wbMarkStatus(id,status){
   const{error}=await sb.from('waiting_list').update({status}).eq('id',id);
