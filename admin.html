@@ -6748,7 +6748,7 @@ async function confirmCreateStudent(){
   if(instrId){
     sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New Student: '+name,'Tap to view '+name+'\'s details in your Students tab','/dashboard.html');
     const _iName=instrObj?.full_name||'Instructor';
-    const _csMsg='Hi '+_iName+',\n\nA new student has been assigned to you by the admin team:\n\n👤 Name: '+name+'\n📞 Phone: '+(phone||'Not provided')+'\n🚗 Lesson Type: '+(lessonType||'Manual')+'\n📍 Address: '+(addr||'Not provided')+(notes?'\n📝 Notes: '+notes:'')+'\n\nYou can view and manage this student in your Students tab on the dashboard. Tap "Students" in the bottom navigation to see all your assigned students.\n\nWelcome them and get in touch to arrange their first lesson! 🎉';
+    const _csMsg=instrNewStudentMsg({instrName:_iName,name,phone,email,addr,lessonType,notes},{portal:true});
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
   if(allStudentsCache.length)loadAllStudents();
@@ -6766,7 +6766,7 @@ async function confirmCreateStudent(){
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
     const instrWaNum=instrObj?buildWaNum(instrObj.phone||''):'';
     const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. They will be in touch shortly to arrange your first lesson. Welcome to DriveSQ! 🚗`;
-    const instrMsg=`Hi ${instrObj?.full_name||'there'}! 👋\n\n*A new student has been assigned to you from a website booking.*\n\n---\n👤 *Name:* ${name}\n📞 *Phone:* ${phone||'N/A'}\n📍 *Postcode:* ${addr||wbEntry.postcode||'N/A'}\n🚗 *Lesson type:* ${lessonType||'Manual'}\n---\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
+    const instrMsg=instrNewStudentMsg({instrName:instrObj?.full_name,name,phone,email,addr,postcode:wbEntry.postcode,lessonType,notes:(notes||'')+'\n'+(wbEntry.notes||''),source:'website booking'});
     // Add WA buttons to the createStudentResult area
     setTimeout(()=>{
       const res=document.getElementById('createStudentResult');
@@ -6811,13 +6811,40 @@ function waStudentCredentials(){
   const msg=`Hi ${name.split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will be in touch within 24 hours to arrange your first lesson.\n\n🚗 *Your Instructor:* ${instrName}\n${instrPhone?'📞 *Instructor Phone:* '+instrPhone+'\n':''}⚙️ *Transmission:* ${instrTransmission}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
+/* The message an instructor gets about a new student — WhatsApp (bold with *…*) and the portal (bold with **…**). Only lines we have. */
+function instrNewStudentMsg(d,opts){
+  opts=opts||{};const B=opts.portal?'**':'*';const b=t=>B+t+B;
+  const first=(d.instrName||'').split(' ')[0]||'there';
+  const fmtP=p=>{const x=String(p||'').replace(/\D/g,'');return x.length===11&&x[0]==='0'?x.slice(0,5)+' '+x.slice(5):String(p||'').trim();};
+  const notes=String(d.notes||'');
+  const get=k=>{const m=notes.match(new RegExp('(?:^|\\n)\\s*'+k+':\\s*([^\\n]+)','i'));return m?m[1].trim():'';};
+  const cleanNotes=notes.split('\n').filter(l=>l.trim()&&!/^\s*(Email|Ref|Package|Gearbox|Postcode|Address|Start|Start date|Availability|Source|Test date):/i.test(l)&&!/\[WEB\]|\[SQ DRIVING SCHOOL\]|email sent|Booking form/i.test(l)).join(' ').trim();
+  const pickup=[d.addr,d.postcode].filter(Boolean).filter((v,i,a)=>!(i===1&&a[0]&&a[0].toUpperCase().includes(v.toUpperCase()))).join(', ');
+  const lessons=[d.lessonType||get('Gearbox'),d.pkg||get('Package')].filter(Boolean).join(' · ');
+  const rows=[['👤',  'Name',           d.name],
+              ['📞',  'Phone',          fmtP(d.phone)],
+              ['📧',  'Email',          d.email||get('Email')],
+              ['📍',  'Pick-up',        pickup],
+              ['🚗',  'Lessons',        lessons],
+              ['📅',  'Wants to start', d.start||get('Start')||get('Start date')],
+              ['🕒',  'Availability',   d.avail||get('Availability')],
+              ['🎯',  'Test booked',    d.testDate||get('Test date')],
+              ['🎫',  'Booking ref',    d.ref||get('Ref')],
+              ['📝',  'Notes',          d.extraNotes||cleanNotes]].filter(r=>r[2]);
+  const src=d.source||(/\[WEB\]/i.test(notes)?'website booking':'');
+  return `Hi ${first} 👋\n\n${b('New student assigned to you'+(src?' — from a '+src:''))}\n\n`+
+    rows.map(r=>`${r[0]} ${b(r[1]+':')} ${r[2]}`).join('\n')+
+    `\n\n${b('Next steps')}\n1. Call or WhatsApp them within 24 hours\n2. Agree the first lesson — check their provisional licence and eyesight\n3. Mark them ${b('Booked')} / ${b('Not booked yet')} / ${b("Can't reach")} in your Instructor Portal\n\n`+
+    `They're already on your roster: https://www.drivesq.co.uk/dashboard.html\n\n— DriveSQ`;
+}
+window.instrNewStudentMsg=instrNewStudentMsg;
 function waInstructorNewStudent(){
   const c=window._csLastCreated||{};
   const instrObj=c.instrObj;
   if(!instrObj||!instrObj.phone){showToast('No instructor phone number on file.','');return;}
   const waNum=buildWaNum(instrObj.phone);
   const instrFirst=(instrObj.full_name||'').split(' ')[0]||'Hi';
-  const msg=`Hi ${instrFirst}! 👋\n\n*New student assigned to you on DriveSQ.*\n\n👤 *Name:* ${c.name||'—'}\n📞 *Phone:* ${c.phone||'Not provided'}\n${c.email?'📧 *Email:* '+c.email+'\n':''}📍 *Address:* ${c.addr||'Not provided'}\n🚗 *Lesson type:* ${c.lessonType||'Manual'}\n${c.notes?'📝 *Notes:* '+c.notes+'\n':''}\nPlease contact the student to arrange their first lesson.\n\nThey can access the DriveSQ student platform (theory guides, test routes, hazard perception, lesson tracking) by logging in with their phone number at:\n📱 https://www.drivesq.co.uk/student.html\n\n— DriveSQ Admin`;
+  const msg=instrNewStudentMsg({instrName:instrObj.full_name,name:c.name,phone:c.phone,email:c.email,addr:c.addr,lessonType:c.lessonType,notes:c.notes});
   window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -8938,7 +8965,8 @@ async function confirmAssign(){
   // If this assignment came from a waiting list / web booking entry, mark it assigned
   const _wlId=window._waitlistIdToAssign||window._pendingWbId||null;
   if(_wlId){
-    updateWaitlistStatus(_wlId,'assigned',instrId).catch(()=>{});
+    try{await updateWaitlistStatus(_wlId,'assigned',instrId);}catch(e){try{await sb.from('waiting_list').update({status:'assigned'}).eq('id',_wlId);}catch(x){}}
+    try{renderWebBookings();}catch(e){}
     try{
       const _wlUpd={};if(s.addr)_wlUpd.area=s.addr;if(s.postcode)_wlUpd.postcode=s.postcode;
       const{data:_wlRow}=await sb.from('waiting_list').select('notes').eq('id',_wlId).maybeSingle();
@@ -10731,9 +10759,11 @@ async function updateWaitlistStatus(id,status,instrId=null){
   if(status==='cancelled'&&!confirm('Cancel this waiting list entry? The student will no longer appear in the active waiting list.'))return;
   if(status==='waiting'&&!confirm('Reactivate this entry? It will appear in the active waiting list again.'))return;
   const updates={status};
-  if(status==='assigned'&&instrId)updates.instructor_id=instrId;
-  const{error}=await sb.from('waiting_list').update(updates).eq('id',id);
-  if(error){showToast('Error updating status: '+error.message,'error');return;}
+  if(status==='assigned'&&instrId)updates.assigned_instructor_id=instrId;
+  let{error}=await sb.from('waiting_list').update(updates).eq('id',id);
+  if(error&&/assigned_instructor_id/.test(error.message||'')){({error}=await sb.from('waiting_list').update({status}).eq('id',id));}
+  if(error){showToast('Error updating status: '+error.message,'error');throw error;}
+  try{const _e=(_webBookingsData||[]).find(x=>String(x.id)===String(id));if(_e){_e.status=status;if(updates.assigned_instructor_id)_e.assigned_instructor_id=updates.assigned_instructor_id;}if(typeof renderWebBookings==='function')renderWebBookings();}catch(e){}
   showToast(
     status==='cancelled'?'Entry cancelled ✓':
     status==='assigned'?'Marked as assigned ✓':
@@ -10761,9 +10791,9 @@ async function loadWebBookings(){
   const el=document.getElementById('wbList');
   if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
-  const statusF=document.getElementById('wbStatusFilter')?.value||'waiting';
+  const statusF=document.getElementById('wbStatusFilter')?.value||'open';
   let q=sb.from('waiting_list').select('*').ilike('notes','%[WEB]%').order('created_at',{ascending:false});
-  if(statusF!=='all')q=q.eq('status',statusF);
+  if(statusF==='open')q=q.in('status',['waiting','assigned']);else if(statusF!=='all')q=q.eq('status',statusF);
   const{data,error}=await q;
   if(error){el.innerHTML='<div style="color:#f87171;padding:20px">'+error.message+'</div>';return;}
   _webBookingsData=(data||[]).map(_wlNormalise);
@@ -10786,7 +10816,10 @@ function renderWebBookings(){
     const waNum=buildWaNum(r.student_phone||'');
     const _rid=String(r.id); // always use string for safe onclick and querySelector
     const _statusCol=r.status==='assigned'?'#4ade80':(r.status==='cancelled'||r.status==='rejected')?'#94a3b8':'#fbbf24';
-    return `<div style="background:var(--card-bg);border:1px solid ${isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
+    const _isAssigned=r.status==='assigned';
+    const _aIns=_isAssigned?(allInstrs||[]).find(i=>i.id===(r.assigned_instructor_id||r.instructor_id)):null;
+    const _when=new Date(r.created_at),_time=_when.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),_date=_when.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    return `<div style="background:${_isAssigned?'rgba(74,222,128,.07)':'var(--card-bg)'};border:1px solid ${_isAssigned?'rgba(74,222,128,.45)':isUrgent?'rgba(248,113,113,.4)':'var(--bdr)'};border-left:${_isAssigned?'4px solid #4ade80':isUrgent?'4px solid #f87171':'4px solid #fbbf24'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onclick="openWbDetail('${_rid}')" data-wb-id="${_rid}">
       <div class="d-flex align-items-start gap-2 flex-wrap">
         <div style="flex:1;min-width:160px">
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -10794,7 +10827,7 @@ function renderWebBookings(){
             ${isUrgent?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">⚠ URGENT</span>':''}
             ${/\[SQ DRIVING SCHOOL\]/i.test(r.notes||'')?'<span title="Booked on sqdrivingschool.com" style="background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#60a5fa;padding:1px 7px">SQ DRIVING SCHOOL</span>':'<span title="Booked on drivesq.co.uk" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">DRIVESQ</span>'}
             ${(()=>{const _s=((r.notes||'').match(/(?:^|\n)\s*Source:\s*([^\n]+)/i)||[])[1];return _s?`<span title="Where they came from" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);border-radius:20px;font-size:.6rem;font-weight:700;color:var(--gold);padding:1px 7px">${esc(_s.trim())}</span>`:'';})()}
-            <span style="font-family:\'Oswald\',sans-serif;font-size:.75rem;color:${_statusCol};font-weight:700;text-transform:uppercase;margin-left:auto">${r.status}</span>
+            <span style="font-family:\'Oswald\',sans-serif;font-size:.75rem;color:${_statusCol};font-weight:700;text-transform:uppercase;margin-left:auto">${_isAssigned?'✅ Already assigned'+(_aIns?' → '+esc(_aIns.full_name):''):r.status}</span>
           </div>
           <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--txt)">${esc(r.student_name||'—')}</div>
           <div style="font-size:.73rem;color:var(--txt3);margin-top:2px">${esc(r.student_phone||'—')} · ${esc(r.postcode||'—')}</div>
@@ -10802,12 +10835,13 @@ function renderWebBookings(){
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
           <div style="background:rgba(245,197,24,.1);border-radius:6px;padding:2px 8px;font-size:.67rem;color:var(--gold)">${esc(r.lesson_type||'Manual')}</div>
-          <div style="font-size:.65rem;color:var(--txt4)">${daysAgo===0?'Today':daysAgo===1?'Yesterday':daysAgo+' days ago'}</div>
+          <div style="font-size:.7rem;color:var(--txt3);text-align:right;line-height:1.35"><b style="color:var(--txt2)">${daysAgo===0?'Today':daysAgo===1?'Yesterday':_date}</b> · ${_time}${daysAgo>1?`<br><span style="font-size:.62rem;color:var(--txt4)">${daysAgo} days ago</span>`:''}</div>
           ${waNum?`<a href="https://wa.me/${waNum}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);border-radius:8px;padding:3px 9px;font-size:.66rem;color:#4ade80;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="bi bi-whatsapp"></i>WhatsApp Student</a>`:''}
         </div>
       </div>
       ${r.notes?`<div style="font-size:.68rem;color:var(--txt4);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">${esc(r.notes)}</div>`:''}
-      <div class="d-flex gap-2 mt-2 flex-wrap" onclick="event.stopPropagation()">
+      <div class="d-flex gap-2 mt-2 flex-wrap align-items-center" onclick="event.stopPropagation()">
+        ${_isAssigned?`<span style="font-size:.74rem;color:#4ade80;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>Already assigned${_aIns?' to '+esc(_aIns.full_name):''}</span><button class="btn-s" style="font-size:.7rem;padding:3px 9px;margin-left:auto" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')" title="Pick a different instructor"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>`:''}
         ${r.status==='waiting'?`<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="event.stopPropagation();openWbCreateStudent('${_rid}')"><i class="bi bi-geo-alt-fill me-1"></i>Find & Assign Instructor</button>`:''}
         ${r.status==='waiting'?`<button class="btn-s" style="font-size:.72rem;padding:4px 10px" onclick="event.stopPropagation();wbDecline('${_rid}',this)"><i class="bi bi-x-circle me-1"></i>Decline</button>`:''}
       </div>
@@ -10831,7 +10865,7 @@ function openWbDetail(id){
       <div><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Lesson Type</div><div style="color:var(--txt);font-weight:600">${esc(r.lesson_type||'Manual')}</div></div>
       <div class="col-span-2" style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Address</div><div style="color:var(--txt);font-weight:600">${esc(r.area||'—')}</div></div>
       ${r.notes?`<div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Notes / Availability</div><div style="color:var(--txt);font-weight:600;white-space:pre-wrap">${esc(r.notes)}</div></div>`:''}
-      <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Submitted</div><div style="color:var(--txt);font-weight:600">${new Date(r.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} (${daysAgo===0?'today':daysAgo+' days ago'})</div></div>
+      <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Submitted</div><div style="color:var(--txt);font-weight:600">${new Date(r.created_at).toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})} at ${new Date(r.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} (${daysAgo===0?'today':daysAgo+' days ago'})</div></div>
       <div style="grid-column:1/-1"><div style="font-size:.62rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.7px">Status</div><div style="color:${r.status==='assigned'?'#4ade80':r.status==='cancelled'?'#94a3b8':'#fbbf24'};font-weight:700;text-transform:uppercase">${r.status}</div></div>
     </div>
     ${r.status==='waiting'?`<div style="background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.25);border-radius:9px;padding:10px 12px;margin-top:14px;font-size:.73rem;color:#fde68a;display:flex;gap:8px;align-items:flex-start">
@@ -13963,8 +13997,9 @@ function renderTheoryList(rows){
     <!-- Filter bar -->
     <div class="d-flex gap-2 mb-3 flex-wrap">
       <select id="wbStatusFilter" class="dsq-inp" style="max-width:140px;font-size:.8rem" onchange="loadWebBookings()">
-        <option value="waiting">Waiting</option>
-        <option value="assigned">Assigned</option>
+        <option value="open">Waiting + assigned</option>
+        <option value="waiting">Waiting only</option>
+        <option value="assigned">Assigned only</option>
         <option value="cancelled">Declined</option>
         <option value="rejected">Auto-declined / expired</option>
         <option value="all">All</option>
