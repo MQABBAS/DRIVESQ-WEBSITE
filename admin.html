@@ -4463,6 +4463,14 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // the JS string first, then HTML-escape that result so it's safe in the attribute it actually lives in.
 function jsEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 /* address that is really just the postcode (or empty) → '' so the two fields never duplicate */
+/* Pick-up = street address + the postcode that was entered, e.g. "12 Oak Street, Levenshulme, M19 2AB" (no duplicate if the postcode is already in the address) */
+function _fullPickup(addr,pc){
+  const a=String(addr||'').trim(),p=String(pc||'').trim().toUpperCase().replace(/\s+/g,' ');
+  const n=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!p)return a;if(!a)return p;
+  return n(a).includes(n(p))?a:a.replace(/[,\s]+$/,'')+', '+p;
+}
+window._fullPickup=_fullPickup;
 function _fcAddrOnly(addr,pc){const a=String(addr||'').trim();const n=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!a)return'';if(pc&&n(a)===n(pc))return'';if(/^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(a))return'';return a;}
 function _studentAgeBadge(assignedAt){
   if(!assignedAt)return'';
@@ -6833,7 +6841,7 @@ async function confirmCreateStudent(){
   if(instrId){
     sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New Student: '+name,'Tap to view '+name+'\'s details in your Students tab','/dashboard.html');
     const _iName=instrObj?.full_name||'Instructor';
-    const _csMsg=instrNewStudentMsg({instrName:_iName,name,phone,email,addr,lessonType,notes},{portal:true});
+    const _csMsg=instrNewStudentMsg({instrName:_iName,name,phone,email,addr,postcode:extractPostcode(addr)||((notes||'').match(/Postcode:\s*([^\n]+)/i)||[])[1]||'',lessonType,notes,source:window._pendingWbId?'website booking':''},{portal:true});
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
   if(allStudentsCache.length)loadAllStudents();
@@ -6850,7 +6858,7 @@ async function confirmCreateStudent(){
     const wbEntry=_webBookingsData.find(x=>x.id===wbId)||{};
     const stuWaNum=buildWaNum(phone||wbEntry.student_phone||'');
     const instrWaNum=instrObj?buildWaNum(instrObj.phone||''):'';
-    const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. They will be in touch shortly to arrange your first lesson. Welcome to DriveSQ! 🚗`;
+    const stuMsg=`Hi ${name.split(' ')[0]}, great news! We've matched you with your DriveSQ instructor: ${instrObj?.full_name||'your instructor'}. Please message them to say hello and tell them which days and times suit you — they'll also contact you as soon as they're free to arrange your first lesson. Welcome to DriveSQ! 🚗`;
     const instrMsg=instrNewStudentMsg({instrName:instrObj?.full_name,name,phone,email,addr,postcode:wbEntry.postcode,lessonType,notes:(notes||'')+'\n'+(wbEntry.notes||''),source:'website booking'});
     // Add WA buttons to the createStudentResult area
     setTimeout(()=>{
@@ -6893,7 +6901,7 @@ function waStudentCredentials(){
   const instrName=instrObj?.full_name||'your DriveSQ instructor';
   const instrPhone=instrObj?.phone||null;
   const instrTransmission=instrObj?.car_type||'Manual';
-  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will be in touch within 24 hours to arrange your first lesson.\n\n🚗 *Your Instructor:* ${instrName}\n${instrPhone?'📞 *Instructor Phone:* '+instrPhone+'\n':''}⚙️ *Transmission:* ${instrTransmission}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
+  const msg=`Hi ${name.split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will contact you to arrange your first lesson as soon as they're free — and please message them as well to say hello and tell them which days and times suit you.\n\n🚗 *Your Instructor:* ${instrName}\n${instrPhone?'📞 *Instructor Phone:* '+instrPhone+'\n':''}⚙️ *Transmission:* ${instrTransmission}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
   window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 /* The message an instructor gets about a new student — WhatsApp (bold with *…*) and the portal (bold with **…**). Only lines we have. */
@@ -6914,6 +6922,7 @@ function instrNewStudentMsg(d,opts){
               ['📅',  'Wants to start', d.start||get('Start')||get('Start date')],
               ['🕒',  'Availability',   d.avail||get('Availability')],
               ['🎯',  'Test booked',    d.testDate||get('Test date')],
+              ['🏁',  'Test centre',    d.testCentre],
               ['🎫',  'Booking ref',    d.ref||get('Ref')],
               ['📝',  'Notes',          d.extraNotes||cleanNotes]].filter(r=>r[2]);
   const src=d.source||(/\[WEB\]/i.test(notes)?'website booking':'');
@@ -8861,7 +8870,7 @@ function openCreateAndAssign(instrId,instrName){
     if(nm)nm.value=s.name||'';
     if(ph)ph.value=s.phone||'';
     if(em)em.value=s.email||'';
-    if(ad)ad.value=s.addr||'';
+    if(ad)ad.value=_fullPickup(s.addr,s.postcode);   // street + postcode, so the instructor's pick-up always has the postcode
     if(lt&&s.type)lt.value=s.type;
     if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
     if(sel){
@@ -8920,7 +8929,7 @@ function openAssignModal(instrId,instrName,instrPhone){
     if(stuWaNum){
       const _aInstrPhone=document.getElementById('assign-instr-phone')?.value||'';
       const _aInstrCarType=document.getElementById('assign-instr-cartype')?.value||'Manual';
-      const stuMsg=`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will be in touch within 24 hours to arrange your first lesson.\n\n🚗 *Your Instructor:* ${instrName}\n${_aInstrPhone?'📞 *Instructor Phone:* '+_aInstrPhone+'\n':''}⚙️ *Transmission:* ${_aInstrCarType}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
+      const stuMsg=`Hi ${(s.name||'').split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will contact you to arrange your first lesson as soon as they're free — and please message them as well to say hello and tell them which days and times suit you.\n\n🚗 *Your Instructor:* ${instrName}\n${_aInstrPhone?'📞 *Instructor Phone:* '+_aInstrPhone+'\n':''}⚙️ *Transmission:* ${_aInstrCarType}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
       stuLink.href=`https://wa.me/${stuWaNum}?text=${encodeURIComponent(stuMsg)}`;
       stuSec.style.display='block';
     } else {
@@ -8933,14 +8942,15 @@ async function confirmAssign(){
   const instrId=document.getElementById('assign-instr-id').value;
   const instrName=document.getElementById('assign-instr-name').value;
   const s=fcStudentData||{};
+  const _pickup=_fullPickup(s.addr,s.postcode);   // street + postcode, used for the profile, account, referral and messages
   if(!instrId||!s.name){showToast('Missing student or instructor data.','error');return;}
   _fcCtxFor(s.name);
   if(_reassignContext&&_reassignContext.fromProfile){
     const fp=_reassignContext.fromProfile;
     _reassignContext=null;
     closeModal('assignModal');
-    const ov={phone:s.phone||'',address:s.addr||'',lesson_type:s.type||'',notes:s.notes||''};
-    const ok=await _adminMoveStudent({accId:fp.accId,profileId:fp.profileId,rosterId:fp.profileId,instrId:fp.instrId,name:fp.name,phone:s.phone||fp.phone,address:s.addr||fp.address},instrId,'Reassigned via Find & Assign',ov);
+    const ov={phone:s.phone||'',address:_pickup||'',lesson_type:s.type||'',notes:s.notes||''};
+    const ok=await _adminMoveStudent({accId:fp.accId,profileId:fp.profileId,rosterId:fp.profileId,instrId:fp.instrId,name:fp.name,phone:s.phone||fp.phone,address:_pickup||fp.address},instrId,'Reassigned via Find & Assign',ov);
     if(ok){try{localStorage.removeItem('dsq_fc_draft');}catch(e){}}
     return;
   }
@@ -8955,7 +8965,7 @@ async function confirmAssign(){
   try{
     const{data:accData,error:accErr}=await sb.from('student_accounts').insert([{
       full_name:s.name,phone:s.phone||null,email:s.email||null,
-      address:s.addr||null,instructor_id:instrId,
+      address:_pickup||null,instructor_id:instrId,
       student_code:_aCode,pin:'0000',password_hash:'',
       status:'active',created_at:new Date().toISOString(),updated_at:new Date().toISOString()
     }]).select('id').maybeSingle();
@@ -8965,7 +8975,7 @@ async function confirmAssign(){
 
   // 2. Add to instructor roster (student_profiles) — CRITICAL, try 3 fallbacks
   let profInserted=false;
-  const profBase={instructor_id:instrId,name:s.name,phone:s.phone||null,address:s.addr||null,created_at:new Date().toISOString()};
+  const profBase={instructor_id:instrId,name:s.name,phone:s.phone||null,address:_pickup||null,created_at:new Date().toISOString()};
   const notesStr=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:''].filter(Boolean).join('\n')||null;
   let _profNotesDropped=false;
   for(const [pi,payload] of [
@@ -8994,7 +9004,7 @@ async function confirmAssign(){
   await sb.from('student_requests').insert([{
     instructor_id:instrId,student_name:s.name,student_phone:s.phone||null,
     pickup_address:null,postcode:s.postcode||null,lesson_type:s.type||'Manual',
-    notes:[s.notes,s.avail?'Availability: '+s.avail:'',s.addr?'Address: '+s.addr:''].filter(Boolean).join('\n')||null,status:'approved',created_at:new Date().toISOString()
+    notes:[s.notes,s.avail?'Availability: '+s.avail:'',_pickup?'Address: '+_pickup:''].filter(Boolean).join('\n')||null,status:'approved',created_at:new Date().toISOString()
   }]).catch(()=>{});
 
   // 3b. Record referral fee
@@ -9006,7 +9016,7 @@ async function confirmAssign(){
     amount:_refAmt,is_paid:_refPaid,
     paid_at:_refPaid?_refNow:null,
     is_cancelled:false,is_credit:false,credit_fulfilled:false,
-    notes:['Assigned via Find & Assign',s.postcode?'Postcode: '+s.postcode:'',s.addr?'Address: '+s.addr:'',s.avail?'Availability: '+s.avail:'',s.notes?'Notes: '+s.notes:''].filter(Boolean).join('\n'),created_at:_refNow
+    notes:['Assigned via Find & Assign',s.postcode?'Postcode: '+s.postcode:'',_pickup?'Address: '+_pickup:'',s.avail?'Availability: '+s.avail:'',s.notes?'Notes: '+s.notes:''].filter(Boolean).join('\n'),created_at:_refNow
   };
   const{data:_assignRefData,error:_assignRefErr}=await sb.from('referrals').insert([_refRow]).select().single();
   if(_assignRefErr){
@@ -9018,25 +9028,21 @@ async function confirmAssign(){
   }
 
   // 4. Push notification to instructor device
+  const _wlEarly=window._waitlistIdToAssign||window._pendingWbId||null;
+  let _wlNotes='';try{if(_wlEarly){const{data:_r}=await sb.from('waiting_list').select('notes').eq('id',_wlEarly).maybeSingle();_wlNotes=(_r&&_r.notes)||'';}}catch(e){}
+  const _msgData={instrName:instrName,name:s.name,phone:s.phone,email:s.email,addr:s.addr,postcode:s.postcode,lessonType:s.type,avail:s.avail,
+    testCentre:(s.testCentre&&(s.testCentre.name||s.testCentre.label))||'',notes:[s.notes,_wlNotes].filter(Boolean).join('\n'),source:_wlEarly?'website booking':''};
+  window._lastAssignMsg=_msgData;
   await sendPushToInstructor(instrId,instrName,
     '👤 New Student Assigned: '+s.name,
-    'Admin has added '+s.name+(s.phone?' ('+s.phone+')':'')+' to your roster. Tap to view.',
+    s.name+(s.phone?' · '+s.phone:'')+(_pickup?' · '+_pickup:'')+' — tap to view.',
     '/dashboard.html');
 
-  // 5. In-app message to instructor (shows in their notifications panel)
-  const _msg='Hi '+instrName+',\n\nA new student has been assigned to you by admin:\n\n'
-    +'👤 Name: '+s.name+'\n'
-    +'📞 Phone: '+(s.phone||'Not provided')+'\n'
-    +'🚗 Lesson Type: '+(s.type||'Manual')+'\n'
-    +'📍 Address: '+(s.addr||'Not provided')+'\n'
-    +(s.avail?'🕐 Availability: '+s.avail+'\n':'')
-    +(s.notes?'📝 Notes: '+s.notes+'\n':'')+'\n'
-    +'Open your Students tab to see them and get in touch to book their first lesson! 🎉\n\n'
-    +'— DriveSQ Admin';
+  // 5. In-app message to instructor (shows in their notifications panel) — every detail we hold, organised
   await sb.from('admin_messages').insert([{
     instructor_id:instrId,
     subject:'👤 New Student Assigned: '+s.name,
-    message_type:'general',body:_msg,
+    message_type:'general',body:instrNewStudentMsg(_msgData,{portal:true}),
     is_read:false,dismissed:false,created_at:new Date().toISOString()
   }]).catch(()=>{});
 
@@ -9054,7 +9060,7 @@ async function confirmAssign(){
     try{await updateWaitlistStatus(_wlId,'assigned',instrId);}catch(e){try{await sb.from('waiting_list').update({status:'assigned'}).eq('id',_wlId);}catch(x){}}
     try{renderWebBookings();}catch(e){}
     try{
-      const _wlUpd={};if(s.addr)_wlUpd.area=s.addr;if(s.postcode)_wlUpd.postcode=s.postcode;
+      const _wlUpd={};if(_pickup)_wlUpd.area=_pickup;if(s.postcode)_wlUpd.postcode=s.postcode;
       const{data:_wlRow}=await sb.from('waiting_list').select('notes').eq('id',_wlId).maybeSingle();
       let _wn=String(_wlRow?.notes||'');
       if(s.avail&&!/Availability:/i.test(_wn))_wn+=(_wn?'\n':'')+'Availability: '+s.avail;
@@ -9077,16 +9083,31 @@ async function confirmAssign(){
       const _aInstr2=allInstrs.find(i=>i.id===instrId);
       const _aInstrPhone2=_aInstr2?.phone||document.getElementById('assign-instr-phone')?.value||'';
       const _aInstrCarType2=_aInstr2?.car_type||document.getElementById('assign-instr-cartype')?.value||'Manual';
-      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will be in touch within 24 hours to arrange your first lesson.\n\n🚗 *Your Instructor:* ${instrName}\n${_aInstrPhone2?'📞 *Instructor Phone:* '+_aInstrPhone2+'\n':''}⚙️ *Transmission:* ${_aInstrCarType2}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
+      const _stuMsg=`Hi ${s.name.split(' ')[0]}! 👋\n\nYou're now registered with *DriveSQ* — your journey to passing your driving test starts here. 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━\n📱 *ACCESS YOUR STUDENT PORTAL*\n👉 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: *${s.phone}*\nNo password needed — just tap the link above.\n━━━━━━━━━━━━━━━━━━━━━━━\n\nYour instructor will contact you to arrange your first lesson as soon as they're free — and please message them as well to say hello and tell them which days and times suit you.\n\n🚗 *Your Instructor:* ${instrName}\n${_aInstrPhone2?'📞 *Instructor Phone:* '+_aInstrPhone2+'\n':''}⚙️ *Transmission:* ${_aInstrCarType2}\n\nOn your portal you can:\n✅ View upcoming lessons\n📚 Study for your theory test\n💬 Message your instructor directly\n📊 Track your progress\n\nIf you have any questions before your first lesson, just reply here and we'll help.\n\n— DriveSQ Team 🚗`;
       setTimeout(()=>{
-        showToast(`<a href="https://wa.me/${_stuWaNum}?text=${encodeURIComponent(_stuMsg)}" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:underline"><i class="bi bi-whatsapp me-1"></i>Send portal link to ${s.name.split(' ')[0]} via WhatsApp</a>`,'success',15000);
-      },1500);
+        const _iwa=buildWaNum(((allInstrs||[]).find(i=>i.id===instrId)||{}).phone||'');
+        showAssignCard(`✅ ${s.name} assigned to ${instrName}`,[
+          {href:'https://wa.me/'+_stuWaNum+'?text='+encodeURIComponent(_stuMsg),label:'Message '+s.name.split(' ')[0]+' (student)',sub:'Welcome, portal link and "please message your instructor"'},
+          _iwa?{href:'https://wa.me/'+_iwa+'?text='+encodeURIComponent(instrNewStudentMsg(_msgData)),label:'Message '+instrName.split(' ')[0]+' (instructor)',sub:'Every detail: phone, email, pick-up + postcode, lessons, availability'}:null
+        ].filter(Boolean));
+      },700);
     }
   }
 
   resetFindForm(true);
 }
 
+/* A card that stays on screen after an assignment, with one-tap WhatsApp buttons for the student and the instructor
+   (the normal toast only shows plain text for 4 seconds). */
+function showAssignCard(title,links){
+  let c=document.getElementById('assignActionCard');if(c)c.remove();
+  c=document.createElement('div');c.id='assignActionCard';
+  c.style.cssText='position:fixed;left:50%;top:78px;transform:translateX(-50%);z-index:10300;width:min(440px,calc(100vw - 20px));background:var(--dk,#16161a);border:1px solid rgba(74,222,128,.45);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:14px 14px 12px;color:var(--txt,#fff)';
+  c.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="font-family:Oswald,sans-serif;font-size:.95rem;font-weight:700;flex:1">${esc(title)}</div><button type="button" aria-label="Close" style="background:none;border:0;color:var(--txt3,#aaa);font-size:1.1rem;cursor:pointer" onclick="this.closest('#assignActionCard').remove()">✕</button></div>`
+    +links.map(l=>`<a href="${l.href}" target="_blank" rel="noopener" style="display:flex;gap:10px;align-items:center;text-decoration:none;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.4);border-radius:12px;padding:10px 12px;margin-bottom:7px;color:#25d366"><i class="bi bi-whatsapp" style="font-size:1.3rem"></i><span style="min-width:0"><b style="display:block;font-size:.84rem">${esc(l.label)}</b><small style="display:block;color:var(--txt3,#aaa);font-size:.7rem;line-height:1.35">${esc(l.sub||'')}</small></span></a>`).join('')
+    +`<div style="font-size:.68rem;color:var(--txt4,#888);text-align:center">The instructor has also been sent the full details in their portal and on their phone.</div>`;
+  document.body.appendChild(c);setTimeout(()=>{if(c.parentNode)c.remove();},90000);
+}
 // Finish a reassignment (from a declined request, a referral or a student) once the new instructor is chosen
 function _finishReassign(instrId){
   if(!_reassignContext)return;
@@ -18657,7 +18678,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   /* ---------- emails ---------- */
   function instrBox(ins) {
     const ph = fmtPhone(ins.phone), w = waNum(ins.phone);
-    return ph ? `**Your instructor: ${first(ins.full_name) || ins.full_name}**\n📞 ${ph}${w ? " · [WhatsApp " + first(ins.full_name) + "](https://wa.me/" + w + ")" : ""}` : `**Your instructor: ${first(ins.full_name) || "your DriveSQ instructor"}** — they'll contact you directly.`;
+    return ph ? `**Your instructor: ${first(ins.full_name) || ins.full_name}**\n📞 ${ph}${w ? " · [WhatsApp " + first(ins.full_name) + "](https://wa.me/" + w + ")" : ""}\n\n💬 **Please message ${first(ins.full_name) || "your instructor"} to say hello** and tell them which days and times suit you. They'll also contact you as soon as they're free to arrange your first lesson.` : `**Your instructor: ${first(ins.full_name) || "your DriveSQ instructor"}** — they'll contact you directly.`;
   }
   const PORTAL_TXT = "**📱 Your Student Portal is now open**\n- Theory practice: 700+ questions and 14 full mock tests\n- Hazard perception and practical video guides\n- Track your booked lessons, progress and test-readiness checklist\n- Log in with your phone number — no password needed";
   const FIRST_TXT = "**Before your first lesson**\n- Have your **provisional driving licence** ready — your instructor will check it\n- Wear comfortable shoes you can feel the pedals in, and bring glasses or lenses if you need them to drive\n- Be at your pick-up point a few minutes early\n\n**What happens on your first lesson**\n- We start somewhere quiet, at your own pace\n- You'll learn the controls, moving off and stopping safely\n- At the end you'll talk through your progress and plan your next lessons";
