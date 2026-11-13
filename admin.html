@@ -10991,6 +10991,7 @@ function renderWebBookings(){
         <div style="flex:1;min-width:160px">
           <div class="d-flex align-items-center gap-2 mb-1">
             ${_isNewOpen?'<span style="background:#F5C518;border-radius:20px;font-size:.62rem;font-weight:800;color:#1a1200;padding:2px 9px;letter-spacing:.3px">★ NEW BOOKING</span>':isNew?'<span style="background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#4ade80;padding:1px 7px">NEW</span>':''}
+            ${(r.status==='waiting'||r.first_contact_at)?`<span class="wb-timer" data-since="${esc(r.created_at)}" data-done="${esc(r.first_contact_at||'')}" data-known="${('first_contact_at' in r)?'1':'0'}" style="border-radius:20px;font-size:.6rem;font-weight:800;padding:1px 8px"></span>`:''}
             ${_chan?`<span style="background:${_chan[1]}22;border:1px solid ${_chan[1]}66;border-radius:20px;font-size:.6rem;font-weight:700;color:${_chan[1]};padding:1px 7px"><i class="bi ${_chan[2]} me-1"></i>${_chan[0]}</span>`:''}
             ${isUrgent?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">⚠ URGENT</span>':''}
             ${/\[SQ DRIVING SCHOOL\]/i.test(r.notes||'')?'<span title="Booked on sqdrivingschool.com" style="background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);border-radius:20px;font-size:.6rem;font-weight:700;color:#60a5fa;padding:1px 7px">SQ DRIVING SCHOOL</span>':'<span title="Booked on drivesq.co.uk" style="background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);border-radius:20px;font-size:.6rem;font-weight:700;color:#f87171;padding:1px 7px">DRIVESQ</span>'}
@@ -11016,7 +11017,26 @@ function renderWebBookings(){
       </div>
     </div>`;
   }).join('');
+  _wbTick();
 }
+/* Reply-speed timer on every booking card: green under 5 min, amber to 15, red after — stops and turns into 'Replied in X' once you WhatsApp or call them
+   (the Growth module stamps first_contact_at on any WhatsApp/call tap). Fast replies are the biggest lever on how many enquiries book. */
+function _wbTick(){
+  const fmt=m=>m<1?'<1 min':m<60?Math.round(m)+' min':m<1440?(m/60).toFixed(1).replace(/\.0$/,'')+' h':Math.round(m/1440)+' d';
+  let late=0;
+  document.querySelectorAll('#wbList .wb-timer').forEach(el=>{
+    const since=new Date(el.dataset.since),done=el.dataset.done?new Date(el.dataset.done):null,m=((done||new Date())-since)/60000;
+    let t,c,b;
+    if(done){t='✅ Replied in '+fmt(Math.max(0,m));c='#4ade80';b='rgba(74,222,128,.14)';}
+    else if(el.dataset.known!=='1'){t='⏱ Waiting '+fmt(m);c='var(--txt3)';b='rgba(148,163,184,.14)';}
+    else if(m<5){t='⏱ Waiting '+fmt(m);c='#4ade80';b='rgba(74,222,128,.14)';}
+    else if(m<15){t='⏱ Not replied · '+fmt(m);c='#fbbf24';b='rgba(251,191,36,.16)';late++;}
+    else{t='🔴 Not replied · '+fmt(m)+' — reply now';c='#f87171';b='rgba(248,113,113,.18)';late++;}
+    el.textContent=t;el.style.color=c;el.style.background=b;el.style.border='1px solid '+c;
+  });
+  const chip=document.getElementById('wbLateChip');if(chip){chip.style.display=late?'inline-flex':'none';chip.textContent='⏱ '+late+' not replied yet';}
+}
+setInterval(()=>{if(document.getElementById('webBookingsModal')&&document.getElementById('webBookingsModal').classList.contains('open'))_wbTick();},20000);
 function openWbDetail(id){
   const r=_webBookingsData.find(x=>x.id===id);
   if(!r)return;
@@ -14169,7 +14189,8 @@ function renderTheoryList(rows){
     <div class="d-flex align-items-center gap-2 mb-3">
       <i class="bi bi-calendar-check-fill" style="color:var(--gold);font-size:1.2rem"></i>
       <h5 class="mb-0" style="font-family:'Oswald',sans-serif">Bookings &amp; Enquiries <span style="font-size:.7rem;font-weight:400;color:var(--txt3)">website · WhatsApp · phone — newest first</span></h5>
-      <button type="button" id="wbAutoBtn" onclick="toggleAutoAssign()" title="Autopilot: the server assigns waiting bookings to the closest instructor by itself. Keep this OFF so only you assign students." style="background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.35);border-radius:20px;padding:2px 10px;font-size:.7rem;color:var(--txt3);font-weight:700;cursor:pointer;margin-left:auto;white-space:nowrap"><i class="bi bi-robot me-1"></i>Auto-assign: …</button>
+      <span id="wbLateChip" style="display:none;background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.5);border-radius:20px;padding:2px 10px;font-size:.7rem;color:#f87171;font-weight:800;margin-left:auto;white-space:nowrap"></span>
+      <button type="button" id="wbAutoBtn" onclick="toggleAutoAssign()" title="Autopilot: the server assigns waiting bookings to the closest instructor by itself. Keep this OFF so only you assign students." style="background:rgba(100,116,139,.12);border:1px solid rgba(100,116,139,.35);border-radius:20px;padding:2px 10px;font-size:.7rem;color:var(--txt3);font-weight:700;cursor:pointer;margin-left:6px;white-space:nowrap"><i class="bi bi-robot me-1"></i>Auto-assign: …</button>
       <span id="wbTotalBadge" style="margin-left:6px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);border-radius:20px;padding:2px 10px;font-size:.72rem;color:var(--gold);font-weight:700">Loading…</span>
     </div>
     <!-- Important note -->
