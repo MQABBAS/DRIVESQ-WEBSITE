@@ -8215,14 +8215,31 @@ async function loadMyFeedback(){
   function acts(m,c,p){
     var a=[],ph=p.facts.phone||p.facts.mobile||'',nm=p.facts.name||p.facts.student||'';
     if(c.key==='newstudent'||c.key==='movedin'){
-      a.push('<button class="nf-act p" onclick="event.stopPropagation();toggleNotif();switchTab(\'students\');setMobActive(\'students\');loadStudents()">👥 View my students</button>');
+      a.push('<button class="nf-act p" onclick="event.stopPropagation();_nfViewStudent(\''+m.id+'\')">👤 Open full details</button>');
+      a.push('<button class="nf-act" onclick="event.stopPropagation();toggleNotif();switchTab(\'students\');setMobActive(\'students\');loadStudents()">👥 All my students</button>');
       if(ph){var d=ph.replace(/[^\d+]/g,'');a.push('<a class="nf-act" href="tel:'+d+'" onclick="event.stopPropagation()">📞 Call</a>');
         try{var u=waLink(ph,'Hi '+(nm.split(' ')[0]||'')+', this is your DriveSQ instructor '+((window.instr&&instr.name)||'').split(' ')[0]+'. I\'m free to arrange your first lesson — what days and times suit you?');if(u)a.push('<a class="nf-act wa" target="_blank" rel="noopener" href="'+u+'" onclick="event.stopPropagation()">💬 WhatsApp</a>');}catch(e){}}
     }else if(c.key==='money'){a.push('<button class="nf-act p" onclick="event.stopPropagation();toggleNotif();switchTab(\'referrals\');setMobActive(\'referrals\')">🧾 Open referrals</button>');}
     else if(c.key==='nolesson'){a.push('<button class="nf-act p" onclick="event.stopPropagation();toggleNotif();switchTab(\'cal\');setMobActive(\'cal\')">📅 Open calendar</button>');}
     return a.length?'<div class="nf-acts">'+a.join('')+'</div>':'';
   }
-  function info(m){var c=cat(m),p=parse(m.body);return{c:c,p:p,title:title(m),prev:preview(p)};}
+  var STUDENT_CATS={newstudent:1,movedin:1};
+  window._nfMsgs=window._nfMsgs||{};
+  function stuName(m,p){
+    var n=(p&&(p.facts.name||p.facts.student))||'';
+    if(!n){var t=String(m.subject||'');var i=t.lastIndexOf(':');if(i>-1)n=t.slice(i+1);}
+    return String(n||'').replace(/\*+/g,'').trim();
+  }
+  function info(m){var c=cat(m),p=parse(m.body);window._nfMsgs[m.id]=m;return{c:c,p:p,title:title(m),prev:preview(p),student:STUDENT_CATS[c.key]?stuName(m,p):''};}
+  /* View → the student's full profile (details, address + postcode, lessons, progress, notes) */
+  window._nfViewStudent=async function(id){
+    var m=window._nfMsgs[id];if(!m)return;var x=info(m);
+    _nfRead([id]);
+    var pn=document.getElementById('notifPanel');if(pn)pn.classList.remove('open');
+    if(!x.student){switchTab('students');setMobActive('students');loadStudents();return;}
+    try{await openStudentMgmt(x.student,'profile');}
+    catch(e){switchTab('students');setMobActive('students');loadStudents();}
+  };
   window._nfItem=function(m){
     var x=info(m);
     return'<div class="nf-item '+(m.is_read?'':'unread')+'" data-id="'+m.id+'" onclick="_nfToggle(this)">'+
@@ -8233,11 +8250,12 @@ async function loadMyFeedback(){
   };
   window._nfBanner=function(m){
     var x=info(m);
-    return'<div class="msg-banner nf-banner" data-nfid="'+m.id+'" onclick="_nfFromBanner(\''+m.id+'\')" style="border-left:3px solid '+x.c.col+'">'+
+    var isStu=!!x.student,go=isStu?'_nfViewStudent':'_nfFromBanner';
+    return'<div class="msg-banner nf-banner" data-nfid="'+m.id+'" onclick="'+go+'(\''+m.id+'\')" style="border-left:3px solid '+x.c.col+'">'+
       '<div class="nf-ic" style="background:'+rgba(x.c.col,.16)+';border:1px solid '+rgba(x.c.col,.4)+'">'+x.c.icon+'</div>'+
       '<div class="nf-main"><div class="nf-top"><span class="nf-label" style="color:'+x.c.col+'">'+esc(x.c.label)+'</span><span class="nf-time">'+ago(m.created_at)+'</span></div>'+
       '<div class="nf-title">'+esc(x.title)+'</div>'+(x.prev?'<div class="nf-prev">'+esc(x.prev)+'</div>':'')+'</div>'+
-      '<button class="nf-bview" type="button">View</button><button class="mb-dismiss" onclick="event.stopPropagation();dismissMsg(\''+m.id+'\')" aria-label="Dismiss">✕</button></div>';
+      '<button class="nf-bview" type="button">'+(isStu?'View student':'View')+'</button><button class="mb-dismiss" onclick="event.stopPropagation();dismissMsg(\''+m.id+'\')" aria-label="Dismiss">✕</button></div>';
   };
   window._nfList=function(msgs){
     var un=msgs.filter(function(m){return!m.is_read;}),rd=msgs.filter(function(m){return m.is_read;}),h='';
