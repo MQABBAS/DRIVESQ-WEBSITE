@@ -3761,7 +3761,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
         <option value="Intensive">Intensive</option>
       </select>
     </div>
-    <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="cs-addr" placeholder="Default pickup address" autocomplete="off"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="cs-addr" placeholder="Street address" autocomplete="off"/></div>
+    <div class="mb-2"><label class="dsq-lbl">Postcode</label><input class="dsq-inp" id="cs-postcode" placeholder="e.g. M19 2PH" autocomplete="off" style="text-transform:uppercase"/></div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="cs-notes" rows="2" placeholder="Any notes about this student (optional)" style="resize:vertical"></textarea></div>
     <div class="mb-3" style="padding:10px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:10px">
       <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px"><i class="bi bi-currency-pound me-1"></i>Referral Fee</div>
@@ -6724,7 +6725,7 @@ async function saveAdminStudentNote(){
 /* ── CREATE STUDENT ACCOUNT ── */
 function openCreateStudentModal(){
   // Reset form
-  ['cs-name','cs-phone','cs-email','cs-addr','cs-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cs-name','cs-phone','cs-email','cs-addr','cs-postcode','cs-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const t=document.getElementById('cs-type');if(t)t.value='Manual';
   // Populate instructor dropdown
   const sel=document.getElementById('cs-instr');
@@ -6772,8 +6773,13 @@ async function confirmCreateStudent(){
   btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Creating…';
   const email=document.getElementById('cs-email').value.trim().toLowerCase();
   const lessonType=document.getElementById('cs-type').value;
-  const addr=document.getElementById('cs-addr').value.trim();
+  const _addrRaw=document.getElementById('cs-addr').value.trim();
+  const postcode=String((document.getElementById('cs-postcode')||{}).value||'').trim().toUpperCase()||extractPostcode(_addrRaw)||'';
+  const addr=_fullPickup(_addrRaw,postcode);   // saved everywhere as street + postcode
   const notes=document.getElementById('cs-notes').value.trim();
+  // website booking details (ref, package, start date …) travel with the instructor message
+  let _wbNotes='';const _wbIdNow=window._pendingWbId||window._waitlistIdToAssign||null;
+  try{if(_wbIdNow){const _r=(_webBookingsData||[]).find(x=>String(x.id)===String(_wbIdNow));_wbNotes=_r?(_r.notes||''):((await sb.from('waiting_list').select('notes').eq('id',_wbIdNow).maybeSingle()).data||{}).notes||'';}}catch(e){}
   // Generate a placeholder student_code in case the DB column has a NOT NULL constraint.
   // Login is phone-number-only; this value is never shown to users.
   const _placeholderCode=Math.random().toString(36).slice(2,9).toUpperCase();
@@ -6804,7 +6810,7 @@ async function confirmCreateStudent(){
   let instrObj=null;
   if(instrId){
     instrObj=allInstrs.find(i=>i.id===instrId)||null;
-    const profPayload={instructor_id:instrId,name:name,phone:phone||null,address:addr||null,lesson_type:lessonType,notes:notes||null,status:'active',created_at:new Date().toISOString()};
+    const profPayload={instructor_id:instrId,name:name,phone:phone||null,address:addr||null,lesson_type:lessonType,notes:[notes,(postcode&&!/Postcode:/i.test(notes))?'Postcode: '+postcode:''].filter(Boolean).join('\n')||null,status:'active',created_at:new Date().toISOString()};
     const{error:profErr}=await sb.from('student_profiles').insert([profPayload]);
     if(profErr)console.warn('student_profiles insert:',profErr.message);
   }
@@ -6818,7 +6824,7 @@ async function confirmCreateStudent(){
       amount:_csRefAmt,is_paid:_csRefPaid,
       paid_at:_csRefPaid?_csRefNow:null,
       is_cancelled:false,is_credit:false,credit_fulfilled:false,
-      notes:'Created via Create Student',created_at:_csRefNow
+      notes:['Created via Create Student',postcode?'Postcode: '+postcode:'',addr?'Address: '+addr:''].filter(Boolean).join('\n'),created_at:_csRefNow
     };
     const{data:_csRefData,error:_csRefErr}=await sb.from('referrals').insert([_csRefRow]).select().single();
     if(_csRefErr){
@@ -6830,7 +6836,7 @@ async function confirmCreateStudent(){
     }
   }
   // Store for WhatsApp buttons
-  window._csLastCreated={name,phone,email,lessonType,addr,notes,instrObj};
+  window._csLastCreated={name,phone,email,lessonType,addr,postcode,notes:[notes,_wbNotes].filter(Boolean).join('\n'),source:_wbIdNow?'website booking':'',instrObj};
   // Show/hide instructor WA button
   const instrWaBtn=document.getElementById('cs-instr-wa-btn');
   if(instrWaBtn)instrWaBtn.style.display=instrObj&&buildWaNum(instrObj.phone||'')?'block':'none';
@@ -6841,7 +6847,7 @@ async function confirmCreateStudent(){
   if(instrId){
     sendPushToInstructor(instrId,instrObj?.full_name||'','👤 New Student: '+name,'Tap to view '+name+'\'s details in your Students tab','/dashboard.html');
     const _iName=instrObj?.full_name||'Instructor';
-    const _csMsg=instrNewStudentMsg({instrName:_iName,name,phone,email,addr,postcode:extractPostcode(addr)||((notes||'').match(/Postcode:\s*([^\n]+)/i)||[])[1]||'',lessonType,notes,source:window._pendingWbId?'website booking':''},{portal:true});
+    const _csMsg=instrNewStudentMsg({instrName:_iName,name,phone,email,addr,postcode:postcode||((notes||'').match(/Postcode:\s*([^\n]+)/i)||[])[1]||'',lessonType,notes:[notes,_wbNotes].filter(Boolean).join('\n'),source:_wbIdNow?'website booking':''},{portal:true});
     await sb.from('admin_messages').insert([{instructor_id:instrId,subject:'👤 New Student Assigned: '+name,message_type:'general',body:_csMsg,is_read:false,dismissed:false,created_at:new Date().toISOString()}]).catch(()=>{});
   }
   if(allStudentsCache.length)loadAllStudents();
@@ -6912,12 +6918,19 @@ function instrNewStudentMsg(d,opts){
   const notes=String(d.notes||'');
   const get=k=>{const m=notes.match(new RegExp('(?:^|\\n)\\s*'+k+':\\s*([^\\n]+)','i'));return m?m[1].trim():'';};
   const cleanNotes=notes.split('\n').filter(l=>l.trim()&&!/^\s*(Email|Ref|Package|Gearbox|Postcode|Address|Start|Start date|Availability|Source|Test date):/i.test(l)&&!/\[WEB\]|\[SQ DRIVING SCHOOL\]|email sent|Booking form/i.test(l)).join(' ').trim();
-  const pickup=[d.addr,d.postcode].filter(Boolean).filter((v,i,a)=>!(i===1&&a[0]&&a[0].toUpperCase().includes(v.toUpperCase()))).join(', ');
+  const pcRaw=String(d.postcode||get('Postcode')||'').trim().toUpperCase().replace(/\s+/g,' ');
+  const pcm=String(d.addr||'').toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/);
+  const postcode=pcRaw||(pcm?pcm[1].replace(/\s+/,' '):'');
+  let street=String(d.addr||'').trim();
+  if(postcode){const nz=v=>String(v).toUpperCase().replace(/[^A-Z0-9]/g,'');const k=nz(postcode);
+    street=street.split(',').map(x=>x.trim()).filter(x=>x&&nz(x)!==k&&!(nz(x).endsWith(k)&&nz(x).length<=k.length+1)).join(', ').replace(new RegExp(postcode.replace(/\s+/,'\\s*')+'$','i'),'').replace(/[,\s]+$/,'').trim();}
+  const pickup=street||(postcode?'Street not given — see postcode':'');
   const lessons=[d.lessonType||get('Gearbox'),d.pkg||get('Package')].filter(Boolean).join(' · ');
   const rows=[['👤',  'Name',           d.name],
               ['📞',  'Phone',          fmtP(d.phone)],
               ['📧',  'Email',          d.email||get('Email')],
               ['📍',  'Pick-up',        pickup],
+              ['📮',  'Postcode',       postcode],
               ['🚗',  'Lessons',        lessons],
               ['📅',  'Wants to start', d.start||get('Start')||get('Start date')],
               ['🕒',  'Availability',   d.avail||get('Availability')],
@@ -6938,7 +6951,7 @@ function waInstructorNewStudent(){
   if(!instrObj||!instrObj.phone){showToast('No instructor phone number on file.','');return;}
   const waNum=buildWaNum(instrObj.phone);
   const instrFirst=(instrObj.full_name||'').split(' ')[0]||'Hi';
-  const msg=instrNewStudentMsg({instrName:instrObj.full_name,name:c.name,phone:c.phone,email:c.email,addr:c.addr,lessonType:c.lessonType,notes:c.notes});
+  const msg=instrNewStudentMsg({instrName:instrObj.full_name,name:c.name,phone:c.phone,email:c.email,addr:c.addr,postcode:c.postcode,lessonType:c.lessonType,notes:c.notes,source:c.source||''});
   window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -8870,7 +8883,8 @@ function openCreateAndAssign(instrId,instrName){
     if(nm)nm.value=s.name||'';
     if(ph)ph.value=s.phone||'';
     if(em)em.value=s.email||'';
-    if(ad)ad.value=_fullPickup(s.addr,s.postcode);   // street + postcode, so the instructor's pick-up always has the postcode
+    if(ad)ad.value=_fcAddrOnly(s.addr,s.postcode)||String(s.addr||'');
+    const pcEl=document.getElementById('cs-postcode');if(pcEl)pcEl.value=String(s.postcode||extractPostcode(s.addr)||'').toUpperCase();
     if(lt&&s.type)lt.value=s.type;
     if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
     if(sel){
