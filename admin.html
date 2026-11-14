@@ -17777,6 +17777,91 @@ document.addEventListener('click',e=>{
     S.refs = refs; matchRefs(S.rows, S.refs); S.loaded = true;
   }
 
+  /* ---------- channel performance chart: enquiries & booked for Instagram Ads / Google Ads / SEO ---------- */
+  const CC = { view: "week", data: null, loading: false, chart: null, err: "" };
+  const CH_DEF = [["ig", "Instagram Ads", "#e1306c"], ["g", "Google Ads", "#4285f4"], ["seo", "SEO / search", "#22c55e"], ["other", "Other", "#9ca3af"]];
+  const chOf = r => { const s = sourceOf(r); if (/(instagram|facebook|meta) ads/i.test(s)) return "ig"; if (/^google ads/i.test(s)) return "g"; if (/^(google search|other search|google maps)/i.test(s)) return "seo"; return "other"; };
+  const p2 = n => (n < 10 ? "0" : "") + n;
+  const dk = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+  function ccKey(view, d) { d = new Date(d); if (view === "day") return dk(d); if (view === "week") { const m = startOfDay(d); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return dk(m); } return d.getFullYear() + "-" + p2(d.getMonth() + 1); }
+  function ccBuckets(view) {
+    const now = new Date(), out = [];
+    if (view === "day") for (let i = 13; i >= 0; i--) { const d = startOfDay(new Date(now.getTime() - i * 864e5)); out.push({ k: dk(d), l: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) }); }
+    else if (view === "week") { const mon = startOfDay(now); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); for (let i = 11; i >= 0; i--) { const d = new Date(mon); d.setDate(d.getDate() - 7 * i); out.push({ k: dk(d), l: "w/c " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) }); } }
+    else if (view === "month") for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); out.push({ k: d.getFullYear() + "-" + p2(d.getMonth() + 1), l: d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }) }); }
+    return out;
+  }
+  async function ccFetchAll(table, order) {
+    const c = db(); let out = [], from = 0;
+    for (;;) { const r = await c.from(table).select("*").order(order, { ascending: true }).range(from, from + 999); if (r.error) throw r.error; out = out.concat(r.data || []); if (!r.data || r.data.length < 1000 || from > 20000) break; from += 1000; }
+    return out;
+  }
+  async function ccLoad() {
+    if (CC.loading) return; CC.loading = true; CC.err = "";
+    try {
+      const [wl, refs] = await Promise.all([ccFetchAll("waiting_list", "created_at"), ccFetchAll("referrals", "created_at")]);
+      const rows = dedupe(wl), byP = {}, byN = {};
+      refs.forEach(f => { if (f.is_cancelled) return; const ph = normPhone(f.student_phone), nm = normName(f.student_name); if (ph) (byP[ph] = byP[ph] || []).push(f); if (nm) (byN[nm] = byN[nm] || []).push(f); });
+      const bookedFn = window._refAdminBooked || (f => !!f.is_paid);
+      rows.forEach(r => {
+        const t0 = startOfDay(r.created_at).getTime();
+        const ph = normPhone(r.student_phone);
+        /* phone is the reliable link; fall back to the name only for referrals that have no phone saved, so two people with the same name are never mixed up */
+        const pool = (ph && byP[ph]) || (byN[normName(r.student_name)] || []).filter(f => !normPhone(f.student_phone));
+        const cands = pool.filter(f => new Date(f.created_at).getTime() >= t0 - 864e5);
+        r._ch = chOf(r); r._bk = r.status !== "cancelled" && cands.some(bookedFn);
+      });
+      CC.data = rows;
+    } catch (e) { CC.err = (e && e.message) || "Couldn't load"; CC.data = null; }
+    CC.loading = false;
+  }
+  function ccCard() {
+    const v = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["all", "All time"]];
+    return `<div class="dsq-card p-3" id="dsqeCC" style="margin:12px 0">
+      <div class="section-label"><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--gold)"></i>Enquiries &amp; bookings by channel</div>
+      <div class="dsqe-row" style="margin-bottom:8px">${v.map(([k, l]) => `<button class="dsqe-chip${CC.view === k ? " on" : ""}" data-v="${k}">${l}</button>`).join("")}<span class="muted" id="dsqeCCrange" style="margin-left:6px"></span></div>
+      <div id="dsqeCCbody"><div class="muted">Loading…</div></div></div>`;
+  }
+  function ccDraw() {
+    const body = $("#dsqeCCbody"); if (!body) return;
+    if (CC.err) { body.innerHTML = `<div class="muted">Couldn't load the chart: ${h(CC.err)}</div>`; return; }
+    if (!CC.data) { body.innerHTML = `<div class="muted">Loading…</div>`; return; }
+    const view = CC.view, rows = CC.data, bk = view === "all" ? null : ccBuckets(view), idx = {};
+    const keys = ["ig", "g", "seo", "other"], T = {}; keys.forEach(k => { T[k] = { n: 0, b: 0 }; });
+    if (bk) bk.forEach((b, i) => { idx[b.k] = i; b.c = {}; keys.forEach(k => { b.c[k] = { n: 0, b: 0 }; }); });
+    rows.forEach(r => {
+      if (bk) { const i = idx[ccKey(view, r.created_at)]; if (i == null) return; const c = bk[i].c[r._ch]; c.n++; if (r._bk) c.b++; }
+      T[r._ch].n++; if (r._bk) T[r._ch].b++;
+    });
+    const rng = $("#dsqeCCrange"); if (rng) rng.textContent = view === "all" ? "everything recorded" : view === "day" ? "last 14 days" : view === "week" ? "last 12 weeks" : "last 12 months";
+    const tot = keys.reduce((a, k) => ({ n: a.n + T[k].n, b: a.b + T[k].b }), { n: 0, b: 0 });
+    const label = k => CH_DEF.find(x => x[0] === k)[1], col = k => CH_DEF.find(x => x[0] === k)[2];
+    const rate = o => (o.n ? Math.round(o.b / o.n * 100) + "%" : "–");
+    body.innerHTML = `<div style="position:relative;height:300px"><canvas id="dsqeCCcv"></canvas></div>
+      <div class="dsqe-scroll" style="margin-top:10px"><table class="t4"><thead><tr><th>Channel</th><th class="num">Enquiries</th><th class="num">Booked</th><th class="num">Rate</th></tr></thead><tbody>
+      ${keys.map(k => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td></tr>`).join("")}
+      <tr style="font-weight:700"><td>Total</td><td class="num">${tot.n}</td><td class="num">${tot.b}</td><td class="num">${rate(tot)}</td></tr></tbody></table></div>
+      <div class="muted" style="margin-top:8px;font-size:.72rem">Booked = you pressed ✅ in Referrals. Each booking is counted on the day the enquiry came in. SEO / search = Google search, other search engines and Google Maps. Other = direct, friends, calls, social posts and anything not tracked. Instagram ad enquiries from before the tracking fix may sit under Google Ads.</div>`;
+    if (!window.Chart) { const cv = $("#dsqeCCcv"); if (cv) cv.outerHTML = `<div class="muted">Chart library didn't load — the table below has the same numbers.</div>`; return; }
+    if (CC.chart) { try { CC.chart.destroy(); } catch (e) {} CC.chart = null; }
+    const txt = (getComputedStyle(document.body).getPropertyValue("--txt3") || "").trim() || "#9ca3af", grid = "rgba(128,128,128,.18)";
+    let labels, datasets;
+    if (view === "all") {
+      labels = keys.map(label);
+      datasets = [{ label: "Enquiries", data: keys.map(k => T[k].n), backgroundColor: keys.map(k => col(k) + "66"), borderColor: keys.map(col), borderWidth: 1.5 }, { label: "Booked", data: keys.map(k => T[k].b), backgroundColor: keys.map(col), borderColor: keys.map(col), borderWidth: 1.5 }];
+    } else {
+      labels = bk.map(b => b.l); datasets = [];
+      ["ig", "g", "seo"].forEach(k => { datasets.push({ label: label(k) + " enquiries", data: bk.map(b => b.c[k].n), backgroundColor: col(k) + "55", borderColor: col(k), borderWidth: 1.5, order: 2 }); datasets.push({ label: label(k) + " booked", data: bk.map(b => b.c[k].b), backgroundColor: col(k), borderColor: col(k), borderWidth: 1.5, order: 2 }); });
+      datasets.push({ type: "line", label: "All enquiries (total)", data: bk.map(b => keys.reduce((a, k) => a + b.c[k].n, 0)), borderColor: "#f5c518", backgroundColor: "#f5c518", borderWidth: 2, pointRadius: 3, tension: 0, order: 1 });
+    }
+    CC.chart = new Chart($("#dsqeCCcv"), { type: "bar", data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { labels: { color: txt, boxWidth: 12, font: { size: 11 } } }, tooltip: { itemSort: (a, b) => a.datasetIndex - b.datasetIndex } }, scales: { x: { ticks: { color: txt, maxRotation: 60 }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: txt, precision: 0 }, grid: { color: grid } } } } });
+  }
+  async function ccInit() {
+    const card = $("#dsqeCC"); if (!card) return;
+    card.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", () => { CC.view = b.dataset.v; card.querySelectorAll("[data-v]").forEach(x => x.classList.toggle("on", x === b)); ccDraw(); }));
+    if (CC.data) ccDraw(); else { ccDraw(); await ccLoad(); ccDraw(); }
+  }
+
   /* ---------- render ---------- */
   function group(rows, keyFn) {
     const m = {}; rows.forEach(r => { const k = keyFn(r); (m[k] = m[k] || { k, n: 0, b: 0 }); m[k].n++; if (r._state === "Booked") m[k].b++; });
@@ -17815,6 +17900,7 @@ document.addEventListener('click',e=>{
         <div class="dsqe-kpi"><div class="l">Booking rate</div><div class="n">${rows.length ? Math.round(booked / rows.length * 100) : 0}%</div><div class="s">of enquiries booked</div></div>
         <div class="dsqe-kpi"><div class="l">Referrals paid</div><div class="n">${paidRefs.length}</div><div class="s">£${income.toFixed(0)} paid in this period</div></div>
       </div>
+      ${ccCard()}
       <div class="dsqe-two">
         ${table("Where enquiries come from", "bi-signpost-split", group(rows, sourceOf), "Source")}
         ${table("How they got in touch", "bi-chat-dots", group(rows, channelOf), "Channel")}
@@ -17827,7 +17913,8 @@ document.addEventListener('click',e=>{
           </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}
         </div>
       </div>`;
-    p.querySelectorAll(".dsqe-chip").forEach(b => b.addEventListener("click", async () => { S.range = b.dataset.r; if (S.range !== "custom") { await load(); } render(); }));
+    ccInit();
+    p.querySelectorAll(".dsqe-chip[data-r]").forEach(b => b.addEventListener("click", async () => { S.range = b.dataset.r; if (S.range !== "custom") { await load(); } render(); }));
     const ap = $("#dsqeApply"); if (ap) ap.addEventListener("click", async () => { S.from = $("#dsqeFrom").value ? new Date($("#dsqeFrom").value) : null; S.to = $("#dsqeTo").value ? new Date($("#dsqeTo").value) : null; if (!S.from || !S.to) { toast("Pick both dates", "warn"); return; } await load(); render(); });
     $("#dsqeLogBtn").addEventListener("click", openLog);
   }
