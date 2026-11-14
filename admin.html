@@ -18047,6 +18047,57 @@ document.addEventListener('click',e=>{
     if (CC.data) ccDraw(); else { ccDraw(); await ccLoad(); const sync = (sel, v) => { const el = $(sel, card); if (el && document.activeElement !== el) el.value = v; }; sync("#dsqeCCstart", CC.cfg.start); sync("#dsqeCCg", CC.cfg.g); sync("#dsqeCCig", CC.cfg.ig); ccDraw(); }
   }
 
+  /* ---------- follow-up emails to enquiries who haven't booked (switch, preview, test) ---------- */
+  const NU = { cfg: { enabled: false, start: "2026-11-15" }, last: null, out: "" };
+  function nuCard() {
+    return `<div class="dsq-card p-3" id="dsqeNU" style="margin:12px 0"><div class="section-label"><i class="bi bi-envelope-paper-heart-fill me-2" style="color:var(--gold)"></i>Follow-up emails to enquiries who haven't booked</div><div id="dsqeNUbody"><div class="muted">Loading…</div></div></div>`;
+  }
+  async function nuInit() {
+    const c = db(); if (c) { try { const r = await c.from("growth_settings").select("key,value").in("key", ["nurture_config", "nurture_last"]); (r.data || []).forEach(x => { if (x.key === "nurture_config") Object.assign(NU.cfg, x.value || {}); if (x.key === "nurture_last") NU.last = x.value; }); } catch (e) {} }
+    nuDraw();
+  }
+  function nuDraw() {
+    const b = $("#dsqeNUbody"); if (!b) return;
+    const on = !!NU.cfg.enabled, sd = new Date(NU.cfg.start + "T00:00:00"), st = isNaN(sd) ? NU.cfg.start : sd.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    b.innerHTML = `<div style="font-size:.78rem;color:var(--txt2);line-height:1.55">Sends up to <strong>3 emails</strong> to enquiries who left an email but haven't booked: about <strong>1 day</strong> later (checking in), <strong>4 days</strong> (the £330 first-10-hours offer) and <strong>9 days</strong> (a polite last note). Only enquiries from <strong>${h(st)}</strong> onwards. It never emails anyone who is already booked (your ✅), flagged 🚩, signed up to the Student Portal, cancelled or unsubscribed, and every email has an unsubscribe link.</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:10px 0;padding:10px 12px;border-radius:10px;border:1px solid ${on ? "#4ade80" : "var(--bdr)"};background:${on ? "rgba(74,222,128,.08)" : "var(--dk2)"}">
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:700;font-size:.82rem"><input type="checkbox" id="dsqeNUon" ${on ? "checked" : ""}> Follow-up emails are <span style="color:${on ? "#4ade80" : "#f59e0b"}">${on ? "ON" : "OFF"}</span></label>
+        <label class="muted" style="font-size:.74rem">Start date <input type="date" class="dsq-inp" id="dsqeNUstart" value="${h(NU.cfg.start)}" style="display:inline-block;width:150px;padding:4px 8px"></label></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-s" id="dsqeNUprev" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Preview who is due today</button>
+        <span class="muted" style="margin-left:6px">Send me a test:</span>
+        <input class="dsq-inp" id="dsqeNUto" type="email" placeholder="your email" style="width:190px;padding:4px 8px;font-size:.78rem">
+        <select class="dsq-inp" id="dsqeNUstep" style="width:150px;padding:4px 8px;font-size:.78rem"><option value="1">Email 1 · check-in</option><option value="2">Email 2 · £330 offer</option><option value="3">Email 3 · last note</option></select>
+        <button class="btn-p" id="dsqeNUtest" style="font-size:.78rem">Send test</button></div>
+      <div id="dsqeNUout" style="margin-top:10px;font-size:.76rem">${NU.out}</div>
+      <div class="muted" style="margin-top:8px;font-size:.72rem">${NU.last ? "Last run: " + h(new Date(NU.last.at).toLocaleString("en-GB")) + " · sent " + (NU.last.sent || 0) + (NU.last.failed ? " · failed " + NU.last.failed : "") + ". " : ""}Runs once a day from a Supabase Cron job (see the setup note). Nothing is sent while the switch is OFF.</div>`;
+    $("#dsqeNUon").addEventListener("change", async e => {
+      const want = e.target.checked;
+      if (want && !confirm("Turn follow-up emails ON?\n\nReal emails will go to enquiries from " + NU.cfg.start + " onwards who haven't booked. Preview first if you haven't.")) { e.target.checked = false; return; }
+      NU.cfg.enabled = want; await nuSave(); nuDraw();
+    });
+    $("#dsqeNUstart").addEventListener("change", async e => { if (e.target.value) { NU.cfg.start = e.target.value; await nuSave(); nuDraw(); } });
+    $("#dsqeNUprev").addEventListener("click", () => nuCall({ dry: true }));
+    $("#dsqeNUtest").addEventListener("click", () => { const to = ($("#dsqeNUto").value || "").trim(); if (!to) { toast("Enter an email address for the test.", "error"); return; } nuCall({ test_to: to, step: parseInt($("#dsqeNUstep").value, 10) }); });
+  }
+  async function nuSave() { const c = db(); if (!c) return; const r = await c.from("growth_settings").upsert({ key: "nurture_config", value: NU.cfg, updated_at: new Date().toISOString() }, { onConflict: "key" }); if (r.error) toast("Not saved: " + r.error.message + " (run the growth tools SQL first)", "error", 6000); else toast(NU.cfg.enabled ? "✅ Follow-up emails ON" : "Follow-up emails OFF", "success", 2200); }
+  async function nuCall(extra) {
+    const o = $("#dsqeNUout"); if (!o) return;
+    if (!window.DSQMailSend || !window.DSQMailSend.ready()) { o.innerHTML = `<span style="color:#f59e0b">Connect email sending first (Email tab → Setup).</span>`; return; }
+    o.innerHTML = '<span class="muted">Working…</span>';
+    try {
+      const j = await window.DSQMailSend.call(Object.assign({ action: "nurture" }, extra));
+      if (j.test) { NU.out = `<span style="color:#4ade80">✅ Test sent to ${h(j.to)} (email ${j.step}). Check your inbox and spam folder.</span>`; }
+      else if (j.dry) {
+        const sk = j.skipped || {}, names = { noEmail: "no email address", booked: "already booked", closed: "flagged 🚩", account: "already on the Student Portal", unsubscribed: "unsubscribed", cancelled: "cancelled", notDue: "not due today" };
+        NU.out = `<div><strong>${(j.jobs || []).length}</strong> email${(j.jobs || []).length === 1 ? "" : "s"} due today${j.enabled ? "" : " (not sent: the switch is OFF)"}.</div>`
+          + ((j.jobs || []).length ? `<div class="dsqe-scroll" style="margin-top:6px"><table class="t3"><thead><tr><th>Student</th><th>Email</th><th>Which</th></tr></thead><tbody>${j.jobs.map(x => `<tr><td>${h(x.student)}</td><td class="muted">${h(x.email)}</td><td>#${x.step} · ${h(x.subject)}</td></tr>`).join("")}</tbody></table></div>` : "")
+          + `<div class="muted" style="margin-top:6px">Skipped: ${Object.keys(names).filter(k => sk[k]).map(k => sk[k] + " " + names[k]).join(" · ") || "none"}</div>`;
+      } else NU.out = h(JSON.stringify(j));
+    } catch (e) { const m = String((e && e.message) || e); NU.out = `<span style="color:#f87171">${/unknown action/i.test(m) ? "The email function in Supabase hasn't been updated yet. Paste the new send-email code and Deploy." : h(m)}</span>`; }
+    nuDraw();
+  }
+
   /* ---------- render ---------- */
   function group(rows, keyFn) {
     const m = {}; rows.forEach(r => { const k = keyFn(r); (m[k] = m[k] || { k, n: 0, b: 0 }); m[k].n++; if (r._state === "Booked") m[k].b++; });
@@ -18086,6 +18137,7 @@ document.addEventListener('click',e=>{
         <div class="dsqe-kpi"><div class="l">Referrals paid</div><div class="n">${paidRefs.length}</div><div class="s">£${income.toFixed(0)} paid in this period</div></div>
       </div>
       ${ccCard()}
+      ${nuCard()}
       <div class="dsqe-two">
         ${table("Where enquiries come from", "bi-signpost-split", group(rows, sourceOf), "Source")}
         ${table("How they got in touch", "bi-chat-dots", group(rows, channelOf), "Channel")}
@@ -18098,7 +18150,7 @@ document.addEventListener('click',e=>{
           </tbody></table></div>` : `<div class="muted">No enquiries in this period.</div>`}
         </div>
       </div>`;
-    ccInit();
+    ccInit();nuInit();
     p.querySelectorAll(".dsqe-chip[data-r]").forEach(b => b.addEventListener("click", async () => { S.range = b.dataset.r; if (S.range !== "custom") { await load(); } render(); }));
     const ap = $("#dsqeApply"); if (ap) ap.addEventListener("click", async () => { S.from = $("#dsqeFrom").value ? new Date($("#dsqeFrom").value) : null; S.to = $("#dsqeTo").value ? new Date($("#dsqeTo").value) : null; if (!S.from || !S.to) { toast("Pick both dates", "warn"); return; } await load(); render(); });
     $("#dsqeLogBtn").addEventListener("click", openLog);
