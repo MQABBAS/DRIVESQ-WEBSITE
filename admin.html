@@ -8492,6 +8492,19 @@ async function findClosest(){
     const _wkMap={};(_wkRows||[]).forEach(r=>{_wkMap[r.instructor_id]=(_wkMap[r.instructor_id]||0)+1;});
     allInstrs.forEach(i=>{i._weekAssigned=_wkMap[i.id]||0;});
   }catch(e){console.warn('findClosest weekAssigned refresh:',e.message);}
+  // Booked this week = referrals admin confirmed as booked (✅) with the confirmation dated this week
+  try{
+    const _wkS=getMonday(0).getTime();
+    const{data:_bk}=await sb.from('referrals').select('instructor_id,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').ilike('admin_notes','%confirmed by admin%');
+    const _bm={};
+    (_bk||[]).forEach(r=>{
+      if(!_refAdminBooked(r))return;
+      const n=String(r.admin_notes||''),k=n.lastIndexOf(REF_CONFIRM_MK);if(k<0)return;
+      const ln=n.slice(n.lastIndexOf('\n',k)+1,k).replace(/[·\s]+$/,'');   // "14 Nov 2026"
+      const t=Date.parse(ln);if(!isNaN(t)&&t>=_wkS)_bm[r.instructor_id]=(_bm[r.instructor_id]||0)+1;
+    });
+    allInstrs.forEach(i=>{i._weekBooked=_bm[i.id]||0;});
+  }catch(e){console.warn('findClosest weekBooked refresh:',e.message);allInstrs.forEach(i=>{i._weekBooked=null;});}
   const resultsEl=document.getElementById('findResults');
   resultsEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt4);font-size:.84rem"><i class="bi bi-hourglass-split me-2"></i>Finding nearest instructors…</div>';
   try{
@@ -8589,6 +8602,10 @@ async function findClosest(){
       const weekAssignNote=wkAsgn===0
         ?`<div style="font-size:.68rem;margin-top:3px;font-weight:700;color:#f59e0b"><i class="bi bi-calendar-x me-1"></i>No students assigned this week</div>`
         :`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:var(--purple)"><i class="bi bi-calendar-week me-1"></i>${wkAsgn} student${wkAsgn!==1?'s':''} assigned this week</div>`;
+      const wkBk=r.instr._weekBooked;
+      const weekBookedNote=wkBk==null?'':(wkBk===0
+        ?`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:var(--txt4)"><i class="bi bi-check2-circle me-1"></i>0 booked this week</div>`
+        :`<div style="font-size:.68rem;margin-top:3px;font-weight:700;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>${wkBk} booked this week</div>`);
       const instrCredits=_creditIndex[r.instr.id]||0;
       const creditNote=instrCredits>0
         ?`<div style="font-size:.7rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px"><i class="bi bi-arrow-repeat"></i>⟳ ${instrCredits} credit${instrCredits!==1?'s':''} owed — consider this instructor first</div>`
@@ -8610,6 +8627,7 @@ async function findClosest(){
               ${tcNote}
               ${areaNote}
               ${weekAssignNote}
+              ${weekBookedNote}
               ${creditNote}
             </div>
           </div>
