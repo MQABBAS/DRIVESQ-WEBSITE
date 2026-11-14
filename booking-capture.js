@@ -408,6 +408,14 @@
     var q; try { q = new URLSearchParams(location.search); } catch (e) { q = { get: function () { return null; } }; }
     var med = (q.get('utm_medium') || '').toLowerCase(), src = (q.get('utm_source') || '').toLowerCase();
     var ref = hostOf(document.referrer || ''), self = location.hostname.replace(/^www\./, '').toLowerCase();
+    /* Meta (Instagram / Facebook) ads: utm_source ig/fb/instagram/facebook/meta or an fbclid. Checked BEFORE Google Ads
+       because Meta links also carry utm_medium=paid, which used to be counted as a Google Ads click. */
+    var meta = /^(ig|instagram|fb|facebook|meta|an)$/.test(src) || (q.get('fbclid') && !q.get('gclid'));
+    if (meta && !q.get('gclid')) {
+      var paidM = /^(paid|cpc|ppc|paid_social|paidsocial|social_paid|ad|ads)$/.test(med) || !!q.get('utm_id') || (!!q.get('fbclid') && !!q.get('utm_campaign'));
+      var which = /^(ig|instagram)$/.test(src) ? 'Instagram' : /^(fb|facebook)$/.test(src) ? 'Facebook' : 'Meta';
+      return paidM ? which + ' Ads' : 'Social';
+    }
     if (q.get('gclid') || q.get('gbraid') || q.get('wbraid') || /^(cpc|ppc|paid|paidsearch|pmax)$/.test(med)) return 'Google Ads';
     if (/^(gbp|google_business|googlemybusiness|gmb)$/.test(src) || /maps\.google|google\.[a-z.]+\/maps/.test(document.referrer || '')) return 'Google Maps';
     if (src) {
@@ -429,7 +437,10 @@
     var rec;
     if (found === 'Direct' && fresh) rec = prev;
     else if (fresh && prev.s === found && prev.l) rec = prev;
-    else rec = { s: found, l: location.pathname, t: now };
+    else {
+      rec = { s: found, l: location.pathname, t: now };
+      try { var uq = new URLSearchParams(location.search), cid = uq.get('utm_campaign') || uq.get('utm_id'); if (cid && / Ads$/.test(found)) rec.c = String(cid).slice(0, 40); } catch (e) {}
+    }
     try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch (e) {}
     return rec;
   }
@@ -446,7 +457,7 @@
         var body = JSON.parse(init.body), rows = Array.isArray(body) ? body : [body];
         rows.forEach(function (r) {
           if (r && typeof r === 'object' && !/(^|\n)Source: /.test(r.notes || '')) {
-            r.notes = (r.notes ? r.notes + '\n' : '') + 'Source: ' + current.s + '\nLanding: ' + current.l;
+            r.notes = (r.notes ? r.notes + '\n' : '') + 'Source: ' + current.s + (current.c ? '\nAd campaign: ' + current.c : '') + '\nLanding: ' + current.l;
           }
         });
         init = Object.assign({}, init, { body: JSON.stringify(body) });
