@@ -17790,7 +17790,12 @@ document.addEventListener('click',e=>{
   }
 
   /* ---------- channel performance chart: enquiries & booked for Instagram Ads / Google Ads / SEO ---------- */
-  const CC = { view: "week", data: null, loading: false, chart: null, err: "" };
+  const CC = { view: "week", data: null, loading: false, chart: null, err: "", cfg: { start: "2026-11-15", g: 60, ig: 13 } };
+  /* "count from" date (the chart ignores older, untracked data) and real daily spend per paid channel — saved in this browser and, when the table exists, in growth_settings */
+  try { Object.assign(CC.cfg, JSON.parse(localStorage.getItem("dsqe_cc_cfg") || "{}")); } catch (e) {}
+  async function ccCfgLoad() { try { const c = db(); if (!c) return; const r = await c.from("growth_settings").select("value").eq("key", "ad_daily").maybeSingle(); if (r && r.data && r.data.value) Object.assign(CC.cfg, r.data.value); } catch (e) {} }
+  async function ccCfgSave() { try { localStorage.setItem("dsqe_cc_cfg", JSON.stringify(CC.cfg)); } catch (e) {} try { const c = db(); if (c) await c.from("growth_settings").upsert({ key: "ad_daily", value: CC.cfg, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (e) {} }
+  const ccStart = () => { const d = new Date((CC.cfg.start || "2026-11-15") + "T00:00:00"); return isNaN(d) ? new Date("2026-11-15T00:00:00") : d; };
   const CH_DEF = [["ig", "Instagram Ads", "#e1306c"], ["g", "Google Ads", "#4285f4"], ["seo", "SEO / search", "#22c55e"], ["other", "Other", "#9ca3af"]];
   const chOf = r => { const s = sourceOf(r); if (/(instagram|facebook|meta) ads/i.test(s)) return "ig"; if (/^google ads/i.test(s)) return "g"; if (/^(google search|other search|google maps)/i.test(s)) return "seo"; return "other"; };
   const p2 = n => (n < 10 ? "0" : "") + n;
@@ -17811,7 +17816,7 @@ document.addEventListener('click',e=>{
   async function ccLoad() {
     if (CC.loading) return; CC.loading = true; CC.err = "";
     try {
-      const [wl, refs] = await Promise.all([ccFetchAll("waiting_list", "created_at"), ccFetchAll("referrals", "created_at")]);
+      const [wl, refs] = await Promise.all([ccFetchAll("waiting_list", "created_at"), ccFetchAll("referrals", "created_at"), ccCfgLoad()]);
       const rows = dedupe(wl), byP = {}, byN = {};
       refs.forEach(f => { if (f.is_cancelled) return; const ph = normPhone(f.student_phone), nm = normName(f.student_name); if (ph) (byP[ph] = byP[ph] || []).push(f); if (nm) (byN[nm] = byN[nm] || []).push(f); });
       const bookedFn = window._refAdminBooked || (f => !!f.is_paid);
@@ -17832,28 +17837,41 @@ document.addEventListener('click',e=>{
     return `<div class="dsq-card p-3" id="dsqeCC" style="margin:12px 0">
       <div class="section-label"><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--gold)"></i>Enquiries &amp; bookings by channel</div>
       <div class="dsqe-row" style="margin-bottom:8px">${v.map(([k, l]) => `<button class="dsqe-chip${CC.view === k ? " on" : ""}" data-v="${k}">${l}</button>`).join("")}<span class="muted" id="dsqeCCrange" style="margin-left:6px"></span></div>
+      <div class="dsqe-row" style="margin-bottom:8px;font-size:.76rem;gap:10px">
+        <label class="muted">Count from <input type="date" class="dsq-inp" id="dsqeCCstart" value="${h(CC.cfg.start)}" style="display:inline-block;width:150px;padding:4px 8px"></label>
+        <label class="muted">Google £/day <input type="number" min="0" step="1" class="dsq-inp" id="dsqeCCg" value="${h(CC.cfg.g)}" style="display:inline-block;width:80px;padding:4px 8px"></label>
+        <label class="muted">Instagram £/day <input type="number" min="0" step="1" class="dsq-inp" id="dsqeCCig" value="${h(CC.cfg.ig)}" style="display:inline-block;width:80px;padding:4px 8px"></label>
+      </div>
       <div id="dsqeCCbody"><div class="muted">Loading…</div></div></div>`;
   }
   function ccDraw() {
     const body = $("#dsqeCCbody"); if (!body) return;
     if (CC.err) { body.innerHTML = `<div class="muted">Couldn't load the chart: ${h(CC.err)}</div>`; return; }
     if (!CC.data) { body.innerHTML = `<div class="muted">Loading…</div>`; return; }
-    const view = CC.view, rows = CC.data, bk = view === "all" ? null : ccBuckets(view), idx = {};
+    const view = CC.view, st = ccStart(), today = startOfDay(new Date()), allRows = CC.data;
+    const rows = allRows.filter(r => new Date(r.created_at) >= st);
+    let bk = view === "all" ? null : ccBuckets(view).filter(b => b.k >= ccKey(view, st)); const idx = {};
+    if (bk && !bk.length) bk = null;
+    if (today < st) { const m = `<div class="muted" style="padding:14px 0">Counting starts on <strong>${h(st.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }))}</strong>. Nothing is counted before then, so the chart fills from that day on. You can change the date above.</div>`; body.innerHTML = m; if (CC.chart) { try { CC.chart.destroy(); } catch (e) {} CC.chart = null; } return; }
+    /* spend = real daily spend × days counted (from the later of the start date and the window start, up to today) */
+    const wStart = view === "all" ? st : view === "day" ? startOfDay(new Date(today.getTime() - 13 * 864e5)) : bk ? new Date(bk[0].k.length === 7 ? bk[0].k + "-01T00:00:00" : bk[0].k + "T00:00:00") : st;
+    const spendDays = Math.max(0, Math.round((today - (wStart > st ? wStart : st)) / 864e5) + 1);
+    const spendOf = { ig: (parseFloat(CC.cfg.ig) || 0) * spendDays, g: (parseFloat(CC.cfg.g) || 0) * spendDays };
     const keys = ["ig", "g", "seo", "other"], T = {}; keys.forEach(k => { T[k] = { n: 0, b: 0 }; });
     if (bk) bk.forEach((b, i) => { idx[b.k] = i; b.c = {}; keys.forEach(k => { b.c[k] = { n: 0, b: 0 }; }); });
     rows.forEach(r => {
       if (bk) { const i = idx[ccKey(view, r.created_at)]; if (i == null) return; const c = bk[i].c[r._ch]; c.n++; if (r._bk) c.b++; }
       T[r._ch].n++; if (r._bk) T[r._ch].b++;
     });
-    const rng = $("#dsqeCCrange"); if (rng) rng.textContent = view === "all" ? "everything recorded" : view === "day" ? "last 14 days" : view === "week" ? "last 12 weeks" : "last 12 months";
+    const rng = $("#dsqeCCrange"); if (rng) rng.textContent = "counting from " + st.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " · " + spendDays + " day" + (spendDays === 1 ? "" : "s");
     const tot = keys.reduce((a, k) => ({ n: a.n + T[k].n, b: a.b + T[k].b }), { n: 0, b: 0 });
     const label = k => CH_DEF.find(x => x[0] === k)[1], col = k => CH_DEF.find(x => x[0] === k)[2];
     const rate = o => (o.n ? Math.round(o.b / o.n * 100) + "%" : "–");
     body.innerHTML = `<div style="position:relative;height:300px"><canvas id="dsqeCCcv"></canvas></div>
-      <div class="dsqe-scroll" style="margin-top:10px"><table class="t4"><thead><tr><th>Channel</th><th class="num">Enquiries</th><th class="num">Booked</th><th class="num">Rate</th></tr></thead><tbody>
-      ${keys.map(k => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td></tr>`).join("")}
-      <tr style="font-weight:700"><td>Total</td><td class="num">${tot.n}</td><td class="num">${tot.b}</td><td class="num">${rate(tot)}</td></tr></tbody></table></div>
-      <div class="muted" style="margin-top:8px;font-size:.72rem">Booked = you pressed ✅ in Referrals. Each booking is counted on the day the enquiry came in. SEO / search = Google search, other search engines and Google Maps. Other = direct, friends, calls, social posts and anything not tracked. Instagram ad enquiries from before the tracking fix may sit under Google Ads.</div>`;
+      <div class="dsqe-scroll" style="margin-top:10px"><table class="t4"><thead><tr><th>Channel</th><th class="num">Enquiries</th><th class="num">Booked</th><th class="num">Rate</th><th class="num">Spend</th><th class="num">Per enquiry</th><th class="num">Per booked</th></tr></thead><tbody>
+      ${keys.map(k => { const sp = spendOf[k]; const paid = sp != null; return `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td><td class="num">${paid ? "£" + sp.toFixed(0) : "–"}</td><td class="num">${paid ? (T[k].n ? "£" + (sp / T[k].n).toFixed(2) : "–") : "–"}</td><td class="num" style="${paid && T[k].b ? "font-weight:700;color:var(--gold)" : ""}">${paid ? (T[k].b ? "£" + (sp / T[k].b).toFixed(2) : "no bookings yet") : "–"}</td></tr>`; }).join("")}
+      <tr style="font-weight:700"><td>Total</td><td class="num">${tot.n}</td><td class="num">${tot.b}</td><td class="num">${rate(tot)}</td><td class="num">£${(spendOf.ig + spendOf.g).toFixed(0)}</td><td class="num">${tot.n ? "£" + ((spendOf.ig + spendOf.g) / tot.n).toFixed(2) : "–"}</td><td class="num">${tot.b ? "£" + ((spendOf.ig + spendOf.g) / tot.b).toFixed(2) : "–"}</td></tr></tbody></table></div>
+      <div class="muted" style="margin-top:8px;font-size:.72rem">Booked = you pressed ✅ in Referrals. Each booking is counted on the day the enquiry came in. SEO / search = Google search, other search engines and Google Maps (free, so no spend). Other = direct, friends, calls, social posts and anything not tracked. Spend = your daily spend × the days counted (including today). "Per booked" = what each confirmed booking cost you.</div>`;
     if (!window.Chart) { const cv = $("#dsqeCCcv"); if (cv) cv.outerHTML = `<div class="muted">Chart library didn't load — the table below has the same numbers.</div>`; return; }
     if (CC.chart) { try { CC.chart.destroy(); } catch (e) {} CC.chart = null; }
     const txt = (getComputedStyle(document.body).getPropertyValue("--txt3") || "").trim() || "#9ca3af", grid = "rgba(128,128,128,.18)";
@@ -17871,7 +17889,9 @@ document.addEventListener('click',e=>{
   async function ccInit() {
     const card = $("#dsqeCC"); if (!card) return;
     card.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", () => { CC.view = b.dataset.v; card.querySelectorAll("[data-v]").forEach(x => x.classList.toggle("on", x === b)); ccDraw(); }));
-    if (CC.data) ccDraw(); else { ccDraw(); await ccLoad(); ccDraw(); }
+    const bind = (sel, key, num) => { const el = $(sel, card); if (el) el.addEventListener("change", () => { CC.cfg[key] = num ? (parseFloat(el.value) || 0) : el.value; ccCfgSave(); ccDraw(); }); };
+    bind("#dsqeCCstart", "start"); bind("#dsqeCCg", "g", true); bind("#dsqeCCig", "ig", true);
+    if (CC.data) ccDraw(); else { ccDraw(); await ccLoad(); const sync = (sel, v) => { const el = $(sel, card); if (el && document.activeElement !== el) el.value = v; }; sync("#dsqeCCstart", CC.cfg.start); sync("#dsqeCCg", CC.cfg.g); sync("#dsqeCCig", CC.cfg.ig); ccDraw(); }
   }
 
   /* ---------- render ---------- */
