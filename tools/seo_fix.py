@@ -150,6 +150,8 @@ urls = []
 for f in sorted(glob.glob("*.html")):
     if f == "index.html": urls.append(("", old.get("", TODAY))); continue
     if not indexable(f): continue
+    _c = re.search(r'<link rel="canonical" href="([^"]*)"', rd(f))
+    if _c and _c.group(1).rstrip("/") != "https://www.drivesq.co.uk/" + f: continue   # canonicalised to another URL: keep out of the sitemap
     urls.append((f, old.get(f, TODAY)))
 body = "".join(f"  <url><loc>https://www.drivesq.co.uk/{u}</loc><lastmod>{d}</lastmod></url>\n" for u, d in urls)
 wr("sitemap-1.xml", '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n")
