@@ -291,8 +291,8 @@
     const list = Object.keys(m).map(k => { const sp = spendFor(k, spend); return { k, ...m[k], spend: sp, profit: m[k].fees - sp, cpb: sp && m[k].b ? sp / m[k].b : null }; }).sort((x, y) => y.n - x.n);
     return { list, mk, spend, total: rows.length };
   }
-  const chans = () => Array.from(new Set([...(G.cfg.channels || []), "Google Ads", "Instagram Ads"]));
-  function spendFor(src, spend) { const c = Object.keys(spend).find(ch => src.toLowerCase().indexOf(ch.toLowerCase()) === 0 || (/google ads/i.test(ch) && /google ads|gclid/i.test(src))); return c ? spend[c] || 0 : 0; }
+  const chans = () => Array.from(new Set([...(G.cfg.channels || []), "Google Ads", "Instagram & Facebook Ads"]));
+  function spendFor(src, spend) { const c = Object.keys(spend).find(ch => src.toLowerCase().indexOf(ch.toLowerCase()) === 0 || (/google ads/i.test(ch) && /google ads|gclid/i.test(src)) || (/(instagram|facebook|meta)/i.test(ch) && /(instagram|facebook|meta) ads/i.test(src))); return c ? spend[c] || 0 : 0; }
   async function saveSpend(mk, ch, v) {
     G.spend[mk] = G.spend[mk] || {}; G.spend[mk][ch] = v; ls.set("spend", G.spend);
     const c = db(); if (c && G.hasSpend) { const r = await c.from("ad_spend").upsert({ month: mk, channel: ch, amount: v, updated_at: new Date().toISOString() }, { onConflict: "month,channel" }); if (r.error) toast("Couldn't save spend: " + r.error.message, "error"); }

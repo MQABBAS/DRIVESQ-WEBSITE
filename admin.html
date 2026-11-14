@@ -17901,7 +17901,7 @@ document.addEventListener('click',e=>{
   async function ccCfgLoad() { try { const c = db(); if (!c) return; const r = await c.from("growth_settings").select("value").eq("key", "ad_daily").maybeSingle(); if (r && r.data && r.data.value) Object.assign(CC.cfg, r.data.value); } catch (e) {} }
   async function ccCfgSave() { try { localStorage.setItem("dsqe_cc_cfg", JSON.stringify(CC.cfg)); } catch (e) {} try { const c = db(); if (c) await c.from("growth_settings").upsert({ key: "ad_daily", value: CC.cfg, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (e) {} }
   const ccStart = () => { const d = new Date((CC.cfg.start || "2026-11-15") + "T00:00:00"); return isNaN(d) ? new Date("2026-11-15T00:00:00") : d; };
-  const CH_DEF = [["ig", "Instagram Ads", "#e1306c"], ["g", "Google Ads", "#4285f4"], ["seo", "SEO / search", "#22c55e"], ["other", "Other", "#9ca3af"]];
+  const CH_DEF = [["ig", "Instagram & Facebook Ads", "#e1306c"], ["g", "Google Ads", "#4285f4"], ["seo", "SEO / search", "#22c55e"], ["other", "Other", "#9ca3af"]];
   const chOf = r => { const s = sourceOf(r); if (/(instagram|facebook|meta) ads/i.test(s)) return "ig"; if (/^google ads/i.test(s)) return "g"; if (/^(google search|other search|google maps)/i.test(s)) return "seo"; return "other"; };
   const p2 = n => (n < 10 ? "0" : "") + n;
   const dk = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
@@ -17945,7 +17945,7 @@ document.addEventListener('click',e=>{
       <div class="dsqe-row" style="margin-bottom:8px;font-size:.76rem;gap:10px">
         <label class="muted">Count from <input type="date" class="dsq-inp" id="dsqeCCstart" value="${h(CC.cfg.start)}" style="display:inline-block;width:150px;padding:4px 8px"></label>
         <label class="muted">Google £/day <input type="number" min="0" step="1" class="dsq-inp" id="dsqeCCg" value="${h(CC.cfg.g)}" style="display:inline-block;width:80px;padding:4px 8px"></label>
-        <label class="muted">Instagram £/day <input type="number" min="0" step="1" class="dsq-inp" id="dsqeCCig" value="${h(CC.cfg.ig)}" style="display:inline-block;width:80px;padding:4px 8px"></label>
+        <label class="muted">Instagram + Facebook £/day <input type="number" min="0" step="1" class="dsq-inp" id="dsqeCCig" value="${h(CC.cfg.ig)}" style="display:inline-block;width:80px;padding:4px 8px"></label>
       </div>
       <div id="dsqeCCbody"><div class="muted">Loading…</div></div></div>`;
   }
@@ -17954,7 +17954,7 @@ document.addEventListener('click',e=>{
     const out = [], money = v => "£" + (v >= 100 ? Math.round(v) : v.toFixed(2)), pct = (a, b) => (b ? Math.round(a / b * 100) : 0);
     const add = (lvl, title, text) => out.push({ lvl, title, text });
     const cpb = k => (T[k].b ? spend[k] / T[k].b : null), cpe = k => (T[k].n ? spend[k] / T[k].n : null);
-    const nm = { ig: "Instagram Ads", g: "Google Ads" };
+    const nm = { ig: "Instagram & Facebook Ads", g: "Google Ads" };
     if (!tot.n) { add("info", "No enquiries counted yet", "As soon as enquiries arrive from the start date, this panel will compare your channels and tell you where to put your money."); return out; }
     if (tot.b < 10) add("info", "Too early to judge cost per booking", `Only ${tot.b} confirmed booking${tot.b === 1 ? "" : "s"} so far. Cost per booked student swings wildly on small numbers, so don't cut or raise a budget yet. Aim for about 10 bookings per channel before deciding, and remember a booking only counts once you press ✅ in Referrals.`);
     // paid channels
@@ -18003,7 +18003,9 @@ document.addEventListener('click',e=>{
     const spendOf = { ig: (parseFloat(CC.cfg.ig) || 0) * spendDays, g: (parseFloat(CC.cfg.g) || 0) * spendDays };
     const keys = ["ig", "g", "seo", "other"], T = {}; keys.forEach(k => { T[k] = { n: 0, b: 0 }; });
     if (bk) bk.forEach((b, i) => { idx[b.k] = i; b.c = {}; keys.forEach(k => { b.c[k] = { n: 0, b: 0 }; }); });
+    const metaSplit = { Instagram: { n: 0, b: 0 }, Facebook: { n: 0, b: 0 }, Other: { n: 0, b: 0 } };
     rows.forEach(r => {
+      if (r._ch === "ig") { const sg = /instagram/i.test(sourceOf(r)) ? "Instagram" : /facebook/i.test(sourceOf(r)) ? "Facebook" : "Other"; metaSplit[sg].n++; if (r._bk) metaSplit[sg].b++; }
       if (bk) { const i = idx[ccKey(view, r.created_at)]; if (i == null) return; const c = bk[i].c[r._ch]; c.n++; if (r._bk) c.b++; }
       T[r._ch].n++; if (r._bk) T[r._ch].b++;
     });
@@ -18019,7 +18021,7 @@ document.addEventListener('click',e=>{
     body.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${tile("Enquiries", tot.n, "all channels")}${tile("Booked", tot.b, rate(tot) + " of enquiries", "#4ade80")}${tile("Ad spend", "£" + spTot.toFixed(0), spendDays + " day" + (spendDays === 1 ? "" : "s") + " counted")}${tile("Cost per booked", tot.b ? "£" + (spTot / tot.b).toFixed(2) : "–", "all paid channels", "var(--gold)")}</div>
       <div style="position:relative;height:300px"><canvas id="dsqeCCcv"></canvas></div>
       <div class="dsqe-scroll" style="margin-top:10px"><table class="t4"><thead><tr><th>Channel</th><th class="num">Enquiries</th><th class="num">Booked</th><th class="num">Rate</th><th class="num">Spend</th><th class="num">Per enquiry</th><th class="num">Per booked</th></tr></thead><tbody>
-      ${keys.map(k => { const sp = spendOf[k]; const paid = sp != null; return `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td><td class="num">${paid ? "£" + sp.toFixed(0) : "–"}</td><td class="num">${paid ? (T[k].n ? "£" + (sp / T[k].n).toFixed(2) : "–") : "–"}</td><td class="num" style="${paid && T[k].b ? "font-weight:700;color:var(--gold)" : ""}">${paid ? (T[k].b ? "£" + (sp / T[k].b).toFixed(2) : "no bookings yet") : "–"}</td></tr>`; }).join("")}
+      ${keys.map(k => { const sp = spendOf[k]; const paid = sp != null; return `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}${k === "ig" && T.ig.n ? `<div style="font-size:.66rem;color:var(--txt4);margin-left:16px">${["Instagram", "Facebook", "Other"].filter(x => metaSplit[x].n).map(x => x + " " + metaSplit[x].n + " (" + metaSplit[x].b + " booked)").join(" · ")}</div>` : ""}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td><td class="num">${paid ? "£" + sp.toFixed(0) : "–"}</td><td class="num">${paid ? (T[k].n ? "£" + (sp / T[k].n).toFixed(2) : "–") : "–"}</td><td class="num" style="${paid && T[k].b ? "font-weight:700;color:var(--gold)" : ""}">${paid ? (T[k].b ? "£" + (sp / T[k].b).toFixed(2) : "no bookings yet") : "–"}</td></tr>`; }).join("")}
       <tr style="font-weight:700"><td>Total</td><td class="num">${tot.n}</td><td class="num">${tot.b}</td><td class="num">${rate(tot)}</td><td class="num">£${(spendOf.ig + spendOf.g).toFixed(0)}</td><td class="num">${tot.n ? "£" + ((spendOf.ig + spendOf.g) / tot.n).toFixed(2) : "–"}</td><td class="num">${tot.b ? "£" + ((spendOf.ig + spendOf.g) / tot.b).toFixed(2) : "–"}</td></tr></tbody></table></div>
       ${advHtml}
       <div class="muted" style="margin-top:8px;font-size:.72rem">Booked = you pressed ✅ in Referrals. Each booking is counted on the day the enquiry came in. SEO / search = Google search, other search engines and Google Maps (free, so no spend). Other = direct, friends, calls, social posts and anything not tracked. Spend = your daily spend × the days counted (including today). "Per booked" = what each confirmed booking cost you.</div>`;
