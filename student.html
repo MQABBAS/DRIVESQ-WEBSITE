@@ -628,6 +628,9 @@ input,textarea,select{font-size:16px!important}
         </div>
       </div>
 
+      <!-- Payments & credit: only shown when the school switches it on for this student -->
+      <div class="mb-3 hidden" id="homeCreditCard"></div>
+
       <!-- Daily tip -->
       <div class="tip-card mb-3" id="dailyTipCard">
         <div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--gold);margin-bottom:5px"><i class="bi bi-lightbulb-fill me-1"></i>Driving Tip of the Day</div>
@@ -1413,6 +1416,7 @@ async function initApp(){
   ]);
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
+  loadCredit();
   window.scrollTo({top:0,behavior:'instant'});
   history.replaceState({tab:'home'},'',location.pathname);
   // Show notification banner and auto-request permission after short delay
@@ -1627,6 +1631,33 @@ function getDailyTip(){
   const oneDay=1000*60*60*24;
   const dayOfYear=Math.floor(diff/oneDay);
   return DAILY_TIPS[dayOfYear%DAILY_TIPS.length];
+}
+
+
+/* ── PAYMENTS & CREDIT (block of lessons) — only fetched/shown when the school ticked "show on portal" for this student.
+   Private notes and instructor pay are never requested here. ── */
+async function loadCredit(){
+  const card=document.getElementById('homeCreditCard');if(!card||!currentStudent||!currentStudent.id)return;
+  try{
+    const st=await sb.from('student_credit_settings').select('show_on_portal').eq('student_key',currentStudent.id).maybeSingle();
+    if(st.error||!st.data||!st.data.show_on_portal){card.classList.add('hidden');return;}
+    const r=await sb.from('student_credit_ledger').select('kind,hours,amount,reference,entry_date,created_at').eq('student_account_id',currentStudent.id).order('entry_date',{ascending:true}).order('created_at',{ascending:true});
+    if(r.error||!r.data||!r.data.length){card.classList.add('hidden');return;}
+    const E=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const hrs=v=>{v=+v||0;return (Number.isInteger(v)?v:Math.round(v*10)/10)+'h';},gbp=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2);
+    let h=0,m=0;const lines=r.data.map(x=>{h+=+x.hours||0;m+=+x.amount||0;return{x,h:Math.round(h*100)/100,m:Math.round(m*100)/100};});
+    const last=lines[lines.length-1],low=last.h<=2,col=last.h<=0?'#f87171':low?'#f59e0b':'#4ade80';
+    card.innerHTML=`<div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px"><i class="bi bi-wallet2 me-1" style="color:var(--gold)"></i>Your lesson block</div>
+      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px">
+        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+          <div><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px">Hours left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:${col}">${hrs(last.h)}</div></div>
+          <div><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px">Credit left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:${col}">${gbp(last.m)}</div></div></div>
+        ${last.h<=2&&last.h>0?'<div style="font-size:.74rem;color:#f59e0b;margin-bottom:6px">Your block is nearly used up. Message your instructor if you would like to book more lessons.</div>':''}
+        <div>${lines.slice().reverse().map(l=>{const x=l.x,d=new Date((x.entry_date||x.created_at)+(x.entry_date?'T12:00:00':'')),inn=(+x.amount||0)>0||(+x.hours||0)>0;
+          return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.78rem;align-items:flex-start"><span style="color:var(--txt4);min-width:70px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span style="flex:1;color:var(--txt2)"><strong style="color:${inn?'#4ade80':'var(--txt)'}">${x.kind==='purchase'?'Block bought':x.kind==='lesson'?'Lesson':'Adjustment'}</strong> ${inn?'+':''}${hrs(x.hours)} · ${inn?'+':''}${gbp(x.amount)}${x.reference?`<div style="color:var(--txt4);font-size:.7rem">Ref ${E(x.reference)}</div>`:''}</span><span style="text-align:right;color:var(--txt3);white-space:nowrap">${hrs(l.h)}<br>${gbp(l.m)}</span></div>`;}).join('')}</div>
+      </div>`;
+    card.classList.remove('hidden');
+  }catch(e){card.classList.add('hidden');}
 }
 
 /* ── HOME RENDER ── */

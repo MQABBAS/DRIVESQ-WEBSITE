@@ -3667,6 +3667,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
     <div class="modal-sub" id="sdSub">—</div>
     <div id="sdBody"></div>
     <div id="sdRecords"></div>
+    <div id="sdCredit"></div>
     <div class="mt-3 d-flex gap-2 flex-wrap" id="sdActions"></div>
     <div class="mt-3" id="sdProgressSection" style="display:none">
       <div class="section-label"><i class="bi bi-graph-up me-2" style="color:var(--green)"></i>Progress &amp; Performance</div>
@@ -7088,7 +7089,111 @@ async function loadStudentRecords(s){
     <div class="section-label mt-3"><i class="bi bi-envelope-check-fill me-2" style="color:#60a5fa"></i>Emails sent to this student <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(${events.length})</span></div>
     ${events.length?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:6px 10px">${events.map(e=>`<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.76rem"><span style="color:var(--txt3);white-space:nowrap;min-width:92px">${fmt(e.at)}</span><span style="flex:1;color:var(--txt2)">${esc(e.what)}</span><span style="font-size:.62rem;color:${e.src==='campaign'?'#a855f7':'#60a5fa'};white-space:nowrap">${e.src}</span></div>`).join('')}</div>`
       :`<div style="font-size:.76rem;color:var(--txt4);padding:6px 0">${email?'No emails sent yet.':'No email on record — nothing can be sent until one is added.'}</div>`}`;
+  try{loadStudentCredit({...s,acctId:(acct&&acct.id)||s.acctId||null,profileId:(prof&&prof.id)||s.profileId||s.rosterId||null,instrId:s.instrId||(prof&&prof.instructor_id)||null});}catch(e){}
 }
+
+/* ══ BLOCK PAYMENTS & CREDIT (student detail) ══
+   A ledger per student: "block bought" adds hours + £, "lesson paid" takes them off (note what you paid the instructor).
+   The student portal shows it ONLY when "Show on student portal" is ticked here (private notes and instructor pay are never shown). */
+let _crCtx=null;
+const _crMoney=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2),_crHrs=v=>((+v||0)%1===0?(+v||0).toFixed(0):(+v||0).toFixed(1).replace(/\.0$/,''))+'h';
+async function loadStudentCredit(s){
+  const box=document.getElementById('sdCredit');if(!box)return;
+  const acctId=s.acctId||null,profId=s.profileId||s.rosterId||null,ph10=String(s.phone||'').replace(/\D/g,'').slice(-10),lname=String(s.name||'').trim().toLowerCase();
+  const key=acctId||(profId?'p:'+profId:'n:'+ph10+':'+lname);
+  _crCtx={s,acctId,profId,key,rows:[],on:false,form:null,missing:false,err:''};
+  box.innerHTML='<div style="font-size:.74rem;color:var(--txt4);padding:8px 0"><i class="bi bi-hourglass-split me-1"></i>Loading block payments…</div>';
+  try{
+    const conds=[];if(acctId)conds.push('student_account_id.eq.'+acctId);if(profId)conds.push('student_profile_id.eq.'+profId);
+    let q=sb.from('student_credit_ledger').select('*');q=conds.length?q.or(conds.join(',')):q.eq('student_name',s.name||'~');
+    const r=await q.order('entry_date',{ascending:true}).order('created_at',{ascending:true});
+    if(r.error)throw r.error;
+    _crCtx.rows=r.data||[];
+    if(acctId){const lost=_crCtx.rows.filter(x=>!x.student_account_id).map(x=>x.id);if(lost.length)sb.from('student_credit_ledger').update({student_account_id:acctId}).in('id',lost).then(()=>{},()=>{});}
+    const keys=[key];if(acctId&&profId)keys.push('p:'+profId);
+    const st=await sb.from('student_credit_settings').select('*').in('student_key',keys);
+    const rowsS=st.data||[],mine=rowsS.find(x=>x.student_key===key),old=rowsS.find(x=>x.student_key==='p:'+profId);
+    _crCtx.on=!!(mine?mine.show_on_portal:(old&&old.show_on_portal));
+    if(!mine&&old&&old.show_on_portal)sb.from('student_credit_settings').upsert({student_key:key,show_on_portal:true,updated_at:new Date().toISOString()},{onConflict:'student_key'}).then(()=>{},()=>{});
+  }catch(e){const m=String((e&&e.message)||e);_crCtx.missing=/does not exist|relation|schema cache|student_credit/i.test(m);_crCtx.err=m;}
+  _crRender();
+}
+function _crRender(){
+  const box=document.getElementById('sdCredit');if(!box||!_crCtx)return;const c=_crCtx;
+  const head=`<div class="section-label mt-3"><i class="bi bi-wallet2 me-2" style="color:var(--gold)"></i>Block payments &amp; credit</div>`;
+  if(c.missing){box.innerHTML=head+`<div style="font-size:.76rem;color:var(--txt3);background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px"><i class="bi bi-database-exclamation me-1" style="color:#f59e0b"></i>One-time setup: run <code>supabase/migrations/20261114_student_credit.sql</code> in the Supabase SQL Editor, then reopen this student.</div>`;return;}
+  if(c.err){box.innerHTML=head+`<div style="font-size:.76rem;color:#f87171">Couldn't load: ${esc(c.err)}</div>`;return;}
+  const rows=c.rows,tot=rows.reduce((a,r)=>({h:a.h+(+r.hours||0),m:a.m+(+r.amount||0)}),{h:0,m:0});
+  const buys=rows.filter(r=>r.kind==='purchase'),bh=buys.reduce((a,r)=>a+(+r.hours||0),0),bm=buys.reduce((a,r)=>a+(+r.amount||0),0),rate=bh>0?bm/bh:35;
+  const hLeft=Math.round(tot.h*100)/100,mLeft=Math.round(tot.m*100)/100,hasAny=rows.length>0;
+  const chip=hLeft<=0&&hasAny?['#f87171','Block used up']:hLeft<=2&&hasAny?['#f59e0b','Running low']:hasAny?['#4ade80','In credit']:['var(--txt4)','No block yet'];
+  let run={h:0,m:0};
+  const lines=rows.map(r=>{run.h+=+r.hours||0;run.m+=+r.amount||0;const out=(+r.amount||0)<0||(+r.hours||0)<0;
+    const lbl=r.kind==='purchase'?'Block bought':r.kind==='lesson'?'Lesson paid':'Adjustment';
+    const d=new Date((r.entry_date||r.created_at)+(r.entry_date?'T12:00:00':''));
+    const extra=[r.method&&r.kind==='purchase'?String(r.method).replace(/_/g,' '):'',r.reference?'ref '+r.reference:'',r.instructor_paid!=null&&r.kind==='lesson'?'paid instructor £'+(+r.instructor_paid).toFixed(2):'',r.note].filter(Boolean).map(esc).join(' · ');
+    return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.76rem;align-items:flex-start"><span style="color:var(--txt4);min-width:74px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}</span>
+      <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${lbl}</strong> <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
+      <span style="text-align:right;white-space:nowrap;color:var(--txt3)">${_crHrs(run.h)}<br>${_crMoney(run.m)}</span>
+      <button class="abtn" style="border-color:rgba(248,113,113,.4);color:#f87171;padding:2px 7px" title="Delete this entry" onclick="crDelete('${r.id}')"><i class="bi bi-trash"></i></button></div>`;}).join('');
+  const f=c.form,today=new Date().toISOString().slice(0,10),inp='class="dsq-inp" style="padding:5px 8px;font-size:.78rem"';
+  const form=!f?'':f==='block'
+    ?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;margin:8px 0"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px">➕ Student bought a block</div><div class="row g-2">
+        <div class="col-4"><label class="dsq-lbl">Hours</label><input ${inp} id="crHrs" type="number" step="0.5" min="0.5" value="10"></div>
+        <div class="col-4"><label class="dsq-lbl">Paid £</label><input ${inp} id="crAmt" type="number" step="0.01" min="0" value="330"></div>
+        <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${today}"></div>
+        <div class="col-6"><label class="dsq-lbl">Paid via</label><select ${inp} id="crMethod"><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></div>
+        <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" placeholder="e.g. bank ref"></div>
+        <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="Only you see this"></div></div>
+        <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Save block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`
+    :`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;margin:8px 0"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px">➖ Lesson paid — take it off the block</div><div class="row g-2">
+        <div class="col-4"><label class="dsq-lbl">Hours</label><input ${inp} id="crHrs" type="number" step="0.5" min="0.5" value="2" oninput="crAutoAmt(${rate})"></div>
+        <div class="col-4"><label class="dsq-lbl">Value £</label><input ${inp} id="crAmt" type="number" step="0.01" min="0" value="${(2*rate).toFixed(2)}"></div>
+        <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${today}"></div>
+        <div class="col-6"><label class="dsq-lbl">Paid to instructor £ <span style="color:var(--txt4)">(optional)</span></label><input ${inp} id="crPaid" type="number" step="0.01" min="0"></div>
+        <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" placeholder="e.g. payout ref"></div>
+        <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="e.g. Lesson 4, paid Dawood by bank"></div></div>
+        <div style="font-size:.68rem;color:var(--txt4);margin-top:4px">Value is worked out at this student's block rate of ${_crMoney(rate)} an hour. Change it if needed.</div>
+        <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Take off block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`;
+  box.innerHTML=head+`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Hours left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crHrs(hLeft)}</div></div>
+      <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Credit left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crMoney(mLeft)}</div></div>
+      <span style="padding:2px 10px;border-radius:99px;font-size:.7rem;font-weight:700;color:${chip[0]};border:1px solid ${chip[0]}">${chip[1]}</span></div>
+    <div class="d-flex gap-2 flex-wrap"><button class="btn-p" style="font-size:.78rem" onclick="crForm('block')"><i class="bi bi-plus-lg me-1"></i>Add block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm('lesson')" ${hasAny?'':'disabled'}><i class="bi bi-dash-lg me-1"></i>Lesson paid</button></div>
+    ${form}
+    ${hasAny?`<div style="margin-top:8px">${lines}</div>`:`<div style="font-size:.76rem;color:var(--txt4);padding:8px 0 2px">No block recorded. Press <strong>Add block</strong> when the student pays for a block of lessons.</div>`}
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);font-size:.76rem;cursor:pointer"><input type="checkbox" ${c.on?'checked':''} onchange="crToggle(this.checked)" style="margin-top:2px"><span><strong>Show payments &amp; credit on the student's portal</strong><br><span style="color:var(--txt4)">Off by default: the student sees nothing. When on, they see hours left, credit left and each entry. Your private notes and instructor pay are never shown.</span></span></label></div>`;
+}
+function crForm(k){if(!_crCtx)return;_crCtx.form=k;_crRender();}
+function crAutoAmt(rate){const h=parseFloat(document.getElementById('crHrs')?.value)||0,a=document.getElementById('crAmt');if(a)a.value=(h*rate).toFixed(2);}
+async function crSave(){
+  const c=_crCtx;if(!c||!c.form)return;const g=id=>document.getElementById(id);
+  const hrs=parseFloat(g('crHrs')?.value)||0,amt=parseFloat(g('crAmt')?.value)||0;
+  if(hrs<=0){showToast('Enter the hours.','error');return;}
+  if(c.form==='block'&&amt<=0){showToast('Enter what the student paid.','error');return;}
+  const sign=c.form==='block'?1:-1,paid=g('crPaid')?.value;
+  const row={student_account_id:c.acctId,student_profile_id:c.profId,student_name:c.s.name||null,instructor_id:c.s.instrId||null,kind:c.form==='block'?'purchase':'lesson',hours:sign*hrs,amount:sign*amt,
+    instructor_paid:(c.form==='lesson'&&paid!==''&&paid!=null)?parseFloat(paid)||0:null,method:c.form==='block'?(g('crMethod')?.value||null):null,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,entry_date:g('crDate')?.value||new Date().toISOString().slice(0,10)};
+  const{error}=await sb.from('student_credit_ledger').insert(row);
+  if(error){showToast('Not saved: '+error.message,'error',6000);return;}
+  showToast(c.form==='block'?`✅ Block added — ${_crHrs(hrs)} · ${_crMoney(amt)}`:`✅ ${_crHrs(hrs)} taken off the block`,'success',2500);
+  c.form=null;await loadStudentCredit({...c.s,acctId:c.acctId,profileId:c.profId});
+}
+async function crDelete(id){
+  if(!_crCtx||!confirm('Delete this entry? The balance will change.'))return;
+  const{error}=await sb.from('student_credit_ledger').delete().eq('id',id);
+  if(error){showToast('Not deleted: '+error.message,'error');return;}
+  await loadStudentCredit({..._crCtx.s,acctId:_crCtx.acctId,profileId:_crCtx.profId});
+}
+async function crToggle(on){
+  if(!_crCtx)return;
+  const{error}=await sb.from('student_credit_settings').upsert({student_key:_crCtx.key,show_on_portal:!!on,updated_at:new Date().toISOString()},{onConflict:'student_key'});
+  if(error){showToast('Not saved: '+error.message,'error');_crRender();return;}
+  _crCtx.on=!!on;showToast(on?'👁️ Student can now see payments & credit on their portal':'🙈 Hidden from the student portal','success',2600);
+  if(on&&!_crCtx.acctId)showToast('Note: this student has no portal account yet, so nothing shows until they sign up.','info',5000);
+}
+window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crAutoAmt=crAutoAmt;
 
 /* ══ EDIT STUDENT ══ */
 // Called when clicking a roster-only student (no lesson history in cache)
