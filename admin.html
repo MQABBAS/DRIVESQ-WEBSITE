@@ -17844,6 +17844,45 @@ document.addEventListener('click',e=>{
       </div>
       <div id="dsqeCCbody"><div class="muted">Loading…</div></div></div>`;
   }
+  /* Advisor: rule-based reading of the numbers above. It never guesses — with too few bookings it says it is too early. */
+  function ccAdvice(T, spend, tot, rows, bk, view) {
+    const out = [], money = v => "£" + (v >= 100 ? Math.round(v) : v.toFixed(2)), pct = (a, b) => (b ? Math.round(a / b * 100) : 0);
+    const add = (lvl, title, text) => out.push({ lvl, title, text });
+    const cpb = k => (T[k].b ? spend[k] / T[k].b : null), cpe = k => (T[k].n ? spend[k] / T[k].n : null);
+    const nm = { ig: "Instagram Ads", g: "Google Ads" };
+    if (!tot.n) { add("info", "No enquiries counted yet", "As soon as enquiries arrive from the start date, this panel will compare your channels and tell you where to put your money."); return out; }
+    if (tot.b < 10) add("info", "Too early to judge cost per booking", `Only ${tot.b} confirmed booking${tot.b === 1 ? "" : "s"} so far. Cost per booked student swings wildly on small numbers, so don't cut or raise a budget yet. Aim for about 10 bookings per channel before deciding, and remember a booking only counts once you press ✅ in Referrals.`);
+    // paid channels
+    ["g", "ig"].forEach(k => {
+      if (!spend[k]) return;
+      if (T[k].n >= 10 && T[k].b === 0) add("act", `${nm[k]}: ${money(spend[k])} spent, no confirmed bookings`, `${T[k].n} enquiries but none confirmed as booked. First check these were confirmed in Referrals (they only count after your ✅) and that every enquiry got a fast reply. If both are fine, review the ad targeting and landing page before spending more.`);
+      else if (T[k].n >= 10 && pct(T[k].b, T[k].n) < 15) add("watch", `${nm[k]}: only ${pct(T[k].b, T[k].n)}% of enquiries book`, `${T[k].b} of ${T[k].n} enquiries booked. A low rate usually means slow replies or the wrong kind of enquiry (for example theory-test or test-centre callers). Check reply times in Website Bookings and the Search terms report.`);
+    });
+    // compare paid channels fairly
+    if (spend.g && spend.ig && T.g.b >= 5 && T.ig.b >= 5) {
+      const a = cpb("g"), b = cpb("ig"), cheap = a < b ? "g" : "ig", dear = cheap === "g" ? "ig" : "g", ratio = Math.max(a, b) / Math.min(a, b);
+      if (ratio >= 1.5) add("act", `${nm[cheap]} is cheaper per booked student`, `${nm[cheap]} costs ${money(cpb(cheap))} per booking against ${money(cpb(dear))} for ${nm[dear]} (${ratio.toFixed(1)}× more). Move budget gradually, about 20% at a time, from ${nm[dear]} to ${nm[cheap]}, and re-check after a week. Don't switch everything at once.`);
+      else add("good", "Google and Instagram cost about the same per booking", `${money(cpb("g"))} against ${money(cpb("ig"))}. No strong reason to move budget between them. Keep both running and keep watching.`);
+    } else if (spend.g && spend.ig && tot.b >= 3) {
+      add("info", "Channel comparison not reliable yet", `Google has ${T.g.b} and Instagram ${T.ig.b} confirmed bookings. You need at least 5 each before the cost comparison means anything.`);
+    }
+    // SEO (free) share
+    if (T.seo.b >= 3 && tot.b >= 8) add("good", `Free search brings ${pct(T.seo.b, tot.b)}% of bookings`, `${T.seo.b} of ${tot.b} bookings came from search and Maps at no ad cost. Keep investing in Google reviews, your Business Profile and your area pages. This is the cheapest growth you have.`);
+    // follow-up: assigned but not confirmed
+    const stale = rows.filter(r => r.status === "assigned" && !r._bk && (Date.now() - new Date(r.created_at)) > 5 * 864e5).length;
+    if (stale >= 3) add("act", `${stale} assigned students are not confirmed as booked`, `They were assigned more than 5 days ago but you haven't pressed ✅ yet. Chase the instructors, then confirm in Referrals. Until then these bookings are missing from this chart and the cost per booking looks worse than it really is.`);
+    // data quality
+    const unk = rows.filter(r => /not recorded|before tracking|not asked/i.test(sourceOf(r))).length;
+    if (rows.length >= 10 && pct(unk, rows.length) >= 25) add("watch", `${pct(unk, rows.length)}% of enquiries have no tracked source`, "Calls and WhatsApps are the usual cause. When you log one, always pick how they found you, so the channel numbers stay trustworthy.");
+    // trend: last two completed periods
+    if (bk && bk.length >= 3) {
+      const tn = b => ["ig", "g", "seo", "other"].reduce((a, k) => a + b.c[k].n, 0), last = tn(bk[bk.length - 2]), prev = tn(bk[bk.length - 3]);
+      if (last >= 5 && prev >= 5) { const ch = Math.round((last - prev) / prev * 100); if (Math.abs(ch) >= 25) add(ch > 0 ? "good" : "watch", `Enquiries ${ch > 0 ? "up" : "down"} ${Math.abs(ch)}% on the previous ${view}`, `${last} in the last full ${view} against ${prev} before it.${ch < 0 ? " Check whether an ad was paused, a budget changed or reply times slipped." : " Make sure replies keep up with the extra demand."}`); }
+    }
+    if (!out.length) add("good", "Nothing needs attention", "Your numbers look steady. Keep replying fast and confirming bookings in Referrals.");
+    const rank = { act: 0, watch: 1, info: 2, good: 3 };
+    return out.sort((x, y) => rank[x.lvl] - rank[y.lvl]).slice(0, 6);
+  }
   function ccDraw() {
     const body = $("#dsqeCCbody"); if (!body) return;
     if (CC.err) { body.innerHTML = `<div class="muted">Couldn't load the chart: ${h(CC.err)}</div>`; return; }
@@ -17867,10 +17906,17 @@ document.addEventListener('click',e=>{
     const tot = keys.reduce((a, k) => ({ n: a.n + T[k].n, b: a.b + T[k].b }), { n: 0, b: 0 });
     const label = k => CH_DEF.find(x => x[0] === k)[1], col = k => CH_DEF.find(x => x[0] === k)[2];
     const rate = o => (o.n ? Math.round(o.b / o.n * 100) + "%" : "–");
-    body.innerHTML = `<div style="position:relative;height:300px"><canvas id="dsqeCCcv"></canvas></div>
+    const spTot = spendOf.ig + spendOf.g, advice = ccAdvice(T, spendOf, tot, rows, bk, view);
+    const tile = (l, v, sub, c) => `<div style="flex:1;min-width:120px;background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:10px 12px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">${l}</div><div style="font-family:'Oswald',sans-serif;font-size:1.45rem;line-height:1.2;color:${c || "var(--txt)"}">${v}</div><div style="font-size:.68rem;color:var(--txt4)">${sub}</div></div>`;
+    const lvlStyle = { act: ["#f87171", "Action", "bi-exclamation-octagon-fill"], watch: ["#f59e0b", "Watch", "bi-eye-fill"], info: ["#60a5fa", "Note", "bi-info-circle-fill"], good: ["#4ade80", "Good", "bi-check-circle-fill"] };
+    const advHtml = `<div style="margin-top:14px;border:1px solid var(--bdr);border-radius:12px;overflow:hidden"><div style="padding:9px 14px;background:var(--dk2);font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:.04em"><i class="bi bi-lightbulb-fill me-2" style="color:var(--gold)"></i>ADVISOR <span style="font-family:Inter,sans-serif;font-size:.68rem;color:var(--txt4);letter-spacing:0">· based on ${tot.n} enquiries and ${tot.b} confirmed booking${tot.b === 1 ? "" : "s"}</span></div>
+      ${advice.map(a => { const st2 = lvlStyle[a.lvl]; return `<div style="display:flex;gap:12px;padding:11px 14px;border-top:1px solid var(--bdr);border-left:3px solid ${st2[0]}"><i class="bi ${st2[2]}" style="color:${st2[0]};margin-top:2px"></i><div><div style="font-weight:700;font-size:.82rem"><span style="color:${st2[0]};font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;margin-right:6px">${st2[1]}</span>${h(a.title)}</div><div style="font-size:.76rem;color:var(--txt2);margin-top:3px;line-height:1.5">${h(a.text)}</div></div></div>`; }).join("")}</div>`;
+    body.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${tile("Enquiries", tot.n, "all channels")}${tile("Booked", tot.b, rate(tot) + " of enquiries", "#4ade80")}${tile("Ad spend", "£" + spTot.toFixed(0), spendDays + " day" + (spendDays === 1 ? "" : "s") + " counted")}${tile("Cost per booked", tot.b ? "£" + (spTot / tot.b).toFixed(2) : "–", "all paid channels", "var(--gold)")}</div>
+      <div style="position:relative;height:300px"><canvas id="dsqeCCcv"></canvas></div>
       <div class="dsqe-scroll" style="margin-top:10px"><table class="t4"><thead><tr><th>Channel</th><th class="num">Enquiries</th><th class="num">Booked</th><th class="num">Rate</th><th class="num">Spend</th><th class="num">Per enquiry</th><th class="num">Per booked</th></tr></thead><tbody>
       ${keys.map(k => { const sp = spendOf[k]; const paid = sp != null; return `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(k)};margin-right:6px"></span>${label(k)}</td><td class="num">${T[k].n}</td><td class="num">${T[k].b}</td><td class="num">${rate(T[k])}</td><td class="num">${paid ? "£" + sp.toFixed(0) : "–"}</td><td class="num">${paid ? (T[k].n ? "£" + (sp / T[k].n).toFixed(2) : "–") : "–"}</td><td class="num" style="${paid && T[k].b ? "font-weight:700;color:var(--gold)" : ""}">${paid ? (T[k].b ? "£" + (sp / T[k].b).toFixed(2) : "no bookings yet") : "–"}</td></tr>`; }).join("")}
       <tr style="font-weight:700"><td>Total</td><td class="num">${tot.n}</td><td class="num">${tot.b}</td><td class="num">${rate(tot)}</td><td class="num">£${(spendOf.ig + spendOf.g).toFixed(0)}</td><td class="num">${tot.n ? "£" + ((spendOf.ig + spendOf.g) / tot.n).toFixed(2) : "–"}</td><td class="num">${tot.b ? "£" + ((spendOf.ig + spendOf.g) / tot.b).toFixed(2) : "–"}</td></tr></tbody></table></div>
+      ${advHtml}
       <div class="muted" style="margin-top:8px;font-size:.72rem">Booked = you pressed ✅ in Referrals. Each booking is counted on the day the enquiry came in. SEO / search = Google search, other search engines and Google Maps (free, so no spend). Other = direct, friends, calls, social posts and anything not tracked. Spend = your daily spend × the days counted (including today). "Per booked" = what each confirmed booking cost you.</div>`;
     if (!window.Chart) { const cv = $("#dsqeCCcv"); if (cv) cv.outerHTML = `<div class="muted">Chart library didn't load — the table below has the same numbers.</div>`; return; }
     if (CC.chart) { try { CC.chart.destroy(); } catch (e) {} CC.chart = null; }
@@ -17881,7 +17927,7 @@ document.addEventListener('click',e=>{
       datasets = [{ label: "Enquiries", data: keys.map(k => T[k].n), backgroundColor: keys.map(k => col(k) + "66"), borderColor: keys.map(col), borderWidth: 1.5 }, { label: "Booked", data: keys.map(k => T[k].b), backgroundColor: keys.map(col), borderColor: keys.map(col), borderWidth: 1.5 }];
     } else {
       labels = bk.map(b => b.l); datasets = [];
-      ["ig", "g", "seo"].forEach(k => { datasets.push({ label: label(k) + " enquiries", data: bk.map(b => b.c[k].n), backgroundColor: col(k) + "55", borderColor: col(k), borderWidth: 1.5, order: 2 }); datasets.push({ label: label(k) + " booked", data: bk.map(b => b.c[k].b), backgroundColor: col(k), borderColor: col(k), borderWidth: 1.5, order: 2 }); });
+      ["ig", "g", "seo"].forEach(k => { datasets.push({ label: label(k) + " enquiries", data: bk.map(b => b.c[k].n), backgroundColor: col(k) + "55", borderColor: col(k), borderWidth: 1.5, borderRadius: 4, order: 2 }); datasets.push({ label: label(k) + " booked", data: bk.map(b => b.c[k].b), backgroundColor: col(k), borderColor: col(k), borderWidth: 1.5, borderRadius: 4, order: 2 }); });
       datasets.push({ type: "line", label: "All enquiries (total)", data: bk.map(b => keys.reduce((a, k) => a + b.c[k].n, 0)), borderColor: "#f5c518", backgroundColor: "#f5c518", borderWidth: 2, pointRadius: 3, tension: 0, order: 1 });
     }
     CC.chart = new Chart($("#dsqeCCcv"), { type: "bar", data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { labels: { color: txt, boxWidth: 12, font: { size: 11 } } }, tooltip: { itemSort: (a, b) => a.datasetIndex - b.datasetIndex } }, scales: { x: { ticks: { color: txt, maxRotation: 60 }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: txt, precision: 0 }, grid: { color: grid } } } } });
