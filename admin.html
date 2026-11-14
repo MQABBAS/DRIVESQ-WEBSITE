@@ -7054,7 +7054,18 @@ async function loadStudentRecords(s){
   events.sort((a,b)=>b.at-a.at);
   const fmt=d=>isNaN(d)?'':d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
   const row=(l,v,extra)=>`<div class="col-12 col-sm-6"><div class="det-item"><div class="det-lbl">${l}</div><div class="det-val ${v?'':'empty'}" style="font-size:.8rem">${v||'<span style="color:var(--txt4)">Not recorded</span>'}${extra||''}</div></div></div>`;
-  const source=myWl.length?'Website booking'+(wlNote('Ref')?' · ref '+esc(wlNote('Ref')):''):myRefs.length?'Referral':(acct?'Student Portal sign-up':'—');
+  /* where they came from: every enquiry on record (oldest first), with its tracked source, how they got in touch, landing page and ad campaign */
+  const nline=(n,k)=>{const m=String(n||'').match(new RegExp('(?:^|\\n)\\s*'+k+':\\s*([^\\n]+)','i'));return m?m[1].trim():'';};
+  const srcChip=t=>{const c=/instagram|facebook|meta/i.test(t)?['#e1306c','rgba(225,48,108,.14)']:/google ads/i.test(t)?['#60a5fa','rgba(66,133,244,.14)']:/google search|google maps|other search|seo/i.test(t)?['#4ade80','rgba(34,197,94,.14)']:['var(--txt2)','var(--dk2)'];return `<span style="display:inline-block;padding:1px 9px;border-radius:99px;font-size:.7rem;font-weight:700;color:${c[0]};background:${c[1]};border:1px solid ${c[0]}55">${esc(t)}</span>`;};
+  const hist=myWl.slice().sort((x,y)=>new Date(x.created_at)-new Date(y.created_at)).map(w=>{
+    const n=String(w.notes||''),raw=nline(n,'Source');
+    const src=raw?raw.replace(/^Referral: /,'Website link: '):/\[CALL\]/i.test(n)?'Phone call (source not asked)':/\[WHATSAPP\]/i.test(n)?'WhatsApp (source not asked)':/\[WEB\]/i.test(n)?'Website (before tracking)':'Not recorded';
+    const via=/\[CALL\]/i.test(n)?'Phone call':/\[WHATSAPP\]/i.test(n)?'WhatsApp':/\[SQ DRIVING SCHOOL\]/i.test(n)?'SQ Driving School website':/\[WEB\]/i.test(n)?'DriveSQ website form':/\[OTHER\]|\[WALKIN\]/i.test(n)?'Other':'Added by admin';
+    return{at:new Date(w.created_at),src,via,landing:nline(n,'Landing'),camp:nline(n,'Ad campaign')};
+  });
+  const firstSrc=hist.length?hist[0].src:'';
+  const source=hist.length?esc(firstSrc)+(hist.length>1?' <span style="color:var(--txt4);font-size:.7rem">(first of '+hist.length+' enquiries)</span>':''):myRefs.length?'Referral (no website enquiry on record)':(acct?'Student Portal sign-up':'—');
+  const histHtml=`<div class="section-label mt-3"><i class="bi bi-signpost-split-fill me-2" style="color:var(--gold)"></i>Where they came from <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(${hist.length} enquir${hist.length===1?'y':'ies'})</span></div>`+(hist.length?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:6px 10px">${hist.map((h,i)=>`<div style="display:flex;gap:10px;padding:6px 0;${i?'border-top:1px solid var(--bdr);':''}font-size:.76rem;align-items:flex-start"><span style="color:var(--txt4);white-space:nowrap;min-width:78px">${fmt(h.at)}</span><span style="flex:1">${srcChip(h.src)}<div style="color:var(--txt3);margin-top:3px">via ${esc(h.via)}${h.landing?' · landed on '+esc(h.landing):''}${h.camp?' · ad campaign '+esc(h.camp):''}</div></span></div>`).join('')}</div>`:`<div style="font-size:.76rem;color:var(--txt4);padding:6px 0">No enquiry on record for this student (added by an admin, instructor or referral). Where they came from wasn't tracked.</div>`);
   const refLine=myRefs.map(r=>{const fc=r.is_cancelled?'cancelled':_refAdminBooked(r)?'✅ booked'+(r.is_paid?' · fee paid':' · fee owed'):r.flag_color==='purple'?'🟣 unsure':r.flag_color==='red'?'🚩 not booked':'no flag';const i=(allInstrs||[]).find(x=>x.id===r.instructor_id);return `${fmt(new Date(r.created_at))} → ${esc(i?i.full_name:'?')} · ${fc}`;}).join('<br>');
   box.innerHTML=`
     <div class="section-label mt-3"><i class="bi bi-person-vcard-fill me-2" style="color:var(--gold)"></i>Contact &amp; Records</div>
@@ -7064,7 +7075,7 @@ async function loadStudentRecords(s){
       ${row('Email',email?`<a href="mailto:${esc(email)}" style="color:var(--red)">${esc(email)}</a>${unsub?' <span style="color:#f87171;font-size:.68rem;font-weight:700">· UNSUBSCRIBED</span>':''}`:'',email?'':' <button class="abtn" style="margin-left:6px;font-size:.66rem;padding:2px 8px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openStudentEditModal()">Add email</button>')}
       ${row('Full address',address?esc(address):'')}
       ${row('Postcode',postcode?esc(postcode):'')}
-      ${row('Source',source)}
+      ${row('First came from',source)}
       ${row('Gearbox / package',[wlNote('Gearbox'),wlNote('Package'),prof?.lesson_type].filter(Boolean).map(esc).join(' · '))}
       ${row('Wants to start',esc(wlNote('Start')||wlNote('Start date')||''))}
       ${row('Emergency contact',acct&&(acct.emergency_contact||acct.emergency_phone)?esc([acct.emergency_contact,acct.emergency_phone].filter(Boolean).join(' · ')):'')}
@@ -7073,6 +7084,7 @@ async function loadStudentRecords(s){
       ${row('Instructor profile',prof?`On ${esc(((allInstrs||[]).find(x=>x.id===prof.instructor_id)||{}).full_name||'instructor')}'s roster · ${esc(prof.status||'active')}${prof.availability?' · '+esc(prof.availability):''}`:'')}
       ${row('Referrals',refLine)}
     </div>
+    ${histHtml}
     <div class="section-label mt-3"><i class="bi bi-envelope-check-fill me-2" style="color:#60a5fa"></i>Emails sent to this student <span style="font-size:.65rem;color:var(--txt4);font-weight:400">(${events.length})</span></div>
     ${events.length?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:6px 10px">${events.map(e=>`<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.76rem"><span style="color:var(--txt3);white-space:nowrap;min-width:92px">${fmt(e.at)}</span><span style="flex:1;color:var(--txt2)">${esc(e.what)}</span><span style="font-size:.62rem;color:${e.src==='campaign'?'#a855f7':'#60a5fa'};white-space:nowrap">${e.src}</span></div>`).join('')}</div>`
       :`<div style="font-size:.76rem;color:var(--txt4);padding:6px 0">${email?'No emails sent yet.':'No email on record — nothing can be sent until one is added.'}</div>`}`;
