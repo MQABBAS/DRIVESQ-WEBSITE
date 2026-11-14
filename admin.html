@@ -2047,6 +2047,7 @@ body.day-mode .dsqd-note{color:#92400e}
             </select>
           </div>
           <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="fc-avail" placeholder="e.g. Weekday mornings, Saturdays" oninput="_saveFcDraft()"/></div>
+          <div class="mb-3"><label class="dsq-lbl">How did they find DriveSQ? <span class="req-mark">*</span> <span style="font-weight:400;color:var(--txt4)">(WhatsApp chats can come from any ad. Check the chat's "ad" label.)</span></label><select class="dsq-inp" id="fc-source" onchange="_saveFcDraft()"><option value="">— pick one —</option><option value="Instagram Ads">Instagram ad (clicked an ad)</option><option value="Facebook Ads">Facebook ad (clicked an ad)</option><option value="Google Ads">Google ad (clicked an ad)</option><option value="Google search">Google search</option><option value="Google Maps">Google Maps / Business Profile</option><option value="Friend or family">Friend or family</option><option value="Instagram / TikTok / Facebook">Social media post (not an ad)</option><option value="AI assistant (ChatGPT etc.)">AI assistant (ChatGPT etc.)</option><option value="Returning learner">Returning learner</option><option value="Instructor referral">Instructor referral</option><option value="Other">Other</option><option value="Not sure">Not sure / they didn't say</option></select></div>
           <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="fc-notes" rows="2" placeholder="Any additional notes…" oninput="_saveFcDraft()"></textarea></div>
           <div style="display:flex;gap:8px">
             <button class="btn-p" style="flex:1" onclick="findClosest()" id="findBtn"><i class="bi bi-search me-1"></i>Find Closest Instructor</button>
@@ -3764,6 +3765,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
     </div>
     <div class="mb-2"><label class="dsq-lbl">Pickup Address</label><input class="dsq-inp" id="cs-addr" placeholder="Street address" autocomplete="off"/></div>
     <div class="mb-2"><label class="dsq-lbl">Postcode</label><input class="dsq-inp" id="cs-postcode" placeholder="e.g. M19 2PH" autocomplete="off" style="text-transform:uppercase"/></div>
+    <div class="mb-2"><label class="dsq-lbl">How did they find DriveSQ? <span class="req-mark">*</span></label><select class="dsq-inp" id="cs-source"><option value="">— pick one —</option><option value="Instagram Ads">Instagram ad (clicked an ad)</option><option value="Facebook Ads">Facebook ad (clicked an ad)</option><option value="Google Ads">Google ad (clicked an ad)</option><option value="Google search">Google search</option><option value="Google Maps">Google Maps / Business Profile</option><option value="Friend or family">Friend or family</option><option value="Instagram / TikTok / Facebook">Social media post (not an ad)</option><option value="AI assistant (ChatGPT etc.)">AI assistant (ChatGPT etc.)</option><option value="Returning learner">Returning learner</option><option value="Instructor referral">Instructor referral</option><option value="Other">Other</option><option value="Not sure">Not sure / they didn't say</option></select></div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="cs-notes" rows="2" placeholder="Any notes about this student (optional)" style="resize:vertical"></textarea></div>
     <div class="mb-3" style="padding:10px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.2);border-radius:10px">
       <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px"><i class="bi bi-currency-pound me-1"></i>Referral Fee</div>
@@ -4185,7 +4187,7 @@ async function triggerPwaInstall(){
 
 function _saveFcDraft(){
   const d={};
-  ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes'].forEach(id=>{
+  ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes','fc-source'].forEach(id=>{
     const el=document.getElementById(id);if(el)d[id]=el.value;
   });
   const lt=document.getElementById('fc-type');if(lt)d['fc-type']=lt.value;
@@ -4196,7 +4198,7 @@ function _restoreFcDraft(){
   try{
     const d=JSON.parse(localStorage.getItem('dsq_fc_draft')||'null');
     if(!d)return;
-    ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes'].forEach(id=>{
+    ['fc-name','fc-phone','fc-email','fc-addr','fc-postcode','fc-avail','fc-notes','fc-source'].forEach(id=>{
       const el=document.getElementById(id);if(el&&d[id]!=null)el.value=d[id];
     });
     const lt=document.getElementById('fc-type');if(lt&&d['fc-type'])lt.value=d['fc-type'];
@@ -4466,6 +4468,22 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 function jsEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 /* address that is really just the postcode (or empty) → '' so the two fields never duplicate */
 /* Pick-up = street address + the postcode that was entered, e.g. "12 Oak Street, Levenshulme, M19 2AB" (no duplicate if the postcode is already in the address) */
+/* A student typed in by hand (e.g. from a WhatsApp Business chat) has no website booking, so nothing says where they came from.
+   Save one enquiry row for them with the chosen Source, so the channel chart, student history and follow-up rules all see it. */
+async function _recordManualSource(o){
+  const p10=v=>String(v||'').replace(/\D/g,'').slice(-10),ph=p10(o.phone);
+  const since=new Date(Date.now()-60*864e5).toISOString();
+  if(ph){
+    const{data:rows}=await sb.from('waiting_list').select('id,notes,student_phone,created_at').gte('created_at',since);
+    const hit=(rows||[]).find(r=>p10(r.student_phone)===ph);
+    if(hit){if(!/^Source:/mi.test(hit.notes||''))await sb.from('waiting_list').update({notes:(hit.notes?hit.notes+'\n':'')+'Source: '+o.source}).eq('id',hit.id);return;}
+  }
+  const notes=['[WHATSAPP] WhatsApp enquiry (entered by admin)','Source: '+o.source,o.email?'Email: '+o.email:'',o.postcode?'Postcode: '+o.postcode:'','Assigned via Find & Assign'].filter(Boolean).join('\n');
+  const full={student_name:o.name,student_phone:o.phone||null,postcode:o.postcode||null,lesson_type:o.lessonType||null,notes,status:o.instrId?'assigned':'waiting',assigned_instructor_id:o.instrId||null,created_at:new Date().toISOString()};
+  let{error}=await sb.from('waiting_list').insert([full]);
+  if(error)({error}=await sb.from('waiting_list').insert([{student_name:o.name,student_phone:full.student_phone,notes,status:full.status}]));
+  if(error)throw error;
+}
 function _fullPickup(addr,pc){
   const a=String(addr||'').trim(),p=String(pc||'').trim().toUpperCase().replace(/\s+/g,' ');
   const n=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -6778,6 +6796,8 @@ async function confirmCreateStudent(){
   const postcode=String((document.getElementById('cs-postcode')||{}).value||'').trim().toUpperCase()||extractPostcode(_addrRaw)||'';
   const addr=_fullPickup(_addrRaw,postcode);   // saved everywhere as street + postcode
   const notes=document.getElementById('cs-notes').value.trim();
+  const _csSrc=(document.getElementById('cs-source')||{}).value||'';
+  if(!_csSrc&&!(window._pendingWbId||window._waitlistIdToAssign)){showToast('Pick how they found DriveSQ.','error',4000);btn.disabled=false;btn.innerHTML='<i class="bi bi-person-plus-fill me-1"></i>Create Account';try{document.getElementById('cs-source').focus();}catch(e){}return;}
   // website booking details (ref, package, start date …) travel with the instructor message
   let _wbNotes='';const _wbIdNow=window._pendingWbId||window._waitlistIdToAssign||null;
   try{if(_wbIdNow){const _r=(_webBookingsData||[]).find(x=>String(x.id)===String(_wbIdNow));_wbNotes=_r?(_r.notes||''):((await sb.from('waiting_list').select('notes').eq('id',_wbIdNow).maybeSingle()).data||{}).notes||'';}}catch(e){}
@@ -6838,6 +6858,7 @@ async function confirmCreateStudent(){
   }
   // Store for WhatsApp buttons
   window._csLastCreated={name,phone,email,lessonType,addr,postcode,notes:[notes,_wbNotes].filter(Boolean).join('\n'),source:_wbIdNow?'website booking':'',instrObj};
+  if(_csSrc&&!_wbIdNow){_recordManualSource({name,phone,email,postcode,addr,lessonType,instrId,source:_csSrc}).catch(e=>console.warn('source not recorded:',e&&e.message));}
   // Show/hide instructor WA button
   const instrWaBtn=document.getElementById('cs-instr-wa-btn');
   if(instrWaBtn)instrWaBtn.style.display=instrObj&&buildWaNum(instrObj.phone||'')?'block':'none';
@@ -8597,8 +8618,11 @@ async function findClosest(){
   const type=document.getElementById('fc-type').value;
   const avail=(document.getElementById('fc-avail')||{}).value?.trim()||'';
   const notes=document.getElementById('fc-notes').value.trim();
+  const leadSource=(document.getElementById('fc-source')||{}).value||'';
   const testCentre=_fcTestCentre();
   if(!studentName||!postcode){showToast('Enter student name and postcode.','error');return;}
+  // manual entries (WhatsApp / calls typed in by hand) must say where the student came from; website bookings already carry it
+  if(!leadSource&&!(window._waitlistIdToAssign||window._pendingWbId||_reassignContext)){showToast('Pick how they found DriveSQ. It keeps your Instagram, Google and search numbers accurate.','error',5000);try{document.getElementById('fc-source').focus();}catch(e){}return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
   // Ensure student roster is loaded for postcode frequency analysis
   try{if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();}catch(e){console.warn('findClosest: student list not loaded',e);}
@@ -8663,7 +8687,7 @@ async function findClosest(){
     const unknown=results.filter(r=>r.dist===null);
     _fcCtxFor(studentName);
     if(window._waitlistIdToAssign||window._pendingWbId||_reassignContext)window._fcCtxName=studentName.trim().toLowerCase();
-    fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes,testCentre:tGeo?{...testCentre,lat:tGeo.lat,lon:tGeo.lon,fromHome:tcStu}:null};
+    fcStudentData={name:studentName,postcode,phone,email,addr,type,avail,notes,leadSource,testCentre:tGeo?{...testCentre,lat:tGeo.lat,lon:tGeo.lon,fromHome:tcStu}:null};
 
     // Helper: does instructor car_type match student's requested lesson type?
     function instrCanTeach(instrLT,reqType){
@@ -9020,6 +9044,7 @@ function openCreateAndAssign(instrId,instrName){
     if(em)em.value=s.email||'';
     if(ad)ad.value=_fcAddrOnly(s.addr,s.postcode)||String(s.addr||'');
     const pcEl=document.getElementById('cs-postcode');if(pcEl)pcEl.value=String(s.postcode||extractPostcode(s.addr)||'').toUpperCase();
+    const _srcEl=document.getElementById('cs-source');if(_srcEl)_srcEl.value=s.leadSource||'';
     if(lt&&s.type)lt.value=s.type;
     if(nt)nt.value=[s.notes,s.avail?'Availability: '+s.avail:'',s.postcode?'Postcode: '+s.postcode:'',s.testCentre?'Test centre: '+s.testCentre.name+' ('+s.testCentre.postcode+')':''].filter(Boolean).join('\n');
     if(sel){
@@ -9310,7 +9335,7 @@ async function _finishWaitlist(instrId,s){
   return _wlId;
 }
 function resetFindForm(afterAssign){
-  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes','fc-test','fc-test-other'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes','fc-source','fc-test','fc-test-other'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _fcTestChange(true);
   if(afterAssign)try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
   renderNoJobsAlert(); // refresh alert — counts may have changed after assign
