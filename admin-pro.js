@@ -1,12 +1,12 @@
 /* DriveSQ admin — pro layer (loaded after admin.html's own script, admin-growth.js and admin-ledger.js).
-   1. Referral fee filled in automatically: £25 (from 2 November 2026), £0 for franchise instructors.
+   1. Referral fee filled in automatically: £40 (from 15 November 2026), £0 for franchise instructors.
    2. Message All: ready-made announcements (incl. the referral policy) and one-tap WhatsApp to every instructor.
    3. Message All is available on phones too.
    4. Offline banner, and fresh data when you come back to the tab after a while.
    Everything here only uses functions admin.html already has; if one is missing, that feature quietly stays off. */
 (function () {
   "use strict";
-  const REF_FEE = 25, FEE_FROM = "2 November 2026";
+  const REF_FEE = 40, FEE_FROM = "15 November 2026";
   const $ = (s, r) => (r || document).querySelector(s);
   const instrs = () => { try { return Array.isArray(allInstrs) ? allInstrs : []; } catch (e) { return []; } };
   const toast = (m, t, ms) => { try { showToast(m, t || "info", ms || 3000); } catch (e) {} };
@@ -39,9 +39,12 @@
 
   /* ───── 2. Message All: templates + WhatsApp each instructor ───── */
   const TEMPLATES = [
-    ["💷 Referral fee £25", "franchise_fee", "Referral fee update — £25 from " + FEE_FROM,
-     "From " + FEE_FROM + ", the referral fee for each student we send you is £25 (was £20). Referrals sent before then stay at £20.\n\n" +
-     "The £25 is due automatically as soon as the student books their first lesson with you. We confirm every booking with the student, so the office knows when a lesson has been booked. Please pay within 7 days of the booking — you can see what's due under Referrals.\n\n" +
+    ["🚗 Referral £40 + Franchise £60", "general", "DriveSQ update: referral fee and franchise option",
+     "Hi everyone,\n\nTwo updates from us.\n\n1. Referral fee: £40 per student\nFrom Sunday 15 November 2026, the referral fee for each new student we assign to you is £40.\n- Students assigned to you before that date stay on their current fee.\n- As now, the fee is only due for students we've confirmed have booked lessons with you.\n- If a student doesn't book, it's £0.\n\n" +
+     "2. Franchise option: £60 a week\nIf you'd prefer a flat weekly fee instead of a fee per student, you can join our franchise for £60 a week, with no referral fees on top. If you're interested, reply to this message or WhatsApp us and we'll go through exactly how it works.\n\nThank you for being part of DriveSQ. If you have any questions, just get in touch.\n\nThe DriveSQ team"],
+    ["💷 Referral fee £40", "franchise_fee", "Referral fee update — £40 from " + FEE_FROM,
+     "From " + FEE_FROM + ", the referral fee for each new student we send you is £40 (it was £20 or £25). Students assigned to you before then stay on their current fee.\n\n" +
+     "The £40 is due automatically as soon as the student books their first lesson with you. We confirm every booking with the student, so the office knows when a lesson has been booked. Please pay within 7 days of the booking — you can see what's due under Referrals.\n\n" +
      "Referral policies:\n1. Update every referral within 48 hours (booked, not interested, or couldn't reach them).\n2. Try to contact the student within 24 hours.\n3. No booking = no fee.\n" +
      "4. Paid, but the student cancels before their first lesson or turns out to be fake? Tell us within 7 days for a free replacement referral.\n5. All lessons with a DriveSQ student must be declared, including later bookings.\n" +
      "6. If a fee is unpaid after 14 days, new referrals are paused until it's settled.\n7. Our students stay DriveSQ students — please don't move them elsewhere or ask them to book privately.\n" +
