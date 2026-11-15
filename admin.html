@@ -16167,7 +16167,17 @@ document.addEventListener('click',e=>{
   }
 
   /* ready-made + my templates */
-  const PREMADE = () => Object.keys(M.PURPOSES).map(k => { const P = M.PURPOSES[k]; return { id: "pre-" + k, name: P.name, group: P.group || "General", premade: true, design: Object.assign(M.generate(k, P.tone || "friendly", { theme: P.theme || "classic" }), { name: P.name }, P.banner ? { banner: P.banner } : {}) }; });
+  const PREMADE_BASE = () => Object.keys(M.PURPOSES).map(k => { const P = M.PURPOSES[k]; return { id: "pre-" + k, name: P.name, group: P.group || "General", premade: true, design: Object.assign(M.generate(k, P.tone || "friendly", { theme: P.theme || "classic" }), { name: P.name }, P.banner ? { banner: P.banner } : {}) }; });
+  /* hand-written ready-made emails (shown with the others under Templates → Instructors) */
+  const PREMADE_EXTRA = () => [{ id: "pre-instrfees", name: "Referral fee £40 & franchise £60 (all instructors)", group: "Instructors", premade: true, design: {
+    name: "Referral fee £40 & franchise £60 (all instructors)", theme: "clean", banner: "none",
+    subject: "DriveSQ update: referral fee and franchise option", preheader: "From Monday 7 December 2026 the referral fee is £40 per student. Franchise option: £60 a week.",
+    headline: "Referral fee and **franchise** update", greeting: "Hi everyone,",
+    body: "Two updates from us.\n\n**1. Referral fee: £40 per student**\nFrom **Monday 7 December 2026**, the referral fee for each new student we assign to you is **£40**.\n\n- **Students assigned to you before that date stay on their current fee.**\n- As now, the fee is only due for students we've confirmed have booked lessons with you.\n- If a student doesn't book, it's **£0**.\n\n**2. Franchise option: £60 a week**\nIf you'd prefer a flat weekly fee instead of a fee per student, you can join our franchise for **£60 a week**, with no referral fees on top.\n\nInterested? Reply to this email or WhatsApp us and we'll go through exactly how it works.",
+    buttonText: "WhatsApp us about the franchise", buttonUrl: "https://wa.me/447352932003?text=Hi%20DriveSQ%2C%20I%27d%20like%20to%20know%20more%20about%20the%20franchise",
+    secondaryText: "Any questions? Just reply to this email or [WhatsApp us](https://wa.me/447352932003).",
+    signoff: "Thank you for being part of DriveSQ,\nThe DriveSQ team", footerNote: "You're getting this because you're a DriveSQ instructor." } }];
+  const PREMADE = () => PREMADE_BASE().concat(PREMADE_EXTRA());
   function templatesHTML() {
     const card = t => `<article class="dsqm-tpl" data-tpl="${h(t.id)}"><div class="dsqm-tpl__thumb"><iframe tabindex="-1" aria-hidden="true" sandbox="allow-same-origin" data-thumb="${h(t.id)}"></iframe></div>
       <div class="dsqm-tpl__b"><b>${h(t.name)}</b><small>${t.premade ? "Ready-made" : "Saved " + fmtDT(t.updated_at || t.created_at)}</small></div>
