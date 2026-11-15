@@ -1,12 +1,12 @@
 /* DriveSQ admin — pro layer (loaded after admin.html's own script, admin-growth.js and admin-ledger.js).
-   1. Referral fee filled in automatically: £40 (from 15 November 2026), £0 for franchise instructors.
+   1. Referral fee filled in automatically: £25 (from 2 November 2026), £0 for franchise instructors.
    2. Message All: ready-made announcements (incl. the referral policy) and one-tap WhatsApp to every instructor.
    3. Message All is available on phones too.
    4. Offline banner, and fresh data when you come back to the tab after a while.
    Everything here only uses functions admin.html already has; if one is missing, that feature quietly stays off. */
 (function () {
   "use strict";
-  const REF_FEE = 40, FEE_FROM = "15 November 2026";
+  const REF_FEE = 25, FEE_FROM = "2 November 2026";
   const $ = (s, r) => (r || document).querySelector(s);
   const instrs = () => { try { return Array.isArray(allInstrs) ? allInstrs : []; } catch (e) { return []; } };
   const toast = (m, t, ms) => { try { showToast(m, t || "info", ms || 3000); } catch (e) {} };
