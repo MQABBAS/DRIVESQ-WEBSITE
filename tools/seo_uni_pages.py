@@ -38,7 +38,7 @@ def page_shell(slug, title, desc, h1, body, faq, about, related):
 <h2>Questions students ask</h2>{faqh}
 <h2>More for Manchester students</h2><ul>{rel}</ul></main>
 <footer>DriveSQ Driving School · Greater Manchester &amp; Solihull · <a href="/">drivesq.co.uk</a> · <a href="/about.html">About</a> · <a href="/reviews.html">Reviews</a> · <a href="/privacy.html">Privacy</a></footer>
-<script src="/dsq-analytics.js" defer></script><script src="/booking-capture.js?v=20261117" defer></script><script src="/dsq-uni-book.js?v=2" defer></script></body></html>'''
+<script src="/dsq-analytics.js" defer></script><script src="/booking-capture.js?v=20261118" defer></script><script src="/dsq-uni-book.js?v=2" defer></script></body></html>'''
 
 def form(inst, level, campuses):
     return f'<div id="dsqUniBook" data-institution="{html.escape(inst)}" data-level="{level}" data-campuses="{html.escape("|".join(campuses))}"></div>'

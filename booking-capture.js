@@ -108,17 +108,23 @@
         var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
         ctx = ctx || new AC(); if (ctx.state === 'suspended') ctx.resume();
         var t = ctx.currentTime;
+        var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.connect(ctx.destination);
         list.forEach(function (n) {
-          var o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = n.type || 'sine'; o.frequency.value = n.f;
-          g.gain.setValueAtTime(0.0001, t + n.at); g.gain.exponentialRampToValueAtTime(n.v || 0.12, t + n.at + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + n.at + n.d);
-          o.connect(g); g.connect(ctx.destination); o.start(t + n.at); o.stop(t + n.at + n.d + 0.02);
+          [[1, 1], [2, 0.28], [3, 0.1]].forEach(function (pt) {   // soft bell: fundamental + quiet overtones
+            var o = ctx.createOscillator(), g = ctx.createGain(), v = (n.v || 0.12) * pt[1];
+            o.type = n.type || 'sine'; o.frequency.value = n.f * pt[0];
+            g.gain.setValueAtTime(0.0001, t + n.at); g.gain.exponentialRampToValueAtTime(v, t + n.at + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + n.at + n.d * (pt[0] === 1 ? 1.6 : 1));
+            o.connect(g); g.connect(lp); o.start(t + n.at); o.stop(t + n.at + n.d * 1.6 + 0.03);
+          });
         });
       } catch (e) {}
     }
+    function isOff() { try { return localStorage.getItem('dsq_fx_off') === '1'; } catch (e) { return false; } }
+    function setOff(v) { try { localStorage.setItem('dsq_fx_off', v ? '1' : '0'); } catch (e) {} }
     return {
+      isOff: isOff, setOff: setOff,
       tick: function () { if (off()) return; vib(10); tones([{ f: 660, at: 0, d: 0.06, v: 0.06 }]); },                                   // sending…
-      success: function () { if (off()) return; vib([40, 60, 40, 60, 120]); tones([{ f: 523, at: 0, d: 0.16 }, { f: 659, at: 0.12, d: 0.16 }, { f: 784, at: 0.24, d: 0.32 }]); },   // booked ✔ (C-E-G)
+      success: function () { if (off()) return; vib([40, 60, 40, 60, 120]); tones([{ f: 523, at: 0, d: 0.14 }, { f: 659, at: 0.11, d: 0.14 }, { f: 784, at: 0.22, d: 0.18 }, { f: 1047, at: 0.34, d: 0.3, v: 0.1 }]); },   // booked ✔ (C-E-G)
       error: function () { if (off()) return; vib([120, 70, 120]); tones([{ f: 220, at: 0, d: 0.2, type: 'triangle', v: 0.1 }, { f: 185, at: 0.16, d: 0.28, type: 'triangle', v: 0.1 }]); }   // didn't go through
     };
   })();
@@ -280,9 +286,20 @@
     });
   }
 
+  /* small "Sounds on/off" switch under each booking form */
+  function fxToggle(form) {
+    if (!form || form.getAttribute('data-dsq-fx')) return; form.setAttribute('data-dsq-fx', '1');
+    try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', FX.isOff() ? 'false' : 'true');
+    b.style.cssText = 'display:block;margin:8px auto 0;background:none;border:0;color:inherit;opacity:.65;font:inherit;font-size:.72rem;cursor:pointer;padding:4px 8px';
+    var paint = function () { b.textContent = FX.isOff() ? '🔕 Sounds off — tap to turn on' : '🔔 Sounds on — tap to turn off'; b.setAttribute('aria-pressed', FX.isOff() ? 'false' : 'true'); };
+    b.addEventListener('click', function () { FX.setOff(!FX.isOff()); paint(); if (!FX.isOff()) FX.tick(); });
+    paint(); form.appendChild(b);
+  }
+
   function scan(root) {
-    (root.querySelectorAll ? root : document).querySelectorAll('#dsqInlineBookForm').forEach(inlineForm);
-    (root.querySelectorAll ? root : document).querySelectorAll('form[action*="formspree.io"]').forEach(formspreeForm);
+    (root.querySelectorAll ? root : document).querySelectorAll('#dsqInlineBookForm').forEach(function (f) { inlineForm(f); fxToggle(f); });
+    (root.querySelectorAll ? root : document).querySelectorAll('form[action*="formspree.io"]').forEach(function (f) { formspreeForm(f); fxToggle(f); });
   }
   function init() {
     scan(document);
