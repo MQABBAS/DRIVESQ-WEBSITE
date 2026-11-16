@@ -97,7 +97,34 @@
     } catch (e) { return Promise.resolve(); }
   }
 
+  /* ---------- small sound + vibration cues (booking forms). Off if the visitor prefers reduced motion or sets localStorage dsq_fx_off=1.
+     Vibration works on most Android phones (iPhones ignore it); sound is a short soft tone and only plays after a tap/click. ---------- */
+  var FX = (function () {
+    var ctx = null;
+    function off() { try { return localStorage.getItem('dsq_fx_off') === '1' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
+    function vib(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+    function tones(list) {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        ctx = ctx || new AC(); if (ctx.state === 'suspended') ctx.resume();
+        var t = ctx.currentTime;
+        list.forEach(function (n) {
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = n.type || 'sine'; o.frequency.value = n.f;
+          g.gain.setValueAtTime(0.0001, t + n.at); g.gain.exponentialRampToValueAtTime(n.v || 0.12, t + n.at + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + n.at + n.d);
+          o.connect(g); g.connect(ctx.destination); o.start(t + n.at); o.stop(t + n.at + n.d + 0.02);
+        });
+      } catch (e) {}
+    }
+    return {
+      tick: function () { if (off()) return; vib(10); tones([{ f: 660, at: 0, d: 0.06, v: 0.06 }]); },                                   // sending…
+      success: function () { if (off()) return; vib([40, 60, 40, 60, 120]); tones([{ f: 523, at: 0, d: 0.16 }, { f: 659, at: 0.12, d: 0.16 }, { f: 784, at: 0.24, d: 0.32 }]); },   // booked ✔ (C-E-G)
+      error: function () { if (off()) return; vib([120, 70, 120]); tones([{ f: 220, at: 0, d: 0.2, type: 'triangle', v: 0.1 }, { f: 185, at: 0.16, d: 0.28, type: 'triangle', v: 0.1 }]); }   // didn't go through
+    };
+  })();
+
   function send(d, fd) {
+    FX.tick();
     return Promise.allSettled([saveToAdmin(d), sendEmail(d, fd)]).then(function (res) {
       var ok = res.some(function (x) { return x.status === 'fulfilled'; });
       if (res[0].status !== 'fulfilled') console.warn('[DriveSQ] booking → admin failed', res[0].reason);
@@ -106,6 +133,7 @@
         notifyAdmin(d);
         try { if (window.gtag) gtag('event', 'generate_lead', { method: d.formName || 'booking_form', page: location.pathname }); } catch (e) {}
       }
+      if (ok) FX.success(); else FX.error();
       return ok;
     });
   }
@@ -264,7 +292,7 @@
     } else stickyBook();
     if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && (n.matches('#dsqInlineBookForm') || n.matches('form[action*="formspree.io"]'))) scan(n.parentNode || document); else scan(n); } }); }); }).observe(document.body, { childList: true, subtree: true });
   }
-  window.DSQBooking = { send: send, fullPostcode: fullPostcode };
+  window.DSQBooking = { send: send, fullPostcode: fullPostcode, fx: FX };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 
