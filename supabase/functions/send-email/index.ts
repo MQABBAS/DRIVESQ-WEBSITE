@@ -96,6 +96,7 @@ const { build, text, personalise } = (function () {
     review: { file: "banner-review.gif", alt: "Help learners find DriveSQ — leave a Google review" },
     camera: { file: "banner-camera.gif", alt: "Share your DriveSQ pass photos" },
     weekly: { file: "banner-weekly.gif", alt: "DriveSQ weekly reminders for instructors" },
+    voucher: { file: "banner-voucher.gif", alt: "£10 off your first 10 driving lesson hours with DriveSQ" },
     none: null
   };
   var FONT = "'Barlow Condensed','Arial Narrow',Arial,Helvetica,sans-serif", BODYF = "Inter,'Segoe UI',Arial,Helvetica,sans-serif";

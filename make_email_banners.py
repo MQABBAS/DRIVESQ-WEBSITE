@@ -212,4 +212,43 @@ def camera():
     save("camera", fr, "Share your DriveSQ pass photos")
 
 
-for fn in (welcome, booked, ready, weekly, review, camera): fn()
+# 7. voucher — "£10 OFF" ticket with a shine sweep and falling confetti
+def voucher():
+    fr = []
+    HUGE = F("BarlowCondensed_800ExtraBold.ttf", 150)
+    cols = [YEL, RED2, WHITE, YEL, RED2, WHITE, YEL]
+    for i in range(N):
+        im, d = frame_base("LIMITED TIME", "£10 OFF YOUR", "FIRST 10 HOURS")
+        pulse = 1 + 0.018 * math.sin(2 * math.pi * i / N)
+        cx, cy, hw, hh = 310, 256, 200 * pulse, 150 * pulse
+        box = [cx - hw, cy - hh, cx + hw, cy + hh]
+        rr(d, [box[0] + 8, box[1] + 10, box[2] + 8, box[3] + 10], 26, fill=(8, 2, 3))            # soft shadow
+        rr(d, box, 26, fill=(252, 247, 238))
+        rr(d, [box[0], box[1], box[2], box[1] + 52], 26, fill=RED); d.rectangle([box[0] * S, (box[1] + 26) * S, box[2] * S, (box[1] + 52) * S], fill=RED)
+        t = "DRIVESQ VOUCHER"; tw = d.textlength(t, font=TAG); d.text(((cx - 0) * S - tw / 2, (box[1] + 8) * S), t, font=TAG, fill=WHITE)
+        for sx in (box[0], box[2]):                                                              # ticket notches
+            d.ellipse([(sx - 24) * S, (box[1] + 244 - 24) * S, (sx + 24) * S, (box[1] + 244 + 24) * S], fill=(46, 6, 10))
+        for k in range(int(box[0] + 34), int(box[2] - 34), 22):                                  # perforation line
+            d.rectangle([k * S, (box[1] + 242) * S, (k + 11) * S, (box[1] + 246) * S], fill=(205, 198, 190))
+        big = "£10"; bw = d.textlength(big, font=HUGE); d.text((cx * S - bw / 2, (box[1] + 32) * S), big, font=HUGE, fill=RED)
+        off = "OFF"; ow = d.textlength(off, font=MID); rr(d, [cx - ow / S / 2 - 20, box[1] + 180, cx + ow / S / 2 + 20, box[1] + 228], 12, fill=YEL); d.text((cx * S - ow / 2, (box[1] + 177) * S), off, font=MID, fill=INK)
+        sm = "10-HOUR BLOCK · PAY £320"; sw_ = d.textlength(sm, font=SMALL); d.text((cx * S - sw_ / 2, (box[1] + 262) * S), sm, font=SMALL, fill=(70, 50, 50))
+        im = im.convert("RGBA")
+        ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); od = ImageDraw.Draw(ov); mk = Image.new("L", im.size, 0); md = ImageDraw.Draw(mk)
+        md.rounded_rectangle([v * S for v in box], radius=26 * S, fill=255)
+        pos = (i - 4) / 12; sx0 = box[0] - 120 + (box[2] - box[0] + 240) * max(0, min(1, pos))
+        if 0 < pos < 1:
+            od.polygon([((sx0) * S, (box[1] - 10) * S), ((sx0 + 60) * S, (box[1] - 10) * S), ((sx0 - 20) * S, (box[3] + 10) * S), ((sx0 - 80) * S, (box[3] + 10) * S)], fill=(255, 255, 255, 120))
+        ov.putalpha(Image.composite(ov.getchannel("A"), Image.new("L", im.size, 0), mk)); im = Image.alpha_composite(im, ov)
+        d = ImageDraw.Draw(im)
+        for k, c in enumerate(cols * 2):                                                          # confetti
+            x = 40 + (k * 83) % 620; y = ((i * 22 + k * 61) % 520) - 30
+            if box[0] - 20 < x < box[2] + 20 and box[1] - 20 < y < box[3] + 20: continue
+            sz = 7 + (k % 3) * 3; d.rectangle([x * S, y * S, (x + sz) * S, (y + sz) * S], fill=c)
+        fr.append(im.convert("RGB"))
+    save("voucher", fr, "£10 off your first 10 driving lesson hours with DriveSQ")
+
+
+_ONLY = os.environ.get("ONLY")
+for fn in (welcome, booked, ready, weekly, review, camera, voucher):
+    if not _ONLY or fn.__name__ == _ONLY: fn()
