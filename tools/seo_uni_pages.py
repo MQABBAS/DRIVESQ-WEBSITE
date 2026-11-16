@@ -38,7 +38,7 @@ def page_shell(slug, title, desc, h1, body, faq, about, related):
 <h2>Questions students ask</h2>{faqh}
 <h2>More for Manchester students</h2><ul>{rel}</ul></main>
 <footer>DriveSQ Driving School · Greater Manchester &amp; Solihull · <a href="/">drivesq.co.uk</a> · <a href="/about.html">About</a> · <a href="/reviews.html">Reviews</a> · <a href="/privacy.html">Privacy</a></footer>
-<script src="/dsq-analytics.js" defer></script><script src="/booking-capture.js?v=20261116" defer></script><script src="/dsq-uni-book.js?v=1" defer></script></body></html>'''
+<script src="/dsq-analytics.js" defer></script><script src="/booking-capture.js?v=20261116" defer></script><script src="/dsq-uni-book.js?v=2" defer></script></body></html>'''
 
 def form(inst, level, campuses):
     return f'<div id="dsqUniBook" data-institution="{html.escape(inst)}" data-level="{level}" data-campuses="{html.escape("|".join(campuses))}"></div>'
@@ -53,10 +53,10 @@ def dvsa_block(centres):
             'See <a href="/manchester-driving-test-pass-rates-by-test-centre.html">all eight Manchester centres</a>.</p>')
 
 OFFER_V = [
- "Lessons are from £35 an hour, manual or automatic, and new learners get their first 10 hours for £330, paid in advance.",
- "You pay from £35 an hour whichever gearbox you choose, and a new learner's first 10 hours cost £330 when paid in advance.",
- "Manual and automatic both start at £35 an hour. If you are new to driving, your first 10-hour block is £330, paid up front.",
- "Our price is £35 an hour for manual or automatic, and a new learner can start with 10 hours for £330, paid in advance."]
+ "Lessons are from £35 an hour, manual or automatic, and students get 10 hours for £320, paid in advance.",
+ "You pay from £35 an hour whichever gearbox you choose, and our student offer is 10 hours for £320 when paid in advance.",
+ "Manual and automatic both start at £35 an hour. As a student, you can book a 10-hour block for £320, paid up front.",
+ "Our price is £35 an hour for manual or automatic, and students can start with 10 hours for £320, paid in advance."]
 PORTAL_V = [
  "Every learner gets the free Student Portal: 700+ theory questions, 14 mock tests, hazard perception practice and a progress tracker.",
  "The free DriveSQ Student Portal comes with your booking, with 700+ theory questions, 14 mock tests, hazard perception training and progress tracking.",
@@ -104,14 +104,14 @@ def inst_page(i, others):
         ("What do I get with my booking?", PORTAL_V[(k + 2) % 4])]
     rel = [("/student-driving-lessons-manchester-universities.html", "Student driving lessons across Manchester"), ("/manchester-driving-test-pass-rates-by-test-centre.html", "Manchester driving test pass rates by test centre")] + [(o["slug"], o["name"]) for o in others[:2]]
     return page_shell(i["slug"], f"Driving Lessons for {name} Students | DriveSQ" if i["level"] == "university" else f"Driving Lessons for {name} Learners (18+) | DriveSQ",
-        f"Driving lessons for {name} {'students' if i['level']=='university' else 'adult learners'}: pick-up from campus or halls, from £35/hr, first 10 hours £330, free Student Portal. Local facts from the {short} website.",
+        f"Driving lessons for {name} {'students' if i['level']=='university' else 'adult learners'}: pick-up from campus or halls, from £35/hr, student offer 10 hours £320, free Student Portal. Local facts from the {short} website.",
         h1, body, faq, {"@type": "CollegeOrUniversity" if i["level"] == "university" else "EducationalOrganization", "name": name}, rel)
 
 def hub():
     U, C = INS["universities"], INS["colleges"]
     cards = lambda L: '<div class="grid2">' + "".join(f'<a href="/{x["slug"]}"><b>{html.escape(x["name"])}</b><small>{html.escape(x["town"])} · {html.escape(x["headline"])}</small></a>' for x in L) + "</div>"
     body = f'''<h1>Student driving lessons in Manchester</h1><div class="meta">Universities and colleges in Greater Manchester · checked against each institution's own website on {INS["checked"]}</div>
-<div class="hero"><strong>One driving school for every Manchester campus.</strong><p>Whether you study at a university, a college or a university centre, DriveSQ teaches manual and automatic lessons from £35 an hour, picks you up from halls, home or campus, and gives you the free Student Portal. New learners get their first 10 hours for £330, paid in advance.</p></div>
+<div class="hero"><strong>One driving school for every Manchester campus.</strong><p>Whether you study at a university, a college or a university centre, DriveSQ teaches manual and automatic lessons from £35 an hour, picks you up from halls, home or campus, and gives you the free Student Portal. Students get 10 hours for £320, paid in advance.</p></div>
 <h2>Universities</h2>{cards(U)}<p>Also in Manchester: the Royal Northern College of Music (<a href="https://www.rncm.ac.uk/" rel="noopener">rncm.ac.uk</a>). If you study there, use the form below and we will match you with an instructor near your halls or home.</p>
 <h2>Colleges for learners aged 18 and over</h2>{cards(C)}
 <h2>Why learn to drive while you study</h2><ul>
@@ -122,12 +122,12 @@ def hub():
 <h2>Book your lessons</h2><p>Four short steps. Your booking goes straight to the DriveSQ team.</p>{form("my university or college", "university", [])}
 <p class="dis"><strong>Independent.</strong> DriveSQ is an independent driving school and is not affiliated with, or endorsed by, any of the institutions named here.</p>'''
     faq = [("Which Manchester universities and colleges do you cover?", "We cover the University of Manchester, Manchester Metropolitan University, the University of Salford, the University of Greater Manchester (formerly the University of Bolton) and the colleges listed on this page, and we teach students from any other institution too. Enter your pick-up postcode on the form."),
-           ("Do you offer a student discount?", "We offer a new learner deal: your first 10 hours for £330, paid in advance, for manual or automatic lessons. Lessons are from £35 an hour for everyone."),
+           ("Do you offer a student discount?", "Yes. Students at the universities and colleges on this page can book 10 hours for £320, paid in advance, for manual or automatic lessons. Lessons are from £35 an hour for everyone."),
            ("Can you pick me up from halls or campus?", "Yes. Tell us your pick-up postcode and whether you want to be collected from your halls, home or campus."),
            ("Is the Student Portal free?", "Yes. It is free for every DriveSQ learner and includes 700+ theory questions, 14 mock tests and hazard perception training.")]
     rel = [("/areas.html", "All the areas we cover"), ("/manchester-driving-test-pass-rates-by-test-centre.html", "Manchester driving test pass rates by test centre"), ("/driving-lessons-for-international-students-manchester.html", "Driving lessons for international students in Manchester"), (PORTAL, "The free DriveSQ Student Portal")]
     return page_shell("student-driving-lessons-manchester-universities.html", "Student Driving Lessons in Manchester | Every University & College | DriveSQ",
-        "Driving lessons for students at every Greater Manchester university and college. From £35/hr, first 10 hours £330, pick-up from halls or campus, free Student Portal.",
+        "Driving lessons for students at every Greater Manchester university and college. From £35/hr, 10 hours for £320, pick-up from halls or campus, free Student Portal.",
         "Student driving lessons in Manchester", body, faq, {"@type": "ItemList", "name": "Manchester universities and colleges"}, rel)
 
 if __name__ == "__main__":

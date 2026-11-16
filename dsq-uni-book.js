@@ -42,7 +42,7 @@
   function stash() { ['name', 'phone', 'email', 'level', 'exp', 'start', 'testdate', 'pc', 'campus', 'notes'].forEach(function (n) { var el = root.querySelector('[name="' + n + '"]'); if (el) keep[n] = el.value; }); keep.times = [].map.call(root.querySelectorAll('.chip.on[data-t]'), function (c) { return c.getAttribute('data-t'); }); }
   function kv(n) { return esc(keep[n] || ''); }
   function head(t, sub) { return bar() + '<h3>' + t + '</h3><p class="sub">' + sub + '</p>'; }
-  var PERK = '<div class="perk"><strong>New learner offer:</strong> your first 10 hours for £330, paid in advance, manual or automatic. Lessons from £35 an hour, and your <strong>free DriveSQ Student Portal</strong> (700+ theory questions, 14 mock tests, progress tracking) is included.</div>';
+  var PERK = '<div class="perk"><strong>Student offer:</strong> 10 hours for £320, paid in advance, manual or automatic. Lessons from £35 an hour, and your <strong>free DriveSQ Student Portal</strong> (700+ theory questions, 14 mock tests, progress tracking) is included.</div>';
 
   function render(err) {
     var h = '';
@@ -106,7 +106,7 @@
     var d = {
       formName: 'Student booking form (' + INST + ')', page: INST + ' students', name: keep.name, phone: keep.phone, email: clean(keep.email),
       service: st.gear + ' Lessons', gearbox: st.gear, experience: keep.exp, start: keep.start, testDate: td, times: times, pickup: where, postcode: pc,
-      notes: ['Institution: ' + INST, 'Level: ' + keep.level, keep.campus ? 'Campus: ' + keep.campus : '', clean(keep.notes)].filter(Boolean).join(' | '),
+      notes: ['Institution: ' + INST, 'Level: ' + keep.level, 'Offer: student 10 hours £320', keep.campus ? 'Campus: ' + keep.campus : '', clean(keep.notes)].filter(Boolean).join(' | '),
       ref: 'DSQ-' + Date.now().toString(36).slice(-5).toUpperCase()
     };
     var btn = root.querySelector('[data-send]'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
