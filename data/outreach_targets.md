@@ -26,3 +26,9 @@ Contact routes below were read from official sites unless marked **verify**.
 - Offer in the emails: **10 hours for £320**, paid in advance, manual or automatic (standard £35 an hour), plus the free Student Portal.
 - Send **one at a time**, personalise the greeting if you have a contact name, and keep a note of when each was sent.
 - If an institution asks for a fee or has a process, follow it. Do not use their name or logo without written permission.
+
+## Flyers (one page, A4, print-ready)
+- 14 PDFs in the `flyers/` folder: one general flyer and one for each institution, each with a QR code to that institution's page.
+- Attach the matching PDF when someone asks for a flyer or summary, or link to it: `https://www.drivesq.co.uk/flyers/<file name>.pdf` once your site has published.
+- The QR codes carry `?utm_source=flyer&utm_medium=print`, so a booking from a scan shows "Campaign: flyer" as its source in admin.
+- Rebuild after any change to the offer or pages: `python3 tools/build_flyers.py`.
