@@ -16036,14 +16036,107 @@ document.addEventListener('click',e=>{
           <p class="dsqm-hero__s">Create a professional DriveSQ email in seconds, preview it, test it, then send it to your customers safely in batches.</p></div>
         <div class="dsqm-hero__stats"><div><b>${subs}</b><small>can be emailed</small></div><div><b>${S.contacts.length - subs}</b><small>unsubscribed</small></div><div><b>${S.campaigns.filter(c => c.status === "sent").length}</b><small>campaigns sent</small></div></div>
       </section>
-      <nav class="dsqm-tabs" role="tablist">${[["compose", "bi-magic", "Create email"], ["templates", "bi-collection-fill", "Templates"], ["audience", "bi-people-fill", "Contacts"], ["campaigns", "bi-send-check-fill", "Campaigns"], ["setup", "bi-gear-fill", "Setup"]].map(t => `<button type="button" role="tab" aria-selected="${S.tab === t[0]}" class="dsqm-tab${S.tab === t[0] ? " is-on" : ""}" data-tab="${t[0]}"><i class="bi ${t[1]}"></i>${t[2]}${t[0] === "setup" && (S.missing || !LS.get("key", "")) ? ' <span class="dsqm-dot"></span>' : ""}</button>`).join("")}</nav>
-      <div class="dsqm-body">${S.missing && S.tab !== "setup" ? missingHTML() : S.tab === "audience" ? audienceHTML() : S.tab === "templates" ? templatesHTML() : S.tab === "campaigns" ? campaignsHTML() : S.tab === "setup" ? setupHTML() : composeHTML()}</div>`;
+      <nav class="dsqm-tabs" role="tablist">${[["compose", "bi-magic", "Create email"], ["templates", "bi-collection-fill", "Templates"], ["audience", "bi-people-fill", "Contacts"], ["campaigns", "bi-send-check-fill", "Campaigns"], ["loop", "bi-arrow-repeat", "Daily loop"], ["setup", "bi-gear-fill", "Setup"]].map(t => `<button type="button" role="tab" aria-selected="${S.tab === t[0]}" class="dsqm-tab${S.tab === t[0] ? " is-on" : ""}" data-tab="${t[0]}"><i class="bi ${t[1]}"></i>${t[2]}${t[0] === "setup" && (S.missing || !LS.get("key", "")) ? ' <span class="dsqm-dot"></span>' : ""}</button>`).join("")}</nav>
+      <div class="dsqm-body">${S.missing && S.tab !== "setup" ? missingHTML() : S.tab === "audience" ? audienceHTML() : S.tab === "templates" ? templatesHTML() : S.tab === "campaigns" ? campaignsHTML() : S.tab === "loop" ? loopHTML() : S.tab === "setup" ? setupHTML() : composeHTML()}</div>`;
     p.onclick = onClick; p.oninput = onInput; p.onchange = onChange;
     if (S.tab === "compose" && !S.missing) { fillCompose(); preview(); }
     if (S.tab === "templates" && !S.missing) thumbs();
     if (S.tab === "setup") bindSetup();
   }
   function missingHTML() { return `<div class="dsqm-card dsqm-empty"><div>🛠️</div><b>One-time setup needed</b><p>The email tables aren't in Supabase yet. Open <b>Setup</b> and follow the steps — it takes about 10 minutes.</p><button type="button" class="btn-p" data-tab="setup"><i class="bi bi-gear-fill"></i>Open setup</button></div>`; }
+
+  /* ===================== DAILY EMAIL LOOP: one email, one list, N a day, round after round ===================== */
+  const LP = { cfg: { enabled: false, listTag: "", perDay: 100, hour: 10, cooldownDays: 30, autoLoop: true, design: null, tplName: "" }, st: null, out: "", loaded: false };
+  async function loopLoad() {
+    try {
+      const r = await db().from("growth_settings").select("key,value").in("key", ["emailloop", "emailloop_state"]);
+      (r.data || []).forEach(x => { if (x.key === "emailloop") Object.assign(LP.cfg, x.value || {}); if (x.key === "emailloop_state") LP.st = x.value; });
+    } catch (e) {}
+    LP.loaded = true; if (S.tab === "loop") render();
+  }
+  async function loopSave() {
+    const r = await db().from("growth_settings").upsert({ key: "emailloop", value: LP.cfg, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (r.error) toast("Couldn't save: " + r.error.message, "error");
+  }
+  function loopLists() {
+    const m = new Map(); S.contacts.filter(c => c.status === "subscribed").forEach(c => (c.tags || []).forEach(t => m.set(t, (m.get(t) || 0) + 1)));
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }
+  function loopHTML() {
+    if (!LP.loaded) { loopLoad(); return `<div class="dsqm-card"><p class="dsqm-p">Loading…</p></div>`; }
+    const c = LP.cfg, subs = S.contacts.filter(x => x.status === "subscribed"), lists = loopLists(), st = LP.st && LP.st.listTag === c.listTag ? LP.st : null;
+    const size = c.listTag === "__all__" ? subs.length : subs.filter(x => (x.tags || []).includes(c.listTag)).length, done = st ? (st.doneKeys || []).length : 0;
+    const pct = size ? Math.min(100, Math.round(done / size * 100)) : 0, days = c.perDay ? Math.ceil(Math.max(0, size - done) / c.perDay) : 0;
+    const tpls = allTemplates(), on = !!c.enabled;
+    return `<div class="dsqm-card"><header><h3><i class="bi bi-arrow-repeat"></i>Daily email loop</h3><span class="dsqm-hint">One email, sent to a list a set number a day, round after round</span></header>
+      <p class="dsqm-p">Pick an email and a list. Every day it sends to the <b>next ${c.perDay || 100}</b> people who haven't had it yet. When it reaches the end of the list it can start again from the beginning (auto-loop) or stop so you can load a new list. <b>Unsubscribed people are never emailed</b>, every email has an unsubscribe link, and nobody is emailed again within the “don't re-email within” days. Nothing is sent until you switch it on.</p>
+      <div class="dsqm-grid2">
+        <label class="dsqm-f"><span>1 · Which email?</span><select class="dsq-inp" id="lp-tpl"><option value="">— choose —</option><option value="__current__"${c.tplName === "__current__" ? " selected" : ""}>The email I'm editing now (Create email tab)</option>${tpls.map(t => `<option value="${h(t.id)}"${c.tplName === t.id ? " selected" : ""}>${h(t.name)}</option>`).join("")}</select></label>
+        <label class="dsqm-f"><span>2 · Which list?</span><select class="dsq-inp" id="lp-list"><option value="">— choose —</option><option value="__all__"${c.listTag === "__all__" ? " selected" : ""}>Everyone subscribed (${subs.length})</option>${lists.map(([t, n]) => `<option value="${h(t)}"${c.listTag === t ? " selected" : ""}>${h(t)} (${n})</option>`).join("")}</select></label>
+      </div>
+      <div class="dsqm-actions" style="justify-content:flex-start;margin:6px 0 12px"><button type="button" class="btn-s" data-paste><i class="bi bi-clipboard-plus"></i>Add a new list (paste emails / CSV, give it a tag)</button><button type="button" class="btn-s" data-import><i class="bi bi-box-arrow-in-down"></i>Import from my enquiries &amp; students</button></div>
+      <div class="dsqm-grid2">
+        <label class="dsqm-f"><span>3 · Emails per day (max 1000; Resend free plan allows 100)</span><input class="dsq-inp" type="number" min="1" max="1000" id="lp-per" value="${h(c.perDay)}"></label>
+        <label class="dsqm-f"><span>Send from (UK hour, 0–21)</span><input class="dsq-inp" type="number" min="0" max="21" id="lp-hour" value="${h(c.hour)}"></label>
+        <label class="dsqm-f"><span>Don't re-email anyone within (days, min 7)</span><input class="dsq-inp" type="number" min="7" max="365" id="lp-cool" value="${h(c.cooldownDays)}"></label>
+        <label class="dsqm-check" style="align-self:end"><input type="checkbox" id="lp-auto"${c.autoLoop ? " checked" : ""}><span><b>Auto-loop</b> — when everyone has had it, start again from the top</span></label>
+      </div>
+      <div style="margin:12px 0;padding:12px;border-radius:10px;border:1px solid ${on ? "#4ade80" : "var(--bdr)"};background:${on ? "rgba(74,222,128,.08)" : "var(--dk2)"}">
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:700"><input type="checkbox" id="lp-on"${on ? " checked" : ""}> Daily loop is <span style="color:${on ? "#4ade80" : "#f59e0b"}">${on ? "ON" : "OFF"}</span></label>
+        <div class="dsqm-p" style="margin:6px 0 0">${size ? `Round ${st ? st.round || 1 : 1}: <b>${done}</b> of <b>${size}</b> done (${pct}%) · about <b>${days}</b> more day${days === 1 ? "" : "s"}${st && st.finished ? " · <b>round finished — stopped</b>" : ""}${st ? " · " + (st.totalSent || 0) + " sent in total" : ""}` : "Choose a list to see progress."}</div>
+        <div style="height:8px;border-radius:5px;background:var(--bdr);margin-top:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4ade80"></div></div></div>
+      <div class="dsqm-actions" style="justify-content:flex-start;flex-wrap:wrap">
+        <button type="button" class="btn-s" data-lp="dry"><i class="bi bi-eye"></i>Preview today's batch</button>
+        <input class="dsq-inp" id="lp-test" type="email" placeholder="your email" style="width:200px"><button type="button" class="btn-s" data-lp="test"><i class="bi bi-send"></i>Send me a test</button>
+        <button type="button" class="btn-s" data-lp="restart"><i class="bi bi-skip-start-fill"></i>Start list again from the top</button>
+        <button type="button" class="btn-p" data-lp="now"><i class="bi bi-lightning-charge-fill"></i>Send today's batch now</button></div>
+      <div id="lp-out" class="dsqm-p" style="margin-top:10px">${LP.out}</div>
+      ${st && (st.history || []).length ? `<div class="dsqm-p" style="margin-top:8px"><b>Recent days:</b> ${st.history.slice(0, 7).map(x => h(x.date) + ": " + x.sent + " sent" + (x.failed ? " (" + x.failed + " failed)" : "") + " · round " + x.round).join(" · ")}</div>` : ""}
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">How to make it run by itself every day</summary><div class="dsqm-p" style="margin-top:6px">In Supabase → Integrations → Cron → Create job: schedule <code>0 * * * *</code> (hourly — it only sends once a day, from your chosen hour), type “Supabase Edge Function”, method POST, add header <code>x-admin-key</code> with your admin email key, body <code>{"action":"loop","cron":true}</code>. Then turn the loop ON above. The email function must be the latest version (paste &amp; Deploy).<br>Free Resend allows 100 emails a day and 3,000 a month — keep “per day” at 100 or below unless you've upgraded. Only email people who agreed to hear from DriveSQ (booked, enquired or opted in): UK PECR/GDPR.</div></details></div>`;
+  }
+  async function loopCall(extra, label) {
+    const o = $("#lp-out"); if (!window.DSQMailSend || !window.DSQMailSend.ready()) { if (o) o.innerHTML = `<span style="color:#f59e0b">Connect email sending first (Setup tab).</span>`; return; }
+    if (o) o.innerHTML = "Working…";
+    try {
+      const j = await window.DSQMailSend.call(Object.assign({ action: "loop" }, extra));
+      if (j.test) LP.out = `<span style="color:#4ade80">✅ Test sent to ${h(j.to)}. Check inbox and spam.</span>`;
+      else if (j.dry) LP.out = `<b>${j.wouldSend}</b> email${j.wouldSend === 1 ? "" : "s"} would go today (${j.listSize} on the list, ${j.doneThisRound} done this round, ${j.skippedRecent || 0} skipped as emailed in the last ${j.cooldownDays} days). ${j.enabled ? "" : "Loop is OFF, so nothing is sent automatically."}`;
+      else if (j.off) LP.out = "Loop is switched OFF — turn it on first.";
+      else if (j.finished) LP.out = h(j.message);
+      else LP.out = `<span style="color:#4ade80">✅ Sent ${j.sent}${j.failed ? ", failed " + j.failed : ""}.</span> ${h(j.roundNote || "")}`;
+      if (!extra.dry && !extra.test_to) { await loopLoad(); }
+    } catch (e) { const m = String((e && e.message) || e); LP.out = `<span style="color:#f87171">${/unknown action/i.test(m) ? "The email function in Supabase isn't the latest version yet — paste the new code and Deploy." : h(m)}</span>`; }
+    if (S.tab === "loop") render();
+  }
+  async function loopClick(k) {
+    const c = LP.cfg;
+    if (k === "dry") return loopCall({ dry: true });
+    if (k === "test") { const to = ($("#lp-test").value || "").trim(); if (!to) { toast("Enter an email address for the test", "warn"); return; } return loopCall({ test_to: to });
+    }
+    if (k === "restart") { if (!confirm("Start the list again from the top? Everyone on it becomes eligible again (still respecting the re-email gap).")) return; LP.st = Object.assign({}, LP.st || {}, { doneKeys: [], finished: false, lastRunDate: "", listTag: c.listTag }); const r = await db().from("growth_settings").upsert({ key: "emailloop_state", value: LP.st, updated_at: new Date().toISOString() }, { onConflict: "key" }); if (r.error) toast("Couldn't restart: " + r.error.message, "error"); LP.out = "Restarted from the top."; return render(); }
+    if (k === "now") {
+      if (!c.design || !c.listTag) { toast("Choose an email and a list first", "warn"); return; }
+      if (!confirm("Send today's batch of up to " + c.perDay + " emails NOW?\n\nReal emails go to real people. Preview first if unsure.")) return;
+      return loopCall({ force: true, cron: false });
+    }
+  }
+  function loopChange(el) {
+    const c = LP.cfg; let ch = true;
+    if (el.id === "lp-tpl") {
+      const v = el.value; if (!v) { c.design = null; c.tplName = ""; }
+      else { const d = v === "__current__" ? design() : (allTemplates().find(x => x.id === v) || {}).design; if (!d) return; c.design = JSON.parse(JSON.stringify(d)); c.tplName = v; }
+    } else if (el.id === "lp-list") c.listTag = el.value;
+    else if (el.id === "lp-per") c.perDay = Math.min(1000, Math.max(1, parseInt(el.value, 10) || 100));
+    else if (el.id === "lp-hour") c.hour = Math.min(21, Math.max(0, parseInt(el.value, 10) || 0));
+    else if (el.id === "lp-cool") c.cooldownDays = Math.min(365, Math.max(7, parseInt(el.value, 10) || 30));
+    else if (el.id === "lp-auto") c.autoLoop = el.checked;
+    else if (el.id === "lp-on") {
+      if (el.checked && (!c.design || !c.listTag)) { toast("Choose an email and a list first", "warn"); el.checked = false; return; }
+      if (el.checked && !confirm("Turn the daily loop ON?\n\nIt will email up to " + c.perDay + " people a day from " + c.hour + ":00 UK time (once the Cron job is set up). Preview and send yourself a test first.")) { el.checked = false; return; }
+      c.enabled = el.checked;
+    } else ch = false;
+    if (ch) { loopSave().then(() => render()); }
+  }
 
   /* ===================== COMPOSE ===================== */
   const DEFAULT = () => Object.assign(M.generate("news", "friendly", {}), { name: "", theme: "classic" });
@@ -16898,6 +16991,7 @@ document.addEventListener('click',e=>{
     if (a("data-deltpl")) { deleteTemplate(a("data-deltpl")); return; }
     if (t.hasAttribute("data-save")) { LS.set("draft", design()); toast("Draft saved on this device", "success"); return; }
     if (t.hasAttribute("data-dl")) { const blob = new Blob([finalHTML(design())], { type: "text/html" }); const l = document.createElement("a"); l.href = URL.createObjectURL(blob); l.download = (design().name || "drivesq-email").replace(/[^\w-]+/g, "-") + ".html"; l.click(); return; }
+    if (a("data-lp")) { loopClick(a("data-lp")); return; }
     if (t.hasAttribute("data-test")) { sendTest(); return; }
     if (t.hasAttribute("data-send")) { if (!S.contacts.length) { toast("Add contacts first (Contacts → Import now)", "warn", 6000); return; } audiencePicker(); return; }
     if (t.hasAttribute("data-import")) { importFromAdmin(); return; }
@@ -16935,6 +17029,7 @@ document.addEventListener('click',e=>{
   function onChange(ev) {
     const el = ev.target;
     if (el.hasAttribute && el.hasAttribute("data-fmtsel")) { if (el.value) insertFmt("raw:" + el.value); el.value = ""; return; }
+    if (el.id && el.id.indexOf("lp-") === 0 && el.id !== "lp-test") { loopChange(el); return; }
     if (el.id === "dm-src") { S.src = el.value; render(); return; }
     if (el.id === "dm-status") { S.status = el.value; render(); return; }
     if (el.hasAttribute("data-sel")) { const id = el.getAttribute("data-sel"); if (el.checked) S.selected.add(id); else S.selected.delete(id); render(); return; }
