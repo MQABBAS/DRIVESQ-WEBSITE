@@ -7903,17 +7903,18 @@ async function setInstrEmailOptOut(id,kind,out){
 let _frCfgCache=null;
 async function _frCfg(force){
   if(_frCfgCache&&!force)return _frCfgCache;
-  try{const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();_frCfgCache=Object.assign({franchiseDef:50,franchiseBy:{}},(r.data&&r.data.value)||{});if(r.error)_frCfgCache._missing=/growth_settings|PGRST205|schema cache|does not exist/i.test(r.error.message||'');}
-  catch(e){_frCfgCache={franchiseDef:50,franchiseBy:{}};}
+  try{const r=await sb.from('growth_settings').select('value').eq('key','config').maybeSingle();_frCfgCache=Object.assign({franchiseDef:50,franchiseNew:60,newFrom:'2026-11-16',franchiseBy:{}},(r.data&&r.data.value)||{});if(r.error)_frCfgCache._missing=/growth_settings|PGRST205|schema cache|does not exist/i.test(r.error.message||'');}
+  catch(e){_frCfgCache={franchiseDef:50,franchiseNew:60,newFrom:'2026-11-16',franchiseBy:{}};}
   if(!_frCfgCache.franchiseBy)_frCfgCache.franchiseBy={};
   return _frCfgCache;
 }
-function _frFeeOf(id){const c=_frCfgCache;if(!c)return null;const v=parseFloat((c.franchiseBy||{})[id]);return isNaN(v)?(parseFloat(c.franchiseDef)||0):v;}
+/* New-instructor terms: instructors who joined on or after c.newFrom (16 Nov 2026) default to £60 a week; earlier ones keep franchiseDef. A fee set on the profile (franchiseBy) always wins. */
+function _frFeeOf(id){const c=_frCfgCache;if(!c)return null;const v=parseFloat((c.franchiseBy||{})[id]);if(!isNaN(v))return v;const i=(typeof allInstrs!=='undefined'?allInstrs:[]).find(x=>x.id===id);const nf=c.newFrom||'2026-11-16';return(i&&i.created_at&&String(i.created_at).slice(0,10)>=nf)?(parseFloat(c.franchiseNew)||60):(parseFloat(c.franchiseDef)||0);}
 async function _frFeeFill(instr){
   const w=document.getElementById('edit-frfee-wrap'),inp=document.getElementById('edit-frfee'),sel=document.getElementById('edit-model');
   const show=()=>{w.style.display=sel.value==='franchise'?'':'none';};sel.onchange=show;show();
   inp.value='';const c=await _frCfg(true);const v=(c.franchiseBy||{})[instr.id];
-  inp.value=v===undefined||v===null||v===''?'':v;inp.placeholder='Default £'+(parseFloat(c.franchiseDef)||0);
+  inp.value=v===undefined||v===null||v===''?'':v;inp.placeholder='Default £'+(_frFeeOf(instr.id)||0);
   let warn=document.getElementById('edit-frfee-warn');if(!warn){warn=document.createElement('div');warn.id='edit-frfee-warn';warn.style.cssText='font-size:.7rem;color:#f87171;margin-top:4px;font-weight:600';inp.parentNode.appendChild(warn);}
   warn.textContent=c._missing?'⚠️ Can\'t save yet: run the database update 20261110_growth_tools_core.sql once in Supabase → SQL Editor.':'';
 }

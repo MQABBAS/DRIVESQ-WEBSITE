@@ -23,7 +23,7 @@
   const SQL_FILE = "supabase/migrations/20261023_growth_tools.sql";
   const LOST = ["Price", "Too far / no instructor nearby", "Booked with another school", "Couldn't reach them", "Times didn't suit", "Wanted automatic/manual we couldn't offer", "Not ready yet / browsing", "Other"];
   const REPLY = { booked: ["✅", "Booked", "g"], not_yet: ["⏳", "Not booked yet", "a"], unreachable: ["📵", "Can't reach them", "r"], not_interested: ["🚫", "Not going ahead", "r"] };
-  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 25, franchiseDef: 50, franchiseBy: {}, channels: ["Google Ads"] };
+  const DEF = { autoChase: true, firstAfter: 3, every: 3, max: 3, useEmail: true, useApp: true, refFee: 25, franchiseDef: 50, franchiseNew: 60, newFrom: "2026-11-16", franchiseBy: {}, channels: ["Google Ads"] };
 
   const G = { cfg: Object.assign({}, DEF), refs: [], wl: [], spend: {}, followups: {}, push: new Set(), hasRefCols: null, hasWlCols: null, hasSpend: null, hasCfg: null, loaded: false, loading: null, tab: "chase", month: "this", timer: null, running: false, lastRun: 0 };
   const LSK = k => "dsqg_" + k;
@@ -264,7 +264,7 @@
 
   /* ───────── money ───────── */
   function monthRange(which) { const d = new Date(); const a = which === "last" ? new Date(d.getFullYear(), d.getMonth() - 1, 1) : new Date(d.getFullYear(), d.getMonth(), 1); const b = new Date(a.getFullYear(), a.getMonth() + 1, 1); return [a, b]; }
-  const frFee = id => { const v = parseFloat(G.cfg.franchiseBy[id]); return isNaN(v) ? G.cfg.franchiseDef : v; };
+  const frFee = id => { const v = parseFloat(G.cfg.franchiseBy[id]); if (!isNaN(v)) return v; const i = (typeof allInstrs !== "undefined" ? allInstrs : []).find(x => x.id === id); return (i && i.created_at && String(i.created_at).slice(0, 10) >= (G.cfg.newFrom || "2026-11-16")) ? (parseFloat(G.cfg.franchiseNew) || 60) : G.cfg.franchiseDef; };
   function forecast() {
     const [a, b] = monthRange("this"), [la, lb] = monthRange("last");
     const paidIn = (x, y) => G.refs.filter(r => r.is_paid && !r.is_cancelled && !r.is_credit && new Date(r.paid_at || r.created_at) >= x && new Date(r.paid_at || r.created_at) < y);
@@ -490,7 +490,7 @@
       <div class="gx-scroll">${prospectsChart(pros)}</div>
       ${pros.length ? `<div class="gx-acts" style="margin-top:8px">${pros.slice(0, 6).map(x => `<button class="gx-btn ${x.ratio >= 1 ? "p" : ""}" data-act="frreport" data-id="${h(x.i.id)}"><i class="bi bi-file-earmark-bar-graph"></i>${h(first(x.i.full_name))} · report</button>`).join("")}</div>` : ""}</div>`;
     html += `<div class="gx-card"><h4><i class="bi bi-arrow-up-right-circle-fill"></i>Franchise pitch builder</h4><p class="gx-sub">Compares what each referral instructor pays you now with a weekly franchise fee. A strong fit gets plenty of students from you and would pay you the same or more on franchise.</p>
-      <div class="gx-row" style="margin-bottom:10px"><label class="gx-field">Default weekly fee<input class="dsq-inp" type="number" min="0" step="5" data-cfg="franchiseDef" value="${h(G.cfg.franchiseDef)}"></label></div>
+      <div class="gx-row" style="margin-bottom:10px"><label class="gx-field">Default weekly fee (instructors who joined before 16 Nov 2026)<input class="dsq-inp" type="number" min="0" step="5" data-cfg="franchiseDef" value="${h(G.cfg.franchiseDef)}"></label><label class="gx-field">New joiners (from 16 Nov 2026)<input class="dsq-inp" type="number" min="0" step="5" data-cfg="franchiseNew" value="${h(G.cfg.franchiseNew)}"></label></div>
       ${cands.map(x => { const tone = x.fit === "Strong" ? "g" : x.fit === "Possible" ? "a" : ""; return `<div class="gx-item" style="--c:${x.fit === "Strong" ? "#22c55e" : x.fit === "Possible" ? "#f59e0b" : "var(--bdr)"}"><div class="mn"><div class="t">${h(x.i.full_name)} <span class="gx-chip ${tone}">${x.fit}</span></div>
         <div class="d">Last 3 months: ${x.s.n} students sent, ${x.s.booked} booked → paid you ${money(x.s.fees)} (≈${money(x.feesM)}/month). On franchise at ${money(x.fee)}/week ≈ ${money(x.frM)}/month <b style="color:${x.gain >= 0 ? "#4ade80" : "#f87171"}">(${x.gain >= 0 ? "+" : "−"}${money(Math.abs(x.gain))}/month for DriveSQ)</b></div>
         <div class="gx-acts"><label class="gx-field" style="flex-direction:row;align-items:center;gap:6px">£/week <input class="dsq-inp" style="width:76px" type="number" min="0" step="5" data-frfee="${h(x.i.id)}" value="${h(x.fee)}"></label>

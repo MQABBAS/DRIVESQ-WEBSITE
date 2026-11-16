@@ -6,7 +6,7 @@
    Everything here only uses functions admin.html already has; if one is missing, that feature quietly stays off. */
 (function () {
   "use strict";
-  const REF_FEE = 25, FEE_FROM = "2 November 2026";
+  const REF_FEE = 25, FEE_FROM = "2 November 2026", REF_FEE_NEW = 40, NEW_FROM = "2026-11-16";   // new instructors (joined on or after 16 Nov 2026) default to £40 a student
   const $ = (s, r) => (r || document).querySelector(s);
   const instrs = () => { try { return Array.isArray(allInstrs) ? allInstrs : []; } catch (e) { return []; } };
   const toast = (m, t, ms) => { try { showToast(m, t || "info", ms || 3000); } catch (e) {} };
@@ -14,13 +14,14 @@
   const h = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   /* ───── 1. referral fee ───── */
-  function feeFor(id) { const i = instrs().find(x => x.id === id); return i && i.instructor_model === "franchise" ? 0 : REF_FEE; }
+  const isNewJoiner = i => !!(i && i.created_at && String(i.created_at).slice(0, 10) >= NEW_FROM);
+  function feeFor(id) { const i = instrs().find(x => x.id === id); return i && i.instructor_model === "franchise" ? 0 : (isNewJoiner(i) ? REF_FEE_NEW : REF_FEE); }
   function fillFee(inputId, instrId) {
     const el = document.getElementById(inputId); if (!el || el.dataset.touched) return;
     el.value = feeFor(instrId);
     let hint = document.getElementById(inputId + "-hint");
     if (!hint) { hint = document.createElement("div"); hint.id = inputId + "-hint"; hint.style.cssText = "font-size:.68rem;color:var(--txt3);margin-top:6px"; el.closest("div[style*='display:flex']")?.after(hint); }
-    if (hint) hint.textContent = feeFor(instrId) ? `Referral fee is £${REF_FEE} from ${FEE_FROM} — change it here if this one is different.` : "Franchise instructor — no referral fee.";
+    if (hint) { const ii = instrs().find(x => x.id === instrId); hint.textContent = feeFor(instrId) ? (isNewJoiner(ii) ? `New instructor (joined from 16 November 2026): referral fee is £${REF_FEE_NEW} — change it here if this one is different.` : `Referral fee is £${REF_FEE} from ${FEE_FROM} — change it here if this one is different.`) : "Franchise instructor — no referral fee."; }
   }
   document.addEventListener("input", e => { if (/^(assign|cs)-referral-amount$/.test(e.target.id)) e.target.dataset.touched = "1"; });
   document.addEventListener("change", e => { if (e.target.id === "cs-instr") fillFee("cs-referral-amount", e.target.value); });

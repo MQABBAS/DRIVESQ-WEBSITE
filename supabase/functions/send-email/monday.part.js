@@ -97,8 +97,9 @@ async function monday(sb, req, body) {
   const only = Array.isArray(body.only) ? body.only : ["W", "F", "R"];
 
   const cfgRow = await sb.from("growth_settings").select("value").eq("key", "config").maybeSingle();
-  const cfg = Object.assign({ franchiseDef: 50, franchiseBy: {}, refFee: 25 }, (cfgRow.data && cfgRow.data.value) || {});
-  const feeFor = (id) => { const v = parseFloat((cfg.franchiseBy || {})[id]); return isNaN(v) ? parseFloat(cfg.franchiseDef) || 0 : v; };
+  const cfg = Object.assign({ franchiseDef: 50, franchiseNew: 60, newFrom: "2026-11-16", franchiseBy: {}, refFee: 25 }, (cfgRow.data && cfgRow.data.value) || {});
+  // a fee set on the instructor's profile wins; otherwise instructors who joined on or after cfg.newFrom (16 Nov 2026) pay franchiseNew (£60), earlier ones franchiseDef
+  const feeFor = (ins) => { const v = parseFloat((cfg.franchiseBy || {})[ins.id]); if (!isNaN(v)) return v; const joined = String(ins.created_at || "").slice(0, 10); return joined && joined >= String(cfg.newFrom || "2026-11-16") ? (parseFloat(cfg.franchiseNew) || 60) : (parseFloat(cfg.franchiseDef) || 0); };
   const refAmt = (r) => parseFloat(r.amount) || 0;   // the amount in the Referrals section, exactly as admin shows it (blank = no fee)
 
   let insQ = sb.from("instructors").select("*").eq("status", "approved");
@@ -123,7 +124,7 @@ async function monday(sb, req, body) {
   for (const ins of instructors || []) {
     const model = String(ins.instructor_model || "").toLowerCase();
     if (only.includes("F") && model === "franchise") {
-      const fee = feeFor(ins.id);
+      const fee = feeFor(ins);
       if (fee > 0 && !already(ins.id, "💰 DriveSQ franchise fee")) jobs.push({ ins, kind: "F", d: franchiseDesign(ins, ws, fee), type: "franchise_fee", amount: fee });
     }
     if (only.includes("R") && model === "referral") {
