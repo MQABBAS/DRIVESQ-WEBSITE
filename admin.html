@@ -6947,17 +6947,19 @@ function instrNewStudentMsg(d,opts){
   if(postcode){const nz=v=>String(v).toUpperCase().replace(/[^A-Z0-9]/g,'');const k=nz(postcode);
     street=street.split(',').map(x=>x.trim()).filter(x=>x&&nz(x)!==k&&!(nz(x).endsWith(k)&&nz(x).length<=k.length+1)).join(', ').replace(new RegExp(postcode.replace(/\s+/,'\\s*')+'$','i'),'').replace(/[,\s]+$/,'').trim();}
   const pickup=street||(postcode?'Street not given — see postcode':'');
-  const lessons=[d.lessonType||get('Gearbox'),d.pkg||get('Package')].filter(Boolean).join(' · ');
+  const lessons=d.lessonType||get('Gearbox')||'', pkgTxt=d.pkg||get('Package')||'', pickNote=get('Pick-up');
   const rows=[['👤',  'Name',           d.name],
               ['📞',  'Phone',          fmtP(d.phone)],
               ['📧',  'Email',          d.email||get('Email')],
               ['📍',  'Pick-up',        pickup],
               ['📮',  'Postcode',       postcode],
               ['🚗',  'Lessons',        lessons],
+              ['📦',  'Package',        pkgTxt],
+              ['🚏',  'Pick-up note',   pickNote],
               ['📅',  'Wants to start', d.start||get('Start')||get('Start date')],
               ['🕒',  'Availability',   d.avail||get('Availability')],
               ['🎯',  'Test booked',    d.testDate||get('Test date')],
-              ['🏁',  'Test centre',    d.testCentre],
+              ['🏁',  'Test centre',    d.testCentre||get('Test centre')],
               ['🎫',  'Booking ref',    d.ref||get('Ref')],
               ['📝',  'Notes',          d.extraNotes||cleanNotes]].filter(r=>r[2]);
   const src=d.source||(/\[WEB\]/i.test(notes)?'website booking':'');
@@ -8609,7 +8611,7 @@ function _fcCtxFor(name){
   const n=String(name||'').trim().toLowerCase(),c=window._fcCtxName;
   if(c&&n&&c!==n){window._waitlistIdToAssign=null;window._pendingWbId=null;_reassignContext=null;window._fcCtxName=null;}
 }
-function _fcClearCtx(){window._waitlistIdToAssign=null;window._pendingWbId=null;_reassignContext=null;window._fcCtxName=null;}
+function _fcClearCtx(){window._fcRawNotes='';window._waitlistIdToAssign=null;window._pendingWbId=null;_reassignContext=null;window._fcCtxName=null;}
 async function findClosest(){
   const studentName=document.getElementById('fc-name').value.trim();
   const postcode=document.getElementById('fc-postcode').value.trim().toUpperCase().replace(/\s+/g,'');
@@ -9093,7 +9095,7 @@ function openAssignModal(instrId,instrName,instrPhone){
     ...(s.notes?[['📝 Notes', s.notes]]:[])
   ];
   document.getElementById('assignDetails').innerHTML='<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">'+rows.map(([k,v])=>`<span style="color:var(--txt3);white-space:nowrap">${k}</span><span style="color:var(--txt)">${esc(v)}</span>`).join('')+'</div>';
-  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n---\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${s.testCentre?'🏁 *Test centre:* '+s.testCentre.name+' ('+s.testCentre.postcode+')\n':''}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}---\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
+  const waMsg=`Hi ${instrName}! 👋\n\n*A new student has been assigned to you by DriveSQ admin.*\n\n---\n👤 *Name:* ${s.name||'—'}\n📞 *Phone:* ${s.phone||'Not provided'}\n📧 *Email:* ${s.email||'Not provided'}\n🏠 *Address:* ${s.addr||'—'}\n🏷️ *Postcode:* ${fmtPostcode(s.postcode)||'—'}\n🚗 *Lesson type:* ${s.type||'Manual'}\n${_fcX('Package')?'📦 *Package:* '+_fcX('Package')+'\n':''}${_fcX('Pick-up')?'🚏 *Pick-up:* '+_fcX('Pick-up')+'\n':''}${s.avail?'🕐 *Availability:* '+s.avail+'\n':''}${_fcX('Test date')?'🎯 *Test date:* '+_fcX('Test date')+'\n':''}${s.testCentre?'🏁 *Test centre:* '+s.testCentre.name+' ('+s.testCentre.postcode+')\n':(_fcX('Test centre')?'🏁 *Test centre:* '+_fcX('Test centre')+'\n':'')}${s.notes?'📝 *Notes:* '+s.notes+'\n':''}---\n\nThey will appear in your roster on your instructor portal. Please contact them to arrange their first lesson.\n\n🔗 *Your Instructor Portal:*\n${PORTAL_URL}\n\n— DriveSQ Admin`;
   const waFull=buildWaNum(instrPhone);
   document.getElementById('waLink').href=`https://wa.me/${waFull}?text=${encodeURIComponent(waMsg)}`;
   // Student WhatsApp
@@ -9336,6 +9338,7 @@ async function _finishWaitlist(instrId,s){
   return _wlId;
 }
 function resetFindForm(afterAssign){
+  window._fcRawNotes='';
   ['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes','fc-source','fc-test','fc-test-other'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _fcTestChange(true);
   if(afterAssign)try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
@@ -11016,6 +11019,8 @@ async function loadWaitlist(){
 /* Notes that go with a student when you Find & Assign: the page they booked from ONCE, a "booking email sent" line, and only what a person typed.
    Everything else on the enquiry (Ref, Page, Source, Landing, Ad campaign, gearbox, package, start, test date, experience, pick-up, availability, email…) stays on the
    waiting-list entry / student profile that only admin sees — the instructor message still reads Pick-up, Start and Test date from it. */
+/* a field the website form saved on the enquiry (Package, Test date, Pick-up, Test centre…), for the instructor messages */
+function _fcX(k,raw){const m=String(raw!=null?raw:(window._fcRawNotes||'')).match(new RegExp('(?:^|\\n)\\s*'+k+':\\s*([^\\n]+)','i'));return m?m[1].trim():'';}
 function _fcCleanNotes(raw){
   const lines=String(raw||'').split('\n').map(l=>l.trim()).filter(Boolean);
   let page='',sent=false,path='';const keep=[],seen=new Set();
@@ -11026,7 +11031,7 @@ function _fcCleanNotes(raw){
     if(/booking email sent successfully/i.test(l)){sent=true;continue;}
     if(/📧|📣|email sent|reminder sent/i.test(l)){if(/welcome email sent|booked email sent|booking received|booking email/i.test(l))sent=true;continue;}
     m=l.match(/^Page:\s*(.+)$/i);if(m){if(!path)path=m[1].trim();continue;}
-    if(/^(Email|Ref|Package|Gearbox|Transmission|Service|Postcode|Address|Pick-?up street|Pick-up|Start|Start date|Availability|Source|Landing|Ad campaign|Campaign|Experience|Test date|Admin notes|Reassigning from)\s*:/i.test(l))continue;
+    if(/^(Email|Ref|Package|Gearbox|Transmission|Service|Postcode|Address|Pick-?up street|Pick-up|Start|Start date|Availability|Source|Landing|Ad campaign|Campaign|Experience|Test date|Test centre|Admin notes|Reassigning from)\s*:/i.test(l))continue;
     const t=l.replace(/^Notes:\s*/i,'').trim();if(!t||seen.has(t.toLowerCase()))continue;seen.add(t.toLowerCase());keep.push(t);
   }
   if(!page&&path){page=path.replace(/^\/+|\.html$/g,'').replace(/[-_\/]+/g,' ').trim();page=page?page.charAt(0).toUpperCase()+page.slice(1):'';}
@@ -11063,7 +11068,7 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
     r.area=_fcAddrOnly(r.area,r.postcode||postcode);
     const email=_extractEmailFromNotes(notes);
     const _av=(notes||'').match(/Availability:\s*([^\n]+)/i);
-    const cleanNotes=_fcCleanNotes(notes);
+    const cleanNotes=_fcCleanNotes(notes);window._fcRawNotes=String(notes||'');
     const fields={['fc-name']:name,['fc-postcode']:r.postcode||postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:r.area||'',['fc-avail']:_av?_av[1].trim():'',['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=r.lesson_type||type||'Manual';
@@ -11307,7 +11312,7 @@ async function openWbCreateStudent(wbId){
   const _availM=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
   const avail=_availM?_availM[1].trim():'';
   _wlNormalise(r);
-  const cleanNotes=_fcCleanNotes(r.notes||'');
+  const cleanNotes=_fcCleanNotes(r.notes||'');window._fcRawNotes=String(r.notes||'');
 
   // Fill form fields — use a longer delay so the Find tab panel is fully visible
   setTimeout(()=>{
