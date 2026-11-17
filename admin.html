@@ -6939,7 +6939,7 @@ function instrNewStudentMsg(d,opts){
   const fmtP=p=>{const x=String(p||'').replace(/\D/g,'');return x.length===11&&x[0]==='0'?x.slice(0,5)+' '+x.slice(5):String(p||'').trim();};
   const notes=String(d.notes||'');
   const get=k=>{const m=notes.match(new RegExp('(?:^|\\n)\\s*'+k+':\\s*([^\\n]+)','i'));return m?m[1].trim():'';};
-  const cleanNotes=notes.split('\n').filter(l=>l.trim()&&!/^\s*(Email|Ref|Package|Gearbox|Postcode|Address|Start|Start date|Availability|Source|Test date):/i.test(l)&&!/\[WEB\]|\[SQ DRIVING SCHOOL\]|email sent|Booking form/i.test(l)).join(' ').trim();
+  const cleanNotes=_fcCleanNotes(notes).split('\n').join(' · ');
   const pcRaw=String(d.postcode||get('Postcode')||'').trim().toUpperCase().replace(/\s+/g,' ');
   const pcm=String(d.addr||'').toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/);
   const postcode=pcRaw||(pcm?pcm[1].replace(/\s+/,' '):'');
@@ -9239,7 +9239,7 @@ async function confirmAssign(){
       const{data:_wlRow}=await sb.from('waiting_list').select('notes').eq('id',_wlId).maybeSingle();
       let _wn=String(_wlRow?.notes||'');
       if(s.avail&&!/Availability:/i.test(_wn))_wn+=(_wn?'\n':'')+'Availability: '+s.avail;
-      if(s.notes&&_wn.indexOf(s.notes)<0)_wn+=(_wn?'\n':'')+'Admin notes: '+s.notes;
+      {const _extra=_fcCleanNotes(s.notes).split('\n').filter(l=>l&&!/^(Booked via:|📧 Booking email sent successfully)/.test(l)&&_fcCleanNotes(_wn).indexOf(l)<0).join('\n');if(_extra)_wn+=(_wn?'\n':'')+'Admin notes: '+_extra;}
       _wlUpd.notes=_wn||null;
       sb.from('waiting_list').update(_wlUpd).eq('id',_wlId).then(()=>{}).catch(()=>{});
     }catch(e){console.warn('waiting_list notes update:',e);}
@@ -11013,6 +11013,25 @@ async function loadWaitlist(){
     </div>`;
   }).join('');
 }
+/* Notes that go with a student when you Find & Assign: the page they booked from ONCE, a "booking email sent" line, and only what a person typed.
+   Everything else on the enquiry (Ref, Page, Source, Landing, Ad campaign, gearbox, package, start, test date, experience, pick-up, availability, email…) stays on the
+   waiting-list entry / student profile that only admin sees — the instructor message still reads Pick-up, Start and Test date from it. */
+function _fcCleanNotes(raw){
+  const lines=String(raw||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  let page='',sent=false,path='';const keep=[],seen=new Set();
+  for(const l of lines){
+    let m=l.match(/^\[(?:WEB|CALL|WHATSAPP|OTHER|SQ DRIVING SCHOOL)\]\s*(.*)$/i);
+    if(m){if(!page&&/^\[WEB\]/i.test(l)){const t=m[1].split(/\s+[—–]\s+/);page=(t.length>1?t.slice(1).join(' — '):t[0]).trim();}continue;}
+    m=l.match(/^Booked via:\s*(.+)$/i);if(m){if(!page)page=m[1].trim();continue;}
+    if(/booking email sent successfully/i.test(l)){sent=true;continue;}
+    if(/📧|📣|email sent|reminder sent/i.test(l)){if(/welcome email sent|booked email sent|booking received|booking email/i.test(l))sent=true;continue;}
+    m=l.match(/^Page:\s*(.+)$/i);if(m){if(!path)path=m[1].trim();continue;}
+    if(/^(Email|Ref|Package|Gearbox|Transmission|Service|Postcode|Address|Pick-?up street|Pick-up|Start|Start date|Availability|Source|Landing|Ad campaign|Campaign|Experience|Test date|Admin notes|Reassigning from)\s*:/i.test(l))continue;
+    const t=l.replace(/^Notes:\s*/i,'').trim();if(!t||seen.has(t.toLowerCase()))continue;seen.add(t.toLowerCase());keep.push(t);
+  }
+  if(!page&&path){page=path.replace(/^\/+|\.html$/g,'').replace(/[-_\/]+/g,' ').trim();page=page?page.charAt(0).toUpperCase()+page.slice(1):'';}
+  return [page?'Booked via: '+page:'',sent?'📧 Booking email sent successfully':'',...keep].filter(Boolean).join('\n');
+}
 function _extractEmailFromNotes(notes){
   // Parses "Email: xxx@xxx.com" from the notes string saved by the website booking form
   const m=(notes||'').match(/Email:\s*([^\n,]+)/i);
@@ -11044,7 +11063,7 @@ function waitlistAssign(id,name,postcode,type,phone,notes,area){
     r.area=_fcAddrOnly(r.area,r.postcode||postcode);
     const email=_extractEmailFromNotes(notes);
     const _av=(notes||'').match(/Availability:\s*([^\n]+)/i);
-    const cleanNotes=(notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Postcode:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Address:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
+    const cleanNotes=_fcCleanNotes(notes);
     const fields={['fc-name']:name,['fc-postcode']:r.postcode||postcode,['fc-phone']:phone,['fc-email']:email,['fc-addr']:r.area||'',['fc-avail']:_av?_av[1].trim():'',['fc-notes']:cleanNotes};
     Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v;});
     document.getElementById('fc-type').value=r.lesson_type||type||'Manual';
@@ -11288,7 +11307,7 @@ async function openWbCreateStudent(wbId){
   const _availM=(r.notes||'').match(/Availability:\s*([^\n]+)/i);
   const avail=_availM?_availM[1].trim():'';
   _wlNormalise(r);
-  const cleanNotes=(r.notes||'').replace(/Email:\s*[^\n]*/i,'').replace(/Availability:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Postcode:\s*[^\n]*/i,'').replace(/(?:^|\n)\s*Address:\s*[^\n]*/i,'').replace(/\[WEB\]/i,'').replace(/\n{2,}/g,'\n').trim();
+  const cleanNotes=_fcCleanNotes(r.notes||'');
 
   // Fill form fields — use a longer delay so the Find tab panel is fully visible
   setTimeout(()=>{
