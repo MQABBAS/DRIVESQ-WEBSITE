@@ -3873,6 +3873,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/dsq-block.js?v=20261120"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
@@ -7134,6 +7135,7 @@ async function loadStudentCredit(s){
   const key=acctId||(profId?'p:'+profId:'n:'+ph10+':'+lname);
   _crCtx={s,acctId,profId,key,rows:[],hist:[],on:false,instrOn:true,form:null,editId:null,missing:false,err:''};
   box.innerHTML='<div style="font-size:.74rem;color:var(--txt4);padding:8px 0"><i class="bi bi-hourglass-split me-1"></i>Loading block payments…</div>';
+  try{if(window.DSQBlock)await DSQBlock.syncFor({sb,st:{name:s.name,accId:acctId,profId:profId,instrId:s.instrId},role:'admin',actor:'Admin'});}catch(e){}
   try{
     const conds=[];if(acctId)conds.push('student_account_id.eq.'+acctId);if(profId)conds.push('student_profile_id.eq.'+profId);
     let q=sb.from('student_credit_ledger').select('*');q=conds.length?q.or(conds.join(',')):q.eq('student_name',s.name||'~');
@@ -7166,7 +7168,7 @@ function _crRender(){
     const d=new Date((r.entry_date||r.created_at)+(r.entry_date?'T12:00:00':''));
     const extra=[r.method&&r.kind==='purchase'?String(r.method).replace(/_/g,' '):'',r.reference?'ref '+r.reference:'',r.instructor_paid!=null&&r.kind==='lesson'?'paid instructor £'+(+r.instructor_paid).toFixed(2):'',r.public_note?'💬 '+r.public_note:'',r.note].filter(Boolean).map(esc).join(' · ');
     return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.76rem;align-items:flex-start"><span style="color:var(--txt4);min-width:74px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}</span>
-      <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${lbl}</strong>${r.created_by_role==='instructor'?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(96,165,250,.18);color:#60a5fa">by instructor</span>':''}${r.edited_at?` <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(245,158,11,.18);color:#f59e0b" title="${esc(new Date(r.edited_at).toLocaleString('en-GB'))}">edited by ${r.edited_by_role==='instructor'?'instructor':'admin'}</span>`:''} <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
+      <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${r.excluded?'Not counted':lbl}</strong>${r.lesson_id?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(34,197,94,.16);color:#22c55e">📅 calendar</span>':''}${r.created_by_role==='instructor'?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(96,165,250,.18);color:#60a5fa">by instructor</span>':''}${r.edited_at?` <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(245,158,11,.18);color:#f59e0b" title="${esc(new Date(r.edited_at).toLocaleString('en-GB'))}">edited by ${r.edited_by_role==='instructor'?'instructor':'admin'}</span>`:''} <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
       <span style="text-align:right;white-space:nowrap;color:var(--txt3)">${_crHrs(run.h)}<br>${_crMoney(run.m)}</span>
       <button class="abtn" style="padding:2px 7px" title="Edit this entry" onclick="crForm('edit','${r.id}')"><i class="bi bi-pencil"></i></button>
       <button class="abtn" style="border-color:rgba(248,113,113,.4);color:#f87171;padding:2px 7px" title="Delete this entry" onclick="crDelete('${r.id}')"><i class="bi bi-trash"></i></button></div>`;}).join('');
@@ -7227,7 +7229,7 @@ async function crSave(){
   if(hrs<=0){showToast('Enter the hours.','error');return;}
   if(c.form==='edit'){
     const old=c.rows.find(x=>String(x.id)===String(c.editId));if(!old)return;
-    const sg=old.kind==='purchase'?1:-1,patch={hours:sg*hrs,amount:sg*amt,entry_date:g('crDate')?.value||old.entry_date,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,public_note:(g('crPub')?.value||'').trim()||null,edited_by_role:'admin',edited_by_name:'Admin',edited_at:new Date().toISOString()};
+    const sg=old.kind==='purchase'?1:-1,patch={hours:sg*hrs,amount:sg*amt,...(old.lesson_id?{overridden:true,excluded:false}:{}),entry_date:g('crDate')?.value||old.entry_date,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,public_note:(g('crPub')?.value||'').trim()||null,edited_by_role:'admin',edited_by_name:'Admin',edited_at:new Date().toISOString()};
     if(old.kind==='lesson'&&g('crPaid')?.value!=='')patch.instructor_paid=parseFloat(g('crPaid').value)||0;
     const{error:eErr}=await sb.from('student_credit_ledger').update(patch).eq('id',old.id);
     if(eErr){showToast('Not saved: '+eErr.message+(/column/i.test(eErr.message)?' — run supabase/migrations/20261119_block_bookings.sql':''),'error',7000);return;}
