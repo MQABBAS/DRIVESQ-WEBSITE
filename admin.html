@@ -2946,6 +2946,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
     <button id="acctab-expenses" onclick="setAccTab('expenses')" style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Expenses</button>
     <button id="acctab-taxsum"   onclick="setAccTab('taxsum')"   style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Tax Summary</button>
     <button id="acctab-overdue"  onclick="setAccTab('overdue')"  style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">Overdue <span id="overdueBadge" style="display:none;background:#f87171;color:#fff;border-radius:10px;padding:1px 7px;font-size:.65rem;margin-left:4px">0</span></button>
+    <button id="acctab-audit"    onclick="setAccTab('audit')"    style="padding:8px 18px;font-size:.8rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;color:var(--txt3);margin-bottom:-2px;letter-spacing:.3px">✅ Booking audit <span id="auditBadge" style="display:none;background:#f59e0b;color:#000;border-radius:10px;padding:1px 7px;font-size:.62rem;margin-left:4px"></span></button>
   </div>
 
   <!-- P&L STATEMENT SUB-PANEL -->
@@ -3095,6 +3096,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
   </div>
 
   <!-- OVERDUE SUB-PANEL -->
+  <div id="accpanel-audit" style="display:none"><div id="accAuditBody"></div></div>
+
   <div id="accpanel-overdue" style="display:none">
     <div style="font-size:.75rem;color:var(--txt4);margin-bottom:14px">Referrals that have been unpaid for 30, 60, or 90+ days. Use this to chase outstanding payments.</div>
     <!-- Overdue buckets -->
@@ -13012,16 +13015,88 @@ function _periodLabel(){
   return{month:'This Month',quarter:'This Quarter',year:'Tax Year',all:'All Time'}[_accPeriod]||'All Time';
 }
 
+/* ══ BOOKING AUDIT — proves the accounts add up and lists everything that needs fixing ══ */
+function _renderAudit(){
+  const el=document.getElementById('accAuditBody');if(!el)return;
+  const fmt=v=>'£'+(+v||0).toFixed(2),start=_accPeriodStart(),end=_accPeriodEnd(),TX=_accTx();
+  const booked=r=>window._refAdminBooked?_refAdminBooked(r):false,p10=v=>String(v||'').replace(/\D/g,'').slice(-10);
+  const instr=id=>(allInstrs||[]).find(i=>String(i.id)===String(id))||{},isFr=id=>String(instr(id).instructor_model||'').toLowerCase()==='franchise';
+  const all=_refData||[],live=all.filter(r=>!r.is_cancelled&&!r.is_credit),inP=r=>{const d=new Date(r.created_at);return d>=start&&d<=end;};
+  const per=live.filter(inP),amt=r=>parseFloat(r.amount)||0;
+  const confirmed=per.filter(booked),awaiting=per.filter(r=>!booked(r)&&r.reply_status==='booked'),notBooked=per.filter(r=>r.flag_color==='red'),cancelled=all.filter(r=>r.is_cancelled&&inP(r)),undecided=per.filter(r=>!booked(r)&&r.reply_status!=='booked'&&r.flag_color!=='red');
+  const sum=l=>l.reduce((a,r)=>a+amt(r),0);
+  const inRef=_accSum(TX.inc,start,end,'referral'),inMan=_accSum(TX.inc,start,end,'manual'),inBlk=_accSum(TX.inc,start,end,'block'),outExp=_accSum(TX.exp,start,end,'expense'),outPay=_accSum(TX.exp,start,end,'payout');
+  const cnt=(k)=>TX.inc.filter(x=>x.kind===k&&x.d>=start&&x.d<=end).length;
+  // ---- problems (all time, still open) ----
+  const issues=[];const add=(id,title,why,rows,fix)=>issues.push({id,title,why,rows,fix});
+  add('nofee','Booked, but no fee set','A student confirmed as booked with a referral instructor, but the fee is £0 or blank — you would never collect it.',live.filter(r=>booked(r)&&!r.is_paid&&!(amt(r)>0)&&!isFr(r.instructor_id)),'Open the instructor and set the fee on that referral.');
+  add('nodate','Paid, but no payment date','Marked paid without a date, so it is counted on the day the referral was created instead of the day it was paid.',live.filter(r=>r.is_paid&&!r.paid_at),'Open the referral and press Edit to add the date it was paid.');
+  add('paidunconf','Paid, but not confirmed as booked','Fee collected for a student you have not confirmed ✅ booked in admin.',live.filter(r=>r.is_paid&&!booked(r)),'Confirm the booking (✅), or mark the fee unpaid if it was a mistake.');
+  const dup={};live.forEach(r=>{const k=p10(r.student_phone)+'|'+r.instructor_id;if(p10(r.student_phone).length>=9)(dup[k]=dup[k]||[]).push(r);});
+  add('dup','Possible duplicate referrals','The same phone number is referred twice to the same instructor — one may be double-counted.',Object.values(dup).filter(g=>g.length>1).flatMap(g=>g.slice(1)),'Keep one, mark the other cancelled.');
+  add('nophone','Referral with no phone number','Without a phone number it cannot be matched to the website enquiry, so its source is lost.',live.filter(r=>!p10(r.student_phone)),'Open the referral and add the phone number.');
+  add('frfee','Franchise instructor with a referral fee','Franchise instructors pay a weekly fee, not referral fees, so this fee is probably wrong.',live.filter(r=>isFr(r.instructor_id)&&amt(r)>0&&!r.is_paid),'Set the referral fee to £0, or switch the instructor to the referral model.');
+  add('stale','Instructor says booked — not confirmed after 7 days','Money you may be owed but is not counted until you press ✅.',live.filter(r=>!booked(r)&&r.reply_status==='booked'&&!r.is_paid&&(Date.now()-new Date(r.created_at))/864e5>7),'Check with the student and press ✅ Booked.');
+  add('cpaid','Cancelled, but marked paid','A fee is recorded as paid on a cancelled referral. It is excluded from income, so check whether money really changed hands.',all.filter(r=>r.is_cancelled&&r.is_paid),'Check the payment; reinstate the referral or refund.');
+  const blkP=(_blkData||[]).filter(r=>r.kind==='purchase'&&(+r.amount||0)>0);
+  add('blknoinstr','Block booking with no instructor','A student block with no instructor attached — the instructor cannot see it and no payout can be released.',blkP.filter(r=>!r.instructor_id),'Open the student → Block payments & credit → choose the instructor.');
+  const byStu={};(_blkData||[]).forEach(r=>{const k=r.student_account_id||r.student_profile_id||r.student_name;(byStu[k]=byStu[k]||{name:r.student_name,h:0,instr:r.instructor_id})&&(byStu[k].h+=+r.hours||0);});
+  add('blkover','Block overspent','More hours used than the student paid for.',Object.values(byStu).filter(x=>x.h<-0.001).map(x=>({student_name:x.name,instructor_id:x.instr,created_at:new Date().toISOString(),amount:0,_note:'over by '+Math.abs(x.h)+'h'})),'Add another block, or edit the lesson hours.');
+  const bad=issues.filter(i=>i.rows.length);const total=bad.reduce((a,i)=>a+i.rows.length,0);
+  const badge=document.getElementById('auditBadge');if(badge){badge.style.display=total?'inline-block':'none';badge.textContent=total||'';}
+  const card=(h,b)=>`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;margin-bottom:12px">${h}${b}</div>`;
+  const row=(a,b,c)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--bdr);font-size:.8rem"><span style="color:var(--txt2)">${a}</span><span style="color:var(--txt3)">${b||''}</span><b style="min-width:84px;text-align:right">${c}</b></div>`;
+  el.innerHTML=
+   `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700">Booking audit · ${esc(_periodLabel())}</div><span style="padding:3px 12px;border-radius:99px;font-size:.74rem;font-weight:700;background:${total?'rgba(245,158,11,.15)':'rgba(74,222,128,.15)'};color:${total?'#f59e0b':'#4ade80'}">${total?'⚠️ '+total+' thing'+(total===1?'':'s')+' to check':'✅ Everything adds up'}</span>
+      <label style="margin-left:auto;font-size:.74rem;color:var(--txt3);display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" ${_accBlocksOn()?'checked':''} onchange="localStorage.setItem('dsq_acc_blocks',this.checked?'1':'0');renderAccounting()"> Count student block payments in income</label></div>`+
+   card('<div style="font-weight:700;margin-bottom:6px">📋 Bookings this period</div>',
+     row('Students referred to instructors','',per.length)+row('✅ Confirmed booked by you',fmt(sum(confirmed))+' in fees',confirmed.length)+row('Instructor says booked — not confirmed yet',fmt(sum(awaiting))+' not counted as owed',awaiting.length)+row('🚩 Not booked / not going ahead','no fee',notBooked.length)+row('No decision yet','still to chase',undecided.length)+row('Cancelled / left','excluded',cancelled.length)+
+     row('<b>Check</b>: every referral has a status','',per.length===confirmed.length+awaiting.length+notBooked.length+undecided.length?'✔ matches':'✖ '+(per.length-confirmed.length-awaiting.length-notBooked.length-undecided.length)))+
+   card('<div style="font-weight:700;margin-bottom:6px">💷 Money — cash basis (counted on the day it was paid)</div>',
+     row('Referral fees collected',cnt('referral')+' paid',fmt(inRef))+row('Manual income entries',cnt('manual')+' entries',fmt(inMan))+row('Student block payments (paid to DriveSQ)',_accBlocksOn()?cnt('block')+' blocks':'switched off',fmt(_accBlocksOn()?inBlk:0))+
+     row('<b>Total money in</b>','',fmt(inRef+inMan+(_accBlocksOn()?inBlk:0)))+row('Business expenses','',fmt(outExp))+row('Instructor payouts released from blocks','',fmt(_accBlocksOn()?outPay:0))+
+     row('<b>Profit</b>','',fmt(inRef+inMan+(_accBlocksOn()?inBlk-outPay:0)-outExp))+
+     `<div style="font-size:.7rem;color:var(--txt4);margin-top:8px">Fees you are still owed on confirmed bookings: <b>${fmt(sum(live.filter(_refOwes)))}</b> (not counted as income until paid). This page uses the same figures as the KPI cards, chart, monthly table and tax summary.</div>`)+
+   (bad.length?bad.map(i=>card(`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="color:#f59e0b">⚠️ ${esc(i.title)}</b><span style="background:rgba(245,158,11,.18);color:#f59e0b;border-radius:99px;padding:0 8px;font-size:.7rem;font-weight:800">${i.rows.length}</span></div><div style="font-size:.76rem;color:var(--txt3);margin:4px 0 6px">${esc(i.why)} <i>${esc(i.fix)}</i></div>`,
+      i.rows.slice(0,12).map(r=>`<div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--bdr);font-size:.78rem"><span style="flex:1;min-width:0"><b>${esc(r.student_name||'Student')}</b> <span style="color:var(--txt4)">${esc(instr(r.instructor_id).full_name||'no instructor')} · ${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}${r._note?' · '+esc(r._note):''}</span></span><span style="color:var(--txt3)">${fmt(amt(r))}</span>${r.instructor_id?`<button class="btn-s" style="font-size:.68rem;padding:3px 9px" onclick="openRefDetail('${r.instructor_id}',true)">Open</button>`:''}</div>`).join('')+(i.rows.length>12?`<div style="font-size:.72rem;color:var(--txt4);padding-top:6px">…and ${i.rows.length-12} more</div>`:''))).join(''):card('<div style="color:#4ade80;font-weight:700">✅ No problems found in your referrals or block bookings.</div>',''));
+}
+
 /* Sub-tab */
 function setAccTab(t){
   _accTab=t;
-  ['pl','income','expenses','taxsum','overdue'].forEach(k=>{
+  ['pl','income','expenses','taxsum','overdue','audit'].forEach(k=>{
     const panel=document.getElementById('accpanel-'+k);
     const btn=document.getElementById('acctab-'+k);
     if(panel)panel.style.display=k===t?'':'none';
     if(btn){btn.style.borderBottomColor=k===t?'var(--gold)':'transparent';btn.style.color=k===t?'var(--gold)':'var(--txt3)';}
   });
 }
+
+/* ══ ONE place that works out every pound in and out, so the KPIs, chart, monthly table, tax summary and audit always agree ══
+   Money IN  : referral fees (counted on the day PAID), manual income entries, student block payments paid to DriveSQ
+   Money OUT : expenses, instructor payouts released from block bookings
+   Expected  : referral fees not yet paid (counted on the day the referral was made) */
+let _blkData=[];
+const _accBlocksOn=()=>{try{return localStorage.getItem('dsq_acc_blocks')!=='0';}catch(e){return true;}};
+const _lday=d=>new Date((d||'')+'T00:00:00');
+function _accTx(){
+  const inc=[],exp=[],out=[];
+  (_refData||[]).forEach(r=>{
+    if(r.is_cancelled||r.is_credit)return;const amt=parseFloat(r.amount)||0;
+    if(r.is_paid)inc.push({d:new Date(r.paid_at||r.created_at),amt,kind:'referral',r});
+    else if(r.flag_color!=='red')out.push({d:new Date(r.created_at),amt,kind:'referral',r});
+  });
+  (_incData||[]).forEach(r=>inc.push({d:_lday(r.income_date),amt:parseFloat(r.amount)||0,kind:'manual',r}));
+  if(_accBlocksOn())(_blkData||[]).forEach(r=>{
+    const day=r.entry_date||String(r.created_at||'').slice(0,10);
+    if(r.kind==='purchase'&&(+r.amount||0)>0&&r.paid_to!=='instructor')inc.push({d:_lday(day),amt:+r.amount,kind:'block',r});
+    if(r.payout_status==='released'&&(+r.payout_amount||0)>0)exp.push({d:_lday(r.payout_date||day),amt:+r.payout_amount,kind:'payout',r});
+  });
+  (_expData||[]).forEach(r=>exp.push({d:_lday(r.expense_date),amt:parseFloat(r.amount)||0,kind:'expense',r}));
+  return{inc,exp,out};
+}
+const _accSum=(list,s,e,kind)=>list.filter(x=>x.d>=s&&x.d<=e&&(!kind||x.kind===kind)).reduce((a,x)=>a+x.amt,0);
+const _accMonth=(list,y,m)=>list.filter(x=>x.d.getFullYear()===y&&x.d.getMonth()===m).reduce((a,x)=>a+x.amt,0);
 
 /* Load */
 async function loadIncome(){
@@ -13038,6 +13113,7 @@ async function loadExpenses(){
   }
   // Load manual income entries too
   await loadIncome();
+  try{_blkData=await _fetchAllRows('student_credit_ledger','created_at',true);}catch(e){_blkData=[];}   // block bookings feed the accounts too
   let data=null,error=null;try{data=await _fetchAllRows('expenses','expense_date',false);}catch(e){error=e;}
   if(error){
     const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
@@ -13062,30 +13138,29 @@ function renderAccounting(){
   const prevEnd=new Date(start.getTime()-1);
 
   const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
+  const TX=_accTx();
 
-  // Current period
+  // Current period — cash basis: a referral fee counts on the day it was PAID
   const inPeriod=r=>{const d=new Date(r.created_at);return d>=start&&d<=_aEnd;};
-  const incomeRows=refRows.filter(r=>r.is_paid&&inPeriod(r));
+  const incomeRows=TX.inc.filter(x=>x.kind==='referral'&&x.d>=start&&x.d<=_aEnd).map(x=>x.r);
   const outstandingRows=refRows.filter(r=>!r.is_paid&&r.flag_color!=='red'&&inPeriod(r)); // 🚩 not booked = no fee owed
-  const incomeFromRefs=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  // Add manual income entries
-  const manualIncRows=(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=start&&d<=_aEnd;});
-  const manualInc=manualIncRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const income=incomeFromRefs+manualInc;
+  const incomeFromRefs=_accSum(TX.inc,start,_aEnd,'referral');
+  const manualIncRows=TX.inc.filter(x=>x.kind==='manual'&&x.d>=start&&x.d<=_aEnd);
+  const manualInc=_accSum(TX.inc,start,_aEnd,'manual');
+  const blockInc=_accSum(TX.inc,start,_aEnd,'block'),blockN=TX.inc.filter(x=>x.kind==='block'&&x.d>=start&&x.d<=_aEnd).length;
+  const income=incomeFromRefs+manualInc+blockInc;
   const outstanding=outstandingRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const refCount=refRows.filter(r=>inPeriod(r)).length;
   const avgFee=refCount>0?(incomeFromRefs+outstanding)/refCount:0;
 
   // Previous period income
-  const prevIncomeRows=refRows.filter(r=>r.is_paid&&new Date(r.created_at)>=prevStart&&new Date(r.created_at)<=prevEnd);
-  const prevManualInc=(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=prevStart&&d<=prevEnd;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const prevIncome=prevIncomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0)+prevManualInc;
+  const prevIncome=_accSum(TX.inc,prevStart,prevEnd);
 
-  // Expenses
-  const expRows=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=start&&d<=_aEnd;});
-  const totalExp=expRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const prevExpRows=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=prevStart&&d<=prevEnd;});
-  const prevTotalExp=prevExpRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  // Expenses (business expenses + instructor payouts released from block bookings)
+  const expRows=TX.exp.filter(x=>x.d>=start&&x.d<=_aEnd).map(x=>x.r);
+  const payoutOut=_accSum(TX.exp,start,_aEnd,'payout');
+  const totalExp=_accSum(TX.exp,start,_aEnd);
+  const prevTotalExp=_accSum(TX.exp,prevStart,prevEnd);
 
   const profit=income-totalExp;
   const prevProfit=prevIncome-prevTotalExp;
@@ -13106,7 +13181,7 @@ function renderAccounting(){
   // Burn rate: avg monthly expenses over last 3 months
   const burnMonths=3;
   const burnStart=new Date(now.getFullYear(),now.getMonth()-burnMonths+1,1);
-  const burnExp=_expData.filter(r=>new Date(r.expense_date+'T00:00:00')>=burnStart).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const burnExp=TX.exp.filter(x=>x.d>=burnStart).reduce((s,x)=>s+x.amt,0);
   const burnRate=burnExp/burnMonths;
 
   // Trend helper
@@ -13122,11 +13197,11 @@ function renderAccounting(){
   const setHtml=(id,v)=>{const el=document.getElementById(id);if(el)el.innerHTML=v;};
 
   set('kpi-income',fmt(income));
-  set('kpi-income-sub',`${incomeRows.length} referral${incomeRows.length!==1?'s':''} collected`);
+  set('kpi-income-sub',`${incomeRows.length} referral${incomeRows.length!==1?'s':''} collected`+(blockN?` · ${blockN} block${blockN!==1?'s':''} ${fmt(blockInc)}`:'')+(manualIncRows.length?` · ${manualIncRows.length} manual`:''));
   setHtml('kpi-income-trend',trend(income,prevIncome));
 
   set('kpi-expenses',fmt(totalExp));
-  set('kpi-expenses-sub',`${expRows.length} expense${expRows.length!==1?'s':''}`);
+  set('kpi-expenses-sub',`${expRows.length} item${expRows.length!==1?'s':''}`+(payoutOut?` · incl. ${fmt(payoutOut)} instructor payouts`:''));
   setHtml('kpi-expenses-trend',trend(totalExp,prevTotalExp));
 
   set('kpi-profit',fmt(profit));
@@ -13174,6 +13249,7 @@ function renderAccounting(){
   else if(_accTab==='taxsum')_renderTaxSummary();
   else if(_accTab==='overdue')_renderOverdueTab();
   _updateOverdueBadge();
+  try{_renderAudit();}catch(e){console.warn('audit',e);}
 }
 
 /* ── Chart ── */
@@ -13190,10 +13266,9 @@ function _drawPLChart(){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
     months.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})});
   }
-  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&r.is_paid);
+  const _T=_accTx();
   months.forEach(m=>{
-    const mIncome=refRows.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const mExp=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const mIncome=_accMonth(_T.inc,m.year,m.month),mExp=_accMonth(_T.exp,m.year,m.month);
     m.income=mIncome;m.expenses=mExp;m.profit=mIncome-mExp;
   });
 
@@ -13257,10 +13332,11 @@ function _drawPLChart(){
 function _renderPLTable(){
   const fmt=v=>'£'+Math.abs(v).toFixed(2);
   // All months that have any data
+  const _T=_accTx();
   const allDates=[
     ...(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit).map(r=>new Date(r.created_at)),
-    ..._expData.map(r=>new Date(r.expense_date+'T00:00:00'))
-  ];
+    ..._T.inc.map(x=>x.d),..._T.exp.map(x=>x.d)
+  ].filter(d=>!isNaN(d));
   if(!allDates.length){
     const tb=document.getElementById('plTableBody');if(tb)tb.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--txt4)">No data yet.</td></tr>';
     return;
@@ -13276,8 +13352,8 @@ function _renderPLTable(){
   const rows=months.map(({year,month})=>{
     const mRef=r=>new Date(r.created_at).getFullYear()===year&&new Date(r.created_at).getMonth()===month;
     const mExp=r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===year&&d.getMonth()===month;};
-    const income=refRows.filter(r=>r.is_paid&&mRef(r)).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const expenses=_expData.filter(mExp).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const income=_accMonth(_T.inc,year,month);
+    const expenses=_accMonth(_T.exp,year,month);
     const outstanding=refRows.filter(r=>_refOwes(r)&&mRef(r)).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
     const profit=income-expenses;
     const margin=income>0?Math.round(profit/income*100):null;
@@ -13448,13 +13524,14 @@ function _renderTaxSummary(){
   const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
   const fmt=v=>'£'+v.toFixed(2);
   el.innerHTML=years.map(yr=>{
-    const income=refRows.filter(r=>r.is_paid&&new Date(r.created_at)>=yr.start&&new Date(r.created_at)<=yr.end).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const expenses=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=yr.start&&d<=yr.end;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const _T=_accTx(),income=_accSum(_T.inc,yr.start,yr.end);
+    const expenses=_accSum(_T.exp,yr.start,yr.end);
     const profit=income-expenses;
     const isCurrent=yr.start.getFullYear()===currentTaxYear;
     // Expense by category
     const catTotals={};
     _expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=yr.start&&d<=yr.end;}).forEach(r=>{catTotals[r.category]=(catTotals[r.category]||0)+(parseFloat(r.amount)||0);});
+    {const po=_accSum(_T.exp,yr.start,yr.end,'payout');if(po)catTotals['Instructor payouts (blocks)']=po;}
     return`<div style="background:var(--card-bg);border:1px solid ${isCurrent?'rgba(245,197,24,.3)':'var(--bdr)'};border-radius:14px;padding:18px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)">Tax Year ${yr.label}</div>
@@ -13490,10 +13567,9 @@ function _renderCashFlowTrend(){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
     months.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})});
   }
-  const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&r.is_paid);
+  const _T=_accTx();
   months.forEach(m=>{
-    const inc=refRows.filter(r=>{const d=new Date(r.created_at);return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-    const exp=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const inc=_accMonth(_T.inc,m.year,m.month),exp=_accMonth(_T.exp,m.year,m.month);
     m.income=inc;m.expenses=exp;m.profit=inc-exp;
   });
   el.innerHTML=months.map((m,i)=>{
