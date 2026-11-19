@@ -1611,6 +1611,7 @@ body.day-mode .dsqd-note{color:#92400e}
 
   <!-- TABS -->
   <div class="dsq-tabs mb-3">
+    <button class="dsq-tab" id="tab-graph" onclick="switchTab('graph')" title="Graphs: bookings and money by month, and things to confirm (G)"><i class="bi bi-graph-up-arrow"></i><span class="d-none d-sm-inline ms-1">Graphs</span></button>
     <button class="dsq-tab" id="tab-today" onclick="switchTab('today')" title="Today — everything that needs following up"><i class="bi bi-sun-fill"></i><span class="d-none d-sm-inline ms-1">Today</span> <span id="todayTabBadge" class="tab-badge" style="display:none"></span></button>
     <button class="dsq-tab" id="tab-growth" onclick="switchTab('growth')" title="Growth — auto-chase instructors, best leads first, instructor league, profit by source"><i class="bi bi-rocket-takeoff-fill"></i><span class="d-none d-sm-inline ms-1">Growth</span><span id="gxTabBadge" class="tab-badge" style="display:none;margin-left:5px;background:#D10A11;color:#fff;border-radius:99px;padding:0 6px;font-size:.62rem;font-weight:700"></span></button>
     <button class="dsq-tab active" id="tab-dashboard" onclick="switchTab('dashboard')" title="Overview: stats, today's lessons, revenue and alerts at a glance"><i class="bi bi-speedometer2"></i><span class="d-none d-sm-inline ms-1">Dashboard</span></button>
@@ -1655,6 +1656,8 @@ body.day-mode .dsqd-note{color:#92400e}
 
   <!-- == DASHBOARD == -->
   <!-- ══ TODAY — follow-up centre ══ -->
+  <div id="panel-graph" class="hidden" style="padding:10px 0"><div id="graphBody"></div></div>
+
   <div id="panel-today" class="hidden">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
       <div class="page-title mb-0"><i class="bi bi-sun-fill me-2" style="color:#f59e0b"></i>Today — follow-ups</div>
@@ -1677,7 +1680,7 @@ body.day-mode .dsqd-note{color:#92400e}
       <strong style="color:var(--gold)">Phone or WhatsApp enquiry?</strong> <em>Find &amp; Assign</em> → enter their name and postcode → pick the closest instructor (or pass them to one of your <em>Other drivers</em>).<br>
       <strong style="color:var(--gold)">New instructor applied?</strong> <em>Pending</em> → review → approve.<br>
       <strong style="color:var(--gold)">Student needs a different instructor?</strong> <em>Students</em> → open the student → <em>Reassign</em>.<br>
-      <strong style="color:var(--gold)">Lost?</strong> Press <kbd>G</kbd> to jump to any page, or <kbd>?</kbd> for all shortcuts.
+      <strong style="color:var(--gold)">Lost?</strong> Press <kbd>J</kbd> to jump to any page, <kbd>G</kbd> for graphs, or <kbd>?</kbd> for all shortcuts.
     </div>
   </div>
   <button onclick="document.getElementById('adminHelpBanner').style.display='none';localStorage.setItem('adminHelpDismissed','1')" style="background:none;border:none;color:var(--txt4);font-size:1rem;cursor:pointer;flex-shrink:0;padding:2px 4px" title="Dismiss">✕</button>
@@ -3889,6 +3892,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/dsq-block.js?v=20261122"></script>
 <script src="/admin-packages.js?v=20261123"></script>
 <script src="/admin-fees.js?v=20261124"></script>
+<script src="/admin-insights.js?v=20261125"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
@@ -4550,7 +4554,7 @@ function normalizePhone(raw){
 }
 
 /* ══ TABS ══ */
-const TABS=['dashboard','growth','instructors','students','find','map','referrals','finance','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
+const TABS=['graph','dashboard','growth','instructors','students','find','map','referrals','finance','expenses','add','lessons','pending','revenue','feedback','requests','transfers','messages','analytics','calendar','activity','infoview','followup','notes','actions','scorecard','bulk','progress-overview','waitlist','availability','coverage'];
 function switchTab(t){
   // Leaving the calendar drill-down (Back button, any other nav tab) must clear the
   // "which instructor am I viewing" state — otherwise it silently survives into unrelated
@@ -4564,6 +4568,7 @@ function switchTab(t){
   // Start/stop assignment stats auto-refresh when entering/leaving Instructors tab
   if(t==='instructors')startInstrAssignStatsRefresh();else stopInstrAssignStatsRefresh();
   if(t==='dashboard')loadDashboard();
+  if(t==='graph'){try{DSQInsights.open();}catch(e){console.warn('graph',e);}}
   if(t==='messages'){loadMessages();loadInbox();}
   if(t==='analytics'){loadAnalytics();}
   if(t==='requests'){loadStudentRequests();loadAdminReschedules();}
@@ -5812,10 +5817,12 @@ function renderInstrDetail(instr){
   if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.email)setTimeout(()=>_emailPrefFill(instr),0);
   setTimeout(()=>_instrAvailFill(instr.id),0);
+  setTimeout(()=>{try{DSQInsights.loadNotes().then(()=>{const e=document.getElementById('instrNote-'+instr.id);if(e)e.outerHTML=DSQInsights.profileNoteHtml(instr.id);});}catch(e){}},0);
   const fields=[
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
     ...((window.DSQPkg&&DSQPkg._cfg&&DSQPkg._cfg()&&DSQPkg.pkgOf(instr.id))?[['Package',DSQPkg.detailHtml(instr.id)]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
+    ['Admin note',`<div id="instrNote-${instr.id}" style="font-size:.8rem;color:var(--txt4)">Loading…</div>`],
     ['Availability',`<div id="instrAvail-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</div>`],
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
@@ -8887,6 +8894,7 @@ async function findClosest(){
       ranked.sort((a,b)=>a.tcCost-b.tcCost||a.dist-b.dist);
     }
     try{await DSQPkg.load();ranked=DSQPkg.prioritise(ranked);}catch(e){}   // Platinum first within 5 miles
+    try{await DSQInsights.loadNotes();}catch(e){}
     if(!sGeo.exact)showToast('Only the area code was found — distances are approximate.','info',3500);
     const unknown=results.filter(r=>r.dist===null);
     _fcCtxFor(studentName);
@@ -8975,6 +8983,7 @@ async function findClosest(){
               ${weekAssignNote}
               ${weekBookedNote}
               ${pkgNote}
+              ${(()=>{try{return DSQInsights.noteLine(r.instr.id);}catch(e){return'';}})()}
               ${creditNote}
             </div>
           </div>
@@ -13145,7 +13154,7 @@ function setAccTab(t){
    Expected  : referral fees not yet paid (counted on the day the referral was made) */
 let _blkData=[];
 /* lets the separate admin scripts (admin-packages.js) read admin's data without it being global */
-window.DSQ_ADMIN={sb:()=>sb,refs:()=>_refData,instrs:()=>allInstrs};
+window.DSQ_ADMIN={sb:()=>sb,refs:()=>_refData,instrs:()=>allInstrs,tx:()=>_accTx(),month:(l,y,m)=>_accMonth(l,y,m),booked:r=>_refAdminBooked(r)};
 const _accBlocksOn=()=>{try{return localStorage.getItem('dsq_acc_blocks')!=='0';}catch(e){return true;}};
 const _lday=d=>new Date((d||'')+'T00:00:00');
 function _accTx(){
@@ -18346,7 +18355,7 @@ document.addEventListener('click',e=>{
     if (!c) { c = document.createElement("div"); c.id = "qaCrumb"; c.className = "qa-crumb"; page.insertBefore(c, page.firstChild); }
     var t = tabInfo(id);
     c.innerHTML = '<div class="qa-crumb__ico"><i class="' + esc(t.icon) + '"></i></div><div style="min-width:0"><div class="qa-crumb__path">' + esc(t.group) + '</div><div class="qa-crumb__title">' + esc(t.label) + "</div>" + (t.desc ? '<div class="qa-crumb__desc">' + esc(t.desc) + "</div>" : "") + "</div>" +
-      '<button type="button" class="qa-pill-btn qa-crumb__help" onclick="DSQA.palette.open()" title="Jump to any section (G)"><i class="bi bi-lightning-charge-fill"></i>Jump to… <kbd style="font-size:.6rem;opacity:.7">G</kbd></button>';
+      '<button type="button" class="qa-pill-btn qa-crumb__help" onclick="DSQA.palette.open()" title="Jump to any section (J)"><i class="bi bi-lightning-charge-fill"></i>Jump to… <kbd style="font-size:.6rem;opacity:.7">G</kbd></button>';
     c.style.animation = "none"; void c.offsetWidth; c.style.animation = "";
   }
   function onSwitch(id) { current = id; pushRecent(id); markSide(id); crumb(id); }
@@ -18525,7 +18534,7 @@ document.addEventListener('click',e=>{
     if (!o) {
       o = document.createElement("div"); o.id = "qaKeys"; o.className = "qa-pal"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Keyboard shortcuts");
       o.innerHTML = '<div class="qa-pal__box" style="max-width:420px"><div class="qa-pal__in"><i class="bi bi-keyboard"></i><b style="color:var(--txt)">Keyboard shortcuts</b></div><div class="qa-keys" style="padding:16px 18px">' +
-        "<span><kbd>G</kbd></span><span>Jump to any page or action</span><span><kbd>D</kbd></span><span>Main menu (dashboard)</span><span><kbd>R</kbd></span><span>Referrals</span><span><kbd>A</kbd></span><span>Accounting</span><span><kbd>F</kbd></span><span>Find &amp; Assign</span><span><kbd>W</kbd> or <kbd>B</kbd></span><span>Website bookings</span><span><kbd>S</kbd>, <kbd>K</kbd>, <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>X</kbd> or <kbd>Esc</kbd></span><span>Close search or any window</span><span><kbd>X</kbd> in Find &amp; Assign</span><span>Clear the form &amp; results (<kbd>U</kbd> undoes)</span></div></div>";
+        "<span><kbd>G</kbd></span><span>Graphs (bookings &amp; money by month)</span><span><kbd>J</kbd></span><span>Jump to any page or action</span><span><kbd>D</kbd></span><span>Main menu (dashboard)</span><span><kbd>R</kbd></span><span>Referrals</span><span><kbd>A</kbd></span><span>Accounting</span><span><kbd>F</kbd></span><span>Find &amp; Assign</span><span><kbd>W</kbd> or <kbd>B</kbd></span><span>Website bookings</span><span><kbd>S</kbd>, <kbd>K</kbd>, <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>X</kbd> or <kbd>Esc</kbd></span><span>Close search or any window</span><span><kbd>X</kbd> in Find &amp; Assign</span><span>Clear the form &amp; results (<kbd>U</kbd> undoes)</span></div></div>";
       o.addEventListener("click", function (e) { if (e.target === o) o.classList.remove("open"); });
       document.body.appendChild(o);
     }
@@ -18538,7 +18547,8 @@ document.addEventListener('click',e=>{
       var a = document.activeElement, tag = a && a.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (a && a.isContentEditable)) return;
       if ($(".dsq-overlay.open") || palette.isOpen()) return;
-      if (e.key === "g" || e.key === "G") { e.preventDefault(); palette.open(); }
+      if (e.key === "g" || e.key === "G") { e.preventDefault(); call("switchTab", "graph"); }
+      else if (e.key === "j" || e.key === "J") { e.preventDefault(); palette.open(); }
       else if (e.key === "b" || e.key === "B" || e.key === "w" || e.key === "W") { e.preventDefault(); call("openWebBookingsPanel"); }
       else if (e.key === "s" || e.key === "S" || e.key === "k" || e.key === "K") { e.preventDefault(); call("openGlobalSearch"); }
       else if ({ r: "referrals", a: "expenses", d: "dashboard", f: "find" }[String(e.key).toLowerCase()]) { e.preventDefault(); call("switchTab", { r: "referrals", a: "expenses", d: "dashboard", f: "find" }[String(e.key).toLowerCase()]); }
@@ -18546,8 +18556,8 @@ document.addEventListener('click',e=>{
     });
     var nav = document.getElementById("mainNav"), search = nav && $$("button", nav).find(function (b) { return /openGlobalSearch/.test(b.getAttribute("onclick") || ""); });
     if (search && !document.querySelector(".qa-jump-btn")) {
-      var j = document.createElement("button"); j.type = "button"; j.className = "qa-jump-btn"; j.title = "Jump to any page or action (G)";
-      j.innerHTML = '<i class="bi bi-lightning-charge-fill" style="color:#D10A11"></i><span>Jump</span><kbd>G</kbd>';
+      var j = document.createElement("button"); j.type = "button"; j.className = "qa-jump-btn"; j.title = "Jump to any page or action (J)";
+      j.innerHTML = '<i class="bi bi-lightning-charge-fill" style="color:#D10A11"></i><span>Jump</span><kbd>J</kbd>';
       j.addEventListener("click", palette.open); search.parentNode.insertBefore(j, search);
     }
   }
