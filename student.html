@@ -1640,14 +1640,44 @@ function getDailyTip(){
 
 /* ── PAYMENTS & CREDIT (block of lessons) — only fetched/shown when the school ticked "show on portal" for this student.
    Private notes and instructor pay are never requested here. ── */
+/* No block showing yet? Let the student ask their instructor to add / update it (portal message + WhatsApp). */
+function bkAsk(card){
+  try{
+    const E=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const first=(instrData&&instrData.full_name||'your instructor').split(' ')[0],phone=(instrData&&instrData.phone||'').replace(/\D/g,'').replace(/^0/,'44');
+    const opts=[['10 hours · £330',10,330],['5 hours',5,0],['20 hours',20,0],['Something else',0,0]];
+    card.innerHTML=`<div style="background:var(--dk2);border:1px dashed var(--bdr);border-radius:16px;padding:14px 16px">
+      <div style="display:flex;gap:10px;align-items:center"><span style="font-size:1.6rem">📦</span><div><div style="font-family:'Oswald',sans-serif;font-weight:700;color:var(--txt);font-size:1rem">Paid for a block of lessons?</div><div style="font-size:.76rem;color:var(--txt2);margin-top:2px">If it is not showing here yet, ask ${E(first)} to add it or update your hours.</div></div></div>
+      <div id="bkAskChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${opts.map((o,i)=>`<button type="button" data-i="${i}" style="border:1px solid var(--bdr);background:var(--dk3);color:var(--txt);border-radius:99px;padding:6px 12px;font-size:.76rem;font-weight:700;cursor:pointer">${E(o[0])}</button>`).join('')}</div>
+      <div class="btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" id="bkAskSend" style="flex:1;min-width:150px;background:linear-gradient(135deg,#d10a11,#a8060c);color:#fff;border:0;border-radius:12px;padding:10px;font-weight:700;font-size:.82rem;cursor:pointer"><i class="bi bi-send-fill me-1"></i>Message ${E(first)}</button><a id="bkAskWA" href="#" target="_blank" rel="noopener" style="flex:1;min-width:150px;text-align:center;background:#25D366;color:#06210f;border-radius:12px;padding:10px;font-weight:700;font-size:.82rem;text-decoration:none"><i class="bi bi-whatsapp me-1"></i>WhatsApp ${E(first)}</a></div>
+      <div id="bkAskMsg" style="font-size:.74rem;margin-top:8px;display:none"></div></div>`;
+    card.classList.remove('hidden');
+    let pick=opts[0];
+    const text=()=>`Hi ${first}, it's ${currentStudent.name||'your student'}. ${pick[1]?`I've paid for a block of ${pick[1]} hours${pick[2]?' (£'+pick[2]+')':''}`:`I've paid for a block of lessons`}. Please could you add it to my block booking on the DriveSQ app (or update my hours)? Thank you! 🚗`;
+    const wa=document.getElementById('bkAskWA'),setWA=()=>{if(phone)wa.href='https://wa.me/'+phone+'?text='+encodeURIComponent(text());else wa.style.display='none';};
+    const mark=()=>document.querySelectorAll('#bkAskChips button').forEach((b,i)=>{const on=opts[i]===pick;b.style.background=on?'#d10a11':'var(--dk3)';b.style.color=on?'#fff':'var(--txt)';b.style.borderColor=on?'#d10a11':'var(--bdr)';});
+    document.getElementById('bkAskChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;pick=opts[+b.dataset.i];mark();setWA();};
+    mark();setWA();
+    document.getElementById('bkAskSend').onclick=async function(){
+      const out=document.getElementById('bkAskMsg'),btn=this;btn.disabled=true;
+      try{
+        const{error}=await sb.from('student_messages').insert([{student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,sender:'student',message:'📦 '+text(),is_read:false,sent_at:new Date().toISOString()}]);
+        if(error)throw error;
+        pushToInstructor(currentStudent.instructor_id,'📦 Block booking: '+(currentStudent.name||'Student'),text(),'/dashboard.html');
+        sb.from('student_credit_history').insert([{student_key:currentStudent.id,student_account_id:currentStudent.id,student_name:currentStudent.name,instructor_id:currentStudent.instructor_id,action:'reminder',actor_role:'student',actor_name:currentStudent.name,summary:'asked the instructor to add or update their block booking'}]).then(()=>{},()=>{});
+        out.style.display='block';out.style.color='#4ade80';out.textContent='✅ Sent to '+first+' in the app. You can also use WhatsApp.';try{DSQBlock.sound('ok');}catch(e){}
+      }catch(e){out.style.display='block';out.style.color='#f87171';out.textContent='Could not send just now. Please use the WhatsApp button.';btn.disabled=false;try{DSQBlock.sound('err');}catch(x){}}
+    };
+  }catch(e){card.classList.add('hidden');}
+}
 async function loadCredit(){
   const card=document.getElementById('homeCreditCard');if(!card||!currentStudent||!currentStudent.id)return;
   try{
     const st=await sb.from('student_credit_settings').select('show_on_portal').eq('student_key',currentStudent.id).maybeSingle();
-    if(st.error||!st.data||!st.data.show_on_portal){card.classList.add('hidden');return;}
+    if(st.error||!st.data||!st.data.show_on_portal){bkAsk(card);return;}
     try{if(window.DSQBlock)await DSQBlock.syncFor({sb,st:{name:currentStudent.name,accId:currentStudent.id,profId:null,instrId:currentStudent.instructor_id},role:'student',actor:currentStudent.name||'Student'});}catch(e){}
     const r=await sb.from('student_credit_ledger').select('kind,hours,amount,reference,entry_date,created_at,public_note,edited_at,lesson_date,lesson_id,excluded').eq('student_account_id',currentStudent.id).order('entry_date',{ascending:true}).order('created_at',{ascending:true});
-    if(r.error||!r.data||!r.data.length){card.classList.add('hidden');return;}
+    if(r.error||!r.data||!r.data.length){bkAsk(card);return;}
     const E=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const hrs=v=>{v=Math.round((+v||0)*100)/100;return (Number.isInteger(v)?v:v.toFixed(2).replace(/0$/,''))+'h';},gbp=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2).replace(/\.00$/,'');
     let h=0,m=0,bh=0,bm=0,uh=0,ah=0;const tdy=new Date().toISOString().slice(0,10);
