@@ -25,7 +25,7 @@
     var base = JSON.parse(JSON.stringify(DEF)), got = null;
     try { var r = await SB().from('growth_settings').select('value').eq('key', 'packages').maybeSingle(); if (r && r.data && r.data.value) got = r.data.value; } catch (e) { }
     if (!got) { try { got = JSON.parse(localStorage.getItem('dsq_packages') || 'null'); } catch (e) { } }
-    CFG = Object.assign(base, got || {}); CFG.tiers = Object.assign({}, base.tiers, (got && got.tiers) || {}); CFG.by = (got && got.by) || {};
+    var defTiers = JSON.parse(JSON.stringify(DEF.tiers)); CFG = Object.assign(base, got || {}); CFG.tiers = Object.assign({}, defTiers, (got && got.tiers) || {});   // new tiers added later always exist even in older saved settings CFG.by = (got && got.by) || {};
     return CFG;
   }
   async function save() {
