@@ -39,5 +39,19 @@ const I=await ctx.newPage();I.on('pageerror',e=>errs.push('instr: '+e.message));
 await I.addInitScript(()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'d',name:'Dawood Khan',full_name:'Dawood Khan',badge:'1',type:'ADI',phone:'07700900001',email:'d@x.com',status:'approved'}));});
 await I.goto('http://localhost:8765/dashboard.html',{waitUntil:'domcontentloaded'});await I.waitForTimeout(7000);await I.evaluate(()=>loadPkgCard());await I.waitForTimeout(1200);
 console.log('instructor card:',await I.evaluate(()=>document.getElementById('homePkgCard').innerText.replace(/\s+/g,' ').slice(0,400)));
-await I.evaluate(()=>document.getElementById('homePkgCard').scrollIntoView());await (await I.$('#homePkgCard')).screenshot({path:'/tmp/claude-0/dt/pkgcard.png'});
+
+// Normal package for x (no guarantee)
+await A.evaluate(()=>{editingInstr=allInstrs.find(i=>i.id==='x');openEditModal();});await A.waitForTimeout(900);
+await A.evaluate(()=>{const s=document.getElementById('edit-pkg');s.value='normal';s.dispatchEvent(new Event('change'));document.getElementById('edit-pkg-fee').value='50';document.getElementById('edit-pkg-fee').dispatchEvent(new Event('input'));});await A.waitForTimeout(300);
+console.log('normal msg:',await A.evaluate(()=>document.getElementById('edit-pkg-safe').innerText),'| min disabled:',await A.evaluate(()=>document.getElementById('edit-pkg-min').disabled));
+await A.evaluate(()=>DSQPkg.saveFromModal('x'));await A.waitForTimeout(600);
+console.log('saved x:',JSON.stringify(DB.growth_settings.find(g=>g.key==='packages').value.by.x));
+await A.evaluate(()=>DSQPkg.openOverview());await A.waitForTimeout(500);
+console.log('overview rows:',await A.evaluate(()=>[...document.querySelectorAll('#pkgOv tbody tr')].map(r=>r.innerText.replace(/\s+/g,' '))));
+console.log('safety still counts only guarantees (committed):',await A.evaluate(()=>DSQPkg.safety(0).committed));
+console.log('card note normal:',await A.evaluate(()=>DSQPkg.cardNote({instr:{id:'x'},dist:2}).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ')));
+const X=await ctx.newPage();X.on('pageerror',e=>errs.push('x: '+e.message));await mockRoute(X);
+await X.addInitScript(()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'x',name:'Xavier Other',full_name:'Xavier Other',badge:'2',type:'ADI',phone:'07700900002',email:'x@x.com',status:'approved'}));});
+await X.goto('http://localhost:8765/dashboard.html',{waitUntil:'domcontentloaded'});await X.waitForTimeout(6500);await X.evaluate(()=>loadPkgCard());await X.waitForTimeout(1000);
+console.log('normal instructor card:',await X.evaluate(()=>document.getElementById('homePkgCard').innerText.replace(/\s+/g,' ')));
 console.log('errs',errs.slice(0,4));await b.close();})();

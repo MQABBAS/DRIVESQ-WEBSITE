@@ -3321,14 +3321,16 @@ async function loadPkgCard(){
   try{
     const g=await sb.from('growth_settings').select('value').eq('key','packages').maybeSingle();
     const cfg=g.data&&g.data.value;const mine=cfg&&cfg.by&&cfg.by[instr.id];
-    if(!mine||!mine.tier||mine.active===false||!cfg.tiers||!cfg.tiers[mine.tier]){host.innerHTML='';return;}
-    const t=cfg.tiers[mine.tier],fee=mine.fee!=null&&mine.fee!==''?+mine.fee:t.fee,min=mine.min!=null&&mine.min!==''?+mine.min:t.min;
+    const TIERS=Object.assign({normal:{name:'Normal',icon:'🚗',color:'#60a5fa',fee:45,min:0,noGuarantee:true}},(cfg&&cfg.tiers)||{});
+    if(!mine||!mine.tier||mine.active===false||!TIERS[mine.tier]){host.innerHTML='';return;}
+    const t=TIERS[mine.tier],fee=mine.fee!=null&&mine.fee!==''?+mine.fee:t.fee,min=t.noGuarantee?0:(mine.min!=null&&mine.min!==''?+mine.min:t.min);
     const wk=d=>{const m=new Date(d);m.setHours(0,0,0,0);m.setDate(m.getDate()-((m.getDay()+6)%7));return m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0')+'-'+String(m.getDate()).padStart(2,'0');};
     const cur=wk(new Date()),addW=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+7*n);return wk(d);},startK=mine.start?(wk(mine.start+'T12:00:00')===mine.start?mine.start:addW(wk(mine.start+'T12:00:00'),1)):'0000';
     const since=new Date();since.setDate(since.getDate()-45);
     const r=await sb.from('referrals').select('created_at,flag_color,is_cancelled,is_credit').eq('instructor_id',instr.id).gte('created_at',since.toISOString());
     const rows=(r.data||[]).filter(x=>!x.is_cancelled&&!x.is_credit&&x.flag_color==='green');
     const weeks=[];for(let i=0;i<=4;i++){const k=addW(cur,-i);if(k<startK)break;const jobs=rows.filter(x=>wk(x.created_at)===k).length;weeks.push({k,jobs,cur:i===0,short:i===0?0:Math.max(0,min-jobs)});}
+    if(t.noGuarantee){const w1=weeks[0]||{jobs:0};host.innerHTML=`<div style="background:linear-gradient(135deg,${t.color}22,transparent);border:1px solid ${t.color}77;border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-size:1.6rem">${t.icon}</span><div style="flex:1;min-width:150px"><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt)">${esc(t.name)} package</div><div style="font-size:.76rem;color:var(--txt2)">£${fee} a week · no guaranteed jobs · <b>${w1.jobs}</b> booked with you this week</div></div></div>`;return;}
     const w0=weeks[0]||{jobs:0},pct=Math.min(100,Math.round(w0.jobs/min*100)),need=Math.max(0,min-w0.jobs),credit=weeks.reduce((a,x)=>a+Math.round(fee*x.short/min*100)/100,0);
     const fm=v=>'£'+(Math.abs(v-Math.round(v))<.005?Math.round(v):v.toFixed(2));
     host.innerHTML=`<div style="background:linear-gradient(135deg,${t.color}22,transparent);border:1px solid ${t.color}77;border-radius:16px;padding:14px 16px;margin-bottom:12px">
