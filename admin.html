@@ -5811,10 +5811,12 @@ function renderInstrDetail(instr){
   if(window.DSQPkg&&!DSQPkg._cfg())DSQPkg.load().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.email)setTimeout(()=>_emailPrefFill(instr),0);
+  setTimeout(()=>_instrAvailFill(instr.id),0);
   const fields=[
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
     ...((window.DSQPkg&&DSQPkg._cfg&&DSQPkg._cfg()&&DSQPkg.pkgOf(instr.id))?[['Package',DSQPkg.detailHtml(instr.id)]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
+    ['Availability',`<div id="instrAvail-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</div>`],
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
     ['Area',instr.area],['Covered Postcodes',covHtml],['Address',instr.address],
@@ -8057,6 +8059,19 @@ const INSTR_OPTS=[['opt_out_all','🚫 Everything','No DriveSQ emails at all'],[
 async function _emailPrefGet(email){
   const k=String(email||'').trim().toLowerCase();if(!k)return null;
   try{const r=await sb.from('email_contacts').select('id,status,tags,unsubscribe_note').eq('email_key',k).maybeSingle();return r.data||{};}catch(e){return {};}
+}
+/* what the instructor entered as their weekly availability (Instructor Portal → Profile → Availability) */
+async function _instrAvailFill(id){
+  const el=document.getElementById('instrAvail-'+id);if(!el)return;
+  try{
+    const{data,error}=await sb.from('instructor_availability').select('*').eq('instructor_id',id);
+    if(error)throw error;
+    const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],by={};(data||[]).forEach(r=>{by[r.day_of_week]=r;});
+    const on=days.filter(d=>by[d]&&by[d].is_available);
+    if(!(data||[]).length){el.innerHTML='<span style="color:#f59e0b;font-weight:600">⚠️ Not added yet</span> <span style="color:var(--txt4)">— the instructor can add it in their portal (Profile → Availability).</span>';return;}
+    const t=v=>String(v||'').slice(0,5);
+    el.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:6px">'+days.map(d=>{const r=by[d];return r&&r.is_available?`<span style="background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.4);color:#16a34a;border-radius:8px;padding:3px 9px;font-weight:700">${d.slice(0,3)} ${t(r.start_time)}–${t(r.end_time)}</span>`:`<span style="background:rgba(148,163,184,.12);color:var(--txt4);border-radius:8px;padding:3px 9px">${d.slice(0,3)} —</span>`;}).join('')+`</div><div style="font-size:.7rem;color:var(--txt4);margin-top:5px">${on.length} day${on.length===1?'':'s'} a week · <a href="javascript:void(0)" onclick="switchTab('availability')" style="color:#60a5fa">see everyone's availability</a></div>`;
+  }catch(e){el.innerHTML='<span style="color:var(--txt4)">Could not load availability.</span>';}
 }
 async function _emailPrefFill(instr){
   const el=document.getElementById('emailPref-'+instr.id);if(!el)return;

@@ -3322,7 +3322,16 @@ async function loadPkgCard(){
     const g=await sb.from('growth_settings').select('value').eq('key','packages').maybeSingle();
     const cfg=g.data&&g.data.value;const mine=cfg&&cfg.by&&cfg.by[instr.id];
     const TIERS=Object.assign({normal:{name:'Normal',icon:'🚗',color:'#60a5fa',fee:45,min:0,noGuarantee:true}},(cfg&&cfg.tiers)||{});
-    if(!mine||!mine.tier||mine.active===false||!TIERS[mine.tier]){host.innerHTML='';return;}
+    const pill=(icon,text,color)=>`<div style="display:inline-flex;align-items:center;gap:8px;background:${color}22;border:1px solid ${color}77;border-radius:99px;padding:6px 14px;margin-bottom:12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.9rem;color:var(--txt)"><span>${icon}</span>${text}</div>`;
+    if(!mine||!mine.tier||mine.active===false||!TIERS[mine.tier]){
+      // no package: just say whether they are a referral or franchise instructor (admin can switch this off)
+      if(cfg&&cfg.showLabel===false){host.innerHTML='';return;}
+      let model=String(instr.instructor_model||'').toLowerCase();
+      if(!model){try{const q=await sb.from('instructors').select('instructor_model').eq('id',instr.id).maybeSingle();model=String((q.data&&q.data.instructor_model)||'').toLowerCase();}catch(e){}}
+      host.innerHTML=model==='referral'?pill('🤝','Referral instructor','#22c55e'):model==='franchise'?pill('🏷️','Franchise instructor','#a78bfa'):'';
+      return;
+    }
+    if(mine.showProgress===false){const tt=TIERS[mine.tier];host.innerHTML=pill(tt.icon,esc(tt.name)+' package',tt.color);return;}
     const t=TIERS[mine.tier],fee=mine.fee!=null&&mine.fee!==''?+mine.fee:t.fee,min=t.noGuarantee?0:(mine.min!=null&&mine.min!==''?+mine.min:t.min);
     const wk=d=>{const m=new Date(d);m.setHours(0,0,0,0);m.setDate(m.getDate()-((m.getDay()+6)%7));return m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0')+'-'+String(m.getDate()).padStart(2,'0');};
     const cur=wk(new Date()),addW=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+7*n);return wk(d);},startK=mine.start?(wk(mine.start+'T12:00:00')===mine.start?mine.start:addW(wk(mine.start+'T12:00:00'),1)):'0000';

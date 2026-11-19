@@ -6,7 +6,7 @@ const refs=[];let i=1;
 for(let k=0;k<4;k++)refs.push(R(i++,'d',wk(0,Math.min(k,Math.max(0,new Date().getDay()-1)))));       // d: 4 booked this week
 for(let k=0;k<5;k++)refs.push(R(i++,'d',wk(-1,k)));                                                     // last week 5 (short of 7 by 2)
 for(let n=1;n<=8;n++)for(let k=0;k<(n%3===0?6:14);k++)refs.push(R(i++,'x',wk(-n,k%6)));              // other instructor supplies the weekly volume
-const DB={growth_settings:[],instructors:[{id:'d',full_name:'Dawood Khan',status:'approved',instructor_model:'referral',phone:'07700900001'},{id:'x',full_name:'Xavier Other',status:'approved',instructor_model:'referral'}],referrals:refs};
+const DB={instructor_availability:[{instructor_id:'d',day_of_week:'Monday',is_available:true,start_time:'09:00:00',end_time:'17:00:00'},{instructor_id:'d',day_of_week:'Tuesday',is_available:false},{instructor_id:'d',day_of_week:'Wednesday',is_available:true,start_time:'10:00:00',end_time:'14:00:00'}],growth_settings:[],instructors:[{id:'d',full_name:'Dawood Khan',status:'approved',instructor_model:'referral',phone:'07700900001'},{id:'x',full_name:'Xavier Other',status:'approved',instructor_model:'referral'},{id:'r9',full_name:'Ref Nine',status:'approved',instructor_model:'referral'}],referrals:refs};
 const mockRoute=async p=>{await p.route('**/*',async r=>{const req=r.request(),u=new URL(req.url());
  if(u.href.includes('supabase-js'))return r.fulfill({path:'/tmp/claude-0/sbjs/package/dist/umd/supabase.js',contentType:'application/javascript'});if(u.href.includes('chart.js'))return r.fulfill({path:'/tmp/claude-0/node_modules/chart.js/dist/chart.umd.js',contentType:'application/javascript'});
  if(u.pathname.startsWith('/rest/v1/')){const t=u.pathname.split('/')[3];const rows=DB[t]=DB[t]||[];const m=req.method();const single=(req.headers()['accept']||'').includes('pgrst.object');
@@ -54,4 +54,23 @@ const X=await ctx.newPage();X.on('pageerror',e=>errs.push('x: '+e.message));awai
 await X.addInitScript(()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'x',name:'Xavier Other',full_name:'Xavier Other',badge:'2',type:'ADI',phone:'07700900002',email:'x@x.com',status:'approved'}));});
 await X.goto('http://localhost:8765/dashboard.html',{waitUntil:'domcontentloaded'});await X.waitForTimeout(6500);await X.evaluate(()=>loadPkgCard());await X.waitForTimeout(1000);
 console.log('normal instructor card:',await X.evaluate(()=>document.getElementById('homePkgCard').innerText.replace(/\s+/g,' ')));
+// availability on admin instructor profile
+await A.evaluate(()=>viewInstr('d'));await A.waitForTimeout(1500);
+console.log('availability d:',await A.evaluate(()=>(document.getElementById('instrAvail-d')||{innerText:'MISSING'}).innerText.replace(/\s+/g,' ')));
+await A.evaluate(()=>viewInstr('r9'));await A.waitForTimeout(1200);
+console.log('availability r9 (none):',await A.evaluate(()=>(document.getElementById('instrAvail-r9')||{innerText:'MISSING'}).innerText.replace(/\s+/g,' ')));
+console.log('profile Package row shows visibility note:',await A.evaluate(()=>{viewInstr('d');return new Promise(r=>setTimeout(()=>r(/Instructor sees/.test(document.getElementById('instrDetailGrid').innerText)),1500));}));
+// hide progress for d
+await A.evaluate(()=>{editingInstr=allInstrs.find(i=>i.id==='d');openEditModal();});await A.waitForTimeout(900);
+await A.evaluate(()=>{document.getElementById('edit-pkg-show').checked=false;return DSQPkg.saveFromModal('d');});await A.waitForTimeout(700);
+const D=await ctx.newPage();D.on('pageerror',e=>errs.push('d: '+e.message));await mockRoute(D);
+await D.addInitScript(()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'d',name:'Dawood Khan',full_name:'Dawood Khan',badge:'1',type:'ADI',phone:'07700900001',email:'d@x.com',status:'approved'}));});
+await D.goto('http://localhost:8765/dashboard.html',{waitUntil:'domcontentloaded'});await D.waitForTimeout(6500);await D.evaluate(()=>loadPkgCard());await D.waitForTimeout(900);
+console.log('Platinum instructor, progress hidden ->',await D.evaluate(()=>document.getElementById('homePkgCard').innerText.replace(/\s+/g,' ')));
+const RR=await ctx.newPage();RR.on('pageerror',e=>errs.push('r9: '+e.message));await mockRoute(RR);
+await RR.addInitScript(()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'r9',name:'Ref Nine',full_name:'Ref Nine',badge:'9',type:'ADI',phone:'07700900009',email:'r@x.com',status:'approved',instructor_model:'referral'}));});
+await RR.goto('http://localhost:8765/dashboard.html',{waitUntil:'domcontentloaded'});await RR.waitForTimeout(6500);await RR.evaluate(()=>loadPkgCard());await RR.waitForTimeout(900);
+console.log('Referral instructor, no package ->',await RR.evaluate(()=>document.getElementById('homePkgCard').innerText.replace(/\s+/g,' ')));
+await A.evaluate(()=>DSQPkg.setShowLabel(false));await A.waitForTimeout(500);await RR.evaluate(()=>loadPkgCard());await RR.waitForTimeout(800);
+console.log('after admin hides label ->',JSON.stringify(await RR.evaluate(()=>document.getElementById('homePkgCard').innerText.trim())));
 console.log('errs',errs.slice(0,4));await b.close();})();
