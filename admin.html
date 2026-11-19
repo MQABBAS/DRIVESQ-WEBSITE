@@ -3096,7 +3096,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
   </div>
 
   <!-- OVERDUE SUB-PANEL -->
-  <div id="accpanel-audit" style="display:none"><div id="accAuditBody"></div></div>
+  <div id="accpanel-audit" style="display:none"><div id="accAuditBody"></div><div id="accGapBody" style="margin-top:6px"></div></div>
 
   <div id="accpanel-overdue" style="display:none">
     <div style="font-size:.75rem;color:var(--txt4);margin-bottom:14px">Referrals that have been unpaid for 30, 60, or 90+ days. Use this to chase outstanding payments.</div>
@@ -13061,9 +13061,48 @@ function _renderAudit(){
       i.rows.slice(0,12).map(r=>`<div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--bdr);font-size:.78rem"><span style="flex:1;min-width:0"><b>${esc(r.student_name||'Student')}</b> <span style="color:var(--txt4)">${esc(instr(r.instructor_id).full_name||'no instructor')} · ${new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}${r._note?' · '+esc(r._note):''}</span></span><span style="color:var(--txt3)">${fmt(amt(r))}</span>${r.instructor_id?`<button class="btn-s" style="font-size:.68rem;padding:3px 9px" onclick="openRefDetail('${r.instructor_id}',true)">Open</button>`:''}</div>`).join('')+(i.rows.length>12?`<div style="font-size:.72rem;color:var(--txt4);padding-top:6px">…and ${i.rows.length-12} more</div>`:''))).join(''):card('<div style="color:#4ade80;font-weight:700">✅ No problems found in your referrals or block bookings.</div>',''));
 }
 
+/* ══ TRACKING GAPS — finds data that is not connected end to end (enquiry → referral → lessons → money) ══ */
+let _gapCache=null;
+async function _loadTrackingGaps(force){
+  const el=document.getElementById('accGapBody');if(!el)return;
+  if(!force&&_gapCache&&Date.now()-_gapCache.t<5*60e3){el.innerHTML=_gapCache.html;return;}
+  el.innerHTML='<div style="padding:14px;color:var(--txt4);font-size:.8rem"><i class="bi bi-hourglass-split me-1"></i>Checking that everything is connected…</div>';
+  const p10=v=>String(v||'').replace(/\D/g,'').slice(-10),nk=v=>String(v||'').toLowerCase().replace(/[^a-z]/g,''),day=864e5,now=Date.now();
+  const ago=n=>new Date(now-n*day).toISOString();
+  const page=async(table,col,gteVal)=>{const out=[];for(let from=0;from<100000;from+=1000){let q=sb.from(table).select('*').order(col,{ascending:false}).range(from,from+999);if(gteVal)q=q.gte(col,gteVal);const{data,error}=await q;if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)break;}return out;};
+  let wl=[],lessons=[];
+  try{wl=await page('waiting_list','created_at',ago(120));}catch(e){}
+  try{lessons=await page('lessons','lesson_date',new Date(now-120*day).toISOString().slice(0,10));}catch(e){}
+  const refs=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit),blk=_blkData||[],instrs=allInstrs||[];
+  const iName=id=>(instrs.find(i=>String(i.id)===String(id))||{}).full_name||'no instructor',isFr=id=>String((instrs.find(i=>String(i.id)===String(id))||{}).instructor_model||'').toLowerCase()==='franchise';
+  const booked=r=>window._refAdminBooked?_refAdminBooked(r):false;
+  const refPh=new Set(refs.map(r=>p10(r.student_phone)).filter(x=>x.length>=9)),refNm=new Set(refs.map(r=>r.instructor_id+'|'+nk(r.student_name)));
+  const wlPh=new Set(wl.map(w=>p10(w.student_phone)).filter(x=>x.length>=9));
+  const blkNm=new Set(blk.map(b=>(b.instructor_id||'')+'|'+nk(b.student_name)));
+  const G=[];const add=(title,why,fix,rows)=>G.push({title,why,fix,rows});
+  const src=n=>/(^|\n)\s*Source:/i.test(n||'');
+  add('Enquiries with no source (last 60 days)','We cannot tell which ad or search brought them, so your channel numbers are incomplete.','Tell your team to pick "How did they find us?" on every enquiry, and add the source in the waiting list.',wl.filter(w=>new Date(w.created_at)>=now-60*day&&!src(w.notes)).map(w=>({n:w.student_name,sub:'enquiry · '+new Date(w.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),i:''})));
+  add('Assigned, but no referral was created','The enquiry says "assigned" but there is no referral, so no fee will ever be tracked.','Open Find & Assign and assign again, or add the referral in Referrals.',wl.filter(w=>w.status==='assigned'&&new Date(w.created_at)>=now-60*day&&!(p10(w.student_phone).length>=9&&refPh.has(p10(w.student_phone)))&&!refs.some(r=>nk(r.student_name)===nk(w.student_name))).map(w=>({n:w.student_name,sub:'assigned · '+new Date(w.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),i:w.assigned_instructor_id||''})));
+  add('Referred students with no enquiry record (source unknown, last 60 days)','These students never filled in the website form and no source was recorded.','Edit the referral notes or ask how they found you and add it.',refs.filter(r=>new Date(r.created_at)>=now-60*day&&!(p10(r.student_phone).length>=9&&wlPh.has(p10(r.student_phone)))).map(r=>({n:r.student_name,sub:'referred · '+new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),i:r.instructor_id})));
+  const byStu={};lessons.forEach(l=>{if(!l.instructor_id||!l.student_name)return;const k=l.instructor_id+'|'+nk(l.student_name);(byStu[k]=byStu[k]||{n:l.student_name,i:l.instructor_id,c:0,last:l.lesson_date});byStu[k].c++;if(l.lesson_date>byStu[k].last)byStu[k].last=l.lesson_date;});
+  add('Students with lessons but no referral or block (last 120 days)','A referral-model instructor is teaching this student but you have nothing recorded, so no fee is tracked.','Add a referral or a block booking for the student.',Object.entries(byStu).filter(([k,v])=>!isFr(v.i)&&!refNm.has(k)&&!blkNm.has(k)).map(([k,v])=>({n:v.n,sub:v.c+' lesson'+(v.c===1?'':'s')+' · last '+v.last,i:v.i})));
+  add('Confirmed booked, but no lessons in the calendar (14+ days)','You confirmed the booking but the instructor has not put a lesson in the calendar, so progress and block hours cannot be tracked.','Ask the instructor to add the lessons.',refs.filter(r=>booked(r)&&(now-new Date(r.created_at))/day>=14&&(now-new Date(r.created_at))/day<=120&&!byStu[r.instructor_id+'|'+nk(r.student_name)]&&!isFr(r.instructor_id)).map(r=>({n:r.student_name,sub:'booked · referred '+new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),i:r.instructor_id})));
+  add('Instructors with no model set','Without "referral" or "franchise" the system does not know whether to expect referral fees or weekly fees.','Open the instructor and choose their model.',instrs.filter(i=>i.status==='approved'&&!i.instructor_model).map(i=>({n:i.full_name,sub:'no model',i:i.id})));
+  const need=['waiting_list','referrals','lessons','student_profiles','student_accounts','student_credit_ledger','student_credit_settings','student_credit_history','growth_settings','email_contacts','income_entries','expenses','admin_messages','student_messages','pending_notifications','push_subscriptions'];
+  const miss=[];await Promise.all(need.map(async t=>{try{const{error}=await sb.from(t).select('*').limit(1);if(error&&/does not exist|schema cache|relation/i.test(error.message||''))miss.push(t);}catch(e){}}));
+  add('Database tables that are not set up','Anything stored in these tables is not being saved.','Run the matching SQL in Supabase (supabase/migrations).',miss.map(t=>({n:t,sub:'missing',i:''})));
+  const bad=G.filter(g=>g.rows.length),total=bad.reduce((a,g)=>a+g.rows.length,0);
+  const card=(h,b)=>`<div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;margin-bottom:12px">${h}${b}</div>`;
+  const html=`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 12px"><div style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700">🔍 Is everything tracked?</div><span style="padding:3px 12px;border-radius:99px;font-size:.74rem;font-weight:700;background:${total?'rgba(245,158,11,.15)':'rgba(74,222,128,.15)'};color:${total?'#f59e0b':'#4ade80'}">${total?'⚠️ '+total+' gap'+(total===1?'':'s')+' found':'✅ Nothing is missing'}</span><button class="btn-s" style="margin-left:auto;font-size:.74rem" onclick="_loadTrackingGaps(true)"><i class="bi bi-arrow-repeat me-1"></i>Check again</button></div>`+
+    (bad.length?bad.map(g=>card(`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="color:#f59e0b">⚠️ ${esc(g.title)}</b><span style="background:rgba(245,158,11,.18);color:#f59e0b;border-radius:99px;padding:0 8px;font-size:.7rem;font-weight:800">${g.rows.length}</span></div><div style="font-size:.76rem;color:var(--txt3);margin:4px 0 6px">${esc(g.why)} <i>${esc(g.fix)}</i></div>`,g.rows.slice(0,10).map(r=>`<div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--bdr);font-size:.78rem"><span style="flex:1;min-width:0"><b>${esc(r.n||'—')}</b> <span style="color:var(--txt4)">${r.i?esc(iName(r.i))+' · ':''}${esc(r.sub||'')}</span></span>${r.i?`<button class="btn-s" style="font-size:.68rem;padding:3px 9px" onclick="openRefDetail('${r.i}',true)">Open</button>`:''}</div>`).join('')+(g.rows.length>10?`<div style="font-size:.72rem;color:var(--txt4);padding-top:6px">…and ${g.rows.length-10} more</div>`:''))).join(''):card('<div style="color:#4ade80;font-weight:700">✅ Enquiries, referrals, lessons, blocks and payments are all connected, and every database table is set up.</div>','')) +
+    `<div style="font-size:.7rem;color:var(--txt4)">Checked just now · ${wl.length} enquiries, ${refs.length} referrals, ${lessons.length} lessons (last 120 days), ${blk.length} block entries.</div>`;
+  _gapCache={t:Date.now(),html};el.innerHTML=html;
+}
+
 /* Sub-tab */
 function setAccTab(t){
   _accTab=t;
+  if(t==='audit')setTimeout(()=>_loadTrackingGaps(false),50);
   ['pl','income','expenses','taxsum','overdue','audit'].forEach(k=>{
     const panel=document.getElementById('accpanel-'+k);
     const btn=document.getElementById('acctab-'+k);
