@@ -33,6 +33,7 @@
   }
 
   var LCOLS = 'id,student_account_id,student_profile_id,student_name,instructor_id,kind,hours,amount,method,reference,public_note,entry_date,created_at,created_by_role,created_by_name,edited_by_role,edited_by_name,edited_at,lesson_id,lesson_date,auto,excluded,overridden,paid_to,payout_amount,payout_status,payout_date,payout_ref';   // the private admin note and instructor pay are never requested here
+  var LCOLS_SYNC = LCOLS.replace(',paid_to,payout_amount,payout_status,payout_date,payout_ref', '');   // admin / student syncs never download instructor payout details
   function init(o) { C.sb = o.sb || C.sb; C.instr = o.instr || C.instr; C.toast = o.toast || C.toast; C.roster = o.roster || C.roster; C.report = o.report || C.report; C.sfx = o.sfx || C.sfx; }
   function rosterList() { try { return (C.roster && C.roster()) || []; } catch (e) { return []; } }
   function stuKey(st) { return st.accId || (st.profId ? 'p:' + st.profId : 'n:' + nameKey(st.name)); }
@@ -124,7 +125,7 @@
     var sb = o.sb || C.sb, st = o.st; if (!sb || !st || S.noSync) return null; C.sb = C.sb || sb;
     try {
       var conds = []; if (st.accId) conds.push('student_account_id.eq.' + st.accId); if (st.profId) conds.push('student_profile_id.eq.' + st.profId);
-      var q = sb.from('student_credit_ledger').select(LCOLS); q = conds.length ? q.or(conds.join(',')) : q.eq('student_name', st.name || '~');
+      var q = sb.from('student_credit_ledger').select(LCOLS_SYNC); q = conds.length ? q.or(conds.join(',')) : q.eq('student_name', st.name || '~');
       var a = await q; if (a.error) { if (/column|schema cache|relation/i.test(a.error.message || '')) S.noSync = /column/i.test(a.error.message || ''); return null; }
       var rows = a.data || []; if (!rows.some(function (r) { return r.kind === 'purchase'; })) return null;
       var instrId = st.instrId || (rows[0] && rows[0].instructor_id); if (!instrId) return null;
