@@ -1641,22 +1641,43 @@ async function loadCredit(){
   try{
     const st=await sb.from('student_credit_settings').select('show_on_portal').eq('student_key',currentStudent.id).maybeSingle();
     if(st.error||!st.data||!st.data.show_on_portal){card.classList.add('hidden');return;}
-    const r=await sb.from('student_credit_ledger').select('kind,hours,amount,reference,entry_date,created_at').eq('student_account_id',currentStudent.id).order('entry_date',{ascending:true}).order('created_at',{ascending:true});
+    const r=await sb.from('student_credit_ledger').select('kind,hours,amount,reference,entry_date,created_at,public_note,edited_at').eq('student_account_id',currentStudent.id).order('entry_date',{ascending:true}).order('created_at',{ascending:true});
     if(r.error||!r.data||!r.data.length){card.classList.add('hidden');return;}
     const E=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const hrs=v=>{v=+v||0;return (Number.isInteger(v)?v:Math.round(v*10)/10)+'h';},gbp=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2);
-    let h=0,m=0;const lines=r.data.map(x=>{h+=+x.hours||0;m+=+x.amount||0;return{x,h:Math.round(h*100)/100,m:Math.round(m*100)/100};});
-    const last=lines[lines.length-1],low=last.h<=2,col=last.h<=0?'#f87171':low?'#f59e0b':'#4ade80';
-    card.innerHTML=`<div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px"><i class="bi bi-wallet2 me-1" style="color:var(--gold)"></i>Your lesson block</div>
-      <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px">
-        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px">
-          <div><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px">Hours left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:${col}">${hrs(last.h)}</div></div>
-          <div><div style="font-size:.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:1px">Credit left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:${col}">${gbp(last.m)}</div></div></div>
-        ${last.h<=2&&last.h>0?'<div style="font-size:.74rem;color:#f59e0b;margin-bottom:6px">Your block is nearly used up. Message your instructor if you would like to book more lessons.</div>':''}
-        <div>${lines.slice().reverse().map(l=>{const x=l.x,d=new Date((x.entry_date||x.created_at)+(x.entry_date?'T12:00:00':'')),inn=(+x.amount||0)>0||(+x.hours||0)>0;
-          return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.78rem;align-items:flex-start"><span style="color:var(--txt4);min-width:70px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span style="flex:1;color:var(--txt2)"><strong style="color:${inn?'#4ade80':'var(--txt)'}">${x.kind==='purchase'?'Block bought':x.kind==='lesson'?'Lesson':'Adjustment'}</strong> ${inn?'+':''}${hrs(x.hours)} · ${inn?'+':''}${gbp(x.amount)}${x.reference?`<div style="color:var(--txt4);font-size:.7rem">Ref ${E(x.reference)}</div>`:''}</span><span style="text-align:right;color:var(--txt3);white-space:nowrap">${hrs(l.h)}<br>${gbp(l.m)}</span></div>`;}).join('')}</div>
+    const hrs=v=>{v=Math.round((+v||0)*100)/100;return (Number.isInteger(v)?v:v.toFixed(2).replace(/0$/,''))+'h';},gbp=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2).replace(/\.00$/,'');
+    let h=0,m=0,bh=0,bm=0,uh=0;
+    const lines=r.data.map(x=>{const xh=+x.hours||0,xm=+x.amount||0;h+=xh;m+=xm;if(x.kind==='purchase'&&xh>0){bh+=xh;bm+=xm;}else if(xh<0)uh+=-xh;return{x,h:Math.round(h*100)/100,m:Math.round(m*100)/100};});
+    const left=Math.round(h*100)/100,leftM=Math.round(m*100)/100,pct=bh>0?Math.max(0,Math.min(100,Math.round(uh/bh*100))):0;
+    const col=left<=0?'#f87171':left<=2?'#f59e0b':'#4ade80',lbl=left<=0?'Block used up':left<=2?'Nearly used up':'Hours left';
+    const first=(instrData&&instrData.full_name||'your instructor').split(' ')[0];
+    card.innerHTML=`<style>.bkc{background:linear-gradient(135deg,rgba(209,10,17,.14),rgba(245,197,24,.08));border:1px solid var(--bdr);border-radius:18px;padding:16px}.bkc .top{display:flex;gap:14px;align-items:center}.bkc .ring{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto}.bkc .ring>div{width:72px;height:72px;border-radius:50%;background:var(--dk2);display:grid;place-items:center;text-align:center}.bkc .ring b{font-family:'Oswald',sans-serif;font-size:1.7rem;line-height:1}.bkc .ring small{display:block;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3)}.bkc .st{display:flex;gap:8px;margin-top:12px}.bkc .st div{flex:1;background:var(--dk2);border:1px solid var(--bdr);border-radius:12px;padding:9px 10px}.bkc .st small{display:block;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)}.bkc .st b{font-family:'Oswald',sans-serif;font-size:1.15rem}.bkc .bar{height:8px;border-radius:6px;background:rgba(128,128,128,.25);margin:14px 0 4px;overflow:hidden}.bkc .bar i{display:block;height:100%;border-radius:6px}.bkc .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.bkc .btns a,.bkc .btns button{flex:1;min-width:140px;text-align:center;border-radius:12px;padding:10px 12px;font-weight:700;font-size:.82rem;text-decoration:none;border:1px solid var(--bdr);background:var(--dk2);color:var(--txt);cursor:pointer}.bkc .btns .wa{background:#25D366;border-color:#25D366;color:#06210f}.bkc .row{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--bdr);font-size:.78rem;align-items:flex-start}.bkc details summary{cursor:pointer;font-size:.78rem;font-weight:700;margin-top:12px;color:var(--txt2)}</style>
+      <div style="font-size:.68rem;color:var(--txt4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px"><i class="bi bi-wallet2 me-1" style="color:var(--gold)"></i>Your lesson block</div>
+      <div class="bkc">
+        <div class="top"><div class="ring" style="background:conic-gradient(${col} ${Math.round(pct*3.6)}deg,rgba(128,128,128,.25) 0)"><div><span><b style="color:${col}">${hrs(left).replace('h','')}</b><small>hrs left</small></span></div></div>
+          <div style="flex:1;min-width:0"><div style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--txt)">${bm>0?gbp(bm)+' · '+hrs(bh)+' block':'Lesson block'}</div><div style="font-size:.78rem;color:var(--txt2);margin-top:2px">${hrs(uh)} done · ${hrs(left)} left</div><div style="font-size:.76rem;font-weight:700;color:${col};margin-top:3px">${lbl}</div></div></div>
+        <div class="bar"><i style="width:${pct}%;background:${col}"></i></div>
+        <div class="st"><div><small>You paid</small><b>${gbp(bm)}</b></div><div><small>Hours done</small><b>${hrs(uh)}</b></div><div><small>Hours left</small><b style="color:${col}">${hrs(left)}</b></div></div>
+        ${left<=2&&left>0?'<div style="font-size:.76rem;color:#f59e0b;margin-top:10px">Your block is nearly used up. Message '+E(first)+' if you would like to book more lessons.</div>':''}
+        <div class="btns"><button type="button" id="bkRemind"><i class="bi bi-bell-fill me-1"></i>Remind ${E(first)} to update my hours</button><a class="wa" id="bkWA" href="#" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>WhatsApp ${E(first)}</a></div>
+        <div id="bkMsg" style="font-size:.74rem;margin-top:8px;display:none"></div>
+        <details><summary>Block history</summary><div>${lines.slice().reverse().map(l=>{const x=l.x,d=new Date((x.entry_date||x.created_at)+(x.entry_date?'T12:00:00':'')),inn=(+x.hours||0)>0;
+          return `<div class="row"><span style="color:var(--txt4);min-width:58px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span><span style="flex:1;color:var(--txt)"><b style="color:${inn?'#4ade80':'#f59e0b'}">${inn?'Block paid':'Lesson done'}</b> ${inn?'+':''}${hrs(x.hours)} · ${gbp(x.amount)}${x.public_note?`<div style="color:var(--txt3)">${E(x.public_note)}</div>`:''}</span><span style="text-align:right;color:var(--txt2)">${hrs(l.h)} left</span></div>`;}).join('')}</div></details>
       </div>`;
     card.classList.remove('hidden');
+    const text=`Hi ${first}, it's ${currentStudent.name||'your student'}. Please could you update my block hours — I have ${hrs(left)} left on my ${hrs(bh)} block. Thank you! 🚗`;
+    const phone=(instrData&&instrData.phone||'').replace(/\D/g,'').replace(/^0/,'44');
+    const wa=document.getElementById('bkWA');if(wa){if(phone)wa.href='https://wa.me/'+phone+'?text='+encodeURIComponent(text);else wa.style.display='none';}
+    const rb=document.getElementById('bkRemind');
+    if(rb)rb.onclick=async()=>{
+      const out=document.getElementById('bkMsg');rb.disabled=true;
+      try{
+        const{error}=await sb.from('student_messages').insert([{student_account_id:currentStudent.id,instructor_id:currentStudent.instructor_id,sender:'student',message:'⏰ '+text,is_read:false,sent_at:new Date().toISOString()}]);
+        if(error)throw error;
+        pushToInstructor(currentStudent.instructor_id,'⏰ Block hours reminder: '+(currentStudent.name||'Student'),text,'/dashboard.html');
+        sb.from('student_credit_history').insert([{student_key:currentStudent.id,student_account_id:currentStudent.id,student_name:currentStudent.name,instructor_id:currentStudent.instructor_id,action:'reminder',actor_role:'student',actor_name:currentStudent.name,summary:'asked the instructor to update their block hours ('+hrs(left)+' shown)'}]).then(()=>{},()=>{});
+        out.style.display='block';out.style.color='#4ade80';out.textContent='✅ Reminder sent to '+first+' in the app. You can also use WhatsApp.';
+      }catch(e){out.style.display='block';out.style.color='#f87171';out.textContent='Could not send just now. Please use the WhatsApp button.';rb.disabled=false;}
+    };
   }catch(e){card.classList.add('hidden');}
 }
 

@@ -2322,6 +2322,7 @@ body.day-mode .dsqd-note{color:#92400e}
     <button class="qa-btn" onclick="openReportsInbox()" style="border-color:rgba(245,158,11,.45);color:#f59e0b"><i class="bi bi-flag-fill me-1"></i>Instructor reports <span id="refQaReports" style="display:none;background:#f59e0b;color:#111;border-radius:8px;padding:0 6px;font-size:.62rem;margin-left:3px"></span></button>
     <button class="qa-btn" onclick="document.getElementById('refCreditSection')?.scrollIntoView({behavior:'smooth',block:'start'});if(document.getElementById('refCreditSection')?.style.display==='none')showToast('No replacement students owed right now.','info')" style="border-color:rgba(245,158,11,.35)"><i class="bi bi-arrow-repeat me-1"></i>Credits owed</button>
     <button class="qa-btn" onclick="document.getElementById('refSort').value='due';document.getElementById('refSearch').value='';renderReferrals()"><i class="bi bi-exclamation-circle me-1"></i>Most owed first</button>
+    <button class="qa-btn" onclick="openBlockOverview()" style="border-color:rgba(168,85,247,.45);color:#c084fc"><i class="bi bi-wallet2 me-1"></i>Block bookings</button>
     <button class="qa-btn" onclick="switchTab('find');try{setActiveTab('find')}catch(e){}"><i class="bi bi-geo-alt-fill me-1"></i>Find &amp; Assign</button>
     <button class="qa-btn" onclick="document.getElementById('refSummaryBox').open=true;document.getElementById('refSummaryBox').scrollIntoView({behavior:'smooth'})"><i class="bi bi-bar-chart-fill me-1"></i>Totals</button>
   </div>
@@ -4023,8 +4024,8 @@ function showLoginErr(msg){const el=document.getElementById('loginErr');el.textC
 const ADMIN_PUSH_KEY='BIALGVgZar7M3fWFrjTMac8SnuFT7WXgOOuprZ42d1BMUfuSeWYmKnvlDc1EhnRRBynidlZUd5F9u4i5jszRip8';
 const ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
 // Instructor → admin report types (shown in the Inbox, pushed to admin devices)
-const INBOUND_REPORT_TYPES=['drop_request','cancel_drop_request','no_lesson_report','referral_report'];
-const REPORT_LABELS={drop_request:'🚪 Student Left Request',cancel_drop_request:'↩️ Drop Cancelled',no_lesson_report:'📅 No Lesson Booked',referral_report:'🚩 Instructor Report'}; // fixed UUID for admin push subscriptions
+const INBOUND_REPORT_TYPES=['drop_request','cancel_drop_request','no_lesson_report','referral_report','block_booking'];
+const REPORT_LABELS={drop_request:'🚪 Student Left Request',cancel_drop_request:'↩️ Drop Cancelled',no_lesson_report:'📅 No Lesson Booked',referral_report:'🚩 Instructor Report',block_booking:'📦 Block booking edited by instructor'}; // fixed UUID for admin push subscriptions
 // Franchise instructors run their own students — admin doesn't need notifications about them
 function _isFranchiseInstr(id){const i=(allInstrs||[]).find(x=>x.id===id);return !!(i&&i.instructor_model==='franchise');}
 let _adminSwReg=null;
@@ -7131,7 +7132,7 @@ async function loadStudentCredit(s){
   const box=document.getElementById('sdCredit');if(!box)return;
   const acctId=s.acctId||null,profId=s.profileId||s.rosterId||null,ph10=String(s.phone||'').replace(/\D/g,'').slice(-10),lname=String(s.name||'').trim().toLowerCase();
   const key=acctId||(profId?'p:'+profId:'n:'+ph10+':'+lname);
-  _crCtx={s,acctId,profId,key,rows:[],on:false,form:null,missing:false,err:''};
+  _crCtx={s,acctId,profId,key,rows:[],hist:[],on:false,instrOn:true,form:null,editId:null,missing:false,err:''};
   box.innerHTML='<div style="font-size:.74rem;color:var(--txt4);padding:8px 0"><i class="bi bi-hourglass-split me-1"></i>Loading block payments…</div>';
   try{
     const conds=[];if(acctId)conds.push('student_account_id.eq.'+acctId);if(profId)conds.push('student_profile_id.eq.'+profId);
@@ -7144,6 +7145,8 @@ async function loadStudentCredit(s){
     const st=await sb.from('student_credit_settings').select('*').in('student_key',keys);
     const rowsS=st.data||[],mine=rowsS.find(x=>x.student_key===key),old=rowsS.find(x=>x.student_key==='p:'+profId);
     _crCtx.on=!!(mine?mine.show_on_portal:(old&&old.show_on_portal));
+    _crCtx.instrOn=!((mine&&mine.show_to_instructor===false)||(!mine&&old&&old.show_to_instructor===false));
+    try{const hc=[];if(acctId)hc.push('student_account_id.eq.'+acctId);if(profId)hc.push('student_profile_id.eq.'+profId);hc.push('student_key.eq.'+key);const hh=await sb.from('student_credit_history').select('*').or(hc.join(',')).order('created_at',{ascending:false}).limit(200);_crCtx.hist=hh.data||[];}catch(e){_crCtx.hist=[];}
     if(!mine&&old&&old.show_on_portal)sb.from('student_credit_settings').upsert({student_key:key,show_on_portal:true,updated_at:new Date().toISOString()},{onConflict:'student_key'}).then(()=>{},()=>{});
   }catch(e){const m=String((e&&e.message)||e);_crCtx.missing=/does not exist|relation|schema cache|student_credit/i.test(m);_crCtx.err=m;}
   _crRender();
@@ -7161,19 +7164,32 @@ function _crRender(){
   const lines=rows.map(r=>{run.h+=+r.hours||0;run.m+=+r.amount||0;const out=(+r.amount||0)<0||(+r.hours||0)<0;
     const lbl=r.kind==='purchase'?'Block bought':r.kind==='lesson'?'Lesson paid':'Adjustment';
     const d=new Date((r.entry_date||r.created_at)+(r.entry_date?'T12:00:00':''));
-    const extra=[r.method&&r.kind==='purchase'?String(r.method).replace(/_/g,' '):'',r.reference?'ref '+r.reference:'',r.instructor_paid!=null&&r.kind==='lesson'?'paid instructor £'+(+r.instructor_paid).toFixed(2):'',r.note].filter(Boolean).map(esc).join(' · ');
+    const extra=[r.method&&r.kind==='purchase'?String(r.method).replace(/_/g,' '):'',r.reference?'ref '+r.reference:'',r.instructor_paid!=null&&r.kind==='lesson'?'paid instructor £'+(+r.instructor_paid).toFixed(2):'',r.public_note?'💬 '+r.public_note:'',r.note].filter(Boolean).map(esc).join(' · ');
     return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.76rem;align-items:flex-start"><span style="color:var(--txt4);min-width:74px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}</span>
-      <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${lbl}</strong> <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
+      <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${lbl}</strong>${r.created_by_role==='instructor'?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(96,165,250,.18);color:#60a5fa">by instructor</span>':''}${r.edited_at?` <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(245,158,11,.18);color:#f59e0b" title="${esc(new Date(r.edited_at).toLocaleString('en-GB'))}">edited by ${r.edited_by_role==='instructor'?'instructor':'admin'}</span>`:''} <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
       <span style="text-align:right;white-space:nowrap;color:var(--txt3)">${_crHrs(run.h)}<br>${_crMoney(run.m)}</span>
+      <button class="abtn" style="padding:2px 7px" title="Edit this entry" onclick="crForm('edit','${r.id}')"><i class="bi bi-pencil"></i></button>
       <button class="abtn" style="border-color:rgba(248,113,113,.4);color:#f87171;padding:2px 7px" title="Delete this entry" onclick="crDelete('${r.id}')"><i class="bi bi-trash"></i></button></div>`;}).join('');
   const f=c.form,today=new Date().toISOString().slice(0,10),inp='class="dsq-inp" style="padding:5px 8px;font-size:.78rem"';
-  const form=!f?'':f==='block'
+  const ed=f==='edit'?c.rows.find(x=>String(x.id)===String(c.editId)):null;
+  const form=!f?'':f==='edit'&&ed
+    ?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;margin:8px 0"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px">✏️ Edit this ${ed.kind==='purchase'?'block':'lesson entry'} <span style="color:var(--txt4);font-weight:400">(the change is saved in the history)</span></div><div class="row g-2">
+        <div class="col-4"><label class="dsq-lbl">Hours</label><input ${inp} id="crHrs" type="number" step="0.5" min="0.5" value="${Math.abs(+ed.hours||0)}"></div>
+        <div class="col-4"><label class="dsq-lbl">${ed.kind==='purchase'?'Paid £':'Value £'}</label><input ${inp} id="crAmt" type="number" step="0.01" min="0" value="${Math.abs(+ed.amount||0)}"></div>
+        <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${esc(ed.entry_date||today)}"></div>
+        ${ed.kind==='lesson'?`<div class="col-6"><label class="dsq-lbl">Paid to instructor £</label><input ${inp} id="crPaid" type="number" step="0.01" min="0" value="${ed.instructor_paid!=null?esc(ed.instructor_paid):''}"></div>`:''}
+        <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" value="${esc(ed.reference||'')}"></div>
+        <div class="col-12"><label class="dsq-lbl">Comment <span style="color:var(--txt4)">(instructor &amp; student can see)</span></label><input ${inp} id="crPub" value="${esc(ed.public_note||'')}"></div>
+        <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" value="${esc(ed.note||'')}"></div></div>
+        <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Save changes</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`
+    :f==='block'
     ?`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;margin:8px 0"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px">➕ Student bought a block</div><div class="row g-2">
         <div class="col-4"><label class="dsq-lbl">Hours</label><input ${inp} id="crHrs" type="number" step="0.5" min="0.5" value="10"></div>
         <div class="col-4"><label class="dsq-lbl">Paid £</label><input ${inp} id="crAmt" type="number" step="0.01" min="0" value="330"></div>
         <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${today}"></div>
         <div class="col-6"><label class="dsq-lbl">Paid via</label><select ${inp} id="crMethod"><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></div>
         <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" placeholder="e.g. bank ref"></div>
+        <div class="col-12"><label class="dsq-lbl">Comment <span style="color:var(--txt4)">(instructor &amp; student can see)</span></label><input ${inp} id="crPub" placeholder="optional"></div>
         <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="Only you see this"></div></div>
         <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Save block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`
     :`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:10px;padding:10px;margin:8px 0"><div style="font-weight:700;font-size:.8rem;margin-bottom:6px">➖ Lesson paid — take it off the block</div><div class="row g-2">
@@ -7182,6 +7198,7 @@ function _crRender(){
         <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${today}"></div>
         <div class="col-6"><label class="dsq-lbl">Paid to instructor £ <span style="color:var(--txt4)">(optional)</span></label><input ${inp} id="crPaid" type="number" step="0.01" min="0"></div>
         <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" placeholder="e.g. payout ref"></div>
+        <div class="col-12"><label class="dsq-lbl">Comment <span style="color:var(--txt4)">(instructor &amp; student can see)</span></label><input ${inp} id="crPub" placeholder="e.g. Lesson 4 — roundabouts"></div>
         <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="e.g. Lesson 4, paid Dawood by bank"></div></div>
         <div style="font-size:.68rem;color:var(--txt4);margin-top:4px">Value is worked out at this student's block rate of ${_crMoney(rate)} an hour. Change it if needed.</div>
         <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Take off block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`;
@@ -7193,37 +7210,96 @@ function _crRender(){
     <div class="d-flex gap-2 flex-wrap"><button class="btn-p" style="font-size:.78rem" onclick="crForm('block')"><i class="bi bi-plus-lg me-1"></i>Add block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm('lesson')" ${hasAny?'':'disabled'}><i class="bi bi-dash-lg me-1"></i>Lesson paid</button></div>
     ${form}
     ${hasAny?`<div style="margin-top:8px">${lines}</div>`:`<div style="font-size:.76rem;color:var(--txt4);padding:8px 0 2px">No block recorded. Press <strong>Add block</strong> when the student pays for a block of lessons.</div>`}
-    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);font-size:.76rem;cursor:pointer"><input type="checkbox" ${c.on?'checked':''} onchange="crToggle(this.checked)" style="margin-top:2px"><span><strong>Show payments &amp; credit on the student's portal</strong><br><span style="color:var(--txt4)">Off by default: the student sees nothing. When on, they see hours left, credit left and each entry. Your private notes and instructor pay are never shown.</span></span></label></div>`;
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);font-size:.76rem;cursor:pointer"><input type="checkbox" ${c.on?'checked':''} onchange="crToggle(this.checked)" style="margin-top:2px"><span><strong>Show payments &amp; credit on the student's portal</strong><br><span style="color:var(--txt4)">Off by default: the student sees nothing. When on, they see hours left, credit left and each entry. Your private notes and instructor pay are never shown.</span></span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:.76rem;cursor:pointer"><input type="checkbox" ${c.instrOn?'checked':''} onchange="crToggleInstr(this.checked)" style="margin-top:2px"><span><strong>Instructor can see and update this block</strong><br><span style="color:var(--txt4)">On by default. The instructor ticks hours off after lessons; every change they make shows here as “edited by instructor” and in your Inbox. They never see your private notes or what you pay them.</span></span></label>
+    <details style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr)"><summary style="cursor:pointer;font-size:.78rem;font-weight:700"><i class="bi bi-clock-history me-1"></i>Full history (${(c.hist||[]).length})</summary>${(c.hist||[]).length?(c.hist||[]).map(x=>{const col=x.actor_role==='instructor'?'#60a5fa':x.actor_role==='student'?'#c084fc':'#f5c518';return `<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--bdr);font-size:.73rem"><span style="color:var(--txt4);min-width:92px;white-space:nowrap">${new Date(x.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span style="flex:1"><b style="color:${col}">${esc(x.actor_role==='admin'?'Admin':x.actor_role==='instructor'?(x.actor_name||'Instructor')+' (instructor)':(x.actor_name||'Student')+' (student)')}</b> ${esc(x.summary||x.action)}</span></div>`;}).join(''):'<div style="font-size:.74rem;color:var(--txt4);padding:6px 0">Nothing logged yet. Changes made from now on appear here.</div>'}</details></div>`;
 }
-function crForm(k){if(!_crCtx)return;_crCtx.form=k;_crRender();}
+async function _crHist(action,summary,before,after,ledgerId){
+  const c=_crCtx;if(!c)return;
+  const row={ledger_id:ledgerId||null,student_key:c.key,student_account_id:c.acctId||null,student_profile_id:c.profId||null,student_name:c.s.name||null,instructor_id:c.s.instrId||null,action,actor_role:'admin',actor_name:'Admin',summary,before:before||null,after:after||null};
+  try{await sb.from('student_credit_history').insert(row);c.hist.unshift({...row,created_at:new Date().toISOString()});}catch(e){}
+}
+function crForm(k,id){if(!_crCtx)return;_crCtx.form=k;_crCtx.editId=id||null;_crRender();}
 function crAutoAmt(rate){const h=parseFloat(document.getElementById('crHrs')?.value)||0,a=document.getElementById('crAmt');if(a)a.value=(h*rate).toFixed(2);}
 async function crSave(){
   const c=_crCtx;if(!c||!c.form)return;const g=id=>document.getElementById(id);
   const hrs=parseFloat(g('crHrs')?.value)||0,amt=parseFloat(g('crAmt')?.value)||0;
   if(hrs<=0){showToast('Enter the hours.','error');return;}
+  if(c.form==='edit'){
+    const old=c.rows.find(x=>String(x.id)===String(c.editId));if(!old)return;
+    const sg=old.kind==='purchase'?1:-1,patch={hours:sg*hrs,amount:sg*amt,entry_date:g('crDate')?.value||old.entry_date,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,public_note:(g('crPub')?.value||'').trim()||null,edited_by_role:'admin',edited_by_name:'Admin',edited_at:new Date().toISOString()};
+    if(old.kind==='lesson'&&g('crPaid')?.value!=='')patch.instructor_paid=parseFloat(g('crPaid').value)||0;
+    const{error:eErr}=await sb.from('student_credit_ledger').update(patch).eq('id',old.id);
+    if(eErr){showToast('Not saved: '+eErr.message+(/column/i.test(eErr.message)?' — run supabase/migrations/20261119_block_bookings.sql':''),'error',7000);return;}
+    await _crHist('edited','changed a '+(old.kind==='purchase'?'block':'lesson entry')+': '+_crHrs(Math.abs(old.hours))+' · '+_crMoney(Math.abs(old.amount))+' → '+_crHrs(hrs)+' · '+_crMoney(amt),{hours:old.hours,amount:old.amount,date:old.entry_date,public_note:old.public_note},{hours:patch.hours,amount:patch.amount,date:patch.entry_date,public_note:patch.public_note},old.id);
+    showToast('✅ Entry updated (logged in the history)','success',2500);c.form=null;c.editId=null;await loadStudentCredit({...c.s,acctId:c.acctId,profileId:c.profId});return;
+  }
   if(c.form==='block'&&amt<=0){showToast('Enter what the student paid.','error');return;}
   const sign=c.form==='block'?1:-1,paid=g('crPaid')?.value;
   const row={student_account_id:c.acctId,student_profile_id:c.profId,student_name:c.s.name||null,instructor_id:c.s.instrId||null,kind:c.form==='block'?'purchase':'lesson',hours:sign*hrs,amount:sign*amt,
     instructor_paid:(c.form==='lesson'&&paid!==''&&paid!=null)?parseFloat(paid)||0:null,method:c.form==='block'?(g('crMethod')?.value||null):null,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,entry_date:g('crDate')?.value||new Date().toISOString().slice(0,10)};
-  const{error}=await sb.from('student_credit_ledger').insert(row);
+  row.public_note=(g('crPub')?.value||'').trim()||null;row.created_by_role='admin';row.created_by_name='Admin';
+  let ins=await sb.from('student_credit_ledger').insert(row).select('id').maybeSingle();
+  if(ins.error&&/column/i.test(ins.error.message||'')){delete row.public_note;delete row.created_by_role;delete row.created_by_name;ins=await sb.from('student_credit_ledger').insert(row).select('id').maybeSingle();if(!ins.error)showToast('Saved, but run supabase/migrations/20261119_block_bookings.sql to switch on instructor access and history.','warn',8000);}
+  const error=ins.error;
   if(error){showToast('Not saved: '+error.message,'error',6000);return;}
+  await _crHist(c.form==='block'?'added':'used',(c.form==='block'?'added a block: ':'took off ')+_crHrs(hrs)+' · '+_crMoney(amt),null,{hours:row.hours,amount:row.amount},ins.data&&ins.data.id);
   showToast(c.form==='block'?`✅ Block added — ${_crHrs(hrs)} · ${_crMoney(amt)}`:`✅ ${_crHrs(hrs)} taken off the block`,'success',2500);
   c.form=null;await loadStudentCredit({...c.s,acctId:c.acctId,profileId:c.profId});
 }
 async function crDelete(id){
   if(!_crCtx||!confirm('Delete this entry? The balance will change.'))return;
+  const old=_crCtx.rows.find(x=>String(x.id)===String(id));
   const{error}=await sb.from('student_credit_ledger').delete().eq('id',id);
   if(error){showToast('Not deleted: '+error.message,'error');return;}
+  if(old)await _crHist('deleted','deleted a '+(old.kind==='purchase'?'block':'lesson entry')+' ('+_crHrs(Math.abs(old.hours))+' · '+_crMoney(Math.abs(old.amount))+')',{hours:old.hours,amount:old.amount},null,old.id);
   await loadStudentCredit({..._crCtx.s,acctId:_crCtx.acctId,profileId:_crCtx.profId});
+}
+async function crToggleInstr(on){
+  if(!_crCtx)return;
+  const{error}=await sb.from('student_credit_settings').upsert({student_key:_crCtx.key,show_to_instructor:!!on,student_name:_crCtx.s.name||null,instructor_id:_crCtx.s.instrId||null,updated_at:new Date().toISOString()},{onConflict:'student_key'});
+  if(error){showToast('Not saved: '+error.message+(/column/i.test(error.message)?' — run supabase/migrations/20261119_block_bookings.sql':''),'error',7000);_crRender();return;}
+  _crCtx.instrOn=!!on;await _crHist('visibility',on?'switched ON: instructor can see and update this block':'switched OFF: instructor can no longer see this block');showToast(on?'👁️ Instructor can see and update this block':'🙈 Hidden from the instructor','success',2600);_crRender();
 }
 async function crToggle(on){
   if(!_crCtx)return;
-  const{error}=await sb.from('student_credit_settings').upsert({student_key:_crCtx.key,show_on_portal:!!on,updated_at:new Date().toISOString()},{onConflict:'student_key'});
+  const{error}=await sb.from('student_credit_settings').upsert({student_key:_crCtx.key,show_on_portal:!!on,student_name:_crCtx.s.name||null,instructor_id:_crCtx.s.instrId||null,updated_at:new Date().toISOString()},{onConflict:'student_key'});
   if(error){showToast('Not saved: '+error.message,'error');_crRender();return;}
-  _crCtx.on=!!on;showToast(on?'👁️ Student can now see payments & credit on their portal':'🙈 Hidden from the student portal','success',2600);
+  _crCtx.on=!!on;_crHist('visibility',on?'switched ON: student can see their block on the portal':'switched OFF: block hidden from the student portal');showToast(on?'👁️ Student can now see payments & credit on their portal':'🙈 Hidden from the student portal','success',2600);
   if(on&&!_crCtx.acctId)showToast('Note: this student has no portal account yet, so nothing shows until they sign up.','info',5000);
 }
-window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crAutoAmt=crAutoAmt;
+window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crToggleInstr=crToggleInstr;window.crAutoAmt=crAutoAmt;
+
+/* ══ BLOCK BOOKINGS OVERVIEW (every student with a block, plus the latest changes by instructors / admin / students) ══ */
+async function dismissBlockMsg(id){
+  const{error}=await sb.from('admin_messages').update({dismissed:true,is_read:true}).eq('id',id);
+  if(error){showToast('Could not update: '+error.message,'error');return;}
+  try{loadInbox();}catch(e){}
+}
+async function openBlockOverview(){
+  let m=document.getElementById('blkOvModal');if(m)m.remove();
+  m=document.createElement('div');m.id='blkOvModal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99998;display:flex;align-items:center;justify-content:center;padding:14px';
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  m.innerHTML='<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;width:100%;max-width:860px;max-height:90vh;overflow:auto;padding:18px"><div style="color:var(--txt3);padding:12px">Loading block bookings…</div></div>';
+  document.body.appendChild(m);
+  const box=m.firstElementChild;
+  const money=v=>(v<0?'−':'')+'£'+Math.abs(+v||0).toFixed(2).replace(/\.00$/,''),hrs=v=>{v=Math.round((+v||0)*100)/100;return(Number.isInteger(v)?v:v.toFixed(2).replace(/0$/,''))+'h';};
+  try{
+    const[l,h,st]=await Promise.all([sb.from('student_credit_ledger').select('*').order('created_at',{ascending:true}),sb.from('student_credit_history').select('*').order('created_at',{ascending:false}).limit(60),sb.from('student_credit_settings').select('*')]);
+    if(l.error)throw l.error;
+    const sets={};(st.data||[]).forEach(x=>{sets[x.student_key]=x;});
+    const by={};(l.data||[]).forEach(r=>{const k=r.student_account_id||(r.student_profile_id?'p:'+r.student_profile_id:'n:'+String(r.student_name||'').toLowerCase());(by[k]=by[k]||{k,name:r.student_name,instr:r.instructor_id,rows:[]}).rows.push(r);});
+    const list=Object.values(by).map(g=>{let bh=0,bm=0,uh=0,th=0,tm=0,last=null;g.rows.forEach(r=>{const x=+r.hours||0,y=+r.amount||0;th+=x;tm+=y;if(r.kind==='purchase'&&x>0){bh+=x;bm+=y;}else if(x<0)uh+=-x;if(r.created_by_role==='instructor'||r.edited_by_role==='instructor')last=r;});return{...g,bh,bm,uh,left:Math.round(th*100)/100,leftM:Math.round(tm*100)/100,byInstr:!!last,set:sets[g.k]||sets['p:'+(g.rows[0]||{}).student_profile_id]||null};}).sort((a,b)=>a.left-b.left);
+    const iname=id=>((allInstrs||[]).find(i=>i.id===id)||{}).full_name||'—';
+    box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700"><i class="bi bi-wallet2 me-2" style="color:var(--gold)"></i>Block bookings</div><button class="btn-s" onclick="document.getElementById('blkOvModal').remove()">Close</button></div>
+      <div style="font-size:.76rem;color:var(--txt3);margin-bottom:10px">${list.length} student${list.length===1?'':'s'} with a block · ${money(list.reduce((a,x)=>a+x.bm,0))} paid in blocks. Open a student's profile to edit entries or change who can see it.</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="color:var(--txt3);text-align:left"><th style="padding:6px">Student</th><th style="padding:6px">Instructor</th><th style="padding:6px;text-align:right">Paid</th><th style="padding:6px;text-align:right">Done</th><th style="padding:6px;text-align:right">Left</th><th style="padding:6px">Visible to</th></tr></thead><tbody>
+      ${list.map(g=>{const c=g.left<=0?'#f87171':g.left<=2?'#f59e0b':'#4ade80';return `<tr style="border-top:1px solid var(--bdr)"><td style="padding:7px 6px;font-weight:700">${esc(g.name||'—')}${g.byInstr?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(96,165,250,.18);color:#60a5fa">instructor edited</span>':''}</td><td style="padding:7px 6px">${esc(iname(g.instr))}</td><td style="padding:7px 6px;text-align:right">${money(g.bm)}<div style="color:var(--txt4)">${hrs(g.bh)}</div></td><td style="padding:7px 6px;text-align:right">${hrs(g.uh)}</td><td style="padding:7px 6px;text-align:right;font-weight:700;color:${c}">${hrs(g.left)}<div style="color:var(--txt4);font-weight:400">${money(g.leftM)}</div></td><td style="padding:7px 6px;font-size:.7rem">${g.set&&g.set.show_on_portal?'👁️ Student ':'🙈 Student '}${!g.set||g.set.show_to_instructor!==false?'· 👁️ Instructor':'· 🙈 Instructor'}</td></tr>`;}).join('')||'<tr><td colspan="6" style="padding:14px;color:var(--txt4)">No block bookings recorded yet.</td></tr>'}</tbody></table></div>
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;margin:16px 0 6px">Latest changes</div>
+      ${(h.data||[]).length?(h.data||[]).map(x=>{const col=x.actor_role==='instructor'?'#60a5fa':x.actor_role==='student'?'#c084fc':'#f5c518';return `<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--bdr);font-size:.74rem"><span style="color:var(--txt4);min-width:92px;white-space:nowrap">${new Date(x.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span style="flex:1"><b style="color:${col}">${esc(x.actor_role==='admin'?'Admin':x.actor_role==='instructor'?(x.actor_name||'Instructor')+' (instructor)':(x.actor_name||'Student')+' (student)')}</b> ${esc(x.summary||x.action)}${x.student_name&&x.actor_role!=='student'&&!String(x.summary||'').includes(x.student_name)?' · '+esc(x.student_name):''}</span></div>`;}).join(''):'<div style="font-size:.76rem;color:var(--txt4)">Nothing logged yet.</div>'}`;
+  }catch(e){const msg=String((e&&e.message)||e);box.innerHTML='<div style="padding:14px;font-size:.8rem;color:#f87171">'+(/does not exist|relation|schema cache|student_credit/i.test(msg)?'The block booking tables are not in Supabase yet. Run <code>supabase/migrations/20261114_student_credit.sql</code> then <code>20261119_block_bookings.sql</code> in the SQL Editor.':'Could not load: '+esc(msg))+'</div>';}
+}
+window.openBlockOverview=openBlockOverview;window.dismissBlockMsg=dismissBlockMsg;
 
 /* ══ EDIT STUDENT ══ */
 // Called when clicking a roster-only student (no lesson history in cache)
@@ -8085,7 +8161,7 @@ async function loadInbox(){
   const lbl=document.getElementById('inboxCountLabel');
   const pending=_inboxCache.filter(m=>!m.dismissed);
   if(lbl)lbl.textContent=`${pending.length} pending, ${_inboxCache.length} total`;
-  const _chips=[['open','Needs action'],['all','All'],['drop_request','Student left'],['no_lesson_report','No lesson'],['referral_report','Reports'],['cancel_drop_request','Cancelled']]
+  const _chips=[['open','Needs action'],['all','All'],['drop_request','Student left'],['no_lesson_report','No lesson'],['referral_report','Reports'],['block_booking','📦 Block bookings'],['cancel_drop_request','Cancelled']]
     .map(([k,l])=>{const n=k==='all'?_inboxCache.length:k==='open'?_inboxCache.filter(m=>!m.dismissed&&m.message_type!=='cancel_drop_request').length:_inboxCache.filter(m=>m.message_type===k).length;
       return`<button onclick="window._inboxFilter='${k}';loadInbox()" class="qa-btn" style="${_f===k?'background:#D10A11;border-color:#D10A11;color:#fff':''}">${l} (${n})</button>`;}).join('');
   const _bar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${_chips}</div>`;
@@ -8101,20 +8177,21 @@ async function loadInbox(){
     const nameMatch=subj.match(/Student (?:left|left \(cancelled\)|cancelled):\s*(.+)/i)||subj.match(/:\s*(.+)$/);
     if(nameMatch)studentName=nameMatch[1].trim();
     const isReport=m.message_type==='referral_report'||m.message_type==='no_lesson_report';
-    const typeIcon=isDrop?'🚪':isCancel?'↩️':m.message_type==='no_lesson_report'?'📅':isReport?'🚩':'📩';
-    const typeLabel=isDrop?'Student Left Request':isCancel?'Drop Request Cancelled':m.message_type==='no_lesson_report'?'No Lesson Booked':isReport?'Instructor Report':'Message';
+    const isBlk=m.message_type==='block_booking';
+    const typeIcon=isBlk?'📦':isDrop?'🚪':isCancel?'↩️':m.message_type==='no_lesson_report'?'📅':isReport?'🚩':'📩';
+    const typeLabel=isBlk?'Block booking edited by instructor':isDrop?'Student Left Request':isCancel?'Drop Request Cancelled':m.message_type==='no_lesson_report'?'No Lesson Booked':isReport?'Instructor Report':'Message';
     const _ageH=(Date.now()-new Date(m.created_at).getTime())/36e5;
     const _age=_ageH<1?Math.max(1,Math.round(_ageH*60))+' min ago':_ageH<48?Math.round(_ageH)+' h ago':Math.round(_ageH/24)+' days ago';
     const _instrPhone=(allInstrs.find(x=>x.id===m.instructor_id)||{}).phone||'';
     const _wa=typeof buildWaNum==='function'?buildWaNum(_instrPhone):'';
     const _common=`<button onclick="reportReassign('${jsEsc(studentName)}','${m.instructor_id}')" class="qa-btn"><i class="bi bi-geo-alt-fill me-1"></i>Reassign student</button>${_wa?`<a class="qa-btn" target="_blank" rel="noopener" href="https://wa.me/${_wa}?text=${encodeURIComponent('Hi '+instrName.split(' ')[0]+', about '+studentName+' — ')}"><i class="bi bi-whatsapp me-1"></i>WhatsApp ${esc(instrName.split(' ')[0])}</a>`:''}`;
-    const typeCl=isDrop?'rgba(239,68,68,.1)':isCancel?'rgba(245,158,11,.08)':'rgba(96,165,250,.08)';
-    const typeBdr=isDrop?'rgba(239,68,68,.3)':isCancel?'rgba(245,158,11,.25)':'rgba(96,165,250,.2)';
+    const typeCl=isDrop?'rgba(239,68,68,.1)':isCancel?'rgba(245,158,11,.08)':isBlk?'rgba(168,85,247,.08)':'rgba(96,165,250,.08)';
+    const typeBdr=isDrop?'rgba(239,68,68,.3)':isCancel?'rgba(245,158,11,.25)':isBlk?'rgba(168,85,247,.35)':'rgba(96,165,250,.2)';
     const actionBtns=isDrop&&!isDone?`
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         <button onclick="approveDropRequest('${m.id}','${jsEsc(studentName)}','${m.instructor_id}')" style="flex:1;min-width:100px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:8px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;padding:7px 10px;cursor:pointer"><i class="bi bi-check-lg me-1"></i>Confirm Left</button>
         <button onclick="rejectDropRequest('${m.id}','${jsEsc(studentName)}','${m.instructor_id}')" style="flex:1;min-width:100px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;border-radius:8px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;padding:7px 10px;cursor:pointer"><i class="bi bi-arrow-counterclockwise me-1"></i>Keep / Restore</button>
-      </div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${_common}</div>` : isReport&&!isDone?`<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+      </div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${_common}</div>` : isBlk&&!isDone?`<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button onclick="dismissBlockMsg('${m.id}')" class="qa-btn" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35);color:#4ade80"><i class="bi bi-check2 me-1"></i>Got it</button><button onclick="openBlockOverview()" class="qa-btn"><i class="bi bi-wallet2 me-1"></i>All block bookings</button></div>` : isReport&&!isDone?`<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         <button onclick="resolveReport('${m.id}','${jsEsc(studentName)}','${m.instructor_id}')" class="qa-btn" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35);color:#4ade80"><i class="bi bi-check2-circle me-1"></i>Reply &amp; resolve</button>${_common}</div>` : isDone?`<div style="font-size:.7rem;color:var(--txt4);margin-top:6px;padding:4px 8px;background:var(--dk3);border-radius:6px;display:inline-block"><i class="bi bi-check-circle-fill me-1" style="color:#4ade80"></i>Actioned</div>`:'';
     return`<div style="border:1px solid ${typeBdr};background:${typeCl};border-radius:12px;padding:13px 15px;margin-bottom:10px;${isDone?'opacity:.6':''}">
       <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between;flex-wrap:wrap">
@@ -8131,7 +8208,7 @@ async function loadInbox(){
 }
 
 function _updateInboxBadge(){
-  const pending=(_inboxCache||[]).filter(m=>m.message_type!=='cancel_drop_request'&&INBOUND_REPORT_TYPES.includes(m.message_type)&&!m.dismissed&&!_isFranchiseInstr(m.instructor_id)).length;
+  const pending=(_inboxCache||[]).filter(m=>m.message_type!=='cancel_drop_request'&&m.message_type!=='block_booking'&&INBOUND_REPORT_TYPES.includes(m.message_type)&&!m.dismissed&&!_isFranchiseInstr(m.instructor_id)).length;
   _renderReportsAlert(pending);
   ['qaReportsBadge','refQaReports'].forEach(id=>{const qb=document.getElementById(id);if(qb){if(pending>0){qb.textContent=pending;qb.style.display='';}else qb.style.display='none';}});
   const badge=document.getElementById('inboxBadge');
