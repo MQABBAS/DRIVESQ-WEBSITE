@@ -10374,6 +10374,54 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+/* Find & Assign: X clears the form and the results, U brings it back */
+let _fcUndo=null;
+const _FC_IDS=['fc-name','fc-postcode','fc-phone','fc-email','fc-addr','fc-avail','fc-notes','fc-source','fc-test','fc-test-other','fc-type'];
+function clearFindAssign(){
+  const snap={};_FC_IDS.forEach(id=>{const el=document.getElementById(id);if(el)snap[id]=el.value;});
+  const had=_FC_IDS.slice(0,10).some(id=>snap[id]);
+  if(!had){showToast('Find & Assign is already empty.','info',2200);return;}
+  _fcUndo={snap,raw:window._fcRawNotes,wl:window._waitlistIdToAssign,wb:window._pendingWbId,ctx:window._fcCtxName};
+  resetFindForm();try{localStorage.removeItem('dsq_fc_draft');}catch(e){}
+  showToast('🧹 Cleared. Press <b>U</b> to undo.','info',5000);
+}
+function undoClearFindAssign(){
+  if(!_fcUndo)return;const u=_fcUndo;_fcUndo=null;
+  _FC_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&u.snap[id]!=null)el.value=u.snap[id];});
+  window._fcRawNotes=u.raw||'';window._waitlistIdToAssign=u.wl||null;window._pendingWbId=u.wb||null;window._fcCtxName=u.ctx||null;
+  try{const t=document.getElementById('fc-test');if(t)t.dispatchEvent(new Event('change'));}catch(e){}
+  try{_saveFcDraft();}catch(e){}
+  showToast('↩️ Restored.','success',2200);
+  try{if((document.getElementById('fc-postcode').value||'').trim())findClosest();}catch(e){}
+}
+window.clearFindAssign=clearFindAssign;window.undoClearFindAssign=undoClearFindAssign;
+/* X closes search and any open window (in a text box it only closes when the box is empty, so names with an "x" still work) */
+document.addEventListener('keydown',e=>{
+  if((e.key==='u'||e.key==='U')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&_fcUndo){
+    const a=document.activeElement,tg=a&&a.tagName,fp=document.getElementById('panel-find');
+    if(!(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT'||(a&&a.isContentEditable))&&fp&&!fp.classList.contains('hidden')){e.preventDefault();undoClearFindAssign();}
+    return;
+  }
+  if((e.key!=='x'&&e.key!=='X')||e.ctrlKey||e.metaKey||e.altKey)return;
+  const a=document.activeElement,tag=a&&a.tagName,gm=document.getElementById('globalSearchModal');
+  const typing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(a&&a.isContentEditable);
+  if(typing){
+    if(a.id==='globalSearchInp'&&!a.value&&gm&&gm.classList.contains('open')){e.preventDefault();closeGlobalSearch();}
+    else if(a.closest&&a.closest('.qa-pal')&&!a.value){e.preventDefault();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));}
+    return;
+  }
+  if(!document.querySelector('#globalSearchModal.open,.qa-pal.open,#qaKeys.open,.dsq-overlay.open,#blkOvModal,.dqb-ov')){
+    const fp=document.getElementById('panel-find');
+    if(fp&&!fp.classList.contains('hidden')&&document.getElementById('mainPage')&&!document.getElementById('mainPage').classList.contains('hidden')){e.preventDefault();clearFindAssign();}
+    return;
+  }
+  e.preventDefault();
+  if(gm&&gm.classList.contains('open'))closeGlobalSearch();
+  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
+  const ov=document.getElementById('blkOvModal');if(ov)ov.remove();
+  document.querySelectorAll('.dqb-ov').forEach(m=>m.remove());
+});
+
 /* ══ INSTRUCTOR VIEW TOGGLE ══ */
 let _instrView='table';
 function setInstrView(v){
@@ -18295,7 +18343,7 @@ document.addEventListener('click',e=>{
     if (!o) {
       o = document.createElement("div"); o.id = "qaKeys"; o.className = "qa-pal"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Keyboard shortcuts");
       o.innerHTML = '<div class="qa-pal__box" style="max-width:420px"><div class="qa-pal__in"><i class="bi bi-keyboard"></i><b style="color:var(--txt)">Keyboard shortcuts</b></div><div class="qa-keys" style="padding:16px 18px">' +
-        "<span><kbd>G</kbd></span><span>Jump to any page or action</span><span><kbd>D</kbd></span><span>Main menu (dashboard)</span><span><kbd>R</kbd></span><span>Referrals</span><span><kbd>A</kbd></span><span>Accounting</span><span><kbd>F</kbd></span><span>Find &amp; Assign</span><span><kbd>W</kbd> or <kbd>B</kbd></span><span>Website bookings</span><span><kbd>S</kbd>, <kbd>K</kbd>, <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>Esc</kbd></span><span>Close any window</span></div></div>";
+        "<span><kbd>G</kbd></span><span>Jump to any page or action</span><span><kbd>D</kbd></span><span>Main menu (dashboard)</span><span><kbd>R</kbd></span><span>Referrals</span><span><kbd>A</kbd></span><span>Accounting</span><span><kbd>F</kbd></span><span>Find &amp; Assign</span><span><kbd>W</kbd> or <kbd>B</kbd></span><span>Website bookings</span><span><kbd>S</kbd>, <kbd>K</kbd>, <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>X</kbd> or <kbd>Esc</kbd></span><span>Close search or any window</span><span><kbd>X</kbd> in Find &amp; Assign</span><span>Clear the form &amp; results (<kbd>U</kbd> undoes)</span></div></div>";
       o.addEventListener("click", function (e) { if (e.target === o) o.classList.remove("open"); });
       document.body.appendChild(o);
     }
