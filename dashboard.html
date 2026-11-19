@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="/icon-192.png"/>
 <link rel="icon" type="image/png" href="/icon-192.png"/>
 <link rel="manifest" href="/dashboard-manifest.json"/>
+<script src="/dsq-install.js?v=20261121"></script>
 <title>DriveSQ — My Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -1227,6 +1228,7 @@ button:focus:not(:focus-visible) { outline: none !important }
 
   <!-- CALENDAR TAB -->
   <div id="panel-cal">
+    <div id="homeInstallCard"></div>
     <a href="/instructor-lesson-guide.html" style="display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:rgba(37,99,235,.1);border:1px solid rgba(96,165,250,.35);color:var(--txt);text-decoration:none">
       <i class="bi bi-journal-bookmark-fill" style="font-size:1.3rem;color:#60a5fa"></i>
       <span style="flex:1;font-size:.85rem"><b style="font-family:'Oswald',sans-serif;font-size:.98rem">Lesson Quality Guide</b><br><span style="color:var(--txt3)">DVSA's 17 standards-check competencies, the legal basics and a 1-minute after-lesson self-check</span></span>
@@ -1749,26 +1751,7 @@ button:focus:not(:focus-visible) { outline: none !important }
         <div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px">
           <div style="font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:700;color:var(--txt2);margin-bottom:6px"><i class="bi bi-phone-fill me-2" style="color:var(--gold)"></i>Install App</div>
           <div style="font-size:.72rem;color:var(--txt4);margin-bottom:10px">Add the DriveSQ dashboard to your home screen for quick access — no app store needed.</div>
-          <div id="installAppSection">
-            <!-- Android / Desktop: shows install button when beforeinstallprompt fires -->
-            <div id="installNativeWrap" style="display:none;margin-bottom:10px">
-              <button class="btn-gold-sm" id="profileInstallBtn" onclick="profileInstallApp()" style="font-size:.78rem;padding:8px 14px;min-height:36px"><i class="bi bi-download me-1"></i>Install App</button>
-            </div>
-            <!-- iOS: always visible Safari steps -->
-            <div id="installIOSGuide" style="display:none;background:var(--dk3);border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;margin-bottom:10px">
-              <div style="font-size:.72rem;font-weight:600;color:var(--txt2);margin-bottom:8px"><i class="bi bi-apple me-1"></i>iPhone / iPad — Add to Home Screen</div>
-              <div style="font-size:.7rem;color:var(--txt3);line-height:1.8">
-                <div>1. Open this page in <strong style="color:var(--txt)">Safari</strong> (not Chrome)</div>
-                <div>2. Tap <strong style="color:var(--txt)">Share</strong> <i class="bi bi-box-arrow-up"></i> at the bottom of Safari</div>
-                <div>3. Scroll and tap <strong style="color:var(--txt)">"Add to Home Screen"</strong></div>
-                <div>4. Tap <strong style="color:var(--txt)">"Add"</strong> — done!</div>
-              </div>
-            </div>
-            <!-- Already installed -->
-            <div id="installAlreadyDone" style="display:none;font-size:.72rem;color:#4ade80;margin-bottom:8px"><i class="bi bi-check-circle-fill me-1"></i>App is already installed on your device.</div>
-            <!-- Fallback: show manual steps button always -->
-            <button class="btn-s" onclick="openHSModal()" style="font-size:.78rem;min-height:36px"><i class="bi bi-info-circle me-1"></i>How to Install</button>
-          </div>
+          <div id="installAppSection"><div id="profileInstallCard"></div></div>
         </div>
       </div>
 
@@ -5210,6 +5193,7 @@ async function populateInstrDropdowns(){
 
 /* ── INSTALL APP (profile button) ── */
 function profileInstallApp(){
+  try{DSQInstall.open();return;}catch(e){}
   if(deferredInstall){
     deferredInstall.prompt();
     deferredInstall.userChoice.then(choice=>{
@@ -7713,14 +7697,14 @@ function _updateInstallUI(){
 window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();
   deferredInstall=e;
-  _updateInstallUI();
-  setTimeout(showDashInstallBanner,8000);
+  try{_updateInstallUI();}catch(_e){}
 });
 window.addEventListener('appinstalled',function(){
   _isStandalone=true;deferredInstall=null;_updateInstallUI();
   showToast('DriveSQ app installed!','success');
 });
 
+try{DSQInstall.setApp('DriveSQ Instructor','/icon-192.png');DSQInstall.mount('#homeInstallCard',{name:'DriveSQ Instructor',dismissible:true,key:'instr-home',hideWhenDone:true});DSQInstall.mount('#profileInstallCard',{name:'DriveSQ Instructor',key:'instr-profile'});}catch(e){}
 function showDashInstallBanner(){
   if(!deferredInstall||document.getElementById('dashInstallBanner'))return;
   var b=document.createElement('div');
