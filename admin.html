@@ -2334,10 +2334,14 @@ body.day-mode .dsqd-note{color:#92400e}
   <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
     <div style="font-size:.78rem;font-weight:600;color:var(--txt3)">Period:</div>
     <div style="display:flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
-      <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">Week</button>
-      <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Month</button>
+      <button id="refPeriodWeek" onclick="setRefPeriod('week')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:var(--purple);color:#fff">This week</button>
+      <button id="refPeriodLastweek" onclick="setRefPeriod('lastweek')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Last week</button>
+      <button id="refPeriodMonth" onclick="setRefPeriod('month')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">This month</button>
+      <button id="refPeriodLast" onclick="setRefPeriod('last')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Last month</button>
       <button id="refPeriodAll" onclick="setRefPeriod('all')" style="padding:5px 14px;font-size:.75rem;font-family:'Oswald',sans-serif;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All time</button>
     </div>
+    <label style="font-size:.74rem;color:var(--txt3);display:flex;align-items:center;gap:6px">Any month <input type="month" id="refPeriodPick" class="dsq-inp" onchange="setRefPeriod('pick',this.value)" style="width:auto;padding:4px 8px;font-size:.78rem"></label>
+    <span id="refPeriodLabel" style="font-size:.74rem;color:var(--txt3)"></span>
     <!-- legacy IDs kept for renderReferrals compatibility -->
     <div style="display:none">
       <span id="refTotalDue"></span><span id="refTotalPaid"></span>
@@ -2844,12 +2848,14 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
   <div id="ledgerBox"></div>
 
   <!-- Period selector -->
-  <div style="display:flex;border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:18px;width:fit-content">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><div style="display:flex;border:1px solid var(--bdr);border-radius:10px;overflow:hidden;width:fit-content;flex-wrap:wrap">
     <button id="accPeriodMonth"  onclick="setAccPeriod('month')"   style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:var(--gold);color:#000;letter-spacing:.3px">This Month</button>
+    <button id="accPeriodLast"   onclick="setAccPeriod('last')"    style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Last month</button>
     <button id="accPeriodQuarter" onclick="setAccPeriod('quarter')" style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Quarter</button>
     <button id="accPeriodYear"   onclick="setAccPeriod('year')"    style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">Tax Year</button>
     <button id="accPeriodAll"    onclick="setAccPeriod('all')"     style="padding:7px 16px;font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--txt3)">All Time</button>
   </div>
+  <label style="font-size:.76rem;color:var(--txt3);display:flex;align-items:center;gap:6px">Any month <input type="month" id="accPeriodPick" class="dsq-inp" onchange="setAccPeriod('pick',this.value)" style="width:auto;padding:5px 8px;font-size:.8rem"></label></div>
 
   <!-- ═══ KPI ROW ═══ -->
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:18px">
@@ -11551,7 +11557,20 @@ async function openWbCreateStudent(wbId){
 
 /* ══ REFERRALS ══ */
 let _refData=[];        // flat array of all referral rows
-let _refPeriod='week';  // 'week' | 'month' | 'all'
+/* Supabase returns at most 1000 rows per request — read every page so ALL history is there */
+async function _fetchAllRows(table,orderCol,asc){
+  const out=[];for(let from=0;from<200000;from+=1000){
+    const{data,error}=await sb.from(table).select('*').order(orderCol,{ascending:!!asc}).range(from,from+999);
+    if(error)throw error;
+    if(from>0&&data&&data.length&&out.length&&data[0].id!==undefined&&data[0].id===out[out.length-Math.min(out.length,1000)].id)break;   // the server ignored the page request: stop instead of repeating
+    out.push(...(data||[]));if(!data||data.length<1000)break;
+  }
+  return out;
+}
+const _MONTHS_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const _monthLabel=ym=>{const m=/^(\d{4})-(\d{2})$/.exec(ym||'');return m?_MONTHS_LONG[+m[2]-1]+' '+m[1]:'All time';};
+let _refPeriod='week';  // 'week' | 'lastweek' | 'month' | 'last' | 'pick' | 'all'
+let _refPick='';
 
 // Lightweight unpaid referral index — keyed by `instrId:studentNameLower`
 // Used to show "REFERRAL DUE" badge on student cards without loading full referrals
@@ -11587,30 +11606,35 @@ function _refDueBadge(instrId,studentName){
   return`<span style="font-size:.5rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;white-space:nowrap">£${(+amt).toFixed(2)} DUE</span>`;
 }
 
-function setRefPeriod(p){
+function setRefPeriod(p,v){
+  if(p==='pick'){if(!v){return;}_refPick=v;}
   _refPeriod=p;
-  ['week','month','all'].forEach(k=>{
+  ['week','lastweek','month','last','all'].forEach(k=>{
     const btn=document.getElementById('refPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
     if(btn){btn.style.background=k===p?'var(--purple)':'transparent';btn.style.color=k===p?'#fff':'var(--txt3)';}
   });
+  const pk=document.getElementById('refPeriodPick');if(pk&&p!=='pick')pk.value='';
   renderReferrals();
 }
-
-function _refPeriodStart(){
-  const now=new Date();
-  if(_refPeriod==='week'){const d=getMonday(0);d.setHours(0,0,0,0);return d;}
-  if(_refPeriod==='month'){return new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);}
-  return new Date(0);
+/* the date range the Referrals tab is showing: { s: start, e: end, label } */
+function _refRange(){
+  const now=new Date(),P=_refPeriod,FAR=new Date(8.64e15);
+  if(P==='week'){const s=getMonday(0);return{s,e:FAR,label:'This week'};}
+  if(P==='lastweek'){const m=getMonday(0),s=new Date(m);s.setDate(s.getDate()-7);return{s,e:new Date(m.getTime()-1),label:'Last week'};}
+  if(P==='month')return{s:new Date(now.getFullYear(),now.getMonth(),1),e:FAR,label:'This month'};
+  if(P==='last'){const s=new Date(now.getFullYear(),now.getMonth()-1,1);return{s,e:new Date(new Date(now.getFullYear(),now.getMonth(),1).getTime()-1),label:'Last month ('+_MONTHS_LONG[s.getMonth()]+' '+s.getFullYear()+')'};}
+  if(P==='pick'&&/^\d{4}-\d{2}$/.test(_refPick)){const y=+_refPick.slice(0,4),m=+_refPick.slice(5)-1;return{s:new Date(y,m,1),e:new Date(new Date(y,m+1,1).getTime()-1),label:_monthLabel(_refPick)};}
+  return{s:new Date(0),e:FAR,label:'All time'};
 }
+function _refPeriodStart(){return _refRange().s;}
+function _refPeriodEnd(){return _refRange().e;}
 
 async function loadReferrals(){
   const el=document.getElementById('refInstrList');
   if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   try{
-    const{data,error}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
-    if(error)throw error;
-    _refData=data||[];
+    _refData=await _fetchAllRows('referrals','created_at',false);   // every referral ever, not just the first 1000
     _buildUnpaidRefIndex(); // keep badge index fresh
     renderReferrals();
     _syncReplyFlags().catch(()=>{}).then(_scheduleUnfiledCheck);
@@ -11621,8 +11645,8 @@ async function loadReferrals(){
 
 function renderReferrals(){
   try{_renderFlagMonitor();}catch(e){console.warn('flag monitor',e);}
-  const start=_refPeriodStart();
-  const rows=_refData.filter(r=>new Date(r.created_at)>=start);
+  const _rg=_refRange(),start=_rg.s,rows=_refData.filter(r=>{const d=new Date(r.created_at);return d>=_rg.s&&d<=_rg.e;});
+  const _pl=document.getElementById('refPeriodLabel');if(_pl)_pl.innerHTML='Showing <b style="color:var(--gold)">'+esc(_rg.label)+'</b> · '+rows.length+' referral'+(rows.length===1?'':'s')+(rows.length?'':' — nothing in this period. Try <a href="javascript:void(0)" onclick="setRefPeriod(\'all\')" style="color:#60a5fa">All time</a>')+' · '+_refData.length+' in total';
 
   // Group by instructor — cancelled/credit rows are still shown but not counted in totals
   const byInstr={};
@@ -11774,7 +11798,7 @@ function renderReferrals(){
 /* Instructor profile → Referrals: every referral for that instructor, all time (same window as the Referrals tab) */
 async function _ensureRefData(){
   if(_refData&&_refData.length)return true;
-  try{const{data,error}=await sb.from('referrals').select('*').order('created_at',{ascending:false});if(error)throw error;_refData=data||[];try{_buildUnpaidRefIndex();}catch(e){}return true;}
+  try{_refData=await _fetchAllRows('referrals','created_at',false);try{_buildUnpaidRefIndex();}catch(e){}return true;}
   catch(e){showToast('Could not load referrals: '+e.message,'error');return false;}
 }
 async function openInstrReferrals(instrId){
@@ -11798,11 +11822,11 @@ async function openRefDetail(instrId,allTime){
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Unknown Instructor',area:''};
   document.getElementById('refDetailInstrName').textContent=instr.full_name;
   document.getElementById('refDetailSub').innerHTML=esc((instr.area||'')+(instr.phone?' · '+instr.phone:''))+
-    ` · <span style="color:var(--gold);font-weight:700">${_refDetailAll?'All time':(_refPeriod==='week'?'This week':_refPeriod==='month'?'This month':'All time')}</span>`+
+    ` · <span style="color:var(--gold);font-weight:700">${_refDetailAll?'All time':esc(_refRange().label)}</span>`+
     (_refDetailAll?'':` <button type="button" onclick="openRefDetail('${instrId}',true)" style="background:none;border:0;color:#60a5fa;text-decoration:underline;font-size:.74rem;cursor:pointer;padding:0 0 0 6px">Show all time</button>`);
 
-  const start=_refDetailAll?new Date(0):_refPeriodStart();
-  const rows=_refData.filter(r=>r.instructor_id===instrId&&new Date(r.created_at)>=start)
+  const _drg=_refDetailAll?{s:new Date(0),e:new Date(8.64e15)}:_refRange(),start=_drg.s;
+  const rows=_refData.filter(r=>r.instructor_id===instrId&&new Date(r.created_at)>=_drg.s&&new Date(r.created_at)<=_drg.e)
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
   // Exclude cancelled/credit rows from financial totals
@@ -11850,7 +11874,7 @@ async function openRefDetail(instrId,allTime){
     return lines.join('\n');
   };
   const _nowStr=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
-  const _periodLabel=_refDetailAll?'All Time':_refPeriod==='week'?'This Week':_refPeriod==='month'?'This Month':'All Time';
+  const _periodLabel=_refDetailAll?'All Time':_refRange().label;
   const _disclaimer=`✅ Already paid? Please ignore this message — thank you.\n⚠️ Please check this list — we may have made a mistake. Let us know for each student whether they booked a lesson with you or not. If a student didn't book, their fee is £0 and we'll take it off your total.`;
 
   // ── FULL STATEMENT ──────────────────────────────
@@ -12952,16 +12976,28 @@ const _EXP_CATS={Car:'#60a5fa',Insurance:'#4ade80',Marketing:'#f59e0b',Equipment
 const _INC_CATS={Referral:'#4ade80','Cash Payment':'#fbbf24','Bank Transfer':'#60a5fa','Gift Voucher':'#f472b6','Pass Plus':'#a78bfa','Intensive Course':'#34d399',Other:'#94a3b8'};
 
 /* Period helpers */
-function setAccPeriod(p){
+let _accPick='';
+function setAccPeriod(p,v){
+  if(p==='pick'){if(!v)return;_accPick=v;}
   _accPeriod=p;
-  ['month','quarter','year','all'].forEach(k=>{
+  ['month','last','quarter','year','all'].forEach(k=>{
     const btn=document.getElementById('accPeriod'+k.charAt(0).toUpperCase()+k.slice(1));
     if(btn){btn.style.background=k===p?'var(--gold)':'transparent';btn.style.color=k===p?'#000':'var(--txt3)';}
   });
+  const pk=document.getElementById('accPeriodPick');if(pk&&p!=='pick')pk.value='';
   renderAccounting();
+}
+/* end of the period being shown (a past month stops at its last day; the rest run to today) */
+function _accPeriodEnd(){
+  const n=new Date();
+  if(_accPeriod==='last')return new Date(new Date(n.getFullYear(),n.getMonth(),1).getTime()-1);
+  if(_accPeriod==='pick'&&/^\d{4}-\d{2}$/.test(_accPick)){const y=+_accPick.slice(0,4),m=+_accPick.slice(5)-1;return new Date(new Date(y,m+1,1).getTime()-1);}
+  return new Date(8.64e15);
 }
 function _accPeriodStart(){
   const n=new Date();
+  if(_accPeriod==='last')return new Date(n.getFullYear(),n.getMonth()-1,1);
+  if(_accPeriod==='pick'&&/^\d{4}-\d{2}$/.test(_accPick))return new Date(+_accPick.slice(0,4),+_accPick.slice(5)-1,1);
   if(_accPeriod==='month')return new Date(n.getFullYear(),n.getMonth(),1);
   if(_accPeriod==='quarter'){const qm=Math.floor(n.getMonth()/3)*3;return new Date(n.getFullYear(),qm,1);}
   if(_accPeriod==='year'){// UK tax year starts 6 Apr
@@ -12970,7 +13006,11 @@ function _accPeriodStart(){
   }
   return new Date(0);
 }
-function _periodLabel(){return{month:'This Month',quarter:'This Quarter',year:'Tax Year',all:'All Time'}[_accPeriod]||'All Time';}
+function _periodLabel(){
+  if(_accPeriod==='pick')return _monthLabel(_accPick);
+  if(_accPeriod==='last'){const d=_accPeriodStart();return 'Last Month ('+_MONTHS_LONG[d.getMonth()]+' '+d.getFullYear()+')';}
+  return{month:'This Month',quarter:'This Quarter',year:'Tax Year',all:'All Time'}[_accPeriod]||'All Time';
+}
 
 /* Sub-tab */
 function setAccTab(t){
@@ -12985,13 +13025,8 @@ function setAccTab(t){
 
 /* Load */
 async function loadIncome(){
-  const{data,error}=await sb.from('income_entries').select('*').order('income_date',{ascending:false});
-  if(error){
-    // Table may not exist yet — silently ignore, show create hint on income tab
-    _incData=[];
-    return;
-  }
-  _incData=data||[];
+  try{_incData=await _fetchAllRows('income_entries','income_date',false);}   // all history, not just the first 1000
+  catch(e){_incData=[];}   // table may not exist yet — silently ignore, show create hint on income tab
 }
 
 async function loadExpenses(){
@@ -12999,12 +13034,11 @@ async function loadExpenses(){
   if(el)el.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt4)"><i class="bi bi-hourglass-split me-2"></i>Loading…</div>';
   // Ensure referral data is loaded (needed for income/profit figures)
   if(!_refData.length){
-    const{data:rd}=await sb.from('referrals').select('*').order('created_at',{ascending:false});
-    if(rd)_refData=rd;
+    try{_refData=await _fetchAllRows('referrals','created_at',false);}catch(e){}
   }
   // Load manual income entries too
   await loadIncome();
-  const{data,error}=await sb.from('expenses').select('*').order('expense_date',{ascending:false});
+  let data=null,error=null;try{data=await _fetchAllRows('expenses','expense_date',false);}catch(e){error=e;}
   if(error){
     const msg=`<div style="color:#f87171;padding:16px;font-size:.82rem;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px"><i class="bi bi-exclamation-triangle me-2"></i>${esc(error.message)}<br><br>Create the table in Supabase:<br><code style="font-size:.68rem;word-break:break-all">create table if not exists expenses (id uuid primary key default gen_random_uuid(), category text not null, amount numeric(10,2) not null, expense_date date not null default current_date, description text, created_at timestamptz not null default now()); alter table expenses enable row level security; create policy "admin_all" on expenses for all using (true) with check (true);</code></div>`;
     if(el)el.innerHTML=msg;
@@ -13023,19 +13057,19 @@ function renderAccounting(){
   const fmt=v=>'£'+v.toFixed(2);
 
   // ── Previous period (for trend arrows) ──
-  const periodMs=now-start;
+  const _aEnd=_accPeriodEnd(),periodMs=Math.min(now.getTime(),_aEnd.getTime())-start.getTime();
   const prevStart=new Date(start.getTime()-periodMs);
   const prevEnd=new Date(start.getTime()-1);
 
   const refRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit);
 
   // Current period
-  const inPeriod=r=>new Date(r.created_at)>=start;
+  const inPeriod=r=>{const d=new Date(r.created_at);return d>=start&&d<=_aEnd;};
   const incomeRows=refRows.filter(r=>r.is_paid&&inPeriod(r));
   const outstandingRows=refRows.filter(r=>!r.is_paid&&r.flag_color!=='red'&&inPeriod(r)); // 🚩 not booked = no fee owed
   const incomeFromRefs=incomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   // Add manual income entries
-  const manualIncRows=(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start);
+  const manualIncRows=(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=start&&d<=_aEnd;});
   const manualInc=manualIncRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const income=incomeFromRefs+manualInc;
   const outstanding=outstandingRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
@@ -13048,7 +13082,7 @@ function renderAccounting(){
   const prevIncome=prevIncomeRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0)+prevManualInc;
 
   // Expenses
-  const expRows=_expData.filter(r=>new Date(r.expense_date+'T00:00:00')>=start);
+  const expRows=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=start&&d<=_aEnd;});
   const totalExp=expRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const prevExpRows=_expData.filter(r=>{const d=new Date(r.expense_date+'T00:00:00');return d>=prevStart&&d<=prevEnd;});
   const prevTotalExp=prevExpRows.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
@@ -13295,7 +13329,7 @@ function _renderPLTable(){
 /* ── Income Tab ── */
 function _renderIncomeTab(){
   const start=_accPeriodStart();
-  const allRefRows=(_refData||[]).filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at)>=start);
+  const _iEnd=_accPeriodEnd(),allRefRows=(_refData||[]).filter(r=>{const d=new Date(r.created_at);return !r.is_cancelled&&!r.is_credit&&d>=start&&d<=_iEnd;});
   const byInstr={};
   allRefRows.forEach(r=>{
     if(!byInstr[r.instructor_id])byInstr[r.instructor_id]={id:r.instructor_id,paid:0,due:0,rows:[]};
@@ -13336,12 +13370,12 @@ function _renderIncomeTab(){
   }
 
   // Add manual income totals to summary stats
-  const manualInc=(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const manualInc=(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=start&&d<=_iEnd;}).reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   if(manualInc>0&&statsEl){
     statsEl.innerHTML+=`<div style="background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.25);border-radius:11px;padding:10px 14px">
       <div style="font-size:.58rem;color:var(--txt4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Other Income</div>
       <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#60a5fa">£${manualInc.toFixed(2)}</div>
-      <div style="font-size:.6rem;color:var(--txt4)">${(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).length} entr${(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).length===1?'y':'ies'}</div>
+      <div style="font-size:.6rem;color:var(--txt4)">${(_incData||[]).filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=start&&d<=_iEnd;}).length} entr${(_incData||[]).filter(r=>new Date(r.income_date+'T00:00:00')>=start).length===1?'y':'ies'}</div>
     </div>`;
   }
 
@@ -13565,7 +13599,7 @@ function renderExpenses(){
   const catFilter=document.getElementById('expCategoryFilter')?.value||'';
   const rows=_expData.filter(r=>{
     const d=new Date(r.expense_date+'T00:00:00');
-    if(d<start)return false;
+    if(d<start||d>_accPeriodEnd())return false;
     if(catFilter&&r.category!==catFilter)return false;
     return true;
   });
@@ -13710,7 +13744,7 @@ async function saveEditIncome(id){
 
 function _renderIncomeList(){
   const start=_accPeriodStart();
-  const rows=_incData.filter(r=>new Date(r.income_date+'T00:00:00')>=start);
+  const _lEnd=_accPeriodEnd(),rows=_incData.filter(r=>{const d=new Date(r.income_date+'T00:00:00');return d>=start&&d<=_lEnd;});
   const section=document.getElementById('incomeEntriesSection');
   const el=document.getElementById('incomeList');
   if(!section||!el)return;
