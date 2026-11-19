@@ -1761,6 +1761,7 @@ body.day-mode .dsqd-note{color:#92400e}
 
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn-gold hide-mob" onclick="openModal('sendAllModal')"><i class="bi bi-megaphone me-1"></i>Message All</button>
+        <button class="btn-s" style="font-size:.78rem;background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.4);color:#a78bfa" onclick="DSQPkg.openOverview()"><i class="bi bi-box-seam me-1"></i>Packages</button>
         <button class="btn-s hide-mob" style="font-size:.78rem" onclick="exportInstrsCSV()"><i class="bi bi-download me-1"></i>CSV</button>
         <button class="btn-s hide-mob" style="font-size:.78rem;background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.3);color:#c084fc" onclick="exportInstrPerformanceReport()"><i class="bi bi-file-earmark-bar-graph me-1"></i>Monthly Report</button>
         <input type="text" class="dsq-inp" style="max-width:180px;padding:6px 10px;font-size:.8rem" placeholder="Search…" oninput="filterInstrs(this.value)" id="instrSearch"/>
@@ -3883,6 +3884,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/dsq-block.js?v=20261122"></script>
+<script src="/admin-packages.js?v=20261123"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
@@ -5802,10 +5804,12 @@ function renderInstrDetail(instr){
   const ltChipHtml=`<span style="background:${ltBg};border:1px solid ${ltBorder};color:${ltColor};border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700">${ltLabel}</span>`;
   const covPCs=instr.coverage_postcodes?instr.coverage_postcodes.split(/[\s,;/]+/).map(c=>c.trim()).filter(Boolean):[];
   const covHtml=covPCs.length?covPCs.map(c=>`<span style="background:rgba(245,197,24,.13);border:1px solid rgba(245,197,24,.4);color:var(--gold);border-radius:5px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-right:3px">${esc(c)}</span>`).join(''):'<span style="color:var(--txt4);font-size:.75rem">—</span>';
+  if(window.DSQPkg&&!DSQPkg._cfg())DSQPkg.load().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.email)setTimeout(()=>_emailPrefFill(instr),0);
   const fields=[
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
+    ...((window.DSQPkg&&DSQPkg._cfg&&DSQPkg._cfg()&&DSQPkg.pkgOf(instr.id))?[['Package',DSQPkg.detailHtml(instr.id)]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
     ['Lesson Types',ltChipHtml],
     ['Email',instr.email?`<a href="mailto:${esc(instr.email)}" style="color:var(--red)">${esc(instr.email)}</a>`:`<span style="color:#f59e0b;font-weight:600">⚠️ No email — they won't get email reminders or the weekly bulletin</span> <button class="abtn" style="margin-left:6px;font-size:.68rem;padding:2px 9px;border-color:rgba(245,158,11,.4);color:#f59e0b" onclick="openEditForId('${instr.id}');setTimeout(()=>{const e=document.getElementById('edit-email');if(e){e.focus();e.scrollIntoView({behavior:'smooth',block:'center'});}},350)"><i class="bi bi-envelope-plus me-1"></i>Add email</button>`],['Phone',instr.phone?`<a href="tel:${esc(instr.phone)}" style="color:var(--red)">${esc(instr.phone)}</a>`:null],
@@ -7855,6 +7859,7 @@ function openEditModal(){
   document.getElementById('edit-type').value=instr.badge_type||'ADI';
   document.getElementById('edit-model').value=instr.instructor_model||'unsure';
   _frFeeFill(instr);
+  try{DSQPkg.fill(instr);}catch(e){console.warn('package fields',e);}
   document.getElementById('edit-lesson-types').value=instr.car_type||'Manual';
   document.getElementById('edit-phone').value=instr.phone||'';
   document.getElementById('edit-email').value=instr.email||'';
@@ -8862,6 +8867,7 @@ async function findClosest(){
         r.tcCost=_fcTestCost(crow,r.tcDist)-(r.tcCovers?2:0);});
       ranked.sort((a,b)=>a.tcCost-b.tcCost||a.dist-b.dist);
     }
+    try{await DSQPkg.load();ranked=DSQPkg.prioritise(ranked);}catch(e){}   // Platinum first within 5 miles
     if(!sGeo.exact)showToast('Only the area code was found — distances are approximate.','info',3500);
     const unknown=results.filter(r=>r.dist===null);
     _fcCtxFor(studentName);
@@ -8926,6 +8932,7 @@ async function findClosest(){
       const weekBookedNote=wkBk==null?'':(wkBk===0
         ?`<div style="font-size:.68rem;margin-top:3px;font-weight:600;color:var(--txt4)"><i class="bi bi-check2-circle me-1"></i>0 booked this week</div>`
         :`<div style="font-size:.68rem;margin-top:3px;font-weight:700;color:#4ade80"><i class="bi bi-check-circle-fill me-1"></i>${wkBk} booked this week</div>`);
+      const pkgNote=(()=>{try{return DSQPkg.cardNote(r);}catch(e){return'';}})();
       const instrCredits=_creditIndex[r.instr.id]||0;
       const creditNote=instrCredits>0
         ?`<div style="font-size:.7rem;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px"><i class="bi bi-arrow-repeat"></i>⟳ ${instrCredits} credit${instrCredits!==1?'s':''} owed — consider this instructor first</div>`
@@ -8948,6 +8955,7 @@ async function findClosest(){
               ${areaNote}
               ${weekAssignNote}
               ${weekBookedNote}
+              ${pkgNote}
               ${creditNote}
             </div>
           </div>
@@ -13116,6 +13124,8 @@ function setAccTab(t){
    Money OUT : expenses, instructor payouts released from block bookings
    Expected  : referral fees not yet paid (counted on the day the referral was made) */
 let _blkData=[];
+/* lets the separate admin scripts (admin-packages.js) read admin's data without it being global */
+window.DSQ_ADMIN={sb:()=>sb,refs:()=>_refData,instrs:()=>allInstrs};
 const _accBlocksOn=()=>{try{return localStorage.getItem('dsq_acc_blocks')!=='0';}catch(e){return true;}};
 const _lday=d=>new Date((d||'')+'T00:00:00');
 function _accTx(){
