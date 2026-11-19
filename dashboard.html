@@ -2840,7 +2840,7 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // only for the JS string literal isn't enough, since a literal " from the input (e.g. student-submitted
 // request text) still breaks out of the surrounding HTML attribute before the browser hands the value
 // to the JS parser. Escape for the JS string first, then HTML-escape that result for the attribute.
-function jsEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function jsEsc(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function lClass(t){return(t||'Manual').replace(/\s+/g,'-');}
 function normalizePhone(raw){let p=(raw||'').replace(/[\s\-\(\)\.]/g,'');if(p.startsWith('+44'))p='0'+p.slice(3);if(p.startsWith('0044'))p='0'+p.slice(4);return p;}
 function cleanPhone(p){return normalizePhone(p).replace(/\D/g,'');}
@@ -5467,16 +5467,39 @@ document.addEventListener('click',function(e){
    STUDENT MANAGEMENT MODAL — openStudentMgmt
 ══════════════════════════════════════════════════════ */
 
+/* ── find a student in the roster even if the spelling/spacing differs a little (notifications, referrals, old lists) ── */
+function _smNorm(n){return String(n||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();}
+function _smFind(name,phone){
+  const k=String(name||'').toLowerCase().trim();if(rosterMap[k])return rosterMap[k];
+  const n=_smNorm(name),vals=Object.values(rosterMap||{});if(!n&&!phone)return null;
+  let hit=vals.find(p=>_smNorm(p.name)===n);if(hit)return hit;
+  if(phone){const d=cleanPhone(phone).slice(-10);if(d.length>=9){hit=vals.find(p=>cleanPhone(p.phone||'').slice(-10)===d);if(hit)return hit;}}
+  const loose=vals.filter(p=>{const q=_smNorm(p.name);return q&&n&&(q.startsWith(n)||n.startsWith(q));});
+  return loose.length===1?loose[0]:null;
+}
 async function openStudentMgmt(studentName, tab='profile'){
   try{
-  smCurrentName=studentName;
-  let p=rosterMap[studentName.toLowerCase().trim()];
+  studentName=String(studentName||'').trim();
+  if(!studentName){showToast('Please choose a student to open.','error');return;}
+  let p=_smFind(studentName);
   if(!p){
-    // If not in rosterMap yet, try loading roster first
-    await loadRoster();
-    p=rosterMap[studentName.toLowerCase().trim()];
-    if(!p){showToast('Student not found in roster. Save the student first.');return;}
+    // not in the list yet (still loading, or spelled differently): refresh the roster, then ask the database directly
+    try{await loadRoster();}catch(e){}
+    p=_smFind(studentName);
   }
+  if(!p){
+    try{
+      const{data:rows}=await sb.from('student_profiles').select('*').eq('instructor_id',instr.id).ilike('name','%'+studentName.replace(/[%_,()]/g,' ').trim()+'%').limit(3);
+      if(rows&&rows.length===1){p=rows[0];rosterMap[String(p.name||'').toLowerCase().trim()]=p;}
+    }catch(e){console.warn('student lookup:',e&&e.message);}
+  }
+  if(!p){
+    showToast('We couldn\'t find “'+studentName+'” in your students yet — showing your student list.','warning',5200);
+    try{switchTab('students');setMobActive('students');loadStudents();}catch(e){}
+    return;
+  }
+  studentName=p.name||studentName;
+  smCurrentName=studentName;
 
   // Set header
   document.getElementById('smStudentName').value=studentName;
@@ -5499,7 +5522,7 @@ async function openStudentMgmt(studentName, tab='profile'){
   // Status badges
   const hasLogin=!!(acc?.last_login);
   const lastEvent=acc?.student_code?linkEventMap[acc.student_code]:'';
-  const arrEntry=allStudentsArr.find(x=>x.name.toLowerCase().trim()===studentName.toLowerCase().trim());
+  const arrEntry=(allStudentsArr||[]).find(x=>String((x&&x.name)||'').toLowerCase().trim()===studentName.toLowerCase().trim());
   let badges='';
   if(localStorage.getItem('dsq_show_payment')!=='false'&&arrEntry?.totalPaid>0)badges+=`<span class="app-status-pill" style="background:rgba(37,211,102,.1);color:#4ade80;border-color:rgba(37,211,102,.25)"><i class="bi bi-currency-pound me-1"></i>£${arrEntry.totalPaid.toFixed(0)} total paid</span>`;
   if(hasLogin)badges+='<span class="app-status-pill connected"><i class="bi bi-check-circle-fill me-1"></i>Registered on App</span>';
@@ -5511,7 +5534,7 @@ async function openStudentMgmt(studentName, tab='profile'){
   if(isArchived)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.25)"><i class="bi bi-moon me-1"></i>On Break</span>';
   if(isDropPending)badges+='<span class="app-status-pill" style="background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.25)"><i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Confirmation</span>';
   // No-lesson-booked alert badge — check if admin has been notified for any referral for this student
-  const _noLessonRef=_refAllData.find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&r.admin_notified);
+  const _noLessonRef=(Array.isArray(_refAllData)?_refAllData:[]).find(r=>(r.student_name||'').toLowerCase().trim()===studentName.toLowerCase().trim()&&!r.is_paid&&r.admin_notified);
   if(_noLessonRef)badges+='<span class="app-status-pill" style="background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3)" title="Admin has been notified that no lesson has been booked for this student yet"><i class="bi bi-calendar-x me-1"></i>No Lesson — Admin Notified</span>';
   document.getElementById('smBadges').innerHTML=badges;
   const archBtn=document.getElementById('smArchiveBtn');
@@ -5599,7 +5622,8 @@ async function openStudentMgmt(studentName, tab='profile'){
   smTab(tab);
   }catch(err){
     console.error('openStudentMgmt error:',err);
-    showToast('Error opening student: '+err.message);
+    try{closeModal('studentMgmtModal');}catch(e){}
+    showToast('We couldn\'t open that profile just now. Please try again in a moment — your student list is still safe.','error',5200);
   }
 }
 
