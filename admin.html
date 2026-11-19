@@ -7135,6 +7135,10 @@ async function loadStudentCredit(s){
   const key=acctId||(profId?'p:'+profId:'n:'+ph10+':'+lname);
   _crCtx={s,acctId,profId,key,rows:[],hist:[],on:false,instrOn:true,form:null,editId:null,missing:false,err:''};
   box.innerHTML='<div style="font-size:.74rem;color:var(--txt4);padding:8px 0"><i class="bi bi-hourglass-split me-1"></i>Loading block payments…</div>';
+  try{if(!s.instrId){
+    if(profId){const q=await sb.from('student_profiles').select('instructor_id').eq('id',profId).maybeSingle();if(q.data&&q.data.instructor_id)s.instrId=q.data.instructor_id;}
+    if(!s.instrId&&acctId){const q=await sb.from('student_accounts').select('instructor_id').eq('id',acctId).maybeSingle();if(q.data&&q.data.instructor_id)s.instrId=q.data.instructor_id;}
+  }}catch(e){}
   try{if(window.DSQBlock)await DSQBlock.syncFor({sb,st:{name:s.name,accId:acctId,profId:profId,instrId:s.instrId},role:'admin',actor:'Admin'});}catch(e){}
   try{
     const conds=[];if(acctId)conds.push('student_account_id.eq.'+acctId);if(profId)conds.push('student_profile_id.eq.'+profId);
@@ -7142,6 +7146,11 @@ async function loadStudentCredit(s){
     const r=await q.order('entry_date',{ascending:true}).order('created_at',{ascending:true});
     if(r.error)throw r.error;
     _crCtx.rows=r.data||[];
+    if(s.instrId||profId){  // blocks added before the instructor/profile was known: link them so the instructor sees them
+      const fix={};if(s.instrId)fix.instructor_id=s.instrId;if(profId)fix.student_profile_id=profId;
+      const bad=_crCtx.rows.filter(x=>(s.instrId&&!x.instructor_id)||(profId&&!x.student_profile_id)).map(x=>x.id);
+      if(bad.length){sb.from('student_credit_ledger').update(fix).in('id',bad).then(()=>{},()=>{});_crCtx.rows.forEach(x=>{if(bad.includes(x.id)){if(fix.instructor_id&&!x.instructor_id)x.instructor_id=fix.instructor_id;if(fix.student_profile_id&&!x.student_profile_id)x.student_profile_id=fix.student_profile_id;}});}
+    }
     if(acctId){const lost=_crCtx.rows.filter(x=>!x.student_account_id).map(x=>x.id);if(lost.length)sb.from('student_credit_ledger').update({student_account_id:acctId}).in('id',lost).then(()=>{},()=>{});}
     const keys=[key];if(acctId&&profId)keys.push('p:'+profId);
     const st=await sb.from('student_credit_settings').select('*').in('student_key',keys);
@@ -7163,6 +7172,8 @@ function _crRender(){
   const hLeft=Math.round(tot.h*100)/100,mLeft=Math.round(tot.m*100)/100,hasAny=rows.length>0;
   const chip=hLeft<=0&&hasAny?['#f87171','Block used up']:hLeft<=2&&hasAny?['#f59e0b','Running low']:hasAny?['#4ade80','In credit']:['var(--txt4)','No block yet'];
   let run={h:0,m:0};
+  const viaDS=rows.some(r=>r.kind==='purchase'&&(+r.hours||0)>0&&r.paid_to!=='instructor'),tdy=new Date().toISOString().slice(0,10);
+  const pendRows=viaDS?rows.filter(r=>r.kind==='lesson'&&(+r.hours||0)<0&&!r.excluded&&r.payout_status!=='released'&&(r.lesson_date||r.entry_date||'9999')<=tdy):[];
   const lines=rows.map(r=>{run.h+=+r.hours||0;run.m+=+r.amount||0;const out=(+r.amount||0)<0||(+r.hours||0)<0;
     const lbl=r.kind==='purchase'?'Block bought':r.kind==='lesson'?'Lesson paid':'Adjustment';
     const d=new Date((r.entry_date||r.created_at)+(r.entry_date?'T12:00:00':''));
@@ -7170,6 +7181,7 @@ function _crRender(){
     return `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bdr);font-size:.76rem;align-items:flex-start"><span style="color:var(--txt4);min-width:74px;white-space:nowrap">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})}</span>
       <span style="flex:1"><strong style="color:${out?'#f59e0b':'#4ade80'}">${r.excluded?'Not counted':lbl}</strong>${r.lesson_id?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(34,197,94,.16);color:#22c55e">📅 calendar</span>':''}${r.created_by_role==='instructor'?' <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(96,165,250,.18);color:#60a5fa">by instructor</span>':''}${r.edited_at?` <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:rgba(245,158,11,.18);color:#f59e0b" title="${esc(new Date(r.edited_at).toLocaleString('en-GB'))}">edited by ${r.edited_by_role==='instructor'?'instructor':'admin'}</span>`:''} <span style="color:var(--txt2)">${(+r.hours||0)>0?'+':''}${_crHrs(r.hours)} · ${(+r.amount||0)>0?'+':''}${_crMoney(r.amount)}</span>${extra?`<div style="color:var(--txt3);margin-top:2px">${extra}</div>`:''}</span>
       <span style="text-align:right;white-space:nowrap;color:var(--txt3)">${_crHrs(run.h)}<br>${_crMoney(run.m)}</span>
+      ${viaDS&&r.kind==='lesson'&&!r.excluded&&(+r.hours||0)<0?(r.payout_status==='released'?`<span style="font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(34,197,94,.16);color:#22c55e;white-space:nowrap" title="Released ${esc(r.payout_date||'')}">💷 £${(+r.payout_amount||0).toFixed(2)} <a href="javascript:void(0)" style="color:inherit" onclick="crUnrelease('${r.id}')" title="Undo">↺</a></span>`:((r.lesson_date||r.entry_date||'9999')<=tdy?`<button class="abtn" style="padding:2px 7px;border-color:rgba(34,197,94,.5);color:#22c55e" title="Release the instructor's payment for this lesson" onclick="crRelease('${r.id}')">💷 Release</button>`:'')):''}
       <button class="abtn" style="padding:2px 7px" title="Edit this entry" onclick="crForm('edit','${r.id}')"><i class="bi bi-pencil"></i></button>
       <button class="abtn" style="border-color:rgba(248,113,113,.4);color:#f87171;padding:2px 7px" title="Delete this entry" onclick="crDelete('${r.id}')"><i class="bi bi-trash"></i></button></div>`;}).join('');
   const f=c.form,today=new Date().toISOString().slice(0,10),inp='class="dsq-inp" style="padding:5px 8px;font-size:.78rem"';
@@ -7191,6 +7203,7 @@ function _crRender(){
         <div class="col-4"><label class="dsq-lbl">Date</label><input ${inp} id="crDate" type="date" value="${today}"></div>
         <div class="col-6"><label class="dsq-lbl">Paid via</label><select ${inp} id="crMethod"><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></div>
         <div class="col-6"><label class="dsq-lbl">Reference</label><input ${inp} id="crRef" placeholder="e.g. bank ref"></div>
+        <div class="col-12"><label class="dsq-lbl">Who did the student pay?</label><select ${inp} id="crPaidTo"><option value="drivesq">DriveSQ — I release the instructor's payment after each lesson</option><option value="instructor">The instructor directly</option></select></div>
         <div class="col-12"><label class="dsq-lbl">Comment <span style="color:var(--txt4)">(instructor &amp; student can see)</span></label><input ${inp} id="crPub" placeholder="optional"></div>
         <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="Only you see this"></div></div>
         <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Save block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`
@@ -7209,7 +7222,8 @@ function _crRender(){
       <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Hours left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crHrs(hLeft)}</div></div>
       <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Credit left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crMoney(mLeft)}</div></div>
       <span style="padding:2px 10px;border-radius:99px;font-size:.7rem;font-weight:700;color:${chip[0]};border:1px solid ${chip[0]}">${chip[1]}</span></div>
-    <div class="d-flex gap-2 flex-wrap"><button class="btn-p" style="font-size:.78rem" onclick="crForm('block')"><i class="bi bi-plus-lg me-1"></i>Add block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm('lesson')" ${hasAny?'':'disabled'}><i class="bi bi-dash-lg me-1"></i>Lesson paid</button></div>
+    <div class="d-flex gap-2 flex-wrap"><button class="btn-p" style="font-size:.78rem" onclick="crForm('block')"><i class="bi bi-plus-lg me-1"></i>Add block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm('lesson')" ${hasAny?'':'disabled'}><i class="bi bi-dash-lg me-1"></i>Lesson paid</button>${pendRows.length?`<button class="btn-s" style="font-size:.78rem;border-color:rgba(34,197,94,.5);color:#22c55e" onclick="crReleaseAll()"><i class="bi bi-cash-coin me-1"></i>Release ${pendRows.length} lesson${pendRows.length===1?'':'s'} (£${pendRows.reduce((a,r)=>a+Math.abs(+r.amount||0),0).toFixed(2)})</button>`:''}</div>
+    ${viaDS?`<div style="font-size:.72rem;color:var(--txt3);margin-top:6px">💷 Paid to DriveSQ · released to instructor £${rows.filter(r=>r.payout_status==='released').reduce((a,r)=>a+(+r.payout_amount||0),0).toFixed(2)} · awaiting release ${pendRows.length} lesson${pendRows.length===1?'':'s'}. The instructor can see this.</div>`:''}
     ${form}
     ${hasAny?`<div style="margin-top:8px">${lines}</div>`:`<div style="font-size:.76rem;color:var(--txt4);padding:8px 0 2px">No block recorded. Press <strong>Add block</strong> when the student pays for a block of lessons.</div>`}
     <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr);font-size:.76rem;cursor:pointer"><input type="checkbox" ${c.on?'checked':''} onchange="crToggle(this.checked)" style="margin-top:2px"><span><strong>Show payments &amp; credit on the student's portal</strong><br><span style="color:var(--txt4)">Off by default: the student sees nothing. When on, they see hours left, credit left and each entry. Your private notes and instructor pay are never shown.</span></span></label>
@@ -7220,6 +7234,39 @@ async function _crHist(action,summary,before,after,ledgerId){
   const c=_crCtx;if(!c)return;
   const row={ledger_id:ledgerId||null,student_key:c.key,student_account_id:c.acctId||null,student_profile_id:c.profId||null,student_name:c.s.name||null,instructor_id:c.s.instrId||null,action,actor_role:'admin',actor_name:'Admin',summary,before:before||null,after:after||null};
   try{await sb.from('student_credit_history').insert(row);c.hist.unshift({...row,created_at:new Date().toISOString()});}catch(e){}
+}
+async function _crNotifyInstr(instrId,subject,body){
+  if(!instrId)return;
+  try{await sb.from('admin_messages').insert([{instructor_id:instrId,subject,body,message_type:'general',is_read:false,dismissed:false,created_at:new Date().toISOString()}]);}catch(e){}
+  try{sendPushToInstructor(instrId,'',subject,body,'/dashboard.html');}catch(e){}
+}
+async function crRelease(id,silent){
+  const c=_crCtx;if(!c)return false;const r=c.rows.find(x=>String(x.id)===String(id));if(!r)return false;
+  const def=Math.abs(+r.amount||0);let amt=def;
+  if(!silent){const v=prompt('How much are you releasing to the instructor for this lesson (£)?',def.toFixed(2));if(v===null)return false;amt=parseFloat(v);}
+  if(isNaN(amt)||amt<0){showToast('Enter an amount in pounds.','error');return false;}
+  const date=new Date().toISOString().slice(0,10),patch={payout_amount:amt,payout_status:'released',payout_date:date,instructor_paid:amt};
+  const{error}=await sb.from('student_credit_ledger').update(patch).eq('id',id);
+  if(error){showToast('Not saved: '+error.message+(/column/i.test(error.message)?' — run the block bookings SQL (payout columns)':''),'error',7000);return false;}
+  Object.assign(r,patch);
+  await _crHist('payout','released £'+amt.toFixed(2)+' to the instructor for the lesson on '+(r.lesson_date||r.entry_date),null,{amount:amt},id);
+  if(!silent){await _crNotifyInstr(c.s.instrId,'💷 Payment released: £'+amt.toFixed(2),'DriveSQ has released £'+amt.toFixed(2)+' for your lesson with '+(c.s.name||'your student')+' on '+(r.lesson_date||r.entry_date)+' (from their block booking).');showToast('💷 Released £'+amt.toFixed(2)+' — the instructor has been told','success',2600);_crRender();}
+  return true;
+}
+async function crUnrelease(id){
+  const c=_crCtx;if(!c||!confirm('Mark this payment as NOT released?'))return;const r=c.rows.find(x=>String(x.id)===String(id));if(!r)return;
+  const patch={payout_amount:null,payout_status:null,payout_date:null,instructor_paid:null};
+  const{error}=await sb.from('student_credit_ledger').update(patch).eq('id',id);if(error){showToast('Not saved: '+error.message,'error');return;}
+  const was=r.payout_amount;Object.assign(r,patch);await _crHist('payout','undid the released payment of £'+(+was||0).toFixed(2),{amount:was},null,id);_crRender();
+}
+async function crReleaseAll(){
+  const c=_crCtx;if(!c)return;const tdy=new Date().toISOString().slice(0,10);
+  const list=c.rows.filter(r=>r.kind==='lesson'&&(+r.hours||0)<0&&!r.excluded&&r.payout_status!=='released'&&(r.lesson_date||r.entry_date||'9999')<=tdy);
+  if(!list.length)return;const tot=list.reduce((a,r)=>a+Math.abs(+r.amount||0),0);
+  if(!confirm('Release £'+tot.toFixed(2)+' to the instructor for '+list.length+' completed lesson'+(list.length===1?'':'s')+' (each at its lesson value)?'))return;
+  let n=0,sum=0;for(const r of list){if(await crRelease(r.id,true)){n++;sum+=Math.abs(+r.amount||0);}}
+  if(n){await _crNotifyInstr(c.s.instrId,'💷 Payment released: £'+sum.toFixed(2),'DriveSQ has released £'+sum.toFixed(2)+' for '+n+' lesson'+(n===1?'':'s')+' with '+(c.s.name||'your student')+' (from their block booking).');showToast('💷 Released £'+sum.toFixed(2)+' for '+n+' lesson'+(n===1?'':'s'),'success',3000);}
+  _crRender();
 }
 function crForm(k,id){if(!_crCtx)return;_crCtx.form=k;_crCtx.editId=id||null;_crRender();}
 function crAutoAmt(rate){const h=parseFloat(document.getElementById('crHrs')?.value)||0,a=document.getElementById('crAmt');if(a)a.value=(h*rate).toFixed(2);}
@@ -7240,9 +7287,9 @@ async function crSave(){
   const sign=c.form==='block'?1:-1,paid=g('crPaid')?.value;
   const row={student_account_id:c.acctId,student_profile_id:c.profId,student_name:c.s.name||null,instructor_id:c.s.instrId||null,kind:c.form==='block'?'purchase':'lesson',hours:sign*hrs,amount:sign*amt,
     instructor_paid:(c.form==='lesson'&&paid!==''&&paid!=null)?parseFloat(paid)||0:null,method:c.form==='block'?(g('crMethod')?.value||null):null,reference:(g('crRef')?.value||'').trim()||null,note:(g('crNote')?.value||'').trim()||null,entry_date:g('crDate')?.value||new Date().toISOString().slice(0,10)};
-  row.public_note=(g('crPub')?.value||'').trim()||null;row.created_by_role='admin';row.created_by_name='Admin';
+  row.public_note=(g('crPub')?.value||'').trim()||null;row.created_by_role='admin';row.created_by_name='Admin';if(c.form==='block')row.paid_to=g('crPaidTo')?.value||'drivesq';
   let ins=await sb.from('student_credit_ledger').insert(row).select('id').maybeSingle();
-  if(ins.error&&/column/i.test(ins.error.message||'')){delete row.public_note;delete row.created_by_role;delete row.created_by_name;ins=await sb.from('student_credit_ledger').insert(row).select('id').maybeSingle();if(!ins.error)showToast('Saved, but run supabase/migrations/20261119_block_bookings.sql to switch on instructor access and history.','warn',8000);}
+  if(ins.error&&/column/i.test(ins.error.message||'')){delete row.public_note;delete row.created_by_role;delete row.created_by_name;delete row.paid_to;ins=await sb.from('student_credit_ledger').insert(row).select('id').maybeSingle();if(!ins.error)showToast('Saved, but run supabase/migrations/20261119_block_bookings.sql to switch on instructor access and history.','warn',8000);}
   const error=ins.error;
   if(error){showToast('Not saved: '+error.message,'error',6000);return;}
   await _crHist(c.form==='block'?'added':'used',(c.form==='block'?'added a block: ':'took off ')+_crHrs(hrs)+' · '+_crMoney(amt),null,{hours:row.hours,amount:row.amount},ins.data&&ins.data.id);
@@ -7270,7 +7317,7 @@ async function crToggle(on){
   _crCtx.on=!!on;_crHist('visibility',on?'switched ON: student can see their block on the portal':'switched OFF: block hidden from the student portal');showToast(on?'👁️ Student can now see payments & credit on their portal':'🙈 Hidden from the student portal','success',2600);
   if(on&&!_crCtx.acctId)showToast('Note: this student has no portal account yet, so nothing shows until they sign up.','info',5000);
 }
-window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crToggleInstr=crToggleInstr;window.crAutoAmt=crAutoAmt;
+window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crToggleInstr=crToggleInstr;window.crRelease=crRelease;window.crUnrelease=crUnrelease;window.crReleaseAll=crReleaseAll;window.crAutoAmt=crAutoAmt;
 
 /* ══ BLOCK BOOKINGS OVERVIEW (every student with a block, plus the latest changes by instructors / admin / students) ══ */
 async function dismissBlockMsg(id){

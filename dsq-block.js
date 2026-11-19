@@ -32,7 +32,7 @@
     } catch (e) { }
   }
 
-  var LCOLS = 'id,student_account_id,student_profile_id,student_name,instructor_id,kind,hours,amount,method,reference,public_note,entry_date,created_at,created_by_role,created_by_name,edited_by_role,edited_by_name,edited_at,lesson_id,lesson_date,auto,excluded,overridden';   // the private admin note and instructor pay are never requested here
+  var LCOLS = 'id,student_account_id,student_profile_id,student_name,instructor_id,kind,hours,amount,method,reference,public_note,entry_date,created_at,created_by_role,created_by_name,edited_by_role,edited_by_name,edited_at,lesson_id,lesson_date,auto,excluded,overridden,paid_to,payout_amount,payout_status,payout_date,payout_ref';   // the private admin note and instructor pay are never requested here
   function init(o) { C.sb = o.sb || C.sb; C.instr = o.instr || C.instr; C.toast = o.toast || C.toast; C.roster = o.roster || C.roster; C.report = o.report || C.report; C.sfx = o.sfx || C.sfx; }
   function rosterList() { try { return (C.roster && C.roster()) || []; } catch (e) { return []; } }
   function stuKey(st) { return st.accId || (st.profId ? 'p:' + st.profId : 'n:' + nameKey(st.name)); }
@@ -57,7 +57,12 @@
       if (r.kind === 'purchase' && h > 0) { bh += h; bm += m; var d = r.entry_date || String(r.created_at).slice(0, 10); if (!first || d < first) first = d; }
       else if (h < 0) { var ld = r.lesson_date || r.entry_date || String(r.created_at).slice(0, 10); if (r.lesson_date && ld > t) ah += -h; else dh += -h; }
     });
-    return { rows: rows, boughtH: bh, paid: bm, usedH: dh, aheadH: ah, leftH: Math.round(th * 100) / 100, leftM: Math.round(tm * 100) / 100, rate: bh > 0 ? bm / bh : 35, any: rows.length > 0, start: first };
+    var viaDS = rows.some(function (r) { return r.kind === 'purchase' && (+r.hours || 0) > 0 && r.paid_to !== 'instructor'; }), rel = 0, pendN = 0, pendH = 0, pendV = 0;
+    rows.forEach(function (r) {
+      if (r.kind !== 'lesson' || !((+r.hours || 0) < 0) || r.excluded) return; var ld = r.lesson_date || r.entry_date || String(r.created_at).slice(0, 10);
+      if (r.payout_status === 'released') rel += +r.payout_amount || 0; else if (ld <= t) { pendN++; pendH += -r.hours; pendV += -r.amount; }
+    });
+    return { rows: rows, boughtH: bh, paid: bm, usedH: dh, aheadH: ah, leftH: Math.round(th * 100) / 100, leftM: Math.round(tm * 100) / 100, rate: bh > 0 ? bm / bh : 35, any: rows.length > 0, start: first, viaDS: viaDS, released: Math.round(rel * 100) / 100, pendN: pendN, pendH: pendH, pendV: Math.round(pendV * 100) / 100 };
   }
 
   /* ---------- the calendar sync: plan (pure, testable) then apply ---------- */
@@ -204,11 +209,16 @@
   async function load() {
     S.missing = false;
     try {
-      var ids = rosterList().map(function (s) { return s.profId; }).filter(Boolean);
+      var rl = rosterList(), ids = rl.map(function (s) { return s.profId; }).filter(Boolean), aids = rl.map(function (s) { return s.accId; }).filter(Boolean), names = rl.map(function (s) { return s.name; }).filter(Boolean);
       var a = await C.sb.from('student_credit_ledger').select(LCOLS).eq('instructor_id', C.instr.id).order('created_at', { ascending: true });
       if (a.error) throw a.error;
       var rows = a.data || [];
-      if (ids.length) { var b = await C.sb.from('student_credit_ledger').select(LCOLS).in('student_profile_id', ids); if (!b.error) { var have = {}; rows.forEach(function (r) { have[r.id] = 1; }); (b.data || []).forEach(function (r) { if (!have[r.id]) rows.push(r); }); } }
+      var have = {}; rows.forEach(function (r) { have[r.id] = 1; });
+      var more = [];
+      if (ids.length) more.push(C.sb.from('student_credit_ledger').select(LCOLS).in('student_profile_id', ids));
+      if (aids.length) more.push(C.sb.from('student_credit_ledger').select(LCOLS).in('student_account_id', aids));
+      if (names.length) more.push(C.sb.from('student_credit_ledger').select(LCOLS).is('instructor_id', null).in('student_name', names));   // blocks admin added before the instructor was linked
+      (await Promise.all(more)).forEach(function (b) { if (!b.error) (b.data || []).forEach(function (r) { if (!have[r.id]) { have[r.id] = 1; rows.push(r); } }); });
       S.rows = rows;
       var st = await C.sb.from('student_credit_settings').select('*'); S.sets = {}; (st.data || []).forEach(function (x) { S.sets[x.student_key] = x; });
       var h = await C.sb.from('student_credit_history').select('*').eq('instructor_id', C.instr.id).order('created_at', { ascending: false }).limit(400); S.hist = h.data || [];
@@ -238,7 +248,7 @@
   async function addBlock(st, f) {
     var h = parseFloat(f.hours) || 0, m = parseFloat(f.amount) || 0;
     if (h <= 0 || m <= 0) { toast('Enter the hours and the amount the student paid.', 'error'); snd('err'); return false; }
-    var row = Object.assign(baseRow(st), { kind: 'purchase', hours: h, amount: m, method: f.method || null, reference: (f.reference || '').trim() || null, public_note: (f.note || '').trim() || null, entry_date: f.date || today() });
+    var row = Object.assign(baseRow(st), { kind: 'purchase', hours: h, amount: m, paid_to: f.paidTo === 'drivesq' ? 'drivesq' : 'instructor', method: f.method || null, reference: (f.reference || '').trim() || null, public_note: (f.note || '').trim() || null, entry_date: f.date || today() });
     var r = await C.sb.from('student_credit_ledger').insert(row).select().maybeSingle();
     if (r.error) { toast('Not saved: ' + r.error.message, 'error', 6000); snd('err'); return false; }
     var saved = r.data || row; S.rows.push(saved); await ensureSetting(st);
@@ -289,7 +299,7 @@
     '.dqb-ring>div{width:72px;height:72px;border-radius:50%;background:var(--card-bg,#16161b);display:grid;place-items:center;text-align:center;line-height:1}' +
     '.dqb-ring b{font-family:Oswald,sans-serif;font-size:1.6rem}.dqb-ring small{display:block;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--txt2,#9a9aa5);margin-top:3px}' +
     '.dqb-name{font-family:Oswald,sans-serif;font-size:1.08rem;font-weight:700;color:var(--txt,#fff)}.dqb-sub{font-size:.76rem;color:var(--txt2,#9a9aa5);margin-top:2px}.dqb-chip{display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.04em;padding:2px 9px;border-radius:99px;margin-top:5px}' +
-    '.dqb-leg{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 2px;font-size:.72rem;color:var(--txt2,#9a9aa5)}.dqb-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:baseline}' +
+    '.dqb-pay{margin-top:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.32);border-radius:12px;padding:10px 12px;font-size:.76rem;line-height:1.45;color:var(--txt,#fff)}.dqb-payrow{display:flex;gap:8px;margin-top:8px}.dqb-payrow span{flex:1;background:rgba(128,128,128,.12);border-radius:10px;padding:7px 9px;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2,#9a9aa5)}.dqb-payrow b{display:block;font-family:Oswald,sans-serif;font-size:.92rem;letter-spacing:0;text-transform:none;color:var(--txt,#fff);margin-top:2px}.dqb-leg{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 2px;font-size:.72rem;color:var(--txt2,#9a9aa5)}.dqb-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:baseline}' +
     '.dqb-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.dqb-stats div{flex:1;min-width:78px;background:rgba(128,128,128,.1);border-radius:12px;padding:8px 10px}.dqb-stats small{display:block;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--txt2,#9a9aa5)}.dqb-stats b{font-family:Oswald,sans-serif;font-size:1.05rem}' +
     '.dqb-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.dqb-btn{border:1px solid var(--bdr,#2a2a32);background:rgba(128,128,128,.14);color:var(--txt,#fff);border-radius:12px;padding:9px 13px;font-size:.78rem;font-weight:700;cursor:pointer;transition:transform .12s,filter .12s}.dqb-btn:active{transform:scale(.95)}.dqb-btn:hover{filter:brightness(1.1)}' +
     '.dqb-btn.p{background:#d10a11;border-color:#d10a11;color:#fff}.dqb-btn.g{background:rgba(74,222,128,.16);border-color:rgba(74,222,128,.5);color:#16a34a}.dqb-btn:disabled{opacity:.45}' +
@@ -307,16 +317,29 @@
   function cardHTML(st) {
     var s = st.sum, t = tone3(s.leftH), shown = (setOf(st) || {}).show_on_portal, first = String(st.name || '?').split(' ')[0];
     return '<div class="dqb-card" data-k="' + E(stuKey(st)) + '" style="--bk:' + t[0] + '"><div class="dqb-top"><div class="dqb-ring" style="background:' + ringGrad(s) + '"><div><span><b style="color:' + t[0] + '">' + hrs(Math.max(0, s.leftH)).replace('h', '') + '</b><small>hrs left</small></span></div></div>' +
-      '<div style="flex:1;min-width:150px"><div class="dqb-name">' + E(st.name) + '</div><div class="dqb-sub">' + hrs(s.boughtH) + ' block · ' + money(s.paid) + ' paid</div><span class="dqb-chip" style="background:' + t[0] + '22;color:' + t[0] + '">' + t[1] + (s.leftH < 0 ? ' · over by ' + hrs(-s.leftH) : '') + '</span>' + (shown ? '' : '<div class="dqb-sub" style="font-size:.68rem;margin-top:5px">🙈 ' + E(first) + ' can\'t see this yet (admin switches it on)</div>') + '</div></div>' +
+      '<div style="flex:1;min-width:150px"><div class="dqb-name">' + E(st.name) + '</div><div class="dqb-sub">' + hrs(s.boughtH) + ' block</div><span class="dqb-chip" style="background:rgba(34,197,94,.16);color:#16a34a;margin-right:6px">✅ Student paid ' + money(s.paid) + '</span><span class="dqb-chip" style="background:' + t[0] + '22;color:' + t[0] + '">' + t[1] + (s.leftH < 0 ? ' · over by ' + hrs(-s.leftH) : '') + '</span>' + (shown ? '' : '<div class="dqb-sub" style="font-size:.68rem;margin-top:5px">🙈 ' + E(first) + ' can\'t see this yet (admin switches it on)</div>') + '</div></div>' +
       '<div class="dqb-leg"><span><i style="background:#22c55e"></i>Done ' + hrs(s.usedH) + '</span><span><i style="background:#60a5fa"></i>Booked ahead ' + hrs(s.aheadH) + '</span><span><i style="background:rgba(128,128,128,.5)"></i>Left to book ' + hrs(Math.max(0, s.leftH)) + '</span></div>' +
-      '<div class="dqb-stats"><div><small>Paid</small><b>' + money(s.paid) + '</b></div><div><small>Done</small><b>' + hrs(s.usedH) + '</b></div><div><small>Credit left</small><b>' + money(s.leftM) + '</b></div></div>' +
+      payStrip(s) + '<div class="dqb-stats"><div><small>Paid</small><b>' + money(s.paid) + '</b></div><div><small>Done</small><b>' + hrs(s.usedH) + '</b></div><div><small>Credit left</small><b>' + money(s.leftM) + '</b></div></div>' +
       '<div class="dqb-btns"><button class="dqb-btn g" data-a="use" data-n="1">＋1 hr done</button><button class="dqb-btn g" data-a="use" data-n="2">＋2 hrs done</button><button class="dqb-btn" data-a="use" data-n="0">Other…</button><button class="dqb-btn" data-a="add">New block</button><button class="dqb-btn" data-a="hist">History</button></div></div>';
+  }
+  function payStrip(s) {
+    if (!s.paid) return '';
+    if (!s.viaDS) return '<div class="dqb-pay"><b>💷 Student paid you directly.</b> DriveSQ is not holding this payment.</div>';
+    return '<div class="dqb-pay"><b>🔒 Student paid DriveSQ ' + money(s.paid) + '</b> for ' + hrs(s.boughtH) + '. DriveSQ releases your payment after each lesson is done.' +
+      '<div class="dqb-payrow"><span>💷 Released to you<b>' + money(s.released) + '</b></span><span>⏳ Awaiting release<b>' + (s.pendN ? s.pendN + ' lesson' + (s.pendN === 1 ? '' : 's') + ' · ' + hrs(s.pendH) : 'none') + '</b></span></div></div>';
+  }
+  function payChip(r, st) {
+    if (r.kind !== 'lesson' || r.excluded || (+r.hours || 0) >= 0) return '';
+    var sum = st && st.sum ? st.sum : sumOf(S.rows.filter(function (x) { return matches(x, st || {}); })); if (!sum.viaDS) return '';
+    var d = r.lesson_date || r.entry_date || String(r.created_at).slice(0, 10);
+    if (r.payout_status === 'released') return '<div style="margin-top:3px"><span class="dqb-tag" style="background:rgba(34,197,94,.18);color:#16a34a;margin-left:0">💷 ' + money(r.payout_amount) + ' released' + (r.payout_date ? ' · ' + dnice(r.payout_date) : '') + '</span></div>';
+    return d > today() ? '' : '<div style="margin-top:3px"><span class="dqb-tag" style="background:rgba(245,158,11,.18);color:#d97706;margin-left:0">⏳ Payment awaiting release</span></div>';
   }
   function entryLine(r, run, st) {
     var isIn = (+r.hours || 0) > 0, cal = !!r.lesson_id, d = r.lesson_date || r.entry_date || String(r.created_at).slice(0, 10), fut = cal && d > today();
     var ic = r.kind === 'purchase' ? '💷' : cal ? '📅' : '✋', title = r.kind === 'purchase' ? 'Block paid' : r.excluded ? 'Not counted' : cal ? (fut ? 'Lesson booked' : 'Lesson done') : 'Hours ticked';
     var by = r.created_by_role === 'calendar' ? 'from your calendar' : r.created_by_role === 'instructor' ? 'added by you' : 'added by DriveSQ', ed = r.edited_at ? ' · edited by ' + E(r.edited_by_role === 'admin' ? 'DriveSQ' : (r.edited_by_name || 'instructor')) : '';
-    return '<div><span class="dqb-ic">' + ic + '</span><span style="flex:1;min-width:0"><b style="color:' + (isIn ? '#16a34a' : r.excluded ? 'var(--txt2)' : '#d97706') + '">' + title + (r.excluded ? '' : ' ' + (isIn ? '+' : '−') + hrs(Math.abs(r.hours))) + (r.kind === 'purchase' ? ' · ' + money(r.amount) : '') + '</b><div style="color:var(--txt2,#9a9aa5)">' + dnice(d) + (r.public_note && r.public_note !== 'Calendar lesson' ? ' · ' + E(r.public_note) : '') + '</div><div style="color:var(--txt3,#6f6f7a);font-size:.68rem">' + by + ed + '</div></span><span style="text-align:right;color:var(--txt2,#9a9aa5);white-space:nowrap">' + hrs(run) + ' left<br>' + (r.excluded ? '<button class="dqb-btn" style="padding:3px 9px;margin-top:4px;font-size:.68rem" data-a="incl" data-id="' + E(r.id) + '">Count it</button>' : '<button class="dqb-btn" style="padding:3px 9px;margin-top:4px;font-size:.68rem" data-a="edit" data-id="' + E(r.id) + '">Edit</button>') + '</span></div>';
+    return '<div><span class="dqb-ic">' + ic + '</span><span style="flex:1;min-width:0"><b style="color:' + (isIn ? '#16a34a' : r.excluded ? 'var(--txt2)' : '#d97706') + '">' + title + (r.excluded ? '' : ' ' + (isIn ? '+' : '−') + hrs(Math.abs(r.hours))) + (r.kind === 'purchase' ? ' · ' + money(r.amount) : '') + '</b><div style="color:var(--txt2,#9a9aa5)">' + dnice(d) + (r.public_note && r.public_note !== 'Calendar lesson' ? ' · ' + E(r.public_note) : '') + '</div><div style="color:var(--txt3,#6f6f7a);font-size:.68rem">' + by + ed + '</div>' + payChip(r, st) + '</span><span style="text-align:right;color:var(--txt2,#9a9aa5);white-space:nowrap">' + hrs(run) + ' left<br>' + (r.excluded ? '<button class="dqb-btn" style="padding:3px 9px;margin-top:4px;font-size:.68rem" data-a="incl" data-id="' + E(r.id) + '">Count it</button>' : '<button class="dqb-btn" style="padding:3px 9px;margin-top:4px;font-size:.68rem" data-a="edit" data-id="' + E(r.id) + '">Edit</button>') + '</span></div>';
   }
   function histHTML(st) {
     var sum = sumOf(S.rows.filter(function (r) { return matches(r, st); })), run = 0;
@@ -330,13 +353,14 @@
   function formHTML(title, f, extra) {
     return '<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-family:Oswald,sans-serif;font-size:1.12rem;font-weight:700;color:var(--txt)">' + title + '</div><button class="dqb-btn" data-x="close">✕</button></div>' + (extra || '') +
       '<div class="dqb-row"><label class="dqb-f"><span>Hours</span><input id="dqbH" type="number" step="0.5" min="0.5" value="' + E(f.hours) + '"></label>' + (f.noAmount ? '' : '<label class="dqb-f"><span>Amount £</span><input id="dqbA" type="number" step="0.01" min="0" value="' + E(f.amount) + '"></label>') + '<label class="dqb-f"><span>Date</span><input id="dqbD" type="date" value="' + E(f.date) + '"></label></div>' +
+      (f.paidTo ? '<label class="dqb-f"><span>Who did the student pay?</span><select id="dqbP"><option value="instructor">I was paid directly</option><option value="drivesq">The student paid DriveSQ</option></select></label>' : '') +
       (f.method === false ? '' : '<div class="dqb-row"><label class="dqb-f"><span>Paid via</span><select id="dqbM">' + [['bank_transfer', 'Bank transfer'], ['cash', 'Cash'], ['card', 'Card'], ['other', 'Other']].map(function (m) { return '<option value="' + m[0] + '"' + (f.method === m[0] ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('') + '</select></label><label class="dqb-f"><span>Reference</span><input id="dqbR" value="' + E(f.reference || '') + '" placeholder="optional"></label></div>') +
       '<label class="dqb-f"><span>Comment (the student and admin can see it)</span><input id="dqbN" value="' + E(f.note || '') + '" placeholder="e.g. Lesson 3 — roundabouts"></label>' + (f.help ? '<div class="dqb-help">' + f.help + '</div>' : '') +
       '<div class="dqb-btns"><button class="dqb-btn p" data-x="save">Save</button><button class="dqb-btn" data-x="close">Cancel</button>' + (f.del ? '<button class="dqb-btn" style="margin-left:auto;color:#ef4444" data-x="del">' + (f.delLabel || 'Delete') + '</button>' : '') + '</div>';
   }
-  function val() { var g = function (i) { var e = $(i); return e ? e.value : ''; }; return { hours: g('dqbH'), amount: g('dqbA'), date: g('dqbD'), method: g('dqbM'), reference: g('dqbR'), note: g('dqbN') }; }
+  function val() { var g = function (i) { var e = $(i); return e ? e.value : ''; }; return { paidTo: g('dqbP'), hours: g('dqbH'), amount: g('dqbA'), date: g('dqbD'), method: g('dqbM'), reference: g('dqbR'), note: g('dqbN') }; }
   function openAdd(st) {
-    modal(formHTML('New block for ' + E(st.name), { hours: 10, amount: 330, date: today(), method: 'bank_transfer', help: 'Lessons in your calendar from this date are taken off the block automatically.' }), function (o) {
+    modal(formHTML('New block for ' + E(st.name), { hours: 10, amount: 330, date: today(), method: 'bank_transfer', paidTo: true, help: 'Lessons in your calendar from this date are taken off the block automatically.' }), function (o) {
       o.addEventListener('click', async function (e) { var b = e.target.closest('[data-x]'); if (!b) return; if (b.dataset.x === 'close') return closeModal(); if (b.dataset.x === 'save') { b.disabled = true; if (await addBlock(st, val())) { closeModal(); await refresh(); } else b.disabled = false; } });
     });
   }
@@ -372,7 +396,7 @@
   async function renderStudent(hostId, st) {
     css(); var host = $(hostId); if (!host) return; CTX.host = hostId; CTX.st = st;
     host.innerHTML = '<div style="padding:12px;color:var(--txt2,#9a9aa5);font-size:.8rem">Loading block booking…</div>';
-    if (!S.loaded) await load();
+    await load();   // always fresh, so a block the admin just added is there
     if (S.missing) { host.innerHTML = '<div class="dqb-card">Block bookings need a one-time database update by DriveSQ admin. Please let admin know.</div>'; return; }
     syncAll({ announce: false });
     var rows = S.rows.filter(function (r) { return matches(r, st); });
@@ -383,7 +407,7 @@
   }
   async function renderTab() {
     css(); var host = $('dqbTabBody'); if (!host) return; CTX.host = 'tab'; CTX.st = null;
-    if (!S.loaded) { host.innerHTML = '<div style="padding:16px;color:var(--txt2,#9a9aa5)">Loading…</div>'; await load(); }
+    host.innerHTML = '<div style="padding:16px;color:var(--txt2,#9a9aa5)">Loading…</div>'; await load();   // always fresh
     if (S.missing) { host.innerHTML = '<div class="dqb-card">Block bookings need a one-time database update by DriveSQ admin. Please let admin know.</div>'; return; }
     var list = studentsWithBlocks(), low = list.filter(function (s) { return s.sum.leftH <= 2; }).length, all = rosterList();
     var left = list.reduce(function (a, s) { return a + Math.max(0, s.sum.leftH); }, 0), paid = list.reduce(function (a, s) { return a + s.sum.paid; }, 0);

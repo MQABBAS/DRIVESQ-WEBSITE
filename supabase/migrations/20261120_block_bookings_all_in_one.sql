@@ -75,3 +75,10 @@ alter table student_credit_ledger add column if not exists excluded boolean not 
 alter table student_credit_ledger add column if not exists overridden boolean not null default false;  -- hours changed by hand, so the calendar leaves them alone
 create unique index if not exists student_credit_ledger_lesson_uidx on student_credit_ledger (lesson_id) where lesson_id is not null;
 create index if not exists student_credit_ledger_instr_idx on student_credit_ledger (instructor_id, entry_date);
+
+-- Who the student paid, and payment released to the instructor after each lesson
+alter table student_credit_ledger add column if not exists paid_to text default 'drivesq';          -- drivesq | instructor (on the block row)
+alter table student_credit_ledger add column if not exists payout_amount numeric(10,2);            -- what admin released to the instructor for this lesson
+alter table student_credit_ledger add column if not exists payout_status text;                     -- released | (empty = awaiting)
+alter table student_credit_ledger add column if not exists payout_date date;
+alter table student_credit_ledger add column if not exists payout_ref text;
