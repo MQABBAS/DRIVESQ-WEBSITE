@@ -1097,6 +1097,7 @@ input,textarea,select{font-size:16px!important}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/dsq-block.js?v=20261120"></script>
 <script src="/dsq-student-guides.js?v=20261121"></script>
+<script src="/dsq-welcome.js?v=20261121"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script src="theory-questions.js"></script>
@@ -1279,7 +1280,7 @@ async function doRegister(){
     currentStudent={id:sa.id,name,phone,instructor_id:sa.instructor_id,profile_photo_url:sa.profile_photo_url};
     localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
     showToast('Account created ✓','success');
-    initApp();
+    window._dsqFresh=true;initApp();
   }catch(err){console.error(err);showRegErr(err.message||'Something went wrong. Please try again.');}
   finally{btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Create Account';btn.disabled=false;}
 }
@@ -1385,7 +1386,7 @@ async function doLogin(){
   await sb.from('lessons').update({student_account_id:data.id}).eq('instructor_id',data.instructor_id).ilike('student_name',data.full_name).is('student_account_id',null).then(()=>{},()=>{});
   currentStudent={id:data.id,name:data.full_name,phone:data.phone||phone,email:data.email,instructor_id:data.instructor_id,profile_photo_url:data.profile_photo_url};
   localStorage.setItem('dsq_student',JSON.stringify(currentStudent));sessionStorage.setItem('dsq_student',JSON.stringify(currentStudent));
-  initApp();
+  window._dsqFresh=true;initApp();
 }
 
 function signOut(){
@@ -1398,6 +1399,27 @@ function signOut(){
   document.getElementById('waFloat').classList.add('hidden');
   document.getElementById('authScreen').classList.remove('hidden');
   showView('landingView');
+}
+
+/* ── WELCOME: after sign-in, and once a day when they come back ── */
+function maybeWelcome(){
+  try{
+    if(!currentStudent||!currentStudent.id||!window.DSQWelcome)return;
+    const id=currentStudent.id,today=todayKey(),fresh=!!window._dsqFresh;window._dsqFresh=false;
+    const seenKey='dsq_welcome_day_'+id,firstKey='dsq_welcomed_'+id;
+    if(!fresh&&localStorage.getItem(seenKey)===today)return;
+    const firstEver=!localStorage.getItem(firstKey);
+    localStorage.setItem(seenKey,today);localStorage.setItem(firstKey,'1');
+    let streak=0;try{streak=(JSON.parse(localStorage.getItem('dsq_streak_'+id)||'{}').count)||0;}catch(e){}
+    let lesson='';
+    try{
+      const up=(studentLessons||[]).filter(l=>l.lesson_date&&l.lesson_date>=today).sort((a,b)=>(a.lesson_date+(a.start_time||'')).localeCompare(b.lesson_date+(b.start_time||'')))[0];
+      if(up)lesson=new Date(up.lesson_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+(up.start_time?' · '+String(up.start_time).slice(0,5):'');
+    }catch(e){}
+    let guide='';
+    try{if(window.DSQGuides){const g=DSQGuides.current(),i=DSQGuides.all.indexOf(g);if(localStorage.getItem('dsq_guide_read_'+i)!=='1')guide=g.t;}}catch(e){}
+    DSQWelcome.show({name:currentStudent.name,firstEver,streak,lesson,guide});
+  }catch(e){}
 }
 
 /* ── INIT APP ── */
@@ -1425,6 +1447,7 @@ async function initApp(){
   renderHome();renderProgress();renderTopics();renderLearnTab();renderMessages();renderProfile();
   loadNotifications();
   loadCredit();
+  maybeWelcome();
   window.scrollTo({top:0,behavior:'instant'});
   history.replaceState({tab:'home'},'',location.pathname);
   // Show notification banner and auto-request permission after short delay
