@@ -51,7 +51,7 @@
     '.dqi-ic{width:38px;height:38px;border-radius:10px;background:var(--card-bg,#16161b);border:1px solid var(--bdr,#2a2a32);display:grid;place-items:center;flex:0 0 auto;color:#0a84ff}.dqi-ic svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}' +
     '.dqi-btn{width:100%;margin-top:14px;border:0;border-radius:14px;padding:13px;font-family:Oswald,sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#d10a11,#a8060c);color:#fff}.dqi-btn.s{background:rgba(128,128,128,.16);color:var(--txt,#fff);margin-top:8px}' +
     '.dqi-arrow{position:fixed;left:0;right:0;bottom:6px;text-align:center;z-index:100002;pointer-events:none;color:#fff;font-size:.8rem;font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.7)}.dqi-arrow i{display:block;font-style:normal;font-size:2rem;animation:dqiBob 1s infinite}' +
-    '.dqi-warn{background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.4);color:var(--txt,#fff);border-radius:14px;padding:11px 13px;font-size:.8rem;line-height:1.45;margin-top:10px}';
+    '.dqi-dev{position:relative;display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:16px;border:1px solid var(--bdr,#2a2a32);background:rgba(96,165,250,.09);margin-bottom:12px;animation:dqiIn .4s both}.dqi-dev-i{font-size:1.35rem;letter-spacing:2px;flex:0 0 auto}.dqi-link{margin-top:6px;border:1px solid var(--bdr,#2a2a32);background:rgba(128,128,128,.14);color:var(--txt,#fff);border-radius:9px;padding:5px 11px;font-size:.72rem;font-weight:700;cursor:pointer}.dqi-warn{background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.4);color:var(--txt,#fff);border-radius:14px;padding:11px 13px;font-size:.8rem;line-height:1.45;margin-top:10px}';
   function css() { if (document.getElementById('dqiCss')) return; var s = document.createElement('style'); s.id = 'dqiCss'; s.textContent = CSS; document.head.appendChild(s); }
   var SVG = {
     share: '<svg viewBox="0 0 24 24"><path d="M12 15V3M8.5 6.5L12 3l3.5 3.5"/><path d="M7 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1"/></svg>',
@@ -127,5 +127,16 @@
     css(); opts = opts || {}; if (opts.name) APP.name = opts.name; if (opts.icon) APP.icon = opts.icon;
     var el = typeof sel === 'string' ? document.querySelector(sel) : sel; if (!el) return; mounts = mounts.filter(function (m) { return m.el !== el; }); mounts.push({ el: el, opts: opts }); paint(el, opts);
   }
-  window.DSQInstall = { mount: mount, open: open, mode: mode, repaint: repaint, setApp: function (n, i) { if (n) APP.name = n; if (i) APP.icon = i; } };
+  /* "works on every device" note — shown on both portals */
+  function devices(sel, o) {
+    css(); o = o || {}; var el = typeof sel === 'string' ? document.querySelector(sel) : sel; if (!el) return;
+    var key = 'dsq_dev_hide_' + (o.key || 'x'); if (o.dismissible && LS.get(key) === '1') { el.innerHTML = ''; return; }
+    var url = o.url || location.origin + location.pathname;
+    el.innerHTML = '<div class="dqi-dev"><div class="dqi-dev-i">📱 📲 💻</div><div style="min-width:0;flex:1"><div class="dqi-t" style="font-size:.9rem">Use your ' + E(o.what || 'portal') + ' on any device</div><div class="dqi-s">Works on <b>mobile, tablet, iPad and laptop</b>. Sign in at <b>' + E(url.replace(/^https?:\/\//, '')) + '</b> with the same details — everything stays in sync.</div>' +
+      '<button class="dqi-link" data-q="copy">📋 Copy link</button></div>' + (o.dismissible ? '<button class="dqi-x" data-q="hide" aria-label="Hide">×</button>' : '') + '</div>';
+    el.onclick = function (e) { var b = e.target.closest('[data-q]'); if (!b) return; var q = b.getAttribute('data-q');
+      if (q === 'hide') { LS.set(key, '1'); el.innerHTML = ''; }
+      else if (q === 'copy') { (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () { b.textContent = '✅ Link copied'; }, function () { try { prompt('Copy this link', url); } catch (x) { } }); } };
+  }
+  window.DSQInstall = { devices: devices, mount: mount, open: open, mode: mode, repaint: repaint, setApp: function (n, i) { if (n) APP.name = n; if (i) APP.icon = i; } };
 })();
