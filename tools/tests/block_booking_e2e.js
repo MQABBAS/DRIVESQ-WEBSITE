@@ -47,12 +47,26 @@ const led=()=>DB.student_credit_ledger;
  await A.evaluate(()=>loadStudentCredit({name:'Bilal Khan',acctId:null,profileId:'p2',instrId:null}));await A.waitForTimeout(900);
  await A.evaluate(()=>crForm('block'));await setv(A,'crHrs','5');await setv(A,'crAmt','175');await setv(A,'crDate',day(-5));await A.evaluate(()=>crSave());await A.waitForTimeout(1200);
  const bb=led().find(x=>x.student_name==='Bilal Khan');ok(bb&&bb.instructor_id==='d','admin: Bilal block (no instructor known) got the instructor attached');
+ // Zara: not in anyone's roster, admin picks the instructor by typing the name
+ await A.evaluate(()=>loadStudentCredit({name:'Zara Ali',acctId:null,profileId:null,instrId:null}));await A.waitForTimeout(900);
+ await A.evaluate(()=>crForm('block'));await setv(A,'crHrs','10');await setv(A,'crAmt','330');await setv(A,'crDate',day(-3));await A.evaluate(()=>crSave());await A.waitForTimeout(1200);
+ ok(led().find(x=>x.student_name==='Zara Ali').instructor_id==null,'admin: Zara block saved with no instructor yet (warning shown)');
+ ok(await A.evaluate(()=>/No instructor chosen yet/.test(document.getElementById('sdCredit').innerText)),'admin: warns "no instructor chosen"');
+ await A.evaluate(()=>crSetInstr('dawood'));await A.waitForTimeout(1500);
+ ok(led().filter(x=>x.student_name==='Zara Ali').every(x=>x.instructor_id==='d'),'admin: typing "dawood" picked the instructor (searchable) and moved the block to him');
+ ok(DB.admin_messages.some(m=>/Block booking added for Zara/.test(m.subject)),'admin: instructor told about the new block');
+ // keyboard shortcuts
+ const tabOn=async()=>A.evaluate(()=>[...document.querySelectorAll('.dsq-tab.active')].map(x=>x.id).join(','));
+ await A.evaluate(()=>{document.activeElement&&document.activeElement.blur();document.querySelectorAll('.dsq-overlay.open').forEach(e=>e.classList.remove('open'));});
+ for(const [k,tab] of [['r','tab-referrals'],['a','tab-expenses'],['f','tab-find'],['d','tab-dashboard']]){await A.keyboard.press(k);await A.waitForTimeout(500);const on=await tabOn();ok(on.includes(tab),'shortcut "'+k+'" -> '+tab+' ('+on+')');}
+ for(const k of ['s','k']){await A.keyboard.press(k);await A.waitForTimeout(400);const o=await A.evaluate(()=>document.getElementById('globalSearchModal').classList.contains('open'));ok(o,'shortcut "'+k+'" opens search');await A.keyboard.press('Escape');await A.waitForTimeout(300);}
+ for(const k of ['w','b']){await A.keyboard.press(k);await A.waitForTimeout(500);const o=await A.evaluate(()=>{const e=document.querySelector('#webBookingsPanel,.wb-panel,[id*=webBookings][class*=open],#wbPanel');return !!(e&&(e.classList.contains('open')||getComputedStyle(e).display!=='none'));});ok(o,'shortcut "'+k+'" opens website bookings');await A.evaluate(()=>document.querySelectorAll('.dsq-overlay.open,.open').forEach(e=>{if(e.id&&/wb|web/i.test(e.id))e.classList.remove('open');}));await A.keyboard.press('Escape');await A.waitForTimeout(300);}
  // ---------- INSTRUCTOR ----------
  const I=await pg('dashboard.html',()=>{localStorage.setItem('dsq_instructor',JSON.stringify({id:'d',name:'Dawood Khan',full_name:'Dawood Khan',badge:'1',type:'ADI',phone:'07700900001',email:'d@x.com',status:'approved'}));});
  await I.waitForTimeout(8000);
  await I.evaluate(()=>switchTab('blocks'));await I.waitForTimeout(1800);
  const cards=()=>I.$$eval('#dqbTabBody .dqb-card',e=>e.map(x=>x.innerText.replace(/\s+/g,' ')));
- let c=await cards();ok(c.length===2,'instructor: sees both admin-added blocks ('+c.length+')');
+ let c=await cards();ok(c.length===3,'instructor: sees all 3 admin-added blocks incl. Zara who is not on the roster ('+c.length+')');ok(c.some(x=>/Zara Ali/.test(x)&&/10 HRS LEFT/.test(x)),'instructor: Zara block visible (admin chose the instructor)');
  ok(c.some(x=>/Sara Ahmed/.test(x)&&/10 HRS LEFT/.test(x)&&/Student paid DriveSQ/.test(x)),'instructor: Sara 10h left + "paid DriveSQ" panel');
  ok(c.some(x=>/Bilal Khan/.test(x)&&/5 HRS LEFT/.test(x)),'instructor: Bilal 5h left');
  // 2. manual tick for Bilal today (1h), then calendar lesson the same day (should LINK, not double count)

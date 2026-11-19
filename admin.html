@@ -3873,7 +3873,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="/dsq-block.js?v=20261120"></script>
+<script src="/dsq-block.js?v=20261122"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
@@ -7217,7 +7217,16 @@ function _crRender(){
         <div class="col-12"><label class="dsq-lbl">Private note</label><input ${inp} id="crNote" placeholder="e.g. Lesson 4, paid Dawood by bank"></div></div>
         <div style="font-size:.68rem;color:var(--txt4);margin-top:4px">Value is worked out at this student's block rate of ${_crMoney(rate)} an hour. Change it if needed.</div>
         <div class="d-flex gap-2 mt-2"><button class="btn-p" style="font-size:.78rem" onclick="crSave()">Take off block</button><button class="btn-s" style="font-size:.78rem" onclick="crForm(null)">Cancel</button></div></div>`;
+  const _iName=id=>((allInstrs||[]).find(i=>String(i.id)===String(id))||{}).full_name||'';
+  const _curInstr=c.s.instrId||((rows.find(r=>r.instructor_id)||{}).instructor_id)||'';
+  const instrPick=`<div style="margin-bottom:10px;padding:9px 10px;border-radius:10px;border:1px solid ${_curInstr?'var(--bdr)':'#f59e0b'};background:${_curInstr?'transparent':'rgba(245,158,11,.08)'}">
+      <label class="dsq-lbl" style="margin-bottom:4px">👨‍🏫 Instructor who can see this block <span style="color:var(--txt4)">(type to search)</span></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><input class="dsq-inp" id="crInstr" list="crInstrList" autocomplete="off" placeholder="Start typing an instructor's name…" value="${esc(_iName(_curInstr))}" style="padding:5px 8px;font-size:.8rem;flex:1;min-width:180px" onkeydown="if(event.key==='Enter')crSetInstr(this.value)">
+        <button class="btn-p" style="font-size:.76rem" onclick="crSetInstr(document.getElementById('crInstr').value)">Show to this instructor</button></div>
+      <datalist id="crInstrList">${(allInstrs||[]).filter(i=>i.status!=='rejected').map(i=>`<option value="${esc(i.full_name||'')}"></option>`).join('')}</datalist>
+      <div style="font-size:.68rem;margin-top:4px;color:${_curInstr?'var(--txt4)':'#f59e0b'}">${_curInstr?'Currently shown to '+esc(_iName(_curInstr)||'this instructor')+'. Choose another name to move it.':'⚠️ No instructor chosen yet, so no instructor can see this block. Pick one above.'}</div></div>`;
   box.innerHTML=head+`<div style="background:var(--dk3);border:1px solid var(--bdr);border-radius:12px;padding:12px">
+    ${instrPick}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Hours left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crHrs(hLeft)}</div></div>
       <div style="flex:1;min-width:110px"><div style="font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">Credit left</div><div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:${chip[0]}">${_crMoney(mLeft)}</div></div>
@@ -7234,6 +7243,22 @@ async function _crHist(action,summary,before,after,ledgerId){
   const c=_crCtx;if(!c)return;
   const row={ledger_id:ledgerId||null,student_key:c.key,student_account_id:c.acctId||null,student_profile_id:c.profId||null,student_name:c.s.name||null,instructor_id:c.s.instrId||null,action,actor_role:'admin',actor_name:'Admin',summary,before:before||null,after:after||null};
   try{await sb.from('student_credit_history').insert(row);c.hist.unshift({...row,created_at:new Date().toISOString()});}catch(e){}
+}
+async function crSetInstr(name){
+  const c=_crCtx;if(!c)return;const q=String(name||'').trim().toLowerCase();
+  if(!q){showToast('Type an instructor name first.','warn');return;}
+  const list=(allInstrs||[]).filter(i=>i.status!=='rejected'),exact=list.filter(i=>String(i.full_name||'').toLowerCase()===q),part=list.filter(i=>String(i.full_name||'').toLowerCase().includes(q));
+  const hit=exact.length===1?exact[0]:(part.length===1?part[0]:null);
+  if(!hit){showToast(part.length>1?'Several instructors match — type a bit more of the name.':'No instructor found with that name.','warn',4000);return;}
+  const fix={instructor_id:hit.id};if(c.profId)fix.student_profile_id=c.profId;if(c.acctId)fix.student_account_id=c.acctId;
+  let upd;
+  upd=c.acctId||c.profId?await sb.from('student_credit_ledger').update(fix).or([c.acctId?'student_account_id.eq.'+c.acctId:null,c.profId?'student_profile_id.eq.'+c.profId:null].filter(Boolean).join(',')):await sb.from('student_credit_ledger').update(fix).eq('student_name',c.s.name||'~');
+  if(upd.error){showToast('Not saved: '+upd.error.message,'error',6000);return;}
+  c.s.instrId=hit.id;c.rows.forEach(r=>{r.instructor_id=hit.id;});
+  try{await sb.from('student_credit_settings').upsert({student_key:c.key,student_name:c.s.name||null,instructor_id:hit.id,updated_at:new Date().toISOString()},{onConflict:'student_key'});}catch(e){}
+  await _crHist('edited','chose '+(hit.full_name||'the instructor')+' as the instructor who sees this block');
+  await _crNotifyInstr(hit.id,'📦 Block booking added for '+(c.s.name||'a student'),'DriveSQ has added a block booking for '+(c.s.name||'your student')+'. Open Blocks in your portal to see the hours and payment.');
+  showToast('✅ Now shown to '+(hit.full_name||'the instructor')+' (they have been told)','success',3000);_crRender();
 }
 async function _crNotifyInstr(instrId,subject,body){
   if(!instrId)return;
@@ -7326,7 +7351,7 @@ async function crToggle(on){
   _crCtx.on=!!on;_crHist('visibility',on?'switched ON: student can see their block on the portal':'switched OFF: block hidden from the student portal');showToast(on?'👁️ Student can now see payments & credit on their portal':'🙈 Hidden from the student portal','success',2600);
   if(on&&!_crCtx.acctId)showToast('Note: this student has no portal account yet, so nothing shows until they sign up.','info',5000);
 }
-window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crToggleInstr=crToggleInstr;window.crRelease=crRelease;window.crUnrelease=crUnrelease;window.crReleaseAll=crReleaseAll;window.crAutoAmt=crAutoAmt;
+window.crForm=crForm;window.crSave=crSave;window.crDelete=crDelete;window.crToggle=crToggle;window.crToggleInstr=crToggleInstr;window.crSetInstr=crSetInstr;window.crRelease=crRelease;window.crUnrelease=crUnrelease;window.crReleaseAll=crReleaseAll;window.crAutoAmt=crAutoAmt;
 
 /* ══ BLOCK BOOKINGS OVERVIEW (every student with a block, plus the latest changes by instructors / admin / students) ══ */
 async function dismissBlockMsg(id){
@@ -18270,7 +18295,7 @@ document.addEventListener('click',e=>{
     if (!o) {
       o = document.createElement("div"); o.id = "qaKeys"; o.className = "qa-pal"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Keyboard shortcuts");
       o.innerHTML = '<div class="qa-pal__box" style="max-width:420px"><div class="qa-pal__in"><i class="bi bi-keyboard"></i><b style="color:var(--txt)">Keyboard shortcuts</b></div><div class="qa-keys" style="padding:16px 18px">' +
-        "<span><kbd>G</kbd></span><span>Jump to any page or action</span><span><kbd>B</kbd></span><span>Open website bookings</span><span><kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>Esc</kbd></span><span>Close any window</span></div></div>";
+        "<span><kbd>G</kbd></span><span>Jump to any page or action</span><span><kbd>D</kbd></span><span>Main menu (dashboard)</span><span><kbd>R</kbd></span><span>Referrals</span><span><kbd>A</kbd></span><span>Accounting</span><span><kbd>F</kbd></span><span>Find &amp; Assign</span><span><kbd>W</kbd> or <kbd>B</kbd></span><span>Website bookings</span><span><kbd>S</kbd>, <kbd>K</kbd>, <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Search students &amp; instructors</span><span><kbd>?</kbd></span><span>Show this help</span><span><kbd>Esc</kbd></span><span>Close any window</span></div></div>";
       o.addEventListener("click", function (e) { if (e.target === o) o.classList.remove("open"); });
       document.body.appendChild(o);
     }
@@ -18284,7 +18309,9 @@ document.addEventListener('click',e=>{
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (a && a.isContentEditable)) return;
       if ($(".dsq-overlay.open") || palette.isOpen()) return;
       if (e.key === "g" || e.key === "G") { e.preventDefault(); palette.open(); }
-      else if (e.key === "b" || e.key === "B") { e.preventDefault(); call("openWebBookingsPanel"); }
+      else if (e.key === "b" || e.key === "B" || e.key === "w" || e.key === "W") { e.preventDefault(); call("openWebBookingsPanel"); }
+      else if (e.key === "s" || e.key === "S" || e.key === "k" || e.key === "K") { e.preventDefault(); call("openGlobalSearch"); }
+      else if ({ r: "referrals", a: "expenses", d: "dashboard", f: "find" }[String(e.key).toLowerCase()]) { e.preventDefault(); call("switchTab", { r: "referrals", a: "expenses", d: "dashboard", f: "find" }[String(e.key).toLowerCase()]); }
       else if (e.key === "?") { e.preventDefault(); keys(); }
     });
     var nav = document.getElementById("mainNav"), search = nav && $$("button", nav).find(function (b) { return /openGlobalSearch/.test(b.getAttribute("onclick") || ""); });

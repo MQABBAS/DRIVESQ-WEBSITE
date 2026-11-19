@@ -141,7 +141,7 @@
     opts = opts || {}; if (S.busy || S.noSync || !C.sb || !C.instr) return null; S.busy = true;
     try {
       if (!S.loaded) await load(); if (S.missing || S.noSync) return null;
-      var list = rosterList(), minStart = null;
+      var list = rosterList().concat(extraStudents()), minStart = null;
       list.forEach(function (st) { var s = sumOf(S.rows.filter(function (r) { return matches(r, st); })); if (s.start && (!minStart || s.start < minStart)) minStart = s.start; });
       if (!minStart) return null;
       var l = await C.sb.from('lessons').select('id,student_name,student_account_id,lesson_date,start_time,duration_hours').eq('instructor_id', C.instr.id).gte('lesson_date', minStart).limit(3000);
@@ -226,9 +226,20 @@
     } catch (e) { var m = String((e && e.message) || e); S.missing = /does not exist|relation|schema cache|column|student_credit/i.test(m); S.err = m; }
     S.loaded = true;
   }
+  /* students that have a block for this instructor but are not in the roster list (e.g. admin chose the instructor for them) */
+  function extraStudents() {
+    var rl = rosterList(), ex = {};
+    S.rows.forEach(function (r) {
+      if (!C.instr || String(r.instructor_id) !== String(C.instr.id)) return;
+      if (rl.some(function (st) { return matches(r, st); })) return;
+      var k = r.student_account_id || (r.student_profile_id ? 'p:' + r.student_profile_id : 'n:' + nameKey(r.student_name));
+      (ex[k] = ex[k] || { name: r.student_name || 'Student', accId: r.student_account_id || null, profId: r.student_profile_id || null, phone: '', extra: true }).name = (ex[k].name === 'Student' && r.student_name) ? r.student_name : ex[k].name;
+    });
+    return Object.keys(ex).map(function (k) { return ex[k]; });
+  }
   function studentsWithBlocks() {
     var out = [], seen = {};
-    rosterList().forEach(function (st) {
+    rosterList().concat(extraStudents()).forEach(function (st) {
       var rows = S.rows.filter(function (r) { return matches(r, st); });
       if (!rows.length || !canSee(st)) return; var k = stuKey(st); if (seen[k]) return; seen[k] = 1;
       out.push(Object.assign({}, st, { sum: sumOf(rows) }));
