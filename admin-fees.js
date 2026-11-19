@@ -69,6 +69,49 @@
   function go(n) { weekK = addW(weekK || wk(new Date()), n); if (weekK > wk(new Date())) weekK = wk(new Date()); render(); }
   async function refresh() { await load(); render(); try { if (window.renderAccounting) renderAccounting(); } catch (e) { } }
 
+
+  /* ---------- package shortfall review (admin only) ---------- */
+  var rowFor = function (id, k) { return ROWS.find(function (r) { return String(r.instructor_id) === String(id) && r.week_start === k; }); };
+  var logShort = function (id, summary) { try { DSQLog.add(SB(), { area: 'package', action: 'package_discount', summary: summary, role: 'admin', actor: 'Admin', instrId: id }); } catch (e) { } };
+  async function applyShort(id, k) {
+    await DSQPkg.load(); var x = DSQPkg.shortfalls(k).find(function (y) { return String(y.id) === String(id); }); if (!x || !(x.discount > 0)) return;
+    var own = rowFor(id, k), tgt = own && own.status === 'unpaid' ? own : rowFor(id, addW(k, 1)), note = 'Shortfall discount −' + money(x.discount) + ' (' + x.delivered + ' of ' + x.min + ' students, w/c ' + niceW(k) + ')';
+    if (!tgt || tgt.status !== 'unpaid') { toast('There is no unpaid fee to take the discount off. Open Weekly fees for the next week first, or waive a week by hand.', 'warn', 6000); return; }
+    var next = Math.max(0, (+tgt.expected || 0) - x.discount);
+    if (!confirm(nameOf(id) + ': ' + x.delivered + ' of ' + x.min + ' students for the week of ' + niceW(k) + '.\n\nTake ' + money(x.discount) + ' off the fee for the week of ' + niceW(tgt.week_start) + ' (' + money(tgt.expected) + ' → ' + money(next) + ')?')) return;
+    if (!(await upd(tgt.id, { expected: next, note: ((tgt.note ? tgt.note + ' · ' : '') + note).slice(0, 400) }))) return;
+    await DSQPkg.setWeek(id, k, { applied: true, off: x.discount, rowId: tgt.id, rowWeek: tgt.week_start });
+    logShort(id, note + ' for ' + nameOf(id) + ', taken off the fee for the week of ' + niceW(tgt.week_start)); toast('✅ ' + money(x.discount) + ' discount applied for ' + nameOf(id), 'success', 3000); refresh();
+  }
+  async function undoShort(id, k) {
+    var w = (((DSQPkg._cfg() || {}).by || {})[id] || {}).wk; w = w && w[k]; if (!w || !w.applied) return; if (!confirm('Undo this discount and put the fee back?')) return;
+    var tgt = ROWS.find(function (r) { return String(r.id) === String(w.rowId); });
+    if (tgt && !(await upd(tgt.id, { expected: (+tgt.expected || 0) + (+w.off || 0), note: ((tgt.note || '').replace(/(^| · )Shortfall discount −[^·]*\(\d+ of \d+ students, w\/c [^)]*\)/, '') || null) }))) return;
+    await DSQPkg.setWeek(id, k, { applied: null, off: null, rowId: null, rowWeek: null }); logShort(id, 'Shortfall discount undone for ' + nameOf(id) + ' (w/c ' + niceW(k) + ')'); refresh();
+  }
+  async function excuseShort(id, k) {
+    var why = prompt('Why no discount for ' + nameOf(id) + ' this week? (e.g. on holiday, unavailable, turned students down)', ''); if (why === null) return; if (!why.trim()) { toast('Please add a short reason so there is a record.', 'warn'); return; }
+    await DSQPkg.setWeek(id, k, { excused: true, why: why.trim() }); logShort(id, 'No shortfall discount for ' + nameOf(id) + ' (w/c ' + niceW(k) + '): ' + why.trim()); refresh();
+  }
+  async function unexcuseShort(id, k) { await DSQPkg.setWeek(id, k, { excused: null, why: null }); refresh(); }
+  async function addStudents(id, k) {
+    var cur = ((((DSQPkg._cfg() || {}).by || {})[id] || {}).wk || {})[k] || {}, v = prompt('Count extra students for ' + nameOf(id) + ' this week? These are students we sent who the instructor did not respond to (they still count as delivered). Enter a number; 0 clears it.', cur.adj || 0); if (v === null) return;
+    var n = parseInt(v, 10); if (isNaN(n) || n < 0 || n > 20) { toast('Enter a number from 0 to 20.', 'error'); return; }
+    await DSQPkg.setWeek(id, k, { adj: n || null }); logShort(id, 'Counted ' + n + ' extra student' + (n === 1 ? '' : 's') + ' for ' + nameOf(id) + ' (w/c ' + niceW(k) + ', sent but not followed up)'); refresh();
+  }
+  function shortCard(k, cur) {
+    if (!window.DSQPkg || !DSQPkg._cfg() || k >= cur) return '';
+    var list = DSQPkg.shortfalls(k); if (!list.length) return '';
+    var open = list.filter(function (x) { return x.status === 'open'; }), btn = 'class="btn-s" style="font-size:.7rem;padding:3px 9px;';
+    var chip = function (x) { return x.status === 'applied' ? '<span style="color:#16a34a;font-weight:800">✓ ' + money(x.discount) + ' discount applied</span>' : x.status === 'excused' ? '<span style="color:#94a3b8;font-weight:800">No discount — ' + E(x.why) + '</span>' : x.status === 'met' ? '<span style="color:#16a34a;font-weight:800">✓ Guarantee met</span>' : '<span style="color:#f59e0b;font-weight:800">Short by ' + (x.min - x.delivered) + ' → fee ' + money(x.due) + ' <span style="font-weight:600;color:var(--txt3)">(discount ' + money(x.discount) + ')</span></span>'; };
+    return '<div style="background:var(--card-bg);border:1px solid ' + (open.length ? '#f59e0b' : 'var(--bdr)') + ';border-radius:14px;padding:14px 16px;margin-bottom:14px"><div style="font-weight:700;margin-bottom:2px">🎯 Package guarantees — week of ' + niceW(k) + (open.length ? ' <span style="background:#f59e0b;color:#1a1100;border-radius:99px;padding:1px 9px;font-size:.7rem">' + open.length + ' to review</span>' : '') + '</div>' +
+      '<div style="font-size:.7rem;color:var(--txt4);margin-bottom:6px">Only you can see this. Students delivered = confirmed ✅ booked that week' + '. Fees never drop below £40.</div>' +
+      list.map(function (x) {
+        return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--bdr);font-size:.8rem"><span style="flex:1;min-width:150px"><b>' + E(x.name) + '</b> <span style="color:' + x.p.color + '">' + x.p.icon + ' ' + E(x.p.name) + ' ' + money(x.p.fee) + '</span><div style="font-size:.72rem;color:var(--txt3)">' + x.delivered + ' of ' + x.min + ' students' + (x.adj ? ' (incl. ' + x.adj + ' counted by you)' : '') + '</div></span><span>' + chip(x) + '</span>' +
+          (x.status === 'open' ? '<button ' + btn + 'border-color:rgba(245,158,11,.6);color:#d97706" onclick="DSQFees.applyShort(\'' + x.id + '\',\'' + k + '\')">Apply ' + money(x.discount) + ' discount</button><button ' + btn + '" title="Students we sent who did not reply still count" onclick="DSQFees.addStudents(\'' + x.id + '\',\'' + k + '\')">+ students</button><button ' + btn + '" title="Holiday, unavailable, turned students down" onclick="DSQFees.excuseShort(\'' + x.id + '\',\'' + k + '\')">No discount…</button>' : '') +
+          (x.status === 'applied' ? '<button ' + btn + '" onclick="DSQFees.undoShort(\'' + x.id + '\',\'' + k + '\')">Undo</button>' : '') + (x.status === 'excused' ? '<button ' + btn + '" onclick="DSQFees.unexcuseShort(\'' + x.id + '\',\'' + k + '\')">Undo</button>' : '') + '</div>'; }).join('') + '</div>';
+  }
+
   function render() {
     var el = document.getElementById('accFeesBody'); if (!el) return;
     if (!loaded) { el.innerHTML = '<div style="padding:14px;color:var(--txt4)">Loading…</div>'; load().then(function () { return ensure(); }).then(render); return; }
@@ -97,9 +140,10 @@
       '<button class="btn-s" style="margin-left:auto;font-size:.74rem;border-color:rgba(34,197,94,.5);color:#16a34a" onclick="DSQFees.markAll()">✓ Mark all paid</button></div>' +
       (weekRows.length ? weekRows.map(function (r) { return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--bdr);font-size:.8rem"><span style="flex:1;min-width:140px"><b>' + E(nameOf(r.instructor_id)) + '</b> <span style="color:var(--txt4)">' + E(r.plan || '') + '</span>' + (r.note ? '<div style="font-size:.7rem;color:var(--txt4)">' + E(r.note) + '</div>' : '') + '</span><span style="min-width:60px;text-align:right">' + money(r.expected) + '</span>' + chip(r) +
         (r.status === 'unpaid' ? '<button class="btn-s" style="font-size:.7rem;padding:3px 10px;border-color:rgba(34,197,94,.5);color:#16a34a" onclick="DSQFees.markPaid(\'' + r.id + '\')">Paid</button><button class="btn-s" style="font-size:.7rem;padding:3px 8px" title="Paid a different amount" onclick="DSQFees.markPaid(\'' + r.id + '\',true)">£…</button><button class="btn-s" style="font-size:.7rem;padding:3px 8px" title="Waive this week" onclick="DSQFees.waive(\'' + r.id + '\')">Waive</button>' : '<button class="btn-s" style="font-size:.7rem;padding:3px 8px" onclick="DSQFees.undo(\'' + r.id + '\')">↺</button>') + '</div>'; }).join('') : '<div style="color:var(--txt3);font-size:.8rem;padding:8px 0">No fees recorded for this week.</div>') + '</div>' +
+      shortCard(weekK < cur ? weekK : addW(cur, -1), cur) +
       (late.length ? '<div style="background:var(--card-bg);border:1px solid #ef444466;border-radius:14px;padding:14px 16px;margin-bottom:14px"><b style="color:#ef4444">⚠️ Overdue from earlier weeks (' + late.length + ')</b>' + late.slice(0, 15).map(function (r) { return '<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--bdr);font-size:.78rem"><span style="flex:1"><b>' + E(nameOf(r.instructor_id)) + '</b> <span style="color:var(--txt4)">' + E(r.plan || '') + ' · week of ' + niceW(r.week_start) + '</span></span><span>' + money(r.expected) + '</span><button class="btn-s" style="font-size:.7rem;padding:3px 10px;border-color:rgba(34,197,94,.5);color:#16a34a" onclick="DSQFees.markPaid(\'' + r.id + '\')">Paid</button></div>'; }).join('') + (late.length > 15 ? '<div style="font-size:.72rem;color:var(--txt4);padding-top:6px">…and ' + (late.length - 15) + ' more</div>' : '') + '</div>' : '') +
       '<div style="font-size:.7rem;color:var(--txt4);line-height:1.5">Each week, every franchise instructor and every instructor on a package gets a fee line (package fee if they have one, otherwise their franchise fee). When you mark it paid it is counted as income in Accounting on the day you paid it. Change "Track fees from" to include earlier weeks.</div>';
   }
   async function open() { if (!loaded) await load(); render(); await ensure(); render(); }   // draw at once, then create any missing weekly lines and redraw
-  window.DSQFees = { open: open, load: load, ensure: ensure, render: render, paidRows: paidRows, outstandingTotal: outstandingTotal, markPaid: markPaid, undo: undo, waive: waive, markAll: markAll, setFrom: setFrom, go: go, _rows: function () { return ROWS; }, plans: plans };
+  window.DSQFees = { applyShort: applyShort, undoShort: undoShort, excuseShort: excuseShort, unexcuseShort: unexcuseShort, addStudents: addStudents, open: open, load: load, ensure: ensure, render: render, paidRows: paidRows, outstandingTotal: outstandingTotal, markPaid: markPaid, undo: undo, waive: waive, markAll: markAll, setFrom: setFrom, go: go, _rows: function () { return ROWS; }, plans: plans };
 })();
