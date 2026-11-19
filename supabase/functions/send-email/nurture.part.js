@@ -59,7 +59,7 @@ async function nurture(sb, req, body) {
     sb.from("instructors").select("*"), sb.from("email_contacts").select("email_key,status").limit(10000)]);
   const p10 = (p) => String(p || "").replace(/\D/g, "").slice(-10);
   const unsub = new Set((contacts || []).filter((r) => r.status && r.status !== "subscribed").map((r) => r.email_key));
-  const isBooked = (r) => { if (r.is_paid) return true; if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = n.lastIndexOf("✅ Booked — confirmed by admin"), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
+  const isBooked = (r) => { if (r.is_paid) return true; if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = Math.max(n.lastIndexOf("✅ Booked — confirmed by admin"), n.lastIndexOf("✅ Booked — confirmed by instructor")), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
   const closed = new Set(), booked = new Set();
   (refs || []).forEach((r) => { if (r.is_cancelled) return; const k = p10(r.student_phone); if (!k) return; if (isBooked(r)) booked.add(k); else if (r.flag_color === "red") closed.add(k); });
   const hasAcct = new Set(), hasAcctEmail = new Set();

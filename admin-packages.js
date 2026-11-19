@@ -87,6 +87,7 @@
       '<div class="col-6 col-sm-2"><label class="dsq-lbl">Min jobs</label><input type="number" min="1" step="1" class="dsq-inp" id="edit-pkg-min" value="' + E(p.min != null ? p.min : '') + '" placeholder="default"></div>' +
       '<div class="col-6 col-sm-3"><label class="dsq-lbl">Starts</label><input type="date" class="dsq-inp" id="edit-pkg-start" value="' + E(p.start || '') + '"></div>' +
       '<div class="col-6 col-sm-1 d-flex align-items-end"><label style="font-size:.72rem;display:flex;gap:4px;align-items:center"><input type="checkbox" id="edit-pkg-on"' + (p.active === false ? '' : ' checked') + '>On</label></div>' +
+      '<div class="col-12"><label class="dsq-lbl">Note about this change <span style="font-weight:400;color:var(--txt4)">(optional, saved in the package history)</span></label><input class="dsq-inp" id="edit-pkg-note" placeholder="e.g. Moved up to Gold from 1 Dec at the instructor\'s request"></div>' +
       '<div class="col-12"><label style="font-size:.76rem;display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="edit-pkg-show"' + (p.showProgress === false ? '' : ' checked') + ' style="margin-top:2px"><span><b>Show the instructor their weekly progress and credit</b><br><span style="color:var(--txt4)">Untick to show only the package name on their home screen (no progress bar, job counts or credit).</span></span></label></div></div>' +
       '<div id="edit-pkg-safe" style="font-size:.74rem;margin-top:8px"></div></div>';
     var upd = function () {
@@ -101,10 +102,21 @@
   }
   async function saveFromModal(id) {
     var sel = document.getElementById('edit-pkg'); if (!sel) return; await load();
-    if (!sel.value) { if (CFG.by[id]) { delete CFG.by[id]; await save(); } return; }
+    var prev = CFG.by[id] || null, note = ((document.getElementById('edit-pkg-note') || {}).value || '').trim(), keep = (prev && prev.history) || [];
+    var desc = function (p) { if (!p || !p.tier) return 'No package'; var t = CFG.tiers[p.tier] || { name: p.tier, fee: 0 }; return t.name + ' ' + money(p.fee != null && p.fee !== '' ? p.fee : t.fee) + '/wk' + (p.active === false ? ' (paused)' : ''); };
+    if (!sel.value) { if (CFG.by[id]) { var ent0 = { at: new Date().toISOString(), from: desc(prev), to: 'No package', note: note, by: 'Admin' }; CFG.removed = CFG.removed || {}; CFG.removed[id] = (keep.concat([ent0])).slice(-50); delete CFG.by[id]; await save(); logChange(id, ent0); } return; }
     var fee = document.getElementById('edit-pkg-fee').value.trim(), min = document.getElementById('edit-pkg-min').value.trim(), start = document.getElementById('edit-pkg-start').value;
     CFG.by[id] = { tier: sel.value, fee: fee === '' ? null : Math.max(0, +fee), min: CFG.tiers[sel.value].noGuarantee || min === '' ? null : Math.max(1, parseInt(min, 10)), start: start || new Date().toISOString().slice(0, 10), active: document.getElementById('edit-pkg-on').checked, showProgress: document.getElementById('edit-pkg-show').checked };
-    await save();
+    var ent = { at: new Date().toISOString(), from: desc(prev || (CFG.removed && CFG.removed[id] ? { tier: '' } : null)), to: desc(CFG.by[id]), note: note, by: 'Admin' };
+    var hist = keep.length ? keep : ((CFG.removed && CFG.removed[id]) || []); if (CFG.removed) delete CFG.removed[id];
+    if (!prev || ent.from !== ent.to || note) { hist = hist.concat([ent]).slice(-50); logChange(id, ent); }
+    CFG.by[id].history = hist; await save();
+  }
+  function logChange(id, ent) { try { var ins = instrs().find(function (i) { return String(i.id) === String(id); }) || {}; DSQLog.add(SB(), { area: 'package', action: 'package_changed', summary: 'Package for ' + (ins.full_name || 'instructor') + ': ' + ent.from + ' → ' + ent.to + (ent.note ? ' — ' + ent.note : ''), role: 'admin', actor: 'Admin', instrId: id, before: { package: ent.from }, after: { package: ent.to } }); } catch (e) { } }
+  function historyHtml(id) {
+    if (!CFG) return ''; var h = ((CFG.by[id] && CFG.by[id].history) || (CFG.removed && CFG.removed[id]) || []).slice().reverse(), p = pkgOf(id);
+    return (p ? '<div style="font-size:.78rem;margin-bottom:4px">Now: <b style="color:' + p.color + '">' + p.icon + ' ' + E(p.name) + '</b> · ' + money(p.fee) + '/wk' + (p.start ? ' · since ' + new Date(p.start + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '') + '</div>' : '<div style="font-size:.78rem;color:var(--txt3);margin-bottom:4px">No package now.</div>') +
+      (h.length ? h.map(function (x) { return '<div style="display:flex;gap:8px;padding:4px 0;border-top:1px solid var(--bdr);font-size:.74rem"><span style="min-width:88px;color:var(--txt4)">' + new Date(x.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) + '</span><span style="flex:1">' + E(x.from) + ' → <b>' + E(x.to) + '</b>' + (x.note ? ' <span style="color:var(--txt4)">— ' + E(x.note) + '</span>' : '') + '</span></div>'; }).join('') : '<div style="font-size:.72rem;color:var(--txt4)">No changes recorded yet. Every package switch you save is recorded here.</div>');
   }
 
   /* ---------- the Packages overview ---------- */
@@ -138,5 +150,5 @@
   }
   window.addEventListener('load', function () { var o = window._frFeeSave; if (typeof o === 'function' && !o.__pkg) { var w = async function (id) { await o.apply(this, arguments); try { await saveFromModal(id); } catch (e) { } }; w.__pkg = 1; window._frFeeSave = w; } });
   async function setShowLabel(on) { await load(); CFG.showLabel = !!on; await save(); toast(on ? 'Referral / Franchise label is shown to instructors' : 'Label hidden', 'success', 2200); }
-  window.DSQPkg = { setShowLabel: setShowLabel, detailHtml: detailHtml, load: load, fill: fill, saveFromModal: saveFromModal, openOverview: openOverview, prioritise: prioritise, cardNote: cardNote, pkgOf: pkgOf, weeks: weeks, safety: safety, supply: supply, _cfg: function () { return CFG; } };
+  window.DSQPkg = { historyHtml: historyHtml, setShowLabel: setShowLabel, detailHtml: detailHtml, load: load, fill: fill, saveFromModal: saveFromModal, openOverview: openOverview, prioritise: prioritise, cardNote: cardNote, pkgOf: pkgOf, weeks: weeks, safety: safety, supply: supply, _cfg: function () { return CFG; } };
 })();

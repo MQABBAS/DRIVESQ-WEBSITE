@@ -3892,7 +3892,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/dsq-block.js?v=20261122"></script>
 <script src="/admin-packages.js?v=20261123"></script>
 <script src="/admin-fees.js?v=20261124"></script>
-<script src="/admin-insights.js?v=20261125"></script>
+<script src="/dsq-log.js?v=20261126"></script>
+<script src="/admin-insights.js?v=20261126"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
 (function(){try{if(!window.supabase||!window.supabase.createClient)return;var c=window.supabase.createClient('https://shim.supabase.co','shim');var p=Object.getPrototypeOf(c.from('x').select('*'));while(p&&!Object.prototype.hasOwnProperty.call(p,'then'))p=Object.getPrototypeOf(p);if(p&&typeof p.catch!=='function'){Object.defineProperty(p,'catch',{configurable:true,writable:true,value:function(r){return this.then(undefined,r);}});Object.defineProperty(p,'finally',{configurable:true,writable:true,value:function(f){return this.then(function(v){if(f)f();return v;},function(e){if(f)f();throw e;});}});}}catch(e){console.warn('supabase catch shim:',e);}})();</script>
 <script>
@@ -4903,20 +4904,24 @@ const REF_FLAG={
 // instructor's one-tap reply (ref.html) → flag. Only fills an empty or purple flag, never overrides green/red set by admin
 // an instructor saying "booked" is not enough — it goes 🟣 to check; only admin's ✅ (confirmed with student & instructor) counts as booked
 /* what the instructor tapped on their reply page (Booked / Not booked yet / Can't reach / Not going ahead) — each in its own colour */
-const _REPLY_UI={booked:['✅','Booked','#2dd4bf','rgba(45,212,191,.14)'],not_yet:['⏳','Not booked yet','#fbbf24','rgba(251,191,36,.15)'],unreachable:['📵',"Can't reach them",'#fb923c','rgba(251,146,60,.16)'],not_interested:['🚫','Not going ahead','#f87171','rgba(248,113,113,.16)']};
+/* admin notes: lines written by the instructor (start with 👨‍🏫) show in blue, and “student left” in orange */
+function _adminNoteHtml(n){
+  return String(n||'').split('\n').map(l=>{const e=esc(l);if(l.indexOf('👨‍🏫')<0)return e;const left=/Student left|gone/.test(l),c=left?'#f97316':'#38bdf8';return `<span style="color:${c};font-style:normal;font-weight:700;background:${c}18;border-radius:4px;padding:0 4px">${e}</span>`;}).join('<br>');
+}
+const _REPLY_UI={left:['👋','Student left','#f97316','rgba(249,115,22,.16)'],booked:['✅','Booked','#2dd4bf','rgba(45,212,191,.14)'],not_yet:['⏳','Will book later','#fbbf24','rgba(251,191,36,.15)'],unreachable:['📵',"Can't reach them",'#fb923c','rgba(251,146,60,.16)'],not_interested:['🚫','Not going ahead','#f87171','rgba(248,113,113,.16)']};
 function _replyChip(r){
   const u=r&&_REPLY_UI[r.reply_status];if(!u)return'';
   const when=r.replied_at?new Date(r.replied_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
   return `<div style="display:inline-block;margin-top:4px;padding:2px 9px;border-radius:12px;background:${u[3]};border:1px solid ${u[2]}66;color:${u[2]};font-size:.64rem;font-weight:700;line-height:1.5">${u[0]} Instructor marked this student as ${u[1]}${when?' · '+when:''}</div>${r.reply_note?`<div style="font-size:.62rem;color:${u[2]};font-style:italic;margin-top:1px">“${esc(r.reply_note)}”</div>`:''}`;
 }
-const REPLY_FLAG={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red'};
-const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
+const REPLY_FLAG={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red',left:'red'};
+const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_CONFIRM_INSTR='✅ Booked — confirmed by instructor',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
 /* booked = confirmed by admin: green flag set by admin (or paid). Older green flags that came from an instructor's "booked" reply need confirming once. */
 function _refAdminBooked(r){
   if(!r||r.is_cancelled||r.is_credit)return false;
   if(r.is_paid)return true;
   if(r.flag_color!=='green')return false;
-  const n=String(r.admin_notes||''),a=n.lastIndexOf(REF_CONFIRM_MK),b=n.lastIndexOf(REF_UNCONFIRM_MK);
+  const n=String(r.admin_notes||''),a=Math.max(n.lastIndexOf(REF_CONFIRM_MK),n.lastIndexOf(REF_CONFIRM_INSTR)),b=n.lastIndexOf(REF_UNCONFIRM_MK);   // booked once admin OR the instructor confirmed it
   return a>b||(a<0&&r.reply_status!=='booked');
 }
 window._refAdminBooked=_refAdminBooked;
@@ -5367,7 +5372,7 @@ async function openInstrLog(instrId){
             ${fc?`<span style="color:${fcCol}">${fcEmoji} ${REF_FLAG[fc]?REF_FLAG[fc].l:fc}</span>`:'<span style="color:var(--txt4)">No booking flag</span>'}
           </div>
           ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);margin-top:4px;font-style:italic">${esc(r.notes)}${r.notes_visible?'':' <span style="color:var(--txt4)">(hidden from instructor)</span>'}</div>`:''}
-          ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;margin-top:3px"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes)}</div>`:''}
+          ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;margin-top:3px"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${_adminNoteHtml(r.admin_notes)}</div>`:''}
           ${r.instructor_notified_at?`<div style="font-size:.6rem;color:#f59e0b;margin-top:3px"><i class="bi bi-bell-fill me-1"></i>Payment reminder sent ${_fmt(r.instructor_notified_at)}</div>`:''}
         </div>`;
       }
@@ -5817,11 +5822,15 @@ function renderInstrDetail(instr){
   if(instr.instructor_model==='franchise'&&!_frCfgCache)_frCfg().then(()=>{try{if(viewingId===instr.id)renderInstrDetail(instr);}catch(e){}});
   if(instr.email)setTimeout(()=>_emailPrefFill(instr),0);
   setTimeout(()=>_instrAvailFill(instr.id),0);
+  setTimeout(()=>{try{DSQInsights.fillProfile(instr.id);}catch(e){}},0);
   setTimeout(()=>{try{DSQInsights.loadNotes().then(()=>{const e=document.getElementById('instrNote-'+instr.id);if(e)e.outerHTML=DSQInsights.profileNoteHtml(instr.id);});}catch(e){}},0);
   const fields=[
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
     ...((window.DSQPkg&&DSQPkg._cfg&&DSQPkg._cfg()&&DSQPkg.pkgOf(instr.id))?[['Package',DSQPkg.detailHtml(instr.id)]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),
+    ['Bookings',(window.DSQInsights?DSQInsights.trackHolder(instr.id):'')],
+    ['Package history',`<div id="instrPkgHist-${instr.id}" style="color:var(--txt4);font-size:.8rem">Loading…</div>`],
+    ['Activity log',`<div id="instrLog-${instr.id}" style="max-height:220px;overflow:auto;color:var(--txt4);font-size:.8rem">Loading…</div>`],
     ['Admin note',`<div id="instrNote-${instr.id}" style="font-size:.8rem;color:var(--txt4)">Loading…</div>`],
     ['Availability',`<div id="instrAvail-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</div>`],
     ['Lesson Types',ltChipHtml],
@@ -8846,7 +8855,7 @@ async function findClosest(){
   // Booked this week = referrals admin confirmed as booked (✅) with the confirmation dated this week
   try{
     const _wkS=getMonday(0).getTime();
-    const{data:_bk}=await sb.from('referrals').select('instructor_id,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').ilike('admin_notes','%confirmed by admin%');
+    const{data:_bk}=await sb.from('referrals').select('instructor_id,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').or('admin_notes.ilike.%confirmed by admin%,admin_notes.ilike.%confirmed by instructor%');
     const _bm={};
     (_bk||[]).forEach(r=>{
       if(!_refAdminBooked(r))return;
@@ -12055,7 +12064,7 @@ async function openRefDetail(instrId,allTime){
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}
             ${r.notes?`<div style="font-size:.65rem;color:var(--txt3);font-style:italic;margin-top:3px;cursor:pointer" onclick="editRef('${r.id}')" title="Click to edit"><i class="bi bi-chat-left-text me-1" style="color:var(--txt4)"></i>${esc(r.notes)}</div>`
               :`<div style="font-size:.6rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRef('${r.id}')" title="Add notes"><i class="bi bi-plus-circle me-1"></i>Add note…</div>`}
-            ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;font-style:italic;margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Admin-only note (click to edit)"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${esc(r.admin_notes).replace(/\n/g,'<br>')}${notesVisible?'':' <span style="font-size:.55rem;color:var(--txt4)">(hidden)</span>'}</div>`
+            ${r.admin_notes?`<div style="font-size:.63rem;color:#c084fc;font-style:italic;margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Admin-only note (click to edit)"><i class="bi bi-lock-fill me-1" style="font-size:.55rem"></i>${_adminNoteHtml(r.admin_notes)}${notesVisible?'':' <span style="font-size:.55rem;color:var(--txt4)">(hidden)</span>'}</div>`
               :`<div style="font-size:.58rem;color:var(--txt4);margin-top:2px;cursor:pointer" onclick="editRefAdminNotes('${r.id}')" title="Add private admin note"><i class="bi bi-lock me-1"></i>Add private note…</div>`}
             <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">
               <button onclick="refMsgOpen('${r.id}')" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);color:#25d366;border-radius:6px;padding:2px 8px;font-size:.58rem;cursor:pointer;font-weight:700;white-space:nowrap" title="Friendly message templates — logged in notes"><i class="bi bi-chat-dots-fill me-1"></i>Message</button>
@@ -13154,7 +13163,7 @@ function setAccTab(t){
    Expected  : referral fees not yet paid (counted on the day the referral was made) */
 let _blkData=[];
 /* lets the separate admin scripts (admin-packages.js) read admin's data without it being global */
-window.DSQ_ADMIN={sb:()=>sb,refs:()=>_refData,instrs:()=>allInstrs,tx:()=>_accTx(),month:(l,y,m)=>_accMonth(l,y,m),booked:r=>_refAdminBooked(r)};
+window.DSQ_ADMIN={sb:()=>sb,refs:()=>_refData,instrs:()=>allInstrs,incCats:()=>_INC_CATS,expCats:()=>_EXP_CATS,incData:()=>_incData,expData:()=>_expData,tx:()=>_accTx(),month:(l,y,m)=>_accMonth(l,y,m),booked:r=>_refAdminBooked(r)};
 const _accBlocksOn=()=>{try{return localStorage.getItem('dsq_acc_blocks')!=='0';}catch(e){return true;}};
 const _lday=d=>new Date((d||'')+'T00:00:00');
 function _accTx(){

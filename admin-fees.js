@@ -50,14 +50,15 @@
   function paidRows() { return ROWS.filter(function (r) { return r.status === 'paid' && (+r.amount_paid || 0) > 0; }).map(function (r) { return { d: new Date((r.paid_at || r.week_start) + 'T00:00:00'), amt: +r.amount_paid, kind: 'weekly', r: r }; }); }
   function outstandingTotal() { return ROWS.filter(function (r) { return r.status === 'unpaid'; }).reduce(function (a, r) { return a + (+r.expected || 0); }, 0); }
 
+  function logFee(row, summary) { try { DSQLog.add(SB(), { area: 'weekly_fee', action: 'weekly_fee', summary: summary, role: 'admin', actor: 'Admin', instrId: row && row.instructor_id }); } catch (e) { } }
   async function upd(id, patch) { var r = await SB().from('instructor_weekly_fees').update(patch).eq('id', id); if (r.error) { toast('Not saved: ' + r.error.message, 'error', 5000); return false; } var row = ROWS.find(function (x) { return String(x.id) === String(id); }); if (row) Object.assign(row, patch); return true; }
   async function markPaid(id, ask) {
     var row = ROWS.find(function (x) { return String(x.id) === String(id); }); if (!row) return; var amt = +row.expected || 0;
     if (ask) { var v = prompt('Amount received from ' + nameOf(row.instructor_id) + ' for the week of ' + niceW(row.week_start) + ' (£)', amt.toFixed(2)); if (v === null) return; amt = parseFloat(v); if (isNaN(amt) || amt < 0) { toast('Enter an amount in pounds.', 'error'); return; } }
-    if (await upd(id, { status: 'paid', amount_paid: amt, paid_at: ymd(new Date()) })) { toast('💷 ' + money(amt) + ' recorded from ' + nameOf(row.instructor_id), 'success', 2200); refresh(); }
+    if (await upd(id, { status: 'paid', amount_paid: amt, paid_at: ymd(new Date()) })) { logFee(row, 'Weekly fee ' + money(amt) + ' received from ' + nameOf(row.instructor_id) + ' (' + (row.plan || '') + ', week of ' + niceW(row.week_start) + ')'); toast('💷 ' + money(amt) + ' recorded from ' + nameOf(row.instructor_id), 'success', 2200); refresh(); }
   }
-  async function undo(id) { if (!confirm('Mark this week as NOT paid?')) return; if (await upd(id, { status: 'unpaid', amount_paid: 0, paid_at: null })) refresh(); }
-  async function waive(id) { var n = prompt('Reason for waiving this week (optional)', ''); if (n === null) return; if (await upd(id, { status: 'waived', amount_paid: 0, paid_at: null, note: n })) refresh(); }
+  async function undo(id) { if (!confirm('Mark this week as NOT paid?')) return; var row = ROWS.find(function (x) { return String(x.id) === String(id); }); if (await upd(id, { status: 'unpaid', amount_paid: 0, paid_at: null })) { logFee(row, 'Weekly fee payment undone for ' + nameOf(row && row.instructor_id) + ' (week of ' + niceW(row && row.week_start) + ')'); refresh(); } }
+  async function waive(id) { var n = prompt('Reason for waiving this week (optional)', ''); if (n === null) return; var row = ROWS.find(function (x) { return String(x.id) === String(id); }); if (await upd(id, { status: 'waived', amount_paid: 0, paid_at: null, note: n })) { logFee(row, 'Weekly fee waived for ' + nameOf(row && row.instructor_id) + ' (week of ' + niceW(row && row.week_start) + ')' + (n ? ' — ' + n : '')); refresh(); } }
   async function markAll() {
     var k = weekK || wk(new Date()), list = ROWS.filter(function (r) { return r.week_start === k && r.status === 'unpaid'; }); if (!list.length) return;
     if (!confirm('Mark ' + list.length + ' unpaid fee' + (list.length === 1 ? '' : 's') + ' for the week of ' + niceW(k) + ' as paid in full (' + money(list.reduce(function (a, r) { return a + (+r.expected || 0); }, 0)) + ')?')) return;

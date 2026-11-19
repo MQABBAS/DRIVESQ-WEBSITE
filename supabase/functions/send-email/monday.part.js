@@ -118,7 +118,7 @@ async function monday(sb, req, body) {
   (contactRows || []).forEach((r) => { if (r.status && r.status !== "subscribed" && !(r.tags || []).some((t) => t === "opt_out_fees" || t === "opt_out_weekly")) optOutAll.add(r.email_key); });
 
   // booked = confirmed by admin (same rule as _refAdminBooked in admin.html): admin's ✅, not just the instructor saying so
-  const isBooked = (r) => { if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = n.lastIndexOf("✅ Booked — confirmed by admin"), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
+  const isBooked = (r) => { if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = Math.max(n.lastIndexOf("✅ Booked — confirmed by admin"), n.lastIndexOf("✅ Booked — confirmed by instructor")), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); };
   const lastWeek = ws.getTime() - 7 * 864e5;
   const jobs = [];
   for (const ins of instructors || []) {

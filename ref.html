@@ -55,6 +55,7 @@ textarea::placeholder{color:var(--txt3)}
   <div class="head"><img class="logo" src="https://i.postimg.cc/sx8zRRKV/cropped-circle-image.png" alt=""/><div class="brand">Drive<span>SQ</span></div><span class="tag">Instructor update</span></div>
   <div id="body"><div class="sk" style="width:70%"></div><div class="sk"></div><div class="sk" style="width:50%"></div></div>
 </main>
+<script src="/dsq-marks.js?v=20261126"></script>
 <script>
 (function(){
   var SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
@@ -63,11 +64,12 @@ textarea::placeholder{color:var(--txt3)}
   var ADMIN_PUSH_ID='00000000-0000-0000-0000-000000000001';
   var OPTS=[
     ['booked','✅','Booked — first lesson arranged','They\'ve booked with me'],
-    ['not_yet','⏳','Not booked yet','In touch, still arranging'],
+    ['not_yet','⏳','Will book later','In touch, still arranging'],
     ['unreachable','📵','Can\'t reach them','No answer to calls or messages'],
-    ['not_interested','🚫','Not going ahead','They\'ve decided not to book']
+    ['not_interested','🚫','Not booked','They\'ve decided not to book'],
+    ['left','👋','Student left','Gone / moved on']
   ];
-  var LABEL={booked:'Booked',not_yet:'Not booked yet',unreachable:'Can\'t reach them',not_interested:'Not going ahead'};
+  var LABEL={booked:'Booked',not_yet:'Will book later',unreachable:'Can\'t reach them',not_interested:'Not booked',left:'Student left'};
   var body=document.getElementById('body');
   var q=new URLSearchParams(location.search), id=q.get('r'), pre=q.get('a');
   var ref=null, instr=null, choice=null;
@@ -113,14 +115,15 @@ textarea::placeholder{color:var(--txt3)}
   }
   // keep the admin's booking flag in step: ✅ booked = green, not yet = purple (unsure), can't reach / not going ahead = red.
   // Only fills an empty or purple flag — a green/red set by admin is never overwritten.
-  function flagFor(v){var f={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red'}[v];return f&&(!ref.flag_color||ref.flag_color==='purple')?{flag_color:f}:{};}
+  function flagFor(v){var f={booked:'green',not_yet:'purple',unreachable:'red',not_interested:'red',left:'red'}[v];return f&&(v==='booked'||v==='left'||!ref.flag_color||ref.flag_color==='purple')?{flag_color:f}:{};}
+  var KEY={booked:'booked',not_yet:'later',unreachable:'cantreach',not_interested:'notbooked',left:'left'};
   async function send(){
     if(!choice)return;
     var btn=document.getElementById('send');if(btn){btn.disabled=true;btn.textContent='Sending…';}
     var note=((document.getElementById('note')||{}).value||'').trim();
     var now=new Date().toISOString(), ok=false;
     try{
-      var r=await fetch(SB_URL+'/rest/v1/referrals?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(Object.assign({reply_status:choice,reply_note:note||null,replied_at:now},flagFor(choice)))});
+      var r=await fetch(SB_URL+'/rest/v1/referrals?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify((function(){var b=window.DSQMarks&&DSQMarks.build(ref,KEY[choice],{note:note,name:((instr&&instr.full_name)||'').split(' ')[0]});return b?b.patch:Object.assign({reply_status:choice,reply_note:note||null,replied_at:now},flagFor(choice));})())});
       ok=r.ok;
     }catch(e){}
     if(!ok){ // database not upgraded yet → leave it as an instructor report instead
