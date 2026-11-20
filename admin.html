@@ -5038,7 +5038,7 @@ function _invPanel(){
   list.map(g=>{const f=(g.instr.full_name||'Instructor'),fn=f.split(' ')[0],ph=(g.instr.phone||'').replace(/\D/g,''),wa=ph?(ph.startsWith('44')?ph:'44'+ph.replace(/^0/,'')):'';
     const msg=`Hi ${fn}, quick check from DriveSQ 👋 We've sent you ${g.total} students recently and ${g.unmarked} have no update yet (${g.names.slice(0,4).join(', ')}${g.unmarked>4?'…':''}). Please open your Instructor Portal and tap booked / not booked / can't reach for each one, or reply here. Thank you!`;
     return`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--bdr);font-size:.8rem"><span style="flex:1;min-width:170px"><b>${esc(f)}</b> <span style="font-size:.6rem;font-weight:800;padding:1px 7px;border-radius:5px;${g.level==='investigate'?'background:#dc2626;color:#fff':'background:rgba(245,158,11,.15);color:#f59e0b'}">${g.level==='investigate'?'🔎 INVESTIGATE':'👀 WATCH'}</span><div style="font-size:.7rem;color:var(--txt3)">${g.unmarked} of ${g.total} unmarked (${g.pct}%) · oldest ${g.oldest} days${g.instr.instructor_model?' · '+esc(g.instr.instructor_model):''}</div></span>`+
-      `<button type="button" class="rfm-a" onclick="openRefDetail('${g.id}',false)"><i class="bi bi-people"></i>Review students</button>${wa?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}"><i class="bi bi-whatsapp"></i>Chase</a>`:''}<button type="button" class="rfm-a" title="Hide for 7 days" onclick="_invSnoozeSet('${g.id}')">Snooze 7d</button></div>`;}).join('')+`</div>`;
+      `<button type="button" class="rfm-a" onclick="openRefDetail('${g.id}',true)"><i class="bi bi-people"></i>Review students</button>${wa?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}"><i class="bi bi-whatsapp"></i>Chase</a>`:''}<button type="button" class="rfm-a" title="Hide for 7 days" onclick="_invSnoozeSet('${g.id}')">Snooze 7d</button></div>`;}).join('')+`</div>`;
 }
 function _invAlert(){const list=_invStats().filter(x=>x.level==='investigate');if(!list.length)return;const day=new Date().toISOString().slice(0,10);try{if(localStorage.getItem('dsq_inv_alert')===day)return;localStorage.setItem('dsq_inv_alert',day);}catch(e){}try{showToast('🔎 '+list.length+' instructor'+(list.length===1?'':'s')+' with lots of jobs and few marked — see Referrals → Investigate','warn',10000);}catch(e){}}
 function _renderFlagMonitor(){
@@ -5068,7 +5068,7 @@ function _renderFlagMonitor(){
           ${sw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${sw}?text=${encodeURIComponent(ms)}"><i class="bi bi-whatsapp"></i>Ask student</a>`:''}
           ${iw?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${iw}?text=${encodeURIComponent(mi)}"><i class="bi bi-whatsapp"></i>Ask instructor</a>`:''}
           ${f!=='green'?`<button type="button" class="rfm-a" onclick="_flagReassign('${r.id}')"><i class="bi bi-arrow-left-right"></i>Reassign</button>`:''}
-          <button type="button" class="rfm-a" onclick="openRefDetail('${r.instructor_id}',false)"><i class="bi bi-person"></i>Instructor</button></div></div>`;
+          <button type="button" class="rfm-a" onclick="openRefDetail('${r.instructor_id}',true)"><i class="bi bi-person"></i>Instructor</button></div></div>`;
     }).join(''):'<div style="padding:12px;font-size:.78rem;color:var(--txt4)">Nothing here 👍</div>'}</div>`;
   }
   box.innerHTML=html;
@@ -11887,6 +11887,8 @@ async function _ensureRefData(){
 async function openInstrReferrals(instrId){
   const b=document.getElementById('instrRefBtn-'+instrId);if(b)b.disabled=true;
   const ok=await _ensureRefData();if(b)b.disabled=false;if(!ok)return;
+  try{switchTab('referrals');}catch(e){}
+  try{await new Promise(r=>setTimeout(r,250));setRefPeriod('all');}catch(e){}   // the Referrals section itself shows ALL TIME, not just this week
   openRefDetail(instrId,true);
 }
 async function _instrRefCount(instrId){

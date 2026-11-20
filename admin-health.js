@@ -84,8 +84,7 @@
     return '<div id="instrHealth-' + id + '">' + head + c.map(function (x) { return '<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bdr);font-size:.78rem;line-height:1.45"><span style="flex:0 0 auto">' + (x.lvl === 'bad' ? '🔴' : '🟠') + '</span><span style="flex:1">' + x.msg + x.btn + '</span></div>'; }).join('') + '</div>';
   }
   function openReferrals(id) {
-    try { window.switchTab('referrals'); setTimeout(function () { var i = document.getElementById('refSearch'); if (i) { i.value = instr(id).full_name || ''; try { window.renderReferrals(); } catch (e) { } try { i.scrollIntoView({ block: 'center' }); } catch (e) { } } }, 250); } catch (e) { }
-    try { window.closeModal && window.closeModal('instrDetailModal'); } catch (e) { }
+    try { window.switchTab('referrals'); setTimeout(function () { try { window.setRefPeriod('all'); } catch (e) { } var i = document.getElementById('refSearch'); if (i) { i.value = instr(id).full_name || ''; try { window.renderReferrals(); } catch (e) { } try { i.scrollIntoView({ block: 'center' }); } catch (e) { } } try { window.openRefDetail(id, true); } catch (e) { } }, 300); } catch (e) { }
   }
   function openFees() { try { window.switchTab('expenses'); setTimeout(function () { window.setAccTab('fees'); }, 200); } catch (e) { } }
   function edit(id) { try { window.openEditForId(id); } catch (e) { } }
