@@ -1572,6 +1572,7 @@ body.day-mode .dsqd-note{color:#92400e}
           <span id="adminSessionDays" style="color:var(--txt4);font-size:.58rem"></span>
         </div>
         <button id="newCustomerTopBtn" onclick="adminNewCustomer()" title="New customer — enter their details and find the closest instructor (shortcut: Alt+N)" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#D10A11,#ff3b3b);border:none;color:#fff;border-radius:9px;padding:6px 13px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(209,10,17,.6);white-space:nowrap"><i class="bi bi-person-plus-fill"></i><span>New Customer</span></button>
+        <button id="waApiBtn" type="button" onclick="DSQWA.openSettings()" title="WhatsApp automation" style="display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(148,163,184,.4);color:var(--txt);border-radius:9px;padding:6px 11px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap"><i class="bi bi-whatsapp" style="color:#25d366"></i><span class="d-none d-md-inline">WhatsApp</span><i class="wa-dot" style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block"></i></button>
         <button id="webBookingsBtn" onclick="openWebBookingsPanel()" title="Website Booking Requests — students who filled in the booking form on drivesq.co.uk" style="position:relative;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.35);border-radius:9px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--gold);cursor:pointer;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar-check-fill"></i><span id="webBookingsBtnLabel">Website Bookings</span><span id="webBookingsBadge" style="display:none;background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:900;line-height:18px;text-align:center;margin-left:2px;flex-shrink:0">0</span></button>
         <button class="search-trigger-btn" onclick="openGlobalSearch()" title="Global Search (Ctrl+K)"><i class="bi bi-search"></i><span>Search</span><kbd>⌘K</kbd></button>
         <button class="theme-toggle" id="adminNotifToggle" onclick="adminManualEnableNotifs()" title="Enable push notifications — get alerted on this device when lessons are booked or students register" style="position:relative"><i class="bi bi-bell-fill" id="adminNotifIcon"></i><span id="adminNotifDot" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)"></span></button>
@@ -3893,6 +3894,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/admin-packages.js?v=20261123"></script>
 <script src="/admin-fees.js?v=20261124"></script>
 <script src="/admin-health.js?v=20261127"></script>
+<script src="/admin-whatsapp.js?v=20261128"></script>
 <script src="/dsq-log.js?v=20261126"></script>
 <script src="/admin-insights.js?v=20261126"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
@@ -9484,6 +9486,7 @@ async function confirmAssign(){
     is_read:false,dismissed:false,created_at:new Date().toISOString()
   }]).catch(()=>{});
 
+  try{if(window.DSQWA)DSQWA.afterAssign({refId:(typeof _assignRefData!=='undefined'&&_assignRefData)?_assignRefData.id:null,instrId:instrId,instrName:instrName,instrPhone:document.getElementById('assign-instr-phone')?.value||'',student:s});}catch(e){console.warn('whatsapp auto',e);}   // sends only when Automatic WhatsApp is ON
   closeModal('assignModal');
   showToast(`✅ ${s.name} assigned to ${instrName}! Instructor notified.`,'success',5000);
 
