@@ -23,7 +23,7 @@
     dsq_student_offer: { who: 'Instructor (offer before assigning)', buttons: ['Accept', "Can't take"], params: ['Instructor first name', 'Area (postcode district)', 'Miles from you', 'Lesson type'],
       body: 'Hi {{1}}, DriveSQ has a new student near {{2}}, about {{3}} miles from you, for {{4}} lessons.\n\nCan you take them? Tap Accept or Can\'t take. You will get their full details once you accept.' },
     dsq_admin_alert: { who: 'You (attention required)', buttons: [], params: ['What needs attention', 'Details'],
-      body: 'DriveSQ admin: attention needed. {{1}}. {{2}}' },
+      body: 'DriveSQ admin: attention needed. {{1}}. Details: {{2}}\n\nPlease open DriveSQ admin to review it.' },
     dsq_chase_unmarked: { who: 'Instructor (chase)', buttons: [], params: ['Instructor first name', 'Number of students'],
       body: 'Hi {{1}}, quick check from DriveSQ. {{2}} of the students we sent you have no update yet. Please open your Instructor Portal and mark each one as booked, not booked or can\'t reach. Thank you.' }
   };
