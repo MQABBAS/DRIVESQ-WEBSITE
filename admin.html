@@ -2357,7 +2357,7 @@ body.day-mode .dsqd-note{color:#92400e}
   <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
     <div style="position:relative;flex:1;min-width:160px">
       <i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt4);font-size:.8rem;pointer-events:none"></i>
-      <input id="refSearch" class="dsq-inp" placeholder="Search instructor…" oninput="renderReferrals()" style="padding-left:28px;font-size:.82rem"/>
+      <input id="refSearch" class="dsq-inp" placeholder="Search instructor or student…" oninput="renderReferrals()" style="padding-left:28px;font-size:.82rem"/>
     </div>
     <select id="refSort" class="dsq-inp" onchange="renderReferrals()" style="width:auto;font-size:.78rem;padding:7px 10px">
       <option value="due">Most owed first</option>
@@ -6393,10 +6393,15 @@ async function adminReassignStudent(){
 }
 /* Student profile → open this student's row in the Referrals section */
 async function adminOpenStudentReferral(){
-  const ctx=_adminStudentCtx;if(!ctx||!ctx.instrId){showToast('No instructor on record for this student.','warn');return;}
+  const ctx=_adminStudentCtx;if(!ctx||!String(ctx.name||'').trim()){showToast('No student loaded.','warn');return;}
   document.getElementById('studentDetailModal')?.classList.remove('open');document.getElementById('adminStudentProfileModal')?.classList.remove('open');
+  try{await _ensureRefData();}catch(e){}
   switchTab('referrals');try{setActiveTab('referrals');}catch(e){}
   setTimeout(async()=>{
+    // the Referrals section itself: ALL TIME, narrowed to this student's name
+    try{setRefPeriod('all');}catch(e){}
+    const sb_=document.getElementById('refSearch');if(sb_){sb_.value=String(ctx.name||'').trim();try{renderReferrals();}catch(e){}try{sb_.scrollIntoView({block:'center'});}catch(e){}}
+    if(!ctx.instrId){showToast('Showing "'+ctx.name+'" across all instructors, all time.','info',4000);return;}
     try{await openRefDetail(ctx.instrId,true);}catch(e){}
     setTimeout(()=>{const nm=String(ctx.name||'').trim().toLowerCase();const rows=[...document.querySelectorAll('#refDetailRows [data-ref-row], #refDetailRows > *')];
       const hit=rows.find(el=>el.textContent.trim().toLowerCase().startsWith(nm)||el.textContent.toLowerCase().includes(nm));
@@ -11802,7 +11807,8 @@ function renderReferrals(){
     g._instr=allInstrs.find(i=>i.id===g.id)||{full_name:'Unknown Instructor',area:''};
     return g;
   });
-  if(searchQ)groups=groups.filter(g=>(g._instr.full_name||'').toLowerCase().includes(searchQ)||(g._instr.area||'').toLowerCase().includes(searchQ));
+  const _sqDigits=searchQ.replace(/\D/g,'');
+  if(searchQ)groups=groups.filter(g=>(g._instr.full_name||'').toLowerCase().includes(searchQ)||(g._instr.area||'').toLowerCase().includes(searchQ)||g.rows.some(r=>(r.student_name||'').toLowerCase().includes(searchQ)||(_sqDigits.length>=5&&String(r.student_phone||'').replace(/\D/g,'').includes(_sqDigits))));   // instructor OR student name / phone
   if(modelFilter)groups=groups.filter(g=>(g._instr.instructor_model||'unsure')===modelFilter);
 
   // Sort
