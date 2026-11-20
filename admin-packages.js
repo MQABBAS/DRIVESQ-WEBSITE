@@ -101,6 +101,7 @@
       '<div class="col-6 col-sm-2"><label class="dsq-lbl">Min jobs</label><input type="number" min="1" step="1" class="dsq-inp" id="edit-pkg-min" value="' + E(p.min != null ? p.min : '') + '" placeholder="default"></div>' +
       '<div class="col-6 col-sm-3"><label class="dsq-lbl">Starts</label><input type="date" class="dsq-inp" id="edit-pkg-start" value="' + E(p.start || '') + '"></div>' +
       '<div class="col-6 col-sm-1 d-flex align-items-end"><label style="font-size:.72rem;display:flex;gap:4px;align-items:center"><input type="checkbox" id="edit-pkg-on"' + (p.active === false ? '' : ' checked') + '>On</label></div>' +
+      '<div class="col-6 col-sm-4"><label class="dsq-lbl">Franchise / package began <span style="font-weight:400;color:var(--txt4)">(start of full history)</span></label><input type="date" class="dsq-inp" id="edit-fr-start" value="' + E((CFG.frStart && CFG.frStart[instr.id]) || '') + '"></div>' +
       '<div class="col-12"><label class="dsq-lbl">Note about this change <span style="font-weight:400;color:var(--txt4)">(optional, saved in the package history)</span></label><input class="dsq-inp" id="edit-pkg-note" placeholder="e.g. Moved up to Gold from 1 Dec at the instructor\'s request"></div>' +
       '<div class="col-12"><label style="font-size:.76rem;display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="edit-pkg-show"' + (p.showProgress === false ? '' : ' checked') + ' style="margin-top:2px"><span><b>Show the instructor their weekly progress</b><br><span style="color:var(--txt4)">Untick to show only the package name on their home screen (no progress bar or job counts).</span></span></label></div>' +
       '<div class="col-12"><label style="font-size:.76rem;display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="edit-pkg-disc"' + (p.showDiscount === true ? ' checked' : '') + ' style="margin-top:2px"><span><b>Let this instructor see the shortfall discounts you apply to their fee</b><br><span style="color:var(--txt4)">Off by default. Discounts and the discount history are always visible to you only, until you tick this.</span></span></label></div></div>' +
@@ -117,6 +118,7 @@
   }
   async function saveFromModal(id) {
     var sel = document.getElementById('edit-pkg'); if (!sel) return; await load();
+    var fsEl = document.getElementById('edit-fr-start'); if (fsEl) { var fv = fsEl.value || ''; if (((CFG.frStart || {})[id] || '') !== fv) await setFrStart(id, fv); }
     var prev = CFG.by[id] || null, note = ((document.getElementById('edit-pkg-note') || {}).value || '').trim(), keep = (prev && prev.history) || [];
     var desc = function (p) { if (!p || !p.tier) return 'No package'; var t = CFG.tiers[p.tier] || { name: p.tier, fee: 0 }; return t.name + ' ' + money(p.fee != null && p.fee !== '' ? p.fee : t.fee) + '/wk' + (p.active === false ? ' (paused)' : ''); };
     if (!sel.value) { if (CFG.by[id]) { var ent0 = { at: new Date().toISOString(), from: desc(prev), to: 'No package', note: note, by: 'Admin' }; CFG.removed = CFG.removed || {}; CFG.removed[id] = (keep.concat([ent0])).slice(-50); delete CFG.by[id]; await save(); logChange(id, ent0); } return; }
@@ -173,6 +175,27 @@
       '<br><span style="font-size:.7rem;color:var(--txt4)">' + (CFG.by[id] && CFG.by[id].showProgress === false ? '🙈 Instructor sees only the package name' : '👁 Instructor sees weekly progress') + '</span><br><span style="font-size:.76rem;color:' + (need ? '#f59e0b' : '#4ade80') + '">This week: ' + cur.jobs + ' of ' + p.min + ' booked' + (need ? ' (' + need + ' to go)' : ' ✓') + '</span>' + (cr ? ' <span style="font-size:.76rem;color:#f59e0b">· credit owed ' + money(cr) + '</span>' : '');
   }
 
+  /* ---------- start date + terms agreement (admin only) ---------- */
+  var TERMS_V = '1';
+  function startOf(id) {   // when this instructor's franchise / package began — the start of their full history
+    var fs = (CFG && CFG.frStart && CFG.frStart[id]) || '', ps = (CFG && CFG.by[id] && CFG.by[id].start) || '', ins = instrs().find(function (i) { return String(i.id) === String(id); }) || {};
+    return fs || ps || String(ins.created_at || '').slice(0, 10) || '';
+  }
+  var hasFrStart = function (id) { return !!(CFG && CFG.frStart && CFG.frStart[id]); };
+  var termsOf = function (id) { return (CFG && CFG.terms && CFG.terms[id]) || null; };
+  async function setTerms(id, on, via, when) {
+    await load(); CFG.terms = CFG.terms || {}; var ins = instrs().find(function (i) { return String(i.id) === String(id); }) || {};
+    if (on) CFG.terms[id] = { at: when || new Date().toISOString().slice(0, 10), v: TERMS_V, via: via || 'WhatsApp reply' }; else delete CFG.terms[id];
+    var ok = await save(); try { DSQLog.add(SB(), { area: 'package', action: 'terms', summary: (on ? 'Package terms v' + TERMS_V + ' agreed by ' : 'Package terms agreement removed for ') + (ins.full_name || 'instructor') + (on ? ' (' + CFG.terms[id].via + ', ' + CFG.terms[id].at + ')' : ''), role: 'admin', actor: 'Admin', instrId: id }); } catch (e) { }
+    return ok;
+  }
+  async function sendTermsWhatsApp(id) {
+    await load(); var ins = instrs().find(function (i) { return String(i.id) === String(id); }) || {}, t = policyText(ins.full_name), ph = String(ins.phone || '').replace(/\D/g, ''); ph = ph.startsWith('0') ? '44' + ph.slice(1) : ph;
+    try { await navigator.clipboard.writeText(t); } catch (e) { }
+    if (ph) window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent(t), '_blank'); else toast('📋 Terms copied — this instructor has no phone number, paste it into WhatsApp by hand.', 'warn', 5000);
+  }
+  async function setFrStart(id, date) { await load(); CFG.frStart = CFG.frStart || {}; if (date) CFG.frStart[id] = date; else delete CFG.frStart[id]; return save(); }
+
   /* ---------- weekly shortfall review (admin only — instructors never see discounts) ---------- */
   var lastWeekKey = function () { return addWeeks(wkKey(new Date()), -1); };
   /* every package instructor with a guarantee, for one completed week */
@@ -205,17 +228,17 @@
   (function waitThenCheck() { var n = 0, t = setInterval(function () { n++; if (n > 40) return clearInterval(t); try { if (window.DSQ_ADMIN && DSQ_ADMIN.refs().length && DSQ_ADMIN.instrs().length) { clearInterval(t); checkShortfalls(); } } catch (e) { } }, 1500); })();
 
   /* the WhatsApp version of the package terms, for the admin to copy */
-  function policyText() {
+  function policyText(name) {
     var T = (CFG && CFG.tiers) || DEF.tiers, fl = (CFG && CFG.floor != null) ? +CFG.floor : 40;
     var tbl = function (t) { var p = { tier: t, fee: T[t].fee, min: T[t].min }, o = []; for (var d = p.min; d >= 0; d--) o.push((d === p.min ? d + ' students' : d) + ': ' + money(feeFor(p, d))); return o.join('\n'); };
     var silver = 'Silver (' + money(T.silver.fee) + ', ' + T.silver.min + ' students)\n' + T.silver.min + ' students: ' + money(T.silver.fee) + '\nLess than that: ' + money(fl);
-    return '*DriveSQ Instructor Packages: how it works* 🚗\n\nHi [name], here are our package terms so everything is clear from day one.\n\n*The packages*\n🏆 *Platinum:* ' + money(T.platinum.fee) + '/week, ' + T.platinum.min + ' students guaranteed, priority for new students\n🥇 *Gold:* ' + money(T.gold.fee) + '/week, ' + T.gold.min + ' students guaranteed\n🥈 *Silver:* ' + money(T.silver.fee) + '/week, ' + T.silver.min + ' students guaranteed (we aim for ' + T.silver.target + ')\n🚗 *Normal:* £40–£50/week, no guarantee\n\n' +
+    return '*DriveSQ Instructor Packages: how it works* 🚗\n\nHi ' + (name ? String(name).split(' ')[0] : '[name]') + ', here are our package terms so everything is clear from day one.\n\n*The packages*\n🏆 *Platinum:* ' + money(T.platinum.fee) + '/week, ' + T.platinum.min + ' students guaranteed, priority for new students\n🥇 *Gold:* ' + money(T.gold.fee) + '/week, ' + T.gold.min + ' students guaranteed\n🥈 *Silver:* ' + money(T.silver.fee) + '/week, ' + T.silver.min + ' students guaranteed (we aim for ' + T.silver.target + ')\n🚗 *Normal:* £40–£50/week, no guarantee\n\n' +
       '*How a week works*\n• A week is Monday to Sunday\n• We start counting on the first full Monday after your package starts\n• A student counts once, in the week we send them to you\n\n*What counts as a delivered student*\n✅ They book a first lesson with you, or\n✅ We sent them to you and you didn\'t contact them within 24 hours, or didn\'t follow up after they replied\n\n' +
       '*If we don\'t send enough students*\nYour fee for that week goes down. It never goes below *' + money(fl) + '*.\n\n*Platinum (' + money(T.platinum.fee) + ', ' + T.platinum.min + ' students)*\n' + tbl('platinum') + '\n\n*Gold (' + money(T.gold.fee) + ', ' + T.gold.min + ' students)*\n' + tbl('gold') + '\n\n*' + silver + '*\n\n' +
-      '*No discount if*\n• You told us you were unavailable or on holiday that week\n• You turned a student down, or didn\'t reply to them\n• Your account was suspended\n\nThe discount comes off that week\'s fee or your next one. It is never paid as cash.\n\n*Reviews and changes*\nWe review packages monthly. You can leave a package with 4 weeks\' notice.\n\nFull terms: https://www.drivesq.co.uk/instructor-package-terms.html\n\nAny questions, just reply here. Thanks for being part of DriveSQ! 🙌';
+      '*No discount if*\n• You told us you were unavailable or on holiday that week\n• You turned a student down, or didn\'t reply to them\n• Your account was suspended\n\nThe discount comes off that week\'s fee or your next one. It is never paid as cash.\n\n*Reviews and cancelling*\nWe review packages monthly. You can cancel your package at any time, but if you do you may not be able to rejoin unless we approve it.\n\nFull terms (version 1): https://www.drivesq.co.uk/instructor-package-terms.html\n\n*To agree, please reply: I AGREE* ✅\nWe keep a record of your reply.\n\nThanks for being part of DriveSQ! 🙌';
   }
   async function copyPolicy() { await load(); var t = policyText(); try { await navigator.clipboard.writeText(t); toast('📋 Package terms copied — paste into WhatsApp', 'success', 3000); } catch (e) { window.prompt('Copy this message:', t); } }
   window.addEventListener('load', function () { var o = window._frFeeSave; if (typeof o === 'function' && !o.__pkg) { var w = async function (id) { await o.apply(this, arguments); try { await saveFromModal(id); } catch (e) { } }; w.__pkg = 1; window._frFeeSave = w; } });
   async function setShowLabel(on) { await load(); CFG.showLabel = !!on; await save(); toast(on ? 'Referral / Franchise label is shown to instructors' : 'Label hidden', 'success', 2200); }
-  window.DSQPkg = { feeFor: feeFor, shortfalls: shortfalls, setWeek: setWeek, checkShortfalls: checkShortfalls, policyText: policyText, copyPolicy: copyPolicy, lastWeekKey: lastWeekKey, save: save, historyHtml: historyHtml, setShowLabel: setShowLabel, detailHtml: detailHtml, load: load, fill: fill, saveFromModal: saveFromModal, openOverview: openOverview, prioritise: prioritise, cardNote: cardNote, pkgOf: pkgOf, weeks: weeks, safety: safety, supply: supply, _cfg: function () { return CFG; } };
+  window.DSQPkg = { startOf: startOf, hasFrStart: hasFrStart, termsOf: termsOf, setTerms: setTerms, sendTermsWhatsApp: sendTermsWhatsApp, setFrStart: setFrStart, TERMS_V: TERMS_V, feeFor: feeFor, shortfalls: shortfalls, setWeek: setWeek, checkShortfalls: checkShortfalls, policyText: policyText, copyPolicy: copyPolicy, lastWeekKey: lastWeekKey, save: save, historyHtml: historyHtml, setShowLabel: setShowLabel, detailHtml: detailHtml, load: load, fill: fill, saveFromModal: saveFromModal, openOverview: openOverview, prioritise: prioritise, cardNote: cardNote, pkgOf: pkgOf, weeks: weeks, safety: safety, supply: supply, _cfg: function () { return CFG; } };
 })();

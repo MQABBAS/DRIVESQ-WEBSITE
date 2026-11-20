@@ -112,6 +112,17 @@
           (x.status === 'applied' ? '<button ' + btn + '" onclick="DSQFees.undoShort(\'' + x.id + '\',\'' + k + '\')">Undo</button>' : '') + (x.status === 'excused' ? '<button ' + btn + '" onclick="DSQFees.unexcuseShort(\'' + x.id + '\',\'' + k + '\')">Undo</button>' : '') + '</div>'; }).join('') + '</div>';
   }
 
+
+  /* fill in the missing completed weeks from the start date (history). asPaid = they were already collected. */
+  async function backfill(id, asPaid, start) {
+    if (missing) return 0; await load(); var list = await plans(), pl = list.find(function (p) { return String(p.id) === String(id); }); if (!pl) { toast('This instructor has no franchise fee or package fee set.', 'warn', 5000); return 0; }
+    var cur = wk(new Date()), have = {}; ROWS.forEach(function (r) { if (String(r.instructor_id) === String(id)) have[r.week_start] = 1; });
+    var ins = []; for (var k = wk(start + 'T12:00:00'); k < cur; k = addW(k, 1)) if (!have[k]) ins.push({ instructor_id: id, week_start: k, plan: pl.plan, expected: pl.fee, amount_paid: asPaid ? pl.fee : 0, status: asPaid ? 'paid' : 'unpaid', paid_at: asPaid ? ymd(new Date(new Date(k + 'T12:00:00').getTime() + 6 * 864e5)) : null, note: 'Recorded from start date (history)' });
+    for (var i = 0; i < ins.length; i += 100) { var r = await SB().from('instructor_weekly_fees').insert(ins.slice(i, i + 100)); if (r.error) { toast('Could not record history: ' + r.error.message, 'error', 6000); return 0; } }
+    if (ins.length) { logFee({ instructor_id: id }, 'History filled in for ' + nameOf(id) + ': ' + ins.length + ' week(s) from ' + niceW(wk(start + 'T12:00:00')) + ' recorded as ' + (asPaid ? 'paid' : 'unpaid')); await load(); try { if (window.renderAccounting) renderAccounting(); } catch (e) { } }
+    return ins.length;
+  }
+
   function render() {
     var el = document.getElementById('accFeesBody'); if (!el) return;
     if (!loaded) { el.innerHTML = '<div style="padding:14px;color:var(--txt4)">Loading…</div>'; load().then(function () { return ensure(); }).then(render); return; }
@@ -145,5 +156,5 @@
       '<div style="font-size:.7rem;color:var(--txt4);line-height:1.5">Each week, every franchise instructor and every instructor on a package gets a fee line (package fee if they have one, otherwise their franchise fee). When you mark it paid it is counted as income in Accounting on the day you paid it. Change "Track fees from" to include earlier weeks.</div>';
   }
   async function open() { if (!loaded) await load(); render(); await ensure(); render(); }   // draw at once, then create any missing weekly lines and redraw
-  window.DSQFees = { applyShort: applyShort, undoShort: undoShort, excuseShort: excuseShort, unexcuseShort: unexcuseShort, addStudents: addStudents, open: open, load: load, ensure: ensure, render: render, paidRows: paidRows, outstandingTotal: outstandingTotal, markPaid: markPaid, undo: undo, waive: waive, markAll: markAll, setFrom: setFrom, go: go, _rows: function () { return ROWS; }, plans: plans };
+  window.DSQFees = { backfill: backfill, applyShort: applyShort, undoShort: undoShort, excuseShort: excuseShort, unexcuseShort: unexcuseShort, addStudents: addStudents, open: open, load: load, ensure: ensure, render: render, paidRows: paidRows, outstandingTotal: outstandingTotal, markPaid: markPaid, undo: undo, waive: waive, markAll: markAll, setFrom: setFrom, go: go, _rows: function () { return ROWS; }, plans: plans };
 })();
