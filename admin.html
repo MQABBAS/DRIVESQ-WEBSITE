@@ -5013,6 +5013,34 @@ function _flagRows(){
   return _refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at).getTime()>=since);
 }
 function _flagAge(r){return Math.floor((Date.now()-new Date(r.created_at))/864e5);}
+/* ── Investigate: instructors who were given lots of jobs but have marked few of them ── */
+function _invSnooze(){try{return JSON.parse(localStorage.getItem('dsq_inv_snooze')||'{}');}catch(e){return {};}}
+function _invStats(includeSnoozed){
+  const snz=_invSnooze(),now=Date.now(),by={};
+  _flagRows().forEach(r=>{
+    if(_flagAge(r)<3)return;                       // brand-new referrals are not late yet
+    const g=by[r.instructor_id]=by[r.instructor_id]||{id:r.instructor_id,total:0,unmarked:0,oldest:0,names:[]};
+    g.total++;
+    if(!r.flag_color&&!r.reply_status&&!r.is_paid){g.unmarked++;g.oldest=Math.max(g.oldest,_flagAge(r));if(g.names.length<6)g.names.push(r.student_name||'Student');}
+  });
+  return Object.values(by).map(g=>{
+    const i=(allInstrs||[]).find(x=>x.id===g.id)||{};g.instr=i;g.pct=g.total?Math.round(g.unmarked/g.total*100):0;
+    g.level=(g.total>=5&&g.unmarked>=4&&g.unmarked/g.total>=.6)||g.unmarked>=8?'investigate':(g.unmarked>=3&&g.unmarked/g.total>=.4)?'watch':null;
+    g.snoozed=!!(snz[g.id]&&snz[g.id]>now);return g;
+  }).filter(g=>g.level&&g.instr.status!=='removed'&&(includeSnoozed||!g.snoozed)).sort((a,b)=>(a.level===b.level?b.unmarked-a.unmarked:a.level==='investigate'?-1:1));
+}
+function _invSnoozeSet(id){const s=_invSnooze();s[id]=Date.now()+7*864e5;try{localStorage.setItem('dsq_inv_snooze',JSON.stringify(s));}catch(e){}_renderFlagMonitor();try{renderReferrals();}catch(e){}}
+function _invChip(id){const g=_invStats(true).find(x=>x.id===id);if(!g)return'';const inv=g.level==='investigate';return`<span title="${g.unmarked} of ${g.total} students given in the last 90 days have no update from the instructor" style="margin-left:7px;font-size:.58rem;font-weight:800;color:${inv?'#fff':'#f59e0b'};background:${inv?'#dc2626':'rgba(245,158,11,.15)'};border:1px solid ${inv?'#dc2626':'rgba(245,158,11,.5)'};border-radius:5px;padding:1px 7px;vertical-align:middle;font-family:'Oswald',sans-serif;letter-spacing:.3px">${inv?'🔎 INVESTIGATE':'👀 WATCH'} · ${g.unmarked}/${g.total} unmarked</span>`;}
+function _invPanel(){
+  const list=_invStats();if(!list.length)return'';
+  const inv=list.filter(x=>x.level==='investigate').length;
+  return`<div style="border:1px solid ${inv?'#dc2626':'#f59e0b'};background:${inv?'rgba(220,38,38,.08)':'rgba(245,158,11,.07)'};border-radius:12px;padding:12px 14px;margin-bottom:12px"><div style="font-weight:800;font-size:.9rem;color:${inv?'#f87171':'#f59e0b'}">🔎 ${inv?inv+' instructor'+(inv===1?'':'s')+' to investigate':'Instructors to watch'}</div><div style="font-size:.72rem;color:var(--txt3);margin:2px 0 8px">You gave these instructors a lot of students (last 90 days, older than 3 days) and most have no update: not booked, unsure, can't reach or booked. Their students are not counted as bookings and you may be missing money or lost students.</div>`+
+  list.map(g=>{const f=(g.instr.full_name||'Instructor'),fn=f.split(' ')[0],ph=(g.instr.phone||'').replace(/\D/g,''),wa=ph?(ph.startsWith('44')?ph:'44'+ph.replace(/^0/,'')):'';
+    const msg=`Hi ${fn}, quick check from DriveSQ 👋 We've sent you ${g.total} students recently and ${g.unmarked} have no update yet (${g.names.slice(0,4).join(', ')}${g.unmarked>4?'…':''}). Please open your Instructor Portal and tap booked / not booked / can't reach for each one, or reply here. Thank you!`;
+    return`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--bdr);font-size:.8rem"><span style="flex:1;min-width:170px"><b>${esc(f)}</b> <span style="font-size:.6rem;font-weight:800;padding:1px 7px;border-radius:5px;${g.level==='investigate'?'background:#dc2626;color:#fff':'background:rgba(245,158,11,.15);color:#f59e0b'}">${g.level==='investigate'?'🔎 INVESTIGATE':'👀 WATCH'}</span><div style="font-size:.7rem;color:var(--txt3)">${g.unmarked} of ${g.total} unmarked (${g.pct}%) · oldest ${g.oldest} days${g.instr.instructor_model?' · '+esc(g.instr.instructor_model):''}</div></span>`+
+      `<button type="button" class="rfm-a" onclick="openRefDetail('${g.id}',false)"><i class="bi bi-people"></i>Review students</button>${wa?`<a class="rfm-a" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}"><i class="bi bi-whatsapp"></i>Chase</a>`:''}<button type="button" class="rfm-a" title="Hide for 7 days" onclick="_invSnoozeSet('${g.id}')">Snooze 7d</button></div>`;}).join('')+`</div>`;
+}
+function _invAlert(){const list=_invStats().filter(x=>x.level==='investigate');if(!list.length)return;const day=new Date().toISOString().slice(0,10);try{if(localStorage.getItem('dsq_inv_alert')===day)return;localStorage.setItem('dsq_inv_alert',day);}catch(e){}try{showToast('🔎 '+list.length+' instructor'+(list.length===1?'':'s')+' with lots of jobs and few marked — see Referrals → Investigate','warn',10000);}catch(e){}}
 function _renderFlagMonitor(){
   const box=document.getElementById('refFlagMonitor');if(!box)return;
   const rows=_flagRows();
@@ -5020,7 +5048,7 @@ function _renderFlagMonitor(){
   rows.forEach(r=>{let f=_refFlagOf(r);if(f==='green'&&!_refAdminBooked(r))f='purple';(grp[f]||grp.none).push(r);});   // a ✅ that only came from the instructor still needs checking
   const overdueUnsure=grp.purple.filter(r=>_flagAge(r)>=3&&!_isFranchiseInstr(r.instructor_id)).length, overdueNone=grp.none.filter(r=>_flagAge(r)>=2&&!_isFranchiseInstr(r.instructor_id)).length;
   const tile=(k,e,l,sub,col,n)=>`<button type="button" class="rfm-tile${window._flagView===k?' on':''}" style="--c:${col}" onclick="_flagSetView('${k}')"><span class="rfm-n">${n}</span><span class="rfm-l">${e} ${l}</span><span class="rfm-s">${sub}</span></button>`;
-  let html=`<div class="rfm-head"><b><i class="bi bi-flag-fill me-1"></i>Booking flags</b><span>last 90 days · ✅ booked · 🟣 unsure · 🚩 not booked</span></div><div class="rfm-tiles">
+  let html=_invPanel()+`<div class="rfm-head"><b><i class="bi bi-flag-fill me-1"></i>Booking flags</b><span>last 90 days · ✅ booked · 🟣 unsure · 🚩 not booked</span></div><div class="rfm-tiles">
     ${tile('red','🚩','Not booked',grp.red.length?'Reassign or chase':'None',REF_FLAG.red.c,grp.red.length)}
     ${tile('purple','🟣','Unsure',overdueUnsure?overdueUnsure+' over 3 days':'Check soon',REF_FLAG.purple.c,grp.purple.length)}
     ${tile('none','⚪','No flag yet',overdueNone?overdueNone+' need a flag':'Up to date','#94a3b8',grp.none.length)}
@@ -5044,6 +5072,7 @@ function _renderFlagMonitor(){
     }).join(''):'<div style="padding:12px;font-size:.78rem;color:var(--txt4)">Nothing here 👍</div>'}</div>`;
   }
   box.innerHTML=html;
+  try{_invAlert();}catch(e){}
 }
 function _flagSetView(k){window._flagView=window._flagView===k?null:k;_renderFlagMonitor();}
 function _playFlagSound(color){
@@ -11822,7 +11851,7 @@ function renderReferrals(){
         <div style="display:flex;align-items:center;gap:12px">
           <div style="width:40px;height:40px;border-radius:10px;background:${avatarColor};border:1px solid ${cardBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:${cardAccent}">${initials}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);line-height:1.25">${esc(instr.full_name)}${modelBadge}${g.credits>0?`<span style="margin-left:7px;font-size:.58rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''}</span>`:''}</div>
+            <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;color:var(--txt);line-height:1.25">${esc(instr.full_name)}${modelBadge}${_invChip(g.id)}${g.credits>0?`<span style="margin-left:7px;font-size:.58rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:5px;padding:1px 6px;vertical-align:middle;letter-spacing:.4px">⟳ ${g.credits} CREDIT${g.credits!==1?'S':''}</span>`:''}</div>
             <div style="font-size:.67rem;color:var(--txt4);margin-top:2px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">${esc(instr.area||'—')} · ${g.rows.length} referral${g.rows.length!==1?'s':''}${notifiedBadge}${(()=>{const c={green:0,purple:0,red:0,none:0};g.rows.forEach(r=>{if(r.is_cancelled||r.is_credit)return;const f=_refFlagOf(r);c[f||'none']++;});return['green','purple','red'].filter(k=>c[k]).map(k=>`<span title="${REF_FLAG[k].d}" style="color:${REF_FLAG[k].c};font-weight:700">${REF_FLAG[k].e}${c[k]}</span>`).join(' ')+(c.none?` <span title="No booking flag yet" style="color:var(--txt4)">⚪${c.none}</span>`:'');})()}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">

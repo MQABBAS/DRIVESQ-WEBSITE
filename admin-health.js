@@ -42,6 +42,9 @@
     if (await_.length) add('bad', '<b>' + await_.length + ' student' + (await_.length === 1 ? '' : 's') + ' the instructor says booked</b> but you have not confirmed. Confirm in Referrals so it counts and the fee is recorded.', b('Open Referrals', "DSQHealth.openReferrals('" + id + "')"));
     if (waiting.length) add('warn', waiting.length + ' student' + (waiting.length === 1 ? ' has' : 's have') + ' had no update for 7+ days. Ask the instructor, or mark them.', b('Open Referrals', "DSQHealth.openReferrals('" + id + "')"));
 
+    var iv = window._invStats ? window._invStats(true).find(function (x) { return String(x.id) === String(id); }) : null;
+    if (iv) add(iv.level === 'investigate' ? 'bad' : 'warn', '<b>' + (iv.level === 'investigate' ? 'Investigate:' : 'Watch:') + ' ' + iv.unmarked + ' of the ' + iv.total + ' students you gave them have no update</b> (oldest ' + iv.oldest + ' days). Ask them to mark each one, or check the students yourself in Referrals.', b('Review students', "DSQHealth.openReferrals('" + id + "')"));
+
     /* money */
     var rows = feeRows(id), unpaid = rows.filter(function (r) { return r.status === 'unpaid' && r.week_start < mon(new Date()); });
     var plan = pk ? pk.name + ' package' : (model === 'franchise' ? 'franchise' : '');
