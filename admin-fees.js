@@ -40,9 +40,10 @@
   async function ensure() {
     if (missing || busy) return; busy = true;
     try {
+      /* a package starting mid-week is charged and measured from the next Monday */
       var cur = wk(new Date()), from = CFGV.from ? wk(CFGV.from + 'T12:00:00') : cur, list = await plans(), have = {}, ins = [];
       ROWS.forEach(function (r) { have[r.instructor_id + '|' + r.week_start] = 1; });
-      list.forEach(function (p) { var startK = p.start ? wk(p.start + 'T12:00:00') : from; var k = from > startK ? from : startK; for (; k <= cur; k = addW(k, 1)) { if (!have[p.id + '|' + k]) ins.push({ instructor_id: p.id, week_start: k, plan: p.plan, expected: p.fee, amount_paid: 0, status: 'unpaid' }); } });
+      list.forEach(function (p) { var startK = p.start ? (p.kind === 'package' && wk(p.start + 'T12:00:00') !== p.start ? addW(wk(p.start + 'T12:00:00'), 1) : wk(p.start + 'T12:00:00')) : from; var k = from > startK ? from : startK; for (; k <= cur; k = addW(k, 1)) { if (!have[p.id + '|' + k]) ins.push({ instructor_id: p.id, week_start: k, plan: p.plan, expected: p.fee, amount_paid: 0, status: 'unpaid' }); } });
       for (var i = 0; i < ins.length; i += 100) { var r = await SB().from('instructor_weekly_fees').insert(ins.slice(i, i + 100)); if (r.error && !/duplicate|23505|unique/i.test(r.error.message || '')) { toast('Could not create weekly fees: ' + r.error.message, 'error', 6000); break; } }
       if (ins.length) await load();
     } finally { busy = false; }

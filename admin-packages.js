@@ -33,7 +33,7 @@
     try { var r = await SB().from('growth_settings').upsert({ key: 'packages', value: CFG, updated_at: new Date().toISOString() }, { onConflict: 'key' }); if (r.error) throw r.error; return true; }
     catch (e) { toast('Saved on this device only — run the growth tools SQL (20261110_growth_tools_core.sql) so it is stored for everyone.', 'warn', 7000); return false; }
   }
-  var pkgOf = function (id) { var p = CFG && CFG.by[id]; if (!p || !p.tier || p.active === false || !CFG.tiers[p.tier]) return null; var t = CFG.tiers[p.tier]; return { tier: p.tier, name: t.name, icon: t.icon, color: t.color, fee: p.fee != null && p.fee !== '' ? +p.fee : t.fee, min: t.noGuarantee ? 0 : (p.min != null && p.min !== '' ? +p.min : t.min), target: t.target || t.min, noGuarantee: !!t.noGuarantee, priority: !!t.priority, radius: t.radius || 5, start: p.start || '' }; };
+  var pkgOf = function (id) { var p = CFG && CFG.by[id]; if (!p || !p.tier || p.active === false || !CFG.tiers[p.tier]) return null; var t = CFG.tiers[p.tier]; return { tier: p.tier, name: t.name, icon: t.icon, color: t.color, fee: p.fee != null && p.fee !== '' ? +p.fee : t.fee, min: t.noGuarantee ? 0 : (p.min != null && p.min !== '' ? +p.min : t.min), target: t.target || t.min, noGuarantee: !!t.noGuarantee, priority: !!t.priority, radius: t.radius || 5, start: p.start || '', started: !p.start || p.start <= new Date().toISOString().slice(0, 10) }; };
   var wkKey = function (d) { var m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0') + '-' + String(m.getDate()).padStart(2, '0'); };
   var addWeeks = function (k, n) { var d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 7 * n); return wkKey(d); };
   function firstFullWeek(startDay) { var k = wkKey(startDay + 'T12:00:00'); return k === startDay ? k : addWeeks(k, 1); }
@@ -78,12 +78,13 @@
   /* ---------- Find & Assign ---------- */
   function prioritise(ranked) {
     if (!CFG) return ranked; var top = [], rest = [];
-    ranked.forEach(function (r) { var p = pkgOf(r.instr.id); if (p && p.priority && r.dist != null && r.dist <= p.radius) top.push(r); else rest.push(r); });
+    ranked.forEach(function (r) { var p = pkgOf(r.instr.id); if (p && p.priority && p.started && r.dist != null && r.dist <= p.radius) top.push(r); else rest.push(r); });
     return top.concat(rest);
   }
   function cardNote(r) {
     if (!CFG) return ''; var id = r.instr.id, p = pkgOf(id); if (!p) return '';
-    var w = weeks(id, 0)[0] || { jobs: 0, min: p.min }, need = Math.max(0, p.min - w.jobs), pr = p.priority && r.dist != null && r.dist <= p.radius;
+    if (!p.started) return '<div style="margin-top:4px"><span style="font-size:.66rem;font-weight:800;padding:2px 8px;border-radius:99px;background:' + p.color + '26;color:' + p.color + ';border:1px solid ' + p.color + '66">' + p.icon + ' ' + E(p.name) + '</span> <span style="font-size:.68rem;color:var(--txt3)">starts ' + new Date(p.start + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' · no priority or guaranteed jobs until then</span></div>';
+    var w = weeks(id, 0)[0] || { jobs: 0, min: p.min }, need = Math.max(0, p.min - w.jobs), pr = p.priority && p.started && r.dist != null && r.dist <= p.radius;
     if (!p.min) return '<div style="margin-top:4px"><span style="font-size:.66rem;font-weight:800;padding:2px 8px;border-radius:99px;background:' + p.color + '26;color:' + p.color + ';border:1px solid ' + p.color + '66">' + p.icon + ' ' + E(p.name) + '</span> <span style="font-size:.68rem;color:var(--txt3)">' + w.jobs + ' booked this week · no guarantee</span></div>';
     return '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:.66rem;font-weight:800;padding:2px 8px;border-radius:99px;background:' + p.color + '26;color:' + p.color + ';border:1px solid ' + p.color + '66">' + p.icon + ' ' + E(p.name) + '</span>' +
       '<span style="font-size:.68rem;font-weight:700;color:' + (need ? '#f59e0b' : '#4ade80') + '">' + w.jobs + ' of ' + p.min + ' guaranteed jobs booked this week' + (need ? ' · needs ' + need + ' more' : ' ✓') + '</span>' + (pr ? '<span style="font-size:.66rem;font-weight:800;color:' + p.color + '">⭐ priority (within ' + p.radius + ' miles)</span>' : '') + '</div>';
