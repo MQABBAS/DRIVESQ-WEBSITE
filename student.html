@@ -1202,6 +1202,15 @@ function normalizePhone(raw){
   if(p.startsWith('0044'))p='0'+p.slice(4);
   return p;
 }
+/* The same phone number can be typed many ways (+44 1234 5677 / 01234 5677 / 0044… / 44…). These make every way match. */
+function phoneCore(raw){
+  const t=String(raw||'').trim().replace(/\(0\)/g,'');let d=t.replace(/\D/g,'');
+  if(/^\+?\s*44/.test(t)||t.startsWith('0044')||(d.startsWith('44')&&d.length>=11)){d=d.startsWith('0044')?d.slice(4):d.slice(2);}
+  return d.replace(/^0+/,'');
+}
+function samePhone(a,b){const x=phoneCore(a),y=phoneCore(b);return x.length>=7&&x===y;}
+/* matches the digits in order with anything (spaces, dashes, +44…) in between — the real check is samePhone() */
+function phoneLikePat(core){return '%'+String(core).split('').join('%')+'%';}
 
 /* ── AUTH ── */
 function showView(v){
@@ -1243,6 +1252,16 @@ async function doRegister(){
     for(const p of phones){
       const{data:rows}=await sb.from('student_accounts').select('*').eq('phone',p).limit(1);
       if(rows&&rows.length){sa=rows[0];break;}
+    }
+    // Any other way the number may have been typed in admin (spaces, +44, 0044…)
+    if(!sa&&phoneCore(rawPhone).length>=7){
+      const{data:flex}=await sb.from('student_accounts').select('*').ilike('phone',phoneLikePat(phoneCore(rawPhone))).limit(60);
+      sa=(flex||[]).find(r=>samePhone(r.phone,rawPhone))||null;
+    }
+    if(!sa&&phoneCore(rawPhone).length>=7){
+      const{data:fp}=await sb.from('student_profiles').select('name,instructor_id,phone').ilike('phone',phoneLikePat(phoneCore(rawPhone))).limit(60);
+      const hit=(fp||[]).find(r=>samePhone(r.phone,rawPhone));
+      if(hit){const{data:accs}=await sb.from('student_accounts').select('*').eq('instructor_id',hit.instructor_id).ilike('full_name',hit.name).limit(1);if(accs&&accs[0])sa=accs[0];}
     }
     // Try student_profiles if not found
     if(!sa){
@@ -1308,7 +1327,7 @@ async function doLogin(){
     '+44'+core.slice(0,3)+' '+core.slice(3),
   ].filter(p=>p&&p.length>=7))];
   // Last 9 digits used for ilike fallback — enough to uniquely identify a UK mobile
-  const tail9=core.slice(-9);
+  const tail9=core.slice(-9),pc=phoneCore(phone);
   try{
     // 1. Check student_accounts — exact match on all known formats
     const{data:exactRows}=await sb.from('student_accounts').select('*').in('phone',phones).limit(5);
@@ -1317,10 +1336,11 @@ async function doLogin(){
       data=exactRows.find(r=>r.status!=='suspended'&&r.phone&&r.phone.replace(/\D/g,'').endsWith(core.slice(-9)))||exactRows[0];
     }
     // 1b. Fallback: ilike on last 9 digits (catches any spacing/formatting variant)
-    if(!data&&tail9.length>=9){
-      const{data:ilikeRows}=await sb.from('student_accounts').select('*').ilike('phone','%'+tail9+'%').limit(5);
+    if(!data&&pc.length>=7){
+      const{data:ilikeRows}=await sb.from('student_accounts').select('*').ilike('phone',phoneLikePat(pc)).limit(60);
       if(ilikeRows&&ilikeRows.length){
-        data=ilikeRows.find(r=>r.phone&&r.phone.replace(/\D/g,'').endsWith(tail9))||ilikeRows[0];
+        const hits=ilikeRows.filter(r=>samePhone(r.phone,phone));
+        data=hits.find(r=>r.status!=='suspended')||hits[0]||null;
       }
     }
     // 2. Check lessons table — the phone the instructor typed when adding lessons
@@ -1328,9 +1348,9 @@ async function doLogin(){
       let lesson=null;
       const{data:exactLessons}=await sb.from('lessons').select('student_name,instructor_id').in('student_phone',phones).limit(1);
       if(exactLessons&&exactLessons[0]){lesson=exactLessons[0];}
-      if(!lesson&&tail9.length>=9){
-        const{data:ilikeLessons}=await sb.from('lessons').select('student_name,instructor_id').ilike('student_phone','%'+tail9+'%').limit(1);
-        if(ilikeLessons&&ilikeLessons[0])lesson=ilikeLessons[0];
+      if(!lesson&&pc.length>=7){
+        const{data:ilikeLessons}=await sb.from('lessons').select('student_name,instructor_id,student_phone').ilike('student_phone',phoneLikePat(pc)).limit(60);
+        const l2=(ilikeLessons||[]).find(r=>samePhone(r.student_phone,phone));if(l2)lesson=l2;
       }
       if(lesson){
         const p=normPhone;
@@ -1354,9 +1374,9 @@ async function doLogin(){
       let profile=null;
       const{data:exactProfs}=await sb.from('student_profiles').select('name,instructor_id').in('phone',phones).limit(1);
       if(exactProfs&&exactProfs[0]){profile=exactProfs[0];}
-      if(!profile&&tail9.length>=9){
-        const{data:ilikeProfs}=await sb.from('student_profiles').select('name,instructor_id').ilike('phone','%'+tail9+'%').limit(1);
-        if(ilikeProfs&&ilikeProfs[0])profile=ilikeProfs[0];
+      if(!profile&&pc.length>=7){
+        const{data:ilikeProfs}=await sb.from('student_profiles').select('name,instructor_id,phone').ilike('phone',phoneLikePat(pc)).limit(60);
+        const p2=(ilikeProfs||[]).find(r=>samePhone(r.phone,phone));if(p2)profile=p2;
       }
       if(profile){
         const p=normPhone;
