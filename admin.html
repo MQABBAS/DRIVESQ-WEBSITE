@@ -3894,7 +3894,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/admin-packages.js?v=20261123"></script>
 <script src="/admin-fees.js?v=20261124"></script>
 <script src="/admin-health.js?v=20261127"></script>
-<script src="/admin-whatsapp.js?v=20261128"></script>
+<script src="/admin-whatsapp.js?v=20261129"></script>
+<script src="/admin-autoassign.js?v=20261129"></script>
 <script src="/dsq-log.js?v=20261126"></script>
 <script src="/admin-insights.js?v=20261126"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
@@ -5856,10 +5857,12 @@ function renderInstrDetail(instr){
   setTimeout(()=>_instrAvailFill(instr.id),0);
   setTimeout(()=>{try{DSQInsights.fillProfile(instr.id);}catch(e){}},0);
   setTimeout(()=>{try{DSQHealth.fill(instr.id);}catch(e){}},0);
+  setTimeout(()=>{try{DSQAA.fillTraits(instr.id);}catch(e){}},0);
   const _hh=window.DSQHealth?DSQHealth.holders(instr.id):{health:'',hist:'',terms:''};
   setTimeout(()=>{try{DSQInsights.loadNotes().then(()=>{const e=document.getElementById('instrNote-'+instr.id);if(e)e.outerHTML=DSQInsights.profileNoteHtml(instr.id);});}catch(e){}},0);
   const fields=[
     ['Health check',_hh.health],
+    ['Auto-assign',(window.DSQAA?DSQAA.traitsHolder(instr.id):'')],
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),
     ...((window.DSQPkg&&DSQPkg._cfg&&DSQPkg._cfg()&&DSQPkg.pkgOf(instr.id))?[['Package',DSQPkg.detailHtml(instr.id)]]:[]),
     ...(instr.instructor_model==='franchise'?[['Weekly Franchise Fee',_frCfgCache?`<b>£${_frFeeOf(instr.id)}</b> per week${(_frCfgCache.franchiseBy||{})[instr.id]===undefined?' <span style="color:var(--txt4);font-size:.72rem">(default)</span>':''} · reminder every Monday 7am`:'…']]:[]),

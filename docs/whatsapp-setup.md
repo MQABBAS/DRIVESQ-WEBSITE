@@ -12,10 +12,10 @@ The switch there turns the whole thing **ON / OFF**. OFF = nothing is sent by th
    - `WHATSAPP_VERIFY_TOKEN` (any long random text)
    - `WHATSAPP_APP_SECRET` (App → Settings → Basic → App secret)
    - `EMAIL_ADMIN_KEY` is already set for the email function and is reused.
-5. Run `supabase/migrations/20261128_whatsapp.sql` in the SQL Editor.
-6. Deploy a function named **whatsapp** with the code in `supabase/functions/whatsapp/index.ts`. **Turn Verify JWT off.**
+5. Run `supabase/migrations/20261128_whatsapp.sql` in the SQL Editor (creates `wa_log`, `auto_assign_jobs` and `admin_attention`; the older `whatsapp_messages` table is left alone).
+6. Deploy a function named **whatsapp** with the code in `supabase/functions/whatsapp/index.ts`. **Turn Verify JWT off.** This ONE function replaces the older `whatsapp-webhook` (autopilot) and `send-whatsapp` functions. Meta only allows one webhook URL, so use this one, switch the old autopilot off in admin, and stop any cron-job.org job that calls the old function.
 7. Meta → WhatsApp → **Configuration** → webhook URL `https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to **messages**.
-8. WhatsApp Manager → **Message templates**: create `dsq_new_student`, `dsq_student_welcome` and `dsq_chase_unmarked` (category Utility, language English (UK)). The exact text and variables are in admin → WhatsApp → *Message templates to create in Meta*. Wait for approval.
+8. WhatsApp Manager → **Message templates**: create `dsq_new_student`, `dsq_student_welcome`, `dsq_student_offer`, `dsq_admin_alert` and `dsq_chase_unmarked` (category Utility, language English (UK)). The exact text and variables are in admin → WhatsApp → *Message templates to create in Meta*. Wait for approval.
 9. Admin → WhatsApp → **Send a test** to your own number, then switch automation **ON**.
 
 ## What happens when it is ON
@@ -29,3 +29,14 @@ No set-up or monthly fee from Meta. Meta charges a small amount per template mes
 
 ## Rules
 Only message people who agreed to be contacted on WhatsApp, and follow Meta's WhatsApp Business policy.
+
+## Auto-assign of website bookings (admin → WhatsApp → Auto-assign)
+Default OFF. Switch it on and the server (every 2 minutes, only between your hours) takes each **new website booking** and:
+1. ranks the approved instructors: distance, whether they cover the postcode, students already given this week, how many of their students end up booked, Platinum priority, female preference, penalty for many unmarked students. It skips instructors you flagged *Never auto-assign*, and for bookings that ask for a female instructor it only considers instructors flagged *Female instructor* (or "prefer", your choice);
+2. **within 5 miles**: assigns straight away (student account, roster, referral fee, in-app message, push), then WhatsApps the instructor (details + Accept / Can't take) and the student (welcome);
+3. **5 to 14 miles**: asks the instructor first ("Accept / Can't take"); on Accept it assigns and sends the details. On "Can't take" or no reply in 5 hours it tries the next instructor (2 more by default);
+4. **nothing suitable, over 14 miles, bad postcode, a message that failed, nobody accepted, or an instructor who can't cover**: puts it in **🚨 Attention required** (red button in the top bar), and WhatsApps you if you give your number. Nothing is rejected or told "no instructors" to the student automatically.
+
+Safety: **Preview** shows what it would do without sending or saving anything. **Suggest only** mode adds suggestions to the attention list instead of assigning. Only bookings created after you switched it on are touched. Each booking is handled once.
+
+Cron (one-time): Supabase → Integrations → Cron → every 2 minutes → Edge Function `whatsapp` → POST body `{"action":"auto_assign","cron":true}` with header `x-admin-key` (your email admin key).

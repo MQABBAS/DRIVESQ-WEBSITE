@@ -20,6 +20,10 @@
       body: 'Hi {{1}}, DriveSQ has assigned you a new student.\n\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\nPlease contact them to arrange the first lesson, then update their status in your Instructor Portal. Thank you.' },
     dsq_student_welcome: { who: 'Student', buttons: [], params: ['Student first name', 'Instructor name', 'Instructor phone'],
       body: 'Hi {{1}}, welcome to DriveSQ! 🚗\n\nYour instructor is {{2}} on {{3}}. They will contact you to arrange your first lesson, and you are welcome to message them first.\n\nYour free Student Portal is at https://www.drivesq.co.uk/student.html. Log in with your phone number.\n\nReply here if you need anything.' },
+    dsq_student_offer: { who: 'Instructor (offer before assigning)', buttons: ['Accept', "Can't take"], params: ['Instructor first name', 'Area (postcode district)', 'Miles from you', 'Lesson type'],
+      body: 'Hi {{1}}, DriveSQ has a new student near {{2}}, about {{3}} miles from you, for {{4}} lessons.\n\nCan you take them? Tap Accept or Can\'t take. You will get their full details once you accept.' },
+    dsq_admin_alert: { who: 'You (attention required)', buttons: [], params: ['What needs attention', 'Details'],
+      body: 'DriveSQ admin: attention needed. {{1}}. {{2}}' },
     dsq_chase_unmarked: { who: 'Instructor (chase)', buttons: [], params: ['Instructor first name', 'Number of students'],
       body: 'Hi {{1}}, quick check from DriveSQ. {{2}} of the students we sent you have no update yet. Please open your Instructor Portal and mark each one as booked, not booked or can\'t reach. Thank you.' }
   };
@@ -124,11 +128,11 @@
         '<button class="btn-s" style="font-size:.7rem;margin-top:6px" onclick="DSQWA.copyTpl(\'' + k + '\')">Copy text</button></details>';
     }).join('');
   };
-  async function openSettings() {
+  async function openSettings(tab) {
     await load(); var m = document.getElementById('waSet'); if (m) m.remove();
     m = document.createElement('div'); m.id = 'waSet'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99998;display:flex;align-items:center;justify-content:center;padding:14px'; m.onclick = function (e) { if (e.target === m) m.remove(); };
     document.body.appendChild(m); m.innerHTML = '<div style="background:var(--dk2);border:1px solid var(--bdr);border-radius:16px;width:100%;max-width:720px;max-height:92vh;overflow:auto;padding:18px"><div style="color:var(--txt3)">Checking the connection…</div></div>';
-    var s = await status(true); dot(); draw(m, s); recent();
+    var s = await status(true); dot(); m.__tab = tab; draw(m, s); recent();
   }
   function draw(m, s) {
     var ok = s && s.ok && s.ready && !s.error, sw = function (id, label, sub, on) { return '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:8px 0;border-top:1px solid var(--bdr)"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + ' style="margin-top:3px;width:18px;height:18px"><span><b style="font-size:.85rem">' + label + '</b><br><span style="font-size:.72rem;color:var(--txt3)">' + sub + '</span></span></label>'; };
@@ -139,19 +143,21 @@
       '<div style="margin-bottom:10px">' + sw('waMaster', 'Send WhatsApp messages automatically', 'ON: pressing Assign in Find &amp; Assign sends the messages for you. OFF: nothing is sent by the system and you use the WhatsApp buttons yourself, exactly as before.', CFG.enabled) +
       sw('waInstr', 'Message the instructor', 'The student\'s details, with Accept and Can\'t take buttons. A tap updates the referral automatically.', CFG.instructor) + sw('waStu', 'Message the student', 'A welcome with their instructor\'s name and phone and the Student Portal link. Only for students who agreed to be contacted on WhatsApp.', CFG.student) + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn-p" onclick="DSQWA.saveSettings()">Save</button><button class="btn-s" onclick="DSQWA.recheck()">Check connection again</button></div>' +
+      '<div id="aaHolder"></div>' +
       '<details style="margin-bottom:8px"' + (ok ? '' : ' open') + '><summary style="cursor:pointer;font-weight:800">Set-up steps (about 30 minutes, free)</summary><ol style="font-size:.78rem;line-height:1.6;padding-left:18px;margin:8px 0">' +
         '<li>Create a free <b>Meta Business account</b> at business.facebook.com, then in <b>Meta for Developers</b> create an app of type <b>Business</b> and add the <b>WhatsApp</b> product.</li>' +
         '<li>In <b>WhatsApp → API Setup</b> add your phone number. It must be a number that is <b>not</b> already used in a WhatsApp app (a cheap SIM or virtual number is fine). Copy the <b>Phone number ID</b>.</li>' +
         '<li>In Business settings → <b>System users</b>, create one, give it your app and the WhatsApp account, and generate a <b>permanent token</b> with the <i>whatsapp_business_messaging</i> and <i>whatsapp_business_management</i> permissions.</li>' +
         '<li>In Supabase → Edge Functions → <b>Secrets</b> add <code>WHATSAPP_TOKEN</code>, <code>WHATSAPP_PHONE_ID</code>, <code>WHATSAPP_VERIFY_TOKEN</code> (any long random text) and <code>WHATSAPP_APP_SECRET</code> (App → Settings → Basic).</li>' +
-        '<li>Deploy the function named <b>whatsapp</b> (code: <code>supabase/functions/whatsapp/index.ts</code>), turn <b>Verify JWT off</b>, and run <code>supabase/migrations/20261128_whatsapp.sql</code> in the SQL Editor.</li>' +
+        '<li>Deploy the function named <b>whatsapp</b> (code: <code>supabase/functions/whatsapp/index.ts</code>), turn <b>Verify JWT off</b>, and run <code>supabase/migrations/20261128_whatsapp.sql</code> in the SQL Editor. It replaces the older <i>whatsapp-webhook</i> and <i>send-whatsapp</i> functions, so use only this one as the Meta webhook.</li>' +
         '<li>In Meta → WhatsApp → <b>Configuration</b>, set the webhook URL to <code>' + E(FN()) + '</code>, the verify token to the same text as step 4, and subscribe to <b>messages</b>.</li>' +
-        '<li>Create the <b>three message templates</b> below in WhatsApp Manager and wait for approval (usually minutes to a day).</li>' +
+        '<li>Create the <b>five message templates</b> below in WhatsApp Manager and wait for approval (usually minutes to a day).</li>' +
         '<li>Use <b>Send a test</b> below, then switch automation <b>ON</b>.</li></ol></details>' +
       '<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:800">Message templates to create in Meta</summary>' + tplHtml() + '</details>' +
       '<div style="border-top:1px solid var(--bdr);padding-top:8px;margin-top:6px"><b style="font-size:.85rem">Send a test</b><div style="font-size:.72rem;color:var(--txt3);margin:2px 0 6px">Sends Meta\'s built-in "hello_world" message to your own number (it works before your templates are approved).</div><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="dsq-inp" id="waTestTo" placeholder="Your mobile, e.g. 07700 900123" style="max-width:260px"><button class="btn-s" onclick="DSQWA.test()">Send test</button></div><div id="waTestOut" style="font-size:.76rem;margin-top:5px"></div></div>' +
       '<div style="border-top:1px solid var(--bdr);padding-top:8px;margin-top:10px"><b style="font-size:.85rem">Recent messages</b><div id="waRecent" style="font-size:.74rem;color:var(--txt3);margin-top:4px">Loading…</div></div>' +
       '<div style="font-size:.68rem;color:var(--txt4);margin-top:10px;line-height:1.5">Only message people who have agreed to hear from you on WhatsApp, and keep to Meta\'s WhatsApp Business policy. Meta charges a small fee per template message that starts a conversation; replies within 24 hours of a person messaging you are free.</div>';
+    try { if (window.DSQAA) DSQAA.mount().then(function () { if (m.__tab === 'auto') { var h = document.getElementById('aaHolder'); if (h) h.scrollIntoView({ block: 'start' }); m.__tab = null; } }); } catch (e) { }
   }
   async function saveSettings() {
     CFG.enabled = !!document.getElementById('waMaster').checked; CFG.instructor = !!document.getElementById('waInstr').checked; CFG.student = !!document.getElementById('waStu').checked;
@@ -169,7 +175,7 @@
   async function recent() {
     var el = document.getElementById('waRecent'); if (!el) return;
     try {
-      var r = await SBc().from('whatsapp_messages').select('*').order('created_at', { ascending: false }).limit(20);
+      var r = await SBc().from('wa_log').select('*').order('created_at', { ascending: false }).limit(20);
       if (r.error) { el.innerHTML = /does not exist|relation|schema cache/i.test(r.error.message || '') ? 'One-time setup: run <code>20261128_whatsapp.sql</code> in the Supabase SQL Editor.' : E(r.error.message); return; }
       el.innerHTML = (r.data || []).length ? r.data.map(function (x) { var c = x.status === 'failed' ? '#f87171' : x.status === 'read' || x.status === 'delivered' ? '#22c55e' : 'var(--txt3)'; return '<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid var(--bdr)"><span style="min-width:96px;color:var(--txt4)">' + new Date(x.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span><span style="flex:1">' + (x.direction === 'in' ? '⬅️ ' : '➡️ ') + E(x.to_phone || '') + ' · ' + E(x.template || x.body || '').slice(0, 60) + (x.payload ? ' <b>' + E(String(x.payload).split(':')[0]) + '</b>' : '') + '</span><span style="color:' + c + ';font-weight:700">' + E(x.status || '') + (x.error ? ' — ' + E(x.error).slice(0, 50) : '') + '</span></div>'; }).join('') : 'Nothing sent yet.';
     } catch (e) { el.textContent = 'Could not load.'; }
@@ -177,5 +183,5 @@
   async function copyTpl(k) { try { await navigator.clipboard.writeText(TPL[k].body); toast('Copied', 'success', 1500); } catch (e) { window.prompt('Copy:', TPL[k].body); } }
 
   (function init() { var n = 0, t = setInterval(function () { n++; if (n > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb()) { clearInterval(t); load().then(function () { if (CFG.enabled) status().then(dot); dot(); }); } }, 1000); })();
-  window.DSQWA = { load: load, status: status, isOn: isOn, afterAssign: afterAssign, openSettings: openSettings, saveSettings: saveSettings, recheck: recheck, test: test, copyTpl: copyTpl, mountAssign: mountAssign, sendTemplate: sendTemplate, TPL: TPL, _cfg: function () { return CFG; } };
+  window.DSQWA = { call: call, load: load, status: status, isOn: isOn, afterAssign: afterAssign, openSettings: openSettings, saveSettings: saveSettings, recheck: recheck, test: test, copyTpl: copyTpl, mountAssign: mountAssign, sendTemplate: sendTemplate, TPL: TPL, _cfg: function () { return CFG; } };
 })();
