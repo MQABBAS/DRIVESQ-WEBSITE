@@ -5021,6 +5021,19 @@ function _flagRows(){
   return _refData.filter(r=>!r.is_cancelled&&!r.is_credit&&new Date(r.created_at).getTime()>=since);
 }
 function _flagAge(r){return Math.floor((Date.now()-new Date(r.created_at))/864e5);}
+/* referral instructors with several booked students whose fee is not paid yet: shown in Find & Assign and used by auto-assign (soft limit) */
+function _unpaidBookedStats(instrId){
+  try{
+    const i=(allInstrs||[]).find(x=>String(x.id)===String(instrId));if(!i||String(i.instructor_model||'').toLowerCase()!=='referral')return null;
+    let n=0,amt=0;(_refData||[]).forEach(r=>{if(String(r.instructor_id)!==String(instrId)||r.is_paid||r.is_cancelled||r.is_credit)return;if(_refAdminBooked(r)){n++;amt+=parseFloat(r.amount)||0;}});
+    return{n,amt};
+  }catch(e){return null;}
+}
+function _unpaidChip(instrId){
+  const lim=(window.DSQAA&&DSQAA._cfg&&DSQAA._cfg().unpaidLimit);const limit=lim==null?2:lim;if(!limit)return'';
+  const u=_unpaidBookedStats(instrId);if(!u||u.n<1)return'';const over=u.n>=limit;
+  return`<div style="font-size:.7rem;font-weight:700;color:${over?'#ef4444':'#f59e0b'};background:${over?'rgba(239,68,68,.1)':'rgba(245,158,11,.1)'};border:1px solid ${over?'rgba(239,68,68,.4)':'rgba(245,158,11,.35)'};border-radius:6px;padding:4px 9px;margin-top:5px;display:inline-flex;align-items:center;gap:5px">💷 ${u.n} booked student${u.n===1?'':'s'} not paid yet · £${u.amt.toFixed(0)}${over?' — send them last':''}</div>`;
+}
 /* ── Investigate: instructors who were given lots of jobs but have marked few of them ── */
 function _invSnooze(){try{return JSON.parse(localStorage.getItem('dsq_inv_snooze')||'{}');}catch(e){return {};}}
 function _invStats(includeSnoozed){
@@ -8893,6 +8906,7 @@ async function findClosest(){
   // manual entries (WhatsApp / calls typed in by hand) must say where the student came from; website bookings already carry it
   if(!leadSource&&!(window._waitlistIdToAssign||window._pendingWbId||_reassignContext)){showToast('Pick how they found DriveSQ. It keeps your Instagram, Google and search numbers accurate.','error',5000);try{document.getElementById('fc-source').focus();}catch(e){}return;}
   const btn=document.getElementById('findBtn');btn.innerHTML='<i class="bi bi-hourglass-split me-1"></i>Searching…';btn.disabled=true;
+  try{if(!(_refData&&_refData.length))await _ensureRefData();}catch(e){}
   // Ensure student roster is loaded for postcode frequency analysis
   try{if(!allStudentsCache||!allStudentsCache.length) await loadAllStudents();}catch(e){console.warn('findClosest: student list not loaded',e);}
   // Refresh weekly assignment counts from DB so stale in-memory values never persist across week boundaries
@@ -9041,7 +9055,7 @@ async function findClosest(){
               ${areaNote}
               ${weekAssignNote}
               ${weekBookedNote}
-              ${pkgNote}
+              ${pkgNote}${_unpaidChip(r.instr.id)}
               ${(()=>{try{return DSQInsights.noteLine(r.instr.id);}catch(e){return'';}})()}
               ${creditNote}
             </div>

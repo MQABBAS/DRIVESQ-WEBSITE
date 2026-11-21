@@ -52,3 +52,6 @@ Cron (one-time): Supabase → Integrations → Cron → every 2 minutes → Edge
 4. **No reply in 1 day** → the instructor gets *"Did [student] book?"* with **Booked / Not yet / Student left**; their answer is recorded the same way.
 5. Repeats every **5 days**, up to **4 rounds**, then attention required. It stops as soon as someone says booked or left, or you mark it in admin.
 All times and counts are settings in Admin → WhatsApp → Auto-assign. Run `supabase/migrations/20261129_followups.sql` once, create the two check-in templates (`dsq_student_checkin`, `dsq_instructor_checkin`), and the Supabase Cron job (every 2 minutes) runs the follow-ups even when auto-assign is off.
+
+## Unpaid fees (referral instructors)
+A referral instructor with **2 or more students confirmed booked whose referral fee is not marked paid** is asked **last** for new students (a soft limit, like the others: if everyone else declines, they still get one). You get a **💷 Unpaid fees** item in the 🚨 attention list with the amount and two buttons: **Copy balance message** and **WhatsApp the balance** (the amount only, no student names). It clears by itself once the fees are marked paid. Find & Assign shows a "💷 2 booked students not paid yet · £50" chip on the instructor's card. The number is a setting (0 = off). Franchise instructors are not affected.

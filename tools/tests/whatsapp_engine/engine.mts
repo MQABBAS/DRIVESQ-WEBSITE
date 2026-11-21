@@ -95,3 +95,20 @@ ok(sent("dsq_student_checkin").length === n0 && fD.state === "done", "already bo
 console.log("== 9. Instructor can't cover after assignment ==");
 DB.waiting_list = [W("Decline Dot", "M13 9AA")]; await call({ action: "auto_assign", cron: true }); const dt = DB.referrals.find((x) => x.student_name === "Decline Dot"); await hook({ from: "447700900001", p: "DECLINE:" + dt.id });
 ok(DB.student_followups.find((f) => f.referral_id === String(dt.id)).state === "closed" && DB.admin_attention.some((a) => a.kind === "declined_after"), "decline -> follow-up closed + attention");
+
+console.log("== 10. Unpaid booked students (referral instructors) ==");
+DB.referrals = []; DB.admin_attention = [];
+const dd2 = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+const bk = (id, iid, amt, paid = false) => ({ id, instructor_id: iid, student_name: "P" + id, amount: amt, is_paid: paid, created_at: new Date(now - 20 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: dd2 + " · ✅ Booked — confirmed by student", is_cancelled: false, is_credit: false });
+DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25), bk("u3", "i1", 25, true)];   // Dawood: 2 booked + unpaid, 1 paid
+DB.waiting_list = [W("Unpaid Una", "M13 9AA")]; r = await call({ action: "auto_assign", dry: true }); console.log("   ->", r.results[0].instructor, "|", r.results[0].why);
+ok(r.results[0].instructor === "Sara Female" && /2 booked students not paid yet \(£50\)/.test(r.results[0].why), "2 booked + unpaid -> Dawood asked last (soft), Sara gets it, reason shows the £");
+await call({ action: "auto_assign", cron: true }); const ua = DB.admin_attention.filter((a) => a.kind === "unpaid_fees");
+ok(ua.length === 1 && /£50/.test(ua[0].title) && ua[0].instructor_id === "i1", "attention: '" + (ua[0] && ua[0].title) + "'");
+await call({ action: "auto_assign", cron: true }); ok(DB.admin_attention.filter((a) => a.kind === "unpaid_fees").length === 1, "only one alert (no repeats)");
+DB.referrals.find((x) => x.id === "u1").is_paid = true; await call({ action: "auto_assign", cron: true });
+ok(DB.admin_attention.find((a) => a.kind === "unpaid_fees").resolved === true, "one fee marked paid (1 left unpaid) -> alert clears itself");
+DB.referrals = [bk("u1", "i3", 0), bk("u2", "i3", 0)]; DB.admin_attention = []; await call({ action: "auto_assign", cron: true });
+ok(DB.admin_attention.filter((a) => a.kind === "unpaid_fees").length === 0, "franchise instructors are not affected");
+DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value.unpaidLimit = 0; DB.waiting_list = [W("Unpaid Una2", "M13 9AA")]; r = await call({ action: "auto_assign", dry: true });
+ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");

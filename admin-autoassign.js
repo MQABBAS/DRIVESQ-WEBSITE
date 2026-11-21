@@ -4,7 +4,7 @@
    - Instructor traits: "Female instructor" and "Don't auto-assign" on each instructor's profile. */
 (function () {
   'use strict';
-  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 5, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, femaleRule: 'require', hours: [8, 21], replyHours: 5, retries: 2, maxPerWeek: 0,
+  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 5, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, unpaidLimit: 2, femaleRule: 'require', hours: [8, 21], replyHours: 5, retries: 2, maxPerWeek: 0,
     messageInstructor: true, messageStudent: true, adminPhone: '', adminAlerts: true, refFee: 25, followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 1, repeatDays: 5, rounds: 4 } };
   var CFG = JSON.parse(JSON.stringify(DEF)), loaded = false, ATT = [], seen = null;
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
@@ -36,7 +36,7 @@
       '<label style="font-size:.74rem;display:block;margin:4px 0"><span style="color:var(--txt3)">What should it do?</span><select id="aaMode" class="dsq-inp" style="margin-top:2px"><option value="assign"' + (CFG.mode === 'assign' ? ' selected' : '') + '>Assign and send WhatsApp messages</option><option value="suggest"' + (CFG.mode === 'suggest' ? ' selected' : '') + '>Only suggest: tell me who it would pick (no assigning, no messages)</option></select></label>' +
       '<label style="display:flex;gap:6px;align-items:center;font-size:.74rem;margin:4px 0"><input type="checkbox" id="aaOlder"> When I switch it on, also include bookings that are already waiting (otherwise only new ones from now)</label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:8px 0">' +
-        num('aaAuto', 'Assign straight away if within (miles)', CFG.autoMiles, 'Up to this distance the instructor is assigned without asking first') + num('aaConf', 'Distance limit (miles)', CFG.confirmMiles, 'Up to this distance, the instructor is asked to accept first. Over this: attention required') + num('aaDay', 'Soft limit: students given today', CFG.dailyLimit, 'Over this, the instructor is asked LAST (closest first among the others)') + num('aaWeek', 'Soft limit: booked this week', CFG.weeklyLimit, 'Over this, the instructor is asked LAST') +
+        num('aaAuto', 'Assign straight away if within (miles)', CFG.autoMiles, 'Up to this distance the instructor is assigned without asking first') + num('aaConf', 'Distance limit (miles)', CFG.confirmMiles, 'Up to this distance, the instructor is asked to accept first. Over this: attention required') + num('aaDay', 'Soft limit: students given today', CFG.dailyLimit, 'Over this, the instructor is asked LAST (closest first among the others)') + num('aaWeek', 'Soft limit: booked this week', CFG.weeklyLimit, 'Over this, the instructor is asked LAST') + num('aaUnpaid', 'Soft limit: booked but unpaid (referral instructors)', CFG.unpaidLimit, 'At this many booked students with unpaid fees, the instructor is asked LAST and you get an alert. 0 = off') +
         num('aaReply', 'Hours to wait for a reply', CFG.replyHours) + num('aaRetry', 'Other instructors to try', CFG.retries, 'After a "can\'t take" or no reply') + num('aaCap', 'Max new students per instructor a week (0 = no limit)', CFG.maxPerWeek) + num('aaFee', 'Referral fee to record (£)', CFG.refFee, 'Recorded for referral instructors. Franchise = £0') +
         num('aaH1', 'Run from (UK hour)', CFG.hours[0]) + num('aaH2', 'Run until (UK hour)', CFG.hours[1]) + '</div>' +
       '<label style="font-size:.74rem;display:block;margin:4px 0"><span style="color:var(--txt3)">Booking asks for a female instructor</span><select id="aaFem" class="dsq-inp" style="margin-top:2px"><option value="require"' + (CFG.femaleRule === 'require' ? ' selected' : '') + '>Only female instructors (tick "Female instructor" on their profile)</option><option value="prefer"' + (CFG.femaleRule === 'prefer' ? ' selected' : '') + '>Prefer female, but anyone is allowed</option></select></label>' +
@@ -59,7 +59,7 @@
     CFG.enabled = on; CFG.mode = v('aaMode'); CFG.autoMiles = n('aaAuto', 5); CFG.confirmMiles = Math.max(CFG.autoMiles, n('aaConf', 8)); CFG.replyHours = n('aaReply', 5); CFG.retries = Math.max(0, n('aaRetry', 2)); CFG.maxPerWeek = Math.max(0, n('aaCap', 0)); CFG.refFee = Math.max(0, n('aaFee', 25));
     CFG.hours = [Math.max(0, Math.min(23, n('aaH1', 8))), Math.max(1, Math.min(24, n('aaH2', 21)))]; CFG.femaleRule = v('aaFem'); CFG.adminPhone = v('aaPhone').trim(); CFG.adminAlerts = !!document.getElementById('aaAlert').checked;
     CFG.messageInstructor = !!document.getElementById('aaMi').checked; CFG.messageStudent = !!document.getElementById('aaMs').checked;
-    CFG.dailyLimit = Math.max(0, n('aaDay', 2)); CFG.weeklyLimit = Math.max(0, n('aaWeek', 4)); CFG.followups = { enabled: !!document.getElementById('aaFuOn').checked, acceptWaitHours: Math.max(1, n('aaFuAcc', 24)), checkinDays: Math.max(0, n('aaFuDays', 3)), instructorAfterDays: Math.max(0, n('aaFuIns', 1)), repeatDays: Math.max(1, n('aaFuRep', 5)), rounds: Math.max(1, Math.round(n('aaFuRounds', 4))) };
+    CFG.dailyLimit = Math.max(0, n('aaDay', 2)); CFG.weeklyLimit = Math.max(0, n('aaWeek', 4)); CFG.unpaidLimit = Math.max(0, n('aaUnpaid', 2)); CFG.followups = { enabled: !!document.getElementById('aaFuOn').checked, acceptWaitHours: Math.max(1, n('aaFuAcc', 24)), checkinDays: Math.max(0, n('aaFuDays', 3)), instructorAfterDays: Math.max(0, n('aaFuIns', 1)), repeatDays: Math.max(1, n('aaFuRep', 5)), rounds: Math.max(1, Math.round(n('aaFuRounds', 4))) };
     if (on && !was) CFG.since = document.getElementById('aaOlder').checked ? '' : new Date().toISOString();   // only bookings from now on, unless you say otherwise
     if (!(await save())) return; log('Auto-assign turned ' + (on ? 'ON (' + CFG.mode + ')' : 'OFF'));
     toast(on ? '🤖 Auto-assign is ON' + (CFG.mode === 'suggest' ? ' (suggest only)' : '') : 'Auto-assign is OFF', 'success', 3500); mount(); try { window.refreshAutoAssignBtn(); } catch (e) { }
@@ -85,7 +85,7 @@
   async function oldOff() { try { await SBc().from('app_settings').update({ value: 'false', updated_at: new Date().toISOString() }).eq('key', 'autopilot_enabled'); toast('Old autopilot switched off', 'success', 3000); } catch (e) { toast('Could not: ' + e.message, 'error'); } mount(); try { window.refreshAutoAssignBtn(); } catch (e) { } }
 
   /* ---------- attention required ---------- */
-  var KIND = { no_match: '🔍 No match', declined: '🚫 Declined', declined_after: '🚫 Can\'t cover', no_reply: '⏰ No reply', postcode: '📍 Postcode', suggest: '💡 Suggestion', assign_failed: '⚠️ Failed', msg_failed: '💬 Message failed', no_accept: '⏳ Not accepted', no_confirm: '❓ No confirmation', not_contacted: '📵 Not contacted' };
+  var KIND = { no_match: '🔍 No match', declined: '🚫 Declined', declined_after: '🚫 Can\'t cover', no_reply: '⏰ No reply', postcode: '📍 Postcode', suggest: '💡 Suggestion', assign_failed: '⚠️ Failed', msg_failed: '💬 Message failed', no_accept: '⏳ Not accepted', no_confirm: '❓ No confirmation', not_contacted: '📵 Not contacted', unpaid_fees: '💷 Unpaid fees' };
   function badge() {
     var b = document.getElementById('attnBtn'), host = document.getElementById('waApiBtn');
     if (!b && host) { b = document.createElement('button'); b.id = 'attnBtn'; b.type = 'button'; b.onclick = openAttention; b.style.cssText = 'display:none;align-items:center;gap:6px;background:#dc2626;color:#fff;border:0;border-radius:9px;padding:6px 11px;font-size:.76rem;font-weight:800;cursor:pointer;white-space:nowrap;animation:attnPulse 2s infinite'; host.parentNode.insertBefore(b, host); var st = document.createElement('style'); st.textContent = '@keyframes attnPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}50%{box-shadow:0 0 0 7px rgba(220,38,38,0)}}'; document.head.appendChild(st); }
@@ -102,14 +102,26 @@
       var m = document.getElementById('attnModal'); if (m) renderAttention();
     } catch (e) { }
   }
+
+  /* "send the balance only": the amount, no student names */
+  function unpaidOf(id) { var n = 0, amt = 0; (window.DSQ_ADMIN.refs() || []).forEach(function (r) { if (String(r.instructor_id) !== String(id) || r.is_paid || r.is_cancelled || r.is_credit) return; try { if (window._refAdminBooked(r)) { n++; amt += parseFloat(r.amount) || 0; } } catch (e) { } }); return { n: n, amt: amt }; }
+  function balanceMsg(id) {
+    var i = (window.DSQ_ADMIN.instrs() || []).find(function (x) { return String(x.id) === String(id); }) || {}, u = unpaidOf(id);
+    return 'Hi ' + String(i.full_name || '').split(' ')[0] + ', you have ' + u.n + ' booked student' + (u.n === 1 ? '' : 's') + ' with £' + u.amt.toFixed(0) + ' in referral fees outstanding. Please pay and let us know, and we will keep sending you students. Thank you! DriveSQ';
+  }
+  function balanceButtons(id) {
+    var i = (window.DSQ_ADMIN.instrs() || []).find(function (x) { return String(x.id) === String(id); }) || {}, ph = String(i.phone || '').replace(/\D/g, ''); ph = ph.indexOf('44') === 0 ? ph : ph.replace(/^0/, '44');
+    return '<button class="btn-s" style="font-size:.72rem" onclick="DSQAA.copyBalance(\'' + id + '\')">📋 Copy balance message</button>' + (ph ? '<a class="btn-s" style="font-size:.72rem;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/' + ph + '?text=' + encodeURIComponent(balanceMsg(id)) + '">💬 WhatsApp the balance</a>' : '');
+  }
+  async function copyBalance(id) { var m = balanceMsg(id); try { await navigator.clipboard.writeText(m); toast('Balance message copied', 'success', 2000); } catch (e) { window.prompt('Copy this message:', m); } }
   function renderAttention() {
     var m = document.getElementById('attnModal'); if (!m) return;
     m.firstChild.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-family:\'Oswald\',sans-serif;font-size:1.2rem;font-weight:700">🚨 Attention required</div><button class="btn-s" onclick="document.getElementById(\'attnModal\').remove()">Close</button></div>' +
       (ATT.length ? ATT.map(function (a) {
         return '<div style="border:1px solid #dc262666;background:rgba(220,38,38,.06);border-radius:12px;padding:10px 12px;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:.64rem;font-weight:800;padding:2px 8px;border-radius:99px;background:rgba(220,38,38,.18);color:#f87171">' + (KIND[a.kind] || E(a.kind)) + '</span><b style="font-size:.84rem">' + E(a.title) + '</b><span style="margin-left:auto;font-size:.68rem;color:var(--txt4)">' + ago(a.created_at) + '</span></div>' +
           (a.detail ? '<div style="font-size:.76rem;color:var(--txt3);margin:5px 0">' + E(a.detail) + '</div>' : '') + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
-          (a.waiting_id && !/-stu$/.test(a.waiting_id) ? '<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="DSQAA.openBooking(\'' + a.waiting_id + '\',\'' + a.id + '\')">Open in Find &amp; Assign</button><button class="btn-s" style="font-size:.72rem" title="Let auto-assign try this booking again" onclick="DSQAA.retry(\'' + a.waiting_id + '\',\'' + a.id + '\')">Try again</button>' : '') +
-          (a.instructor_id ? '<button class="btn-s" style="font-size:.72rem" onclick="document.getElementById(\'attnModal\').remove();openRefDetail(\'' + a.instructor_id + '\',true)">Instructor\'s students</button>' : '') +
+          (a.waiting_id && !/-stu$/.test(a.waiting_id) && a.kind !== 'unpaid_fees' ? '<button class="btn-p" style="font-size:.72rem;padding:4px 12px" onclick="DSQAA.openBooking(\'' + a.waiting_id + '\',\'' + a.id + '\')">Open in Find &amp; Assign</button><button class="btn-s" style="font-size:.72rem" title="Let auto-assign try this booking again" onclick="DSQAA.retry(\'' + a.waiting_id + '\',\'' + a.id + '\')">Try again</button>' : '') +
+          (a.kind === 'unpaid_fees' && a.instructor_id ? balanceButtons(a.instructor_id) : '') + (a.instructor_id ? '<button class="btn-s" style="font-size:.72rem" onclick="document.getElementById(\'attnModal\').remove();openRefDetail(\'' + a.instructor_id + '\',true)">Instructor\'s students</button>' : '') +
           '<button class="btn-s" style="font-size:.72rem;margin-left:auto" onclick="DSQAA.resolve(\'' + a.id + '\')">✓ Done</button></div></div>';
       }).join('') : '<div style="padding:18px;text-align:center;color:#22c55e;font-weight:700">✅ Nothing needs your attention</div>');
   }
@@ -182,5 +194,5 @@
   }
   takeOver(); window.addEventListener('load', function () { takeOver(); setTimeout(takeOver, 1500); });   // the page's own script defines these after this file loads, so take over again once everything is ready
   (function init() { var t0 = 0, t = setInterval(function () { t0++; if (t0 > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb() && document.getElementById('waApiBtn')) { clearInterval(t); load().then(function () { poll(); setInterval(poll, 60000); }); } }, 1000); })();
-  window.DSQAA = { readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, fillTraits: fillTraits, setTrait: setTrait, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
+  window.DSQAA = { copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, fillTraits: fillTraits, setTrait: setTrait, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
 })();

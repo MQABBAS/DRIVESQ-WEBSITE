@@ -91,6 +91,7 @@ const DEFAULT_CFG = {
   confirmMiles: 8,                 // the limit: up to this many miles the instructor is asked to accept first. Over it: attention required
   dailyLimit: 2,                   // soft limit: students assigned to an instructor today. Over it they are asked LAST
   weeklyLimit: 4,                  // soft limit: students confirmed booked this week (Mon-Sun). Over it they are asked LAST
+  unpaidLimit: 2,                  // soft limit (referral instructors): booked students whose referral fee is not yet paid. At this many they are asked LAST and you are told to send the balance. 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 21],                  // only run between these UK hours
   replyHours: 5,                   // how long an instructor has to accept an offer
@@ -185,7 +186,31 @@ async function candidateData(sb: any) {
     const age = (Date.now() - new Date(r.created_at).getTime()) / 864e5; if (age < 7) return;
     s.total++; if (isBooked(r)) s.booked++; else if (!r.flag_color && !r.reply_status && !r.is_paid && age >= 3) s.unmarked++;
   });
+  // booked students whose referral fee is not paid yet (all time, not just 90 days)
+  const { data: unpaid } = await sb.from("referrals").select("*").eq("is_paid", false);
+  (unpaid || []).forEach((r: any) => {
+    if (r.is_cancelled || r.is_credit || !isBooked(r)) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 };
+    s.unpaidBooked = (s.unpaidBooked || 0) + 1; s.unpaidAmount = (s.unpaidAmount || 0) + (parseFloat(r.amount) || 0);
+  });
   return { instrs: instrs || [], stats, traits, packages };
+}
+
+
+/* referral instructors with too many booked-but-unpaid students: tell the admin once (the item clears itself when the fees are marked paid) */
+async function checkUnpaid(sb: any, cfg: any, cd: any) {
+  if (!(cfg.unpaidLimit > 0)) return [];
+  const out: any[] = [];
+  for (const i of cd.instrs) {
+    if (String(i.instructor_model || "").toLowerCase() !== "referral") continue;
+    const st = cd.stats[i.id] || {}, n = st.unpaidBooked || 0, amt = Math.round((st.unpaidAmount || 0) * 100) / 100, key = "unpaid-" + i.id;
+    if (n >= cfg.unpaidLimit) {
+      await attention(sb, cfg, { kind: "unpaid_fees", title: `${i.full_name} has ${n} booked students not paid for (£${amt})`, detail: `New students go to other instructors first until these are marked paid. Send them a statement, or just the balance: £${amt}.`, waiting_id: key, instructor_id: String(i.id) });
+      out.push({ instructor: i.full_name, unpaid: n, amount: amt });
+    } else {
+      await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false);
+    }
+  }
+  return out;
 }
 
 /* rank the instructors for one booking. exclude = ids already asked */
@@ -209,6 +234,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
     const over: string[] = [];
     if (cfg.dailyLimit > 0 && r.st.today >= cfg.dailyLimit) over.push(`already given ${r.st.today} today`);
     if (cfg.weeklyLimit > 0 && r.st.bookedWeek >= cfg.weeklyLimit) over.push(`already ${r.st.bookedWeek} booked this week`);
+    if (cfg.unpaidLimit > 0 && String(r.i.instructor_model || "").toLowerCase() === "referral" && (r.st.unpaidBooked || 0) >= cfg.unpaidLimit) over.push(`${r.st.unpaidBooked} booked students not paid yet (£${Math.round(r.st.unpaidAmount || 0)})`);
     out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
   }
   // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
@@ -313,9 +339,13 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
 async function autoAssign(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now();
   let followups: any[] = [];
-  if (!dry && body.cron) { try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); } }   // checking whether students booked runs whether or not auto-assign is on
+  let unpaidAlerts: any[] = [];
+  if (!dry && body.cron) {   // these run whether or not auto-assign is on
+    try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
+    try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) unpaidAlerts = await checkUnpaid(sb, cfg, await candidateData(sb)); } catch (e) { console.error("unpaid", e); }
+  }
   if (!dry && body.cron && !body.force) {
-    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups };
+    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts };
     const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return { ok: true, waiting: `Runs between ${cfg.hours[0]}:00 and ${cfg.hours[1]}:00 UK time` };
   }
   if (!dry && !cfg.enabled && !body.force) return { ok: true, off: true, message: "Auto-assign is switched off" };
@@ -349,7 +379,7 @@ async function autoAssign(sb: any, body: any) {
     if (error || !job) continue;   // someone else is already handling it
     results.push({ student: b.name, ...(await decide(sb, cfg, b, cd, job, [], 1, false)) });
   }
-  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
+  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, unpaidAlerts, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
 }
 
 /* ---------- replies from instructors ---------- */
