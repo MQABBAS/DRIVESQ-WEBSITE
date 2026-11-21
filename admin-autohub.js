@@ -63,7 +63,7 @@
   function owed(i) {
     var cfg = DATA.cfg, pk = DATA.pk || {}, p = (pk.by || {})[i.id], tiers = pk.tiers || {}, def = { normal: { noGuarantee: true }, silver: { min: 3 }, gold: { min: 5 }, platinum: { min: 7 } }, t = p && p.tier && p.active !== false ? (tiers[p.tier] || def[p.tier]) : null;
     var start = ((pk.frStart || {})[i.id]) || (p && p.start) || '', started = !start || start <= new Date().toISOString().slice(0, 10), min = 0, src = '';
-    if (t && !t.noGuarantee) { min = p.min != null && p.min !== '' ? +p.min : (t.min || 0); src = 'package'; } else if (!t && String(i.instructor_model || '').toLowerCase() === 'franchise' && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = 'franchise'; }
+    if (t && !t.noGuarantee) { min = p.min != null && p.min !== '' ? +p.min : (t.min || 0); src = 'package'; } else if ((!t || t.noGuarantee) && String(i.instructor_model || '').toLowerCase() === 'franchise' && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = 'franchise'; }
     return { min: min, start: start, started: started, src: src };
   }
   function stats(i) {
@@ -223,7 +223,7 @@
     var h = document.getElementById('aaHub'); if (!h) return;
     if ((TAB === 'settings' || TAB === 'ready') && !full) return;   // do not redraw the form while you are typing in it
     try { await load(); } catch (e) { var o = document.getElementById('hubOut'); if (o) o.innerHTML = '<span style="color:#f87171">Could not load: ' + E(e.message || e) + '</span>'; return; }
-    var scrollY = h.scrollTop; shell(); h.scrollTop = scrollY;
+    var scrollY = h.scrollTop, keep = (document.getElementById('hubOut') || {}).innerHTML || ''; shell(); var ho = document.getElementById('hubOut'); if (ho && keep) ho.innerHTML = keep; h.scrollTop = scrollY;
   }
   async function open(tab) {
     if (tab) TAB = tab; var h = document.getElementById('aaHub'); if (h) h.remove(); h = document.createElement('div'); h.id = 'aaHub'; h.innerHTML = '<div class="hb"><div class="empty">Loading…</div></div>'; document.body.appendChild(h); document.body.style.overflow = 'hidden';

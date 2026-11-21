@@ -228,7 +228,7 @@ function entitlement(i: any, cd: any, cfg: any) {
   if (start && start > todayStr) return { started: false, min: 0, start, radius: cfg.confirmMiles, why: "starts " + start };
   let min = 0, radius = cfg.confirmMiles, src = "";
   if (t && !t.noGuarantee) { min = p.min != null && p.min !== "" ? +p.min : (t.min || 0); radius = Math.min(cfg.confirmMiles, t.radius || cfg.confirmMiles); src = (t.name || p.tier) + " package"; }
-  else if (!t && String(i.instructor_model || "").toLowerCase() === "franchise" && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = "franchise minimum"; }
+  else if ((!t || t.noGuarantee) && String(i.instructor_model || "").toLowerCase() === "franchise" && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = "franchise minimum"; }   // a franchise instructor with no package, or on Normal (no guarantee), is still offered students first until they have the franchise minimum
   return { started: true, min, radius, src };
 }
 /* days since this instructor was last given a student (no student in the last 90 days = 90). A new instructor counts from their start date */
@@ -586,6 +586,13 @@ async function autoAssign(sb: any, body: any) {
     const dup = ph10.length === 10 && seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : "";
     // an existing student booking again (given to an instructor in the last 14 days, and not marked left): it goes back to THEIR instructor, and you are told
     const prev = !dup && ph10.length === 10 ? recentRefs.filter((r: any) => last10(r.student_phone || "") === ph10 && r.reply_status !== "left" && r.flag_color !== "red").sort((a: any, c: any) => String(c.created_at).localeCompare(String(a.created_at)))[0] : null;
+    if (prev && (Date.now() - new Date(prev.created_at).getTime() < 6 * 3600e3 || /UPDATED request/i.test(String(w.notes || "")))) {   // an edited / re-sent form right after assignment: hold it, never offer the student twice
+      seenPhone.set(ph10, b.name);
+      if (dry) { results.push({ student: b.name, action: "duplicate", reason: "a request from this phone number was handled in the last few hours (or this is an updated request)" }); continue; }
+      const { data: dj2 } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "attention", attempt: 1, tried: [], note: "duplicate: updated or re-sent request" }]).select().single();
+      if (dj2) await attention(sb, cfg, { kind: "duplicate", title: "Possible duplicate booking: " + b.name, detail: "This phone number was given to an instructor in the last few hours, or the form was updated and sent again. Not assigned automatically. If it is a different student, open it in Find & Assign; otherwise mark it done.", waiting_id: String(w.id), student_name: b.name, quiet: true });
+      continue;
+    }
     if (prev) {
       seenPhone.set(ph10, b.name);
       if (dry) { const ix = cd.instrs.find((x: any) => String(x.id) === String(prev.instructor_id)); results.push({ student: b.name, action: "rebook", instructor: ix ? ix.full_name : "their instructor", reason: "existing student: goes back to their current instructor" }); continue; }
@@ -741,7 +748,7 @@ async function followupReply(sb: any, kind: string, fid: string, from: string) {
 }
 async function runFollowups(sb: any, cfg: any) {
   const f = cfg.followups; if (!f.enabled || !TOKEN || !PHONE_ID) return [];
-  const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return [];
+  const h = londonHour(), fh = cfg.anytime ? [8, 21] : cfg.hours; if (h < fh[0] || h >= fh[1]) return [];   // check-ins to students/instructors are not sent in the middle of the night, even in 24/7 mode
   const { data: rows } = await sb.from("student_followups").select("*");
   const due = (rows || []).filter((r: any) => !["done", "attention", "closed"].includes(r.state) && r.next_due && new Date(r.next_due).getTime() <= Date.now());
   const { data: instrs } = await sb.from("instructors").select("id,full_name,phone,status"); const out: any[] = [];

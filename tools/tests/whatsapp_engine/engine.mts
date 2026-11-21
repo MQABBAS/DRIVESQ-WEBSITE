@@ -327,3 +327,31 @@ let rf = await readF("Message from learner: I'd prefer a female instructor if po
 rf = await readF("👩 FEMALE INSTRUCTOR REQUESTED"); ok(rf.female === "require", "'FEMALE INSTRUCTOR REQUESTED' = only a woman");
 rf = await readF("👩 FEMALE PREFERRED REQUESTED"); ok(rf.female === "prefer", "'FEMALE PREFERRED REQUESTED' = preferred");
 rf = await readF("Nervous learner: yes"); ok(!rf.female, "no mention = no preference");
+
+console.log("== 26. Updated / re-sent forms are never offered twice ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require";
+DB.referrals = [{ id: "fresh1", instructor_id: "i1", student_name: "Fresh Fay", student_phone: "07811 999000", created_at: new Date(Date.now() - 30 * 60000).toISOString(), is_cancelled: false, is_credit: false }];
+DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W("Fresh Fay", "M13 9AA", "— UPDATED request", { student_phone: "07811999000" })]; await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs.length === 1 && /duplicate/.test(DB.auto_assign_jobs[0].note) && sent("dsq_student_offer").length === 0, "the same phone placed 30 minutes ago -> held as a duplicate, nobody is messaged");
+DB.referrals = [{ id: "d1", instructor_id: "i1", student_name: "Day Dee", student_phone: "07811 999111", created_at: new Date(Date.now() - 2 * 864e5).toISOString(), is_cancelled: false, is_credit: false }];
+DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W("Day Dee", "M13 9AA", "", { student_phone: "07811999111" })]; await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state === "pending_accept" && DB.auto_assign_jobs[0].instructor_id === "i1", "2 days later it is a genuine re-booking -> back to the same instructor");
+
+console.log("== 27. Garbage and strangers never crash the webhook ==");
+let crashed = 0; const tryHook = async (p, t) => { try { await hook(p, t); } catch (e) { crashed++; console.log("   threw:", String(e).slice(0, 120)); } };
+for (const p of ["OFFER_ACCEPT:nonexistent", "OFFER_DECLINE:", "ACCEPT:xyz", "DECLINE:", "STU_BOOKED:bad", "INS_LEFT:bad", "CONTACT_NO:bad", "FEM_YES:bad", "FEM_NO:", "TOTALLY_UNKNOWN:1", "OFFER_ACCEPT:" + "9".repeat(300)]) await tryHook({ from: "447999000111", p });
+for (const t of ["", "STOP", "yes", "no", "👍", "x".repeat(5000), "ACCEPT", "<script>alert(1)</script>"]) await tryHook({ from: "447999000222", t }, t);
+await tryHook({ from: "447700900001", t: "yes" }, "yes");   // a real instructor with nothing waiting
+ok(crashed === 0, "20 odd messages from strangers and instructors: no crash (" + crashed + " threw)");
+const bad = await h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-admin-key": "wrong" }, body: JSON.stringify({ action: "auto_assign" }) }));
+ok(bad.status === 401 || bad.status === 403, "wrong admin key is refused (" + bad.status + ")");
+const unk = await h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-admin-key": "adm" }, body: "not json" }));
+ok(unk.status < 500, "a body that is not JSON does not crash it (" + unk.status + ")");
+const nz = await call({ action: "no_such_action" }); ok(nz && nz.ok === false, "an unknown action is answered with an error");
+
+console.log("== 28. Franchise on the Normal package still gets the franchise minimum ==");
+cfgOf().franchiseMin = 3; cfgOf().fairnessMiles = 0; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
+const mo28 = DB.instructors.find((x) => x.id === "i3"); mo28.area = "M14 4AA"; mo28.postcode = "M14 4AA"; mo28.coverage_postcodes = "M14";
+DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "packages"); DB.growth_settings.push({ key: "packages", value: { by: { i3: { tier: "normal", fee: 50, active: true } }, tiers: {} } });
+DB.referrals = []; DB.auto_assign_jobs = []; DB.waiting_list = [W("Normal Nia", "M13 9AA", "", { student_phone: "07811000321" })];
+const pv28 = await call({ action: "auto_assign", dry: true }); ok(pv28.results[0].instructor === "Mo Sale" && /0 of 3/.test(pv28.results[0].why || ""), "franchise Mo on the Normal package (£50, no guarantee) is still offered first until 3 are booked (" + pv28.results[0].instructor + ")");
