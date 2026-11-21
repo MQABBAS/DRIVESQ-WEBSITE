@@ -1,0 +1,12 @@
+const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:420,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route('**/*',async r=>{const u=new URL(r.request().url());if(u.href.includes('supabase-js'))return r.fulfill({path:'/tmp/claude-0/sbjs/package/dist/umd/supabase.js',contentType:'application/javascript'});if(u.pathname.startsWith('/rest/v1/'))return r.fulfill({status:200,contentType:'application/json',body:'[]'});return u.hostname==='localhost'?r.continue():r.fulfill({status:200,body:''});});
+await p.addInitScript(()=>{localStorage.setItem('dsqm_key',JSON.stringify('k'));localStorage.setItem('dsq_admin_session',JSON.stringify({ok:true,ts:Date.now(),email:'t@t'}));});
+await p.goto('http://localhost:8765/admin.html',{waitUntil:'domcontentloaded'});await p.waitForTimeout(7000);
+await p.click('.dsq-sh-fab');await p.waitForTimeout(600);
+console.log('plus menu order:',await p.evaluate(()=>[...document.querySelectorAll('.dsq-sh-sheet .dsq-sh-t')].map(t=>t.innerText.trim()+(t.classList.contains('pri')?' [priority]':'')).join(' | ')));
+await p.screenshot({path:'/tmp/claude-0/plus.png'});
+await p.evaluate(()=>{[...document.querySelectorAll('.dsq-sh-sheet .dsq-sh-t')].find(t=>/Referrals/.test(t.innerText)).click()});await p.waitForTimeout(800);
+console.log('Referrals opened:',await p.evaluate(()=>!document.getElementById('panel-referrals').classList.contains('hidden')));
+await p.click('.dsq-sh-fab');await p.waitForTimeout(400);await p.evaluate(()=>{[...document.querySelectorAll('.dsq-sh-sheet .dsq-sh-t')].find(t=>/Find/.test(t.innerText)).click()});await p.waitForTimeout(800);
+console.log('Find & assign opened:',await p.evaluate(()=>!document.getElementById('panel-find').classList.contains('hidden')));
+console.log('errors:',errs.filter(e=>!/Chart/.test(e)).join('|')||'none');await b.close();})();

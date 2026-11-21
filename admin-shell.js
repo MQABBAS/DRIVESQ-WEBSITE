@@ -21,7 +21,8 @@
     { label: 'Insights', items: [['analytics', 'Analytics', 'bi-graph-up'], ['activity', 'Activity log', 'bi-activity'], ['infoview', 'Info', 'bi-info-circle-fill']] }];
   var ACTIONS = { '@webbookings': 'openWebBookingsPanel', '@theory': 'openTheoryProgressModal', '@reports': 'openReportsInbox' };
   var BADGES = { today: ['todayTabBadge', 'qaTodayBadge'], growth: ['gxTabBadge'], finance: ['financeBadge'], pending: ['pendingBadge'], messages: ['inboxBadge'], freehour: ['freehourBadge'], '@webbookings': ['webBookingsBadge'], '@reports': ['qaReportsBadge'] };
-  var QUICK = [['New customer', 'bi-person-plus-fill', 'adminNewCustomer()'], ['Website bookings', 'bi-globe2', 'openWebBookingsPanel()'], ['Find & assign', 'bi-geo-alt-fill', "dsqShellGo('find')"],
+  var QUICK = [['Find & assign', 'bi-geo-alt-fill', "dsqShellGo('find')", 1], ['Referrals', 'bi-cash-coin', "dsqShellGo('referrals')", 1],
+    ['New customer', 'bi-person-plus-fill', 'adminNewCustomer()'], ['Website bookings', 'bi-globe2', 'openWebBookingsPanel()'], ['Auto-assign', 'bi-robot', "try{DSQHub.open('overview')}catch(e){}"],
     ['Add student', 'bi-person-badge', "dsqShellGo('students');setTimeout(function(){try{openCreateStudentModal()}catch(e){}},300)"], ['Add lesson', 'bi-calendar-plus', 'openAddLessonModal(null)'],
     ['Search everything', 'bi-search', 'openGlobalSearch()'], ['Bulk message', 'bi-send-fill', "dsqShellGo('bulk')"], ['Add instructor', 'bi-person-plus', "dsqShellGo('add')"],
     ['Reports', 'bi-flag-fill', 'openReportsInbox()'], ['Theory progress', 'bi-book-fill', 'openTheoryProgressModal()'], ['Today', 'bi-sun-fill', 'openToday()'], ['All sections', 'bi-grid-3x3-gap-fill', 'dsqShellMenu()']];
@@ -67,6 +68,7 @@
     '.dsq-sh-t i{font-size:1.35rem;color:#ff4d55}.dsq-sh-t.on{border-color:#D10A11;background:rgba(209,10,17,.12)}' +
     '.dsq-sh-b{position:absolute;top:6px;right:6px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#D10A11;color:#fff;font:700 .68rem/20px Inter,sans-serif;text-align:center}.dsq-sh-b.gold{background:#F5C518;color:#111}' +
     '.dsq-sh-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--bdr,rgba(255,255,255,.1))}.dsq-sh-foot button{flex:1 1 120px;border:1px solid var(--bdr,rgba(255,255,255,.12));background:none;color:var(--txt2,#ccc);border-radius:12px;padding:10px;font-size:.82rem;cursor:pointer}' +
+    '.dsq-sh-t.pri{grid-column:span 1;border-color:#dc2626;background:rgba(220,38,38,.14);font-weight:800;color:inherit}.dsq-sh-t.pri i{color:#ef4444}' +
     '.dsq-sh-fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:301;width:56px;height:56px;border-radius:50%;border:0;background:linear-gradient(135deg,#ff2d35,#D10A11);color:#fff;font-size:1.6rem;box-shadow:0 10px 24px rgba(209,10,17,.45);display:none;cursor:pointer}' +
     '@media (max-width:699px){body.dsq-sh-on .dsq-sh-fab{display:grid;place-items:center}}' +
     /* phone: wide tables become cards */
@@ -97,7 +99,7 @@
   function openSheet(kind) {
     var h = '<div class="dsq-sh-panel" role="dialog" aria-modal="true" aria-label="' + (kind === 'quick' ? 'Quick actions' : 'All sections') + '"><div class="dsq-sh-grab"></div>';
     if (kind === 'quick') {
-      h += '<div class="dsq-sh-h">Quick actions</div><div class="dsq-sh-tiles">' + QUICK.map(function (q) { return '<button type="button" class="dsq-sh-t" data-run="' + esc(q[2]) + '"><i class="bi ' + q[1] + '"></i>' + esc(q[0]) + '</button>'; }).join('') + '</div>';
+      h += '<div class="dsq-sh-h">Quick actions</div><div class="dsq-sh-tiles">' + QUICK.map(function (q) { return '<button type="button" class="dsq-sh-t' + (q[3] ? ' pri' : '') + '" data-run="' + esc(q[2]) + '"><i class="bi ' + q[1] + '"></i>' + esc(q[0]) + '</button>'; }).join('') + '</div>';
     } else {
       h += '<input class="dsq-sh-q" type="search" placeholder="Find a section…" aria-label="Find a section">';
       var p = pins(), r = recents().filter(function (x) { return p.indexOf(x) < 0; }).slice(0, 4);
