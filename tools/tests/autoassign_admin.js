@@ -38,7 +38,7 @@ console.log('after resolve a2: count',await p.evaluate(()=>DSQAA._att().length),
 await p.evaluate(()=>DSQAA.retry('w9','a1'));await p.waitForTimeout(800);
 console.log('after retry: badge hidden:',await p.evaluate(()=>getComputedStyle(document.getElementById('attnBtn')).display==='none'));
 // settings: auto-assign block
-await p.evaluate(()=>DSQWA.openSettings('auto'));await p.waitForTimeout(2000);
+await p.evaluate(()=>DSQWA.openSettings('auto'));await p.waitForTimeout(2000);console.log('mount err:',await p.evaluate(async()=>{try{await DSQAA.mount();return 'none'}catch(e){return e.message}}));
 console.log('aa block:',await p.evaluate(()=>document.getElementById('aaHolder').innerText.replace(/\s+/g,' ').slice(0,260)));
 await p.evaluate(()=>{document.getElementById('aaOn').checked=true;document.getElementById('aaConf').value='12';document.getElementById('aaPhone').value='07700 900999';DSQAA.saveForm();});await p.waitForTimeout(1200);
 const row=DB.growth_settings.find(x=>x.key==='auto_assign_cfg');console.log('saved cfg:',JSON.stringify({enabled:row.value.enabled,confirm:row.value.confirmMiles,since:!!row.value.since,phone:row.value.adminPhone,mode:row.value.mode}));
@@ -53,4 +53,9 @@ await p.evaluate(()=>viewInstr('s'));await p.waitForTimeout(3000);
 console.log('traits row:',await p.evaluate(()=>{const t=document.getElementById('instrDetailGrid').innerText.replace(/\s+/g,' ');const i=t.toLowerCase().indexOf('auto-assign');return t.slice(i,i+170)}));
 await p.evaluate(()=>{const c=document.querySelector('#instrTraits-s input');c.checked=true;c.dispatchEvent(new Event('change',{bubbles:true}));});await p.waitForTimeout(900);
 console.log('traits saved:',JSON.stringify(DB.growth_settings.find(x=>x.key==='instructor_traits')&&DB.growth_settings.find(x=>x.key==='instructor_traits').value));
-console.log('errs',errs.slice(0,4));await b.close();})();
+console.log('errs',errs.slice(0,4));await p.evaluate(()=>DSQWA.openSettings('auto'));await p.waitForTimeout(1500);
+console.log('priority rows:',await p.evaluate(()=>[...document.querySelectorAll('#aaPrio > div > div')].map(d=>d.innerText.replace(/\s+/g,' ').slice(0,90)).join(' || ')));
+await p.evaluate(()=>DSQAA.setPrio('g','2'));await p.waitForTimeout(800);console.log('traits after Top:',JSON.stringify((DB.growth_settings.find(x=>x.key==='instructor_traits')||{}).value));
+await p.evaluate(()=>{document.getElementById('aaFrMin').value='4';document.getElementById('aaPrioMi').value='5';DSQAA.saveForm();});await p.waitForTimeout(1000);console.log('saved franchiseMin/priorityMiles:',DB.growth_settings.find(x=>x.key==='auto_assign_cfg').value.franchiseMin,DB.growth_settings.find(x=>x.key==='auto_assign_cfg').value.priorityMiles);
+await p.screenshot({path:'/tmp/claude-0/aa.png'});
+await b.close();})();
