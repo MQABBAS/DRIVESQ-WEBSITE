@@ -423,3 +423,19 @@ ok(rbCall.wa.template.components.filter((c) => c.type === "button").length === 2
 globalThis.FAIL_TEMPLATES.add("dsq_instructor_rebooked"); rebookSetup("Back Ben", "07855 000222"); await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_student_offer").length === 1 && DB.auto_assign_jobs[0].state === "pending_accept", "if the re-booking template is not approved yet, the normal offer is sent instead (nothing held up)");
 globalThis.FAIL_TEMPLATES.clear();
+
+console.log("== 34. Balance reminder to the instructor ==");
+cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().unpaidLimit = 2; cfgOf().anytime = true; cfgOf().hours = [0, 24]; delete cfgOf().balanceAuto;
+const bk34 = (id, iid, amt, paid = false) => ({ id, instructor_id: iid, student_name: "B" + id, student_phone: "0790" + id, amount: amt, is_paid: paid, created_at: new Date(Date.now() - 20 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: dd2 + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false });
+DB.referrals = [bk34("5001", "i1", 25), bk34("5002", "i1", 25), bk34("5003", "i1", 25), bk34("5004", "i1", 25, true), bk34("5005", "i3", 25), bk34("5006", "i3", 25)]; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = []; DB.auto_assign_jobs = []; CALLS.length = 0;
+await call({ action: "auto_assign", cron: true });
+const balCall = CALLS.find((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_instructor_balance");
+ok(sent("dsq_instructor_balance").length === 1 && balCall && balCall.wa.template.components[0].parameters.map((p) => p.text).join("|") === "Dawood|3|75", "referral instructor with 3 unpaid booked students: balance WhatsApp 'Dawood|3|75' (franchise Mo, with the same data, gets nothing)");
+ok(balCall.wa.template.components.some((c) => c.type === "button" && /^BAL_PAID:i1$/.test(c.parameters[0].payload)), "it carries an 'I've paid' button");
+await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 1, "the next run does not repeat it (once a week)");
+DB.wa_log.forEach((l) => { if (l.template === "dsq_instructor_balance") l.created_at = new Date(Date.now() - 8 * 864e5).toISOString(); }); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_instructor_balance").length === 2, "8 days later it is sent again");
+await hook({ from: "447700900001", p: "BAL_PAID:i1" }); ok(DB.admin_attention.some((a) => a.kind === "balance_paid"), "'I've paid' tapped -> you get an item to check the bank (nothing marked paid automatically)");
+cfgOf().mode = "suggest"; DB.wa_log = []; await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "in suggest mode nothing is sent");
+cfgOf().mode = "assign"; cfgOf().balanceAuto = false; await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "switched off in settings -> nothing is sent");
+delete cfgOf().balanceAuto;

@@ -121,6 +121,7 @@ const DEFAULT_CFG = {
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
   ackStudent: false, ackSince: "",   // WhatsApp the student as soon as a website booking arrives ("we have passed your details to an instructor")
+  balanceAuto: true,               // WhatsApp a referral instructor their outstanding balance (booked students not paid for) once a week, while auto-assign is ON in assign mode
   adminPhone: "", adminAlerts: true,
   refFee: 25,                      // referral fee recorded for referral-model instructors (franchise = 0)
   followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 0, repeatDays: 4, rounds: 4, maxPerWeek: 2 },   // 3 days after they accept, the student AND the instructor are asked at the same moment. After that every 4 days, at most 2 check-in messages a week to each person
@@ -302,6 +303,16 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
     if (n >= cfg.unpaidLimit) {
       await attention(sb, cfg, { kind: "unpaid_fees", title: `${i.full_name} has ${n} booked students not paid for (£${amt})`, detail: `New students go to other instructors first until these are marked paid. Send them a statement, or just the balance: £${amt}.`, waiting_id: key, instructor_id: String(i.id) });
       out.push({ instructor: i.full_name, unpaid: n, amount: amt });
+      // the balance goes to the instructor by WhatsApp, at most once every 7 days, only while auto-assign is ON and sending for real
+      if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0) {
+        const { data: pastB } = await sb.from("wa_log").select("instructor_id,created_at,status").eq("template", "dsq_instructor_balance");
+        const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && x.status !== "failed" && Date.now() - new Date(x.created_at).getTime() < 7 * 864e5);
+        if (!recent) {
+          const rb = await sendTemplate(sb, { to: i.phone, template: "dsq_instructor_balance", lang: "en_GB", params: [first(i.full_name), String(n), String(Math.round(amt * 100) % 100 === 0 ? Math.round(amt) : amt.toFixed(2))], buttons: ["BAL_PAID:" + i.id], instructor_id: String(i.id) });
+          if (rb.ok) { try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "balance_sent", summary: `💷 Balance reminder sent to ${i.full_name}: ${n} booked students, £${amt} unpaid (WhatsApp)`, actor_role: "system", actor_name: "Auto-assign", instructor_id: String(i.id) }]); } catch (_) { /* log only */ } }
+          else await attention(sb, cfg, { kind: "msg_failed", title: "Balance reminder to " + i.full_name + " did not send", detail: `${rb.error}. Use the "Copy balance message" button and send it yourself.`, waiting_id: "bal-" + i.id, instructor_id: String(i.id), quiet: true });
+        }
+      }
     } else {
       await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false);
     }
@@ -520,7 +531,7 @@ async function simulate(sb: any, body: any) {
   return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
 }
 /* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
-const OUR_TEMPLATES = ["dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
+const OUR_TEMPLATES = ["dsq_instructor_balance", "dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
 async function templateStatus() {
   const waba = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID");
   if (!TOKEN) return { ok: true, needToken: true, templates: [] };
@@ -648,6 +659,12 @@ async function autoAssign(sb: any, body: any) {
 async function instructorByPhone(sb: any, from: string) { const { data } = await sb.from("instructors").select("*").eq("status", "approved"); return (data || []).find((i: any) => last10(i.phone) === last10(from)) || null; }
 const YES = ["yes", "y", "yep", "yeah", "ok", "okay", "sure", "accept", "confirm", "confirmed", "ican", "cantake"], NO = ["no", "nope", "n", "cant", "cannot", "decline", "declined", "reject", "sorry"];
 const norm = (t: string) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+/* an instructor taps "I've paid" on the balance reminder: tell the admin to check the bank (nothing is marked paid automatically) */
+async function balancePaid(sb: any, instrId: string, from: string) {
+  const cfg = await loadCfg(sb); const { data: ins } = await sb.from("instructors").select("full_name").eq("id", instrId).maybeSingle(); const name = (ins && ins.full_name) || "An instructor";
+  await attention(sb, cfg, { kind: "balance_paid", title: `${name} says they have paid their balance`, detail: "Check the DriveSQ bank account, then mark the referral fees paid in Referrals. Nothing has been marked paid automatically.", waiting_id: "bal-paid-" + instrId, instructor_id: String(instrId) });
+  try { await sendText(from, "Thanks! We'll check and update your account shortly 👍"); } catch (_) { /* window */ }
+}
 /* the student answers "male instructor is fine" / "I'll wait" */
 async function femaleReply(sb: any, yes: boolean, jobId: string, from: string) {
   const cfg = await loadCfg(sb); const { data: job } = await sb.from("auto_assign_jobs").select("*").eq("id", jobId).maybeSingle(); if (!job) return;
@@ -820,6 +837,7 @@ async function webhook(sb: any, raw: string) {
       await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", raw: m }]);
       const fm = payload && String(payload).match(/^(STU_BOOKED|STU_NOTYET|STU_LEFT|INS_BOOKED|INS_NOTYET|INS_LEFT|CONTACT_YES|CONTACT_NO):(.+)$/);
       if (fm) { await followupReply(sb, fm[1], fm[2], m.from); continue; }
+      const bp = payload && String(payload).match(/^BAL_PAID:(.+)$/); if (bp) { await balancePaid(sb, bp[1], m.from); continue; }
       const fe = payload && String(payload).match(/^(FEM_YES|FEM_NO):(.+)$/); if (fe) { await femaleReply(sb, fe[1] === "FEM_YES", fe[2], m.from); continue; }
       const mm = payload && String(payload).match(/^(OFFER_ACCEPT|OFFER_DECLINE|ACCEPT|DECLINE):(.+)$/);
       if (mm) { if (mm[1].startsWith("OFFER_")) await offerReply(sb, mm[1] === "OFFER_ACCEPT", mm[2], m.from); else await assignedReply(sb, mm[1], mm[2], m.from); continue; }

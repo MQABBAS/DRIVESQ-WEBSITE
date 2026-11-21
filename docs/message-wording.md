@@ -50,3 +50,14 @@ Please reply within a few hours so we can find someone else if you can't. Thank 
 Variables: {{1}} instructor first name (Sara) · {{2}} student name (Alex Khan) · {{3}} area (M14) · {{4}} lesson type (Manual)
 Buttons (quick reply): "Accept" · "Can't take". No header.
 If this template is not approved yet, the normal offer message is sent instead, so nothing is held up.
+
+## Template to create: dsq_instructor_balance (utility, English UK)
+Sent automatically to a referral instructor with booked students not yet paid for (at least the "unpaid limit", default 2), at most once every 7 days, only while auto-assign is ON in Assign mode.
+Body:
+Hi {{1}}, this is a reminder from DriveSQ. You have {{2}} booked students with referral fees of £{{3}} still unpaid.
+
+Please pay the DriveSQ business account and tap the button below once it is done. New students are sent to other instructors first until your balance is cleared.
+
+Thank you!
+Variables: {{1}} instructor first name (Sara) · {{2}} number of booked students (3) · {{3}} amount without the £ sign (75)
+Button (quick reply): "I've paid"  ->  you get an Attention item to check the bank and mark the fees paid (nothing is marked paid automatically).
