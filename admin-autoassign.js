@@ -4,7 +4,7 @@
    - Instructor traits: "Female instructor" and "Don't auto-assign" on each instructor's profile. */
 (function () {
   'use strict';
-  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 5, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, unpaidLimit: 2, femaleRule: 'require', hours: [8, 21], replyMinutes: 45, ackStudent: false, ackSince: '', retries: 2, maxPerWeek: 0,
+  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 5, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, unpaidLimit: 2, femaleRule: 'require', hours: [8, 21], replyMinutes: 60, ackStudent: false, ackSince: '', retries: 2, maxPerWeek: 0,
     messageInstructor: true, messageStudent: true, adminPhone: '', adminAlerts: true, refFee: 25, followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 1, repeatDays: 5, rounds: 4 } };
   var CFG = JSON.parse(JSON.stringify(DEF)), loaded = false, ATT = [], seen = null;
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
@@ -57,7 +57,7 @@
   var v = function (id) { var e = document.getElementById(id); return e ? e.value : ''; }, n = function (id, d) { var x = parseFloat(v(id)); return isNaN(x) ? d : x; };
   async function saveForm() {
     await load(); var was = CFG.enabled, on = !!document.getElementById('aaOn').checked;
-    CFG.enabled = on; CFG.mode = v('aaMode'); CFG.autoMiles = n('aaAuto', 5); CFG.confirmMiles = Math.max(CFG.autoMiles, n('aaConf', 8)); CFG.replyMinutes = Math.max(5, n('aaReply', 45)); CFG.retries = Math.max(0, n('aaRetry', 2)); CFG.maxPerWeek = Math.max(0, n('aaCap', 0)); CFG.refFee = Math.max(0, n('aaFee', 25));
+    CFG.enabled = on; CFG.mode = v('aaMode'); CFG.autoMiles = n('aaAuto', 5); CFG.confirmMiles = Math.max(CFG.autoMiles, n('aaConf', 8)); CFG.replyMinutes = Math.max(5, n('aaReply', 60)); CFG.retries = Math.max(0, n('aaRetry', 2)); CFG.maxPerWeek = Math.max(0, n('aaCap', 0)); CFG.refFee = Math.max(0, n('aaFee', 25));
     CFG.hours = [Math.max(0, Math.min(23, n('aaH1', 8))), Math.max(1, Math.min(24, n('aaH2', 21)))]; CFG.femaleRule = v('aaFem'); CFG.adminPhone = v('aaPhone').trim(); CFG.adminAlerts = !!document.getElementById('aaAlert').checked;
     var wasAck = CFG.ackStudent; CFG.ackStudent = !!document.getElementById('aaAck').checked; if (CFG.ackStudent && !wasAck) CFG.ackSince = new Date().toISOString(); CFG.messageInstructor = !!document.getElementById('aaMi').checked; CFG.messageStudent = !!document.getElementById('aaMs').checked;
     CFG.dailyLimit = Math.max(0, n('aaDay', 2)); CFG.weeklyLimit = Math.max(0, n('aaWeek', 4)); CFG.unpaidLimit = Math.max(0, n('aaUnpaid', 2)); CFG.followups = { enabled: !!document.getElementById('aaFuOn').checked, acceptWaitHours: Math.max(1, n('aaFuAcc', 24)), checkinDays: Math.max(0, n('aaFuDays', 3)), instructorAfterDays: Math.max(0, n('aaFuIns', 1)), repeatDays: Math.max(1, n('aaFuRep', 5)), rounds: Math.max(1, Math.round(n('aaFuRounds', 4))) };

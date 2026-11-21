@@ -94,7 +94,7 @@ const DEFAULT_CFG = {
   unpaidLimit: 2,                  // soft limit (referral instructors): booked students whose referral fee is not yet paid. At this many they are asked LAST and you are told to send the balance. 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 21],                  // only run between these UK hours
-  replyMinutes: 45,                // how long an instructor has to accept an offer before it goes to the next instructor
+  replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
@@ -272,7 +272,8 @@ async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: a
   if (!cfg.messageStudent || !ref.student_phone) return "";
   const { data: wc } = await sb.from("growth_settings").select("value").eq("key", "whatsapp_cfg").maybeSingle(); if (wc && wc.value && wc.value.student === false) return "";
   const { data: cur } = await sb.from("referrals").select("admin_notes").eq("id", ref.id).maybeSingle(); if (String((cur && cur.admin_notes) || ref.notes || "").includes("💬 Student welcomed")) return "";
-  const r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone"], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
+  const iw = waNumber(c.phone), link = iw ? "https://wa.me/" + iw : "their phone number above";   // a tappable WhatsApp link to the instructor
+  const r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome_2", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone", link], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
   if (r2.ok) { const n = String((cur && cur.admin_notes) || ""); await sb.from("referrals").update({ admin_notes: [n, `${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`].filter(Boolean).join("\n") }).eq("id", ref.id); return "student welcomed"; }
   await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + (ref.student_name || "the student") + " did not send", detail: `${c.name} agreed, but the welcome failed: ${r2.error}. Message the student by hand.`, waiting_id: String(waitingId || ref.id) + "-stu", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name });
   return "student message failed: " + r2.error;
@@ -318,7 +319,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
 
 /* ---------- the engine ---------- */
 async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: number, tried: string[]) {
-  const expires = new Date(Date.now() + (cfg.replyMinutes > 0 ? cfg.replyMinutes : (cfg.replyHours > 0 ? cfg.replyHours * 60 : 45)) * 60 * 1000).toISOString();
+  const expires = new Date(Date.now() + (cfg.replyMinutes > 0 ? cfg.replyMinutes : (cfg.replyHours > 0 ? cfg.replyHours * 60 : 60)) * 60 * 1000).toISOString();
   await sb.from("auto_assign_jobs").update({ state: "pending_accept", instructor_id: c.id, attempt, tried, expires_at: expires, dist: c.dist, updated_at: new Date().toISOString() }).eq("id", job.id);
   const r = await sendTemplate(sb, { to: c.phone, template: "dsq_student_offer", lang: "en_GB", params: [first(c.name), outward(b.postcode) || b.postcode, c.dist.toFixed(1), b.type], buttons: ["OFFER_ACCEPT:" + job.id, "OFFER_DECLINE:" + job.id], instructor_id: c.id, student_name: b.name });
   if (!r.ok) { await sb.from("auto_assign_jobs").update({ state: "attention", note: r.error }).eq("id", job.id); await attention(sb, cfg, { kind: "msg_failed", title: "Could not message " + c.name, detail: `Offer for ${b.name} (${b.postcode}) did not send: ${r.error}`, waiting_id: String(b.id), instructor_id: c.id, student_name: b.name }); return "offer failed"; }
