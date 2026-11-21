@@ -114,16 +114,16 @@ DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find
 ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");
 
 console.log("== 11. 45-minute reply time + acknowledgement ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackHours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = [];
 DB.waiting_list = [W("Offer Ola", "M13 9AA"), W("Call Cal", "M13 9AA", "", { notes: "[CALL] phone booking" })];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
 const jo = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[0].id));
-ok(jo && jo.state === "pending_accept" && Math.abs(new Date(jo.expires_at).getTime() - (Date.now() + 60 * 60 * 1000)) < 5000, "offer expires in 60 minutes");
+ok(jo && jo.state === "pending_accept" && Math.abs(new Date(jo.expires_at).getTime() - Date.now()) < 5000, "offer time recorded");
 ok(sent("dsq_booking_received").length === 1, "website booking acknowledged on WhatsApp (the [CALL] booking was not)");
 ok(/booking acknowledgement sent/.test(DB.waiting_list[0].notes), "note added so it is only sent once");
 await call({ action: "auto_assign", cron: true }); ok(sent("dsq_booking_received").length === 1, "no second acknowledgement");
-const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
+const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 61 * 60000).toISOString(); await call({ action: "auto_assign", cron: true });
 ok(jo.instructor_id !== firstInstr && jo.state === "pending_accept" && JSON.stringify(jo.tried).includes(String(firstInstr)), "no reply in 60 min -> offered to the NEXT instructor straight away");
 
 console.log("== 12. Offer first; no reply after 35 min -> auto-assign if they cover the area ==");
@@ -133,7 +133,7 @@ DB.waiting_list = [W("Cover Cora", "M13 9AA"), W("Nocover Nick", "M4 1AA")];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
 const jc = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[0].id)), jn = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[1].id));
 ok(jc.state === "pending_accept" && jn.state === "pending_accept" && sent("dsq_student_offer").length === 2, "everyone is offered first (no instant assignment)");
-const offered = (j, minAgo) => { j.expires_at = new Date(Date.now() - minAgo * 60000 + 60 * 60000).toISOString(); };
+const offered = (j, minAgo) => { j.expires_at = new Date(Date.now() - minAgo * 60000).toISOString(); };
 offered(jc, 20); offered(jn, 20); await call({ action: "auto_assign", cron: true });
 ok(jc.state === "pending_accept" && jn.state === "pending_accept", "after 20 min: still waiting");
 offered(jc, 36); offered(jn, 36); const wc = (DB.wa_log || []).filter((l) => l.template === "dsq_student_welcome_2" && l.status === "sent").length; await call({ action: "auto_assign", cron: true });
@@ -143,3 +143,23 @@ ok(DB.student_followups.some((f) => f.student_name === "Cover Cora" && f.state =
 ok(jn.state === "pending_accept" && jn.instructor_id === jn.instructor_id && !DB.referrals.some((x) => x.student_name === "Nocover Nick"), "instructor who does NOT cover M4: not assigned, keeps waiting");
 const mo = jn.instructor_id; offered(jn, 61); await call({ action: "auto_assign", cron: true });
 ok(jn.state === "attention" && DB.admin_attention.some((a) => a.kind === "no_match" && /no other instructor left/.test(a.detail || a.title)), "after 60 min the non-covering instructor is skipped; nobody else within 8 miles -> attention");
+
+console.log("== 13. Reply timers only count waking hours ==");
+const AM = globalThis.__waTest.activeMinutes, at = (d, hm) => Date.parse("2026-11-" + d + "T" + hm + ":00Z");   // November = UK winter time (GMT)
+ok(AM(at("18", "19:50"), at("19", "08:25"), 8, 20) === 35, "offer 19:50, resumes 08:00 -> 08:25 is 35 waking minutes (10 + 25)");
+ok(AM(at("18", "23:30"), at("19", "07:30"), 8, 20) === 0, "a booking at 23:30 with no waking minutes before 07:30 = 0");
+ok(AM(at("19", "08:00"), at("19", "08:35"), 8, 20) === 35, "offered at 08:00, 35 minutes later = 35");
+ok(AM(at("18", "12:00"), at("18", "12:35"), 8, 20) === 35, "midday offer, 35 minutes = 35");
+ok(AM(at("18", "20:00"), at("19", "08:00"), 8, 20) === 0, "overnight 20:00-08:00 counts nothing");
+
+console.log("== 14. Night booking -> different wording; outside ack hours -> not sent yet ==");
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString(), ackHours: [0, 24], autoAssignAfterMinutes: 0 };
+DB.referrals = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.waiting_list = [W("Awake Ann", "M13 9AA")]; await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_booking_received").length === 1 && sent("dsq_booking_received_later").length === 0, "inside the offer hours -> 'we have passed your details'");
+const hNow = new Date().getUTCHours(); const away = [(hNow + 3) % 24, ((hNow + 3) % 24) + 1];   // a window that does NOT contain the current hour
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value.hours = away[1] > 23 ? [(hNow + 6) % 24, (hNow + 7) % 24 || 24] : away; DB.wa_log = []; DB.waiting_list = [W("Night Nia", "M13 9AA")];
+await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_booking_received_later").length === 1 && sent("dsq_booking_received").length === 0, "outside the offer hours the student gets the 'first thing in the morning' wording");
+ok(DB.auto_assign_jobs.length === 0 || DB.auto_assign_jobs.every((j) => j.waiting_id !== String(DB.waiting_list[0].id)), "and NO instructor is contacted at that time");
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value.ackHours = [(hNow + 8) % 24, ((hNow + 8) % 24) + 1 > 24 ? 24 : ((hNow + 8) % 24) + 1]; DB.wa_log = []; DB.waiting_list = [W("Sleep Sid", "M13 9AA")];
+await call({ action: "auto_assign", cron: true }); ok(sent("dsq_booking_received").length + sent("dsq_booking_received_later").length === 0, "outside the ack hours nothing is sent (waits until morning)");

@@ -45,6 +45,13 @@ const first = (n: string) => String(n || "").trim().split(/\s+/)[0] || "there";
 const fmtPhone = (p: string) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "0" ? d.slice(0, 5) + " " + d.slice(5) : String(p || "").trim(); };
 const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: LONDON });
 const londonHour = () => +new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", hour12: false }).format(new Date()) % 24;
+/* minutes between two moments that fall INSIDE the waking window [h0, h1) UK time: the reply timers only run while instructors are awake */
+function activeMinutes(fromMs: number, toMs: number, h0: number, h1: number) {
+  let m = 0; const step = 5 * 60000, end = Math.min(toMs, fromMs + 96 * 3600000);
+  for (let t = fromMs; t < end; t += step) { const h = +new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", hour12: false }).format(new Date(t)) % 24; if (h >= h0 && h < h1) m += Math.min(5, (end - t) / 60000); }
+  return m;
+}
+(globalThis as any).__waTest = { activeMinutes };
 const outward = (pc: string) => String(pc || "").toUpperCase().replace(/\s+/g, "").replace(/\d[A-Z]{2}$/, "").trim();
 const fmtPc = (v: string) => { const c = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); return c.length >= 5 ? c.slice(0, -3) + " " + c.slice(-3) : c; };
 async function hmacHex(secret: string, data: string) {
@@ -93,7 +100,8 @@ const DEFAULT_CFG = {
   weeklyLimit: 4,                  // soft limit: students confirmed booked this week (Mon-Sun). Over it they are asked LAST
   unpaidLimit: 2,                  // soft limit (referral instructors): booked students whose referral fee is not yet paid. At this many they are asked LAST and you are told to send the balance. 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
-  hours: [8, 21],                  // only run between these UK hours
+  hours: [8, 20],                  // offers go out only between these UK hours, and the reply timers (35 / 60 min) PAUSE outside them, so nobody misses out while asleep
+  ackHours: [7, 23],               // the "we have your booking" WhatsApp to the student can go out between these UK hours
   replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
   autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
@@ -208,7 +216,8 @@ async function sendAcks(sb: any, cfg: any) {
   for (const w of (waiting || []).slice(0, 60)) {
     if (new Date(w.created_at).getTime() < since || !/\[WEB\]/i.test(w.notes || "") || String(w.notes || "").includes(MARK) || String(w.notes || "").includes("📱 WhatsApp booking acknowledgement failed")) continue;
     const b = readBooking(w); if (!waNumber(b.phone)) continue;
-    const r = await sendTemplate(sb, { to: b.phone, template: "dsq_booking_received", lang: "en_GB", params: [first(b.name)], student_name: b.name });
+    const hAck = londonHour(), awake = hAck >= cfg.hours[0] && hAck < cfg.hours[1];   // outside instructor hours the student is told it will be passed on in the morning
+    const r = await sendTemplate(sb, { to: b.phone, template: awake ? "dsq_booking_received" : "dsq_booking_received_later", lang: "en_GB", params: [first(b.name)], student_name: b.name });
     const line = r.ok ? `${today()} · ${MARK}` : `${today()} · 📱 WhatsApp booking acknowledgement failed: ${r.error}`;
     await sb.from("waiting_list").update({ notes: [w.notes || "", line].filter(Boolean).join("\n") }).eq("id", w.id);
     if (!r.ok) await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + b.name + " did not send", detail: `The booking acknowledgement failed: ${r.error}. They have not been told we received their booking.`, waiting_id: "ack-" + w.id, student_name: b.name });
@@ -322,8 +331,8 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
 
 /* ---------- the engine ---------- */
 async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: number, tried: string[]) {
-  const expires = new Date(Date.now() + (cfg.replyMinutes > 0 ? cfg.replyMinutes : (cfg.replyHours > 0 ? cfg.replyHours * 60 : 60)) * 60 * 1000).toISOString();
-  await sb.from("auto_assign_jobs").update({ state: "pending_accept", instructor_id: c.id, attempt, tried, expires_at: expires, dist: c.dist, updated_at: new Date().toISOString() }).eq("id", job.id);
+  const offeredAt = new Date().toISOString();   // (stored in expires_at: when the offer was sent; the timers count waking hours from here)
+  await sb.from("auto_assign_jobs").update({ state: "pending_accept", instructor_id: c.id, attempt, tried, expires_at: offeredAt, dist: c.dist, updated_at: new Date().toISOString() }).eq("id", job.id);
   const r = await sendTemplate(sb, { to: c.phone, template: "dsq_student_offer", lang: "en_GB", params: [first(c.name), outward(b.postcode) || b.postcode, c.dist.toFixed(1), b.type], buttons: ["OFFER_ACCEPT:" + job.id, "OFFER_DECLINE:" + job.id], instructor_id: c.id, student_name: b.name });
   if (!r.ok) { await sb.from("auto_assign_jobs").update({ state: "attention", note: r.error }).eq("id", job.id); await attention(sb, cfg, { kind: "msg_failed", title: "Could not message " + c.name, detail: `Offer for ${b.name} (${b.postcode}) did not send: ${r.error}`, waiting_id: String(b.id), instructor_id: c.id, student_name: b.name }); return "offer failed"; }
   const { data: wl } = await sb.from("waiting_list").select("notes").eq("id", b.id).maybeSingle();
@@ -364,7 +373,7 @@ async function autoAssign(sb: any, body: any) {
   let unpaidAlerts: any[] = [], acks: any[] = [];
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
-    try { const hh0 = londonHour(); if (hh0 >= cfg.hours[0] && hh0 < cfg.hours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
+    try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
     try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) unpaidAlerts = await checkUnpaid(sb, cfg, await candidateData(sb)); } catch (e) { console.error("unpaid", e); }
   }
   if (!dry && body.cron && !body.force) {
@@ -383,7 +392,7 @@ async function autoAssign(sb: any, body: any) {
     const replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 60;
     if (cfg.autoAssignAfterMinutes > 0 && cfg.mode === "assign") {
       const cdA = await candidateData(sb);
-      for (const j of (stale || []).filter((x: any) => x.expires_at && new Date(x.expires_at).getTime() - replyMin * 60000 + cfg.autoAssignAfterMinutes * 60000 <= now && new Date(x.expires_at).getTime() >= now)) {
+      for (const j of (stale || []).filter((x: any) => x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= cfg.autoAssignAfterMinutes && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) < replyMin)) {
         const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
         const i = cdA.instrs.find((x: any) => String(x.id) === String(j.instructor_id)), b = readBooking(w); if (!i || !covers(i, b.postcode)) continue;
         const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: Math.round((j.dist || 0) * 10) / 10 };
@@ -391,7 +400,7 @@ async function autoAssign(sb: any, body: any) {
         catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: m }).eq("id", j.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign failed for " + b.name, detail: m + ". Assign them by hand.", waiting_id: String(w.id), student_name: b.name }); }
       }
     }
-    for (const j of (stale || []).filter((x: any) => x.expires_at && new Date(x.expires_at).getTime() < now)) {
+    for (const j of (stale || []).filter((x: any) => x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin)) {
       const { data: still } = await sb.from("auto_assign_jobs").select("state").eq("id", j.id).maybeSingle(); if (!still || still.state !== "pending_accept") continue;
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
       const tried = [...(j.tried || []), String(j.instructor_id)];

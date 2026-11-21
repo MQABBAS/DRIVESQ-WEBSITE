@@ -62,3 +62,8 @@ A referral instructor with **2 or more students confirmed booked whose referral 
 
 ## Offer first, then auto-assign if they cover the area
 Every student within 8 miles is **offered** to the nearest suitable instructor (Accept / Can't take). If they say **Can't take**, it goes to the next instructor straight away. If they **don't reply for 35 minutes** and the instructor's **Covered Postcodes** (instructor profile) include the student's postcode area, the student is **assigned to them automatically** (they are probably in a lesson): the student gets the welcome ("your instructor may be in a lesson, message them your availability") and the instructor gets the details. If they don't cover the area, it waits the full **60 minutes** and then goes to the next instructor. Settings: Admin -> WhatsApp -> Auto-assign (set "assign straight away if within" to 0 to offer everyone first).
+
+## Timing: never at night
+- Instructors are only contacted between the **offer hours** (default 8:00 to 20:00 UK time).
+- The **reply timers (35 and 60 minutes) only count those hours**. A booking at midnight is offered at 8:00, and the instructor gets their full time to reply. An offer sent at 19:50 has 10 minutes before 20:00, then the rest from 8:00.
+- The student is told we have their booking between the **acknowledgement hours** (default 7:00 to 23:00). During the offer hours: "we have passed your details to a driving instructor". Outside them: "first thing in the morning" wording (`dsq_booking_received_later`, one more template). Outside 7:00 to 23:00 nothing is sent until the morning.
