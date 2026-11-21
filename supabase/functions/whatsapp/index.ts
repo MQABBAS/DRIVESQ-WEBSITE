@@ -384,7 +384,16 @@ async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: a
   const { data: cur } = await sb.from("referrals").select("admin_notes").eq("id", ref.id).maybeSingle(); if (String((cur && cur.admin_notes) || ref.notes || "").includes("💬 Student welcomed")) return "";
   const iw = waNumber(c.phone), link = iw ? "https://wa.me/" + iw : "their phone number above";   // a tappable WhatsApp link to the instructor
   const r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome_2", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone", link], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
-  if (r2.ok) { const n = String((cur && cur.admin_notes) || ""); await sb.from("referrals").update({ admin_notes: [n, `${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`].filter(Boolean).join("\n") }).eq("id", ref.id); return "student welcomed"; }
+  if (r2.ok) {
+    const n = String((cur && cur.admin_notes) || ""), lines = [`${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`];
+    // right after the welcome: the terms & conditions link and the key rules (once per student)
+    if (!n.includes("📄 Terms")) {
+      const rt = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_terms", lang: "en_GB", params: [first(ref.student_name)], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
+      lines.push(rt.ok ? `${today()} · 📄 Terms & conditions link sent on WhatsApp` : `${today()} · 📄 Terms message could not be sent (${rt.error}). Send them the link: https://www.drivesq.co.uk/terms.html`);
+      if (!rt.ok) await attention(sb, cfg, { kind: "msg_failed", title: "Terms link did not send to " + (ref.student_name || "the student"), detail: `${rt.error}. Send them https://www.drivesq.co.uk/terms.html yourself (instructor page: Send terms button).`, waiting_id: String(waitingId || ref.id) + "-terms", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name, quiet: true });
+    }
+    await sb.from("referrals").update({ admin_notes: [n, ...lines].filter(Boolean).join("\n") }).eq("id", ref.id); return "student welcomed";
+  }
   await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + (ref.student_name || "the student") + " did not send", detail: `${c.name} agreed, but the welcome failed: ${r2.error}. Message the student by hand.`, waiting_id: String(waitingId || ref.id) + "-stu", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name });
   return "student message failed: " + r2.error;
 }
@@ -508,7 +517,7 @@ async function simulate(sb: any, body: any) {
   return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
 }
 /* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
-const OUR_TEMPLATES = ["dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
+const OUR_TEMPLATES = ["dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
 async function templateStatus() {
   const waba = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID");
   if (!TOKEN) return { ok: true, needToken: true, templates: [] };

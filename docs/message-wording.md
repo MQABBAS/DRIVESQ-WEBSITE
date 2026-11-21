@@ -25,3 +25,16 @@ Link: https://www.drivesq.co.uk/terms.html
 Body: Hi {{1}}, thanks for booking with DriveSQ. 🚗  Unfortunately a female instructor is not available in your area at the moment. Would you like us to book you with our closest male instructor instead, or would you rather wait for a female instructor? Please tap one of the buttons below.
 Variables: {{1}} = student first name (sample: Sara)
 Buttons (quick reply): "Male instructor is fine" · "I'll wait"
+
+## Template to create: dsq_student_terms (utility, English UK)
+Sent automatically right after the student's welcome message (once per student).
+Body:
+Hi {{1}}, here are the DriveSQ terms & conditions for your lessons: https://www.drivesq.co.uk/terms.html
+
+The key points:
+• Cancel or move a lesson more than 24 hours before it starts: free.
+• Less than 24 hours' notice, or a no-show: charged for the time reserved, £35 per hour booked.
+• Money paid to the DriveSQ business account is DriveSQ's responsibility. A payment made directly to an instructor is a private arrangement and DriveSQ is not responsible.
+
+By having lessons with us you agree to these terms.
+Variables: {{1}} = student first name (sample: Sara). No buttons. No header.

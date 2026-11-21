@@ -401,3 +401,14 @@ exp("2026-10-25T10:00:00Z", "2026-10-18T23:00:00.000Z", () => ML(), "Sunday 25 O
 exp("2026-10-25T10:00:00Z", "2026-10-24T23:00:00.000Z", () => LM(), "midnight at the start of 25 Oct (a 25-hour day) = 23:00 UTC the day before");
 exp("2026-03-29T10:00:00Z", "2026-03-29T00:00:00.000Z", () => LM(), "midnight at the start of 29 Mar (a 23-hour day) = 00:00 UTC");
 exp("2026-11-21T09:00:00Z", "2026-11-21T00:00:00.000Z", () => LM(), "an ordinary winter day");
+
+console.log("== 32. Terms link after the welcome ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().messageStudent = true; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = [];
+DB.waiting_list = [W("Terms Tia", "M13 9AA", "", { student_phone: "07844123123" })]; await call({ action: "auto_assign", cron: true });
+const jt = DB.auto_assign_jobs[0], insT = DB.instructors.find((i) => i.id === jt.instructor_id), fromT = "44" + insT.phone.replace(/^0/, "");
+await hook({ from: fromT, p: "OFFER_ACCEPT:" + jt.id });
+const refT = DB.referrals.find((r) => r.student_name === "Terms Tia");
+ok(sent("dsq_student_welcome_2").length === 1 && sent("dsq_student_terms").length === 1, "after the instructor accepts: welcome, then the terms link (1 each)");
+const callT = CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_student_terms").pop(); ok(callT && callT.wa.to === "447844123123" && callT.wa.template.components[0].parameters[0].text === "Terms", "the terms message goes to the student with their first name");
+ok(/Terms & conditions link sent/.test(refT.admin_notes), "noted on the referral so admin can see it was sent");
+await hook({ from: fromT, p: "ACCEPT:" + refT.id }); ok(sent("dsq_student_terms").length === 1, "tapping Accept again does not send it twice");
