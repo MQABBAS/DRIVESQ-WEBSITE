@@ -16584,8 +16584,8 @@ document.addEventListener('click',e=>{
   const LP = { cfg: { enabled: false, listTag: "", perDay: 100, hour: 10, cooldownDays: 30, autoLoop: true, design: null, tplName: "" }, st: null, out: "", loaded: false };
   async function loopLoad() {
     try {
-      const r = await db().from("growth_settings").select("key,value").in("key", ["emailloop", "emailloop_state"]);
-      (r.data || []).forEach(x => { if (x.key === "emailloop") Object.assign(LP.cfg, x.value || {}); if (x.key === "emailloop_state") LP.st = x.value; });
+      const r = await db().from("growth_settings").select("key,value").in("key", ["emailloop", "emailloop_state", "emailloop_monthly_state"]);
+      (r.data || []).forEach(x => { if (x.key === "emailloop") Object.assign(LP.cfg, x.value || {}); if (x.key === "emailloop_state") LP.st = x.value; if (x.key === "emailloop_monthly_state") LP.stM = x.value; });
     } catch (e) {}
     LP.loaded = true; if (S.tab === "loop") render();
   }
@@ -16599,16 +16599,17 @@ document.addEventListener('click',e=>{
   }
   function loopHTML() {
     if (!LP.loaded) { loopLoad(); return `<div class="dsqm-card"><p class="dsqm-p">Loading…</p></div>`; }
-    const c = LP.cfg, subs = S.contacts.filter(x => x.status === "subscribed"), lists = loopLists(), st = LP.st && LP.st.listTag === c.listTag ? LP.st : null;
-    const size = c.listTag === "__all__" ? subs.length : subs.filter(x => (x.tags || []).includes(c.listTag)).length, done = st ? (st.doneKeys || []).length : 0;
+    const c = LP.cfg, subs = S.contacts.filter(x => x.status === "subscribed"), lists = loopLists(), st = c.listTag === "__monthly_new__" ? (LP.stM || null) : (LP.st && LP.st.listTag === c.listTag ? LP.st : null);
+    const MON = c.listTag === "__monthly_new__", size = MON ? subs.filter(x => (x.tags || []).some(t => /^new-\d{4}-\d{2}$/.test(t))).length : c.listTag === "__all__" ? subs.length : subs.filter(x => (x.tags || []).includes(c.listTag)).length, done = st ? (st.doneKeys || []).length : 0;
     const pct = size ? Math.min(100, Math.round(done / size * 100)) : 0, days = c.perDay ? Math.ceil(Math.max(0, size - done) / c.perDay) : 0;
-    const tpls = allTemplates(), on = !!c.enabled;
+    const tpls = allTemplates(), on = !!c.enabled, curM = new Date().toISOString().slice(0, 7);
     return `<div class="dsqm-card"><header><h3><i class="bi bi-arrow-repeat"></i>Daily email loop</h3><span class="dsqm-hint">One email, sent to a list a set number a day, round after round</span></header>
       <p class="dsqm-p">Pick an email and a list. Every day it sends to the <b>next ${c.perDay || 100}</b> people who haven't had it yet. When it reaches the end of the list it can start again from the beginning (auto-loop) or stop so you can load a new list. <b>Unsubscribed people are never emailed</b>, every email has an unsubscribe link, and nobody is emailed again within the “don't re-email within” days. Nothing is sent until you switch it on.</p>
       <div class="dsqm-grid2">
         <label class="dsqm-f"><span>1 · Which email?</span><select class="dsq-inp" id="lp-tpl"><option value="">— choose —</option><option value="__current__"${c.tplName === "__current__" ? " selected" : ""}>The email I'm editing now (Create email tab)</option>${tpls.map(t => `<option value="${h(t.id)}"${c.tplName === t.id ? " selected" : ""}>${h(t.name)}</option>`).join("")}</select></label>
-        <label class="dsqm-f"><span>2 · Which list?</span><select class="dsq-inp" id="lp-list"><option value="">— choose —</option><option value="__all__"${c.listTag === "__all__" ? " selected" : ""}>Everyone subscribed (${subs.length})</option>${lists.map(([t, n]) => `<option value="${h(t)}"${c.listTag === t ? " selected" : ""}>${h(t)} (${n})</option>`).join("")}</select></label>
+        <label class="dsqm-f"><span>2 · Which list?</span><select class="dsq-inp" id="lp-list"><option value="">— choose —</option><option value="__monthly_new__"${c.listTag === "__monthly_new__" ? " selected" : ""}>📅 New students, month by month (rolling)</option><option value="__all__"${c.listTag === "__all__" ? " selected" : ""}>Everyone subscribed (${subs.length})</option>${lists.map(([t, n]) => `<option value="${h(t)}"${c.listTag === t ? " selected" : ""}>${h(t)} (${n})</option>`).join("")}</select></label>
       </div>
+      ${MON ? `<div class="dsqm-p" style="border:1px solid #60a5fa;background:rgba(96,165,250,.08);border-radius:10px;padding:10px 12px;margin:0 0 10px"><b>📅 New students, month by month.</b> Every new student (Student Portal sign-up, or a website booking that was assigned) is added automatically with a month tag. The <b>oldest month is at the top</b>: those students get the email first, ${c.perDay || 30} a day. When everyone in a finished month has had it, that month is <b>removed from the queue</b> (nobody's record is deleted) and the next month moves up. <b>Next month, choose that month's new email in box 1</b>: it is kept for the month it was chosen in (${h(curM)}), and older months keep their own. Unsubscribed people are never emailed.<br><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px">Keep the last <input class="dsq-inp" type="number" min="1" max="12" id="lp-keep" value="${h(c.keepMonths || 3)}" style="width:60px"> months in the queue</label>${c.monthlyDesigns && Object.keys(c.monthlyDesigns).length ? `<div style="margin-top:6px;font-size:.78rem">Emails chosen: ${Object.keys(c.monthlyDesigns).sort().map(k => h(k) + " → <b>" + h((c.monthlyDesigns[k] || {}).subject || "") + "</b>").join(" · ")}</div>` : ""}${LP.stM && (LP.stM.retired || []).length ? `<div style="margin-top:6px;font-size:.78rem">Finished and removed: ${LP.stM.retired.slice(0, 6).map(x => h(x.month) + " (" + x.students + ")").join(", ")}</div>` : ""}</div>` : ""}
       <div class="dsqm-actions" style="justify-content:flex-start;margin:6px 0 12px"><button type="button" class="btn-s" data-paste><i class="bi bi-clipboard-plus"></i>Add a new list (paste emails / CSV, give it a tag)</button><button type="button" class="btn-s" data-import><i class="bi bi-box-arrow-in-down"></i>Import from my enquiries &amp; students</button></div>
       <div class="dsqm-grid2">
         <label class="dsqm-f"><span>3 · Emails per day (max 1000; Resend free plan allows 100)</span><input class="dsq-inp" type="number" min="1" max="1000" id="lp-per" value="${h(c.perDay)}"></label>
@@ -16635,6 +16636,7 @@ document.addEventListener('click',e=>{
     try {
       const j = await window.DSQMailSend.call(Object.assign({ action: "loop" }, extra));
       if (j.test) LP.out = `<span style="color:#4ade80">✅ Test sent to ${h(j.to)}. Check inbox and spam.</span>`;
+      else if (j.dry && j.monthly) LP.out = `<b>${j.wouldSend}</b> email${j.wouldSend === 1 ? "" : "s"} would go today (${j.perDay} a day). New students found: ${j.newStudentsFound} (${j.newContacts} new contacts). <br><b>Queue, top first:</b> ${(j.queue || []).map(q => h(q.month) + ": " + q.done + "/" + q.size + " done · email: " + h(q.email || "none chosen")).join(" · ") || "nobody yet"}`;
       else if (j.dry) LP.out = `<b>${j.wouldSend}</b> email${j.wouldSend === 1 ? "" : "s"} would go today (${j.listSize} on the list, ${j.doneThisRound} done this round, ${j.skippedRecent || 0} skipped as emailed in the last ${j.cooldownDays} days). ${j.enabled ? "" : "Loop is OFF, so nothing is sent automatically."}`;
       else if (j.off) LP.out = "Loop is switched OFF — turn it on first.";
       else if (j.finished) LP.out = h(j.message);
@@ -16659,9 +16661,10 @@ document.addEventListener('click',e=>{
     const c = LP.cfg; let ch = true;
     if (el.id === "lp-tpl") {
       const v = el.value; if (!v) { c.design = null; c.tplName = ""; }
-      else { const d = v === "__current__" ? design() : (allTemplates().find(x => x.id === v) || {}).design; if (!d) return; c.design = JSON.parse(JSON.stringify(d)); c.tplName = v; }
-    } else if (el.id === "lp-list") c.listTag = el.value;
-    else if (el.id === "lp-per") c.perDay = Math.min(1000, Math.max(1, parseInt(el.value, 10) || 100));
+      else { const d = v === "__current__" ? design() : (allTemplates().find(x => x.id === v) || {}).design; if (!d) return; c.design = JSON.parse(JSON.stringify(d)); c.tplName = v; c.monthlyDesigns = c.monthlyDesigns || {}; c.monthlyDesigns[new Date().toISOString().slice(0, 7)] = JSON.parse(JSON.stringify(d)); }   // for the monthly list: this email is this month's email
+    } else if (el.id === "lp-list") { c.listTag = el.value; if (el.value === "__monthly_new__" && (c.perDay || 100) > 30 && !c.perDayTouched) c.perDay = 30; }
+    else if (el.id === "lp-keep") c.keepMonths = Math.min(12, Math.max(1, parseInt(el.value, 10) || 3));
+    else if (el.id === "lp-per") { c.perDay = Math.min(1000, Math.max(1, parseInt(el.value, 10) || 100)); c.perDayTouched = true; }
     else if (el.id === "lp-hour") c.hour = Math.min(21, Math.max(0, parseInt(el.value, 10) || 0));
     else if (el.id === "lp-cool") c.cooldownDays = Math.min(365, Math.max(7, parseInt(el.value, 10) || 30));
     else if (el.id === "lp-auto") c.autoLoop = el.checked;
