@@ -102,6 +102,10 @@ const DEFAULT_CFG = {
   franchiseMin: 3,                 // franchise instructors should get at least this many students CONFIRMED BOOKED each week (Mon-Sun). Until they do they are offered the next student first (if within the distance limit). 0 = off. A package's own minimum replaces it
   priorityMiles: 3,                // each priority step (set per instructor: Top / High / Equal / Low / Last) counts as this many miles closer / further when choosing. Everyone is Equal by default
   shortfallMiles: 2,               // among instructors owed jobs, each job still missing this week counts as this many miles closer
+  fairnessMiles: 0.5,              // fairness: for every day an instructor has gone WITHOUT a student they count this many miles closer (so nobody is left out). 0 = off
+  fairnessAfterDays: 2,            // ... starting after this many idle days
+  fairnessCap: 4,                  // ... and never more than this many miles of help
+  droughtDays: 7,                  // tell the admin when an approved instructor has had no student for this many days (and why). 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 20],                  // offers go out only between these UK hours, and the reply timers (35 / 60 min) PAUSE outside them, so nobody misses out while asleep
   ackHours: [7, 23],               // the "we have your booking" WhatsApp to the student can go out between these UK hours
@@ -128,7 +132,7 @@ async function attention(sb: any, cfg: any, a: any) {
   const row = { kind: a.kind, title: a.title, detail: a.detail || "", waiting_id: a.waiting_id || null, referral_id: a.referral_id || null, instructor_id: a.instructor_id || null, student_name: a.student_name || null, resolved: false };
   const { data } = await sb.from("admin_attention").insert([row]).select().single();
   try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "attention_" + a.kind, summary: "⚠️ " + a.title + (a.detail ? " — " + a.detail : ""), actor_role: "system", actor_name: "Auto-assign", instructor_id: a.instructor_id || null, student_name: a.student_name || null, ref_id: a.referral_id || null }]); } catch (_) { /* best effort */ }
-  if (cfg.adminAlerts && cfg.adminPhone) { try { await sendTemplate(sb, { to: cfg.adminPhone, template: "dsq_admin_attention", lang: "en_GB", params: [a.title, a.detail || "Open admin to see it."] }); } catch (_) { /* best effort */ } }
+  if (cfg.adminAlerts && cfg.adminPhone && !a.quiet) { try { await sendTemplate(sb, { to: cfg.adminPhone, template: "dsq_admin_attention", lang: "en_GB", params: [a.title, a.detail || "Open admin to see it."] }); } catch (_) { /* best effort */ } }
   return data && data.id;
 }
 
@@ -197,6 +201,11 @@ function entitlement(i: any, cd: any, cfg: any) {
   else if (!t && String(i.instructor_model || "").toLowerCase() === "franchise" && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = "franchise minimum"; }
   return { started: true, min, radius, src };
 }
+/* days since this instructor was last given a student (no student in the last 90 days = 90). A new instructor counts from their start date */
+function idleDays(i: any, st: any, ent: any) {
+  const base = st && st.last ? st.last : (ent && ent.start ? new Date(ent.start + "T00:00:00").getTime() : Date.now() - 90 * 864e5);
+  return Math.max(0, (Date.now() - base) / 864e5);
+}
 async function candidateData(sb: any) {
   const { data: instrs } = await sb.from("instructors").select("*").eq("status", "approved");
   const since90 = new Date(Date.now() - 90 * 864e5).toISOString();
@@ -208,6 +217,7 @@ async function candidateData(sb: any) {
   const stats: any = {}, midnight = londonMidnightToday();
   (refs || []).forEach((r: any) => {
     if (r.is_cancelled || r.is_credit) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 };
+    { const ca = new Date(r.created_at).getTime(); if (!s.last || ca > s.last) s.last = ca; }
     if (new Date(r.created_at).getTime() >= mon) s.week++;
     if (new Date(r.created_at).getTime() >= midnight) s.today++;
     if (isBooked(r) && bookedAt(r) >= mon) s.bookedWeek++;
@@ -259,6 +269,26 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
   return out;
 }
 
+/* an approved instructor with no student for droughtDays: tell the admin once and say why (clears itself when they are given one) */
+async function checkDrought(sb: any, cfg: any, cd: any) {
+  if (!(cfg.droughtDays > 0)) return [];
+  const out: any[] = [];
+  for (const i of cd.instrs) {
+    const key = "drought-" + i.id, tr = cd.traits[i.id] || {}, ent = entitlement(i, cd, cfg), st = cd.stats[i.id] || {}, idl = Math.round(idleDays(i, st, ent));
+    if (!ent.started || idl < cfg.droughtDays) { await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false); continue; }
+    const why: string[] = [];
+    if (tr.noAuto) why.push("marked Never auto-assign");
+    if (!instrPc(i)) why.push("no postcode or area on their profile");
+    if (!String(i.coverage_postcodes || "").trim()) why.push("no covered postcodes");
+    if (!waNumber(i.phone)) why.push("no valid mobile number");
+    if (+tr.priority < 0) why.push("priority is set to " + (tr.priority <= -2 ? "Last" : "Low"));
+    if (!why.length) why.push("no website booking has been close enough lately (or they are over a limit)");
+    await attention(sb, cfg, { kind: "no_jobs", title: `${i.full_name} has had no student for ${idl >= 90 ? "90+" : idl} days`, detail: `Possible reasons: ${why.join("; ")}. Consider a Top priority, or give them a student by hand.`, waiting_id: key, instructor_id: String(i.id), quiet: true });   // listed in Attention, no WhatsApp ping
+    out.push({ instructor: i.full_name, idle: idl });
+  }
+  return out;
+}
+
 /* rank the instructors for one booking. exclude = ids already asked */
 async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
   const out: any[] = [];
@@ -281,10 +311,11 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
     const over: string[] = [];
     // owed a minimum this week and not there yet (and not already holding plenty of unconfirmed students): offered first, even past the daily limit
     const short = Math.max(0, (r.ent.min || 0) - r.st.bookedWeek), owed = short > 0 && r.dist <= r.ent.radius && r.st.week < (r.ent.min || 0) + 2;
+    const idl = idleDays(r.i, r.st, r.ent), fb = cfg.fairnessMiles > 0 && idl >= (cfg.fairnessAfterDays || 0) ? Math.min(cfg.fairnessCap || 0, Math.round(idl * cfg.fairnessMiles * 10) / 10) : 0;
     if (!owed && cfg.dailyLimit > 0 && r.st.today >= cfg.dailyLimit) over.push(`already given ${r.st.today} today`);
     if (cfg.weeklyLimit > 0 && r.st.bookedWeek >= cfg.weeklyLimit) over.push(`already ${r.st.bookedWeek} booked this week`);
     if (cfg.unpaidLimit > 0 && String(r.i.instructor_model || "").toLowerCase() === "referral" && (r.st.unpaidBooked || 0) >= cfg.unpaidLimit) over.push(`${r.st.unpaidBooked} booked students not paid yet (£${Math.round(r.st.unpaidAmount || 0)})`);
-    out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, owed, short, min: r.ent.min || 0, prio: Math.max(-2, Math.min(2, +r.tr.priority || 0)), eff: Math.round((r.dist - (Math.max(-2, Math.min(2, +r.tr.priority || 0))) * (cfg.priorityMiles || 0) - (owed ? short * (cfg.shortfallMiles || 0) : 0)) * 10) / 10, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
+    out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, owed, short, min: r.ent.min || 0, prio: Math.max(-2, Math.min(2, +r.tr.priority || 0)), idle: Math.round(idleDays(r.i, r.st, r.ent)), boost: fb, eff: Math.round((r.dist - (Math.max(-2, Math.min(2, +r.tr.priority || 0))) * (cfg.priorityMiles || 0) - (owed ? short * (cfg.shortfallMiles || 0) : 0) - fb) * 10) / 10, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
   }
   // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
   // order: (1) not over a soft limit, (2) owed their weekly minimum, (3) closest after priority / shortfall adjustments
@@ -292,8 +323,9 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
   const near = out.filter((x) => x.dist <= cfg.confirmMiles);
   const closest = near.slice().sort((a, c) => a.dist - c.dist)[0];
   if (near[0]) {
+    const bestFair = near[0].boost > 0 && !near[0].owed && closest && closest.id !== near[0].id && !closest.over.length;
     const best = near[0], pn = ["Last", "Low", "Equal", "High", "Top"][best.prio + 2];
-    best.why = best.owed ? `${best.name} has ${best.bookedWeek} of ${best.min} confirmed booked this week, so is offered first` : closest && closest.id !== best.id ? (closest.over.length ? `${closest.name} is closer (${closest.dist} mi) but ${closest.over.join(" and ")}, so asked after others` : `${best.name} (${best.dist} mi) is ahead of ${closest.name} (${closest.dist} mi) because of priority ${pn}`) : best.tier === 1 ? `everyone close by is over a limit (${best.over.join(" and ")}), so the closest gets it` : (best.prio ? `closest instructor (priority ${pn})` : "closest instructor");
+    best.why = best.owed ? `${best.name} has ${best.bookedWeek} of ${best.min} confirmed booked this week, so is offered first` : closest && closest.id !== best.id ? (closest.over.length ? `${closest.name} is closer (${closest.dist} mi) but ${closest.over.join(" and ")}, so asked after others` : (bestFair && !best.prio ? `${best.name} (${best.dist} mi) has had no student for ${best.idle} days, so is ahead of ${closest.name} (${closest.dist} mi)` : `${best.name} (${best.dist} mi) is ahead of ${closest.name} (${closest.dist} mi) because of priority ${pn}`)) : best.tier === 1 ? `everyone close by is over a limit (${best.over.join(" and ")}), so the closest gets it` : (best.prio ? `closest instructor (priority ${pn})` : "closest instructor");
   }
   return { list: out, geo: sg };
 }
@@ -394,7 +426,7 @@ async function autoAssign(sb: any, body: any) {
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
     try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
-    try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) unpaidAlerts = await checkUnpaid(sb, cfg, await candidateData(sb)); } catch (e) { console.error("unpaid", e); }
+    try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
   }
   if (!dry && body.cron && !body.force) {
     if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts, acks };

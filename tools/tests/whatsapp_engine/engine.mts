@@ -5,7 +5,7 @@ const sigf = async (b) => { const k = await crypto.subtle.importKey("raw", new T
 const hook = async (payload, text) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "in" + Math.random(), from: payload.from, type: payload.p ? "button" : "text", ...(payload.p ? { button: { payload: payload.p, text: "x" } } : { text: { body: text } }) }] } }] }] }); return h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": await sigf(body) }, body })); };
 const I = (id, name, area, phone, extra = {}) => ({ id, full_name: name, status: "approved", area, phone, car_type: "Both", instructor_model: "referral", coverage_postcodes: area.split(" ")[0], ...extra });
 DB.instructors = [I("i1", "Dawood Khan", "M13 0PG", "07700900001"), I("i2", "Sara Female", "M20 0AA", "07700900002"), I("i3", "Mo Sale", "M33 0AA", "07700900003", { instructor_model: "franchise" }), I("i4", "Far Frank", "BL1 0AA", "07700900004")];
-DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, franchiseMin: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
+DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, franchiseMin: 0, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
 const now = Date.now(), ph = () => "07700" + String(900000 + globalThis.SEQ++).slice(-6);
 const W = (name, pc, notes = "", extra = {}) => ({ id: "w" + (globalThis.SEQ++), student_name: name, student_phone: ph(), postcode: pc, lesson_type: "Manual", status: "waiting", created_at: new Date(now - 3600e3).toISOString(), notes: "[WEB] Email: x@x.com\n" + notes, ...extra });
 const ok = (c, m) => console.log((c ? "PASS " : "FAIL ") + m);
@@ -114,7 +114,7 @@ DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find
 ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");
 
 console.log("== 11. 45-minute reply time + acknowledgement ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackHours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackHours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = [];
 DB.waiting_list = [W("Offer Ola", "M13 9AA"), W("Call Cal", "M13 9AA", "", { notes: "[CALL] phone booking" })];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
@@ -127,7 +127,7 @@ const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 61 * 
 ok(jo.instructor_id !== firstInstr && jo.state === "pending_accept" && JSON.stringify(jo.tried).includes(String(firstInstr)), "no reply in 60 min -> offered to the NEXT instructor straight away");
 
 console.log("== 12. Offer first; no reply after 35 min -> auto-assign if they cover the area ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], autoMiles: 0 };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], autoMiles: 0 };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.student_followups = [];
 DB.waiting_list = [W("Cover Cora", "M13 9AA"), W("Nocover Nick", "M4 1AA")];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
@@ -153,7 +153,7 @@ ok(AM(at("18", "12:00"), at("18", "12:35"), 8, 20) === 35, "midday offer, 35 min
 ok(AM(at("18", "20:00"), at("19", "08:00"), 8, 20) === 0, "overnight 20:00-08:00 counts nothing");
 
 console.log("== 14. Night booking -> different wording; outside ack hours -> not sent yet ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString(), ackHours: [0, 24], autoAssignAfterMinutes: 0 };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString(), ackHours: [0, 24], autoAssignAfterMinutes: 0 };
 DB.referrals = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.waiting_list = [W("Awake Ann", "M13 9AA")]; await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_booking_received").length === 1 && sent("dsq_booking_received_later").length === 0, "inside the offer hours -> 'we have passed your details'");
 const hNow = new Date().getUTCHours(); const away = [(hNow + 3) % 24, ((hNow + 3) % 24) + 1];   // a window that does NOT contain the current hour
@@ -188,3 +188,20 @@ pv = await call({ action: "auto_assign", dry: true }); const pr = pv.results.fin
 ok(pr.instructor === "Mo Sale" && /priority Top/.test(pr.why || ""), "Mo marked Top priority (3 miles closer per step x2) -> ahead of the nearer Dawood (" + pr.instructor + ": " + pr.why + ")");
 DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 pv = await call({ action: "auto_assign", dry: true }); ok(pv.results.find((x) => x.student === "Min Mia").instructor === "Dawood Khan", "everyone Equal (default) -> simply the closest");
+
+console.log("== 16. Fairness: nobody is left without jobs ==");
+cfgOf().franchiseMin = 0; cfgOf().fairnessMiles = 0.5; cfgOf().fairnessAfterDays = 2; cfgOf().fairnessCap = 4; cfgOf().droughtDays = 7; cfgOf().adminPhone = "07700900999"; cfgOf().adminAlerts = true;
+const agoRef = (id, iid, d) => ({ id, instructor_id: iid, student_name: "F" + id, amount: 0, is_paid: false, created_at: new Date(Date.now() - d * 864e5).toISOString(), flag_color: "", reply_status: "", admin_notes: "", is_cancelled: false, is_credit: false });
+DB.instructors.find((x) => x.id === "i3").area = "M14 4AA";
+DB.referrals = [agoRef("f1", "i1", 0.2), agoRef("f2", "i2", 1), agoRef("f3", "i3", 9), agoRef("f4", "i4", 1)]; DB.waiting_list = [W("Fair Fay", "M13 9AA")];
+pv = await call({ action: "auto_assign", dry: true }); const fr = pv.results.find((x) => x.student === "Fair Fay");
+ok(fr.instructor === "Mo Sale" && /no student for 9 days/.test(fr.why || ""), "Mo has had no student for 9 days -> ahead of the nearer Dawood (" + fr.instructor + ": " + fr.why + ")");
+DB.referrals = [agoRef("f1", "i1", 1), agoRef("f2", "i2", 1), agoRef("f3", "i3", 1), agoRef("f4", "i4", 1)]; pv = await call({ action: "auto_assign", dry: true });
+ok(pv.results.find((x) => x.student === "Fair Fay").instructor === "Dawood Khan", "everyone had a student yesterday -> simply the closest");
+DB.admin_attention = []; DB.referrals = [agoRef("f1", "i1", 1), agoRef("f2", "i2", 1), agoRef("f4", "i4", 1)]; DB.wa_log = [];
+await call({ action: "auto_assign", cron: true, force: true });
+ok(DB.admin_attention.some((a) => a.kind === "no_jobs" && a.instructor_id === "i3" && !a.resolved), "Mo has had nothing for 90 days -> 'no student' attention item with reasons");
+ok(!DB.admin_attention.some((a) => a.kind === "no_jobs" && a.instructor_id === "i1"), "Dawood had one yesterday -> no item");
+ok(sent("dsq_admin_attention").length === 0, "these items do not ping your WhatsApp");
+DB.referrals.push(agoRef("f5", "i3", 0.1)); await call({ action: "auto_assign", cron: true, force: true });
+ok(DB.admin_attention.filter((a) => a.kind === "no_jobs" && a.instructor_id === "i3").every((a) => a.resolved), "Mo is given a student -> the item clears itself");
