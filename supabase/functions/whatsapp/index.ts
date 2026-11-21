@@ -247,6 +247,9 @@ async function candidateData(sb: any) {
     if (r.is_cancelled || r.is_credit || !isBooked(r)) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 };
     s.unpaidBooked = (s.unpaidBooked || 0) + 1; s.unpaidAmount = (s.unpaidAmount || 0) + (parseFloat(r.amount) || 0);
   });
+  // an offer waiting for a reply already counts as a student for that instructor (it becomes a real referral when they accept), so nobody is flooded with offers
+  const { data: pend } = await sb.from("auto_assign_jobs").select("instructor_id,state").eq("state", "pending_accept");
+  (pend || []).forEach((j: any) => { if (!j.instructor_id) return; const s = stats[j.instructor_id] = stats[j.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; s.today++; s.week++; s.pending = (s.pending || 0) + 1; });
   return { instrs: instrs || [], stats, traits, packages, tiers, frStart, refs: refs || [] };
 }
 
@@ -541,7 +544,9 @@ const norm = (t: string) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, 
 async function offerReply(sb: any, accept: boolean, jobId: string, from: string) {
   const cfg = await loadCfg(sb); const { data: job } = await sb.from("auto_assign_jobs").select("*").eq("id", jobId).maybeSingle(); if (!job || job.state !== "pending_accept") { try { await sendText(from, "Thanks. That student has already been dealt with."); } catch (_) { /* window */ } return; }
   const { data: w } = await sb.from("waiting_list").select("*").eq("id", job.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", jobId); return; }
-  const b = readBooking(w), cd = await candidateData(sb), i = cd.instrs.find((x: any) => String(x.id) === String(job.instructor_id)); if (!i) return;
+  const b = readBooking(w), cd = await candidateData(sb), i = cd.instrs.find((x: any) => String(x.id) === String(job.instructor_id)); if (!i) return;   // not approved any more: the next run moves the offer on
+  const { data: claim } = await sb.from("auto_assign_jobs").update({ state: "working", updated_at: new Date().toISOString() }).eq("id", jobId).eq("state", "pending_accept").select();
+  if (!claim || !claim.length) { try { await sendText(from, "Thanks. That student has already been dealt with."); } catch (_) { /* window */ } return; }   // another run moved it on at the same moment
   const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: Math.round((job.dist || 0) * 10) / 10 };
   if (accept) {
     try { const res = await assign(sb, cfg, b, c, true); await sb.from("auto_assign_jobs").update({ state: "assigned", referral_id: res.referral_id, updated_at: new Date().toISOString(), note: "accepted; " + res.msgs.join("; ") }).eq("id", jobId); try { await sendText(from, "Thanks, you're confirmed ✅ We've sent you the student's details."); } catch (_) { /* window */ } }

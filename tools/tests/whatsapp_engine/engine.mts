@@ -234,3 +234,24 @@ DB.auto_assign_jobs = []; DB.wa_log = []; DB.waiting_list = Array.from({ length:
 await Promise.all([call({ action: "auto_assign", cron: true }), call({ action: "auto_assign", cron: true }), call({ action: "auto_assign", cron: true })]);
 ok(DB.auto_assign_jobs.length === 4 && new Set(DB.auto_assign_jobs.map((j) => j.waiting_id)).size === 4, "three runs at the same moment -> each booking handled exactly once (" + DB.auto_assign_jobs.length + " jobs)");
 ok(sent("dsq_student_offer").length === 4, "and each offer was messaged exactly once (" + sent("dsq_student_offer").length + ")");
+
+console.log("== 19. Pending offers count; accept races ==");
+cfgOf().dailyLimit = 1; cfgOf().weeklyLimit = 0; cfgOf().maxPerRun = 10; cfgOf().fairnessMiles = 0; cfgOf().franchiseMin = 0; cfgOf().hours = [0, 24];
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = [W("Pend A", "M13 9AA", "", { student_phone: "0782000" + "1111" })];
+await call({ action: "auto_assign", cron: true }); const first1 = DB.auto_assign_jobs[0].instructor_id;
+DB.waiting_list.push(W("Pend B", "M13 9AA", "", { student_phone: "0782000" + "2222" })); await call({ action: "auto_assign", cron: true });
+const second1 = DB.auto_assign_jobs.find((j) => j.waiting_id !== DB.auto_assign_jobs[0].waiting_id).instructor_id;
+ok(first1 && second1 && first1 !== second1, "daily limit 1: the instructor holding an unanswered offer is not offered the next student first (" + first1 + " then " + second1 + ")");
+const jobA = DB.auto_assign_jobs[0]; const insA = DB.instructors.find((x) => x.id === jobA.instructor_id);
+await Promise.all([hook({ from: "44" + insA.phone.replace(/^0/, "").replace(/\s/g, ""), p: "OFFER_ACCEPT:" + jobA.id }), hook({ from: "44" + insA.phone.replace(/^0/, "").replace(/\s/g, ""), p: "OFFER_ACCEPT:" + jobA.id })]);
+ok(DB.referrals.filter((r) => r.student_name === "Pend A").length === 1, "two Accept taps at the same moment -> the student is assigned once (" + DB.referrals.filter((r) => r.student_name === "Pend A").length + ")");
+
+console.log("== 20. Odd bookings never crash the run ==");
+cfgOf().dailyLimit = 0; cfgOf().mode = "assign";
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = [];
+DB.waiting_list = [W("No Postcode", "", "", { postcode: null, student_phone: "07833000111" }), W("Bad Postcode", "ZZ99 9ZZ", "", { student_phone: "07833000222" }), W("No Phone", "M13 9AA", "", { student_phone: null }), W("", "M13 9AA", "", { student_name: null, student_phone: "07833000333" }), W("Long Notes", "M13 9AA", "x".repeat(20000), { student_phone: "07833000444" }), W("Auto Ann", "M13 9AA", "Gearbox: Automatic", { student_phone: "07833000555" })];
+const rOdd = await call({ action: "auto_assign", cron: true });
+ok(rOdd.ok === true, "run completes with odd bookings (" + rOdd.ok + ")");
+ok(DB.auto_assign_jobs.length === 6 && DB.auto_assign_jobs.every((j) => ["pending_accept", "attention", "assigned"].includes(j.state)), "every booking ends in a clear state (" + DB.auto_assign_jobs.map((j) => j.state).join(",") + ")");
+ok(DB.admin_attention.some((a) => /postcode|No Postcode/i.test(a.title + a.detail)), "the booking with no postcode goes to the admin");
+ok(DB.auto_assign_jobs.filter((j) => j.state === "pending_accept").length >= 3, "good ones still go out (" + DB.auto_assign_jobs.filter((j) => j.state === "pending_accept").length + ")");
