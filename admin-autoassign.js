@@ -45,7 +45,7 @@
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:6px 0"><label style="font-size:.72rem"><span style="color:var(--txt3)">Your WhatsApp number for alerts</span><input id="aaPhone" class="dsq-inp" value="' + E(CFG.adminPhone) + '" placeholder="07700 900123" style="margin-top:2px"></label>' +
         '<label style="display:flex;gap:6px;align-items:center;font-size:.74rem;margin-top:16px"><input type="checkbox" id="aaAlert"' + (CFG.adminAlerts ? ' checked' : '') + '> WhatsApp me when attention is needed</label></div>' +
       '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.74rem;margin:4px 0"><label><input type="checkbox" id="aaMi"' + (CFG.messageInstructor ? ' checked' : '') + '> Message the instructor</label><label><input type="checkbox" id="aaMs"' + (CFG.messageStudent ? ' checked' : '') + '> Message the student (only after the instructor accepts)</label></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn-p" onclick="DSQAA.saveForm()">Save auto-assign</button><button class="btn-s" onclick="DSQAA.preview()">👀 Preview what it would do</button><button class="btn-s" onclick="DSQAA.runNow()">▶ Run now</button></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn-p" onclick="DSQAA.saveForm()">Save auto-assign</button><button class="btn-s" onclick="DSQAA.preview()">👀 Preview what it would do</button><button class="btn-s" onclick="DSQAA.readiness()">🩺 Check my data</button><button class="btn-s" onclick="DSQAA.runNow()">▶ Run now</button></div>' +
       '<div id="aaOut" style="font-size:.76rem;margin-top:8px"></div>' +
       '<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">Make it run by itself (one-time, 2 minutes)</summary><div style="font-size:.74rem;line-height:1.6;color:var(--txt3);margin-top:4px">Supabase → Integrations → Cron → new job → every <b>2 minutes</b> (<code>*/2 * * * *</code>) → Supabase Edge Function → <b>whatsapp</b> → POST, body <code>{"action":"auto_assign","cron":true}</code>, header <code>x-admin-key</code> = your email admin key. It only works between the hours above and only on bookings created after you switched it on.</div></details>' +
       '</div>';
@@ -141,6 +141,33 @@
     if (r.error) toast('Not saved: ' + r.error.message, 'error', 5000); else { toast('Saved', 'success', 1500); var nm = ((window.DSQ_ADMIN.instrs() || []).find(function (i) { return String(i.id) === String(id); }) || {}).full_name || 'instructor'; log((on ? 'Set ' : 'Cleared ') + (k === 'female' ? 'female instructor' : 'never auto-assign') + ' for ' + nm); }
   }
 
+    /* Is the data good enough for auto-assign? Every approved instructor needs a location, a phone number and a lesson type. */
+  var instrLoc = function (i) {
+    var up = function (v) { return String(v || '').toUpperCase(); }, full = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/, out = /\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/;
+    if (String(i.postcode || '').trim()) return i.postcode; var f = up(i.area).match(full) || up(i.address).match(full); if (f) return f[0];
+    var o = up(i.area).match(out) || up(i.coverage_postcodes).match(out); return o ? o[0] : '';
+  };
+  var phoneOk = function (p) { var d = String(p || '').replace(/\(0\)/g, '').replace(/\D/g, ''); if (d.indexOf('0044') === 0) d = d.slice(2); else if (d.indexOf('0') === 0) d = '44' + d.slice(1); return d.length >= 10 && d.length <= 15; };
+  async function readiness() {
+    var o = document.getElementById('aaOut'); if (!o) return; o.textContent = 'Checking…'; await load(); await loadTraits();
+    var ins = (window.DSQ_ADMIN.instrs() || []).filter(function (i) { return i.status === 'approved'; }), rows = [], nF = 0;
+    ins.forEach(function (i) {
+      var iss = [], loc = instrLoc(i), t = TR[i.id] || {}; if (t.female) nF++;
+      if (!loc) iss.push('no postcode or area, so it can never be matched by distance'); else if (!/\d[A-Z]{2}\s*$/i.test(String(loc).trim())) iss.push('only an area code (' + loc + '), distances will be approximate. Add a full postcode');
+      if (!phoneOk(i.phone)) iss.push('no valid mobile number, so WhatsApp cannot reach them');
+      if (!i.car_type) iss.push('no lesson type (manual / automatic / both)');
+      if (!String(i.coverage_postcodes || '').trim()) iss.push('no covered postcodes (they miss the coverage bonus)');
+      if (!String(i.instructor_model || '').trim()) iss.push('no model set (franchise or referral)');
+      rows.push({ i: i, iss: iss, t: t });
+    });
+    var bad = rows.filter(function (r) { return r.iss.length; }), ok = rows.length - bad.length, wl = 0;
+    try { var since = new Date(Date.now() - 30 * 864e5).toISOString(); var r = await SBc().from('waiting_list').select('id,postcode,notes,status,created_at').gte('created_at', since).limit(500); (r.data || []).forEach(function (w) { if (/\[WEB\]/i.test(w.notes || '') && !(w.postcode || /Postcode:\s*\S/i.test(w.notes || ''))) wl++; }); } catch (e) { }
+    o.innerHTML = '<div style="margin-bottom:6px"><b style="color:' + (bad.length ? '#f59e0b' : '#22c55e') + '">' + (bad.length ? bad.length + ' of ' + rows.length + ' instructors need attention' : '✅ All ' + rows.length + ' instructors are ready') + '</b> · ' + ok + ' ready · ' + nF + ' marked female</div>' +
+      (nF === 0 && CFG.femaleRule === 'require' ? '<div style="color:#f59e0b;margin-bottom:6px">⚠️ No instructor is marked <b>Female instructor</b>, so bookings that ask for a female instructor will always go to your attention list. Tick it on each female instructor\'s profile.</div>' : '') +
+      (wl ? '<div style="color:#f59e0b;margin-bottom:6px">⚠️ ' + wl + ' recent website booking' + (wl === 1 ? '' : 's') + ' have no postcode, so they cannot be matched.</div>' : '') +
+      bad.map(function (r) { return '<div style="padding:5px 0;border-top:1px solid var(--bdr)"><b>' + E(r.i.full_name) + '</b> <button class="btn-s" style="font-size:.66rem;padding:1px 8px;margin-left:6px" onclick="document.getElementById(\'waSet\').remove();viewInstr(\'' + r.i.id + '\')">Open profile</button><ul style="margin:2px 0 0 18px;padding:0;font-size:.72rem;color:var(--txt3)">' + r.iss.map(function (x) { return '<li>' + E(x) + '</li>'; }).join('') + '</ul></div>'; }).join('');
+  }
+
   /* ---------- the old "Auto-assign" button in Website Bookings now opens the new settings ---------- */
   function takeOver() {
     window.toggleAutoAssign = function () { if (window.DSQWA) DSQWA.openSettings('auto'); };
@@ -152,5 +179,5 @@
   }
   takeOver(); window.addEventListener('load', function () { takeOver(); setTimeout(takeOver, 1500); });   // the page's own script defines these after this file loads, so take over again once everything is ready
   (function init() { var t0 = 0, t = setInterval(function () { t0++; if (t0 > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb() && document.getElementById('waApiBtn')) { clearInterval(t); load().then(function () { poll(); setInterval(poll, 60000); }); } }, 1000); })();
-  window.DSQAA = { mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, fillTraits: fillTraits, setTrait: setTrait, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
+  window.DSQAA = { readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, fillTraits: fillTraits, setTrait: setTrait, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
 })();
