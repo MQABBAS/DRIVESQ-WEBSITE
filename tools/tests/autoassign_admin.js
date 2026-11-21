@@ -57,5 +57,12 @@ console.log('errs',errs.slice(0,4));await p.evaluate(()=>DSQWA.openSettings('aut
 console.log('priority rows:',await p.evaluate(()=>[...document.querySelectorAll('#aaPrio > div > div')].map(d=>d.innerText.replace(/\s+/g,' ').slice(0,90)).join(' || ')));
 await p.evaluate(()=>DSQAA.setPrio('g','2'));await p.waitForTimeout(800);console.log('traits after Top:',JSON.stringify((DB.growth_settings.find(x=>x.key==='instructor_traits')||{}).value));
 await p.evaluate(()=>{document.getElementById('aaFrMin').value='4';document.getElementById('aaPrioMi').value='5';DSQAA.saveForm();});await p.waitForTimeout(1000);console.log('saved franchiseMin/priorityMiles:',DB.growth_settings.find(x=>x.key==='auto_assign_cfg').value.franchiseMin,DB.growth_settings.find(x=>x.key==='auto_assign_cfg').value.priorityMiles);
+console.log('plain english:',await p.evaluate(()=>document.getElementById('aaPlain').innerText.replace(/\s+/g,' ').slice(0,420)));
+console.log('not-running warning:',await p.evaluate(()=>/not running by itself/.test(document.getElementById('aaHolder').innerText)));
+await p.evaluate(()=>{document.getElementById('aaH1').value='21';document.getElementById('aaH2').value='8';});await p.evaluate(()=>DSQAA.saveForm());await p.waitForTimeout(600);
+console.log('bad hours rejected:',await p.evaluate(()=>document.getElementById('aaOut').innerText.slice(0,120)));
+await p.evaluate(()=>{document.getElementById('aaH1').value='8';document.getElementById('aaH2').value='20';document.getElementById('aaAuto35').value='90';});await p.evaluate(()=>DSQAA.saveForm());await p.waitForTimeout(600);
+console.log('35>=reply rejected:',await p.evaluate(()=>document.getElementById('aaOut').innerText.slice(0,160)));
+await p.evaluate(()=>{document.getElementById('aaAuto35').value='35';});
 await p.screenshot({path:'/tmp/claude-0/aa.png'});
 await b.close();})();

@@ -11,7 +11,7 @@ function builder(t) {
   const run = () => {
     const tbl = T(t);
     if (st.op === "insert") { const out = []; for (const row of st.rows) { const u = UNIQ[t]; if (u && tbl.some((x) => String(x[u]) === String(row[u]))) return { data: null, error: { message: "duplicate key" } }; const r = { id: uid(), created_at: new Date().toISOString(), ...row }; tbl.push(r); out.push(r); } return { data: out, error: null }; }
-    if (st.op === "update") { tbl.filter(match).forEach((r) => Object.assign(r, st.patch)); return { data: null, error: null }; }
+    if (st.op === "update") { const hit = tbl.filter(match); hit.forEach((r) => Object.assign(r, st.patch)); return { data: hit, error: null }; }
     let rows = tbl.filter(match); if (st.order) rows = rows.sort((a, b) => String(a[st.order]).localeCompare(String(b[st.order]))); return { data: rows, error: null };
   };
   const o = { select: () => o, eq: (k, v) => { st.f.push([k, "eq", v]); return o; }, neq: (k, v) => { st.f.push([k, "neq", v]); return o; }, gte: (k, v) => { st.f.push([k, "gte", v]); return o; }, order: (k) => { st.order = k; return o; }, limit: () => o,

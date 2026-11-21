@@ -111,6 +111,7 @@ const DEFAULT_CFG = {
   ackHours: [7, 23],               // the "we have your booking" WhatsApp to the student can go out between these UK hours
   replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
   autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
+  maxPerRun: 5,                    // at most this many new bookings are started in one run (every 2 minutes), so a rush never floods the instructors
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
@@ -140,13 +141,15 @@ async function attention(sb: any, cfg: any, a: any) {
 const geoCache = new Map();
 async function geocode(pc: string) {
   const c = String(pc || "").replace(/\s+/g, "").toUpperCase(); if (!c) return null; if (geoCache.has(c)) return geoCache.get(c);
-  let g = null;
+  let g = null, netFail = false;
   try {
-    let r = await fetch("https://api.postcodes.io/postcodes/" + encodeURIComponent(c)); let j = await r.json().catch(() => ({}));
+    let r = await fetch("https://api.postcodes.io/postcodes/" + encodeURIComponent(c), { signal: AbortSignal.timeout(5000) }); let j = await r.json().catch(() => ({})); if (r.status >= 500) netFail = true;
     if (j && j.result) g = { lat: j.result.latitude, lon: j.result.longitude, exact: true };
-    else { const oc = c.replace(/\d[A-Z]{2}$/, ""); r = await fetch("https://api.postcodes.io/outcodes/" + encodeURIComponent(oc)); j = await r.json().catch(() => ({})); if (j && j.result) g = { lat: j.result.latitude, lon: j.result.longitude, exact: false }; }
-  } catch (_) { /* network problem: leave null */ }
-  geoCache.set(c, g); return g;
+    else { const oc = c.replace(/\d[A-Z]{2}$/, ""); r = await fetch("https://api.postcodes.io/outcodes/" + encodeURIComponent(oc), { signal: AbortSignal.timeout(5000) }); j = await r.json().catch(() => ({})); if (r.status >= 500) netFail = true; if (j && j.result) g = { lat: j.result.latitude, lon: j.result.longitude, exact: false }; }
+  } catch (_) { netFail = true; }
+  if (g || !netFail) geoCache.set(c, g);   // a network hiccup is not remembered, so the next run tries again
+  if (!g && netFail) return { error: "lookup" } as any;
+  return g;
 }
 function haversine(a1: number, o1: number, a2: number, o2: number) {
   const R = 3958.8, d = (x: number) => x * Math.PI / 180, dA = d(a2 - a1), dO = d(o2 - o1);
@@ -187,7 +190,12 @@ function bookedAt(r: any) {
   return t || (r.paid_at ? new Date(r.paid_at).getTime() : new Date(r.created_at).getTime());
 }
 function londonMidnightToday() { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value])); const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute); return Date.now() - (asUtc - Date.UTC(+p.year, +p.month - 1, +p.day)); }
-function mondayLondon() { const p = new Date(Date.now() - ((new Date().getUTCDay() + 6) % 7) * 864e5); p.setUTCHours(0, 0, 0, 0); return p; }
+function londonSinceMidnight(t: number) { const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(t)).map((x) => [x.type, x.value])); return ((+p.hour % 24) * 60 + +p.minute) * 60000; }
+/* Monday 00:00 UK time (a Date). Correct across the clocks changing, unlike a UTC midnight which is an hour out all summer */
+function mondayLondon() {
+  const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, weekday: "short" }).format(new Date()));
+  const t = londonMidnightToday() - Math.max(0, dow) * 864e5; return new Date(t - londonSinceMidnight(t));
+}
 
 /* same package tiers as admin-packages.js (used when the admin has not edited them) */
 const PKG_TIERS: any = { normal: { noGuarantee: true, min: 0 }, silver: { min: 3 }, gold: { min: 5 }, platinum: { min: 7, priority: true, radius: 5 } };
@@ -230,7 +238,7 @@ async function candidateData(sb: any) {
     if (r.is_cancelled || r.is_credit || !isBooked(r)) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 };
     s.unpaidBooked = (s.unpaidBooked || 0) + 1; s.unpaidAmount = (s.unpaidAmount || 0) + (parseFloat(r.amount) || 0);
   });
-  return { instrs: instrs || [], stats, traits, packages, tiers, frStart };
+  return { instrs: instrs || [], stats, traits, packages, tiers, frStart, refs: refs || [] };
 }
 
 
@@ -292,7 +300,7 @@ async function checkDrought(sb: any, cfg: any, cd: any) {
 /* rank the instructors for one booking. exclude = ids already asked */
 async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
   const out: any[] = [];
-  const sg = await geocode(b.postcode); if (!sg) return { error: 'Postcode "' + b.postcode + '" was not found', list: [] };
+  const sg = await geocode(b.postcode); if (sg && sg.error) return { error: "The postcode service did not answer just now", transient: true, list: [] }; if (!sg) return { error: 'Postcode "' + b.postcode + '" was not found', list: [] };
   const rows: any[] = [];
   for (const i of cd.instrs) {
     const tr = cd.traits[i.id] || {}; if (tr.noAuto) continue;
@@ -301,7 +309,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
     if (b.female === "require" && cfg.femaleRule === "require" && !tr.female) continue;
     const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) continue;
     const ent = entitlement(i, cd, cfg); if (!ent.started) continue;   // package / franchise start date is in the future: no jobs yet
-    const pc = instrPc(i); if (!pc) continue; const g = await geocode(pc); if (!g) continue;
+    const pc = instrPc(i); if (!pc) continue; const g = await geocode(pc); if (!g || g.error) continue;
     rows.push({ i, tr, st, g, ent, crow: haversine(sg.lat, sg.lon, g.lat, g.lon) });
   }
   rows.sort((a, c) => a.crow - c.crow);
@@ -397,6 +405,7 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
   const rk = await rank(sb, cfg, b, cd, tried);
   const near = (rk.list || []).filter((x: any) => x.dist <= cfg.confirmMiles), nearestAny = (rk.list || []).slice().sort((a: any, c: any) => a.dist - c.dist)[0];
   const top = near.slice(0, 4).map((x: any) => ({ name: x.name, dist: x.dist, today: x.today, bookedWeek: x.bookedWeek, over: x.over, female: x.female }));
+  if (rk.transient) { if (!dry) await sb.from("auto_assign_jobs").delete().eq("id", job.id); return { action: "retry", reason: rk.error + ", it will try again on the next run", top }; }   // not the booking's fault: try again in 2 minutes
   if (rk.error) { if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: rk.error }).eq("id", job.id); await attention(sb, cfg, { kind: "postcode", title: "Check the postcode for " + b.name, detail: rk.error + ". Fix it and assign by hand.", waiting_id: String(b.id), student_name: b.name }); } return { action: "attention", reason: rk.error, top }; }
   const best = near[0];
   const wantF = b.female === "require" && cfg.femaleRule === "require";
@@ -421,6 +430,7 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
 
 async function autoAssign(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now();
+  if (body.cron && !dry) { try { await sb.from("growth_settings").upsert({ key: "auto_assign_last_run", value: { at: new Date().toISOString(), enabled: cfg.enabled, mode: cfg.mode, hour: londonHour() }, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (_) { /* the admin screen shows "last ran" from this */ } }
   let followups: any[] = [];
   let unpaidAlerts: any[] = [], acks: any[] = [];
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
@@ -428,9 +438,9 @@ async function autoAssign(sb: any, body: any) {
     try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
     try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
   }
-  if (!dry && body.cron && !body.force) {
-    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts, acks };
-    const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return { ok: true, waiting: `Runs between ${cfg.hours[0]}:00 and ${cfg.hours[1]}:00 UK time` };
+  if (!dry && body.cron && !body.force && !cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts, acks };
+  if (!dry && !body.force) {   // cron AND the "Run now" button: instructors are never messaged outside the offer hours
+    const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return { ok: true, waiting: `It only runs between ${cfg.hours[0]}:00 and ${cfg.hours[1]}:00 UK time, so nobody is messaged at night. It will pick the bookings up from ${cfg.hours[0]}:00.` };
   }
   if (!dry && !cfg.enabled && !body.force) return { ok: true, off: true, message: "Auto-assign is switched off" };
   if (!dry && (!TOKEN || !PHONE_ID) && cfg.mode === "assign") return { ok: false, error: "WhatsApp is not connected, so auto-assign cannot message anyone yet." };
@@ -453,7 +463,7 @@ async function autoAssign(sb: any, body: any) {
       }
     }
     for (const j of (stale || []).filter((x: any) => !(cd.instrs || []).some((i: any) => String(i.id) === String(x.instructor_id)) /* instructor blocked since the offer: move on now */ || (x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin))) {
-      const { data: still } = await sb.from("auto_assign_jobs").select("state").eq("id", j.id).maybeSingle(); if (!still || still.state !== "pending_accept") continue;
+      const { data: claimed } = await sb.from("auto_assign_jobs").update({ state: "working", updated_at: new Date().toISOString() }).eq("id", j.id).eq("state", "pending_accept").select(); if (!claimed || !claimed.length) continue;   // another run (or the instructor's reply) got there first
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
       const tried = [...(j.tried || []), String(j.instructor_id)];
       if (tried.length > cfg.retries) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "no reply" }).eq("id", j.id); await attention(sb, cfg, { kind: "no_reply", title: "Attention: nobody replied for " + w.student_name, detail: `${tried.length} instructor(s) were asked and did not accept in time. Assign by hand.`, waiting_id: String(w.id), student_name: w.student_name }); results.push({ student: w.student_name, action: "attention", reason: "no reply" }); continue; }
@@ -461,20 +471,39 @@ async function autoAssign(sb: any, body: any) {
     }
   }
 
+  // 1b. a job stuck "working" for 10+ minutes means a run died half way: tell the admin rather than leave the student waiting for nobody
+  if (!dry) { const { data: stuck } = await sb.from("auto_assign_jobs").select("*").eq("state", "working"); for (const j of (stuck || []).filter((x: any) => Date.now() - new Date(x.updated_at || x.created_at).getTime() > 10 * 60000)) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "stuck: a run stopped part-way" }).eq("id", j.id); await attention(sb, cfg, { kind: "assign_failed", title: "A booking got stuck in auto-assign", detail: "A run stopped half way. Open the booking in Find & Assign, or press Retry.", waiting_id: String(j.waiting_id) }); } }
+
   // 2. new website bookings
   const { data: waiting } = await sb.from("waiting_list").select("*").eq("status", "waiting").order("created_at", { ascending: true });
   const { data: jobs } = await sb.from("auto_assign_jobs").select("waiting_id,state");
   const handled = new Set((jobs || []).map((j: any) => String(j.waiting_id)));
   const tags = (cfg.sources || ["[WEB]"]).map((t: string) => t.toLowerCase());
+  let started = 0; const maxRun = cfg.maxPerRun > 0 ? cfg.maxPerRun : 5, seenPhone = new Map<string, string>();
+  const recentRefs = (cd.refs || []).filter((r: any) => !r.is_cancelled && Date.now() - new Date(r.created_at).getTime() < 14 * 864e5);
   for (const w of waiting || []) {
-    if (handled.has(String(w.id))) continue;
+    const ph10 = last10(w.student_phone || "");
+    if (handled.has(String(w.id))) { if (ph10.length === 10 && !seenPhone.has(ph10)) seenPhone.set(ph10, w.student_name || ""); continue; }
     if (new Date(w.created_at).getTime() < since && !body.includeOlder) continue;
     if (!tags.some((t: string) => String(w.notes || "").toLowerCase().includes(t))) continue;
     const b = readBooking(w);
+    // the same student sending the booking twice (or already placed with an instructor in the last 2 weeks) must never be given to a second instructor
+    const dup = ph10.length === 10 && (seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : (recentRefs.find((r: any) => last10(r.student_phone || "") === ph10) ? "this phone number was already given to an instructor in the last 14 days" : ""));
+    if (dup) {
+      if (dry) results.push({ student: b.name, action: "duplicate", reason: dup }); else {
+        const { data: dj } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "attention", attempt: 1, tried: [], note: "duplicate: " + dup }]).select().single();
+        if (dj) await attention(sb, cfg, { kind: "duplicate", title: "Possible duplicate booking: " + b.name, detail: `Not assigned automatically: ${dup}. If it is a different student, open it in Find & Assign; if it is a repeat, mark it done.`, waiting_id: String(w.id), student_name: b.name, quiet: true });
+      }
+      continue;
+    }
+    if (ph10.length === 10) seenPhone.set(ph10, b.name);
+    if (!dry && started >= maxRun) break;   // never flood the instructors: the rest wait for the next run (2 minutes)
     if (dry) { results.push({ student: b.name, postcode: b.postcode, type: b.type, female: b.female || "", ...(await decide(sb, cfg, b, cd, { id: "dry" }, [], 1, true)) }); continue; }
     const { data: job, error } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "working", attempt: 1, tried: [] }]).select().single();
     if (error || !job) continue;   // someone else is already handling it
-    results.push({ student: b.name, ...(await decide(sb, cfg, b, cd, job, [], 1, false)) });
+    started++;
+    try { results.push({ student: b.name, ...(await decide(sb, cfg, b, cd, job, [], 1, false)) }); }
+    catch (e) { const m = String((e && e.message) || e); console.error("decide", m); await sb.from("auto_assign_jobs").update({ state: "attention", note: "error: " + m }).eq("id", job.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign hit an error for " + b.name, detail: m + ". Assign them by hand in Find & Assign.", waiting_id: String(w.id), student_name: b.name }); }
   }
   return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, unpaidAlerts, acks, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
 }

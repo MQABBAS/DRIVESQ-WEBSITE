@@ -205,3 +205,19 @@ ok(!DB.admin_attention.some((a) => a.kind === "no_jobs" && a.instructor_id === "
 ok(sent("dsq_admin_attention").length === 0, "these items do not ping your WhatsApp");
 DB.referrals.push(agoRef("f5", "i3", 0.1)); await call({ action: "auto_assign", cron: true, force: true });
 ok(DB.admin_attention.filter((a) => a.kind === "no_jobs" && a.instructor_id === "i3").every((a) => a.resolved), "Mo is given a student -> the item clears itself");
+
+console.log("== 17. Duplicates, rush cap, stuck jobs ==");
+cfgOf().fairnessMiles = 0; cfgOf().maxPerRun = 5; cfgOf().dailyLimit = 0; cfgOf().weeklyLimit = 0; cfgOf().hours = [0, 24];
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = [];
+const dupA = W("Dup Dan", "M13 9AA", "", { student_phone: "07811 222333" }), dupB = W("Dup Dan again", "M13 9AA", "UPDATED", { student_phone: "07811222333" });
+DB.waiting_list = [dupA, dupB]; await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs.filter((j) => j.state === "pending_accept").length === 1 && DB.auto_assign_jobs.some((j) => /duplicate/.test(j.note || "")), "same phone twice -> only ONE instructor is asked, the repeat is held as a duplicate");
+ok(DB.admin_attention.some((a) => a.kind === "duplicate") && sent("dsq_admin_attention").length === 0, "duplicate listed for the admin (no WhatsApp ping)");
+DB.referrals = [{ id: "old1", instructor_id: "i1", student_name: "Placed Pat", student_phone: "07822 333444", created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }];
+DB.auto_assign_jobs = []; DB.admin_attention = []; DB.waiting_list = [W("Placed Pat", "M13 9AA", "", { student_phone: "07822333444" })]; await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs.length === 1 && /duplicate/.test(DB.auto_assign_jobs[0].note) && !DB.auto_assign_jobs.some((j) => j.state === "pending_accept"), "already given to an instructor 3 days ago -> not offered again");
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.waiting_list = Array.from({ length: 8 }, (_, k) => W("Rush " + k, "M13 9AA", "", { student_phone: "0790000" + String(1000 + k) }));
+await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.length === 5, "8 bookings at once -> 5 started this run (" + DB.auto_assign_jobs.length + ")");
+await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.length === 8, "next run picks up the other 3 (" + DB.auto_assign_jobs.length + ")");
+DB.auto_assign_jobs = [{ id: "stk", waiting_id: "zz", state: "working", created_at: new Date(Date.now() - 30 * 60000).toISOString(), updated_at: new Date(Date.now() - 30 * 60000).toISOString() }]; DB.waiting_list = []; DB.admin_attention = [];
+await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs[0].state === "attention" && DB.admin_attention.some((a) => /stuck/.test(a.title)), "a job stuck 'working' for 30 minutes -> attention");
