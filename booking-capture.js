@@ -14,6 +14,43 @@
   var SB_URL = 'https://vwvbfqrlumvoabzkjxoa.supabase.co';
   var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
   var FORMSPREE = 'https://formspree.io/f/xvgjdapp';
+
+  /* ---------- instructor preference (female only / female preferred) ----------
+     Remembered for the visit. Set by the "Instructor preference" box in any booking form, by landing on a female-instructor page, or by clicking a link to one.
+     Every booking saved to Website Bookings from ANY form on the site then carries the line auto-assign reads:
+       👩 FEMALE INSTRUCTOR REQUESTED   (female only)      👩 FEMALE PREFERRED REQUESTED   (female preferred)
+     A form that already writes its own line (the female-instructor booking form) is left alone. */
+  var PREF_KEY = 'dsq_instr_pref';
+  function getPref() { try { return sessionStorage.getItem(PREF_KEY) || ''; } catch (e) { return ''; } }
+  function setPref(v) { try { if (v) sessionStorage.setItem(PREF_KEY, v); else sessionStorage.removeItem(PREF_KEY); } catch (e) {} syncPref(); }
+  function syncPref() { Array.prototype.forEach.call(document.querySelectorAll('select.dsq-pref-sel'), function (el) { el.value = getPref() || 'none'; }); }
+  if (/female-driving-instructor/i.test(location.pathname) && !getPref()) setPref('prefer');
+  document.addEventListener('click', function (e) { var a = e.target && e.target.closest && e.target.closest('a[href*="female-driving-instructor"]'); if (a && !getPref()) setPref('prefer'); }, true);
+  document.addEventListener('click', function (e) { var bt = e.target && e.target.closest && e.target.closest('[data-note]'); if (bt && /female instructor/i.test(bt.getAttribute('data-note') || '') && !getPref()) setPref('prefer'); }, true);   // the homepage quick chip "Female instructor preferred"
+  (function wrapFetch() {
+    var orig = window.fetch; if (typeof orig !== 'function' || orig.__dsqPref) return;
+    var w = function (u, o) {
+      try {
+        var url = String((u && u.url) || u || '');
+        if (/\/rest\/v1\/waiting_list/.test(url) && o && /^post$/i.test(o.method || '') && typeof o.body === 'string') {
+          var pref = getPref();
+          if (pref === 'prefer' || pref === 'require') {
+            var b = JSON.parse(o.body), line = pref === 'require' ? '👩 FEMALE INSTRUCTOR REQUESTED' : '👩 FEMALE PREFERRED REQUESTED', fix = function (r) { if (r && typeof r.notes === 'string' && !/FEMALE (INSTRUCTOR REQUESTED|PREFERRED)/i.test(r.notes)) r.notes = r.notes + '\n' + line; };
+            Array.isArray(b) ? b.forEach(fix) : fix(b); o = Object.assign({}, o, { body: JSON.stringify(b) });
+          }
+        }
+      } catch (e) { /* never block a booking */ }
+      return orig.call(this, u, o);
+    };
+    w.__dsqPref = true; window.fetch = w;
+  })();
+  function prefBox(form, before) {
+    if (form.querySelector('.dsq-pref')) return;
+    var d = document.createElement('div'); d.className = 'dsq-pref'; d.style.cssText = 'margin:2px 0 8px;width:100%;font-size:.78rem';
+    d.innerHTML = '<label style="display:block;margin-bottom:3px;opacity:.85">Instructor preference</label><select class="dsq-pref-sel form-select" style="width:100%;padding:8px;border-radius:8px" aria-label="Instructor preference"><option value="none">No preference</option><option value="prefer">Female instructor preferred</option><option value="require">Female instructor only</option></select>';
+    var sel = d.querySelector('select'); sel.value = getPref() || 'none'; sel.addEventListener('change', function () { setPref(sel.value === 'none' ? 'none' : sel.value); });
+    before.parentNode.insertBefore(d, before);
+  }
   var ADMIN_ID = '00000000-0000-0000-0000-000000000001';
   var WA = '447352932003';
 
@@ -194,6 +231,7 @@
     if (f.dataset.dsqAttached) return;
     f.dataset.dsqAttached = '1';
     var btn = f.querySelector('[type=submit]'), msg = f.querySelector('#dsqInlineBookMsg') || f.appendChild(document.createElement('div'));
+    if (btn) prefBox(f, btn);
     if (btn && !f.querySelector('.dsq-terms-note')) { var tn = document.createElement('div'); tn.className = 'dsq-terms-note'; tn.style.cssText = 'font-size:.72rem;line-height:1.5;opacity:.8;margin:2px 0 8px'; tn.innerHTML = 'By sending this you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>. Free cancellation more than 24 hours before a lesson; with less notice we charge £35 per hour booked for the time reserved. Paying the DriveSQ business account is our responsibility; paying an instructor directly is not.'; btn.parentNode.insertBefore(tn, btn); }
     var label = btn ? btn.innerHTML : '';
     var exp = f.querySelector('[name="experience"]'), tdl = f.querySelector('.dsq-bk-test');
@@ -248,6 +286,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('form'), function (f) {
       if (f.querySelector('.dsq-terms-note') || /join/i.test(f.id || '') || f.querySelector('[name="areas"]') || !f.querySelector('[name="phone"],[name="tel"]')) return;
       var b = f.querySelector('[type=submit]'); if (!b) return;
+      prefBox(f, b);
       var tn = document.createElement('div'); tn.className = 'dsq-terms-note'; tn.style.cssText = 'font-size:.72rem;line-height:1.5;opacity:.8;margin:2px 0 8px;width:100%'; tn.innerHTML = 'By sending this you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>. Free cancellation more than 24 hours before a lesson; with less notice we charge £35 per hour booked for the time reserved. Paying the DriveSQ business account is our responsibility; paying an instructor directly is not.'; b.parentNode.insertBefore(tn, b);
     });
   }

@@ -187,13 +187,18 @@ const canTeach = (t: string, req: string) => t === "Both" || (req === "Automatic
 /* line written into the booking when the student says a male instructor is fine */
 const MALE_OK = "✅ Student agreed to a male instructor";
 
+/* does this booking need a FEMALE instructor? "female only" does (unless you set the rule to "anyone allowed"), and so does "female preferred": the website promises
+   to tell the student before booking a man, so a male instructor is only used after the student agrees */
+const needFemale = (cfg: any, b: any) => (b.female === "require" && cfg.femaleRule === "require") || b.female === "prefer";
+
 /* ---------- reading a website booking ---------- */
 function readBooking(w: any) {
   const n = String(w.notes || ""), pick = (re: RegExp) => { const m = n.match(re); return m ? m[1].trim() : ""; };
   const pc = fmtPc(w.postcode || pick(/(?:^|\n)\s*Postcode:\s*([^\n]+)/i));
   const gear = pick(/(?:^|\n)\s*(?:Gearbox|Transmission):\s*([^\n]+)/i) || pick(/(?:^|\n)\s*Service:\s*([^\n]+)/i);
   let type = w.lesson_type || (/auto/i.test(gear) ? "Automatic" : "Manual"); if (/auto/i.test(gear)) type = "Automatic"; else if (/manual/i.test(gear) && !/^(Intensive|Mock Test)$/.test(type)) type = "Manual";
-  const agreedMale = n.includes(MALE_OK), femaleStrict = !agreedMale && (/FEMALE INSTRUCTOR REQUESTED/i.test(n) || (/female instructor/i.test(n) && !/FEMALE PREFERRED/i.test(n))), femalePref = !agreedMale && /FEMALE PREFERRED/i.test(n);
+  const agreedMale = n.includes(MALE_OK), softWords = /FEMALE PREFERRED|prefer[a-z]*\s+(?:a\s+)?female|female[^.\n]{0,30}(?:prefer|if possible|if you can)/i.test(n);   // "I'd prefer a female instructor if possible" is a preference, not a requirement
+  const femalePref = !agreedMale && softWords && !/FEMALE INSTRUCTOR REQUESTED/i.test(n), femaleStrict = !agreedMale && !femalePref && (/FEMALE INSTRUCTOR REQUESTED/i.test(n) || /female instructor/i.test(n));
   return { id: w.id, name: w.student_name || "Student", phone: w.student_phone || "", email: pick(/(?:^|\n)\s*Email:\s*(\S+@\S+)/i), postcode: pc, addr: pick(/(?:^|\n)\s*(?:Address|Pick-?up street):\s*([^\n]+)/i) || w.area || "", type, avail: pick(/(?:^|\n)\s*Availability:\s*([^\n]+)/i), notes: n, female: femaleStrict ? "require" : femalePref ? "prefer" : "", ref: pick(/(?:^|\n)\s*Ref:\s*([^\n]+)/i), created: w.created_at };
 }
 
@@ -327,7 +332,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
     if (exclude.includes(String(i.id))) continue;
     if (tr.noAuto) { skip(i, "marked Never auto-assign"); continue; }
     if (!canTeach(i.car_type || "Manual", b.type)) { skip(i, "does not teach " + b.type.toLowerCase() + " lessons"); continue; }
-    if (b.female === "require" && cfg.femaleRule === "require" && !tr.female) { skip(i, "the booking needs a female instructor"); continue; }
+    if (needFemale(cfg, b) && !tr.female) { skip(i, "the booking asks for a female instructor"); continue; }
     const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) { skip(i, "reached the hard cap of " + cfg.maxPerWeek + " new students this week"); continue; }
     const ent = entitlement(i, cd, cfg); if (!ent.started) { skip(i, "package / franchise " + (ent.why || "has not started yet")); continue; }   // no jobs before the start date
     const pc = instrPc(i); if (!pc) { skip(i, "no postcode or area on their profile"); continue; }
@@ -351,7 +356,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
   }
   // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
   // order: (1) not over a soft limit, (2) owed their weekly minimum, (3) closest after priority / shortfall adjustments
-  out.sort((a, c) => (a.tier - c.tier) || ((a.owed ? 0 : 1) - (c.owed ? 0 : 1)) || (a.eff - c.eff) || (a.dist - c.dist));
+  out.sort((a, c) => (a.tier - c.tier) || (b.female ? (a.female ? 0 : 1) - (c.female ? 0 : 1) : 0) || ((a.owed ? 0 : 1) - (c.owed ? 0 : 1)) || (a.eff - c.eff) || (a.dist - c.dist));   // asked for a woman but men allowed by your rule: women first
   const near = out.filter((x) => x.dist <= cfg.confirmMiles);
   // when several bookings are handled at the same time, the chosen instructor is reserved at once (no await in between), so the next booking sees them as already busier
   if (reserve && near[0] && cd.stats) { const sx = cd.stats[near[0].id] = cd.stats[near[0].id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; sx.today++; sx.week++; sx.last = Date.now(); }
@@ -430,7 +435,7 @@ async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: numbe
 async function rebook(sb: any, cfg: any, b: any, cd: any, job: any, prev: any) {
   const i = cd.instrs.find((x: any) => String(x.id) === String(prev.instructor_id)), tr = i ? (cd.traits[i.id] || {}) : {};
   const note = `existing student (${prev.student_name || b.name} was given to ${i ? i.full_name : "an instructor"} on ${new Date(prev.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })})`;
-  if (!i || tr.noAuto || (b.female === "require" && cfg.femaleRule === "require" && !tr.female)) {
+  if (!i || tr.noAuto || needFemale(cfg, b) && !tr.female) {
     const why = !i ? "their instructor is no longer approved" : tr.noAuto ? "their instructor is marked Never auto-assign" : "they asked for a female instructor and their current instructor is not one";
     await sb.from("auto_assign_jobs").update({ state: "attention", note: "re-booking: " + why }).eq("id", job.id);
     await attention(sb, cfg, { kind: "rebooking", title: `Existing student booked again: ${b.name}`, detail: `${note}. It could not go back to them automatically: ${why}. Assign them by hand.`, waiting_id: String(b.id), student_name: b.name });
@@ -452,7 +457,7 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
   if (rk.transient) { if (!dry) await sb.from("auto_assign_jobs").delete().eq("id", job.id); return { action: "retry", reason: rk.error + ", it will try again on the next run", top }; }   // not the booking's fault: try again in 2 minutes
   if (rk.error) { if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: rk.error }).eq("id", job.id); await attention(sb, cfg, { kind: "postcode", title: "Check the postcode for " + b.name, detail: rk.error + ". Fix it and assign by hand.", waiting_id: String(b.id), student_name: b.name }); } return { action: "attention", reason: rk.error, top }; }
   const best = near[0];
-  const wantF = b.female === "require" && cfg.femaleRule === "require";
+  const wantF = needFemale(cfg, b);
   if (!best && wantF) {   // a female instructor was required and none is available: tell the admin AND ask the student whether a male instructor is fine
     const reasonF = tried.length ? "every female instructor who could take it has been asked" : nearestAny ? `the nearest female instructor (${nearestAny.name}) is ${nearestAny.dist} miles away, over your ${cfg.confirmMiles} mile limit` : "no female instructor can take this booking";
     if (dry) return { action: "female_ask", reason: reasonF + ". The student would be asked if a male instructor is fine.", top };

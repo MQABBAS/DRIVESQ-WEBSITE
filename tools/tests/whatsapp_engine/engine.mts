@@ -305,3 +305,25 @@ await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_student_offer").length === 1, "with the default (24/7) the instructor is messaged immediately even though the old 'hours' setting says it is closed");
 cNow.anytime = false; DB.auto_assign_jobs = []; DB.wa_log = []; DB.waiting_list = [W("Night Nell", "M13 9AA", "", { student_phone: "07866555666" })]; await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_student_offer").length === 0, "with 24/7 switched off the old quiet hours apply again");
+
+console.log("== 24. Female PREFERRED and the 'anyone allowed' rule ==");
+cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = [];
+DB.waiting_list = [W("Pref Pia", "M13 9AA", "👩 FEMALE PREFERRED REQUESTED", { student_phone: "07877000111" })];
+let pv24 = await call({ action: "auto_assign", dry: true }); ok(pv24.results[0].instructor === "Sara Female", "female PREFERRED: the female instructor is chosen even though a man is closer (" + pv24.results[0].instructor + ")");
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = {}; pv24 = await call({ action: "auto_assign", dry: true });
+ok(pv24.results[0].action === "female_ask", "female PREFERRED, no woman available -> the student is asked first (" + pv24.results[0].action + ")");
+cfgOf().femaleRule = "prefer"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
+DB.waiting_list = [W("Req Rae", "M13 9AA", "👩 FEMALE INSTRUCTOR REQUESTED", { student_phone: "07877000222" })]; pv24 = await call({ action: "auto_assign", dry: true });
+ok(pv24.results[0].instructor === "Sara Female", "rule 'anyone allowed': women still go first (" + pv24.results[0].instructor + ")");
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = {}; pv24 = await call({ action: "auto_assign", dry: true });
+ok(pv24.results[0].action !== "female_ask" && pv24.results[0].instructor, "rule 'anyone allowed' and no woman: a man is offered straight away (" + pv24.results[0].instructor + ")");
+cfgOf().femaleRule = "require";
+
+console.log("== 25. How a booking's female wording is read ==");
+cfgOf().femaleRule = "require";
+const readF = async (notes) => { DB.auto_assign_jobs = []; DB.admin_attention = []; DB.waiting_list = [W("Word Wes", "M13 9AA", notes, { student_phone: "07899" + String(Math.floor(100000 + Math.random() * 899999)) })]; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } }; const r = await call({ action: "auto_assign", dry: true }); return r.results[0]; };
+let rf = await readF("Message from learner: I'd prefer a female instructor if possible."); ok(rf.female === "prefer" && rf.instructor === "Sara Female", "homepage chip 'I'd prefer a female instructor if possible' = PREFERRED, a woman is chosen (" + rf.female + ")");
+rf = await readF("👩 FEMALE INSTRUCTOR REQUESTED"); ok(rf.female === "require", "'FEMALE INSTRUCTOR REQUESTED' = only a woman");
+rf = await readF("👩 FEMALE PREFERRED REQUESTED"); ok(rf.female === "prefer", "'FEMALE PREFERRED REQUESTED' = preferred");
+rf = await readF("Nervous learner: yes"); ok(!rf.female, "no mention = no preference");
