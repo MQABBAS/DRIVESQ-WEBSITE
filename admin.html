@@ -4943,7 +4943,14 @@ window._refAdminBooked=_refAdminBooked;
 /* one rule for money everywhere: a referral fee is OWED once admin has confirmed the student booked (✅) and it isn't paid.
    Unpaid referrals that could still become a fee (no flag, 🟣, or a ✅ that came from the instructor) are AWAITING your ✅.
    🚩 not booked / not going ahead = no fee. */
-function _refAmt(r){return parseFloat(r&&r.amount)||0;}
+let _frMapSrc=null,_frMap=null;
+/* franchise instructors pay a weekly package fee, never a per-student referral fee: any old £25 on their referrals is ignored */
+function _refAmt(r){
+  if(!r)return 0;
+  try{if(typeof allInstrs!=='undefined'&&allInstrs&&_frMapSrc!==allInstrs){_frMapSrc=allInstrs;_frMap=new Set(allInstrs.filter(i=>String(i.instructor_model||'').toLowerCase()==='franchise').map(i=>String(i.id)));}
+    if(_frMap&&_frMap.has(String(r.instructor_id)))return 0;}catch(e){}
+  return parseFloat(r.amount)||0;
+}
 function _refOwes(r){return !!r&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&_refAmt(r)>0&&_refAdminBooked(r);}
 function _refAwaiting(r){return !!r&&!r.is_paid&&!r.is_cancelled&&!r.is_credit&&_refAmt(r)>0&&!_refAdminBooked(r)&&r.flag_color!=='red'&&r.reply_status!=='not_interested'&&r.reply_status!=='unreachable';}
 window._refOwes=_refOwes;window._refAwaiting=_refAwaiting;
