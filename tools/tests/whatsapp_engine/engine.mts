@@ -221,3 +221,16 @@ await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.length
 await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.length === 8, "next run picks up the other 3 (" + DB.auto_assign_jobs.length + ")");
 DB.auto_assign_jobs = [{ id: "stk", waiting_id: "zz", state: "working", created_at: new Date(Date.now() - 30 * 60000).toISOString(), updated_at: new Date(Date.now() - 30 * 60000).toISOString() }]; DB.waiting_list = []; DB.admin_attention = [];
 await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs[0].state === "attention" && DB.admin_attention.some((a) => /stuck/.test(a.title)), "a job stuck 'working' for 30 minutes -> attention");
+
+console.log("== 18. Several bookings at the same time ==");
+cfgOf().maxPerRun = 10; cfgOf().concurrency = 5; cfgOf().dailyLimit = 2; cfgOf().weeklyLimit = 0; cfgOf().autoMiles = 0; cfgOf().franchiseMin = 0; cfgOf().fairnessMiles = 0;
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = [];
+DB.waiting_list = Array.from({ length: 6 }, (_, k) => W("Multi " + k, "M13 9AA", "", { student_phone: "0780000" + String(2000 + k) }));
+const t1 = Date.now(); const rr = await call({ action: "auto_assign", cron: true });
+const perI: any = {}; DB.auto_assign_jobs.forEach((j) => { if (j.instructor_id) perI[j.instructor_id] = (perI[j.instructor_id] || 0) + 1; });
+ok(DB.auto_assign_jobs.length === 6 && DB.auto_assign_jobs.every((j) => j.state === "pending_accept"), "6 bookings in one run -> all 6 offered (" + DB.auto_assign_jobs.map((j) => j.state).join(",") + ")");
+ok(Math.max(...Object.values(perI)) <= 3, "no single instructor is given all of them while others are free: " + JSON.stringify(perI));
+DB.auto_assign_jobs = []; DB.wa_log = []; DB.waiting_list = Array.from({ length: 4 }, (_, k) => W("Twin " + k, "M13 9AA", "", { student_phone: "0781000" + String(3000 + k) }));
+await Promise.all([call({ action: "auto_assign", cron: true }), call({ action: "auto_assign", cron: true }), call({ action: "auto_assign", cron: true })]);
+ok(DB.auto_assign_jobs.length === 4 && new Set(DB.auto_assign_jobs.map((j) => j.waiting_id)).size === 4, "three runs at the same moment -> each booking handled exactly once (" + DB.auto_assign_jobs.length + " jobs)");
+ok(sent("dsq_student_offer").length === 4, "and each offer was messaged exactly once (" + sent("dsq_student_offer").length + ")");
