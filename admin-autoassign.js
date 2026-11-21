@@ -243,7 +243,25 @@
     if (r.error) toast('Not saved: ' + r.error.message, 'error', 5000); else { toast('Saved', 'success', 1500); var nm = ((window.DSQ_ADMIN.instrs() || []).find(function (i) { return String(i.id) === String(id); }) || {}).full_name || 'instructor'; log((on ? 'Set ' : 'Cleared ') + (k === 'female' ? 'female instructor' : 'never auto-assign') + ' for ' + nm); }
   }
 
-    /* Is the data good enough for auto-assign? Every approved instructor needs a location, a phone number and a lesson type. */
+    /* Find & Assign: the student asked for a woman (read from the booking's notes, the same wording auto-assign reads) */
+  function femaleWish() {
+    var n = String(window._fcRawNotes || ''), fn = String((document.getElementById('fc-notes') || {}).value || ''); n = n + '\n' + fn;
+    if (/FEMALE INSTRUCTOR REQUESTED/i.test(n)) return 'require';
+    if (/FEMALE PREFERRED|prefer[a-z]*\s+(?:a\s+)?female|female[^.\n]{0,30}(?:prefer|if possible|if you can)/i.test(n)) return 'prefer';
+    if (/female instructor/i.test(n)) return 'require';
+    return '';
+  }
+  function femaleFirst(ranked) {
+    var w = femaleWish(); window._fcFemaleWish = w; if (!w || !TR) return ranked;
+    var f = [], o = []; ranked.forEach(function (r) { ((TR[r.instr.id] || {}).female ? f : o).push(r); }); return f.concat(o);
+  }
+  function femaleChip(r) {
+    var w = femaleWish(); if (!w) return ''; var isF = !!(TR && (TR[r.instr.id] || {}).female);
+    return isF ? '<div style="font-size:.68rem;margin-top:3px;font-weight:800;color:#ec4899"><i class="bi bi-gender-female me-1"></i>Female instructor' + (w === 'require' ? ' · student asked for a woman' : ' · student prefers a woman') + '</div>'
+      : (w === 'require' ? '<div style="font-size:.66rem;margin-top:3px;font-weight:600;color:#f59e0b"><i class="bi bi-exclamation-triangle me-1"></i>Student asked for a female instructor: ask them first</div>' : '');
+  }
+
+  /* Is the data good enough for auto-assign? Every approved instructor needs a location, a phone number and a lesson type. */
   var instrLoc = function (i) {
     var up = function (v) { return String(v || '').toUpperCase(); }, full = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/, out = /\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/;
     if (String(i.postcode || '').trim()) return i.postcode; var f = up(i.area).match(full) || up(i.address).match(full); if (f) return f[0];
@@ -281,5 +299,5 @@
   }
   takeOver(); window.addEventListener('load', function () { takeOver(); setTimeout(takeOver, 1500); });   // the page's own script defines these after this file loads, so take over again once everything is ready
   (function init() { var t0 = 0, t = setInterval(function () { t0++; if (t0 > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb() && document.getElementById('waApiBtn')) { clearInterval(t); load().then(function () { poll(); setInterval(poll, 60000); }); } }, 1000); })();
-  window.DSQAA = { recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
+  window.DSQAA = { recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, loadTraits: loadTraits, femaleFirst: femaleFirst, femaleChip: femaleChip, femaleWish: femaleWish, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
 })();

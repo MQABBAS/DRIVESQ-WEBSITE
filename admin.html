@@ -9000,6 +9000,7 @@ async function findClosest(){
       ranked.sort((a,b)=>a.tcCost-b.tcCost||a.dist-b.dist);
     }
     try{await DSQPkg.load();ranked=DSQPkg.prioritise(ranked);}catch(e){}   // Platinum first within 5 miles
+    try{await DSQAA.loadTraits();ranked=DSQAA.femaleFirst(ranked);}catch(e){}   // the student asked for a woman: female instructors first, with a note
     try{await DSQInsights.loadNotes();}catch(e){}
     if(!sGeo.exact)showToast('Only the area code was found — distances are approximate.','info',3500);
     const unknown=results.filter(r=>r.dist===null);
@@ -9088,7 +9089,7 @@ async function findClosest(){
               ${areaNote}
               ${weekAssignNote}
               ${weekBookedNote}
-              ${pkgNote}${_unpaidChip(r.instr.id)}
+              ${(()=>{try{return DSQAA.femaleChip(r);}catch(e){return'';}})()}${pkgNote}${_unpaidChip(r.instr.id)}
               ${(()=>{try{return DSQInsights.noteLine(r.instr.id);}catch(e){return'';}})()}
               ${creditNote}
             </div>
