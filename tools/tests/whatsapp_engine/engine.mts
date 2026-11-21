@@ -5,7 +5,7 @@ const sigf = async (b) => { const k = await crypto.subtle.importKey("raw", new T
 const hook = async (payload, text) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "in" + Math.random(), from: payload.from, type: payload.p ? "button" : "text", ...(payload.p ? { button: { payload: payload.p, text: "x" } } : { text: { body: text } }) }] } }] }] }); return h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": await sigf(body) }, body })); };
 const I = (id, name, area, phone, extra = {}) => ({ id, full_name: name, status: "approved", area, phone, car_type: "Both", instructor_model: "referral", coverage_postcodes: area.split(" ")[0], ...extra });
 DB.instructors = [I("i1", "Dawood Khan", "M13 0PG", "07700900001"), I("i2", "Sara Female", "M20 0AA", "07700900002"), I("i3", "Mo Sale", "M33 0AA", "07700900003", { instructor_model: "franchise" }), I("i4", "Far Frank", "BL1 0AA", "07700900004")];
-DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24] } }];
+DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
 const now = Date.now(), ph = () => "07700" + String(900000 + globalThis.SEQ++).slice(-6);
 const W = (name, pc, notes = "", extra = {}) => ({ id: "w" + (globalThis.SEQ++), student_name: name, student_phone: ph(), postcode: pc, lesson_type: "Manual", status: "waiting", created_at: new Date(now - 3600e3).toISOString(), notes: "[WEB] Email: x@x.com\n" + notes, ...extra });
 const ok = (c, m) => console.log((c ? "PASS " : "FAIL ") + m);
@@ -114,7 +114,7 @@ DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find
 ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");
 
 console.log("== 11. 45-minute reply time + acknowledgement ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = [];
 DB.waiting_list = [W("Offer Ola", "M13 9AA"), W("Call Cal", "M13 9AA", "", { notes: "[CALL] phone booking" })];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
@@ -125,3 +125,21 @@ ok(/booking acknowledgement sent/.test(DB.waiting_list[0].notes), "note added so
 await call({ action: "auto_assign", cron: true }); ok(sent("dsq_booking_received").length === 1, "no second acknowledgement");
 const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
 ok(jo.instructor_id !== firstInstr && jo.state === "pending_accept" && JSON.stringify(jo.tried).includes(String(firstInstr)), "no reply in 60 min -> offered to the NEXT instructor straight away");
+
+console.log("== 12. Offer first; no reply after 35 min -> auto-assign if they cover the area ==");
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], autoMiles: 0 };
+DB.referrals = []; DB.admin_attention = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.student_followups = [];
+DB.waiting_list = [W("Cover Cora", "M13 9AA"), W("Nocover Nick", "M4 1AA")];
+CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
+const jc = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[0].id)), jn = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[1].id));
+ok(jc.state === "pending_accept" && jn.state === "pending_accept" && sent("dsq_student_offer").length === 2, "everyone is offered first (no instant assignment)");
+const offered = (j, minAgo) => { j.expires_at = new Date(Date.now() - minAgo * 60000 + 60 * 60000).toISOString(); };
+offered(jc, 20); offered(jn, 20); await call({ action: "auto_assign", cron: true });
+ok(jc.state === "pending_accept" && jn.state === "pending_accept", "after 20 min: still waiting");
+offered(jc, 36); offered(jn, 36); const wc = (DB.wa_log || []).filter((l) => l.template === "dsq_student_welcome_2" && l.status === "sent").length; await call({ action: "auto_assign", cron: true });
+ok(jc.state === "assigned" && DB.referrals.some((x) => x.student_name === "Cover Cora" && /no reply after 35 minutes and they cover M13/.test(x.admin_notes)), "after 36 min: Dawood covers M13 -> assigned without Accept, note explains why");
+ok((DB.wa_log || []).filter((l) => l.template === "dsq_student_welcome_2" && l.student_name === "Cover Cora" && l.status === "sent").length === 1, "student told to contact the instructor (welcome sent)");
+ok(DB.student_followups.some((f) => f.student_name === "Cover Cora" && f.state === "waiting_student"), "follow-up clock started");
+ok(jn.state === "pending_accept" && jn.instructor_id === jn.instructor_id && !DB.referrals.some((x) => x.student_name === "Nocover Nick"), "instructor who does NOT cover M4: not assigned, keeps waiting");
+const mo = jn.instructor_id; offered(jn, 61); await call({ action: "auto_assign", cron: true });
+ok(jn.state === "attention" && DB.admin_attention.some((a) => a.kind === "no_match" && /no other instructor left/.test(a.detail || a.title)), "after 60 min the non-covering instructor is skipped; nobody else within 8 miles -> attention");

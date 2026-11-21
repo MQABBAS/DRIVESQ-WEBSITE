@@ -87,7 +87,7 @@ const DEFAULT_CFG = {
   mode: "assign",                  // "assign" = assign + message; "suggest" = only tell the admin who it would pick (no messages, no assignment)
   since: "",                       // only bookings created after this moment are touched (set when you switch it on)
   sources: ["[WEB]"],              // which bookings: [WEB] = website booking forms
-  autoMiles: 5,                    // at or under this many miles: assign straight away
+  autoMiles: 0,                    // at or under this many miles: assign straight away without asking (0 = everyone is offered first)
   confirmMiles: 8,                 // the limit: up to this many miles the instructor is asked to accept first. Over it: attention required
   dailyLimit: 2,                   // soft limit: students assigned to an instructor today. Over it they are asked LAST
   weeklyLimit: 4,                  // soft limit: students confirmed booked this week (Mon-Sun). Over it they are asked LAST
@@ -95,6 +95,7 @@ const DEFAULT_CFG = {
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 21],                  // only run between these UK hours
   replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
+  autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
@@ -147,6 +148,8 @@ function instrPc(i: any) {
   const oc = String(i.area || "").toUpperCase().match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/); if (oc) return oc[0];
   const cov = String(i.coverage_postcodes || "").toUpperCase().match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/); return cov ? cov[0] : "";
 }
+/* "coverage stated in admin": the instructor's Covered Postcodes include the student's postcode area (e.g. M14) */
+const covers = (i: any, pc: string) => { const oc = outward(pc); return !!oc && String(i.coverage_postcodes || "").toUpperCase().split(/[\s,;/]+/).filter(Boolean).some((c: string) => c === oc || outward(c) === oc); };
 const canTeach = (t: string, req: string) => t === "Both" || (req === "Automatic" ? t === "Automatic" : t !== "Automatic");
 
 /* ---------- reading a website booking ---------- */
@@ -278,7 +281,7 @@ async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: a
   await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + (ref.student_name || "the student") + " did not send", detail: `${c.name} agreed, but the welcome failed: ${r2.error}. Message the student by hand.`, waiting_id: String(waitingId || ref.id) + "-stu", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name });
   return "student message failed: " + r2.error;
 }
-async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
+async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "") {
   const now = new Date().toISOString(), pickup = [b.addr, b.postcode].filter(Boolean).join(", ");
   const phoneDigits = last10(b.phone);
   let accId = null;
@@ -292,7 +295,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
   if (!prof) throw new Error("could not save the student to the instructor's roster");
   try { await sb.from("student_requests").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, pickup_address: null, postcode: b.postcode || null, lesson_type: b.type, notes: [b.avail ? "Availability: " + b.avail : "", pickup ? "Address: " + pickup : ""].filter(Boolean).join("\n") || null, status: "approved", created_at: now }]); } catch (_) { /* audit only */ }
   const amount = c.model === "referral" ? (parseFloat(cfg.refFee) || 0) : 0;
-  const { data: ref, error: rerr } = await sb.from("referrals").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, amount, is_paid: false, paid_at: null, is_cancelled: false, is_credit: false, credit_fulfilled: false, notes: ["Auto-assigned (website booking)", b.postcode ? "Postcode: " + b.postcode : "", pickup ? "Address: " + pickup : "", b.avail ? "Availability: " + b.avail : "", b.ref ? "Ref: " + b.ref : ""].filter(Boolean).join("\n"), admin_notes: `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)`, created_at: now }]).select().single();
+  const { data: ref, error: rerr } = await sb.from("referrals").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, amount, is_paid: false, paid_at: null, is_cancelled: false, is_credit: false, credit_fulfilled: false, notes: ["Auto-assigned (website booking)", b.postcode ? "Postcode: " + b.postcode : "", pickup ? "Address: " + pickup : "", b.avail ? "Availability: " + b.avail : "", b.ref ? "Ref: " + b.ref : ""].filter(Boolean).join("\n"), admin_notes: `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)${via ? " — " + via : ""}`, created_at: now }]).select().single();
   if (rerr) throw new Error("referral not saved: " + rerr.message);
   try { await startFollowup(sb, cfg, ref, c, agreed ? "waiting_student" : "waiting_accept"); } catch (_) { /* follow-ups are best effort */ }
   try { await sb.from("admin_messages").insert([{ instructor_id: c.id, subject: "👤 New Student Assigned: " + b.name, message_type: "general", body: `${b.name}${b.phone ? " · " + fmtPhone(b.phone) : ""}${pickup ? " · " + pickup : ""}\nLessons: ${b.type}${b.avail ? "\nAvailability: " + b.avail : ""}\nPlease contact them to arrange the first lesson.`, is_read: false, dismissed: false, created_at: now }]); } catch (_) { /* in-app message only */ }
@@ -376,7 +379,20 @@ async function autoAssign(sb: any, body: any) {
   // 1. offers nobody answered in time → next instructor, or ask the admin
   if (!dry) {
     const { data: stale } = await sb.from("auto_assign_jobs").select("*").eq("state", "pending_accept");
+    // 1a. no reply after autoAssignAfterMinutes and the instructor covers the student's area: assign them anyway (they are probably in a lesson)
+    const replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 60;
+    if (cfg.autoAssignAfterMinutes > 0 && cfg.mode === "assign") {
+      const cdA = await candidateData(sb);
+      for (const j of (stale || []).filter((x: any) => x.expires_at && new Date(x.expires_at).getTime() - replyMin * 60000 + cfg.autoAssignAfterMinutes * 60000 <= now && new Date(x.expires_at).getTime() >= now)) {
+        const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
+        const i = cdA.instrs.find((x: any) => String(x.id) === String(j.instructor_id)), b = readBooking(w); if (!i || !covers(i, b.postcode)) continue;
+        const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: Math.round((j.dist || 0) * 10) / 10 };
+        try { const res = await assign(sb, cfg, b, c, true, `no reply after ${cfg.autoAssignAfterMinutes} minutes and they cover ${outward(b.postcode)}`); await sb.from("auto_assign_jobs").update({ state: "assigned", referral_id: res.referral_id, updated_at: new Date().toISOString(), note: `auto-assigned after ${cfg.autoAssignAfterMinutes} min (covers ${outward(b.postcode)}); ` + res.msgs.join("; ") }).eq("id", j.id); results.push({ student: b.name, action: "assigned", instructor: c.name, dist: c.dist, why: `no reply after ${cfg.autoAssignAfterMinutes} minutes, and they cover ${outward(b.postcode)}` }); }
+        catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: m }).eq("id", j.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign failed for " + b.name, detail: m + ". Assign them by hand.", waiting_id: String(w.id), student_name: b.name }); }
+      }
+    }
     for (const j of (stale || []).filter((x: any) => x.expires_at && new Date(x.expires_at).getTime() < now)) {
+      const { data: still } = await sb.from("auto_assign_jobs").select("state").eq("id", j.id).maybeSingle(); if (!still || still.state !== "pending_accept") continue;
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
       const tried = [...(j.tried || []), String(j.instructor_id)];
       if (tried.length > cfg.retries) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "no reply" }).eq("id", j.id); await attention(sb, cfg, { kind: "no_reply", title: "Attention: nobody replied for " + w.student_name, detail: `${tried.length} instructor(s) were asked and did not accept in time. Assign by hand.`, waiting_id: String(w.id), student_name: w.student_name }); results.push({ student: w.student_name, action: "attention", reason: "no reply" }); continue; }
