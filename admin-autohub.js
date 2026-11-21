@@ -87,7 +87,7 @@
       pill(on ? (c.mode === 'suggest' ? '● ON · suggest only' : '● ON · assigning') : '○ OFF', on ? (c.mode === 'suggest' ? '#a78bfa' : '#22c55e') : '#94a3b8') +
       pill(wa ? '● WhatsApp connected' : '● WhatsApp not connected', wa ? '#22c55e' : '#ef4444') +
       pill(age === null ? '● Cron has not run yet' : run ? '● Running by itself · ' + (age < 1 ? 'just now' : age + ' min ago') : '● Cron stopped · ' + (age < 60 ? age + ' min' : Math.round(age / 60) + ' h') + ' ago', run ? '#22c55e' : (on ? '#f59e0b' : '#94a3b8')) +
-      pill(open ? '● Offering now (' + c.hours[0] + ':00–' + c.hours[1] + ':00)' : '● Quiet hours until ' + c.hours[0] + ':00', open ? '#22c55e' : '#94a3b8') + '</div>' +
+      (c.anytime !== false ? pill('● Messaging 24/7', '#22c55e') : pill(open ? '● Offering now (' + c.hours[0] + ':00–' + c.hours[1] + ':00)' : '● Quiet hours until ' + c.hours[0] + ':00', open ? '#22c55e' : '#94a3b8')) + '</div>' +
       (on && !run ? '<div style="border:1px solid #f59e0b;background:rgba(245,158,11,.1);border-radius:10px;padding:8px 12px;font-size:.78rem;margin:8px 0">⚠️ It is switched on but the Cron job is not running, so bookings only move when you press <b>Run now</b>. Settings → "Make it run by itself".</div>' : '') +
       (on && !wa && c.mode === 'assign' ? '<div style="border:1px solid #ef4444;background:rgba(239,68,68,.1);border-radius:10px;padding:8px 12px;font-size:.78rem;margin:8px 0">🚫 WhatsApp is not connected, so assigning would fail. Use <b>Suggest only</b> until it is connected.</div>' : '');
   }

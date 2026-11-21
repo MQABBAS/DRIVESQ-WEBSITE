@@ -107,6 +107,7 @@ const DEFAULT_CFG = {
   fairnessCap: 4,                  // ... and never more than this many miles of help
   droughtDays: 7,                  // tell the admin when an approved instructor has had no student for this many days (and why). 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
+  anytime: true,                  // instructors (and students) are messaged straight away, day or night. Untick in the settings to use the hours below instead
   hours: [8, 20],                  // offers go out only between these UK hours, and the reply timers (35 / 60 min) PAUSE outside them, so nobody misses out while asleep
   ackHours: [7, 23],               // the "we have your booking" WhatsApp to the student can go out between these UK hours
   replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
@@ -126,7 +127,9 @@ const DEFAULT_CFG = {
 async function loadCfg(sb: any) {
   const { data } = await sb.from("growth_settings").select("value").eq("key", "auto_assign_cfg").maybeSingle();
   const v = (data && data.value) || {};
-  return { ...DEFAULT_CFG, ...v, followups: { ...DEFAULT_CFG.followups, ...(v.followups || {}) } };
+  const c = { ...DEFAULT_CFG, ...v, followups: { ...DEFAULT_CFG.followups, ...(v.followups || {}) } };
+  if (c.anytime) { c.hours = [0, 24]; c.ackHours = [0, 24]; }   // 24/7: no quiet hours, and the reply timers run round the clock
+  return c;
 }
 
 /* run async jobs with at most n at the same time; one failing never stops the others */
@@ -423,6 +426,24 @@ async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: numbe
   return "offered";
 }
 
+/* an existing student books again: offer it to the instructor they already have, and tell the admin */
+async function rebook(sb: any, cfg: any, b: any, cd: any, job: any, prev: any) {
+  const i = cd.instrs.find((x: any) => String(x.id) === String(prev.instructor_id)), tr = i ? (cd.traits[i.id] || {}) : {};
+  const note = `existing student (${prev.student_name || b.name} was given to ${i ? i.full_name : "an instructor"} on ${new Date(prev.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })})`;
+  if (!i || tr.noAuto || (b.female === "require" && cfg.femaleRule === "require" && !tr.female)) {
+    const why = !i ? "their instructor is no longer approved" : tr.noAuto ? "their instructor is marked Never auto-assign" : "they asked for a female instructor and their current instructor is not one";
+    await sb.from("auto_assign_jobs").update({ state: "attention", note: "re-booking: " + why }).eq("id", job.id);
+    await attention(sb, cfg, { kind: "rebooking", title: `Existing student booked again: ${b.name}`, detail: `${note}. It could not go back to them automatically: ${why}. Assign them by hand.`, waiting_id: String(b.id), student_name: b.name });
+    return { action: "attention", reason: why };
+  }
+  const rk = await rank(sb, cfg, b, cd, [], false), x = (rk.list || []).find((y: any) => String(y.id) === String(i.id));
+  const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: x ? x.dist : 0 };
+  await attention(sb, cfg, { kind: "rebooking", title: `Existing student booked again: ${b.name}`, detail: `${note}. ${cfg.mode === "assign" ? "It has been offered back to " + i.full_name + "." : "Suggest-only mode: nothing was sent."} Check it is a new booking and not a duplicate.`, waiting_id: String(b.id), instructor_id: String(i.id), student_name: b.name, quiet: true });
+  if (cfg.mode === "suggest") { await sb.from("auto_assign_jobs").update({ state: "attention", note: "would offer back to " + i.full_name + " (existing student)" }).eq("id", job.id); return { action: "suggest", instructor: i.full_name, why: "existing student" }; }
+  const what = await offer(sb, cfg, b, c, job, 1, []);
+  return { action: what === "offered" ? "offered" : "attention", instructor: i.full_name, why: "existing student: offered back to their instructor" };
+}
+
 /* decide what to do with one booking. job = its row in auto_assign_jobs. Returns a one-line outcome. */
 async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: string[], attempt: number, dry: boolean) {
   const rk = await rank(sb, cfg, b, cd, tried, !dry && cfg.mode === "assign");
@@ -557,7 +578,19 @@ async function autoAssign(sb: any, body: any) {
     if (!tags.some((t: string) => String(w.notes || "").toLowerCase().includes(t))) continue;
     const b = readBooking(w);
     // the same student sending the booking twice (or already placed with an instructor in the last 2 weeks) must never be given to a second instructor
-    const dup = ph10.length === 10 && (seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : (recentRefs.find((r: any) => last10(r.student_phone || "") === ph10) ? "this phone number was already given to an instructor in the last 14 days" : ""));
+    const dup = ph10.length === 10 && seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : "";
+    // an existing student booking again (given to an instructor in the last 14 days, and not marked left): it goes back to THEIR instructor, and you are told
+    const prev = !dup && ph10.length === 10 ? recentRefs.filter((r: any) => last10(r.student_phone || "") === ph10 && r.reply_status !== "left" && r.flag_color !== "red").sort((a: any, c: any) => String(c.created_at).localeCompare(String(a.created_at)))[0] : null;
+    if (prev) {
+      seenPhone.set(ph10, b.name);
+      if (dry) { const ix = cd.instrs.find((x: any) => String(x.id) === String(prev.instructor_id)); results.push({ student: b.name, action: "rebook", instructor: ix ? ix.full_name : "their instructor", reason: "existing student: goes back to their current instructor" }); continue; }
+      if (todo.length >= maxRun) break;
+      todo.push(async () => {
+        const { data: job, error } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "working", attempt: 1, tried: [] }]).select().single(); if (error || !job) return;
+        try { results.push({ student: b.name, ...(await rebook(sb, cfg, b, cd, job, prev)) }); } catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: "error: " + m }).eq("id", job.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign hit an error for " + b.name, detail: m + ". Assign them by hand.", waiting_id: String(w.id), student_name: b.name }); }
+      });
+      continue;
+    }
     if (dup) {
       if (dry) results.push({ student: b.name, action: "duplicate", reason: dup }); else {
         const { data: dj } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "attention", attempt: 1, tried: [], note: "duplicate: " + dup }]).select().single();
