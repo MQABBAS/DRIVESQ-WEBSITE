@@ -679,7 +679,7 @@ async function assignedReply(sb: any, kind: string, refId: string, from: string)
     else if (f0) await setF(sb, f0.id, { state: "closed", result: "instructor can't cover" });
   } catch (_) { /* follow-ups are best effort */ }
   if (ok) { try { const { data: ins2 } = await sb.from("instructors").select("*").eq("id", r.instructor_id).maybeSingle(); if (ins2) await welcomeStudent(sb, cfg, { id: refId, student_name: r.student_name, student_phone: r.student_phone, notes: patch.admin_notes }, { id: ins2.id, name: ins2.full_name, phone: ins2.phone }); } catch (_) { /* the instructor's accept is already saved */ } }
-  if (!ok) await attention(sb, cfg, { kind: "declined_after", title: `Attention: ${name} can't cover ${r.student_name || "a student"}`, detail: "They were already assigned. Reassign them in Find & Assign.", referral_id: refId, instructor_id: r.instructor_id, student_name: r.student_name });
+  if (!ok) await attention(sb, cfg, { kind: "declined_after", title: `Attention: ${name} can't cover ${r.student_name || "a student"}`, detail: "They were already assigned. Reassign them in Find & Assign.", waiting_id: "ra-" + refId, referral_id: refId, instructor_id: r.instructor_id, student_name: r.student_name });
   try { await sendText(from, ok ? "Thanks, noted ✅ Please contact the student to arrange the first lesson." : "No problem, thanks for letting us know. We'll find another instructor for them."); } catch (_) { /* window */ }
 }
 

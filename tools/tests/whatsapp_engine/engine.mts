@@ -355,3 +355,27 @@ const mo28 = DB.instructors.find((x) => x.id === "i3"); mo28.area = "M14 4AA"; m
 DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "packages"); DB.growth_settings.push({ key: "packages", value: { by: { i3: { tier: "normal", fee: 50, active: true } }, tiers: {} } });
 DB.referrals = []; DB.auto_assign_jobs = []; DB.waiting_list = [W("Normal Nia", "M13 9AA", "", { student_phone: "07811000321" })];
 const pv28 = await call({ action: "auto_assign", dry: true }); ok(pv28.results[0].instructor === "Mo Sale" && /0 of 3/.test(pv28.results[0].why || ""), "franchise Mo on the Normal package (£50, no guarantee) is still offered first until 3 are booked (" + pv28.results[0].instructor + ")");
+
+console.log("== 29. Fuzz: 80 random bookings, random replies, several runs ==");
+let seed = 12345; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, pick = (a) => a[Math.floor(rnd() * a.length)];
+cfgOf().maxPerDay = 500; cfgOf().maxPerRun = 10; cfgOf().dailyLimit = 3; cfgOf().weeklyLimit = 0; cfgOf().franchiseMin = 2; cfgOf().fairnessMiles = 0.5; cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; cfgOf().autoMiles = 0;
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } }; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "packages");
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.student_followups = [];
+const PCS = ["M13 9AA", "M14 4AA", "M20 2AA", "M33 5AA", "M1 1AA", "BL1 1AA", "M21 7AA", "SK8 3AA", "ZZ9 9ZZ", "", "M13 0PG", "M16 8AA"];
+let phones = []; DB.waiting_list = Array.from({ length: 80 }, (_, k) => { const ph = k % 9 === 0 && phones.length ? pick(phones) : "078" + String(1000000 + Math.floor(rnd() * 8999999)); phones.push(ph); return W("Fuzz " + k, pick(PCS), pick(["", "👩 FEMALE INSTRUCTOR REQUESTED", "👩 FEMALE PREFERRED REQUESTED", "Gearbox: Automatic", "— UPDATED request", "I'd prefer a female instructor if possible."]), { student_phone: ph, created_at: new Date(Date.now() - rnd() * 3600e3).toISOString() }); });
+let thrown = 0;
+for (let round = 0; round < 12; round++) {
+  try { await call({ action: "auto_assign", cron: true }); } catch (e) { thrown++; console.log("   threw:", String(e).slice(0, 160)); }
+  for (const j of DB.auto_assign_jobs.filter((x) => x.state === "pending_accept")) { const r = rnd(); const ins = DB.instructors.find((i) => i.id === j.instructor_id); if (!ins) continue; const from = "44" + ins.phone.replace(/^0/, ""); try { if (r < 0.4) await hook({ from, p: "OFFER_ACCEPT:" + j.id }); else if (r < 0.6) await hook({ from, p: "OFFER_DECLINE:" + j.id }); else if (r < 0.7) j.expires_at = new Date(Date.now() - 70 * 60000).toISOString(); } catch (e) { thrown++; } }
+  for (const j of DB.auto_assign_jobs.filter((x) => x.state === "attention" && /female instructor not available/.test(x.note || ""))) { const r = rnd(); const w = DB.waiting_list.find((x) => String(x.id) === String(j.waiting_id)); if (w && r < 0.5) { try { await hook({ from: "44" + String(w.student_phone).replace(/^0/, ""), p: (r < 0.3 ? "FEM_YES:" : "FEM_NO:") + j.id }); } catch (e) { thrown++; } } }
+}
+ok(thrown === 0, "12 rounds of random bookings and replies: nothing threw (" + thrown + ")");
+const byWaiting = {}; DB.auto_assign_jobs.forEach((j) => { byWaiting[j.waiting_id] = (byWaiting[j.waiting_id] || 0) + 1; });
+ok(Object.values(byWaiting).every((n) => n === 1), "every booking has exactly one job row");
+const asgn = {}; DB.referrals.forEach((r) => { asgn[r.student_phone] = (asgn[r.student_phone] || 0) + 1; });
+ok(Object.values(asgn).every((n) => n === 1), "no student was assigned twice (max " + Math.max(0, ...Object.values(asgn)) + ")");
+const stuckW = DB.auto_assign_jobs.filter((j) => j.state === "working"); ok(stuckW.length === 0, "no job is left stuck working (" + stuckW.length + ")");
+const pendNoInstr = DB.auto_assign_jobs.filter((j) => j.state === "pending_accept" && !j.instructor_id); ok(pendNoInstr.length === 0, "every pending offer names an instructor");
+const fem = DB.referrals.filter((r) => /FEMALE INSTRUCTOR REQUESTED/.test((DB.waiting_list.find((w) => w.student_phone === r.student_phone) || {}).notes || "")); const maleToFem = fem.filter((r) => r.instructor_id !== "i2" && !/agreed to a male/.test((DB.waiting_list.find((w) => w.student_phone === r.student_phone) || {}).notes || ""));
+ok(maleToFem.length === 0, "nobody who asked for a woman was given a man without agreeing (" + maleToFem.length + ")");
+const perDay = {}; DB.referrals.forEach((r) => { perDay[r.instructor_id] = (perDay[r.instructor_id] || 0) + 1; }); console.log("   given per instructor:", JSON.stringify(perDay), "| jobs:", DB.auto_assign_jobs.length, "| states:", JSON.stringify(DB.auto_assign_jobs.reduce((a, j) => (a[j.state] = (a[j.state] || 0) + 1, a), {})));
