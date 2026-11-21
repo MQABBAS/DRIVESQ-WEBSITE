@@ -40,3 +40,15 @@ Default OFF. Switch it on and the server (every 2 minutes, only between your hou
 Safety: **Preview** shows what it would do without sending or saving anything. **Suggest only** mode adds suggestions to the attention list instead of assigning. Only bookings created after you switched it on are touched. Each booking is handled once.
 
 Cron (one-time): Supabase → Integrations → Cron → every 2 minutes → Edge Function `whatsapp` → POST body `{"action":"auto_assign","cron":true}` with header `x-admin-key` (your email admin key).
+
+## Rules for choosing the instructor (final)
+- Within **8 miles** only (over it: attention required). Up to **5 miles**: assigned straight away. **5 to 8 miles**: the instructor is asked to accept first.
+- **Closest first.** Soft limits: **2 students given today**, **4 confirmed booked this week**. An instructor over a limit is asked **last** (closest first among the others). If everyone nearby declines or is over a limit, the closest gets the student anyway.
+
+## Checking the student booked (follow-ups)
+1. The instructor accepts → the student is welcomed.
+2. **3 days later** the student gets *"Has [instructor] booked your first lesson?"* with **Yes, booked / Not yet / Gone elsewhere**.
+3. **Yes, booked** → Referrals: green flag, "✅ Booked — confirmed by student" and a note "📱 [student] messaged on WhatsApp: confirmed they are booked in". **Not yet** → note, purple flag, then "Has the instructor been in touch?" (if No: attention required and the instructor is asked). **Gone elsewhere** → red, "Student confirmed left", no fee.
+4. **No reply in 1 day** → the instructor gets *"Did [student] book?"* with **Booked / Not yet / Student left**; their answer is recorded the same way.
+5. Repeats every **5 days**, up to **4 rounds**, then attention required. It stops as soon as someone says booked or left, or you mark it in admin.
+All times and counts are settings in Admin → WhatsApp → Auto-assign. Run `supabase/migrations/20261129_followups.sql` once, create the two check-in templates (`dsq_student_checkin`, `dsq_instructor_checkin`), and the Supabase Cron job (every 2 minutes) runs the follow-ups even when auto-assign is off.

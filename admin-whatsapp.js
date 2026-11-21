@@ -24,6 +24,10 @@
       body: 'Hi {{1}}, DriveSQ has a new student near {{2}}, about {{3}} miles from you, wanting {{4}} lessons.\n\nCan you take them? Tap Accept or Can\'t take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nPlease reply within a few hours so we can find someone else if you can\'t. Thank you!' },
     dsq_admin_attention: { who: 'You (attention required)', buttons: [], params: ['What needs attention', 'Details'],
       body: 'DriveSQ admin: attention needed. {{1}}. Details: {{2}}\n\nPlease open DriveSQ admin to review it.' },
+    dsq_student_checkin: { who: 'Student (is a lesson booked?)', buttons: ['Yes, booked', 'Not yet', 'Gone elsewhere'], params: ['Student first name', 'Instructor name'],
+      body: 'Hi {{1}}, it\'s DriveSQ checking in. 🚗\n\nHas {{2}} booked your first driving lesson with you yet?\n\nPlease tap one of the buttons below. It helps us make sure you\'re looked after.' },
+    dsq_instructor_checkin: { who: 'Instructor (did the student book?)', buttons: ['Booked', 'Not yet', 'Student left'], params: ['Instructor first name', 'Student name'],
+      body: 'Hi {{1}}, quick check from DriveSQ about {{2}}.\n\nHave you booked a lesson with them yet? Tap a button below. It takes a second and keeps your records up to date.' },
     dsq_chase_unmarked: { who: 'Instructor (chase)', buttons: [], params: ['Instructor first name', 'Number of students'],
       body: 'Hi {{1}}, quick check from DriveSQ. {{2}} of the students we sent you have no update yet.\n\nPlease open your Instructor Portal and mark each one as booked, not booked yet, can\'t reach or not going ahead: https://www.drivesq.co.uk/dashboard\n\nIt only takes a minute and helps us keep your records right. Thank you!' }
   };
@@ -146,7 +150,7 @@
         '<li>In Supabase → Edge Functions → <b>Secrets</b> add <code>WHATSAPP_TOKEN</code>, <code>WHATSAPP_PHONE_ID</code>, <code>WHATSAPP_VERIFY_TOKEN</code> (any long random text) and <code>WHATSAPP_APP_SECRET</code> (App → Settings → Basic).</li>' +
         '<li>Deploy the function named <b>whatsapp</b> (code: <code>supabase/functions/whatsapp/index.ts</code>), turn <b>Verify JWT off</b>, and run <code>supabase/migrations/20261128_whatsapp.sql</code> in the SQL Editor. It replaces the older <i>whatsapp-webhook</i> and <i>send-whatsapp</i> functions, so use only this one as the Meta webhook.</li>' +
         '<li>In Meta → WhatsApp → <b>Configuration</b>, set the webhook URL to <code>' + E(FN()) + '</code>, the verify token to the same text as step 4, and subscribe to <b>messages</b>.</li>' +
-        '<li>Create the <b>five message templates</b> below in WhatsApp Manager and wait for approval (usually minutes to a day).</li>' +
+        '<li>Create the <b>message templates</b> below (the two <i>check-in</i> ones are for the follow-ups) in WhatsApp Manager and wait for approval (usually minutes to a day).</li>' +
         '<li>Use <b>Send a test</b> below, then switch automation <b>ON</b>.</li></ol></details>' +
       '<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:800">Message templates to create in Meta</summary>' + tplHtml() + '</details>' +
       '<div style="border-top:1px solid var(--bdr);padding-top:8px;margin-top:6px"><b style="font-size:.85rem">Send a test</b><div style="font-size:.72rem;color:var(--txt3);margin:2px 0 6px">Sends Meta\'s built-in "hello_world" message to your own number (it works before your templates are approved).</div><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="dsq-inp" id="waTestTo" placeholder="Your mobile, e.g. 07700 900123" style="max-width:260px"><button class="btn-s" onclick="DSQWA.test()">Send test</button></div><div id="waTestOut" style="font-size:.76rem;margin-top:5px"></div></div>' +

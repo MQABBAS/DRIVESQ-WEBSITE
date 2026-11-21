@@ -4910,22 +4910,27 @@ const REF_FLAG={
 /* what the instructor tapped on their reply page (Booked / Not booked yet / Can't reach / Not going ahead) — each in its own colour */
 /* admin notes: lines written by the instructor (start with 👨‍🏫) show in blue, and “student left” in orange */
 function _adminNoteHtml(n){
-  return String(n||'').split('\n').map(l=>{const e=esc(l);if(l.indexOf('👨‍🏫')<0)return e;const left=/Student left|gone/.test(l),c=left?'#f97316':'#38bdf8';return `<span style="color:${c};font-style:normal;font-weight:700;background:${c}18;border-radius:4px;padding:0 4px">${e}</span>`;}).join('<br>');
+  return String(n||'').split('\n').map(l=>{
+    const e=esc(l),inst=l.indexOf('👨‍🏫')>=0,stu=l.indexOf('📱')>=0;if(!inst&&!stu)return e;
+    const left=/Student left|left\b|gone/i.test(l),notyet=/not booked yet|NOT been in touch/i.test(l),booked=/confirmed they are booked|is booked in|Booked — confirmed/i.test(l);
+    const c=left?'#f97316':notyet?'#f59e0b':booked&&stu?'#22c55e':stu?'#2dd4bf':'#38bdf8';
+    return `<span style="color:${c};font-style:normal;font-weight:700;background:${c}18;border-radius:5px;padding:0 5px;display:inline-block">${e}</span>`;
+  }).join('<br>');
 }
 const _REPLY_UI={left:['👋','Student left','#f97316','rgba(249,115,22,.16)'],booked:['✅','Booked','#2dd4bf','rgba(45,212,191,.14)'],not_yet:['⏳','Will book later','#fbbf24','rgba(251,191,36,.15)'],unreachable:['📵',"Can't reach them",'#fb923c','rgba(251,146,60,.16)'],not_interested:['🚫','Not going ahead','#f87171','rgba(248,113,113,.16)']};
 function _replyChip(r){
   const u=r&&_REPLY_UI[r.reply_status];if(!u)return'';
   const when=r.replied_at?new Date(r.replied_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-  return `<div style="display:inline-block;margin-top:4px;padding:2px 9px;border-radius:12px;background:${u[3]};border:1px solid ${u[2]}66;color:${u[2]};font-size:.64rem;font-weight:700;line-height:1.5">${u[0]} Instructor marked this student as ${u[1]}${when?' · '+when:''}</div>${r.reply_note?`<div style="font-size:.62rem;color:${u[2]};font-style:italic;margin-top:1px">“${esc(r.reply_note)}”</div>`:''}`;
+  return `<div style="display:inline-block;margin-top:4px;padding:2px 9px;border-radius:12px;background:${u[3]};border:1px solid ${u[2]}66;color:${u[2]};font-size:.64rem;font-weight:700;line-height:1.5">${u[0]} ${/^Student/.test(r.reply_note||'')?(r.reply_status==='left'?'Student confirmed they have left':'Student says: '+u[1]):'Instructor marked this student as '+u[1]}${when?' · '+when:''}</div>${r.reply_note?`<div style="font-size:.62rem;color:${u[2]};font-style:italic;margin-top:1px">“${esc(r.reply_note)}”</div>`:''}`;
 }
 const REPLY_FLAG={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red',left:'red'};
-const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_CONFIRM_INSTR='✅ Booked — confirmed by instructor',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
+const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_CONFIRM_INSTR='✅ Booked — confirmed by instructor',REF_CONFIRM_STU='✅ Booked — confirmed by student',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
 /* booked = confirmed by admin: green flag set by admin (or paid). Older green flags that came from an instructor's "booked" reply need confirming once. */
 function _refAdminBooked(r){
   if(!r||r.is_cancelled||r.is_credit)return false;
   if(r.is_paid)return true;
   if(r.flag_color!=='green')return false;
-  const n=String(r.admin_notes||''),a=Math.max(n.lastIndexOf(REF_CONFIRM_MK),n.lastIndexOf(REF_CONFIRM_INSTR)),b=n.lastIndexOf(REF_UNCONFIRM_MK);   // booked once admin OR the instructor confirmed it
+  const n=String(r.admin_notes||''),a=Math.max(n.lastIndexOf(REF_CONFIRM_MK),n.lastIndexOf(REF_CONFIRM_INSTR),n.lastIndexOf(REF_CONFIRM_STU)),b=n.lastIndexOf(REF_UNCONFIRM_MK);   // booked once admin, the instructor OR the student confirmed it
   return a>b||(a<0&&r.reply_status!=='booked');
 }
 window._refAdminBooked=_refAdminBooked;
@@ -8900,11 +8905,11 @@ async function findClosest(){
   // Booked this week = referrals admin confirmed as booked (✅) with the confirmation dated this week
   try{
     const _wkS=getMonday(0).getTime();
-    const{data:_bk}=await sb.from('referrals').select('instructor_id,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').or('admin_notes.ilike.%confirmed by admin%,admin_notes.ilike.%confirmed by instructor%');
+    const{data:_bk}=await sb.from('referrals').select('instructor_id,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').or('admin_notes.ilike.%confirmed by admin%,admin_notes.ilike.%confirmed by instructor%,admin_notes.ilike.%confirmed by student%');
     const _bm={};
     (_bk||[]).forEach(r=>{
       if(!_refAdminBooked(r))return;
-      const n=String(r.admin_notes||''),k=n.lastIndexOf(REF_CONFIRM_MK);if(k<0)return;
+      const n=String(r.admin_notes||''),k=Math.max(n.lastIndexOf(REF_CONFIRM_MK),n.lastIndexOf(REF_CONFIRM_INSTR),n.lastIndexOf(REF_CONFIRM_STU));if(k<0)return;
       const ln=n.slice(n.lastIndexOf('\n',k)+1,k).replace(/[·\s]+$/,'');   // "14 Nov 2026"
       const t=Date.parse(ln);if(!isNaN(t)&&t>=_wkS)_bm[r.instructor_id]=(_bm[r.instructor_id]||0)+1;
     });

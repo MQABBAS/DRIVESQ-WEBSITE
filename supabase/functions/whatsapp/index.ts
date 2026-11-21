@@ -76,6 +76,10 @@ async function sendTemplate(sb: any, b: any) {
   return r.ok ? { ok: true, id, to } : { ok: false, error: err, code: r.j && r.j.error && r.j.error.code };
 }
 async function sendText(to: string, text: string) { return graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "text", text: { body: text } }); }
+/* free-form reply with tap buttons: allowed without a template while the person has just messaged us (24-hour window) */
+async function sendButtons(to: string, text: string, buttons: { id: string; title: string }[]) {
+  return graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "interactive", interactive: { type: "button", body: { text }, action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) } })) } } });
+}
 
 /* ---------- settings ---------- */
 const DEFAULT_CFG = {
@@ -84,21 +88,23 @@ const DEFAULT_CFG = {
   since: "",                       // only bookings created after this moment are touched (set when you switch it on)
   sources: ["[WEB]"],              // which bookings: [WEB] = website booking forms
   autoMiles: 5,                    // at or under this many miles: assign straight away
-  confirmMiles: 14,                // up to this many miles: ask the instructor to accept first. Over it: attention required
+  confirmMiles: 8,                 // the limit: up to this many miles the instructor is asked to accept first. Over it: attention required
+  dailyLimit: 2,                   // soft limit: students assigned to an instructor today. Over it they are asked LAST
+  weeklyLimit: 4,                  // soft limit: students confirmed booked this week (Mon-Sun). Over it they are asked LAST
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 21],                  // only run between these UK hours
   replyHours: 5,                   // how long an instructor has to accept an offer
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
-  maxPerWeek: 0,                   // 0 = no cap; otherwise skip instructors who already got this many students this week
+  maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
   adminPhone: "", adminAlerts: true,
   refFee: 25,                      // referral fee recorded for referral-model instructors (franchise = 0)
-  weights: { distance: 3, coverage: 40, workload: 8, bookRate: 30, package: 25, female: 30, unmarked: 15 },
+  followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 1, repeatDays: 5, rounds: 4 },
 };
 async function loadCfg(sb: any) {
   const { data } = await sb.from("growth_settings").select("value").eq("key", "auto_assign_cfg").maybeSingle();
   const v = (data && data.value) || {};
-  return { ...DEFAULT_CFG, ...v, weights: { ...DEFAULT_CFG.weights, ...(v.weights || {}) } };
+  return { ...DEFAULT_CFG, ...v, followups: { ...DEFAULT_CFG.followups, ...(v.followups || {}) } };
 }
 
 /* ---------- attention required ---------- */
@@ -152,7 +158,15 @@ function readBooking(w: any) {
 }
 
 /* ---------- referral statistics (same booked rule as admin: ✅ confirmed by admin or instructor, not removed later) ---------- */
-function isBooked(r: any) { if (r.is_paid) return true; if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = Math.max(n.lastIndexOf("✅ Booked — confirmed by admin"), n.lastIndexOf("✅ Booked — confirmed by instructor")), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); }
+const BK_MARKS = ["✅ Booked — confirmed by admin", "✅ Booked — confirmed by instructor", "✅ Booked — confirmed by student"];
+function isBooked(r: any) { if (r.is_paid) return true; if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = Math.max(...BK_MARKS.map((m) => n.lastIndexOf(m))), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); }
+/* when a student was confirmed booked: the date at the start of the confirmation line ("20 Nov 2026 · ✅ Booked — confirmed by …") */
+function bookedAt(r: any) {
+  const lines = String(r.admin_notes || "").split("\n"); let t = 0;
+  for (const l of lines) if (BK_MARKS.some((m) => l.includes(m))) { const d = Date.parse(l.split(" · ")[0]); if (!isNaN(d)) t = d; }
+  return t || (r.paid_at ? new Date(r.paid_at).getTime() : new Date(r.created_at).getTime());
+}
+function londonMidnightToday() { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value])); const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute); return Date.now() - (asUtc - Date.UTC(+p.year, +p.month - 1, +p.day)); }
 function mondayLondon() { const p = new Date(Date.now() - ((new Date().getUTCDay() + 6) % 7) * 864e5); p.setUTCHours(0, 0, 0, 0); return p; }
 
 async function candidateData(sb: any) {
@@ -162,10 +176,12 @@ async function candidateData(sb: any) {
   const { data: tr } = await sb.from("growth_settings").select("value").eq("key", "instructor_traits").maybeSingle();
   const { data: pk } = await sb.from("growth_settings").select("value").eq("key", "packages").maybeSingle();
   const traits = (tr && tr.value) || {}, packages = (pk && pk.value && pk.value.by) || {}, mon = mondayLondon().getTime();
-  const stats: any = {};
+  const stats: any = {}, midnight = londonMidnightToday();
   (refs || []).forEach((r: any) => {
-    if (r.is_cancelled || r.is_credit) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, total: 0, booked: 0, unmarked: 0 };
+    if (r.is_cancelled || r.is_credit) return; const s = stats[r.instructor_id] = stats[r.instructor_id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 };
     if (new Date(r.created_at).getTime() >= mon) s.week++;
+    if (new Date(r.created_at).getTime() >= midnight) s.today++;
+    if (isBooked(r) && bookedAt(r) >= mon) s.bookedWeek++;
     const age = (Date.now() - new Date(r.created_at).getTime()) / 864e5; if (age < 7) return;
     s.total++; if (isBooked(r)) s.booked++; else if (!r.flag_color && !r.reply_status && !r.is_paid && age >= 3) s.unmarked++;
   });
@@ -174,31 +190,36 @@ async function candidateData(sb: any) {
 
 /* rank the instructors for one booking. exclude = ids already asked */
 async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
-  const w = cfg.weights, why: string[] = [], out: any[] = [];
+  const out: any[] = [];
   const sg = await geocode(b.postcode); if (!sg) return { error: 'Postcode "' + b.postcode + '" was not found', list: [] };
-  const stuOC = outward(b.postcode);
   const rows: any[] = [];
   for (const i of cd.instrs) {
-    const tr = cd.traits[i.id] || {}; if (tr.noAuto) { continue; }
+    const tr = cd.traits[i.id] || {}; if (tr.noAuto) continue;
     if (exclude.includes(String(i.id))) continue;
     if (!canTeach(i.car_type || "Manual", b.type)) continue;
     if (b.female === "require" && cfg.femaleRule === "require" && !tr.female) continue;
-    const st = cd.stats[i.id] || { week: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) continue;
+    const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) continue;
     const pc = instrPc(i); if (!pc) continue; const g = await geocode(pc); if (!g) continue;
     rows.push({ i, tr, st, g, crow: haversine(sg.lat, sg.lon, g.lat, g.lon) });
   }
   rows.sort((a, c) => a.crow - c.crow);
-  for (const r of rows.slice(0, 6)) r.dist = await drivingMiles(sg.lat, sg.lon, r.g.lat, r.g.lon);
-  for (const r of rows.slice(6)) r.dist = r.crow * 1.3;
+  for (const r of rows.slice(0, 8)) r.dist = await drivingMiles(sg.lat, sg.lon, r.g.lat, r.g.lon);
+  for (const r of rows.slice(8)) r.dist = r.crow * 1.3;
   for (const r of rows) {
-    const cov = String((r.i.coverage_postcodes || "") + " " + (r.i.area || "")).toUpperCase().split(/[\s,;/]+/).filter(Boolean).some((c) => c === stuOC || outward(c) === stuOC);
-    const rate = r.st.total >= 5 ? r.st.booked / r.st.total : 0.5, inv = r.st.total >= 5 && r.st.unmarked >= 4 && r.st.unmarked / r.st.total >= 0.6;
-    const pk = cd.packages[r.i.id], plat = !!(pk && pk.tier === "platinum" && pk.active !== false && (!pk.start || pk.start <= new Date().toISOString().slice(0, 10)));
-    const parts: any = { distance: Math.max(0, 50 - r.dist * w.distance), coverage: cov ? w.coverage : 0, workload: -r.st.week * w.workload, bookRate: (rate - 0.5) * 2 * w.bookRate, package: plat && r.dist <= 5 ? w.package : 0, female: b.female === "prefer" && r.tr.female ? w.female : 0, unmarked: inv ? -w.unmarked : 0 };
-    const score = Object.values(parts).reduce((a: number, x: number) => a + x, 0);
-    out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: Math.round(score * 10) / 10, parts, week: r.st.week, rate: Math.round(rate * 100), female: !!r.tr.female, instr: r.i });
+    const over: string[] = [];
+    if (cfg.dailyLimit > 0 && r.st.today >= cfg.dailyLimit) over.push(`already given ${r.st.today} today`);
+    if (cfg.weeklyLimit > 0 && r.st.bookedWeek >= cfg.weeklyLimit) over.push(`already ${r.st.bookedWeek} booked this week`);
+    out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
   }
-  out.sort((a, c) => c.score - a.score); return { list: out, geo: sg };
+  // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
+  out.sort((a, c) => (a.tier - c.tier) || (a.dist - c.dist));
+  const near = out.filter((x) => x.dist <= cfg.confirmMiles);
+  const closest = near.slice().sort((a, c) => a.dist - c.dist)[0];
+  if (near[0]) {
+    const best = near[0];
+    best.why = closest && closest.id !== best.id ? `${closest.name} is closer (${closest.dist} mi) but ${closest.over.join(" and ")}, so asked after others` : best.tier === 1 ? `everyone close by is over a limit (${best.over.join(" and ")}), so the closest gets it` : "closest instructor";
+  }
+  return { list: out, geo: sg };
 }
 
 /* ---------- assigning a student to an instructor (same records as Find & Assign) ---------- */
@@ -228,6 +249,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
   const amount = c.model === "referral" ? (parseFloat(cfg.refFee) || 0) : 0;
   const { data: ref, error: rerr } = await sb.from("referrals").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, amount, is_paid: false, paid_at: null, is_cancelled: false, is_credit: false, credit_fulfilled: false, notes: ["Auto-assigned (website booking)", b.postcode ? "Postcode: " + b.postcode : "", pickup ? "Address: " + pickup : "", b.avail ? "Availability: " + b.avail : "", b.ref ? "Ref: " + b.ref : ""].filter(Boolean).join("\n"), admin_notes: `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)`, created_at: now }]).select().single();
   if (rerr) throw new Error("referral not saved: " + rerr.message);
+  try { await startFollowup(sb, cfg, ref, c, agreed ? "waiting_student" : "waiting_accept"); } catch (_) { /* follow-ups are best effort */ }
   try { await sb.from("admin_messages").insert([{ instructor_id: c.id, subject: "👤 New Student Assigned: " + b.name, message_type: "general", body: `${b.name}${b.phone ? " · " + fmtPhone(b.phone) : ""}${pickup ? " · " + pickup : ""}\nLessons: ${b.type}${b.avail ? "\nAvailability: " + b.avail : ""}\nPlease contact them to arrange the first lesson.`, is_read: false, dismissed: false, created_at: now }]); } catch (_) { /* in-app message only */ }
   try { await fetch(SUPABASE_URL + "/functions/v1/send-push", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + SERVICE_KEY }, body: JSON.stringify({ instructor_id: c.id, title: "👤 New Student Assigned: " + b.name, body: (b.phone ? fmtPhone(b.phone) + " · " : "") + (pickup || ""), url: "/dashboard.html" }) }); } catch (_) { /* push is best effort */ }
   let up = await sb.from("waiting_list").update({ status: "assigned", assigned_instructor_id: c.id }).eq("id", b.id); if (up.error) up = await sb.from("waiting_list").update({ status: "assigned" }).eq("id", b.id);
@@ -264,21 +286,22 @@ async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: numbe
 /* decide what to do with one booking. job = its row in auto_assign_jobs. Returns a one-line outcome. */
 async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: string[], attempt: number, dry: boolean) {
   const rk = await rank(sb, cfg, b, cd, tried);
-  const top = (rk.list || []).slice(0, 3).map((x: any) => ({ name: x.name, dist: x.dist, score: x.score, female: x.female, week: x.week, rate: x.rate }));
+  const near = (rk.list || []).filter((x: any) => x.dist <= cfg.confirmMiles), nearestAny = (rk.list || []).slice().sort((a: any, c: any) => a.dist - c.dist)[0];
+  const top = near.slice(0, 4).map((x: any) => ({ name: x.name, dist: x.dist, today: x.today, bookedWeek: x.bookedWeek, over: x.over, female: x.female }));
   if (rk.error) { if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: rk.error }).eq("id", job.id); await attention(sb, cfg, { kind: "postcode", title: "Check the postcode for " + b.name, detail: rk.error + ". Fix it and assign by hand.", waiting_id: String(b.id), student_name: b.name }); } return { action: "attention", reason: rk.error, top }; }
-  const best = rk.list[0];
+  const best = near[0];
   const wantF = b.female === "require" && cfg.femaleRule === "require";
-  if (!best || best.dist > cfg.confirmMiles) {
-    const reason = !best ? (tried.length ? "no other instructor left to ask (" + tried.length + " already asked)" : wantF ? "no female instructor can take this booking" : "no instructor can take this booking") : `nearest suitable instructor (${best.name}) is ${best.dist} miles away, over your ${cfg.confirmMiles} mile limit`;
+  if (!best) {
+    const reason = tried.length ? "no other instructor left within " + cfg.confirmMiles + " miles (" + tried.length + " already asked)" : nearestAny ? `nearest suitable instructor (${nearestAny.name}) is ${nearestAny.dist} miles away, over your ${cfg.confirmMiles} mile limit` : wantF ? "no female instructor can take this booking" : "no instructor can take this booking";
     if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: reason }).eq("id", job.id); await attention(sb, cfg, { kind: "no_match", title: "Attention: no match for " + b.name + " (" + b.postcode + ")", detail: reason + (wantF ? ". They asked for a female instructor." : "") + " Assign them by hand in Find & Assign.", waiting_id: String(b.id), student_name: b.name }); }
     return { action: "attention", reason, top };
   }
   if (cfg.mode === "suggest") {
-    const reason = `would ${best.dist <= cfg.autoMiles ? "assign" : "offer to"} ${best.name} (${best.dist} miles, score ${best.score})`;
-    if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: reason }).eq("id", job.id); await attention(sb, cfg, { kind: "suggest", title: `Suggested: ${best.name} for ${b.name} (${b.postcode})`, detail: `${best.dist} miles away. ${best.week} students this week, books ${best.rate}% of the students given. Press Open in Find & Assign to confirm.`, waiting_id: String(b.id), instructor_id: best.id, student_name: b.name }); }
-    return { action: "suggest", instructor: best.name, dist: best.dist, score: best.score, top };
+    const reason = `would ${best.dist <= cfg.autoMiles ? "assign" : "offer to"} ${best.name} (${best.dist} miles). ${best.why || ""}`;
+    if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: reason }).eq("id", job.id); await attention(sb, cfg, { kind: "suggest", title: `Suggested: ${best.name} for ${b.name} (${b.postcode})`, detail: `${best.dist} miles away. ${best.why || ""} Press Open in Find & Assign to confirm.`, waiting_id: String(b.id), instructor_id: best.id, student_name: b.name }); }
+    return { action: "suggest", instructor: best.name, dist: best.dist, why: best.why, top };
   }
-  if (dry) return { action: best.dist <= cfg.autoMiles ? "assign" : "offer", instructor: best.name, dist: best.dist, score: best.score, parts: best.parts, top };
+  if (dry) return { action: best.dist <= cfg.autoMiles ? "assign" : "offer", instructor: best.name, dist: best.dist, why: best.why, top };
   if (best.dist <= cfg.autoMiles) {
     try { const res = await assign(sb, cfg, b, best); await sb.from("auto_assign_jobs").update({ state: "assigned", instructor_id: best.id, referral_id: res.referral_id, dist: best.dist, updated_at: new Date().toISOString(), note: res.msgs.join("; ") }).eq("id", job.id); return { action: "assigned", instructor: best.name, dist: best.dist, msgs: res.msgs }; }
     catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: m }).eq("id", job.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign failed for " + b.name, detail: m + ". Assign them by hand.", waiting_id: String(b.id), student_name: b.name }); return { action: "attention", reason: m }; }
@@ -289,8 +312,10 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
 
 async function autoAssign(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now();
+  let followups: any[] = [];
+  if (!dry && body.cron) { try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); } }   // checking whether students booked runs whether or not auto-assign is on
   if (!dry && body.cron && !body.force) {
-    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off" };
+    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups };
     const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return { ok: true, waiting: `Runs between ${cfg.hours[0]}:00 and ${cfg.hours[1]}:00 UK time` };
   }
   if (!dry && !cfg.enabled && !body.force) return { ok: true, off: true, message: "Auto-assign is switched off" };
@@ -324,7 +349,7 @@ async function autoAssign(sb: any, body: any) {
     if (error || !job) continue;   // someone else is already handling it
     results.push({ student: b.name, ...(await decide(sb, cfg, b, cd, job, [], 1, false)) });
   }
-  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
+  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
 }
 
 /* ---------- replies from instructors ---------- */
@@ -354,9 +379,108 @@ async function assignedReply(sb: any, kind: string, refId: string, from: string)
   const patch: any = { admin_notes: [r.admin_notes || "", line].filter(Boolean).join("\n") }; if (!ok && !r.flag_color) patch.flag_color = "purple";
   await sb.from("referrals").update(patch).eq("id", refId);
   try { await sb.from("admin_activity_log").insert([{ area: "referral", action: ok ? "wa_accepted" : "wa_declined", summary: `${name} ${ok ? "accepted" : "can't take"} ${r.student_name || "a student"} (WhatsApp)`, actor_role: "instructor", actor_name: name, instructor_id: r.instructor_id, student_name: r.student_name, ref_id: refId }]); } catch (_) { /* log */ }
+  try {
+    const { data: f0 } = await sb.from("student_followups").select("*").eq("referral_id", String(refId)).maybeSingle();
+    if (ok) { if (f0 && f0.state === "waiting_accept") await setF(sb, f0.id, { state: "waiting_student", accepted_at: new Date().toISOString(), next_due: new Date(Date.now() + cfg.followups.checkinDays * 864e5).toISOString() }); else if (!f0) await startFollowup(sb, cfg, { id: refId, student_name: r.student_name, student_phone: r.student_phone }, { id: r.instructor_id }, "waiting_student"); }
+    else if (f0) await setF(sb, f0.id, { state: "closed", result: "instructor can't cover" });
+  } catch (_) { /* follow-ups are best effort */ }
   if (ok) { try { const { data: ins2 } = await sb.from("instructors").select("*").eq("id", r.instructor_id).maybeSingle(); if (ins2) await welcomeStudent(sb, cfg, { id: refId, student_name: r.student_name, student_phone: r.student_phone, notes: patch.admin_notes }, { id: ins2.id, name: ins2.full_name, phone: ins2.phone }); } catch (_) { /* the instructor's accept is already saved */ } }
   if (!ok) await attention(sb, cfg, { kind: "declined_after", title: `Attention: ${name} can't cover ${r.student_name || "a student"}`, detail: "They were already assigned. Reassign them in Find & Assign.", referral_id: refId, instructor_id: r.instructor_id, student_name: r.student_name });
   try { await sendText(from, ok ? "Thanks, noted ✅ Please contact the student to arrange the first lesson." : "No problem, thanks for letting us know. We'll find another instructor for them."); } catch (_) { /* window */ }
+}
+
+
+/* ================= follow-ups: did the student book? =================
+   instructor accepts → 3 days later the STUDENT is asked → no answer in 1 day → the INSTRUCTOR is asked → repeat every 5 days (4 rounds) → attention.
+   Every answer updates the referral in admin (flag, reply status, notes) exactly as if admin or the instructor had marked it. */
+const NOTE_LINE = (txt: string) => `${today()} · ${txt}`;
+async function logAct(sb: any, role: string, actor: string, action: string, summary: string, ref: any) {
+  try { await sb.from("admin_activity_log").insert([{ area: "referral", action, summary, actor_role: role, actor_name: actor, instructor_id: ref.instructor_id, student_name: ref.student_name, ref_id: ref.id }]); } catch (_) { /* log only */ }
+}
+async function setF(sb: any, id: any, patch: any) { await sb.from("student_followups").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id); }
+async function startFollowup(sb: any, cfg: any, ref: any, c: any, state: string) {
+  const f = cfg.followups; if (!f.enabled) return;
+  const { data: ex } = await sb.from("student_followups").select("*").eq("referral_id", String(ref.id)).maybeSingle(); if (ex) return;
+  const due = new Date(Date.now() + (state === "waiting_accept" ? f.acceptWaitHours * 3600e3 : f.checkinDays * 864e5)).toISOString();
+  await sb.from("student_followups").insert([{ referral_id: String(ref.id), instructor_id: String(c.id), student_name: ref.student_name || "", student_phone: ref.student_phone || "", state, round: 1, accepted_at: state === "waiting_accept" ? null : new Date().toISOString(), next_due: due }]);
+}
+/* write an answer into the referral (what admin shows) */
+async function applyMark(sb: any, refId: string, kind: "booked" | "not_yet" | "left", who: "student" | "instructor", actor: string) {
+  const { data: r } = await sb.from("referrals").select("*").eq("id", refId).maybeSingle(); if (!r) return null;
+  const sName = r.student_name || "the student", ch = who === "student" ? "📱" : "👨‍🏫";
+  const lines: string[] = [], patch: any = { replied_at: new Date().toISOString(), reply_note: (who === "student" ? "Student replied on WhatsApp" : "Instructor replied on WhatsApp") };
+  if (kind === "booked") {
+    patch.flag_color = "green"; patch.reply_status = "booked";
+    lines.push(NOTE_LINE(`✅ Booked — confirmed by ${who}`));
+    lines.push(NOTE_LINE(who === "student" ? `📱 ${sName} messaged on WhatsApp: confirmed they are booked in` : `👨‍🏫 ${actor} replied on WhatsApp: ${sName} is booked in`));
+  } else if (kind === "not_yet") {
+    patch.reply_status = "not_yet"; if (r.flag_color !== "green") patch.flag_color = "purple";
+    lines.push(NOTE_LINE(who === "student" ? `📱 ${sName} messaged on WhatsApp: not booked yet` : `👨‍🏫 ${actor} replied on WhatsApp: ${sName} is not booked yet`));
+  } else {
+    if (r.flag_color !== "green") { patch.flag_color = "red"; patch.reply_status = "left"; }
+    lines.push(NOTE_LINE(who === "student" ? `📱 ${sName} messaged on WhatsApp: gone elsewhere. Student confirmed left` : `👨‍🏫 ${actor} replied on WhatsApp: ${sName} has left. Student left`));
+  }
+  patch.admin_notes = [r.admin_notes || "", ...lines].filter(Boolean).join("\n");
+  await sb.from("referrals").update(patch).eq("id", refId);
+  await logAct(sb, who, who === "student" ? sName : actor, who === "student" ? "student_" + kind : "wa_" + kind, kind === "booked" ? `${who === "student" ? sName : actor} confirmed ${sName} is booked (WhatsApp)` : kind === "left" ? `${sName} has left (${who} said so on WhatsApp)` : `${sName} not booked yet (${who} said so on WhatsApp)`, r);
+  return r;
+}
+async function followupReply(sb: any, kind: string, fid: string, from: string) {
+  const cfg = await loadCfg(sb); const { data: f } = await sb.from("student_followups").select("*").eq("id", fid).maybeSingle(); if (!f) return;
+  const { data: ins } = await sb.from("instructors").select("full_name,phone").eq("id", f.instructor_id).maybeSingle(); const iName = (ins && ins.full_name) || "the instructor", stu = f.student_name || "the student";
+  const settled = f.state === "done" || f.state === "closed";
+  if (kind === "CONTACT_YES" || kind === "CONTACT_NO") {
+    const { data: r } = await sb.from("referrals").select("admin_notes").eq("id", f.referral_id).maybeSingle();
+    const line = kind === "CONTACT_YES" ? NOTE_LINE(`📱 ${stu} says ${iName} has been in touch`) : NOTE_LINE(`📱 ⚠️ ${stu} says ${iName} has NOT been in touch yet`);
+    await sb.from("referrals").update({ admin_notes: [(r && r.admin_notes) || "", line].filter(Boolean).join("\n") }).eq("id", f.referral_id);
+    try { await sendText(from, kind === "CONTACT_YES" ? "Thanks, that's helpful 👍 We'll check in again in a few days." : "Sorry about that. We'll chase them for you right away."); } catch (_) { /* window */ }
+    if (kind === "CONTACT_NO" && !settled) {
+      await attention(sb, cfg, { kind: "not_contacted", title: `Attention: ${iName} has not contacted ${stu}`, detail: "The student says their instructor hasn't been in touch. We've messaged the instructor. Consider reassigning.", referral_id: f.referral_id, instructor_id: f.instructor_id, student_name: stu });
+      if (ins && ins.phone) { const r1 = await sendTemplate(sb, { to: ins.phone, template: "dsq_instructor_checkin", lang: "en_GB", params: [first(iName), stu], buttons: ["INS_BOOKED:" + f.id, "INS_NOTYET:" + f.id, "INS_LEFT:" + f.id], instructor_id: String(f.instructor_id), referral_id: f.referral_id, student_name: stu }); if (r1.ok) await setF(sb, f.id, { state: "asked_instructor", next_due: new Date(Date.now() + cfg.followups.repeatDays * 864e5).toISOString() }); }
+    }
+    return;
+  }
+  const who = kind.startsWith("STU_") ? "student" : "instructor", what = kind.endsWith("BOOKED") ? "booked" : kind.endsWith("NOTYET") ? "not_yet" : "left";
+  if (settled) { try { await sendText(from, "Thanks, we already have an answer for this one 👍"); } catch (_) { /* window */ } return; }
+  const r = await applyMark(sb, f.referral_id, what as any, who as any, iName); if (!r) return;
+  if (what === "booked") { await setF(sb, f.id, { state: "done", result: "booked (" + who + ")" }); try { await sendText(from, who === "student" ? "Brilliant, thanks! 🎉 Enjoy your lessons. Message us any time if you need anything." : "Thanks, we've marked them as booked ✅"); } catch (_) { /* window */ } return; }
+  if (what === "left") { await setF(sb, f.id, { state: "done", result: "left (" + who + ")" }); try { await sendText(from, who === "student" ? "No problem, thanks for letting us know. Good luck with your driving!" : "Thanks, we've marked the student as left."); } catch (_) { /* window */ } return; }
+  // not yet
+  if (who === "student") {
+    await setF(sb, f.id, { state: "asked_instructor", next_due: new Date(new Date(f.student_asked_at || Date.now()).getTime() + cfg.followups.repeatDays * 864e5).toISOString() });
+    try { await sendButtons(from, `Thanks! Has ${iName} been in touch with you yet?`, [{ id: "CONTACT_YES:" + f.id, title: "Yes, in touch" }, { id: "CONTACT_NO:" + f.id, title: "No, not yet" }]); } catch (_) { /* window */ }
+  } else {
+    await setF(sb, f.id, { state: "asked_instructor", next_due: new Date(new Date(f.student_asked_at || Date.now()).getTime() + cfg.followups.repeatDays * 864e5).toISOString() });
+    try { await sendText(from, "Thanks, noted. We'll check again in a few days."); } catch (_) { /* window */ }
+  }
+}
+async function runFollowups(sb: any, cfg: any) {
+  const f = cfg.followups; if (!f.enabled || !TOKEN || !PHONE_ID) return [];
+  const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return [];
+  const { data: rows } = await sb.from("student_followups").select("*");
+  const due = (rows || []).filter((r: any) => !["done", "attention", "closed"].includes(r.state) && r.next_due && new Date(r.next_due).getTime() <= Date.now());
+  const { data: instrs } = await sb.from("instructors").select("id,full_name,phone"); const out: any[] = [];
+  for (const r of due) {
+    const { data: ref } = await sb.from("referrals").select("*").eq("id", r.referral_id).maybeSingle(); const ins = (instrs || []).find((i: any) => String(i.id) === String(r.instructor_id)) || { full_name: "your instructor", phone: "" }, stu = r.student_name || "the student";
+    if (!ref || ref.is_cancelled || isBooked(ref) || ref.reply_status === "left") { await setF(sb, r.id, { state: "done", result: "settled in admin" }); continue; }
+    const studentAsk = async (round: number) => {
+      const t = await sendTemplate(sb, { to: r.student_phone, template: "dsq_student_checkin", lang: "en_GB", params: [first(stu), ins.full_name], buttons: ["STU_BOOKED:" + r.id, "STU_NOTYET:" + r.id, "STU_LEFT:" + r.id], instructor_id: String(r.instructor_id), referral_id: r.referral_id, student_name: stu });
+      if (!t.ok) { await setF(sb, r.id, { state: "attention", result: "student message failed" }); await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp check-in to " + stu + " did not send", detail: t.error + ". Ask them by hand whether they booked.", referral_id: r.referral_id, instructor_id: r.instructor_id, student_name: stu }); return "failed"; }
+      await setF(sb, r.id, { state: "asked_student", round, student_asked_at: new Date().toISOString(), next_due: new Date(Date.now() + f.instructorAfterDays * 864e5).toISOString() }); return "asked student";
+    };
+    if (r.state === "waiting_accept") { await setF(sb, r.id, { state: "attention", result: "no accept" }); await attention(sb, cfg, { kind: "no_accept", title: `Attention: ${ins.full_name} has not accepted ${stu}`, detail: `They were assigned ${f.acceptWaitHours} hours ago and haven't tapped Accept, so the student hasn't been welcomed. Chase them or reassign.`, referral_id: r.referral_id, instructor_id: r.instructor_id, student_name: stu }); out.push({ student: stu, step: "attention (not accepted)" }); }
+    else if (r.state === "waiting_student") out.push({ student: stu, step: await studentAsk(r.round || 1) });
+    else if (r.state === "asked_student") {
+      const t = await sendTemplate(sb, { to: ins.phone, template: "dsq_instructor_checkin", lang: "en_GB", params: [first(ins.full_name), stu], buttons: ["INS_BOOKED:" + r.id, "INS_NOTYET:" + r.id, "INS_LEFT:" + r.id], instructor_id: String(r.instructor_id), referral_id: r.referral_id, student_name: stu });
+      if (!t.ok) { await setF(sb, r.id, { state: "attention", result: "instructor message failed" }); await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp check-in to " + ins.full_name + " did not send", detail: t.error + `. Ask them whether ${stu} booked.`, referral_id: r.referral_id, instructor_id: r.instructor_id, student_name: stu }); out.push({ student: stu, step: "failed" }); continue; }
+      await setF(sb, r.id, { state: "asked_instructor", next_due: new Date(Math.max(Date.now() + 3600e3, new Date(r.student_asked_at || Date.now()).getTime() + f.repeatDays * 864e5)).toISOString() }); out.push({ student: stu, step: "asked instructor" });
+    } else if (r.state === "asked_instructor") {
+      const round = (r.round || 1) + 1;
+      if (round > f.rounds) { await setF(sb, r.id, { state: "attention", result: "no confirmation" }); await attention(sb, cfg, { kind: "no_confirm", title: `Attention: nobody has confirmed whether ${stu} booked`, detail: `${f.rounds} rounds of check-ins to the student and ${ins.full_name} got no clear answer. Check with them directly.`, referral_id: r.referral_id, instructor_id: r.instructor_id, student_name: stu }); out.push({ student: stu, step: "attention (no confirmation)" }); }
+      else out.push({ student: stu, step: "round " + round + ": " + await studentAsk(round) });
+    }
+  }
+  return out;
 }
 
 async function webhook(sb: any, raw: string) {
@@ -368,6 +492,8 @@ async function webhook(sb: any, raw: string) {
       const payload = (m.button && m.button.payload) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.id) || null;
       const text = (m.text && m.text.body) || (m.button && m.button.text) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.title) || "[" + m.type + "]";
       await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", raw: m }]);
+      const fm = payload && String(payload).match(/^(STU_BOOKED|STU_NOTYET|STU_LEFT|INS_BOOKED|INS_NOTYET|INS_LEFT|CONTACT_YES|CONTACT_NO):(.+)$/);
+      if (fm) { await followupReply(sb, fm[1], fm[2], m.from); continue; }
       const mm = payload && String(payload).match(/^(OFFER_ACCEPT|OFFER_DECLINE|ACCEPT|DECLINE):(.+)$/);
       if (mm) { if (mm[1].startsWith("OFFER_")) await offerReply(sb, mm[1] === "OFFER_ACCEPT", mm[2], m.from); else await assignedReply(sb, mm[1], mm[2], m.from); continue; }
       // plain "yes" / "no" typed by an instructor who has an offer waiting
