@@ -255,3 +255,18 @@ ok(rOdd.ok === true, "run completes with odd bookings (" + rOdd.ok + ")");
 ok(DB.auto_assign_jobs.length === 6 && DB.auto_assign_jobs.every((j) => ["pending_accept", "attention", "assigned"].includes(j.state)), "every booking ends in a clear state (" + DB.auto_assign_jobs.map((j) => j.state).join(",") + ")");
 ok(DB.admin_attention.some((a) => /postcode|No Postcode/i.test(a.title + a.detail)), "the booking with no postcode goes to the admin");
 ok(DB.auto_assign_jobs.filter((j) => j.state === "pending_accept").length >= 3, "good ones still go out (" + DB.auto_assign_jobs.filter((j) => j.state === "pending_accept").length + ")");
+
+console.log("== 21. Simulator, daily safety cap ==");
+cfgOf().maxPerDay = 3; cfgOf().maxPerRun = 10; cfgOf().dailyLimit = 0; cfgOf().hours = [0, 24]; DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = [];
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true }, i3: { noAuto: true } };
+DB.waiting_list = Array.from({ length: 6 }, (_, k) => W("Cap " + k, "M13 9AA", "", { student_phone: "0784000" + String(4000 + k) }));
+await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs.length === 3, "daily cap of 3 -> only 3 started (" + DB.auto_assign_jobs.length + ")");
+ok(DB.admin_attention.some((a) => a.kind === "daily_cap"), "and the admin is told the safety limit was reached");
+await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.length === 3, "a second run the same day starts nothing more");
+const sim = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", female: "require" });
+ok(sim.ok && sim.best && sim.best.name === "Sara Female", "simulate: female required -> only Sara is in the running (" + (sim.best && sim.best.name) + ")");
+ok((sim.skipped || []).some((x) => x.name === "Mo Sale" && /Never auto-assign/.test(x.why)) && (sim.skipped || []).some((x) => /female/.test(x.why)), "simulate: left-out instructors come with reasons (" + (sim.skipped || []).map((x) => x.name + ": " + x.why).join("; ") + ")");
+const sim2 = await call({ action: "simulate", postcode: "M13 9AA", type: "Automatic" }); ok(sim2.ok && sim2.list.length >= 1, "simulate: automatic booking works (" + sim2.list.length + " in the running)");
+const sim3 = await call({ action: "simulate", postcode: "" }); ok(sim3.ok === false, "simulate: empty postcode is rejected");
+const tpl = await call({ action: "templates" }); ok(tpl.ok && (tpl.needWaba || tpl.needToken || Array.isArray(tpl.templates)), "templates: answers even without a Business Account ID (" + JSON.stringify(tpl).slice(0, 80) + ")");

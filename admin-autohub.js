@@ -158,22 +158,70 @@
   function body() {
     if (TAB === 'overview') return overview(); if (TAB === 'instructors') return instructorsTab(); if (TAB === 'booked') return booked();
     if (TAB === 'activity') return '<div class="cd"><h3>📜 Everything auto-assign has done</h3><div class="chips">' + [['all', 'All'], ['assigned', 'Assigned'], ['messages', 'WhatsApp'], ['attention', 'Problems']].map(function (f) { return '<button class="chip' + (FILTER === f[0] ? ' on' : '') + '" onclick="DSQHub.filter(\'' + f[0] + '\')">' + f[1] + '</button>'; }).join('') + '</div><div class="feed" style="max-height:none">' + feed(100, FILTER) + '</div></div>';
+    if (TAB === 'ready') return readyTab();
     return '<div id="aaHolder"></div>';
+  }
+  /* ---------- test & readiness ---------- */
+  var TPLS = null;
+  function readyTab() {
+    return '<div class="cd"><h3>✅ Is it ready to run for real? <button class="btn-s" style="font-size:.7rem;padding:1px 10px;margin-left:auto" onclick="DSQHub.recheck()">↻ Check again</button></h3><div id="hubReady"><div class="empty">Checking…</div></div></div>' +
+      '<div class="cd"><h3>🧪 Test a booking <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">nothing is saved or sent: see who it would go to, and why</span></h3>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:8px"><label style="font-size:.72rem">Student postcode<input id="simPc" class="dsq-inp" placeholder="e.g. M14 5AB" style="margin-top:2px"></label>' +
+      '<label style="font-size:.72rem">Lessons<select id="simType" class="dsq-inp" style="margin-top:2px"><option>Manual</option><option>Automatic</option></select></label>' +
+      '<label style="font-size:.72rem">Female instructor<select id="simFem" class="dsq-inp" style="margin-top:2px"><option value="">Not asked</option><option value="require">Required</option><option value="prefer">Preferred</option></select></label>' +
+      '<div style="display:flex;align-items:flex-end"><button class="btn-p" onclick="DSQHub.simulate()">Run the test</button></div></div><div id="simOut" style="font-size:.78rem"></div></div>';
+  }
+  async function readiness() {
+    var c = DATA.cfg, items = [], add = function (level, title, detail, fix) { items.push({ level: level, title: title, detail: detail, fix: fix || '' }); };
+    var wa = DATA.wast && DATA.wast.ok && DATA.wast.ready && !DATA.wast.error;
+    add(wa ? 'ok' : 'bad', 'WhatsApp is connected', wa ? ((DATA.wast.phone && (DATA.wast.phone.display_phone_number || '')) + ' ' + ((DATA.wast.phone && DATA.wast.phone.verified_name) || '')).trim() : (DATA.wast && DATA.wast.error) || 'Not connected', wa ? '' : 'Open the WhatsApp settings and follow the set-up steps (token and phone number ID in Supabase secrets).');
+    var tp = null; try { tp = await DSQWA.call({ action: 'templates' }); } catch (e) { } TPLS = tp;
+    if (!tp || !tp.ok) add('warn', 'Message templates', (tp && tp.error) || 'Could not check', 'Check the WhatsApp token has permission to read templates.');
+    else if (tp.needWaba) add('warn', 'Message templates', 'I cannot see their approval status yet.', 'Optional: add the Supabase secret WHATSAPP_WABA_ID (your WhatsApp Business Account ID, shown in WhatsApp Manager) and this will list each template as Active / In review / Rejected. Until then, check them at business.facebook.com/wa/manage/message-templates.');
+    else if (tp.needToken) add('bad', 'Message templates', 'No WhatsApp token', 'Add WHATSAPP_TOKEN.');
+    else { var need = ['dsq_student_offer', 'dsq_new_student'], bad = tp.templates.filter(function (t) { return t.status !== 'APPROVED'; }), core = bad.filter(function (t) { return need.indexOf(t.name) >= 0; });
+      add(core.length ? 'bad' : bad.length ? 'warn' : 'ok', 'Message templates approved', bad.length ? bad.map(function (t) { return t.name + ': ' + t.status + (t.reason ? ' (' + t.reason + ')' : ''); }).join(' · ') : 'All ' + tp.templates.length + ' are Active', bad.length ? 'Wait for Meta, or fix a rejected template. The instructor offer templates must be Active before you use Assign mode.' : ''); }
+    var age = DATA.last && DATA.last.at ? Math.round((Date.now() - new Date(DATA.last.at)) / 6e4) : null;
+    add(age !== null && age <= 15 ? 'ok' : (c.enabled ? 'bad' : 'warn'), 'Runs by itself (Cron job)', age === null ? 'It has never run by itself' : 'Last run ' + (age < 1 ? 'just now' : age + ' min ago'), age !== null && age <= 15 ? '' : 'Supabase → Integrations → Cron → every 2 minutes → whatsapp, body {"action":"auto_assign","cron":true}, header x-admin-key. See Settings → "Make it run by itself".');
+    var ins = DATA.instrs.filter(function (i) { return i.status === 'approved'; }), noLoc = ins.filter(function (i) { return !(String(i.postcode || '').trim() || /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(String(i.area || '') + ' ' + String(i.address || '')) || /\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/i.test(String(i.area || '') + ' ' + String(i.coverage_postcodes || ''))); }), noPh = ins.filter(function (i) { return String(i.phone || '').replace(/\D/g, '').length < 10; }), noCov = ins.filter(function (i) { return !String(i.coverage_postcodes || '').trim(); });
+    add(!ins.length ? 'bad' : (noLoc.length || noPh.length) ? 'warn' : 'ok', 'Instructors have a location and mobile number', ins.length ? (ins.length - Math.max(noLoc.length, noPh.length)) + ' of ' + ins.length + ' ready' + (noLoc.length ? ' · no location: ' + noLoc.map(function (i) { return i.full_name; }).join(', ') : '') + (noPh.length ? ' · no mobile: ' + noPh.map(function (i) { return i.full_name; }).join(', ') : '') : 'No approved instructors', (noLoc.length || noPh.length) ? 'Add the missing postcode / mobile number on their profile (Settings → 🩺 Check my data lists them).' : '');
+    if (noCov.length) add('warn', 'Covered postcodes', noCov.length + ' instructor(s) have none set: ' + noCov.slice(0, 6).map(function (i) { return i.full_name; }).join(', '), 'They still get offers by distance, but the "no reply after 35 minutes, assign anyway" rule only works for postcodes they cover.');
+    var nF = ins.filter(function (i) { return (DATA.traits[i.id] || {}).female; }).length; add(nF ? 'ok' : 'warn', 'Female instructors marked', nF ? nF + ' marked' : 'None marked', nF ? '' : 'Tick "Female instructor" on each female instructor\'s profile, or bookings that ask for one will always come to you.');
+    add(c.adminPhone && c.adminAlerts ? 'ok' : 'warn', 'You get alerts on WhatsApp', c.adminPhone ? (c.adminAlerts ? 'To ' + c.adminPhone : 'Alerts are switched off') : 'No number set', 'Settings → Alerts to you → your WhatsApp number.');
+    var old = null; try { old = typeof window.getAutoAssign === 'function' ? await window.getAutoAssign() : null; } catch (e) { } add(old ? 'bad' : 'ok', 'Old autopilot is off', old ? 'The old autopilot is still ON and can assign students too' : 'Off', old ? 'Switch it off (Settings shows a button) so the two do not both assign.' : '');
+    var wb = DATA.waiting.filter(function (w) { return /\[WEB\]/i.test(w.notes || ''); })[0]; add('info', 'Website bookings arriving', wb ? 'Latest waiting booking: ' + ago(wb.created_at) : 'No waiting website bookings right now', '');
+    return items;
+  }
+  async function fillReady() {
+    var el = document.getElementById('hubReady'); if (!el) return; var items = await readiness(); el = document.getElementById('hubReady'); if (!el) return;
+    var bad = items.filter(function (x) { return x.level === 'bad'; }).length, warn = items.filter(function (x) { return x.level === 'warn'; }).length, ICO = { ok: ['✅', '#22c55e'], warn: ['⚠️', '#f59e0b'], bad: ['❌', '#ef4444'], info: ['ℹ️', '#60a5fa'] };
+    el.innerHTML = '<div style="border:1px solid ' + (bad ? '#ef4444' : warn ? '#f59e0b' : '#22c55e') + '66;background:' + (bad ? 'rgba(239,68,68,.08)' : warn ? 'rgba(245,158,11,.08)' : 'rgba(34,197,94,.08)') + ';border-radius:10px;padding:9px 12px;margin-bottom:8px;font-weight:800">' + (bad ? '❌ Not ready: ' + bad + ' thing' + (bad === 1 ? '' : 's') + ' to fix before using Assign mode' : warn ? '⚠️ Nearly ready: ' + warn + ' thing' + (warn === 1 ? '' : 's') + ' worth checking' : '✅ Everything checks out') + '</div>' +
+      items.map(function (x) { var i = ICO[x.level]; return '<div class="fi"><i>' + i[0] + '</i><span><b>' + E(x.title) + '</b><br><span style="color:var(--txt3)">' + E(x.detail) + '</span>' + (x.fix ? '<br><span style="color:' + i[1] + ';font-size:.72rem">' + E(x.fix) + '</span>' : '') + '</span></div>'; }).join('');
+    return items;
+  }
+  function recheck() { fillReady(); }
+  async function simulate() {
+    var pc = (document.getElementById('simPc') || {}).value || '', o = document.getElementById('simOut'); if (!o) return; if (!pc.trim()) { o.innerHTML = '<span style="color:#f59e0b">Enter a postcode first.</span>'; return; } o.textContent = 'Working it out…';
+    var r = await DSQWA.call({ action: 'simulate', postcode: pc, type: document.getElementById('simType').value, female: document.getElementById('simFem').value });
+    if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; } if (r.error) { o.innerHTML = '<span style="color:#f87171">' + E(r.error) + '</span>'; return; }
+    var head = r.best ? '<div style="border:1px solid #22c55e66;background:rgba(34,197,94,.08);border-radius:10px;padding:9px 12px;margin-bottom:8px">➡️ <b>' + E(r.best.name) + '</b> (' + r.best.dist + ' mi) would be ' + (r.best.direct ? 'assigned straight away' : 'asked to accept') + (r.best.covered ? ' · covers this postcode' : '') + '<br><span style="color:var(--txt3)">' + E(r.best.why || '') + '</span></div>' : '<div style="border:1px solid #f59e0b66;background:rgba(245,158,11,.08);border-radius:10px;padding:9px 12px;margin-bottom:8px">⚠️ Nobody within ' + r.limit + ' miles: this would come to <b>you</b>' + (r.nearestOver ? ' (nearest: ' + E(r.nearestOver.name) + ', ' + r.nearestOver.dist + ' mi)' : '') + '</div>';
+    o.innerHTML = head + '<div class="scroll"><table><thead><tr><th>#</th><th>Instructor</th><th>Miles</th><th>Given today / booked this week</th><th>Notes</th></tr></thead><tbody>' + r.list.map(function (x) { var n = []; if (x.owed) n.push('owed ' + x.short + ' this week (min ' + x.min + ')'); if (x.prio) n.push('priority ' + (x.prio > 0 ? '+' : '') + x.prio); if (x.boost) n.push('idle ' + x.idle + ' d → −' + x.boost + ' mi'); (x.over || []).forEach(function (v) { n.push('asked last: ' + v); }); if (!x.within) n.push('over your ' + r.limit + ' mile limit'); return '<tr style="' + (x.within ? '' : 'opacity:.5') + '"><td>' + x.order + '</td><td><b>' + E(x.name) + '</b></td><td>' + x.dist + '</td><td>' + x.today + ' / ' + x.bookedWeek + '</td><td style="font-size:.72rem;color:var(--txt3)">' + E(n.join(' · ')) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      (r.skipped.length ? '<div style="margin-top:8px;font-weight:800;font-size:.76rem">Left out</div>' + r.skipped.map(function (x) { return '<div class="fi"><i>🚫</i><span><b>' + E(x.name) + '</b> · ' + E(x.why) + '</span></div>'; }).join('') : '');
   }
   function shell() {
     var c = DATA.cfg || {}, on = !!c.enabled, h = document.getElementById('aaHub'); if (!h) return;
-    var tabs = [['overview', '📊 Overview'], ['instructors', '👥 Instructors'], ['booked', '🎯 Students booked'], ['settings', '⚙️ Settings'], ['activity', '📜 Activity']];
+    var tabs = [['overview', '📊 Overview'], ['instructors', '👥 Instructors'], ['booked', '🎯 Students booked'], ['ready', '🧪 Test & readiness'], ['settings', '⚙️ Settings'], ['activity', '📜 Activity']];
     h.innerHTML = '<style>' + CSS + '</style><div class="hb"><div class="hh"><h1>🤖 Auto-assign control centre</h1><div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:.78rem;font-weight:700">' + (on ? 'ON' : 'OFF') + '</span><button class="sw' + (on ? ' on' : '') + '" style="background:' + (on ? '#22c55e' : '#475569') + '" title="Turn auto-assign ' + (on ? 'off' : 'on') + '" onclick="DSQHub.toggle()"></button>' +
       '<select class="dsq-inp" id="hubMode" style="width:auto;padding:4px 8px;font-size:.76rem" onchange="DSQHub.mode(this.value)"><option value="suggest"' + (c.mode === 'suggest' ? ' selected' : '') + '>Suggest only (safe)</option><option value="assign"' + (c.mode === 'assign' ? ' selected' : '') + '>Assign + WhatsApp</option></select>' +
       '<button class="btn-s" onclick="DSQHub.preview()">👀 Preview</button><button class="btn-p" onclick="DSQHub.run()">▶ Run now</button><button class="btn-s" onclick="DSQHub.close()">✕ Close</button></div></div>' +
       '<div class="tabs">' + tabs.map(function (t) { return '<button class="tab' + (TAB === t[0] ? ' on' : '') + '" onclick="DSQHub.tab(\'' + t[0] + '\')">' + t[1] + (t[0] === 'overview' && DATA.att && DATA.att.length ? ' <span style="background:#fff;color:#dc2626;border-radius:99px;padding:0 6px;font-size:.66rem">' + DATA.att.length + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<div id="hubOut" style="font-size:.78rem;margin:0 0 10px"></div><div id="hubBody">' + body() + '</div></div>';
-    if (TAB === 'settings' && window.DSQAA) DSQAA.mount();
+    if (TAB === 'settings' && window.DSQAA) DSQAA.mount(); if (TAB === 'ready') fillReady();
   }
   async function refresh(full) {
     var h = document.getElementById('aaHub'); if (!h) return;
-    if (TAB === 'settings' && !full) return;   // do not redraw the form while you are typing in it
+    if ((TAB === 'settings' || TAB === 'ready') && !full) return;   // do not redraw the form while you are typing in it
     try { await load(); } catch (e) { var o = document.getElementById('hubOut'); if (o) o.innerHTML = '<span style="color:#f87171">Could not load: ' + E(e.message || e) + '</span>'; return; }
     var scrollY = h.scrollTop; shell(); h.scrollTop = scrollY;
   }
@@ -189,8 +237,9 @@
     if (r.error) { toast('Not saved: ' + r.error.message, 'error', 6000); return false; } try { DSQLog.add(SBc(), { area: 'auto_assign', action: 'settings', summary: msg, role: 'admin', actor: 'Admin' }); } catch (e) { } return true;
   }
   async function toggle() {
-    var c = DATA.cfg, turningOn = !c.enabled;
-    if (turningOn && !confirm('Turn auto-assign ON in "' + (c.mode === 'suggest' ? 'suggest only' : 'assign + WhatsApp') + '" mode?\n\nOnly website bookings from now on are handled.' + (c.mode === 'assign' ? '\nInstructors and students will be messaged for real.' : '\nNothing is sent or assigned in suggest mode.'))) return;
+    var c = DATA.cfg, turningOn = !c.enabled, warn = '';
+    if (turningOn && c.mode === 'assign') { try { var its = await readiness(); var bad = its.filter(function (x) { return x.level === 'bad'; }); if (bad.length) warn = '\n\n❌ NOT READY:\n' + bad.map(function (x) { return '• ' + x.title + ': ' + x.detail; }).join('\n') + '\n\nSwitching on now may fail or send nothing. Use "Suggest only" until these are fixed.'; } catch (e) { } }
+    if (turningOn && !confirm('Turn auto-assign ON in "' + (c.mode === 'suggest' ? 'suggest only' : 'assign + WhatsApp') + '" mode?\n\nOnly website bookings from now on are handled.' + (c.mode === 'assign' ? '\nInstructors and students will be messaged for real.' : '\nNothing is sent or assigned in suggest mode.') + warn)) return;
     if (await saveCfg({ enabled: turningOn, since: turningOn && !c.enabled ? new Date().toISOString() : c.since }, 'Auto-assign turned ' + (turningOn ? 'ON (' + c.mode + ')' : 'OFF'))) { toast(turningOn ? '🤖 Auto-assign is ON' : 'Auto-assign is OFF', 'success', 2500); refresh(true); }
   }
   async function mode(v) { if (v === 'assign' && !confirm('Switch to ASSIGN + WhatsApp?\n\nStudents will be assigned and real WhatsApp messages sent. Use Preview first if unsure.')) { refresh(true); return; } if (await saveCfg({ mode: v }, 'Auto-assign mode set to ' + v)) { toast('Mode: ' + (v === 'suggest' ? 'suggest only' : 'assign + WhatsApp'), 'success', 2500); refresh(true); } }
@@ -209,5 +258,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
 })();

@@ -112,6 +112,8 @@ const DEFAULT_CFG = {
   replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
   autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
   concurrency: 5,                  // how many bookings are worked on AT THE SAME TIME (each one is looked up, ranked and messaged independently)
+  maxPerDay: 40,                   // safety: never start more than this many new bookings in one UK day (a runaway or a spam wave stops here and tells you)
+  maxPerDay: 40,                   // safety: never start more than this many new bookings in one UK day. A runaway or a spam wave stops here and tells you (0 = no cap)
   maxPerRun: 10,                    // at most this many new bookings are started in one run (every 2 minutes), so a rush never floods the instructors
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
@@ -313,19 +315,20 @@ async function checkDrought(sb: any, cfg: any, cd: any) {
 async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reserve = false) {
   const out: any[] = [];
   const sg = await geocode(b.postcode); if (sg && sg.error) return { error: "The postcode service did not answer just now", transient: true, list: [] }; if (!sg) return { error: 'Postcode "' + b.postcode + '" was not found', list: [] };
-  const rows: any[] = [];
+  const rows: any[] = [], skipped: any[] = [], skip = (i: any, why: string) => skipped.push({ id: i.id, name: i.full_name, why });   // who was left out, and why (shown in the simulator)
   for (const i of cd.instrs) {
-    const tr = cd.traits[i.id] || {}; if (tr.noAuto) continue;
+    const tr = cd.traits[i.id] || {};
     if (exclude.includes(String(i.id))) continue;
-    if (!canTeach(i.car_type || "Manual", b.type)) continue;
-    if (b.female === "require" && cfg.femaleRule === "require" && !tr.female) continue;
-    const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) continue;
-    const ent = entitlement(i, cd, cfg); if (!ent.started) continue;   // package / franchise start date is in the future: no jobs yet
-    const pc = instrPc(i); if (!pc) continue;
+    if (tr.noAuto) { skip(i, "marked Never auto-assign"); continue; }
+    if (!canTeach(i.car_type || "Manual", b.type)) { skip(i, "does not teach " + b.type.toLowerCase() + " lessons"); continue; }
+    if (b.female === "require" && cfg.femaleRule === "require" && !tr.female) { skip(i, "the booking needs a female instructor"); continue; }
+    const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) { skip(i, "reached the hard cap of " + cfg.maxPerWeek + " new students this week"); continue; }
+    const ent = entitlement(i, cd, cfg); if (!ent.started) { skip(i, "package / franchise " + (ent.why || "has not started yet")); continue; }   // no jobs before the start date
+    const pc = instrPc(i); if (!pc) { skip(i, "no postcode or area on their profile"); continue; }
     rows.push({ i, tr, st, ent, pc });
   }
   await Promise.all(rows.map(async (r) => { r.g = await geocode(r.pc); }));   // all instructors' locations at once (cached after the first time)
-  for (let k = rows.length - 1; k >= 0; k--) { const r = rows[k]; if (!r.g || r.g.error) rows.splice(k, 1); else r.crow = haversine(sg.lat, sg.lon, r.g.lat, r.g.lon); }
+  for (let k = rows.length - 1; k >= 0; k--) { const r = rows[k]; if (!r.g || r.g.error) { skip(r.i, "their postcode " + r.pc + " could not be found"); rows.splice(k, 1); } else r.crow = haversine(sg.lat, sg.lon, r.g.lat, r.g.lon); }
   rows.sort((a, c) => a.crow - c.crow);
   await Promise.all(rows.slice(0, 8).map(async (r) => { r.dist = await drivingMiles(sg.lat, sg.lon, r.g.lat, r.g.lon); }));   // the 8 nearest road distances at once
   for (const r of rows.slice(8)) r.dist = r.crow * 1.3;
@@ -352,7 +355,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
     const best = near[0], pn = ["Last", "Low", "Equal", "High", "Top"][best.prio + 2];
     best.why = best.owed ? `${best.name} has ${best.bookedWeek} of ${best.min} confirmed booked this week, so is offered first` : closest && closest.id !== best.id ? (closest.over.length ? `${closest.name} is closer (${closest.dist} mi) but ${closest.over.join(" and ")}, so asked after others` : (bestFair && !best.prio ? `${best.name} (${best.dist} mi) has had no student for ${best.idle} days, so is ahead of ${closest.name} (${closest.dist} mi)` : `${best.name} (${best.dist} mi) is ahead of ${closest.name} (${closest.dist} mi) because of priority ${pn}`)) : best.tier === 1 ? `everyone close by is over a limit (${best.over.join(" and ")}), so the closest gets it` : (best.prio ? `closest instructor (priority ${pn})` : "closest instructor");
   }
-  return { list: out, geo: sg };
+  return { list: out, geo: sg, skipped };
 }
 
 /* ---------- assigning a student to an instructor (same records as Find & Assign) ---------- */
@@ -445,6 +448,29 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
   return { action: what === "offered" ? "offered" : "attention", instructor: best.name, dist: best.dist };
 }
 
+/* "what would happen to a booking like THIS?" Nothing is saved or sent. Shows every instructor: who is in the running (and why in that order) and who is left out (and why). */
+async function simulate(sb: any, body: any) {
+  const cfg = await loadCfg(sb), pc = fmtPc(body.postcode || ""); if (!pc) return { ok: false, error: "Enter a postcode" };
+  const b = { id: "sim", name: "Test student", phone: "", postcode: pc, type: /auto/i.test(body.type || "") ? "Automatic" : "Manual", female: body.female === "require" ? "require" : body.female === "prefer" ? "prefer" : "" };
+  const cd = await candidateData(sb), rk = await rank(sb, cfg, b, cd, [], false);
+  if (rk.error) return { ok: true, error: rk.error, list: [], skipped: [] };
+  const near = rk.list.filter((x: any) => x.dist <= cfg.confirmMiles), best = near[0];
+  const list = rk.list.map((x: any, k: number) => ({ name: x.name, dist: x.dist, within: x.dist <= cfg.confirmMiles, order: k + 1, owed: !!x.owed, short: x.short, min: x.min, over: x.over, prio: x.prio, idle: x.idle, boost: x.boost, eff: x.eff, bookedWeek: x.bookedWeek, today: x.today, why: x.why || "" }));
+  const covered = best ? covers(cd.instrs.find((i: any) => String(i.id) === String(best.id)) || {}, pc) : false;
+  return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
+}
+/* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
+const OUR_TEMPLATES = ["dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
+async function templateStatus() {
+  const waba = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID");
+  if (!TOKEN) return { ok: true, needToken: true, templates: [] };
+  if (!waba) return { ok: true, needWaba: true, templates: [] };
+  const r = await graph("/" + waba + "/message_templates?fields=name,status,language,category,rejected_reason&limit=200");
+  if (!r.ok) return { ok: false, error: (r.j && r.j.error && r.j.error.message) || "Meta error " + r.status };
+  const have: any[] = (r.j && r.j.data) || [];
+  return { ok: true, templates: OUR_TEMPLATES.map((n) => { const m = have.filter((t: any) => t.name === n), good = m.find((t: any) => t.status === "APPROVED") || m[0]; return { name: n, status: good ? good.status : "MISSING", language: good ? good.language : "", reason: good && good.rejected_reason && good.rejected_reason !== "NONE" ? good.rejected_reason : "" }; }) };
+}
+
 async function autoAssign(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now(), t0 = Date.now();
   if (body.cron && !dry) { try { await sb.from("growth_settings").upsert({ key: "auto_assign_last_run", value: { at: new Date().toISOString(), enabled: cfg.enabled, mode: cfg.mode, hour: londonHour() }, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (_) { /* the admin screen shows "last ran" from this */ } }
@@ -505,7 +531,9 @@ async function autoAssign(sb: any, body: any) {
   const { data: jobs } = await sb.from("auto_assign_jobs").select("waiting_id,state");
   const handled = new Set((jobs || []).map((j: any) => String(j.waiting_id)));
   const tags = (cfg.sources || ["[WEB]"]).map((t: string) => t.toLowerCase());
-  const todo: any[] = [], deadline = t0 + 110000; const maxRun = cfg.maxPerRun > 0 ? cfg.maxPerRun : 10, seenPhone = new Map<string, string>();
+  let dayLeft = 1e9;
+  if (!dry && cfg.maxPerDay > 0) { const { data: dj } = await sb.from("auto_assign_jobs").select("id,created_at").gte("created_at", new Date(londonMidnightToday()).toISOString()); dayLeft = Math.max(0, cfg.maxPerDay - (dj || []).length); }
+  const todo: any[] = [], deadline = t0 + 110000; const maxRun = Math.min(dayLeft, cfg.maxPerRun > 0 ? cfg.maxPerRun : 10), seenPhone = new Map<string, string>();
   const recentRefs = (cd.refs || []).filter((r: any) => !r.is_cancelled && Date.now() - new Date(r.created_at).getTime() < 14 * 864e5);
   for (const w of waiting || []) {
     const ph10 = last10(w.student_phone || "");
@@ -524,7 +552,7 @@ async function autoAssign(sb: any, body: any) {
     }
     if (ph10.length === 10) seenPhone.set(ph10, b.name);
     if (dry) { results.push({ student: b.name, postcode: b.postcode, type: b.type, female: b.female || "", ...(await decide(sb, cfg, b, cd, { id: "dry" }, [], 1, true)) }); continue; }
-    if (!dry && todo.length >= maxRun) break;   // never flood the instructors: the rest wait for the next run (2 minutes)
+    if (!dry && todo.length >= maxRun) { if (dayLeft <= todo.length && cfg.maxPerDay > 0) await attention(sb, cfg, { kind: "daily_cap", title: `Daily safety limit reached (${cfg.maxPerDay} bookings)`, detail: "Auto-assign has stopped for today so a runaway can't message everyone. The remaining bookings wait. Raise the limit in Settings or assign them by hand.", waiting_id: "cap-" + new Date().toISOString().slice(0, 10) }); break; }   // never flood the instructors: the rest wait for the next run (2 minutes)
     todo.push(async () => {
       if (Date.now() > deadline) return;   // out of time: the booking is simply picked up by the next run
       const { data: job, error } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "working", attempt: 1, tried: [] }]).select().single();
@@ -718,6 +746,8 @@ serve(async (req) => {
     if (b.action === "send_template") return json(await sendTemplate(sb, b));
     if (b.action === "test") return json(await sendTemplate(sb, { to: b.to, template: "hello_world", lang: "en_US", params: [] }));
     if (b.action === "auto_assign") return json(await autoAssign(sb, b));
+    if (b.action === "simulate") return json(await simulate(sb, b));
+    if (b.action === "templates") return json(await templateStatus());
   } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }
   return json({ ok: false, error: "Unknown action" }, 400);
 });

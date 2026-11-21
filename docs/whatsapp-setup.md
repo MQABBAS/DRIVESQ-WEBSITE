@@ -67,3 +67,6 @@ Every student within 8 miles is **offered** to the nearest suitable instructor (
 - Instructors are only contacted between the **offer hours** (default 8:00 to 20:00 UK time).
 - The **reply timers (35 and 60 minutes) only count those hours**. A booking at midnight is offered at 8:00, and the instructor gets their full time to reply. An offer sent at 19:50 has 10 minutes before 20:00, then the rest from 8:00.
 - The student is told we have their booking between the **acknowledgement hours** (default 7:00 to 23:00). During the offer hours: "we have passed your details to a driving instructor". Outside them: "first thing in the morning" wording (`dsq_booking_received_later`, one more template). Outside 7:00 to 23:00 nothing is sent until the morning.
+
+## Optional: see template approval inside admin
+Add the Supabase secret `WHATSAPP_WABA_ID` (your WhatsApp Business Account ID, shown in WhatsApp Manager → Account tools / Settings). The Auto-assign control centre → **Test & readiness** then lists each template as Active / In review / Rejected.
