@@ -47,6 +47,7 @@ const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", mon
 const londonHour = () => +new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", hour12: false }).format(new Date()) % 24;
 /* minutes between two moments that fall INSIDE the waking window [h0, h1) UK time: the reply timers only run while instructors are awake */
 function activeMinutes(fromMs: number, toMs: number, h0: number, h1: number) {
+  if (h0 <= 0 && h1 >= 24) return Math.max(0, Math.min(toMs - fromMs, 96 * 3600000) / 60000);   // 24/7: every minute counts (and no slow clock loop)
   let m = 0; const step = 5 * 60000, end = Math.min(toMs, fromMs + 96 * 3600000);
   for (let t = fromMs; t < end; t += step) { const h = +new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", hour12: false }).format(new Date(t)) % 24; if (h >= h0 && h < h1) m += Math.min(5, (end - t) / 60000); }
   return m;
@@ -797,6 +798,7 @@ async function webhook(sb: any, raw: string) {
     for (const m of v.messages || []) {
       const payload = (m.button && m.button.payload) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.id) || null;
       const text = (m.text && m.text.body) || (m.button && m.button.text) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.title) || "[" + m.type + "]";
+      { const { data: seen } = await sb.from("wa_log").select("id").eq("wa_message_id", m.id).eq("direction", "in").maybeSingle(); if (seen) continue; }   // Meta re-sends a message if we are slow to answer: never process the same one twice
       await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", raw: m }]);
       const fm = payload && String(payload).match(/^(STU_BOOKED|STU_NOTYET|STU_LEFT|INS_BOOKED|INS_NOTYET|INS_LEFT|CONTACT_YES|CONTACT_NO):(.+)$/);
       if (fm) { await followupReply(sb, fm[1], fm[2], m.from); continue; }

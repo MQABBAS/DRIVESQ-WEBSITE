@@ -379,3 +379,11 @@ const pendNoInstr = DB.auto_assign_jobs.filter((j) => j.state === "pending_accep
 const fem = DB.referrals.filter((r) => /FEMALE INSTRUCTOR REQUESTED/.test((DB.waiting_list.find((w) => w.student_phone === r.student_phone) || {}).notes || "")); const maleToFem = fem.filter((r) => r.instructor_id !== "i2" && !/agreed to a male/.test((DB.waiting_list.find((w) => w.student_phone === r.student_phone) || {}).notes || ""));
 ok(maleToFem.length === 0, "nobody who asked for a woman was given a man without agreeing (" + maleToFem.length + ")");
 const perDay = {}; DB.referrals.forEach((r) => { perDay[r.instructor_id] = (perDay[r.instructor_id] || 0) + 1; }); console.log("   given per instructor:", JSON.stringify(perDay), "| jobs:", DB.auto_assign_jobs.length, "| states:", JSON.stringify(DB.auto_assign_jobs.reduce((a, j) => (a[j.state] = (a[j.state] || 0) + 1, a), {})));
+
+console.log("== 30. Meta re-sends the same message ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().dailyLimit = 0; cfgOf().maxPerDay = 500; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = [];
+DB.waiting_list = [W("Retry Rae", "M13 9AA", "", { student_phone: "07833777888" })]; await call({ action: "auto_assign", cron: true });
+const jr = DB.auto_assign_jobs[0], insR = DB.instructors.find((i) => i.id === jr.instructor_id), fromR = "44" + insR.phone.replace(/^0/, "");
+const sameMsg = async (p) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "wamid.SAME1", from: fromR, type: "button", button: { payload: p, text: "x" } }] } }] }] }); const sg = await sigf(body); for (let k = 0; k < 3; k++) await h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": sg }, body })); };
+await sameMsg("OFFER_ACCEPT:" + jr.id);
+ok(DB.referrals.filter((r) => r.student_name === "Retry Rae").length === 1 && DB.wa_log.filter((l) => l.direction === "in" && l.wa_message_id === "wamid.SAME1").length === 1, "the same Accept delivered 3 times -> processed once (1 referral, 1 log row)");
