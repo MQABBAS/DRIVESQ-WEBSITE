@@ -14,3 +14,9 @@ Hi {name}, thanks for booking with DriveSQ! We have passed your details to a dri
 
 **After the instructor accepts (`dsq_student_welcome_2`)**
 Hi {name}, welcome to DriveSQ! You're now registered with us. Your driving instructor is {instructor}, on {phone}. Your instructor may be in a lesson right now, so there might be a short wait. In the meantime, please message them with the days and times you're available so you can get started: {WhatsApp link}. Your free Student Portal: https://www.drivesq.co.uk/student ...
+
+## Terms & conditions wording (use everywhere, keep identical)
+Link: https://www.drivesq.co.uk/terms.html
+- Cancel or move a lesson more than 24 hours before it starts: free.
+- Less than 24 hours' notice, or a no-show: charged for the time reserved, £35 per hour booked.
+- Money paid to the DriveSQ business account is DriveSQ's responsibility. Money paid directly to an instructor is a private arrangement and DriveSQ is not responsible for it.

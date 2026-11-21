@@ -196,7 +196,7 @@ const { build, text, personalise } = (function () {
       /* footer */
       '<table role="presentation" class="dsq-wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px"><tr><td class="dsq-pad" align="center" style="padding:20px 30px 6px;font-family:' + BODYF + ';font-size:12px;line-height:19px;color:' + th.foot + '">' +
       esc(d.footerNote || "You're getting this email because you booked or asked about driving lessons with DriveSQ.") +
-      '<br>DriveSQ Driving School · Greater Manchester &amp; Solihull, UK<br><a href="{{unsubscribe_url}}" style="color:' + th.foot + ';text-decoration:underline">Unsubscribe</a> from DriveSQ emails</td></tr></table>' +
+      '<br>DriveSQ Driving School · Greater Manchester &amp; Solihull, UK<br><a href="https://www.drivesq.co.uk/terms.html" style="color:' + th.foot + ';text-decoration:underline">Terms &amp; conditions</a> · <a href="{{unsubscribe_url}}" style="color:' + th.foot + ';text-decoration:underline">Unsubscribe</a> from DriveSQ emails</td></tr></table>' +
       "<!--[if mso]></td></tr></table><![endif]-->" +
       "</td></tr></table></body></html>";
     return html;
@@ -208,7 +208,7 @@ const { build, text, personalise } = (function () {
       d.highlightValue ? "\n" + d.highlightValue + (d.highlightLabel ? " — " + strip(d.highlightLabel) : "") : "",
       d.buttonText && d.buttonUrl ? "\n" + d.buttonText + ": " + d.buttonUrl : "", d.secondaryText ? "\n" + strip(d.secondaryText) : "",
       "\n" + strip(d.signoff || "Speak soon,\nThe DriveSQ team"), "\n—\nDriveSQ Driving School · WhatsApp 07352 932003 · https://www.drivesq.co.uk/",
-      strip(d.footerNote || "You're getting this email because you booked or asked about driving lessons with DriveSQ."), "Unsubscribe: {{unsubscribe_url}}"].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+      strip(d.footerNote || "You're getting this email because you booked or asked about driving lessons with DriveSQ."), "Terms and conditions: https://www.drivesq.co.uk/terms.html", "Unsubscribe: {{unsubscribe_url}}"].join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
   /* personalise one email */

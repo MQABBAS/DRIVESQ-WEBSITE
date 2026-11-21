@@ -194,6 +194,7 @@
     if (f.dataset.dsqAttached) return;
     f.dataset.dsqAttached = '1';
     var btn = f.querySelector('[type=submit]'), msg = f.querySelector('#dsqInlineBookMsg') || f.appendChild(document.createElement('div'));
+    if (btn && !f.querySelector('.dsq-terms-note')) { var tn = document.createElement('div'); tn.className = 'dsq-terms-note'; tn.style.cssText = 'font-size:.72rem;line-height:1.5;opacity:.8;margin:2px 0 8px'; tn.innerHTML = 'By sending this you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>. Free cancellation more than 24 hours before a lesson; with less notice we charge £35 per hour booked for the time reserved. Paying the DriveSQ business account is our responsibility; paying an instructor directly is not.'; btn.parentNode.insertBefore(tn, btn); }
     var label = btn ? btn.innerHTML : '';
     var exp = f.querySelector('[name="experience"]'), tdl = f.querySelector('.dsq-bk-test');
     var syncTest = function () { if (exp && tdl) tdl.style.display = exp.value === 'Test already booked' ? 'block' : 'none'; };
@@ -242,6 +243,17 @@
   }
 
   /* ---------- any Formspree form ---------- */
+  /* every learner booking form on the page carries the terms line (once), including forms handled by other scripts */
+  function termsNotes() {
+    Array.prototype.forEach.call(document.querySelectorAll('form'), function (f) {
+      if (f.querySelector('.dsq-terms-note') || /join/i.test(f.id || '') || f.querySelector('[name="areas"]') || !f.querySelector('[name="phone"],[name="tel"]')) return;
+      var b = f.querySelector('[type=submit]'); if (!b) return;
+      var tn = document.createElement('div'); tn.className = 'dsq-terms-note'; tn.style.cssText = 'font-size:.72rem;line-height:1.5;opacity:.8;margin:2px 0 8px;width:100%'; tn.innerHTML = 'By sending this you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>. Free cancellation more than 24 hours before a lesson; with less notice we charge £35 per hour booked for the time reserved. Paying the DriveSQ business account is our responsibility; paying an instructor directly is not.'; b.parentNode.insertBefore(tn, b);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(termsNotes, 400); }); else setTimeout(termsNotes, 400);
+  setTimeout(termsNotes, 3000);
+
   function formspreeForm(form) {
     if (form.dataset.dsqAttached) return;
     // instructor job applications aren't learner bookings — leave them to Formspree (email) only

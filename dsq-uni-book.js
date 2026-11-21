@@ -69,6 +69,7 @@
         '<label>When are you free?</label><div class="chips">' + T.map(function (t) { return '<span class="chip' + ((keep.times || []).indexOf(t) > -1 ? ' on' : '') + '" data-t="' + t + '">' + t + '</span>'; }).join('') + '</div>' +
         '<label>Anything we should know? (lecture days, shifts, nerves, access needs)</label><textarea name="notes" rows="3">' + kv('notes') + '</textarea>' +
         '<label class="consent"><input type="checkbox" name="ok"> <span>I agree DriveSQ may contact me about my lessons. Your details go to the DriveSQ team and your instructor, and aren\'t sold. <a href="/privacy.html" style="color:#fff">Privacy</a></span></label>' +
+        '<div class="note" style="font-size:.72rem;line-height:1.5;margin-bottom:8px">By sending this you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>. Free cancellation more than 24 hours before a lesson; with less notice we charge £35 per hour booked for the time reserved. Paying the DriveSQ business account is our responsibility; paying an instructor directly is not.</div>' +
         '<div class="btns"><button type="button" class="back" data-go="2">Back</button><button type="button" class="go" data-send="1">Send my booking request</button></div>';
     } else {
       h = st.done;
