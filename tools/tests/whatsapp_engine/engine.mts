@@ -48,7 +48,7 @@ ok(fNN.state === "waiting_student" && sent("dsq_student_welcome_2").length === 1
 ok(Math.abs(new Date(fNN.next_due).getTime() - (Date.now() + 3 * 864e5)) < 5000, "first check-in is 3 days after accept");
 CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(sent("dsq_student_checkin").length === 0, "nothing is sent before the 3 days are up");
 fNN.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
-ok(sent("dsq_student_checkin").length === 1 && fNN.state === "asked_student", "day 3: student asked 'has the instructor booked?'");
+ok(sent("dsq_student_checkin").length === 1 && sent("dsq_instructor_checkin").length === 1 && fNN.state === "asked_both", "day 3: the student AND the instructor are asked at the same time (no waiting for the student)");
 const sc = (DB.wa_log || []).find((l) => l.template === "dsq_student_checkin"); const callsC = CALLS.find((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_student_checkin");
 console.log("   buttons:", JSON.stringify(callsC.wa.template.components.filter((c) => c.type === "button").map((b) => b.parameters[0].payload.split(":")[0])));
 // student says NOT YET
@@ -58,7 +58,7 @@ ok(CALLS.some((c) => c.wa && c.wa.type === "interactive"), "follow-up question '
 // student says instructor has NOT been in touch
 CALLS.length = 0; await hook({ from: "44" + nn.student_phone.slice(1), p: "CONTACT_NO:" + fNN.id });
 ok(DB.admin_attention.some((a) => a.kind === "not_contacted"), "'not in touch' -> attention required for admin");
-ok(sent("dsq_instructor_checkin").length === 1, "instructor is messaged straight away");
+ok(sent("dsq_instructor_checkin").length === 2, "instructor is messaged straight away as well (2nd message: " + sent("dsq_instructor_checkin").length + ")");
 // instructor says BOOKED
 await hook({ from: "447700900001", p: "INS_BOOKED:" + fNN.id });
 ok(nn.flag_color === "green" && /confirmed by instructor/.test(nn.admin_notes) && fNN.state === "done", "instructor 'Booked' -> green + marker + done");
@@ -76,16 +76,23 @@ const fLL = DB.student_followups.find((f) => f.referral_id === String(ll.id)); f
 await hook({ from: "44" + ll.student_phone.slice(1), p: "STU_LEFT:" + fLL.id });
 ok(ll.flag_color === "red" && ll.reply_status === "left" && /Student confirmed left/.test(ll.admin_notes) && fLL.state === "done", "student 'Gone elsewhere' -> red + left + 'Student confirmed left'");
 
-console.log("== 7. No reply: instructor is asked after 1 day, then repeats every 5 days, 4 rounds ==");
+console.log("== 7. Nobody answers: both asked together, every 4 days, max 2 a week each, then the admin is told ==");
 DB.waiting_list = [W("Quiet Quin", "M13 9AA")]; await call({ action: "auto_assign", cron: true }); const qq = DB.referrals.find((x) => x.student_name === "Quiet Quin"); await hook({ from: "447700900001", p: "ACCEPT:" + qq.id });
-const fQ = DB.student_followups.find((f) => f.referral_id === String(qq.id)); fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
-ok(fQ.state === "asked_student" && Math.abs(new Date(fQ.next_due).getTime() - (Date.now() + 864e5)) < 5000, "student asked; instructor will be asked in 1 day");
-const before = sent("dsq_instructor_checkin").length; fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
-ok(sent("dsq_instructor_checkin").length === before + 1 && fQ.state === "asked_instructor", "no student reply in 1 day -> instructor asked");
-ok(new Date(fQ.next_due).getTime() > Date.now() + 3 * 864e5, "next round is ~5 days after the first student message");
-for (let i = 2; i <= 4; i++) { fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true }); ok(fQ.round === i && fQ.state === "asked_student", "round " + i + " starts with the student"); fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true }); }
+const fQ = DB.student_followups.find((f) => f.referral_id === String(qq.id)); const s0 = sent("dsq_student_checkin").length, i0 = sent("dsq_instructor_checkin").length;
 fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
-ok(fQ.state === "attention" && DB.admin_attention.some((a) => a.kind === "no_confirm"), "after 4 rounds -> attention required");
+ok(sent("dsq_student_checkin").length === s0 + 1 && sent("dsq_instructor_checkin").length === i0 + 1 && fQ.state === "asked_both", "day 3: student and instructor asked together");
+ok(Math.abs(new Date(fQ.next_due).getTime() - (Date.now() + 4 * 864e5)) < 5000, "next round is 4 days later");
+fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_student_checkin").length === s0 + 2 && sent("dsq_instructor_checkin").length === i0 + 2 && fQ.round === 2, "round 2: both asked again (2 each so far)");
+fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_student_checkin").length === s0 + 2 && sent("dsq_instructor_checkin").length === i0 + 2, "a 3rd message inside the same 7 days is NOT sent (weekly limit of 2 each)");
+ok(new Date(fQ.next_due).getTime() > Date.now() + 20 * 3600e3 && new Date(fQ.next_due).getTime() < Date.now() + 28 * 3600e3, "it tries again the next day instead");
+// a week later the limit has reset
+DB.wa_log.forEach((l) => { if (["dsq_student_checkin", "dsq_instructor_checkin"].includes(l.template)) l.created_at = new Date(Date.now() - 8 * 864e5).toISOString(); });
+fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
+ok(fQ.round === 3 && sent("dsq_student_checkin").length === s0 + 3, "after 7 days the next round is sent (round " + fQ.round + ")");
+for (let k = 0; k < 3 && fQ.state !== "attention"; k++) { DB.wa_log.forEach((l) => { if (["dsq_student_checkin", "dsq_instructor_checkin"].includes(l.template)) l.created_at = new Date(Date.now() - 8 * 864e5).toISOString(); }); fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true }); }
+ok(fQ.state === "attention" && DB.admin_attention.some((a) => a.kind === "no_confirm" && /Quin/.test(a.title)), "after 4 rounds with no answer -> attention required for the admin");
 
 console.log("== 8. Marked in admin meanwhile -> follow-ups stop =="); DB.referrals = [];
 DB.waiting_list = [W("Done Dee", "M13 9AA")]; await call({ action: "auto_assign", cron: true }); const dd = DB.referrals.find((x) => x.student_name === "Done Dee"); await hook({ from: "447700900001", p: "ACCEPT:" + dd.id });
@@ -270,3 +277,21 @@ ok((sim.skipped || []).some((x) => x.name === "Mo Sale" && /Never auto-assign/.t
 const sim2 = await call({ action: "simulate", postcode: "M13 9AA", type: "Automatic" }); ok(sim2.ok && sim2.list.length >= 1, "simulate: automatic booking works (" + sim2.list.length + " in the running)");
 const sim3 = await call({ action: "simulate", postcode: "" }); ok(sim3.ok === false, "simulate: empty postcode is rejected");
 const tpl = await call({ action: "templates" }); ok(tpl.ok && (tpl.needWaba || tpl.needToken || Array.isArray(tpl.templates)), "templates: answers even without a Business Account ID (" + JSON.stringify(tpl).slice(0, 80) + ")");
+
+console.log("== 22. Female requested, none available -> ask the student ==");
+cfgOf().mode = "assign"; cfgOf().messageStudent = true; cfgOf().maxPerDay = 40; cfgOf().dailyLimit = 0; cfgOf().hours = [0, 24]; cfgOf().autoMiles = 0;
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = {};   // nobody is marked female
+DB.referrals = []; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = [];
+const fw = W("Fem Faye", "M13 9AA", "👩 FEMALE INSTRUCTOR REQUESTED", { student_phone: "07855000111" }); DB.waiting_list = [fw];
+await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_female_unavailable").length === 1, "student is asked on WhatsApp if a male instructor is fine");
+ok(DB.admin_attention.some((a) => a.kind === "female_unavailable") && !DB.auto_assign_jobs.some((j) => j.state === "pending_accept"), "admin is alerted and nobody is offered the booking yet");
+const jobF = DB.auto_assign_jobs[0]; const callsF = CALLS.find((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_female_unavailable");
+ok(callsF && callsF.wa.template.components.some((c) => c.type === "button" && /^FEM_YES:/.test(c.parameters[0].payload)), "the message carries Yes / No buttons");
+await hook({ from: "447855000111", p: "FEM_YES:" + jobF.id });
+ok(DB.auto_assign_jobs.find((j) => j.id === jobF.id).state === "pending_accept" && /agreed to a male instructor/.test(fw.notes), "student says male is fine -> the booking is offered to the closest instructor");
+ok(DB.admin_attention.filter((a) => a.kind === "female_unavailable").every((a) => a.resolved), "and the admin alert clears");
+// student says no
+DB.auto_assign_jobs = []; DB.admin_attention = []; const fw2 = W("Fem Fran", "M13 9AA", "👩 FEMALE INSTRUCTOR REQUESTED", { student_phone: "07855000222" }); DB.waiting_list = [fw2]; await call({ action: "auto_assign", cron: true });
+await hook({ from: "447855000222", p: "FEM_NO:" + DB.auto_assign_jobs[0].id });
+ok(/prefers to wait for a female/.test(fw2.notes) && DB.admin_attention.some((a) => a.kind === "female_wait") && !DB.auto_assign_jobs.some((j) => j.state === "pending_accept"), "student says wait -> nobody offered, admin told");

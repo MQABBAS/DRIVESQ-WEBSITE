@@ -20,3 +20,8 @@ Link: https://www.drivesq.co.uk/terms.html
 - Cancel or move a lesson more than 24 hours before it starts: free.
 - Less than 24 hours' notice, or a no-show: charged for the time reserved, £35 per hour booked.
 - Money paid to the DriveSQ business account is DriveSQ's responsibility. Money paid directly to an instructor is a private arrangement and DriveSQ is not responsible for it.
+
+## Template to create: dsq_female_unavailable (utility, English UK)
+Body: Hi {{1}}, thanks for booking with DriveSQ. 🚗  Unfortunately a female instructor is not available in your area at the moment. Would you like us to book you with our closest male instructor instead, or would you rather wait for a female instructor? Please tap one of the buttons below.
+Variables: {{1}} = student first name (sample: Sara)
+Buttons (quick reply): "Male instructor is fine" · "I'll wait"
