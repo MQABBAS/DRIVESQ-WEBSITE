@@ -55,3 +55,7 @@ All times and counts are settings in Admin → WhatsApp → Auto-assign. Run `su
 
 ## Unpaid fees (referral instructors)
 A referral instructor with **2 or more students confirmed booked whose referral fee is not marked paid** is asked **last** for new students (a soft limit, like the others: if everyone else declines, they still get one). You get a **💷 Unpaid fees** item in the 🚨 attention list with the amount and two buttons: **Copy balance message** and **WhatsApp the balance** (the amount only, no student names). It clears by itself once the fees are marked paid. Find & Assign shows a "💷 2 booked students not paid yet · £50" chip on the instructor's card. The number is a setting (0 = off). Franchise instructors are not affected.
+
+## Reply time and booking acknowledgement
+- An instructor has **45 minutes** (setting) to tap Accept on an offer. After that it goes to the **next** instructor straight away (the timer is checked every 2 minutes).
+- Optional: tick **"WhatsApp every new website booking straight away"** and each website booking gets a short message ("we have passed your details to a driving instructor near you, they will contact you shortly, they may be in a lesson"). Needs the template `dsq_booking_received` (Utility, English (UK), one variable). Sent once per booking, only to bookings made after you tick it.

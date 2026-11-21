@@ -112,3 +112,16 @@ DB.referrals = [bk("u1", "i3", 0), bk("u2", "i3", 0)]; DB.admin_attention = []; 
 ok(DB.admin_attention.filter((a) => a.kind === "unpaid_fees").length === 0, "franchise instructors are not affected");
 DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value.unpaidLimit = 0; DB.waiting_list = [W("Unpaid Una2", "M13 9AA")]; r = await call({ action: "auto_assign", dry: true });
 ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");
+
+console.log("== 11. 45-minute reply time + acknowledgement ==");
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
+DB.referrals = []; DB.admin_attention = []; DB.wa_log = [];
+DB.waiting_list = [W("Offer Ola", "M13 9AA"), W("Call Cal", "M13 9AA", "", { notes: "[CALL] phone booking" })];
+CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
+const jo = DB.auto_assign_jobs.find((j) => j.waiting_id === String(DB.waiting_list[0].id));
+ok(jo && jo.state === "pending_accept" && Math.abs(new Date(jo.expires_at).getTime() - (Date.now() + 45 * 60 * 1000)) < 5000, "offer expires in 45 minutes");
+ok(sent("dsq_booking_received").length === 1, "website booking acknowledged on WhatsApp (the [CALL] booking was not)");
+ok(/booking acknowledgement sent/.test(DB.waiting_list[0].notes), "note added so it is only sent once");
+await call({ action: "auto_assign", cron: true }); ok(sent("dsq_booking_received").length === 1, "no second acknowledgement");
+const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
+ok(jo.instructor_id !== firstInstr && jo.state === "pending_accept" && JSON.stringify(jo.tried).includes(String(firstInstr)), "no reply in 45 min -> offered to the NEXT instructor straight away");

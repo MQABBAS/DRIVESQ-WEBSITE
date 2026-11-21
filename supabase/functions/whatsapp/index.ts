@@ -94,10 +94,11 @@ const DEFAULT_CFG = {
   unpaidLimit: 2,                  // soft limit (referral instructors): booked students whose referral fee is not yet paid. At this many they are asked LAST and you are told to send the balance. 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   hours: [8, 21],                  // only run between these UK hours
-  replyHours: 5,                   // how long an instructor has to accept an offer
+  replyMinutes: 45,                // how long an instructor has to accept an offer before it goes to the next instructor
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
+  ackStudent: false, ackSince: "",   // WhatsApp the student as soon as a website booking arrives ("we have passed your details to an instructor")
   adminPhone: "", adminAlerts: true,
   refFee: 25,                      // referral fee recorded for referral-model instructors (franchise = 0)
   followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 1, repeatDays: 5, rounds: 4 },
@@ -195,6 +196,23 @@ async function candidateData(sb: any) {
   return { instrs: instrs || [], stats, traits, packages };
 }
 
+
+/* a short WhatsApp to the student as soon as a WEBSITE booking is seen (the booking may then wait for you or an instructor) */
+async function sendAcks(sb: any, cfg: any) {
+  if (!cfg.ackStudent || !TOKEN || !PHONE_ID) return [];
+  const since = cfg.ackSince ? new Date(cfg.ackSince).getTime() : Date.now(), MARK = "📱 WhatsApp booking acknowledgement sent", out: any[] = [];
+  const { data: waiting } = await sb.from("waiting_list").select("*").eq("status", "waiting").order("created_at", { ascending: true });
+  for (const w of (waiting || []).slice(0, 60)) {
+    if (new Date(w.created_at).getTime() < since || !/\[WEB\]/i.test(w.notes || "") || String(w.notes || "").includes(MARK) || String(w.notes || "").includes("📱 WhatsApp booking acknowledgement failed")) continue;
+    const b = readBooking(w); if (!waNumber(b.phone)) continue;
+    const r = await sendTemplate(sb, { to: b.phone, template: "dsq_booking_received", lang: "en_GB", params: [first(b.name)], student_name: b.name });
+    const line = r.ok ? `${today()} · ${MARK}` : `${today()} · 📱 WhatsApp booking acknowledgement failed: ${r.error}`;
+    await sb.from("waiting_list").update({ notes: [w.notes || "", line].filter(Boolean).join("\n") }).eq("id", w.id);
+    if (!r.ok) await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + b.name + " did not send", detail: `The booking acknowledgement failed: ${r.error}. They have not been told we received their booking.`, waiting_id: "ack-" + w.id, student_name: b.name });
+    out.push({ student: b.name, sent: r.ok });
+  }
+  return out;
+}
 
 /* referral instructors with too many booked-but-unpaid students: tell the admin once (the item clears itself when the fees are marked paid) */
 async function checkUnpaid(sb: any, cfg: any, cd: any) {
@@ -300,7 +318,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
 
 /* ---------- the engine ---------- */
 async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: number, tried: string[]) {
-  const expires = new Date(Date.now() + cfg.replyHours * 3600 * 1000).toISOString();
+  const expires = new Date(Date.now() + (cfg.replyMinutes > 0 ? cfg.replyMinutes : (cfg.replyHours > 0 ? cfg.replyHours * 60 : 45)) * 60 * 1000).toISOString();
   await sb.from("auto_assign_jobs").update({ state: "pending_accept", instructor_id: c.id, attempt, tried, expires_at: expires, dist: c.dist, updated_at: new Date().toISOString() }).eq("id", job.id);
   const r = await sendTemplate(sb, { to: c.phone, template: "dsq_student_offer", lang: "en_GB", params: [first(c.name), outward(b.postcode) || b.postcode, c.dist.toFixed(1), b.type], buttons: ["OFFER_ACCEPT:" + job.id, "OFFER_DECLINE:" + job.id], instructor_id: c.id, student_name: b.name });
   if (!r.ok) { await sb.from("auto_assign_jobs").update({ state: "attention", note: r.error }).eq("id", job.id); await attention(sb, cfg, { kind: "msg_failed", title: "Could not message " + c.name, detail: `Offer for ${b.name} (${b.postcode}) did not send: ${r.error}`, waiting_id: String(b.id), instructor_id: c.id, student_name: b.name }); return "offer failed"; }
@@ -339,13 +357,14 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
 async function autoAssign(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now();
   let followups: any[] = [];
-  let unpaidAlerts: any[] = [];
+  let unpaidAlerts: any[] = [], acks: any[] = [];
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
+    try { const hh0 = londonHour(); if (hh0 >= cfg.hours[0] && hh0 < cfg.hours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
     try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) unpaidAlerts = await checkUnpaid(sb, cfg, await candidateData(sb)); } catch (e) { console.error("unpaid", e); }
   }
   if (!dry && body.cron && !body.force) {
-    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts };
+    if (!cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts, acks };
     const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return { ok: true, waiting: `Runs between ${cfg.hours[0]}:00 and ${cfg.hours[1]}:00 UK time` };
   }
   if (!dry && !cfg.enabled && !body.force) return { ok: true, off: true, message: "Auto-assign is switched off" };
@@ -359,7 +378,7 @@ async function autoAssign(sb: any, body: any) {
     for (const j of (stale || []).filter((x: any) => x.expires_at && new Date(x.expires_at).getTime() < now)) {
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
       const tried = [...(j.tried || []), String(j.instructor_id)];
-      if (tried.length > cfg.retries) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "no reply" }).eq("id", j.id); await attention(sb, cfg, { kind: "no_reply", title: "Attention: nobody replied for " + w.student_name, detail: `${tried.length} instructor(s) were asked and did not accept in ${cfg.replyHours} hours. Assign by hand.`, waiting_id: String(w.id), student_name: w.student_name }); results.push({ student: w.student_name, action: "attention", reason: "no reply" }); continue; }
+      if (tried.length > cfg.retries) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "no reply" }).eq("id", j.id); await attention(sb, cfg, { kind: "no_reply", title: "Attention: nobody replied for " + w.student_name, detail: `${tried.length} instructor(s) were asked and did not accept in time. Assign by hand.`, waiting_id: String(w.id), student_name: w.student_name }); results.push({ student: w.student_name, action: "attention", reason: "no reply" }); continue; }
       results.push({ student: w.student_name, ...(await decide(sb, cfg, readBooking(w), cd, j, tried, tried.length + 1, false)) });
     }
   }
@@ -379,7 +398,7 @@ async function autoAssign(sb: any, body: any) {
     if (error || !job) continue;   // someone else is already handling it
     results.push({ student: b.name, ...(await decide(sb, cfg, b, cd, job, [], 1, false)) });
   }
-  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, unpaidAlerts, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
+  return { ok: true, dry, enabled: cfg.enabled, mode: cfg.mode, results, followups, unpaidAlerts, acks, summary: { assigned: results.filter((r) => r.action === "assigned").length, offered: results.filter((r) => r.action === "offered").length, attention: results.filter((r) => r.action === "attention").length } };
 }
 
 /* ---------- replies from instructors ---------- */

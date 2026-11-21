@@ -28,6 +28,8 @@
       body: 'Hi {{1}}, it\'s DriveSQ checking in. 🚗\n\nHas {{2}} booked your first driving lesson with you yet?\n\nPlease tap one of the buttons below. It helps us make sure you\'re looked after.' },
     dsq_instructor_checkin: { who: 'Instructor (did the student book?)', buttons: ['Booked', 'Not yet', 'Student left'], params: ['Instructor first name', 'Student name'],
       body: 'Hi {{1}}, quick check from DriveSQ about {{2}}.\n\nHave you booked a lesson with them yet? Tap a button below. It takes a second and keeps your records up to date.' },
+    dsq_booking_received: { who: 'Student (booking received)', buttons: [], params: ['Student first name'],
+      body: 'Hi {{1}}, thanks for booking with DriveSQ! 🚗\n\nWe have passed your details to a driving instructor near you, and they will contact you shortly. They may be in a lesson when they see it, so if you don\'t hear straight away, they will get back to you as soon as they can.\n\nIf anything changes, or you have a question, just reply here.' },
     dsq_chase_unmarked: { who: 'Instructor (chase)', buttons: [], params: ['Instructor first name', 'Number of students'],
       body: 'Hi {{1}}, quick check from DriveSQ. {{2}} of the students we sent you have no update yet.\n\nPlease open your Instructor Portal and mark each one as booked, not booked yet, can\'t reach or not going ahead: https://www.drivesq.co.uk/dashboard\n\nIt only takes a minute and helps us keep your records right. Thank you!' }
   };
