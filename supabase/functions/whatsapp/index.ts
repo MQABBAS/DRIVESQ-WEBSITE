@@ -437,10 +437,13 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
 }
 
 /* ---------- the engine ---------- */
-async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: number, tried: string[]) {
+async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: number, tried: string[], rebooked = false) {
   const offeredAt = new Date().toISOString();   // (stored in expires_at: when the offer was sent; the timers count waking hours from here)
   await sb.from("auto_assign_jobs").update({ state: "pending_accept", instructor_id: c.id, attempt, tried, expires_at: offeredAt, dist: c.dist, updated_at: new Date().toISOString() }).eq("id", job.id);
-  const r = await sendTemplate(sb, { to: c.phone, template: "dsq_student_offer", lang: "en_GB", params: [first(c.name), outward(b.postcode) || b.postcode, c.dist.toFixed(1), b.type], buttons: ["OFFER_ACCEPT:" + job.id, "OFFER_DECLINE:" + job.id], instructor_id: c.id, student_name: b.name });
+  const std = { to: c.phone, template: "dsq_student_offer", lang: "en_GB", params: [first(c.name), outward(b.postcode) || b.postcode, c.dist.toFixed(1), b.type], buttons: ["OFFER_ACCEPT:" + job.id, "OFFER_DECLINE:" + job.id], instructor_id: c.id, student_name: b.name };
+  // an existing student booking again gets its own wording ("one of your existing students"); if that template is not approved yet, the normal offer is used instead
+  let r = rebooked ? await sendTemplate(sb, { ...std, template: "dsq_instructor_rebooked", params: [first(c.name), b.name, outward(b.postcode) || b.postcode, b.type] }) : await sendTemplate(sb, std);
+  if (rebooked && !r.ok) r = await sendTemplate(sb, std);
   if (!r.ok) { await sb.from("auto_assign_jobs").update({ state: "attention", note: r.error }).eq("id", job.id); await attention(sb, cfg, { kind: "msg_failed", title: "Could not message " + c.name, detail: `Offer for ${b.name} (${b.postcode}) did not send: ${r.error}`, waiting_id: String(b.id), instructor_id: c.id, student_name: b.name }); return "offer failed"; }
   const { data: wl } = await sb.from("waiting_list").select("notes").eq("id", b.id).maybeSingle();
   await sb.from("waiting_list").update({ notes: [(wl && wl.notes) || "", `${today()} · 🤖 Offered to ${c.name} (${c.dist} miles), waiting for their reply`].filter(Boolean).join("\n") }).eq("id", b.id);
@@ -461,7 +464,7 @@ async function rebook(sb: any, cfg: any, b: any, cd: any, job: any, prev: any) {
   const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: x ? x.dist : 0 };
   await attention(sb, cfg, { kind: "rebooking", title: `Existing student booked again: ${b.name}`, detail: `${note}. ${cfg.mode === "assign" ? "It has been offered back to " + i.full_name + "." : "Suggest-only mode: nothing was sent."} Check it is a new booking and not a duplicate.`, waiting_id: String(b.id), instructor_id: String(i.id), student_name: b.name, quiet: true });
   if (cfg.mode === "suggest") { await sb.from("auto_assign_jobs").update({ state: "attention", note: "would offer back to " + i.full_name + " (existing student)" }).eq("id", job.id); return { action: "suggest", instructor: i.full_name, why: "existing student" }; }
-  const what = await offer(sb, cfg, b, c, job, 1, []);
+  const what = await offer(sb, cfg, b, c, job, 1, [], true);
   return { action: what === "offered" ? "offered" : "attention", instructor: i.full_name, why: "existing student: offered back to their instructor" };
 }
 
@@ -517,7 +520,7 @@ async function simulate(sb: any, body: any) {
   return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
 }
 /* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
-const OUR_TEMPLATES = ["dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
+const OUR_TEMPLATES = ["dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
 async function templateStatus() {
   const waba = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID");
   if (!TOKEN) return { ok: true, needToken: true, templates: [] };

@@ -22,13 +22,13 @@ function builder(t) {
 }
 const createClient = () => ({ from: (t) => builder(t) });
 const GEO = { "M41AA": [53.4250, -2.4500], "M139AB": [53.4655, -2.2145], "M139AA": [53.4650, -2.2150], "WA31AA": [53.4000, -2.5500], "PR11AA": [53.7600, -2.7000], "M100AA": [53.4800, -2.2400], "M130PG": [53.4600, -2.2200], "M13": [53.4600, -2.2200], "M140AA": [53.4500, -2.2300], "M14": [53.4500, -2.2300], "M200AA": [53.4100, -2.2300], "M20": [53.4100, -2.2300], "M330AA": [53.4250, -2.3200], "M33": [53.4250, -2.3200], "WA140AA": [53.3880, -2.3480], "WA14": [53.3880, -2.3480], "BL10AA": [53.5800, -2.4300], "BL1": [53.5800, -2.4300], "M10AA": [53.4800, -2.2400], "M1": [53.4800, -2.2400], "M220AA": [53.3900, -2.2700], "M22": [53.3900, -2.2700] };
-globalThis.CALLS = [];
+globalThis.CALLS = []; globalThis.FAIL_TEMPLATES = new Set();
 globalThis.fetch = async (url, opts) => {
   const u = String(url);
   if (u.includes("postcodes.io")) { const c = decodeURIComponent(u.split("/").pop()).toUpperCase(); const g = GEO[c]; return { ok: true, status: g ? 200 : 404, json: async () => g ? { result: { latitude: g[0], longitude: g[1] } } : { status: 404, result: null } }; }
   if (u.includes("osrm")) throw new Error("no osrm in test");
   if (u.includes("send-push")) { CALLS.push({ push: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({}) }; }
-  if (/\/messages$/.test(u)) { const b = JSON.parse(opts.body); CALLS.push({ wa: b }); return { ok: true, status: 200, json: async () => ({ messages: [{ id: "wamid." + uid() }] }) }; }
+  if (/\/messages$/.test(u)) { const b = JSON.parse(opts.body); if (b.type === "template" && globalThis.FAIL_TEMPLATES && globalThis.FAIL_TEMPLATES.has(b.template.name)) return { ok: false, status: 400, json: async () => ({ error: { code: 132001, message: "Template name does not exist in the translation" } }) }; CALLS.push({ wa: b }); return { ok: true, status: 200, json: async () => ({ messages: [{ id: "wamid." + uid() }] }) }; }
   return { ok: true, status: 200, json: async () => ({ display_phone_number: "+44" }) };
 };
 AbortSignal.timeout = AbortSignal.timeout || (() => undefined);

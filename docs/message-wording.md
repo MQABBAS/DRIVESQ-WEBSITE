@@ -38,3 +38,15 @@ The key points:
 
 By having lessons with us you agree to these terms.
 Variables: {{1}} = student first name (sample: Sara). No buttons. No header.
+
+## Template to create: dsq_instructor_rebooked (utility, English UK)
+Sent to an instructor when one of THEIR existing students books again (instead of the normal "new student near…" offer).
+Body:
+Hi {{1}}, one of your existing students, {{2}}, has booked with DriveSQ again (near {{3}}, {{4}} lessons).
+
+Can you take them again? Tap Accept or Can't take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard
+
+Please reply within a few hours so we can find someone else if you can't. Thank you!
+Variables: {{1}} instructor first name (Sara) · {{2}} student name (Alex Khan) · {{3}} area (M14) · {{4}} lesson type (Manual)
+Buttons (quick reply): "Accept" · "Can't take". No header.
+If this template is not approved yet, the normal offer message is sent instead, so nothing is held up.

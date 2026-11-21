@@ -412,3 +412,14 @@ ok(sent("dsq_student_welcome_2").length === 1 && sent("dsq_student_terms").lengt
 const callT = CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_student_terms").pop(); ok(callT && callT.wa.to === "447844123123" && callT.wa.template.components[0].parameters[0].text === "Terms", "the terms message goes to the student with their first name");
 ok(/Terms & conditions link sent/.test(refT.admin_notes), "noted on the referral so admin can see it was sent");
 await hook({ from: fromT, p: "ACCEPT:" + refT.id }); ok(sent("dsq_student_terms").length === 1, "tapping Accept again does not send it twice");
+
+console.log("== 33. Re-booking uses its own template, with a fallback ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
+const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
+rebookSetup("Back Bea", "07855 000111"); CALLS.length = 0; await call({ action: "auto_assign", cron: true });
+const rbCall = CALLS.find((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_instructor_rebooked");
+ok(rbCall && rbCall.wa.template.components[0].parameters.map((p) => p.text).join("|") === "Dawood|Back Bea|M13|Manual" && sent("dsq_student_offer").length === 0, "an existing student booking again -> the instructor gets 'one of your existing students' (Dawood|Back Bea|M13|Manual)");
+ok(rbCall.wa.template.components.filter((c) => c.type === "button").length === 2 && DB.auto_assign_jobs[0].state === "pending_accept", "with Accept / Can't take buttons, and the offer is pending");
+globalThis.FAIL_TEMPLATES.add("dsq_instructor_rebooked"); rebookSetup("Back Ben", "07855 000222"); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_student_offer").length === 1 && DB.auto_assign_jobs[0].state === "pending_accept", "if the re-booking template is not approved yet, the normal offer is sent instead (nothing held up)");
+globalThis.FAIL_TEMPLATES.clear();
