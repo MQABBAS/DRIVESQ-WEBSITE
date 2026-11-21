@@ -25,7 +25,7 @@ console.log("referral rows:", DB.referrals.map((x) => x.student_name + " £" + x
 console.log("profiles:", (DB.student_profiles || []).length, "| accounts:", (DB.student_accounts || []).length, "| admin_messages:", (DB.admin_messages || []).length, "| push:", CALLS.filter((c) => c.push).length);
 console.log("waiting statuses:", DB.waiting_list.map((x) => x.student_name.split(" ")[0] + ":" + x.status).join(" "));
 console.log("attention:", DB.admin_attention.map((x) => x.kind + " — " + x.title).join(" || "));
-console.log("admin alert WA sent to admin:", CALLS.some((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_admin_alert" && c.wa.to === "447700900999"));
+console.log("admin alert WA sent to admin:", CALLS.some((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_admin_attention" && c.wa.to === "447700900999"));
 const offerCall = CALLS.find((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_student_offer"); console.log("offer buttons:", offerCall && JSON.stringify(offerCall.wa.template.components.filter((c) => c.type === "button").map((b) => b.parameters[0].payload)));
 // second run must not duplicate
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true }); console.log("second run results:", r.results.length, "| messages:", CALLS.filter((c) => c.wa).length);

@@ -64,7 +64,12 @@ async function sendTemplate(sb: any, b: any) {
   const components: any[] = [];
   if (Array.isArray(b.params) && b.params.length) components.push({ type: "body", parameters: b.params.map(param) });
   (Array.isArray(b.buttons) ? b.buttons : []).forEach((p: string, i: number) => components.push({ type: "button", sub_type: "quick_reply", index: String(i), parameters: [{ type: "payload", payload: String(p).slice(0, 256) }] }));
-  const r = await graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "template", template: { name, language: { code: b.lang || "en_GB" }, ...(components.length ? { components } : {}) } });
+  let r: any = null, used = "";
+  for (const lang of Array.from(new Set([b.lang || "en_GB", "en_GB", "en", "en_US"]))) {   // a template saved as "English" or "English (US)" instead of "English (UK)" still works
+    used = lang;
+    r = await graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "template", template: { name, language: { code: lang }, ...(components.length ? { components } : {}) } });
+    if (r.ok || !(r.j && r.j.error && r.j.error.code === 132001)) break;
+  }
   const id = r.j && r.j.messages && r.j.messages[0] && r.j.messages[0].id || null;
   const err = r.ok ? null : ((r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "WhatsApp error " + r.status);
   await sb.from("wa_log").insert([{ direction: "out", wa_message_id: id, to_phone: to, template: name, body: (b.params || []).map((x: any) => String(x == null ? "" : x).replace(/\s+/g, " ")).join(" · ").slice(0, 900), status: r.ok ? "sent" : "failed", error: err, instructor_id: b.instructor_id || null, referral_id: b.referral_id || null, student_name: b.student_name || null }]);
@@ -103,7 +108,7 @@ async function attention(sb: any, cfg: any, a: any) {
   const row = { kind: a.kind, title: a.title, detail: a.detail || "", waiting_id: a.waiting_id || null, referral_id: a.referral_id || null, instructor_id: a.instructor_id || null, student_name: a.student_name || null, resolved: false };
   const { data } = await sb.from("admin_attention").insert([row]).select().single();
   try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "attention_" + a.kind, summary: "⚠️ " + a.title + (a.detail ? " — " + a.detail : ""), actor_role: "system", actor_name: "Auto-assign", instructor_id: a.instructor_id || null, student_name: a.student_name || null, ref_id: a.referral_id || null }]); } catch (_) { /* best effort */ }
-  if (cfg.adminAlerts && cfg.adminPhone) { try { await sendTemplate(sb, { to: cfg.adminPhone, template: "dsq_admin_alert", lang: "en_GB", params: [a.title, a.detail || "Open admin to see it."] }); } catch (_) { /* best effort */ } }
+  if (cfg.adminAlerts && cfg.adminPhone) { try { await sendTemplate(sb, { to: cfg.adminPhone, template: "dsq_admin_attention", lang: "en_GB", params: [a.title, a.detail || "Open admin to see it."] }); } catch (_) { /* best effort */ } }
   return data && data.id;
 }
 

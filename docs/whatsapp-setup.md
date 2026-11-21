@@ -15,7 +15,7 @@ The switch there turns the whole thing **ON / OFF**. OFF = nothing is sent by th
 5. Run `supabase/migrations/20261128_whatsapp.sql` in the SQL Editor (creates `wa_log`, `auto_assign_jobs` and `admin_attention`; the older `whatsapp_messages` table is left alone).
 6. Deploy a function named **whatsapp** with the code in `supabase/functions/whatsapp/index.ts`. **Turn Verify JWT off.** This ONE function replaces the older `whatsapp-webhook` (autopilot) and `send-whatsapp` functions. Meta only allows one webhook URL, so use this one, switch the old autopilot off in admin, and stop any cron-job.org job that calls the old function.
 7. Meta → WhatsApp → **Configuration** → webhook URL `https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to **messages**.
-8. WhatsApp Manager → **Message templates**: create `dsq_new_student`, `dsq_student_welcome`, `dsq_student_offer`, `dsq_admin_alert` and `dsq_chase_unmarked` (category Utility, language English (UK)). The exact text and variables are in admin → WhatsApp → *Message templates to create in Meta*. Wait for approval.
+8. WhatsApp Manager → **Message templates**: create `dsq_new_student`, `dsq_student_welcome`, `dsq_student_offer`, `dsq_admin_attention` and `dsq_chase_unmarked` (category Utility, language English (UK)). The exact text and variables are in admin → WhatsApp → *Message templates to create in Meta*. Wait for approval.
 9. Admin → WhatsApp → **Send a test** to your own number, then switch automation **ON**.
 
 ## What happens when it is ON
