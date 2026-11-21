@@ -400,7 +400,7 @@ async function autoAssign(sb: any, body: any) {
         catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: m }).eq("id", j.id); await attention(sb, cfg, { kind: "assign_failed", title: "Auto-assign failed for " + b.name, detail: m + ". Assign them by hand.", waiting_id: String(w.id), student_name: b.name }); }
       }
     }
-    for (const j of (stale || []).filter((x: any) => x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin)) {
+    for (const j of (stale || []).filter((x: any) => !(cd.instrs || []).some((i: any) => String(i.id) === String(x.instructor_id)) /* instructor blocked since the offer: move on now */ || (x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin))) {
       const { data: still } = await sb.from("auto_assign_jobs").select("state").eq("id", j.id).maybeSingle(); if (!still || still.state !== "pending_accept") continue;
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); continue; }
       const tried = [...(j.tried || []), String(j.instructor_id)];
@@ -534,8 +534,10 @@ async function runFollowups(sb: any, cfg: any) {
   const h = londonHour(); if (h < cfg.hours[0] || h >= cfg.hours[1]) return [];
   const { data: rows } = await sb.from("student_followups").select("*");
   const due = (rows || []).filter((r: any) => !["done", "attention", "closed"].includes(r.state) && r.next_due && new Date(r.next_due).getTime() <= Date.now());
-  const { data: instrs } = await sb.from("instructors").select("id,full_name,phone"); const out: any[] = [];
+  const { data: instrs } = await sb.from("instructors").select("id,full_name,phone,status"); const out: any[] = [];
   for (const r of due) {
+    const insX = (instrs || []).find((i: any) => String(i.id) === String(r.instructor_id));
+    if (insX && insX.status === "suspended") { await setF(sb, r.id, { state: "closed", result: "instructor blocked" }); continue; }   // blocked = no messages to them or about them
     const { data: ref } = await sb.from("referrals").select("*").eq("id", r.referral_id).maybeSingle(); const ins = (instrs || []).find((i: any) => String(i.id) === String(r.instructor_id)) || { full_name: "your instructor", phone: "" }, stu = r.student_name || "the student";
     if (!ref || ref.is_cancelled || isBooked(ref) || ref.reply_status === "left") { await setF(sb, r.id, { state: "done", result: "settled in admin" }); continue; }
     const studentAsk = async (round: number) => {

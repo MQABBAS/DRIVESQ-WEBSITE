@@ -3630,11 +3630,15 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
     <h5><i class="bi bi-slash-circle me-2" style="color:#c084fc"></i>Block Instructor</h5>
     <div class="modal-sub" id="blockModalSub">Block this instructor's access</div>
     <input type="hidden" id="block-id"/>
-    <div class="warn-box mb-3">When blocked, the instructor sees a suspension screen. They will not be able to use the portal until you unblock them.</div>
+    <div class="warn-box mb-3">A blocked instructor is treated like a <b>deleted</b> one: no new students, <b>no WhatsApp, emails or notifications</b>, and they are left out of Find &amp; Assign and auto-assign. On their dashboard they see <b>only their outstanding balance and what was due</b>, until you unblock them.</div>
+    <div id="blockStudentsNote" style="font-size:.76rem;color:#f59e0b;margin-bottom:8px"></div>
+    <label class="dsq-lbl">Reason for blocking <span style="color:#f87171">*</span></label>
+    <textarea class="dsq-inp mb-2" id="block-reason" rows="3" placeholder="e.g. Referral fees unpaid since 3 Nov, 2 reminders sent"></textarea>
     <div class="d-flex align-items-center gap-2 mb-3">
-      <input type="checkbox" id="block-show-lessons" style="width:16px;height:16px;accent-color:var(--red)"/>
-      <label style="font-size:.8rem;color:var(--txt3);cursor:pointer" for="block-show-lessons">Allow instructor to still view today's lessons while blocked</label>
+      <input type="checkbox" id="block-show-reason" style="width:16px;height:16px;accent-color:var(--red)"/>
+      <label style="font-size:.78rem;color:var(--txt3);cursor:pointer" for="block-show-reason">Also show this reason to the instructor on their dashboard (off = only you see it)</label>
     </div>
+    <input type="hidden" id="block-show-lessons"/>
     <button class="w-100 mb-2" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;padding:.7rem;cursor:pointer;min-height:44px" onclick="confirmBlock()"><i class="bi bi-slash-circle me-1"></i>Block Instructor</button>
     <button class="btn-s w-100" onclick="closeModal('blockModal')">Cancel</button>
   </div>
@@ -3912,6 +3916,7 @@ const PUSH_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-
 // Send a Web Push notification to an instructor via the Edge Function
 async function sendPushToInstructor(instrId,instrName,title,body,url){
   if(!instrId)return;
+  try{const _i=(allInstrs||[]).find(x=>x.id===instrId);if(_i&&_i.status==='suspended')return;}catch(e){}   // blocked instructors get no notifications
   try{
     fetch(PUSH_EDGE_URL,{
       method:'POST',
@@ -5786,22 +5791,41 @@ function openSqlModal(){showSqlHelper('','YOUR_INSTRUCTOR_ID');}
 function openBlockModal(id,name){
   document.getElementById('block-id').value=id;
   document.getElementById('blockModalSub').textContent='Block '+name;
-  document.getElementById('block-show-lessons').checked=false;
+  document.getElementById('block-reason').value='';document.getElementById('block-show-reason').checked=false;
+  const note=document.getElementById('blockStudentsNote');note.textContent='';
+  (async()=>{try{const{data}=await sb.from('student_profiles').select('id').eq('instructor_id',id).not('status','in','("inactive","removed","deleted_by_instructor")');const n=(data||[]).length;if(n)note.textContent='⚠️ '+n+' student'+(n===1?' is':'s are')+' currently on this instructor\'s roster. They are not moved automatically, so reassign them in Find & Assign if needed.';}catch(e){}})();
   openModal('blockModal');
 }
+/* block records (reason, date, who) are kept in growth_settings 'instructor_blocks' so the dashboard and the server can read them */
+async function _blocksLoad(){try{const r=await sb.from('growth_settings').select('value').eq('key','instructor_blocks').maybeSingle();return(r.data&&r.data.value)||{};}catch(e){return {};}}
+async function _blocksSave(b){const r=await sb.from('growth_settings').upsert({key:'instructor_blocks',value:b,updated_at:new Date().toISOString()},{onConflict:'key'});return !r.error;}
 async function confirmBlock(){
-  const id=document.getElementById('block-id').value;
-  const show=document.getElementById('block-show-lessons').checked;
-  const{error}=await sb.from('instructors').update({status:'suspended',show_lessons:show}).eq('id',id);
+  const id=document.getElementById('block-id').value,reason=(document.getElementById('block-reason').value||'').trim(),showReason=document.getElementById('block-show-reason').checked;
+  if(!reason){showToast('Please enter a reason for blocking.','error');document.getElementById('block-reason').focus();return;}
+  const name=(allInstrs.find(i=>i.id===id)||{}).full_name||'Instructor';
+  const{error}=await sb.from('instructors').update({status:'suspended',show_lessons:false}).eq('id',id);
   if(error){showToast('Failed to block.','error');return;}
-  showToast('⛔ Instructor blocked.','warn');closeModal('blockModal');await loadInstrs();
+  const b=await _blocksLoad();b[id]={at:new Date().toISOString(),reason,showReason,by:'Admin',name};await _blocksSave(b);
+  try{DSQLog.add(sb,{area:'instructor',action:'blocked',summary:'🚫 '+name+' blocked: '+reason,role:'admin',actor:'Admin',instrId:id});}catch(e){}
+  showToast('⛔ Instructor blocked. No jobs or messages until you unblock them.','warn',5000);closeModal('blockModal');await loadInstrs();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);updateBlockBtn();if(viewingData)renderInstrDetail(viewingData);}
 }
 async function unblockInstr(id){
   const{error}=await sb.from('instructors').update({status:'approved',show_lessons:true}).eq('id',id);
   if(error){showToast('Failed to unblock.','error');return;}
+  const name=(allInstrs.find(i=>i.id===id)||{}).full_name||'Instructor',b=await _blocksLoad();const was=b[id];delete b[id];await _blocksSave(b);
+  try{DSQLog.add(sb,{area:'instructor',action:'unblocked',summary:'✅ '+name+' unblocked'+(was&&was.reason?' (was blocked: '+was.reason+')':''),role:'admin',actor:'Admin',instrId:id});}catch(e){}
   showToast('✅ Instructor unblocked.','success');await loadInstrs();
   if(viewingId===id){viewingData=allInstrs.find(i=>i.id===id);updateBlockBtn();if(viewingData)renderInstrDetail(viewingData);}
+}
+/* the "Blocked" row on an instructor's admin profile: reason, date and what they owe */
+function _blockedRowHtml(instr){
+  const id=instr.id;setTimeout(async()=>{
+    const el=document.getElementById('instrBlocked-'+id);if(!el)return;const b=(await _blocksLoad())[id]||{};
+    const u=_unpaidBookedStats(id);
+    el.innerHTML=`<div style="border:1px solid #c084fc66;background:rgba(168,85,247,.08);border-radius:10px;padding:8px 10px;font-size:.78rem"><b style="color:#c084fc">🚫 Blocked${b.at?' since '+new Date(b.at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''}</b><div style="margin-top:3px;white-space:pre-wrap">${esc(b.reason||'No reason recorded')}</div><div style="font-size:.68rem;color:var(--txt4);margin-top:3px">${b.showReason?'The instructor can see this reason.':'Only you can see this reason.'} · They see only their outstanding balance${u&&u.n?' (currently '+u.n+' booked student'+(u.n===1?'':'s')+' unpaid, £'+u.amt.toFixed(0)+')':''}.</div></div>`;
+  },0);
+  return`<div id="instrBlocked-${id}" style="font-size:.78rem;color:var(--txt4)">Loading…</div>`;
 }
 function updateBlockBtn(){
   const bb=document.getElementById('blockToggleBtn');if(!bb)return;
@@ -5879,6 +5903,7 @@ function renderInstrDetail(instr){
   const _hh=window.DSQHealth?DSQHealth.holders(instr.id):{health:'',hist:'',terms:''};
   setTimeout(()=>{try{DSQInsights.loadNotes().then(()=>{const e=document.getElementById('instrNote-'+instr.id);if(e)e.outerHTML=DSQInsights.profileNoteHtml(instr.id);});}catch(e){}},0);
   const fields=[
+    ...(instr.status==='suspended'?[['Blocked',_blockedRowHtml(instr)]]:[]),
     ['Health check',_hh.health],
     ['Auto-assign',(window.DSQAA?DSQAA.traitsHolder(instr.id):'')],
     ...(instr.email?[['Email Preferences',`<span id="emailPref-${instr.id}" style="font-size:.78rem;color:var(--txt3)">Checking…</span>`]]:[]),

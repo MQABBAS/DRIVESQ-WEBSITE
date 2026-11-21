@@ -2740,7 +2740,7 @@ async function loHandleLogin(e){
     if(!data){showMsg('Badge number not found.');return;}
     if(data.status==='pending'){showMsg('⏳ Your account is pending admin approval. Usually within 24 hours.','info');return;}
     if(data.status==='rejected'){showMsg('Your application was not approved. Please WhatsApp DriveSQ.');return;}
-    if(data.status==='suspended'){showMsg('🚫 Your account has been suspended. Please contact DriveSQ.');return;}
+    // a blocked ('suspended') instructor can still sign in: they only see their outstanding balance (see checkSuspended)
     let hashPass;try{hashPass=btoa(pass);}catch(ex){hashPass=btoa(encodeURIComponent(pass));}
     if(data.password_hash!==hashPass){showMsg('Incorrect password. Please try again.');return;}
     localStorage.setItem('dsq_instructor',JSON.stringify({id:data.id,name:data.full_name,badge:data.badge_number,type:data.badge_type,phone:data.phone,email:data.email,area:data.area,profile_photo_url:data.profile_photo_url}));
@@ -2878,7 +2878,7 @@ function gen5Code(){return String(Math.floor(10000+Math.random()*90000));}
   }
 
   // ── STEP 3: check suspended (isolated — never blocks the rest) ──
-  try{await checkSuspended();}catch(e){console.warn('checkSuspended error:',e);}
+  try{if(await checkSuspended())return;}catch(e){console.warn('checkSuspended error:',e);}
 
   // ── STEP 4: load all data — each function isolated so one failure never kills the rest ──
   // loadConfirmations() is intentionally not listed — loadWeek() calls it after weekLessons populates.
@@ -2925,15 +2925,26 @@ function pollConfirmations(){
 }
 
 async function checkSuspended(){
-  const{data}=await sb.from('instructors').select('status,show_lessons').eq('id',instr.id).single();
-  if(data&&data.status==='suspended'){
-    document.body.innerHTML=`<div class="susp-overlay"><div class="susp-card">
-      <h2 style="color:var(--red);font-family:'Oswald',sans-serif;font-size:1.5rem;margin-bottom:12px">⛔ Account Suspended</h2>
-      <p style="font-size:.84rem;color:#666;line-height:1.7;margin-bottom:20px">Your account has been suspended. Contact DriveSQ.</p>
-      <a href="https://wa.me/447352932003" target="_blank" style="display:inline-block;background:#25D366;color:#fff;border-radius:8px;padding:10px 20px;font-family:Oswald,sans-serif;font-weight:600;font-size:.9rem;text-decoration:none;margin-bottom:12px"><i class="bi bi-whatsapp me-1"></i>WhatsApp DriveSQ</a><br>
-      <button onclick="logout()" style="background:transparent;border:1px solid #333;color:#555;border-radius:7px;padding:7px 16px;font-size:.74rem;cursor:pointer;margin-top:8px">Sign Out</button>
-    </div></div>`;
-  }
+  const{data}=await sb.from('instructors').select('status,instructor_model').eq('id',instr.id).single();
+  if(!(data&&data.status==='suspended'))return false;
+  // a blocked instructor sees ONLY what they owe: the outstanding balance and what was due
+  let blk={};try{const r=await sb.from('growth_settings').select('value').eq('key','instructor_blocks').maybeSingle();blk=((r.data&&r.data.value)||{})[instr.id]||{};}catch(e){}
+  const MK=['✅ Booked — confirmed by admin','✅ Booked — confirmed by instructor','✅ Booked — confirmed by student'],UN='↩️ Booked mark removed by admin';
+  const booked=r=>{if(r.is_cancelled||r.is_credit)return false;if(r.is_paid)return true;if(r.flag_color!=='green')return false;const n=String(r.admin_notes||''),a=Math.max(...MK.map(m=>n.lastIndexOf(m))),b=n.lastIndexOf(UN);return a>b||(a<0&&r.reply_status!=='booked');};
+  let owed=[];try{const r=await sb.from('referrals').select('id,student_name,amount,created_at,is_paid,is_cancelled,is_credit,flag_color,reply_status,admin_notes').eq('instructor_id',instr.id).eq('is_paid',false).eq('is_cancelled',false).eq('is_credit',false);owed=(r.data||[]).filter(x=>booked(x)&&(parseFloat(x.amount)||0)>0);}catch(e){}
+  let fees=[];try{const r=await sb.from('instructor_weekly_fees').select('week_start,expected,plan,status').eq('instructor_id',instr.id).eq('status','unpaid').order('week_start',{ascending:true});fees=(r.data||[]).filter(x=>(parseFloat(x.expected)||0)>0);}catch(e){}
+  const money=v=>'£'+(Math.abs(v-Math.round(v))<.005?Math.round(v):v.toFixed(2)),dt=d=>new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  const total=owed.reduce((a,x)=>a+(parseFloat(x.amount)||0),0)+fees.reduce((a,x)=>a+(parseFloat(x.expected)||0),0);
+  const rows=owed.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(x=>`<tr><td>${esc(x.student_name||'Student')}<small>Referral fee</small></td><td>${dt(x.created_at)}</td><td class="n">${money(parseFloat(x.amount)||0)}</td></tr>`).join('')+fees.map(x=>`<tr><td>Weekly fee<small>${esc(x.plan||'Franchise')}</small></td><td>Week of ${dt(x.week_start)}</td><td class="n">${money(parseFloat(x.expected)||0)}</td></tr>`).join('');
+  document.body.innerHTML=`<style>.bl-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#0b0204;font-family:Inter,system-ui,sans-serif}.bl-card{max-width:480px;width:100%;background:#16080a;border:1px solid rgba(209,10,17,.4);border-radius:20px;padding:26px 22px;color:#f3eeee}.bl-card h2{font-family:Oswald,sans-serif;font-size:1.5rem;margin:0 0 6px;color:#ff6b6b}.bl-tot{background:rgba(209,10,17,.12);border:1px solid rgba(209,10,17,.35);border-radius:14px;padding:12px 14px;margin:14px 0}.bl-tot b{display:block;font-family:Oswald,sans-serif;font-size:2rem;color:#fff}.bl-card table{width:100%;border-collapse:collapse;font-size:.84rem;margin:8px 0}.bl-card th,.bl-card td{padding:8px 6px;border-top:1px solid rgba(255,255,255,.1);text-align:left}.bl-card th{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#a99;font-weight:700;border-top:0}.bl-card td.n,.bl-card th.n{text-align:right;white-space:nowrap;font-weight:700}.bl-card small{display:block;color:#a99;font-size:.7rem}</style>
+    <div class="bl-wrap"><div class="bl-card"><h2>Account on hold</h2>
+      <p style="font-size:.84rem;color:#c9bcbc;line-height:1.6;margin:0">Your DriveSQ account is on hold until your outstanding balance is settled. You can't receive new students or messages in the meantime.</p>
+      ${blk.showReason&&blk.reason?`<p style="font-size:.8rem;color:#e7d6d6;background:rgba(255,255,255,.05);border-radius:10px;padding:8px 10px;margin:10px 0 0;white-space:pre-wrap">${esc(blk.reason)}</p>`:''}
+      <div class="bl-tot"><span style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#c9bcbc">Outstanding balance</span><b>${money(total)}</b></div>
+      ${rows?`<div style="font-weight:700;font-size:.86rem;margin-top:6px">Payments that were due</div><table><thead><tr><th>For</th><th>Due</th><th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>`:'<p style="font-size:.82rem;color:#c9bcbc">Nothing is listed as owing. Please contact DriveSQ.</p>'}
+      <a href="https://wa.me/447352932003?text=${encodeURIComponent('Hi DriveSQ, this is '+(instr.name||'an instructor')+'. I would like to settle my balance.')}" target="_blank" rel="noopener" style="display:block;text-align:center;background:#25D366;color:#06210f;border-radius:99px;padding:11px 16px;font-weight:700;text-decoration:none;margin-top:14px">Message DriveSQ to pay</a>
+      <button onclick="logout()" style="display:block;margin:10px auto 0;background:transparent;border:1px solid #333;color:#777;border-radius:7px;padding:7px 16px;font-size:.74rem;cursor:pointer">Sign Out</button></div></div>`;
+  return true;   // tells the caller to stop loading the rest of the portal
 }
 
 function updateNav(){
