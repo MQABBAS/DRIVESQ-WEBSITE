@@ -4,7 +4,7 @@
    - Instructor traits: "Female instructor" and "Don't auto-assign" on each instructor's profile. */
 (function () {
   'use strict';
-  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 0, autoAssignAfterMinutes: 35, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, unpaidLimit: 2, femaleRule: 'require', hours: [8, 20], ackHours: [7, 23], replyMinutes: 60, ackStudent: false, ackSince: '', retries: 2, maxPerWeek: 0,
+  var DEF = { enabled: false, mode: 'assign', since: '', sources: ['[WEB]'], autoMiles: 0, autoAssignAfterMinutes: 35, confirmMiles: 8, dailyLimit: 2, weeklyLimit: 4, unpaidLimit: 2, femaleRule: 'require', hours: [8, 20], ackHours: [7, 23], replyMinutes: 90, ackStudent: false, ackSince: '', retries: 2, maxPerWeek: 0,
     messageInstructor: true, messageStudent: true, adminPhone: '', adminAlerts: true, refFee: 25, anytime: true, balanceAuto: true, concurrency: 5, maxPerRun: 10, maxPerDay: 40, franchiseMin: 3, priorityMiles: 3, fairnessMiles: 0.5, fairnessAfterDays: 2, fairnessCap: 4, droughtDays: 7, shortfallMiles: 2, followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 0, repeatDays: 4, rounds: 4, maxPerWeek: 2 } };
   var CFG = JSON.parse(JSON.stringify(DEF)), loaded = false, ATT = [], seen = null;
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
@@ -113,7 +113,7 @@
   /* the settings in plain English, updated as you type */
   function plain() {
     var el = document.getElementById('aaPlain'); if (!el) return; var g = function (id, d) { var x = document.getElementById(id); if (!x) return d; var f = parseFloat(x.value); return isNaN(f) ? d : f; };
-    var on = (document.getElementById('aaOn') || {}).checked, mode = (document.getElementById('aaMode') || {}).value, conf = g('aaConf', 8), rep = g('aaReply', 60), cov = g('aaAuto35', 35), h1 = g('aaH1', 8), h2 = g('aaH2', 20), fm = g('aaFrMin', 3), fair = g('aaFair', 0), dd = g('aaDay', 2), ww = g('aaWeek', 4);
+    var on = (document.getElementById('aaOn') || {}).checked, mode = (document.getElementById('aaMode') || {}).value, conf = g('aaConf', 8), rep = g('aaReply', 90), cov = g('aaAuto35', 35), h1 = g('aaH1', 8), h2 = g('aaH2', 20), fm = g('aaFrMin', 3), fair = g('aaFair', 0), dd = g('aaDay', 2), ww = g('aaWeek', 4);
     var hr = function (h) { return (h < 10 ? '0' : '') + h + ':00'; }, li = function (t) { return '<li style="margin:2px 0">' + t + '</li>'; };
     el.innerHTML = '<b>In plain English:</b><ul style="margin:4px 0 0 16px;padding:0">' +
       li(!on ? 'Auto-assign is <b style="color:#94a3b8">OFF</b>. Nothing happens by itself; you use Find &amp; Assign.' : mode === 'suggest' ? 'Auto-assign is <b style="color:#a78bfa">ON in suggest-only mode</b>: it works out who it would pick and tells you. It sends no messages and assigns nobody.' : 'Auto-assign is <b style="color:#22c55e">ON</b>: it assigns website bookings and sends the WhatsApp messages for real.') +
@@ -130,7 +130,7 @@
     if (!any && g('aaK1', 7) >= g('aaK2', 23)) out.push('"Tell the student" start hour must be earlier than its end hour.');
     if (g('aaConf', 8) < 1) out.push('The distance limit must be at least 1 mile.');
     if (g('aaAuto', 0) > g('aaConf', 8)) out.push('"Assign straight away within" cannot be more than the distance limit.');
-    if (g('aaAuto35', 35) > 0 && g('aaAuto35', 35) >= g('aaReply', 60)) out.push('"No reply after … minutes: assign anyway" must be LESS than the minutes to reply (' + g('aaReply', 60) + '), otherwise it never happens.');
+    if (g('aaAuto35', 35) > 0 && g('aaAuto35', 35) >= g('aaReply', 90)) out.push('"No reply after … minutes: assign anyway" must be LESS than the minutes to reply (' + g('aaReply', 90) + '), otherwise it never happens.');
     return out;
   }
   async function recent() {
@@ -142,7 +142,7 @@
   async function saveForm() {
     var pr = problems(); if (pr.length) { toast('Not saved: ' + pr[0], 'error', 7000); var po = document.getElementById('aaOut'); if (po) po.innerHTML = '<div style="color:#f87171">' + pr.map(E).join('<br>') + '</div>'; return; }
     await load(); var was = CFG.enabled, on = !!document.getElementById('aaOn').checked;
-    CFG.enabled = on; CFG.mode = v('aaMode'); CFG.autoMiles = n('aaAuto', 5); CFG.confirmMiles = Math.max(CFG.autoMiles, n('aaConf', 8)); CFG.replyMinutes = Math.max(5, n('aaReply', 60)); CFG.autoAssignAfterMinutes = Math.max(0, n('aaAuto35', 35)); CFG.retries = Math.max(0, n('aaRetry', 2)); CFG.maxPerWeek = Math.max(0, n('aaCap', 0)); CFG.refFee = Math.max(0, n('aaFee', 25));
+    CFG.enabled = on; CFG.mode = v('aaMode'); CFG.autoMiles = n('aaAuto', 5); CFG.confirmMiles = Math.max(CFG.autoMiles, n('aaConf', 8)); CFG.replyMinutes = Math.max(5, n('aaReply', 90)); CFG.autoAssignAfterMinutes = Math.max(0, n('aaAuto35', 35)); CFG.retries = Math.max(0, n('aaRetry', 2)); CFG.maxPerWeek = Math.max(0, n('aaCap', 0)); CFG.refFee = Math.max(0, n('aaFee', 25));
     CFG.balanceAuto = !!(document.getElementById('aaBal') && document.getElementById('aaBal').checked); CFG.anytime = !!(document.getElementById('aaAny') && document.getElementById('aaAny').checked); CFG.hours = [Math.max(0, Math.min(23, n('aaH1', 8))), Math.max(1, Math.min(24, n('aaH2', 20)))]; CFG.ackHours = [Math.max(0, Math.min(23, n('aaK1', 7))), Math.max(1, Math.min(24, n('aaK2', 23)))]; CFG.femaleRule = v('aaFem'); CFG.adminPhone = v('aaPhone').trim(); CFG.adminAlerts = !!document.getElementById('aaAlert').checked;
     var wasAck = CFG.ackStudent; CFG.ackStudent = !!document.getElementById('aaAck').checked; if (CFG.ackStudent && !wasAck) CFG.ackSince = new Date().toISOString(); CFG.messageInstructor = !!document.getElementById('aaMi').checked; CFG.messageStudent = !!document.getElementById('aaMs').checked;
     CFG.concurrency = Math.max(1, Math.min(10, Math.round(n('aaConc', 5)))); CFG.maxPerRun = Math.max(1, Math.round(n('aaPerRun', 10))); CFG.maxPerDay = Math.max(0, Math.round(n('aaPerDay', 40))); CFG.franchiseMin = Math.max(0, Math.round(n('aaFrMin', 3))); CFG.priorityMiles = Math.max(0, n('aaPrioMi', 3)); CFG.shortfallMiles = Math.max(0, n('aaShort', 2)); CFG.fairnessMiles = Math.max(0, n('aaFair', 0.5)); CFG.fairnessAfterDays = Math.max(0, n('aaFairAfter', 2)); CFG.fairnessCap = Math.max(0, n('aaFairCap', 4)); CFG.droughtDays = Math.max(0, Math.round(n('aaDrought', 7))); CFG.dailyLimit = Math.max(0, n('aaDay', 2)); CFG.weeklyLimit = Math.max(0, n('aaWeek', 4)); CFG.unpaidLimit = Math.max(0, n('aaUnpaid', 2)); CFG.followups = { enabled: !!document.getElementById('aaFuOn').checked, acceptWaitHours: Math.max(1, n('aaFuAcc', 24)), checkinDays: Math.max(0, n('aaFuDays', 3)), instructorAfterDays: 0, maxPerWeek: Math.max(1, Math.round(n('aaFuCap', 2))), repeatDays: Math.max(1, n('aaFuRep', 4)), rounds: Math.max(1, Math.round(n('aaFuRounds', 4))) };

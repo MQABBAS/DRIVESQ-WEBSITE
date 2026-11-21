@@ -109,9 +109,9 @@ const DEFAULT_CFG = {
   droughtDays: 7,                  // tell the admin when an approved instructor has had no student for this many days (and why). 0 = off
   femaleRule: "require",           // when the booking asks for a female instructor: "require" (only female instructors) or "prefer"
   anytime: true,                  // instructors (and students) are messaged straight away, day or night. Untick in the settings to use the hours below instead
-  hours: [8, 20],                  // offers go out only between these UK hours, and the reply timers (35 / 60 min) PAUSE outside them, so nobody misses out while asleep
+  hours: [8, 20],                  // offers go out only between these UK hours, and the reply timers (35 / 90 min) PAUSE outside them, so nobody misses out while asleep
   ackHours: [7, 23],               // the "we have your booking" WhatsApp to the student can go out between these UK hours
-  replyMinutes: 60,                // how long an instructor has to accept an offer before it goes to the next instructor
+  replyMinutes: 90,                // how long an instructor has to accept an offer before it goes to the next instructor
   autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
   concurrency: 5,                  // how many bookings are worked on AT THE SAME TIME (each one is looked up, ranked and messaged independently)
   maxPerDay: 40,                   // safety: never start more than this many new bookings in one UK day (a runaway or a spam wave stops here and tells you)
@@ -565,7 +565,7 @@ async function autoAssign(sb: any, body: any) {
   if (!dry) {
     const { data: stale } = await sb.from("auto_assign_jobs").select("*").eq("state", "pending_accept");
     // 1a. no reply after autoAssignAfterMinutes and the instructor covers the student's area: assign them anyway (they are probably in a lesson)
-    const replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 60;
+    const replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 90;
     if (cfg.autoAssignAfterMinutes > 0 && cfg.mode === "assign") {
       const cdA = await candidateData(sb);
       const tA: any[] = [];
