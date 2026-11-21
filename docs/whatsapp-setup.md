@@ -21,7 +21,7 @@ The switch there turns the whole thing **ON / OFF**. OFF = nothing is sent by th
 ## What happens when it is ON
 Pressing **Assign** in Find & Assign sends:
 - the **instructor** the student's details with **Accept / Can't take** buttons (a tap updates the referral note; "Can't take" also puts the student under 🟣 Unsure so you reassign), and
-- the **student** a welcome with their instructor's name and phone and the Student Portal link.
+- the **student** a welcome with their instructor's name and phone and the Student Portal link, but **only after the instructor taps Accept** (so a student is never told about an instructor who then can't take them).
 Both can be unticked for a single assignment. If WhatsApp is not connected, nothing is sent and the manual buttons still work.
 
 ## Costs
@@ -33,7 +33,7 @@ Only message people who agreed to be contacted on WhatsApp, and follow Meta's Wh
 ## Auto-assign of website bookings (admin → WhatsApp → Auto-assign)
 Default OFF. Switch it on and the server (every 2 minutes, only between your hours) takes each **new website booking** and:
 1. ranks the approved instructors: distance, whether they cover the postcode, students already given this week, how many of their students end up booked, Platinum priority, female preference, penalty for many unmarked students. It skips instructors you flagged *Never auto-assign*, and for bookings that ask for a female instructor it only considers instructors flagged *Female instructor* (or "prefer", your choice);
-2. **within 5 miles**: assigns straight away (student account, roster, referral fee, in-app message, push), then WhatsApps the instructor (details + Accept / Can't take) and the student (welcome);
+2. **within 5 miles**: assigns straight away (student account, roster, referral fee, in-app message, push), then WhatsApps the instructor (details + Accept / Can't take). The student's welcome is sent only when the instructor taps Accept;
 3. **5 to 14 miles**: asks the instructor first ("Accept / Can't take"); on Accept it assigns and sends the details. On "Can't take" or no reply in 5 hours it tries the next instructor (2 more by default);
 4. **nothing suitable, over 14 miles, bad postcode, a message that failed, nobody accepted, or an instructor who can't cover**: puts it in **🚨 Attention required** (red button in the top bar), and WhatsApps you if you give your number. Nothing is rejected or told "no instructors" to the student automatically.
 

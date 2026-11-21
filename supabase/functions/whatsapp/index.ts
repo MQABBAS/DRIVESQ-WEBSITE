@@ -197,7 +197,17 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[]) {
 }
 
 /* ---------- assigning a student to an instructor (same records as Find & Assign) ---------- */
-async function assign(sb: any, cfg: any, b: any, c: any) {
+/* the student's welcome. Only sent once (a marker line in the referral notes stops a second one) and only if the student messages are switched on */
+async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: any) {
+  if (!cfg.messageStudent || !ref.student_phone) return "";
+  const { data: wc } = await sb.from("growth_settings").select("value").eq("key", "whatsapp_cfg").maybeSingle(); if (wc && wc.value && wc.value.student === false) return "";
+  const { data: cur } = await sb.from("referrals").select("admin_notes").eq("id", ref.id).maybeSingle(); if (String((cur && cur.admin_notes) || ref.notes || "").includes("💬 Student welcomed")) return "";
+  const r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone"], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
+  if (r2.ok) { const n = String((cur && cur.admin_notes) || ""); await sb.from("referrals").update({ admin_notes: [n, `${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`].filter(Boolean).join("\n") }).eq("id", ref.id); return "student welcomed"; }
+  await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + (ref.student_name || "the student") + " did not send", detail: `${c.name} agreed, but the welcome failed: ${r2.error}. Message the student by hand.`, waiting_id: String(waitingId || ref.id) + "-stu", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name });
+  return "student message failed: " + r2.error;
+}
+async function assign(sb: any, cfg: any, b: any, c: any, agreed = false) {
   const now = new Date().toISOString(), pickup = [b.addr, b.postcode].filter(Boolean).join(", ");
   const phoneDigits = last10(b.phone);
   let accId = null;
@@ -227,11 +237,11 @@ async function assign(sb: any, cfg: any, b: any, c: any) {
     msgs.push(r1.ok ? "instructor messaged" : "instructor message failed: " + r1.error);
     if (!r1.ok) await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + c.name + " did not send", detail: `${b.name} was assigned but the message failed: ${r1.error}. Contact them by hand.`, waiting_id: String(b.id), referral_id: ref.id, instructor_id: c.id, student_name: b.name });
   }
-  if (cfg.messageStudent && b.phone) {
-    const r2 = await sendTemplate(sb, { to: b.phone, template: "dsq_student_welcome", lang: "en_GB", params: [first(b.name), c.name, fmtPhone(c.phone) || "their phone"], instructor_id: c.id, referral_id: ref.id, student_name: b.name });
-    msgs.push(r2.ok ? "student messaged" : "student message failed: " + r2.error);
-    if (!r2.ok) await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + b.name + " did not send", detail: `They were assigned to ${c.name} but the welcome failed: ${r2.error}. Message them by hand.`, waiting_id: String(b.id) + "-stu", referral_id: ref.id, instructor_id: c.id, student_name: b.name });
-  }
+  // The student is only told who their instructor is once the instructor has agreed:
+  //   - after an offer was accepted (agreed = true) the welcome goes now
+  //   - for a direct assignment it goes when the instructor taps Accept (see assignedReply)
+  if (agreed) { const w = await welcomeStudent(sb, cfg, { id: ref.id, student_name: b.name, student_phone: b.phone, notes: ref.admin_notes }, c, b.id); if (w) msgs.push(w); }
+  else msgs.push("student welcome waits for the instructor to accept");
   return { referral_id: ref.id, msgs };
 }
 
@@ -322,7 +332,7 @@ async function offerReply(sb: any, accept: boolean, jobId: string, from: string)
   const b = readBooking(w), cd = await candidateData(sb), i = cd.instrs.find((x: any) => String(x.id) === String(job.instructor_id)); if (!i) return;
   const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: Math.round((job.dist || 0) * 10) / 10 };
   if (accept) {
-    try { const res = await assign(sb, cfg, b, c); await sb.from("auto_assign_jobs").update({ state: "assigned", referral_id: res.referral_id, updated_at: new Date().toISOString(), note: "accepted; " + res.msgs.join("; ") }).eq("id", jobId); try { await sendText(from, "Thanks, you're confirmed ✅ We've sent you the student's details."); } catch (_) { /* window */ } }
+    try { const res = await assign(sb, cfg, b, c, true); await sb.from("auto_assign_jobs").update({ state: "assigned", referral_id: res.referral_id, updated_at: new Date().toISOString(), note: "accepted; " + res.msgs.join("; ") }).eq("id", jobId); try { await sendText(from, "Thanks, you're confirmed ✅ We've sent you the student's details."); } catch (_) { /* window */ } }
     catch (e) { const m = String((e && e.message) || e); await sb.from("auto_assign_jobs").update({ state: "attention", note: m }).eq("id", jobId); await attention(sb, cfg, { kind: "assign_failed", title: "Accepted but not saved: " + b.name, detail: `${c.name} accepted but the assignment failed: ${m}. Assign by hand.`, waiting_id: String(w.id), instructor_id: c.id, student_name: b.name }); }
     return;
   }
@@ -339,6 +349,7 @@ async function assignedReply(sb: any, kind: string, refId: string, from: string)
   const patch: any = { admin_notes: [r.admin_notes || "", line].filter(Boolean).join("\n") }; if (!ok && !r.flag_color) patch.flag_color = "purple";
   await sb.from("referrals").update(patch).eq("id", refId);
   try { await sb.from("admin_activity_log").insert([{ area: "referral", action: ok ? "wa_accepted" : "wa_declined", summary: `${name} ${ok ? "accepted" : "can't take"} ${r.student_name || "a student"} (WhatsApp)`, actor_role: "instructor", actor_name: name, instructor_id: r.instructor_id, student_name: r.student_name, ref_id: refId }]); } catch (_) { /* log */ }
+  if (ok) { try { const { data: ins2 } = await sb.from("instructors").select("*").eq("id", r.instructor_id).maybeSingle(); if (ins2) await welcomeStudent(sb, cfg, { id: refId, student_name: r.student_name, student_phone: r.student_phone, notes: patch.admin_notes }, { id: ins2.id, name: ins2.full_name, phone: ins2.phone }); } catch (_) { /* the instructor's accept is already saved */ } }
   if (!ok) await attention(sb, cfg, { kind: "declined_after", title: `Attention: ${name} can't cover ${r.student_name || "a student"}`, detail: "They were already assigned. Reassign them in Find & Assign.", referral_id: refId, instructor_id: r.instructor_id, student_name: r.student_name });
   try { await sendText(from, ok ? "Thanks, noted ✅ Please contact the student to arrange the first lesson." : "No problem, thanks for letting us know. We'll find another instructor for them."); } catch (_) { /* window */ }
 }

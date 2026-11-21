@@ -80,18 +80,13 @@
   }
   /* called from confirmAssign() after the student has been saved and assigned */
   async function afterAssign(ctx) {
-    var wantI = !!(document.getElementById('wa-auto-instr') || {}).checked, wantS = !!(document.getElementById('wa-auto-stu') || {}).checked;   // read now, the modal closes next
+    var wantI = !!(document.getElementById('wa-auto-instr') || {}).checked;   // read now, the modal closes next
     if (!isOn()) return;
     var s = ctx.student || {}, out = [], fail = [];
     if (wantI && CFG.instructor && ctx.instrPhone) {
       var r1 = await sendTemplate(ctx.instrPhone, 'dsq_new_student', [first(ctx.instrName), s.name || 'Student', fmtPhone(s.phone) || 'Not provided', s.postcode || 'Not provided', s.type || 'Manual', details(s)],
         { buttons: ctx.refId ? ['ACCEPT:' + ctx.refId, 'DECLINE:' + ctx.refId] : [], instructor_id: ctx.instrId, referral_id: ctx.refId || null, student_name: s.name });
       (r1.ok ? out : fail).push(r1.ok ? 'instructor' : 'instructor: ' + (r1.error || 'failed'));
-    }
-    if (wantS && CFG.student && s.phone) {
-      var r2 = await sendTemplate(s.phone, 'dsq_student_welcome', [first(s.name), ctx.instrName || 'your instructor', fmtPhone(ctx.instrPhone) || 'their phone'],
-        { instructor_id: ctx.instrId, referral_id: ctx.refId || null, student_name: s.name });
-      (r2.ok ? out : fail).push(r2.ok ? 'student' : 'student: ' + (r2.error || 'failed'));
     }
     if (out.length) toast('💬 WhatsApp sent to the ' + out.join(' and the '), 'success', 4500);
     if (fail.length) toast('WhatsApp did not send (' + fail.join('; ') + '). Use the manual WhatsApp buttons instead.', 'warn', 9000);
@@ -107,7 +102,7 @@
       box.innerHTML = '<div style="border:1px solid ' + (on ? 'rgba(37,211,102,.5)' : 'var(--bdr)') + ';background:' + (on ? 'rgba(37,211,102,.08)' : 'var(--dk3)') + ';border-radius:10px;padding:10px 12px;font-size:.78rem">' +
         (on ? '<div style="font-weight:800;color:#22c55e;margin-bottom:6px">💬 Automatic WhatsApp is ON</div>' +
           '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin:2px 0"><input type="checkbox" id="wa-auto-instr"' + (CFG.instructor ? ' checked' : '') + '> Send the instructor the student\'s details (with Accept / Can\'t take buttons)</label>' +
-          '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin:2px 0"><input type="checkbox" id="wa-auto-stu"' + (CFG.student ? ' checked' : '') + '> Send the student their welcome and instructor details</label>' +
+          '<div style="font-size:.72rem;color:var(--txt3);margin:3px 0 0 22px">The student gets their welcome only after the instructor taps <b>Accept</b>.</div>' +
           '<div style="font-size:.68rem;color:var(--txt4);margin-top:4px">Sent the moment you press Assign. Untick to skip, or use the manual buttons below.</div>'
           : '<div style="color:var(--txt3)">💬 Automatic WhatsApp is <b>OFF</b>. ' + (CFG.enabled && !ready() ? '<span style="color:#f87171">It is switched on but not connected.</span> ' : '') + '<a href="javascript:DSQWA.openSettings()" style="color:#60a5fa">Settings</a></div>') + '</div>';
     };
@@ -141,7 +136,7 @@
     m.firstChild.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-family:\'Oswald\',sans-serif;font-size:1.2rem;font-weight:700">💬 WhatsApp Business automation</div><button class="btn-s" onclick="document.getElementById(\'waSet\').remove()">Close</button></div>' +
       '<div style="border:1px solid ' + (ok ? 'rgba(34,197,94,.5)' : 'var(--bdr)') + ';border-radius:12px;padding:10px 12px;margin-bottom:10px">' + conn + '</div>' +
       '<div style="margin-bottom:10px">' + sw('waMaster', 'Turn automatic WhatsApp ON (tick, then press Save)', 'ON: pressing Assign in Find &amp; Assign sends the messages for you. OFF: nothing is sent by the system and you use the WhatsApp buttons yourself, exactly as before.', CFG.enabled) +
-      sw('waInstr', 'Message the instructor', 'The student\'s details, with Accept and Can\'t take buttons. A tap updates the referral automatically.', CFG.instructor) + sw('waStu', 'Message the student', 'A welcome with their instructor\'s name and phone and the Student Portal link. Only for students who agreed to be contacted on WhatsApp.', CFG.student) + '</div>' +
+      sw('waInstr', 'Message the instructor', 'The student\'s details, with Accept and Can\'t take buttons. A tap updates the referral automatically.', CFG.instructor) + sw('waStu', 'Message the student (after the instructor accepts)', 'Once the instructor taps Accept, the student gets a welcome with their instructor\'s name and phone and the Student Portal link. Only for students who agreed to be contacted on WhatsApp.', CFG.student) + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn-p" onclick="DSQWA.saveSettings()">Save</button><button class="btn-s" onclick="DSQWA.recheck()">Check connection again</button></div>' +
       '<div id="aaHolder"></div>' +
       '<details style="margin-bottom:8px"' + (ok ? '' : ' open') + '><summary style="cursor:pointer;font-weight:800">Set-up steps (about 30 minutes, free)</summary><ol style="font-size:.78rem;line-height:1.6;padding-left:18px;margin:8px 0">' +
