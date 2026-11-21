@@ -387,3 +387,17 @@ const jr = DB.auto_assign_jobs[0], insR = DB.instructors.find((i) => i.id === jr
 const sameMsg = async (p) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "wamid.SAME1", from: fromR, type: "button", button: { payload: p, text: "x" } }] } }] }] }); const sg = await sigf(body); for (let k = 0; k < 3; k++) await h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": sg }, body })); };
 await sameMsg("OFFER_ACCEPT:" + jr.id);
 ok(DB.referrals.filter((r) => r.student_name === "Retry Rae").length === 1 && DB.wa_log.filter((l) => l.direction === "in" && l.wa_message_id === "wamid.SAME1").length === 1, "the same Accept delivered 3 times -> processed once (1 referral, 1 log row)");
+
+console.log("== 31. Week and day boundaries around the clocks changing ==");
+const RealDate = Date; const withNow = (iso, fn) => { const t = RealDate.parse(iso); class FD extends RealDate { constructor(...a) { if (a.length) super(...a); else super(t); } static now() { return t; } } (globalThis as any).Date = FD; try { return fn(); } finally { (globalThis as any).Date = RealDate; } };
+const { mondayLondon: ML, londonMidnightToday: LM } = globalThis.__waTest;
+const iso = (ms) => new RealDate(ms).toISOString();
+const exp = (nowIso, expect, fn, label) => { const got = withNow(nowIso, () => iso(fn().getTime ? fn().getTime() : fn())); ok(got === expect, label + " (" + got + ")"); };
+exp("2026-03-29T10:00:00Z", "2026-03-23T00:00:00.000Z", () => ML(), "Sunday 29 Mar 2026 (clocks go forward that day): the week began Mon 23 Mar 00:00 GMT");
+exp("2026-03-30T08:00:00Z", "2026-03-29T23:00:00.000Z", () => ML(), "Monday 30 Mar morning (BST): the week began Mon 00:00 BST = Sun 23:00 UTC");
+exp("2026-06-01T22:30:00Z", "2026-05-31T23:00:00.000Z", () => ML(), "Mon 1 Jun 23:30 BST is already Monday: week began 23:00 UTC the night before");
+exp("2026-06-01T23:30:00Z", "2026-05-31T23:00:00.000Z", () => ML(), "Tue 2 Jun 00:30 BST: same week");
+exp("2026-10-25T10:00:00Z", "2026-10-18T23:00:00.000Z", () => ML(), "Sunday 25 Oct 2026 (clocks go back that day): the week began Mon 19 Oct 00:00 BST");
+exp("2026-10-25T10:00:00Z", "2026-10-24T23:00:00.000Z", () => LM(), "midnight at the start of 25 Oct (a 25-hour day) = 23:00 UTC the day before");
+exp("2026-03-29T10:00:00Z", "2026-03-29T00:00:00.000Z", () => LM(), "midnight at the start of 29 Mar (a 23-hour day) = 00:00 UTC");
+exp("2026-11-21T09:00:00Z", "2026-11-21T00:00:00.000Z", () => LM(), "an ordinary winter day");

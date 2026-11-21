@@ -212,13 +212,19 @@ function bookedAt(r: any) {
   for (const l of lines) if (BK_MARKS.some((m) => l.includes(m))) { const d = Date.parse(l.split(" · ")[0]); if (!isNaN(d)) t = d; }
   return t || (r.paid_at ? new Date(r.paid_at).getTime() : new Date(r.created_at).getTime());
 }
-function londonMidnightToday() { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value])); const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute); return Date.now() - (asUtc - Date.UTC(+p.year, +p.month - 1, +p.day)); }
-function londonSinceMidnight(t: number) { const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(t)).map((x) => [x.type, x.value])); return ((+p.hour % 24) * 60 + +p.minute) * 60000; }
-/* Monday 00:00 UK time (a Date). Correct across the clocks changing, unlike a UTC midnight which is an hour out all summer */
-function mondayLondon() {
-  const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, weekday: "short" }).format(new Date()));
-  const t = londonMidnightToday() - Math.max(0, dow) * 864e5; return new Date(t - londonSinceMidnight(t));
+const londonYMD = (t: number) => { const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(t)).map((x) => [x.type, x.value])); return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute }; };
+/* the instant it is 00:00 in London on y-m-d (right on the days the clocks change too, when the day is 23 or 25 hours long) */
+function londonMidnight(y: number, m: number, d: number) {
+  for (const c of [Date.UTC(y, m - 1, d), Date.UTC(y, m - 1, d) - 3600e3]) { const p = londonYMD(c); const want = new Date(Date.UTC(y, m - 1, d)); if (p.h === 0 && p.mi === 0 && p.d === want.getUTCDate() && p.m === want.getUTCMonth() + 1) return c; }
+  return Date.UTC(y, m - 1, d);
 }
+function londonMidnightToday() { const p = londonYMD(Date.now()); return londonMidnight(p.y, p.m, p.d); }
+/* Monday 00:00 UK time (a Date) */
+function mondayLondon() {
+  const p = londonYMD(Date.now()), dow = Math.max(0, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, weekday: "short" }).format(new Date())));
+  const mon = new Date(Date.UTC(p.y, p.m - 1, p.d - dow)); return new Date(londonMidnight(mon.getUTCFullYear(), mon.getUTCMonth() + 1, mon.getUTCDate()));
+}
+(globalThis as any).__waTest = { ...((globalThis as any).__waTest || {}), mondayLondon, londonMidnightToday };
 
 /* same package tiers as admin-packages.js (used when the admin has not edited them) */
 const PKG_TIERS: any = { normal: { noGuarantee: true, min: 0 }, silver: { min: 3 }, gold: { min: 5 }, platinum: { min: 7, priority: true, radius: 5 } };
