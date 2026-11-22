@@ -1,5 +1,5 @@
 
-const ENV = { WHATSAPP_TOKEN:"tok", WHATSAPP_PHONE_ID:"123", WHATSAPP_VERIFY_TOKEN:"vt", WHATSAPP_APP_SECRET:"sec", EMAIL_ADMIN_KEY:"adm", SUPABASE_URL:"https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY:"svc" };
+const ENV = { WHATSAPP_TOKEN:"tok", WHATSAPP_PHONE_ID:"123", WHATSAPP_VERIFY_TOKEN:"vt", WHATSAPP_APP_SECRET:"sec", EMAIL_ADMIN_KEY:"adm", ANTHROPIC_API_KEY:"sk-test", SUPABASE_URL:"https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY:"svc" };
 globalThis.Deno = { env: { get: (k) => ENV[k] } };
 globalThis.SEQ = 1; const uid = () => "id" + (globalThis.SEQ++);
 globalThis.DB = {};
@@ -28,6 +28,7 @@ globalThis.fetch = async (url, opts) => {
   const u = String(url);
   if (u.includes("postcodes.io")) { const c = decodeURIComponent(u.split("/").pop()).toUpperCase(); const g = GEO[c]; return { ok: true, status: g ? 200 : 404, json: async () => g ? { result: { latitude: g[0], longitude: g[1] } } : { status: 404, result: null } }; }
   if (u.includes("osrm")) throw new Error("no osrm in test");
+  if (u.includes("api.anthropic.com")) { CALLS.push({ claude: JSON.parse(opts.body) }); if (globalThis.CLAUDE_FAIL) return { ok: false, status: 401, json: async () => ({ error: { message: "invalid x-api-key" } }) }; const r = (globalThis.CLAUDE_Q || []).shift() || { content: [{ type: "text", text: "ok" }] }; return { ok: true, status: 200, json: async () => r }; }
   if (u.includes("send-push")) { CALLS.push({ push: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({}) }; }
   if (u.includes("graph.facebook.com") && globalThis.GRAPH) {   // a fake Meta: accounts, phone numbers, templates
     const G = globalThis.GRAPH, path = u.split("graph.facebook.com/")[1].replace(/^v[\d.]+\//, ""), method = (opts && opts.method) || "GET";

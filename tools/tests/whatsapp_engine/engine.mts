@@ -475,6 +475,41 @@ console.log("== 41. WhatsApp enquiry ticked for auto-assign ==");
   DB.waiting_list.push(wa, hand); await call({ action: "auto_assign", cron: true });
   ok(DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(wa.id)), "a WhatsApp enquiry ticked for auto-assign is picked up (even though sources is only [WEB])");
   ok(!DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(hand.id)), "an entry added by hand with no tag is left alone"); }
+console.log("== 42. AI booking assistant ==");
+{
+  const textsTo = (to) => CALLS.filter((c) => c.wa && c.wa.type === "text" && String(c.wa.to) === to).map((c) => c.wa.text.body);
+  const tool = (name, input) => ({ content: [{ type: "tool_use", id: "t1", name, input }] });
+  const say = (txt) => ({ content: [{ type: "text", text: txt }] });
+  const STU = "447911123456"; CALLS.length = 0; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = []; DB.auto_assign_jobs = [];
+  cfgOf().aiAssistant = false; globalThis.CLAUDE_Q = [say("hi")]; await hook({ from: STU }, "Hi I want driving lessons");
+  ok(!CALLS.some((c) => c.claude) && textsTo(STU).length === 0, "assistant OFF: Claude is never called and nobody is answered");
+  cfgOf().aiAssistant = true; cfgOf().aiTestOnly = true; cfgOf().adminPhone = "07700900999"; await hook({ from: STU }, "Hi I want driving lessons");
+  ok(!CALLS.some((c) => c.claude) && textsTo(STU).length === 0, "test mode: a real student is NOT answered (only the admin phone)");
+  globalThis.CLAUDE_Q = [say("Hi! What is your full name?")]; await hook({ from: "447700900999" }, "Hi I want driving lessons");
+  ok(CALLS.some((c) => c.claude) && textsTo("447700900999")[0] === "Hi! What is your full name?", "test mode: the admin phone gets a reply");
+  const cl = CALLS.find((c) => c.claude).claude; ok(cl.model === "claude-haiku-5-5" && cl.tools.length === 2 && /Never quote prices/.test(cl.system) && cl.messages[cl.messages.length - 1].role === "user", "sent to Claude with the rules, 2 tools and the student's message last");
+  cfgOf().aiTestOnly = false; CALLS.length = 0; globalThis.CLAUDE_Q = [say("Great! What is your full name?")]; await hook({ from: STU }, "Hi I want driving lessons");
+  ok(textsTo(STU)[0] === "Great! What is your full name?", "live mode: a student is answered");
+  globalThis.CLAUDE_Q = [tool("create_booking", { name: "Hannah Brown", postcode: "m13 9aa", gearbox: "automatic", availability: "weekday evenings", instructor_gender: "female_required", notes: "nervous" })]; CALLS.length = 0;
+  await hook({ from: STU }, "Hannah Brown, M13 9AA, automatic please");
+  const wl = DB.waiting_list.find((w) => /Hannah/.test(w.student_name));
+  ok(wl && wl.postcode === "M13 9AA" && wl.lesson_type === "Automatic" && /\[AUTO\]/.test(wl.notes) && /\[WHATSAPP\]/.test(wl.notes) && /FEMALE INSTRUCTOR REQUESTED/.test(wl.notes) && /weekday evenings/.test(wl.notes) && wl.student_phone === STU, "booking created with the tags, gearbox, availability, female request and their phone: " + (wl && wl.notes.replace(/\n/g, " | ")));
+  ok(/passed your details/.test(textsTo(STU)[0] || ""), "the student gets one fixed confirmation (no free-text promises)");
+  CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(wl.id)), "auto-assign then picks the assistant's booking up");
+  CALLS.length = 0; globalThis.CLAUDE_Q = [say("should not be sent")]; await hook({ from: STU }, "thanks!"); ok(!CALLS.some((c) => c.claude) && textsTo(STU).length === 0, "after the booking it stays quiet (no second answer)");
+  const S2 = "447922222222"; globalThis.CLAUDE_Q = [tool("create_booking", { name: "Joe Bloggs", postcode: "ZZ99 9ZZ", gearbox: "manual" })]; CALLS.length = 0; await hook({ from: S2 }, "Joe Bloggs ZZ99 9ZZ manual");
+  ok(!DB.waiting_list.some((w) => /Joe/.test(w.student_name)) && /postcode/i.test(textsTo(S2)[0] || ""), "an unknown postcode is not saved: the student is asked again");
+  globalThis.CLAUDE_Q = [tool("create_booking", { name: "Joe Bloggs", postcode: "M13 9AA", gearbox: "manual" })]; CALLS.length = 0; await hook({ from: S2 }, "sorry M13 9AA");
+  ok(DB.waiting_list.some((w) => /Joe/.test(w.student_name)), "...and saved when the postcode is right");
+  const S3 = "447933333333"; globalThis.CLAUDE_Q = [tool("hand_off", { reason: "asks how much a lesson costs and wants a person" })]; CALLS.length = 0; await hook({ from: S3 }, "can I speak to someone");
+  ok(/member of our team/.test(textsTo(S3)[0] || "") && DB.admin_attention.some((a) => a.kind === "ai_handoff"), "hand-off: the student is told, you get an alert");
+  CALLS.length = 0; globalThis.CLAUDE_Q = [say("x")]; await hook({ from: S3 }, "hello??"); ok(!CALLS.some((c) => c.claude), "after a hand-off the assistant stays out of the conversation");
+  const S4 = "447944444444"; globalThis.CLAUDE_FAIL = true; CALLS.length = 0; await hook({ from: S4 }, "hi"); globalThis.CLAUDE_FAIL = false;
+  ok(textsTo(S4).length === 0 && DB.admin_attention.some((a) => a.kind === "ai_error"), "if Claude is unavailable the student gets nothing wrong and you get an alert");
+  const ins = DB.instructors[0]; CALLS.length = 0; globalThis.CLAUDE_Q = [say("x")]; await hook({ from: "44" + ins.phone.replace(/^0/, "") }, "I am running late today"); ok(!CALLS.some((c) => c.claude), "a message from an instructor is never sent to the assistant");
+  const S5 = "447955555555"; CALLS.length = 0; await hook({ from: S5 }, "[image]"); ok(CALLS.some((c) => c.claude) === false, "(media is handled without calling Claude)");
+  cfgOf().aiAssistant = false;
+}
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -582,7 +617,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-whatsapp-intake", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

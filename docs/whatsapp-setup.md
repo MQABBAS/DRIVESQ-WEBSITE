@@ -88,3 +88,10 @@ It emails every NEW website booking that left an email address, once per address
 
 ## WhatsApp enquiries collected by the Meta AI
 Admin → Waiting List → Add: paste what the AI collected, press ✨ Fill in, check it, keep "🤖 Let auto-assign find an instructor" ticked, Add. The entry is tagged [WHATSAPP] [AUTO] and auto-assign handles it like a website booking. Unticked = handled by hand (auto-assign ignores it).
+
+## WhatsApp booking assistant (Claude)
+1. Create an API key in the Anthropic Console (no expiry) and save it in Supabase → Edge Functions → Secrets as ANTHROPIC_API_KEY.
+2. Deploy the whatsapp function. Control centre → Settings → 🤖 WhatsApp booking assistant shows whether the key is found.
+3. Turn it ON with Test mode ticked: it only answers your admin phone. Chat to it from your own phone, then untick Test mode.
+4. Only one assistant may answer on the number: pause the Meta AI replies first.
+It asks name, postcode, gearbox, times, then adds the booking ([WHATSAPP] [AUTO]) for auto-assign. It never quotes prices; anything else is handed to you as an alert and it goes quiet for that person for the day.
