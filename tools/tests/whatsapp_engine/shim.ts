@@ -28,6 +28,17 @@ globalThis.fetch = async (url, opts) => {
   if (u.includes("postcodes.io")) { const c = decodeURIComponent(u.split("/").pop()).toUpperCase(); const g = GEO[c]; return { ok: true, status: g ? 200 : 404, json: async () => g ? { result: { latitude: g[0], longitude: g[1] } } : { status: 404, result: null } }; }
   if (u.includes("osrm")) throw new Error("no osrm in test");
   if (u.includes("send-push")) { CALLS.push({ push: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({}) }; }
+  if (u.includes("graph.facebook.com") && globalThis.GRAPH) {   // a fake Meta: accounts, phone numbers, templates
+    const G = globalThis.GRAPH, path = u.split("graph.facebook.com/")[1].replace(/^v[\d.]+\//, ""), method = (opts && opts.method) || "GET";
+    if (path.startsWith("debug_token")) return { ok: true, status: 200, json: async () => ({ data: { granular_scopes: [{ scope: "whatsapp_business_management", target_ids: G.wabas.map((w) => w.id) }, { scope: "business_management", target_ids: ["B1"] }] } }) };
+    const m = path.match(/^(\w+)(\/phone_numbers|\/message_templates)?/); const w = m && G.wabas.find((x) => x.id === m[1]);
+    if (w) {
+      if (m[2] === "/phone_numbers") return { ok: true, status: 200, json: async () => ({ data: w.phones }) };
+      if (m[2] === "/message_templates" && method === "POST") { const b = JSON.parse(opts.body); G.created = G.created || []; G.created.push({ waba: w.id, ...b }); if (G.failCreate && G.failCreate.includes(b.name)) return { ok: false, status: 400, json: async () => ({ error: { message: "Invalid parameter", error_user_msg: "Body cannot start with a variable" } }) }; w.templates.push({ name: b.name, status: "PENDING", language: b.language, category: b.category }); return { ok: true, status: 200, json: async () => ({ id: "t" + b.name, status: "PENDING", category: b.category }) }; }
+      if (m[2] === "/message_templates") return { ok: true, status: 200, json: async () => ({ data: w.templates }) };
+      return { ok: true, status: 200, json: async () => ({ id: w.id, name: w.name }) };
+    }
+  }
   if (/\/messages$/.test(u)) { const b = JSON.parse(opts.body); if (b.type === "template" && globalThis.FAIL_TEMPLATES && globalThis.FAIL_TEMPLATES.has(b.template.name)) return { ok: false, status: 400, json: async () => ({ error: { code: 132001, message: "Template name does not exist in the translation" } }) }; CALLS.push({ wa: b }); return { ok: true, status: 200, json: async () => ({ messages: [{ id: "wamid." + uid() }] }) }; }
   return { ok: true, status: 200, json: async () => ({ display_phone_number: "+44" }) };
 };

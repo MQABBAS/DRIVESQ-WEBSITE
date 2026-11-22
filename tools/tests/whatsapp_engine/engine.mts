@@ -504,3 +504,26 @@ await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs[0].ins
 const sim40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(sim40.skipped.some((x) => /Never auto-assign/.test(x.why)), "the simulator lists them under 'Left out: marked Never auto-assign'");
 DB.admin_attention = []; DB.referrals = []; await call({ action: "auto_assign", cron: true });
 ok(!DB.admin_attention.some((a) => a.kind === "no_jobs" && a.instructor_id === ignoredNow), "ignored instructors do not trigger 'no students for 7 days' warnings");
+
+console.log("== 41. Diagnose and create the templates in the right WhatsApp account ==");
+const ALLN = ["dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_student_welcome", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later", "dsq_female_unavailable", "dsq_student_terms", "dsq_instructor_rebooked", "dsq_instructor_balance"];
+globalThis.GRAPH = { wabas: [
+  { id: "W1", name: "Test WhatsApp Business Account", phones: [{ id: "999", display_phone_number: "+1 555 000 1111", verified_name: "Test" }], templates: [{ name: "hello_world", status: "APPROVED", language: "en_US" }, { name: "jaspers_market_image_cta_v1", status: "APPROVED", language: "en_US" }, ...ALLN.slice(0, 8).map((n) => ({ name: n, status: "APPROVED", language: "en_GB" }))] },
+  { id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
+let dg = await call({ action: "diagnose" });
+ok(dg.ok && dg.match === "W2" && dg.missing.length === 13, "diagnose: your number is in the account 'DriveSQ' (W2) and all 13 templates are missing there (" + dg.missing.length + ")");
+ok(dg.advice.some((a) => /DriveSQ/.test(a)) && dg.advice.some((a) => /another account/.test(a) && /Test WhatsApp/.test(a)), "it says in plain words that the right names exist in the TEST account, which your number cannot use");
+const tst = await call({ action: "templates" }); ok(tst.ok && tst.account === "W2" && tst.templates.every((t) => t.status === "MISSING"), "the readiness check now sees the statuses with no secret needed (all MISSING in your account)");
+const cr = await call({ action: "create_templates" });
+ok(cr.ok && cr.created === 13 && cr.failed === 0 && cr.account === "W2", "create_templates: 13 submitted to YOUR account (" + cr.created + ")");
+const made = globalThis.GRAPH.created, offer = made.find((m) => m.name === "dsq_student_offer");
+ok(made.every((m) => m.waba === "W2" && m.language === "en_GB"), "all created in account W2 with language en_GB");
+ok(offer.category === "MARKETING" && offer.components[0].type === "BODY" && offer.components[0].example.body_text[0].length === 4 && offer.components[1].buttons.length === 2 && offer.components[1].buttons[0].type === "QUICK_REPLY", "the offer: category MARKETING, 4 sample values, 2 quick-reply buttons");
+ok(made.find((m) => m.name === "dsq_student_terms").components.length === 1 && made.find((m) => m.name === "dsq_student_terms").components[0].example.body_text[0][0] === "Sara", "terms: body only, sample 'Sara'");
+ok(made.find((m) => m.name === "dsq_student_checkin").components[1].buttons.map((b) => b.text).join("|") === "Yes, booked|Not yet|Gone elsewhere", "check-in buttons carry the right labels");
+dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 13, "afterwards: nothing missing, 13 waiting for Meta's review");
+const again = await call({ action: "create_templates" }); ok(again.created === 0 && /already exists/.test(again.note), "running it again creates nothing (no duplicates)");
+globalThis.GRAPH.wabas[1].templates = []; globalThis.GRAPH.failCreate = ["dsq_booking_received"]; const part = await call({ action: "create_templates" });
+ok(part.created === 12 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
+globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: "diagnose" }); ok(dg.match === null && dg.advice.some((a) => /not in any account/.test(a)), "if the token cannot see the number's account, it says so");
+delete globalThis.GRAPH;

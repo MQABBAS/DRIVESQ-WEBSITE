@@ -165,6 +165,7 @@
   var TPLS = null;
   function readyTab() {
     return '<div class="cd"><h3>✅ Is it ready to run for real? <button class="btn-s" style="font-size:.7rem;padding:1px 10px;margin-left:auto" onclick="DSQHub.recheck()">↻ Check again</button></h3><div id="hubReady"><div class="empty">Checking…</div></div></div>' +
+      '<div class="cd"><h3>🔧 WhatsApp templates <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">fixes "Template name does not exist" errors</span></h3><div style="font-size:.78rem;color:var(--txt3);margin-bottom:8px">Finds which WhatsApp account owns your number and which message templates it is missing, then creates them for you in the right account. They still need Meta\'s approval (usually a few hours).</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-s" onclick="DSQHub.diagnoseWa()">🔍 Diagnose</button><button class="btn-p" onclick="DSQHub.createTpls()">➕ Create the missing templates in Meta</button></div><div id="waDiag" style="font-size:.78rem;margin-top:10px"></div></div>' +
       '<div class="cd"><h3>🧪 Test a booking <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">nothing is saved or sent: see who it would go to, and why</span></h3>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:8px"><label style="font-size:.72rem">Student postcode<input id="simPc" class="dsq-inp" placeholder="e.g. M14 5AB" style="margin-top:2px"></label>' +
       '<label style="font-size:.72rem">Lessons<select id="simType" class="dsq-inp" style="margin-top:2px"><option>Manual</option><option>Automatic</option></select></label>' +
@@ -177,10 +178,11 @@
     add(wa ? 'ok' : 'bad', 'WhatsApp is connected', wa ? ((DATA.wast.phone && (DATA.wast.phone.display_phone_number || '')) + ' ' + ((DATA.wast.phone && DATA.wast.phone.verified_name) || '')).trim() : (DATA.wast && DATA.wast.error) || 'Not connected', wa ? '' : 'Open the WhatsApp settings and follow the set-up steps (token and phone number ID in Supabase secrets).');
     var tp = null; try { tp = await DSQWA.call({ action: 'templates' }); } catch (e) { } TPLS = tp;
     if (!tp || !tp.ok) add('warn', 'Message templates', (tp && tp.error) || 'Could not check', 'Check the WhatsApp token has permission to read templates.');
-    else if (tp.needWaba) add('warn', 'Message templates', 'I cannot see their approval status yet.', 'Optional: add the Supabase secret WHATSAPP_WABA_ID (your WhatsApp Business Account ID, shown in WhatsApp Manager) and this will list each template as Active / In review / Rejected. Until then, check them at business.facebook.com/wa/manage/message-templates.');
+    else if (tp.needWaba) add('warn', 'Message templates', 'I could not read your WhatsApp accounts with the current token.', 'Press Diagnose below for the reason, or add the optional Supabase secret WHATSAPP_WABA_ID (your WhatsApp Business Account ID).');
+    else if (tp.notInAccount) add('bad', 'Message templates', 'Your number is not in any account this token can read.', (tp.advice || [])[0] || 'The token or phone number ID belongs to a different account.');
     else if (tp.needToken) add('bad', 'Message templates', 'No WhatsApp token', 'Add WHATSAPP_TOKEN.');
     else { var need = ['dsq_student_offer', 'dsq_new_student'], bad = tp.templates.filter(function (t) { return t.status !== 'APPROVED'; }), core = bad.filter(function (t) { return need.indexOf(t.name) >= 0; });
-      add(core.length ? 'bad' : bad.length ? 'warn' : 'ok', 'Message templates approved', bad.length ? bad.map(function (t) { return t.name + ': ' + t.status + (t.reason ? ' (' + t.reason + ')' : ''); }).join(' · ') : 'All ' + tp.templates.length + ' are Active', bad.length ? 'Wait for Meta, or fix a rejected template. The instructor offer templates must be Active before you use Assign mode.' : ''); }
+      add(core.length ? 'bad' : bad.length ? 'warn' : 'ok', 'Message templates approved', bad.length ? bad.map(function (t) { return t.name + ': ' + t.status + (t.reason ? ' (' + t.reason + ')' : ''); }).join(' · ') : 'All ' + tp.templates.length + ' are Active', bad.length ? ((tp.missing && tp.missing.length ? tp.missing.length + ' do not exist in your number\'s account: press "Create the missing templates in Meta" below. ' : '') + 'Templates that are In review cannot send yet. The instructor offer templates must be Active before you use Assign mode.') : ''); }
     var age = DATA.last && DATA.last.at ? Math.round((Date.now() - new Date(DATA.last.at)) / 6e4) : null;
     add(age !== null && age <= 15 ? 'ok' : (c.enabled ? 'bad' : 'warn'), 'Runs by itself (Cron job)', age === null ? 'It has never run by itself' : 'Last run ' + (age < 1 ? 'just now' : age + ' min ago'), age !== null && age <= 15 ? '' : 'Supabase → Integrations → Cron → every 2 minutes → whatsapp, body {"action":"auto_assign","cron":true}, header x-admin-key. See Settings → "Make it run by itself".');
     var ins = DATA.instrs.filter(function (i) { return i.status === 'approved'; }), noLoc = ins.filter(function (i) { return !(String(i.postcode || '').trim() || /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(String(i.area || '') + ' ' + String(i.address || '')) || /\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/i.test(String(i.area || '') + ' ' + String(i.coverage_postcodes || ''))); }), noPh = ins.filter(function (i) { return String(i.phone || '').replace(/\D/g, '').length < 10; }), noCov = ins.filter(function (i) { return !String(i.coverage_postcodes || '').trim(); });
@@ -200,6 +202,21 @@
     return items;
   }
   function recheck() { fillReady(); }
+  async function diagnoseWa() {
+    var o = document.getElementById('waDiag'); if (!o) return; o.textContent = 'Looking at your WhatsApp accounts…'; var r = await DSQWA.call({ action: 'diagnose' });
+    if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; }
+    o.innerHTML = (r.advice || []).map(function (a) { return '<div class="fi"><i>' + (/not exist|not in any|another account|mismatch|could not read/i.test(a) ? '⚠️' : /All templates exist/.test(a) ? '✅' : 'ℹ️') + '</i><span>' + E(a) + '</span></div>'; }).join('') +
+      (r.templates ? '<div class="scroll" style="margin-top:6px"><table><thead><tr><th>Template</th><th>Status in your number\'s account</th></tr></thead><tbody>' + r.templates.map(function (t) { var col = t.status === 'APPROVED' ? '#22c55e' : t.status === 'MISSING' ? '#ef4444' : '#f59e0b'; return '<tr><td>' + E(t.name) + '</td><td><span class="pill" style="color:' + col + ';border-color:' + col + '66">' + E(t.status) + '</span></td></tr>'; }).join('') + '</tbody></table></div>' : '');
+  }
+  async function createTpls() {
+    var o = document.getElementById('waDiag'); if (!o) return;
+    if (!confirm('Create the missing WhatsApp message templates in the account that owns your number?\n\nThey are submitted to Meta for review (usually a few hours). Templates that already exist are left alone.')) return;
+    o.textContent = 'Submitting to Meta…'; var r = await DSQWA.call({ action: 'create_templates' });
+    if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>' + ((r.advice || []).map(function (a) { return '<div class="fi"><i>⚠️</i><span>' + E(a) + '</span></div>'; }).join('')); return; }
+    o.innerHTML = '<div style="border:1px solid #22c55e66;background:rgba(34,197,94,.08);border-radius:10px;padding:8px 12px;margin-bottom:6px"><b>' + r.created + ' submitted</b>' + (r.failed ? ', <b style="color:#f87171">' + r.failed + ' refused</b>' : '') + '. ' + E(r.note || '') + '</div>' +
+      (r.results || []).map(function (x) { return '<div class="fi"><i>' + (x.ok ? '✅' : '❌') + '</i><span><b>' + E(x.name) + '</b> · ' + (x.ok ? E(x.status || 'submitted') : '<span style="color:#f87171">' + E(x.error || 'refused') + '</span>') + '</span></div>'; }).join('');
+    fillReady();
+  }
   async function simulate() {
     var pc = (document.getElementById('simPc') || {}).value || '', o = document.getElementById('simOut'); if (!o) return; if (!pc.trim()) { o.innerHTML = '<span style="color:#f59e0b">Enter a postcode first.</span>'; return; } o.textContent = 'Working it out…';
     var r = await DSQWA.call({ action: 'simulate', postcode: pc, type: document.getElementById('simType').value, female: document.getElementById('simFem').value });
@@ -284,5 +301,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { diagnoseWa: diagnoseWa, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
 })();

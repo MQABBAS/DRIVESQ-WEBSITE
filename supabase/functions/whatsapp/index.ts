@@ -536,16 +536,225 @@ async function simulate(sb: any, body: any) {
   const covered = best ? covers(cd.instrs.find((i: any) => String(i.id) === String(best.id)) || {}, pc) : false;
   return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
 }
+/* the 13 message templates this system sends (same wording as the admin WhatsApp settings). "Create the missing templates" submits these to Meta in the account that owns your number. */
+const TEMPLATE_DEFS: any[] = [
+ {
+  "name": "dsq_new_student",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, DriveSQ has assigned you a new student. 🚗\n\n*Student details*\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\n*What to do next*\n1. Contact the student within 24 hours to arrange the first lesson.\n2. Check their provisional licence and eyesight at lesson one.\n3. Update their status in your Instructor Portal: booked, not booked yet, can't reach or not going ahead.\n\nYour Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nTap Accept if you can take them, or Can't take if you can't. Thank you!",
+  "params": [
+   "Instructor first name",
+   "Student name",
+   "Student phone",
+   "Postcode",
+   "Lesson type",
+   "Other details"
+  ],
+  "buttons": [
+   "Accept",
+   "Can't take"
+  ]
+ },
+ {
+  "name": "dsq_student_offer",
+  "category": "MARKETING",
+  "body": "Hi {{1}}, DriveSQ has a new student near {{2}}, about {{3}} miles from you, wanting {{4}} lessons.\n\nCan you take them? Tap Accept or Can't take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nPlease reply within a few hours so we can find someone else if you can't. Thank you!",
+  "params": [
+   "Instructor first name",
+   "Area (postcode district)",
+   "Miles from you",
+   "Lesson type"
+  ],
+  "buttons": [
+   "Accept",
+   "Can't take"
+  ]
+ },
+ {
+  "name": "dsq_student_welcome_2",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, welcome to DriveSQ! 🚗 You're now registered with us.\n\nYour driving instructor is *{{2}}*, on {{3}}.\n\nYour instructor may be in a lesson right now, so there might be a short wait. In the meantime, please message them with the days and times you're available so you can get started: {{4}}\n\n*Your free Student Portal*\nhttps://www.drivesq.co.uk/student\nLog in with your mobile number, no password needed. You can see your lessons, practise your theory test, message your instructor and track your progress.\n\nPlease have your provisional driving licence ready for your first lesson.\n\nIf you have any questions, just reply here.",
+  "params": [
+   "Student first name",
+   "Instructor name",
+   "Instructor phone",
+   "Instructor WhatsApp link"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_student_welcome",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, welcome to DriveSQ! 🚗\n\nYour instructor is *{{2}}* on {{3}}. They will contact you to arrange your first lesson, and you are welcome to message them first to say hello and tell them which days and times suit you.\n\n*Your free Student Portal*\nhttps://www.drivesq.co.uk/student\nLog in with your mobile number. No password needed. You can:\n✅ see your lessons\n📚 practise your theory test\n💬 message your instructor\n📊 track your progress\n\nPlease have your provisional driving licence ready for your first lesson.\n\nIf you have any questions, just reply here.",
+  "params": [
+   "Student first name",
+   "Instructor name",
+   "Instructor phone"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_admin_attention",
+  "category": "MARKETING",
+  "body": "DriveSQ admin: attention needed. {{1}}. Details: {{2}}\n\nPlease open DriveSQ admin to review it.",
+  "params": [
+   "What needs attention",
+   "Details"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_student_checkin",
+  "category": "MARKETING",
+  "body": "Hi {{1}}, it's DriveSQ checking in. 🚗\n\nHas {{2}} booked your first driving lesson with you yet?\n\nPlease tap one of the buttons below. It helps us make sure you're looked after.",
+  "params": [
+   "Student first name",
+   "Instructor name"
+  ],
+  "buttons": [
+   "Yes, booked",
+   "Not yet",
+   "Gone elsewhere"
+  ]
+ },
+ {
+  "name": "dsq_instructor_checkin",
+  "category": "MARKETING",
+  "body": "Hi {{1}}, quick check from DriveSQ about {{2}}.\n\nHave you booked a lesson with them yet? Tap a button below. It takes a second and keeps your records up to date.",
+  "params": [
+   "Instructor first name",
+   "Student name"
+  ],
+  "buttons": [
+   "Booked",
+   "Not yet",
+   "Student left"
+  ]
+ },
+ {
+  "name": "dsq_booking_received",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, thanks for booking with DriveSQ! 🚗\n\nWe have passed your details to a driving instructor near you, and they will contact you shortly. They may be in a lesson when they see it, so if you don't hear straight away, they will get back to you as soon as they can.\n\nIf anything changes, or you have a question, just reply here.",
+  "params": [
+   "Student first name"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_booking_received_later",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, thanks for booking with DriveSQ! 🚗\n\nOur instructors are offline at this time, so we will pass your details to a driving instructor near you first thing in the morning, and they will contact you then. They may be in a lesson when they see it, so if you don't hear straight away, they will get back to you as soon as they can.\n\nIf anything changes, or you have a question, just reply here.",
+  "params": [
+   "Student first name"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_female_unavailable",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, thanks for booking with DriveSQ. 🚗\n\nUnfortunately a female instructor is not available in your area at the moment.\n\nWould you like us to book you with our closest male instructor instead, or would you rather wait for a female instructor? Please tap one of the buttons below.",
+  "params": [
+   "Student first name"
+  ],
+  "buttons": [
+   "Male instructor is fine",
+   "I'll wait"
+  ]
+ },
+ {
+  "name": "dsq_student_terms",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, here are the DriveSQ terms & conditions for your lessons: https://www.drivesq.co.uk/terms.html\n\nThe key points:\n• Cancel or move a lesson more than 24 hours before it starts: free.\n• Less than 24 hours' notice, or a no-show: charged for the time reserved, £35 per hour booked.\n• Money paid to the DriveSQ business account is DriveSQ's responsibility. A payment made directly to an instructor is a private arrangement and DriveSQ is not responsible.\n\nBy having lessons with us you agree to these terms.",
+  "params": [
+   "Student first name"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_instructor_rebooked",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, one of your existing students, {{2}}, has booked with DriveSQ again (near {{3}}, {{4}} lessons).\n\nCan you take them again? Tap Accept or Can't take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nPlease reply within a few hours so we can find someone else if you can't. Thank you!",
+  "params": [
+   "Instructor first name",
+   "Student name",
+   "Area (postcode district)",
+   "Lesson type"
+  ],
+  "buttons": [
+   "Accept",
+   "Can't take"
+  ]
+ },
+ {
+  "name": "dsq_instructor_balance",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, this is a reminder from DriveSQ. You have {{2}} booked students with referral fees of £{{3}} still unpaid.\n\nPlease pay the DriveSQ business account and tap the button below once it is done. New students are sent to other instructors first until your balance is cleared.\n\nThank you!",
+  "params": [
+   "Instructor first name",
+   "Number of booked students",
+   "Amount (£, no symbol)"
+  ],
+  "buttons": [
+   "I've paid"
+  ]
+ }
+];
+
+const SAMPLE_BY_LABEL: [RegExp, string][] = [[/first name/i, "Sara"], [/student name/i, "Alex Khan"], [/instructor name/i, "Dawood Khan"], [/whatsapp link/i, "https://wa.me/447700900123"], [/phone/i, "07700 900123"], [/area|postcode/i, "M14"], [/miles/i, "2.5"], [/lesson type/i, "Manual"], [/number of booked/i, "3"], [/amount/i, "75"], [/what needs attention/i, "No match for a booking"], [/details/i, "Open admin to review it"]];
+const sampleFor = (label: string) => { for (const [re, v] of SAMPLE_BY_LABEL) if (re.test(label)) return v; return "Example"; };
+const gget = (path: string) => graph(path);
+/* every WhatsApp Business Account this token can see (or the one in WHATSAPP_WABA_ID) */
+async function findWabas() {
+  const envId = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID"), ids: string[] = envId ? [envId] : [];
+  if (!ids.length && TOKEN) { const r = await graph("/debug_token?input_token=" + encodeURIComponent(TOKEN)); ((r.j && r.j.data && r.j.data.granular_scopes) || []).forEach((g: any) => { if (/whatsapp_business/.test(g.scope || "")) (g.target_ids || []).forEach((x: any) => { if (!ids.includes(String(x))) ids.push(String(x)); }); }); }
+  return ids;
+}
+async function readWaba(id: string) {
+  const [info, ph, tp] = await Promise.all([gget("/" + id + "?fields=name"), gget("/" + id + "/phone_numbers?fields=id,display_phone_number,verified_name"), gget("/" + id + "/message_templates?fields=name,status,language,category&limit=200")]);
+  const phones = ((ph.j && ph.j.data) || []).map((p: any) => ({ id: String(p.id), display: p.display_phone_number || "", name: p.verified_name || "" })), templates = ((tp.j && tp.j.data) || []).map((t: any) => ({ name: t.name, status: t.status, language: t.language, category: t.category }));
+  return { id, name: (info.j && info.j.name) || "", phones, hasPhone: phones.some((p: any) => p.id === String(PHONE_ID)), templates, readError: !ph.ok ? ((ph.j && ph.j.error && ph.j.error.message) || "could not read") : null };
+}
+/* WHY can a template not be found? Looks at your WhatsApp accounts and says which one owns your number and what it contains. */
+async function diagnose() {
+  if (!TOKEN || !PHONE_ID) return { ok: false, error: "WhatsApp is not set up yet (missing token or phone number ID)." };
+  const ids = await findWabas();
+  if (!ids.length) return { ok: true, found: false, advice: ["I could not read your WhatsApp accounts with the current token (it needs the whatsapp_business_management permission). Either create the token again from a System User with full access to the WhatsApp account, or add the Supabase secret WHATSAPP_WABA_ID with your WhatsApp Business Account ID."] };
+  const wabas = await Promise.all(ids.map(readWaba)), mine = wabas.find((w) => w.hasPhone) || null, ours = new Set(TEMPLATE_DEFS.map((d) => d.name));
+  const advice: string[] = [], inMine = mine ? mine.templates.filter((t: any) => ours.has(t.name)) : [], haveNames = new Set(inMine.map((t: any) => t.name));
+  const missing = mine ? TEMPLATE_DEFS.filter((d) => !haveNames.has(d.name)).map((d) => d.name) : TEMPLATE_DEFS.map((d) => d.name);
+  const notApproved = inMine.filter((t: any) => t.status !== "APPROVED").map((t: any) => `${t.name} (${t.status})`);
+  const elsewhere = wabas.filter((w) => !w.hasPhone).flatMap((w) => w.templates.filter((t: any) => ours.has(t.name)).map((t: any) => t.name + " (in \"" + (w.name || w.id) + "\")"));
+  if (!mine) advice.push(`Your number (phone number ID ${PHONE_ID}) is not in any account this token can read. Accounts seen: ${wabas.map((w) => (w.name || w.id) + " [" + w.phones.map((p: any) => p.display).join(", ") + "]").join("; ")}. The token or the phone number ID in the Supabase secrets belongs to a different account.`);
+  else {
+    advice.push(`Your number ${(mine.phones.find((p: any) => p.id === String(PHONE_ID)) || {}).display || ""} is in the account "${mine.name || mine.id}".`);
+    if (missing.length) advice.push(`${missing.length} of ${TEMPLATE_DEFS.length} templates do NOT exist in that account: ${missing.join(", ")}. That is why messages fail with "Template name does not exist". Press "Create the missing templates" and they are submitted to Meta in the right account.`);
+    if (elsewhere.length) advice.push(`Templates with the right names exist in another account (${Array.from(new Set(elsewhere)).slice(0, 6).join(", ")}). They cannot be used by your number: that is the mismatch.`);
+    if (notApproved.length) advice.push(`Waiting for Meta: ${notApproved.join(", ")}. A template that is not Active cannot send yet.`);
+    if (!missing.length && !notApproved.length) advice.push("All templates exist and are approved in the right account.");
+  }
+  return { ok: true, found: true, phoneId: String(PHONE_ID), match: mine ? mine.id : null, accounts: wabas.map((w) => ({ id: w.id, name: w.name, phones: w.phones, hasPhone: w.hasPhone, templates: w.templates.length })), templates: TEMPLATE_DEFS.map((d) => { const t = inMine.find((x: any) => x.name === d.name); return { name: d.name, status: t ? t.status : "MISSING", language: t ? t.language : "" }; }), missing, notApproved, advice };
+}
+/* submit the missing templates to Meta, in the account that owns the number */
+async function createTemplates(b: any) {
+  const d = await diagnose(); if (!d.ok) return d; if (!d.found || !d.match) return { ok: false, error: "Could not find the account that owns your number, so nothing was created.", advice: d.advice };
+  const want = Array.isArray(b.names) && b.names.length ? new Set(b.names) : null, todo = TEMPLATE_DEFS.filter((t) => d.missing.includes(t.name) && (!want || want.has(t.name))), out: any[] = [];
+  for (const t of todo) {
+    const vars = (t.body.match(/\{\{\d+\}\}/g) || []).length, components: any[] = [{ type: "BODY", text: t.body, ...(vars ? { example: { body_text: [t.params.slice(0, vars).map(sampleFor)] } } : {}) }];
+    if (t.buttons && t.buttons.length) components.push({ type: "BUTTONS", buttons: t.buttons.map((x: string) => ({ type: "QUICK_REPLY", text: x })) });
+    const r = await graph("/" + d.match + "/message_templates", { name: t.name, language: "en_GB", category: t.category, components });
+    out.push({ name: t.name, ok: r.ok, status: r.ok && r.j ? r.j.status || "PENDING" : null, error: r.ok ? null : ((r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "Meta error " + r.status) });
+  }
+  return { ok: true, account: d.match, created: out.filter((x) => x.ok).length, failed: out.filter((x) => !x.ok).length, results: out, note: todo.length ? "Submitted to Meta for review. Most are approved within hours." : "Nothing to create: every template already exists in the right account." };
+}
+
 /* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
 const OUR_TEMPLATES = ["dsq_instructor_balance", "dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
 async function templateStatus() {
-  const waba = env("WHATSAPP_WABA_ID") || env("WHATSAPP_BUSINESS_ACCOUNT_ID") || env("WA_BUSINESS_ID");
   if (!TOKEN) return { ok: true, needToken: true, templates: [] };
-  if (!waba) return { ok: true, needWaba: true, templates: [] };
-  const r = await graph("/" + waba + "/message_templates?fields=name,status,language,category,rejected_reason&limit=200");
-  if (!r.ok) return { ok: false, error: (r.j && r.j.error && r.j.error.message) || "Meta error " + r.status };
-  const have: any[] = (r.j && r.j.data) || [];
-  return { ok: true, templates: OUR_TEMPLATES.map((n) => { const m = have.filter((t: any) => t.name === n), good = m.find((t: any) => t.status === "APPROVED") || m[0]; return { name: n, status: good ? good.status : "MISSING", language: good ? good.language : "", reason: good && good.rejected_reason && good.rejected_reason !== "NONE" ? good.rejected_reason : "" }; }) };
+  const d = await diagnose(); if (!d.ok) return d;
+  if (!d.found) return { ok: true, needWaba: true, templates: [] };
+  if (!d.match) return { ok: true, notInAccount: true, advice: d.advice, templates: [] };
+  return { ok: true, templates: d.templates.map((t: any) => ({ name: t.name, status: t.status, language: t.language, reason: "" })), account: d.match, advice: d.advice, missing: d.missing };
 }
 
 async function autoAssign(sb: any, body: any) {
@@ -889,6 +1098,8 @@ serve(async (req) => {
     }
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());
+    if (b.action === "diagnose") return json(await diagnose());
+    if (b.action === "create_templates") return json(await createTemplates(b));
   } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }
   return json({ ok: false, error: "Unknown action" }, 400);
 });
