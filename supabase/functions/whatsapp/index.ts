@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-ai-assistant-4";
+const FN_VERSION = "2026-11-22-ai-assistant-5";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1197,7 +1197,11 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   const num = waNumber(from), since = Date.now() - 864e5;
   const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone").eq("to_phone", num);
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
-  if (day.some((x: any) => x.template === "ai_handoff" || x.template === "ai_booked")) return "handled";   // a person (or the booking) already has this conversation today: stay quiet
+  if (day.some((x: any) => x.template === "ai_handoff" || x.template === "ai_booked")) {   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
+    const booked = day.some((x: any) => x.template === "ai_booked");
+    await attention(sb, cfg, { kind: "ai_handoff", title: `New WhatsApp message from ${profileName || num}${booked ? " (after their booking)" : ""}`, detail: `"${String(text).slice(0, 200)}". Their number: ${num}. Reply to them yourself on WhatsApp.`, waiting_id: "ai-msg-" + num + "-" + londonYMD(Date.now()).d });
+    return "handled: told you (alert), the assistant stays quiet";
+  }
   const ins = day.filter((x: any) => x.direction === "in").length;
   const callsToday = (await sb.from("wa_log").select("id").eq("template", "ai_assistant").gte("created_at", new Date(londonMidnightToday()).toISOString())).data || [];
   const handoff = async (reason: string, say = "Thanks! I've asked a member of our team to message you shortly.") => {

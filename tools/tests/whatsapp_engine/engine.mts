@@ -497,6 +497,7 @@ console.log("== 42. AI booking assistant ==");
   ok(/passed your details/.test(textsTo(STU)[0] || ""), "the student gets one fixed confirmation (no free-text promises)");
   CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(wl.id)), "auto-assign then picks the assistant's booking up");
   CALLS.length = 0; globalThis.CLAUDE_Q = [say("should not be sent")]; await hook({ from: STU }, "thanks!"); ok(!CALLS.some((c) => c.claude) && textsTo(STU).length === 0, "after the booking it stays quiet (no second answer)");
+  ok(DB.admin_attention.some((x) => x.kind === "ai_handoff" && /after their booking/.test(x.title) && /thanks!/.test(x.detail)), "...but you are told about their new message (nobody is ignored)");
   const S2 = "447922222222"; globalThis.CLAUDE_Q = [tool("create_booking", { name: "Joe Bloggs", postcode: "ZZ99 9ZZ", gearbox: "manual" })]; CALLS.length = 0; await hook({ from: S2 }, "Joe Bloggs ZZ99 9ZZ manual");
   ok(!DB.waiting_list.some((w) => /Joe/.test(w.student_name)) && /postcode/i.test(textsTo(S2)[0] || ""), "an unknown postcode is not saved: the student is asked again");
   globalThis.CLAUDE_Q = [tool("create_booking", { name: "Joe Bloggs", postcode: "M13 9AA", gearbox: "manual" })]; CALLS.length = 0; await hook({ from: S2 }, "sorry M13 9AA");
@@ -625,7 +626,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-4", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-5", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
