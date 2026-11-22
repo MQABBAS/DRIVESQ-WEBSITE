@@ -483,3 +483,9 @@ cfgOf().mode = "suggest";
 DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = [W("Upd Una", "M13 9AA", "— UPDATED request", { student_phone: "07811404040" })]; cfgOf().mode = "assign"; cfgOf().enabled = true;
 await call({ action: "auto_assign", cron: true });
 ok(DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state === "pending_accept", "an 'UPDATED request' whose first copy was never processed is handled normally (" + (DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state) + ")");
+
+console.log("== 39. Plain-words hint when a template is missing ==");
+globalThis.FAIL_TEMPLATES.add("dsq_student_offer"); cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; cfgOf().mode = "assign"; cfgOf().enabled = true; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = [];
+DB.waiting_list = [W("Hint Hal", "M13 9AA", "", { student_phone: "07866 787878" })]; await call({ action: "auto_assign", cron: true });
+ok(DB.admin_attention.some((a) => /SAME WhatsApp Business Account/.test(a.detail)) && DB.auto_assign_jobs[0].state === "attention", "a missing template tells you to check it is in the SAME WhatsApp account, English (UK)");
+globalThis.FAIL_TEMPLATES.clear();

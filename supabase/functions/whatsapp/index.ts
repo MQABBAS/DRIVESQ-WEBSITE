@@ -79,7 +79,10 @@ async function sendTemplate(sb: any, b: any) {
     if (r.ok || !(r.j && r.j.error && r.j.error.code === 132001)) break;
   }
   const id = r.j && r.j.messages && r.j.messages[0] && r.j.messages[0].id || null;
-  const err = r.ok ? null : ((r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "WhatsApp error " + r.status);
+  let err = r.ok ? null : ((r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "WhatsApp error " + r.status);
+  // the most common set-up mistake: say what to check, in plain words
+  if (!r.ok && r.j && r.j.error && r.j.error.code === 132001) err += `. Check that "${name}" exists AND is Active in the SAME WhatsApp Business Account as the number you send from, with this exact name and the language English (UK).`;
+  if (!r.ok && r.j && r.j.error && (r.j.error.code === 131030 || /not in allowed list|not public/i.test(String(r.j.error.message || "")))) err += ". Meta says this number is not allowed yet: add it as a test recipient, or switch the Meta app to Live mode.";
   await sb.from("wa_log").insert([{ direction: "out", wa_message_id: id, to_phone: to, template: name, body: (b.params || []).map((x: any) => String(x == null ? "" : x).replace(/\s+/g, " ")).join(" · ").slice(0, 900), status: r.ok ? "sent" : "failed", error: err, instructor_id: b.instructor_id || null, referral_id: b.referral_id || null, student_name: b.student_name || null }]);
   return r.ok ? { ok: true, id, to } : { ok: false, error: err, code: r.j && r.j.error && r.j.error.code };
 }
