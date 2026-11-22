@@ -32,7 +32,8 @@ globalThis.fetch = async (url, opts) => {
   if (u.includes("send-push")) { CALLS.push({ push: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({}) }; }
   if (u.includes("graph.facebook.com") && globalThis.GRAPH) {   // a fake Meta: accounts, phone numbers, templates
     const G = globalThis.GRAPH, path = u.split("graph.facebook.com/")[1].replace(/^v[\d.]+\//, ""), method = (opts && opts.method) || "GET";
-    if (path.startsWith("debug_token")) return { ok: true, status: 200, json: async () => ({ data: { granular_scopes: [{ scope: "whatsapp_business_management", target_ids: G.wabas.map((w) => w.id) }, { scope: "business_management", target_ids: ["B1"] }] } }) };
+    if (path.startsWith("debug_token")) return { ok: true, status: 200, json: async () => ({ data: { app_id: "APP1", granular_scopes: [{ scope: "whatsapp_business_management", target_ids: G.wabas.map((w) => w.id) }, { scope: "business_management", target_ids: ["B1"] }] } }) };
+    if (/\/subscribed_apps$/.test(path)) { G.subs = G.subs || []; if (method === "POST") { G.subs.push({ whatsapp_business_api_data: { id: "APP1", name: "DriveSQ Admin" } }); return { ok: true, status: 200, json: async () => ({ success: true }) }; } return { ok: true, status: 200, json: async () => ({ data: G.subs }) }; }
     const m = path.match(/^(\w+)(\/phone_numbers|\/message_templates)?/); const w = m && G.wabas.find((x) => x.id === m[1]);
     if (w) {
       if (m[2] === "/phone_numbers") return { ok: true, status: 200, json: async () => ({ data: w.phones }) };

@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-ai-assistant-3";
+const FN_VERSION = "2026-11-22-ai-assistant-4";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -801,6 +801,21 @@ async function readWaba(id: string) {
   const phones = ((ph.j && ph.j.data) || []).map((p: any) => ({ id: String(p.id), display: p.display_phone_number || "", name: p.verified_name || "" })), templates = ((tp.j && tp.j.data) || []).map((t: any) => ({ name: t.name, status: t.status, language: t.language, category: t.category }));
   return { id, name: (info.j && info.j.name) || "", phones, hasPhone: phones.some((p: any) => p.id === String(PHONE_ID)), templates, readError: !ph.ok ? ((ph.j && ph.j.error && ph.j.error.message) || "could not read") : null };
 }
+/* Is this Meta app subscribed to the WhatsApp account that owns your number? Without it Meta never sends incoming messages (replies, button taps) to the webhook, even when the webhook URL is correct. fix = subscribe it. */
+async function webhookCheck(fix: boolean) {
+  if (!TOKEN || !PHONE_ID) return { ok: false, error: "WhatsApp is not set up yet (missing token or phone number ID)." };
+  const ids = await findWabas(); if (!ids.length) return { ok: false, error: "I could not read your WhatsApp accounts with the current token (it needs the whatsapp_business_management permission), or the WHATSAPP_WABA_ID secret is missing." };
+  const wabas = await Promise.all(ids.map(readWaba)), mine = wabas.find((w) => w.hasPhone); if (!mine) return { ok: false, error: "Your number (phone number ID " + PHONE_ID + ") is not in any WhatsApp account this token can read." };
+  const dbg = await graph("/debug_token?input_token=" + encodeURIComponent(TOKEN)), appId = String((dbg.j && dbg.j.data && dbg.j.data.app_id) || "");
+  const list = await gget("/" + mine.id + "/subscribed_apps"); if (!list.ok) return { ok: false, error: (list.j && list.j.error && list.j.error.message) || "Meta would not show the subscriptions", waba: mine.name || mine.id };
+  const apps = ((list.j && list.j.data) || []).map((a: any) => ({ id: String((a.whatsapp_business_api_data && a.whatsapp_business_api_data.id) || a.id || ""), name: (a.whatsapp_business_api_data && a.whatsapp_business_api_data.name) || a.name || "", override: a.override_callback_uri || (a.whatsapp_business_api_data && a.whatsapp_business_api_data.override_callback_uri) || "" }));
+  let subscribed = appId ? apps.some((a: any) => a.id === appId) : apps.length > 0, fixed = false, err = "";
+  if (!subscribed && fix) { const r = await graph("/" + mine.id + "/subscribed_apps", {}); if (r.ok && (!r.j || r.j.success !== false)) { subscribed = true; fixed = true; } else err = (r.j && r.j.error && r.j.error.message) || "Meta refused"; }
+  const override = apps.find((a: any) => a.override && a.override.indexOf("/functions/v1/whatsapp") < 0);
+  const advice: string[] = [subscribed ? (fixed ? `✅ Done: your Meta app is now subscribed to "${mine.name || mine.id}", so incoming WhatsApp messages and button taps will reach this system.` : `✅ Your Meta app is subscribed to "${mine.name || mine.id}".`) : `❌ Your Meta app is NOT subscribed to "${mine.name || mine.id}", so Meta does not send incoming messages here.${err ? " " + err : " Press the button to fix it."}`];
+  if (override) advice.push(`⚠️ This account sends its messages to a different address (${override.override}) instead of the webhook you set in the app. Ask me to remove that override.`);
+  return { ok: true, subscribed, fixed, waba: mine.name || mine.id, apps, advice, error: err || null };
+}
 /* WHY can a template not be found? Looks at your WhatsApp accounts and says which one owns your number and what it contains. */
 async function diagnose() {
   if (!TOKEN || !PHONE_ID) return { ok: false, error: "WhatsApp is not set up yet (missing token or phone number ID)." };
@@ -1263,6 +1278,7 @@ serve(async (req) => {
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());
     if (b.action === "diagnose") return json(await diagnose());
+    if (b.action === "webhook_check") return json(await webhookCheck(!!b.fix));
     if (b.action === "create_templates") return json(await createTemplates(b));
   } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }
   return json({ ok: false, error: "Unknown action" }, 400);

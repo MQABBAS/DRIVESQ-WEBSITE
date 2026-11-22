@@ -513,6 +513,11 @@ console.log("== 42. AI booking assistant ==");
     ok(!CALLS.some((c) => c.claude), "live mode: a number saved as an instructor is never answered"); cfgOf().adminPhone = "07700900999"; }
   cfgOf().aiAssistant = false;
 }
+console.log("== 43. Is the Meta app subscribed to the WhatsApp account? ==");
+{ globalThis.GRAPH = { wabas: [{ id: "W9", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
+  let wc = await call({ action: "webhook_check" }); ok(wc.ok && wc.subscribed === false && /NOT subscribed/.test(wc.advice[0]), "not subscribed: it says so (" + wc.advice[0].slice(0, 60) + ")");
+  wc = await call({ action: "webhook_check", fix: true }); ok(wc.ok && wc.subscribed && wc.fixed && /Done/.test(wc.advice[0]), "fix: the app is subscribed to the account");
+  wc = await call({ action: "webhook_check" }); ok(wc.subscribed && !wc.fixed && /is subscribed/.test(wc.advice[0]), "afterwards it reports subscribed"); delete globalThis.GRAPH; }
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -620,7 +625,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-3", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-4", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
