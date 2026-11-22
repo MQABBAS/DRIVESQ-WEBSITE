@@ -527,3 +527,6 @@ globalThis.GRAPH.wabas[1].templates = []; globalThis.GRAPH.failCreate = ["dsq_bo
 ok(part.created === 12 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
 globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: "diagnose" }); ok(dg.match === null && dg.advice.some((a) => /not in any account/.test(a)), "if the token cannot see the number's account, it says so");
 delete globalThis.GRAPH;
+
+console.log("== 42. Version stamp ==");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-diagnose", "the status call reports the function version (" + stv.version + ")");

@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var TAB = 'overview', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-22-diagnose', TAB = 'overview', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -174,6 +174,8 @@
   }
   async function readiness() {
     var c = DATA.cfg, items = [], add = function (level, title, detail, fix) { items.push({ level: level, title: title, detail: detail, fix: fix || '' }); };
+    var fnv = DATA.wast && DATA.wast.version;
+    add(fnv === WANT_FN ? 'ok' : 'bad', 'The WhatsApp function in Supabase is up to date', fnv === WANT_FN ? 'Version ' + fnv : (fnv ? 'Deployed version ' + fnv + ', latest is ' + WANT_FN : 'It has no version number, so it is an OLD copy'), fnv === WANT_FN ? '' : 'Open Supabase → Edge Functions → whatsapp, select all, paste the LATEST whatsapp file I sent, and press Deploy. Until then Diagnose and Create templates show "Unknown action".');
     var wa = DATA.wast && DATA.wast.ok && DATA.wast.ready && !DATA.wast.error;
     add(wa ? 'ok' : 'bad', 'WhatsApp is connected', wa ? ((DATA.wast.phone && (DATA.wast.phone.display_phone_number || '')) + ' ' + ((DATA.wast.phone && DATA.wast.phone.verified_name) || '')).trim() : (DATA.wast && DATA.wast.error) || 'Not connected', wa ? '' : 'Open the WhatsApp settings and follow the set-up steps (token and phone number ID in Supabase secrets).');
     var tp = null; try { tp = await DSQWA.call({ action: 'templates' }); } catch (e) { } TPLS = tp;

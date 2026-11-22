@@ -17,6 +17,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
+const FN_VERSION = "2026-11-22-diagnose";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -117,7 +119,6 @@ const DEFAULT_CFG = {
   replyMinutes: 90,                // how long an instructor has to accept an offer before it goes to the next instructor
   autoAssignAfterMinutes: 35,      // no reply after this long AND the instructor's covered postcodes include the student's area: assign anyway (they are probably in a lesson). 0 = off
   concurrency: 5,                  // how many bookings are worked on AT THE SAME TIME (each one is looked up, ranked and messaged independently)
-  maxPerDay: 40,                   // safety: never start more than this many new bookings in one UK day (a runaway or a spam wave stops here and tells you)
   maxPerDay: 40,                   // safety: never start more than this many new bookings in one UK day. A runaway or a spam wave stops here and tells you (0 = no cap)
   maxPerRun: 10,                    // at most this many new bookings are started in one run (every 2 minutes), so a rush never floods the instructors
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
@@ -1087,7 +1088,7 @@ serve(async (req) => {
     if (b.action === "status") {
       const have = { token: !!TOKEN, phone_id: !!PHONE_ID, verify_token: !!VERIFY, app_secret: !!APP_SECRET }; let phone = null, err = null;
       if (TOKEN && PHONE_ID) { const r = await graph("/" + PHONE_ID + "?fields=display_phone_number,verified_name,quality_rating"); if (r.ok) phone = r.j; else err = (r.j && r.j.error && r.j.error.message) || "Meta rejected the token"; }
-      return json({ ok: true, configured: have, ready: have.token && have.phone_id, webhook_ready: have.verify_token && have.app_secret, phone, error: err });
+      return json({ ok: true, version: FN_VERSION, configured: have, ready: have.token && have.phone_id, webhook_ready: have.verify_token && have.app_secret, phone, error: err });
     }
     if (b.action === "send_template") return json(await sendTemplate(sb, b));
     if (b.action === "test") return json(await sendTemplate(sb, { to: b.to, template: "hello_world", lang: "en_US", params: [] }));
