@@ -741,6 +741,9 @@ async function loop(sb, req, body) {
 
 // ==== GENERATED ==== END
 
+/* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
+function background(p) { try { const er = globalThis.EdgeRuntime; if (er && typeof er.waitUntil === "function") { er.waitUntil(p); return true; } } catch (_) { /* not available */ } return false; }
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   const url = new URL(req.url);
@@ -772,10 +775,10 @@ serve(async (req) => {
     const last = await sb.from("growth_settings").select("value").eq("key", "monday_last").maybeSingle();
     return json({ ok: true, from: FROM, replyTo: REPLY_TO || null, resend: !!RESEND_KEY, service: !!SERVICE_KEY, features: ["monday", "nurture", "loop", "welcome"], monday_last: (last.data && last.data.value) || null });
   }
-  if (body.action === "loop") { try { return json(await loop(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
-  if (body.action === "welcome") { try { return json(await welcome(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
-  if (body.action === "nurture") { try { return json(await nurture(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
-  if (body.action === "monday") { try { return json(await monday(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
+  if (body.action === "loop") { try { if (body.cron && !body.dry && !body.test_to) { const pr = loop(sb, req, body).catch((e) => console.error("loop", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); } return json(await loop(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
+  if (body.action === "welcome") { try { if (body.cron && !body.dry && !body.test_to) { const pr = welcome(sb, req, body).catch((e) => console.error("welcome", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); } return json(await welcome(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
+  if (body.action === "nurture") { try { if (body.cron && !body.dry && !body.test_to) { const pr = nurture(sb, req, body).catch((e) => console.error("nurture", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); } return json(await nurture(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
+  if (body.action === "monday") { try { if (body.cron && !body.dry && !body.test_to) { const pr = monday(sb, req, body).catch((e) => console.error("monday", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); } return json(await monday(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
   if (body.action !== "send") return json({ ok: false, error: "Unknown action" }, 400);
   if (!RESEND_KEY) return json({ ok: false, error: "RESEND_API_KEY is not set" }, 500);
 

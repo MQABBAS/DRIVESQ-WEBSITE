@@ -850,6 +850,9 @@ async function webhook(sb: any, raw: string) {
   }
 }
 
+/* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
+function background(p: Promise<any>) { try { const er = (globalThis as any).EdgeRuntime; if (er && typeof er.waitUntil === "function") { er.waitUntil(p); return true; } } catch (_) { /* not available */ } return false; }
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   const url = new URL(req.url), sb = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -875,7 +878,11 @@ serve(async (req) => {
     }
     if (b.action === "send_template") return json(await sendTemplate(sb, b));
     if (b.action === "test") return json(await sendTemplate(sb, { to: b.to, template: "hello_world", lang: "en_US", params: [] }));
-    if (b.action === "auto_assign") return json(await autoAssign(sb, b));
+    if (b.action === "auto_assign") {
+      // Cron has only 5 seconds to wait, so it gets an immediate "accepted" and the work carries on in the background (the admin screen still waits for the full answer)
+      if (b.cron && !b.dry) { const pr = autoAssign(sb, b).catch((e) => console.error("auto_assign", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); }
+      return json(await autoAssign(sb, b));
+    }
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());
   } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }

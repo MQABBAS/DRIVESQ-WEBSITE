@@ -459,3 +459,13 @@ const jf = DB.auto_assign_jobs[0], insF = DB.instructors.find((i) => i.id === jf
 ok(sent("dsq_student_welcome_2").length === 0 && sent("dsq_student_welcome").length === 1, "welcome_2 not approved -> the student still gets the older welcome (" + sent("dsq_student_welcome").length + ")");
 ok(!DB.admin_attention.some((a) => a.kind === "msg_failed" && /welcome|Fall/.test(a.title)), "and no 'message failed' alert for it");
 globalThis.FAIL_TEMPLATES.clear();
+
+console.log("== 37. Cron gets an immediate answer; the work finishes in the background ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; cfgOf().dailyLimit = 0; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = {}; DB.instructors.forEach((i) => { i.coverage_postcodes = "M13"; });
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = [W("Bg Bea", "M13 9AA", "", { student_phone: "07866454545" })];
+const pending = []; globalThis.EdgeRuntime = { waitUntil: (p) => { pending.push(p); } };
+const accepted = await call({ action: "auto_assign", cron: true });
+ok(accepted.accepted === true && DB.auto_assign_jobs.length === 0, "the cron call is answered at once ('accepted') before any work is done");
+await Promise.all(pending); ok(DB.auto_assign_jobs.length === 1 && DB.auto_assign_jobs[0].state === "pending_accept", "the booking is then handled in the background (offer pending)");
+const manual = await call({ action: "auto_assign", dry: true }); ok(manual.dry === true && Array.isArray(manual.results), "the admin screen still gets the full answer when it asks (preview)");
+delete globalThis.EdgeRuntime;
