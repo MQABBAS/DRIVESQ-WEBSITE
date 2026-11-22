@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-ai-assistant";
+const FN_VERSION = "2026-11-22-ai-assistant-2";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1176,7 +1176,8 @@ async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant") {
 async function assistantReply(sb: any, from: string, text: string, profileName: string) {
   const cfg = await loadCfg(sb); if (!cfg.aiAssistant || !ANTHROPIC_KEY || !TOKEN || !PHONE_ID) return "off";
   if (cfg.aiTestOnly && !(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone))) return "test-only";
-  if (await instructorByPhone(sb, from)) return "instructor";
+  const isAdminPhone = !!(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone));   // you can test from your own number even if it is also saved as an instructor (e.g. a test "Admin" instructor)
+  if (!(cfg.aiTestOnly && isAdminPhone) && await instructorByPhone(sb, from)) return "instructor";
   const num = waNumber(from), since = Date.now() - 864e5;
   const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone").eq("to_phone", num);
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));

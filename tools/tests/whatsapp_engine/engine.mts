@@ -508,6 +508,9 @@ console.log("== 42. AI booking assistant ==");
   ok(textsTo(S4).length === 0 && DB.admin_attention.some((a) => a.kind === "ai_error"), "if Claude is unavailable the student gets nothing wrong and you get an alert");
   const ins = DB.instructors[0]; CALLS.length = 0; globalThis.CLAUDE_Q = [say("x")]; await hook({ from: "44" + ins.phone.replace(/^0/, "") }, "I am running late today"); ok(!CALLS.some((c) => c.claude), "a message from an instructor is never sent to the assistant");
   const S5 = "447955555555"; CALLS.length = 0; await hook({ from: S5 }, "[image]"); ok(CALLS.some((c) => c.claude) === false, "(media is handled without calling Claude)");
+  { const i0 = DB.instructors[0]; cfgOf().aiTestOnly = true; cfgOf().adminPhone = i0.phone; CALLS.length = 0; globalThis.CLAUDE_Q = [say("Hello admin")]; await hook({ from: "44" + i0.phone.replace(/^0/, "") }, "test");
+    ok(CALLS.some((c) => c.claude), "test mode: your own number is answered even if it is also saved as an instructor"); cfgOf().aiTestOnly = false; CALLS.length = 0; globalThis.CLAUDE_Q = [say("x")]; await hook({ from: "44" + i0.phone.replace(/^0/, "") }, "late");
+    ok(!CALLS.some((c) => c.claude), "live mode: a number saved as an instructor is never answered"); cfgOf().adminPhone = "07700900999"; }
   cfgOf().aiAssistant = false;
 }
 console.log("== 34c. Billing thresholds from the control centre ==");
@@ -617,7 +620,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-2", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
