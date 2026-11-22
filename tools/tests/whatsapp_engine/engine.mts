@@ -449,3 +449,13 @@ const j35 = DB.auto_assign_jobs[0], first35 = j35.instructor_id; j35.expires_at 
 ok(j35.state === "pending_accept" && j35.instructor_id === first35, "80 minutes with no reply: still waiting for the first instructor");
 j35.expires_at = new Date(Date.now() - 95 * 60000).toISOString(); await call({ action: "auto_assign", cron: true });
 ok(j35.state === "pending_accept" && j35.instructor_id !== first35, "95 minutes: moved on to the next instructor (" + first35 + " -> " + j35.instructor_id + ")");
+
+console.log("== 36. Welcome falls back to the older template until _2 is approved ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().messageStudent = true; cfgOf().maxPerDay = 500; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = {};
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = []; DB.instructors.forEach((i) => { i.coverage_postcodes = "M13"; });
+globalThis.FAIL_TEMPLATES.add("dsq_student_welcome_2");
+DB.waiting_list = [W("Fall Fay", "M13 9AA", "", { student_phone: "07877121212" })]; await call({ action: "auto_assign", cron: true });
+const jf = DB.auto_assign_jobs[0], insF = DB.instructors.find((i) => i.id === jf.instructor_id); await hook({ from: "44" + insF.phone.replace(/^0/, ""), p: "OFFER_ACCEPT:" + jf.id });
+ok(sent("dsq_student_welcome_2").length === 0 && sent("dsq_student_welcome").length === 1, "welcome_2 not approved -> the student still gets the older welcome (" + sent("dsq_student_welcome").length + ")");
+ok(!DB.admin_attention.some((a) => a.kind === "msg_failed" && /welcome|Fall/.test(a.title)), "and no 'message failed' alert for it");
+globalThis.FAIL_TEMPLATES.clear();

@@ -394,7 +394,9 @@ async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: a
   const { data: wc } = await sb.from("growth_settings").select("value").eq("key", "whatsapp_cfg").maybeSingle(); if (wc && wc.value && wc.value.student === false) return "";
   const { data: cur } = await sb.from("referrals").select("admin_notes").eq("id", ref.id).maybeSingle(); if (String((cur && cur.admin_notes) || ref.notes || "").includes("💬 Student welcomed")) return "";
   const iw = waNumber(c.phone), link = iw ? "https://wa.me/" + iw : "their phone number above";   // a tappable WhatsApp link to the instructor
-  const r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome_2", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone", link], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
+  let r2 = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome_2", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone", link], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
+  // until dsq_student_welcome_2 is approved, the older welcome (name, instructor, phone) is used so the student is never left without one
+  if (!r2.ok) { const old = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_welcome", lang: "en_GB", params: [first(ref.student_name), c.name, fmtPhone(c.phone) || "their phone"], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name }); if (old.ok) r2 = old; }
   if (r2.ok) {
     const n = String((cur && cur.admin_notes) || ""), lines = [`${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`];
     // right after the welcome: the terms & conditions link and the key rules (once per student)
