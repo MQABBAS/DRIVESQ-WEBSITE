@@ -1,0 +1,10 @@
+const fs=require('fs');const s=fs.readFileSync(__dirname+'/../../admin.html','utf8');
+const i=s.indexOf('function wlFillFromPaste(){'),j=s.indexOf('function openAddWaitlistModal(){');
+const fn=s.slice(i,j);
+const run=(text)=>{const els={};['wl-paste','wl-name','wl-phone','wl-postcode','wl-avail','wl-area','wl-notes','wl-auto'].forEach(k=>els[k]={value:'',checked:false});els['wl-type']={value:'Manual'};els['wl-paste'].value=text;
+ const f=new Function('document','showToast',fn+';return wlFillFromPaste;')({getElementById:k=>els[k]},()=>{});f();return els;};
+const chk=(l,c)=>console.log((c?'PASS':'FAIL')+' '+l);
+let e=run('Name: Sam Khan\nPhone: 07700 900123\nPostcode: m13 9aa\nGearbox: Automatic\nAvailability: weekday evenings\nHe is nervous');
+chk('labelled',e['wl-name'].value==='Sam Khan'&&e['wl-phone'].value==='07700 900123'&&e['wl-postcode'].value==='M13 9AA'&&e['wl-type'].value==='Automatic'&&e['wl-avail'].value==='weekday evenings'&&/nervous/.test(e['wl-notes'].value)&&e['wl-auto'].checked);
+e=run('Priya Patel\nHi I want lessons, I live at LS1 3AD, call me on +44 7700 900456, manual');
+chk('free text',e['wl-name'].value==='Priya Patel'&&e['wl-postcode'].value==='LS1 3AD'&&/7700 900456/.test(e['wl-phone'].value)&&e['wl-type'].value==='Manual');

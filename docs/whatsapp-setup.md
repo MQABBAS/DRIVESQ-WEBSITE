@@ -85,3 +85,6 @@ It emails every NEW website booking that left an email address, once per address
 - Control centre → Instructors → ⚙ Settings: for ONE instructor set who they teach (anyone / women only / men only), priority, furthest distance, most per day / week, hard weekly cap, weekly minimum, a holiday pause date, Ignore + reason. Empty = general setting. Every change is written to Activity.
 - Women/men only: the student's gender is read from a "Student gender: female" line on the booking, then from titles and what they wrote, then from the first name (lists of common UK, South Asian, Arabic, African, European names). Unclear or unisex names (e.g. Noor) are never guessed: that instructor is skipped and you get the usual alert.
 - Activity shows every move: offered, no answer, accepted, declined, assigned, alerts, balance reminders, settings changes, WhatsApps.
+
+## WhatsApp enquiries collected by the Meta AI
+Admin → Waiting List → Add: paste what the AI collected, press ✨ Fill in, check it, keep "🤖 Let auto-assign find an instructor" ticked, Add. The entry is tagged [WHATSAPP] [AUTO] and auto-assign handles it like a website booking. Unticked = handled by hand (auto-assign ignores it).

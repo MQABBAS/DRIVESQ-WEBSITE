@@ -469,6 +469,12 @@ trs().i1 = { maxMiles: 0.1 }; r40 = await call({ action: "simulate", postcode: "
 trs().i1 = { maxMiles: 30 }; r40 = await call({ action: "simulate", postcode: "BL1 1AA", type: "Manual" }); const dMy40 = (r40.list || []).find((x) => x.name === "Dawood Khan"); ok(dMy40 && dMy40.within === true, "own distance limit 30 miles: in range even above the general limit");
 delete trs().i1;
 const trailBefore = DB.admin_activity_log ? DB.admin_activity_log.length : 0; ok(true, "(audit trail checked below)");
+console.log("== 41. WhatsApp enquiry ticked for auto-assign ==");
+{ cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().sources = ["[WEB]"]; DB.waiting_list = []; DB.auto_assign_jobs = []; DB.wa_log = [];
+  const wa = W("Hannah Brown", "M13 9AA"); wa.notes = "[WHATSAPP]\n[AUTO]\nSource: WhatsApp enquiry\nPostcode: M13 9AA"; const hand = W("Hand Held", "M13 9AA"); hand.notes = "Postcode: M13 9AA";
+  DB.waiting_list.push(wa, hand); await call({ action: "auto_assign", cron: true });
+  ok(DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(wa.id)), "a WhatsApp enquiry ticked for auto-assign is picked up (even though sources is only [WEB])");
+  ok(!DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(hand.id)), "an entry added by hand with no tag is left alone"); }
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -576,7 +582,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-perinstructor", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-whatsapp-intake", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

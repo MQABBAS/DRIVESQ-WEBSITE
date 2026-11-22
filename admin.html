@@ -11267,7 +11267,23 @@ async function addToWaitlist(){
   showToast(`✅ ${name} added to waiting list.`,'success');
   if(document.getElementById('waitlistList'))loadWaitlist();
 }
+/* read what the WhatsApp AI collected (labelled lines, or free text) and fill the form */
+function wlFillFromPaste(){
+  const t=String(document.getElementById('wl-paste').value||'').trim(); if(!t){showToast('Paste the enquiry first.','warn');return;}
+  const pick=re=>{const m=t.match(re);return m?m[1].trim():'';}, set=(id,v)=>{const el=document.getElementById(id);if(el&&v)el.value=v;};
+  let name=pick(/(?:^|\n)\s*(?:full\s*)?name\s*[:\-]\s*([^\n]+)/i);
+  const phone=pick(/(?:^|\n)\s*(?:phone|mobile|tel|number)[^:\n]*[:\-]\s*([+\d][\d\s()+-]{8,})/i)||((t.match(/(?:\+44|0)\s?7[\d\s]{9,12}/)||[''])[0]).trim();
+  let pc=pick(/(?:^|\n)\s*post\s*code\s*[:\-]\s*([^\n]+)/i)||((t.match(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i)||[''])[0]);
+  const gear=pick(/(?:^|\n)\s*(?:gearbox|transmission|lesson type|type)\s*[:\-]\s*([^\n]+)/i), av=pick(/(?:^|\n)\s*(?:availability|available)\s*[:\-]\s*([^\n]+)/i), addr=pick(/(?:^|\n)\s*(?:address|area|pick-?up)[^:\n]*[:\-]\s*([^\n]+)/i);
+  if(!name){const first=t.split('\n')[0].trim();if(first&&!/[:\d]/.test(first)&&first.length<50)name=first;}
+  set('wl-name',name);set('wl-phone',phone.replace(/\s+/g,' '));set('wl-postcode',pc.toUpperCase());set('wl-avail',av);set('wl-area',addr);
+  if(/auto/i.test(gear)||/\bautomatic\b/i.test(t))document.getElementById('wl-type').value='Automatic';else if(/intens/i.test(gear))document.getElementById('wl-type').value='Intensive';else if(gear||/\bmanual\b/i.test(t))document.getElementById('wl-type').value='Manual';
+  const used=/^\s*(?:full\s*)?(?:name|phone|mobile|tel|number|post\s*code|gearbox|transmission|lesson type|type|availability|available|address|area|pick)/i; const rest=t.split('\n').filter(l=>l.trim()&&!used.test(l)&&l.trim()!==name).join('\n').trim(); if(rest)set('wl-notes',rest);
+  const a=document.getElementById('wl-auto');if(a)a.checked=true;
+  showToast('Filled in. Check it, then Add.'+(pc?'':' No postcode found, please add it.'),'success');
+}
 function openAddWaitlistModal(){
+  {const pb=document.getElementById('wl-paste-box'),ab=document.getElementById('wl-auto-box'),pt=document.getElementById('wl-paste'),ac=document.getElementById('wl-auto');if(pb)pb.style.display='';if(ab)ab.style.display='';if(pt)pt.value='';if(ac)ac.checked=false;}
   ['wl-name','wl-phone','wl-postcode','wl-area','wl-avail','wl-notes','wl-edit-id'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('wl-type').value='Manual';
   const tt=document.getElementById('wl-title');if(tt)tt.innerHTML='<i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List';
@@ -11281,11 +11297,12 @@ async function editWaitlistEntry(id){
   _wlNormalise(r);
   const n=String(r.notes||'');
   const av=(n.match(/(?:^|\n)\s*Availability:\s*([^\n]+)/i)||[])[1]||'';
-  const cleanN=n.split('\n').filter(l=>!/^\s*(Availability:|Address:|Source:|Landing:|Page:|Email:|\[(WEB|CALL|WHATSAPP|OTHER)\])/i.test(l)).join('\n').trim();
+  const cleanN=n.split('\n').filter(l=>!/^\s*(Availability:|Address:|Source:|Landing:|Page:|Email:|\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\])/i.test(l)).join('\n').trim();
   const set=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
   set('wl-edit-id',r.id);set('wl-name',r.student_name);set('wl-phone',r.student_phone);set('wl-postcode',r.postcode);
   set('wl-area',_fcAddrOnly(r.area,r.postcode));set('wl-avail',av.trim());set('wl-notes',cleanN);
   const lt=document.getElementById('wl-type');if(lt)lt.value=['Manual','Automatic','Intensive'].includes(r.lesson_type)?r.lesson_type:'Manual';
+  {const pb=document.getElementById('wl-paste-box'),ab=document.getElementById('wl-auto-box');if(pb)pb.style.display='none';if(ab)ab.style.display='none';}
   const tt=document.getElementById('wl-title');if(tt)tt.innerHTML='<i class="bi bi-pencil-square me-2" style="color:#fbbf24"></i>Edit waiting list entry';
   const b=document.querySelector('#waitlistAddModal .btn-p');if(b)b.innerHTML='<i class="bi bi-check-lg me-1"></i>Save changes';
   openModal('waitlistAddModal');
@@ -11303,8 +11320,9 @@ async function saveWaitlistEntry(){
   // keep any machine lines that were already on the entry (Source, Landing, [WEB] tag, Email…)
   let keep='';
   if(editId){const{data:old}=await sb.from('waiting_list').select('notes').eq('id',editId).maybeSingle();
-    keep=String(old?.notes||'').split('\n').filter(l=>/^\s*(\[(WEB|CALL|WHATSAPP|OTHER)\]|Source:|Landing:|Page:|Email:)/i.test(l)&&userNotes.indexOf(l.trim())<0).join('\n');}
-  const notesStr=[keep,userNotes,avail?'Availability: '+avail:'',area?'Address: '+area:''].filter(Boolean).join('\n')||null;
+    keep=String(old?.notes||'').split('\n').filter(l=>/^\s*(\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\]|Source:|Landing:|Page:|Email:)/i.test(l)&&userNotes.indexOf(l.trim())<0).join('\n');}
+  const autoTag=(!editId&&document.getElementById('wl-auto')?.checked)?'[WHATSAPP]\n[AUTO]\nSource: WhatsApp enquiry':'';
+  const notesStr=[autoTag,keep,userNotes,avail?'Availability: '+avail:'',area?'Address: '+area:''].filter(Boolean).join('\n')||null;
   const full={
     student_name:name,
     student_phone:(document.getElementById('wl-phone').value||'').trim()||null,
@@ -14941,6 +14959,7 @@ function renderTheoryList(rows){
   <div class="dsq-modal">
     <button class="modal-x" onclick="closeModal('waitlistAddModal')"><i class="bi bi-x-lg"></i></button>
     <h5 id="wl-title"><i class="bi bi-person-lines-fill me-2" style="color:#fbbf24"></i>Add to Waiting List</h5><input type="hidden" id="wl-edit-id"/>
+    <div class="mb-2" id="wl-paste-box"><label class="dsq-lbl">💬 Paste the WhatsApp enquiry <span style="font-weight:400;color:var(--txt4)">(what the AI collected) and press Fill in</span></label><textarea class="dsq-inp" id="wl-paste" rows="3" placeholder="Name: Sam Khan&#10;Phone: 07700 900123&#10;Postcode: M13 9AA&#10;Gearbox: Manual&#10;Availability: weekday evenings"></textarea><button type="button" class="btn-s" style="margin-top:4px;font-size:.76rem" onclick="wlFillFromPaste()">✨ Fill in the form</button></div>
     <div class="mb-2"><label class="dsq-lbl">Full Name <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-name" placeholder="Student full name"/></div>
     <div class="mb-2"><label class="dsq-lbl">Phone</label><input class="dsq-inp" id="wl-phone" placeholder="07xxx xxx xxx" type="tel"/></div>
     <div class="mb-2"><label class="dsq-lbl">Postcode <span class="req-mark">*</span></label><input class="dsq-inp" id="wl-postcode" placeholder="e.g. M19 2PH" style="text-transform:uppercase"/></div>
@@ -14950,6 +14969,7 @@ function renderTheoryList(rows){
     </div>
     <div class="mb-2"><label class="dsq-lbl">Availability</label><input class="dsq-inp" id="wl-avail" placeholder="e.g. Weekday evenings, Saturdays"/></div>
     <div class="mb-3"><label class="dsq-lbl">Notes</label><textarea class="dsq-inp" id="wl-notes" rows="3" placeholder="Preferences, nerves, female instructor, anything useful…"></textarea></div>
+    <label class="mb-3" id="wl-auto-box" style="display:flex;gap:8px;align-items:flex-start;font-size:.82rem;cursor:pointer"><input type="checkbox" id="wl-auto" style="margin-top:3px"><span><b>🤖 Let auto-assign find an instructor</b> (WhatsApp enquiry). Leave unticked to handle this one by hand.</span></label>
     <button class="btn-p w-100" onclick="saveWaitlistEntry()"><i class="bi bi-plus-lg me-1"></i>Add to Waiting List</button>
   </div>
 </div>

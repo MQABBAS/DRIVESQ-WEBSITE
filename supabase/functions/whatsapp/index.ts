@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-perinstructor";
+const FN_VERSION = "2026-11-22-whatsapp-intake";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -899,7 +899,7 @@ async function autoAssign(sb: any, body: any) {
   const { data: waiting } = await sb.from("waiting_list").select("*").eq("status", "waiting").order("created_at", { ascending: true });
   const { data: jobs } = await sb.from("auto_assign_jobs").select("waiting_id,state");
   const handled = new Set((jobs || []).map((j: any) => String(j.waiting_id)));
-  const tags = (cfg.sources || ["[WEB]"]).map((t: string) => t.toLowerCase());
+  const tags = [...(cfg.sources || ["[WEB]"]), "[AUTO]"].map((t: string) => t.toLowerCase());   // [AUTO] = you ticked "Let auto-assign find an instructor" on a WhatsApp enquiry
   let dayLeft = 1e9;
   if (!dry && cfg.maxPerDay > 0) { const { data: dj } = await sb.from("auto_assign_jobs").select("id,created_at").gte("created_at", new Date(londonMidnightToday()).toISOString()); dayLeft = Math.max(0, cfg.maxPerDay - (dj || []).length); }
   const todo: any[] = [], deadline = t0 + 110000; const maxRun = Math.min(dayLeft, cfg.maxPerRun > 0 ? cfg.maxPerRun : 10), seenPhone = new Map<string, string>();
