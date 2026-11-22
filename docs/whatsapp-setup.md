@@ -74,3 +74,9 @@ Add the Supabase secret `WHATSAPP_WABA_ID` (your WhatsApp Business Account ID, s
 ## Welcome email when a website booking comes in (sendemail function)
 Supabase → Integrations → Cron → new job: every **2 minutes** (`*/2 * * * *`) → Supabase Edge Function → **sendemail** → POST, header `x-admin-key` = your email admin key, body `{"action":"welcome","cron":true}`.
 It emails every NEW website booking that left an email address, once per address, and notes "📧 Welcome email sent (booking received)" on the booking. Switch it off with growth_settings key `welcome_config` = `{"enabled": false}`. Admin's own in-browser welcome email is skipped automatically once this function is deployed.
+
+## Never annoying (built in)
+- Balance reminders to instructors go out only 9am–6pm UK, never on Sundays, once a week, and not to anyone who already had 8 automatic messages in the last 24 hours.
+- Student check-ins and acknowledgements stop after 4 messages to one student in 24 hours. Offers and assignments are never held back.
+- Every Monday (from 9am UK) you get ONE "Weekly billing" item in Needs you: referral fees and franchise weekly fees owed. Overview also has a live "Money to collect" card.
+- Ignore an instructor from Control centre → Instructors (🚫 Ignore, optional reason). They get nothing automatic until you press ↩ Include again.

@@ -425,6 +425,8 @@ ok(sent("dsq_student_offer").length === 1 && DB.auto_assign_jobs[0].state === "p
 globalThis.FAIL_TEMPLATES.clear();
 
 console.log("== 34. Balance reminder to the instructor ==");
+const pinDate = (isoS) => { const t = RealDate.parse(isoS); class FD extends RealDate { constructor(...a) { if (a.length) super(...a); else super(t); } static now() { return t; } } (globalThis as any).Date = FD; }; const unpin = () => { (globalThis as any).Date = RealDate; };
+pinDate("2026-11-24T11:00:00Z"); // a Tuesday, 11am UK
 cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().unpaidLimit = 2; cfgOf().anytime = true; cfgOf().hours = [0, 24]; delete cfgOf().balanceAuto;
 const bk34 = (id, iid, amt, paid = false) => ({ id, instructor_id: iid, student_name: "B" + id, student_phone: "0790" + id, amount: amt, is_paid: paid, created_at: new Date(Date.now() - 20 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: dd2 + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false });
 DB.referrals = [bk34("5001", "i1", 25), bk34("5002", "i1", 25), bk34("5003", "i1", 25), bk34("5004", "i1", 25, true), bk34("5005", "i3", 25), bk34("5006", "i3", 25)]; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = []; DB.auto_assign_jobs = []; CALLS.length = 0;
@@ -438,6 +440,17 @@ ok(sent("dsq_instructor_balance").length === 2, "8 days later it is sent again")
 await hook({ from: "447700900001", p: "BAL_PAID:i1" }); ok(DB.admin_attention.some((a) => a.kind === "balance_paid"), "'I've paid' tapped -> you get an item to check the bank (nothing marked paid automatically)");
 cfgOf().mode = "suggest"; DB.wa_log = []; await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "in suggest mode nothing is sent");
 cfgOf().mode = "assign"; cfgOf().balanceAuto = false; await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "switched off in settings -> nothing is sent");
+delete cfgOf().balanceAuto; DB.wa_log = []; unpin(); pinDate("2026-11-24T22:30:00Z"); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_instructor_balance").length === 0, "balance reminders never go out at night (only 9am-6pm UK)");
+unpin(); pinDate("2026-11-22T11:00:00Z"); await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "...or on a Sunday");
+unpin(); pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; for (let n = 0; n < 8; n++) DB.wa_log.push({ to_phone: "447700900001", direction: "out", status: "sent", template: "x", created_at: new Date().toISOString() });
+await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "an instructor who already had 8 messages today gets no reminder (daily limit)");
+console.log("== 34b. Weekly billing digest to the admin ==");
+DB.wa_log = []; DB.admin_attention = []; delete DB.growth_settings.billing_digest_last; unpin(); pinDate("2026-11-23T10:00:00Z"); // Monday 10am
+await call({ action: "auto_assign", cron: true });
+const bd = DB.admin_attention.filter((a) => a.kind === "billing_digest"); ok(bd.length === 1 && /to collect/.test(bd[0].title), "Monday: one billing summary for the admin (" + (bd[0] && bd[0].title) + ")");
+await call({ action: "auto_assign", cron: true }); ok(DB.admin_attention.filter((a) => a.kind === "billing_digest").length === 1, "not repeated the same week");
+unpin();
 delete cfgOf().balanceAuto;
 
 console.log("== 35. Default reply time is 90 minutes ==");
@@ -471,6 +484,7 @@ const manual = await call({ action: "auto_assign", dry: true }); ok(manual.dry =
 delete globalThis.EdgeRuntime;
 
 console.log("== 38. Failed balance reminders are not retried every 2 minutes; an updated form with no earlier copy is processed ==");
+pinDate("2026-11-24T11:00:00Z");
 cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().unpaidLimit = 2; cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; delete cfgOf().balanceAuto;
 globalThis.FAIL_TEMPLATES.add("dsq_instructor_balance");
 const bk38 = (id, iid) => ({ id, instructor_id: iid, student_name: "C" + id, student_phone: "0791" + id, amount: 25, is_paid: false, created_at: new Date(Date.now() - 20 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: dd2 + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false });
@@ -484,6 +498,7 @@ DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention 
 await call({ action: "auto_assign", cron: true });
 ok(DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state === "pending_accept", "an 'UPDATED request' whose first copy was never processed is handled normally (" + (DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state) + ")");
 
+unpin();
 console.log("== 39. Plain-words hint when a template is missing ==");
 globalThis.FAIL_TEMPLATES.add("dsq_student_offer"); cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; cfgOf().mode = "assign"; cfgOf().enabled = true; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = [];
 DB.waiting_list = [W("Hint Hal", "M13 9AA", "", { student_phone: "07866 787878" })]; await call({ action: "auto_assign", cron: true });
@@ -530,7 +545,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-headers", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-management", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-headers";
+const FN_VERSION = "2026-11-22-management";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -89,6 +89,14 @@ async function sendTemplate(sb: any, b: any) {
   return r.ok ? { ok: true, id, to } : { ok: false, error: err, code: r.j && r.j.error && r.j.error.code };
 }
 async function sendText(to: string, text: string) { return graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "text", text: { body: text } }); }
+/* how many automatic WhatsApps this number has had in the last 24 hours (failed ones do not count) */
+async function msgsLast24h(sb: any, phone: string) {
+  const to = waNumber(phone); if (!to) return 0; const since = Date.now() - 864e5;
+  const { data } = await sb.from("wa_log").select("to_phone,status,created_at,direction").eq("to_phone", to);
+  return (data || []).filter((x: any) => x.direction !== "in" && x.status !== "failed" && new Date(x.created_at).getTime() >= since).length;
+}
+/* non-essential messages (check-ins, reminders) wait if this person has already had plenty today */
+async function tooManyToday(sb: any, cfg: any, phone: string, who: "instructor" | "student") { const lim = who === "instructor" ? cfg.maxMsgsInstructor : cfg.maxMsgsStudent; return lim > 0 && (await msgsLast24h(sb, phone)) >= lim; }
 /* free-form reply with tap buttons: allowed without a template while the person has just messaged us (24-hour window) */
 async function sendButtons(to: string, text: string, buttons: { id: string; title: string }[]) {
   return graph("/" + PHONE_ID + "/messages", { messaging_product: "whatsapp", to, type: "interactive", interactive: { type: "button", body: { text }, action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) } })) } } });
@@ -125,6 +133,9 @@ const DEFAULT_CFG = {
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
   ackStudent: false, ackSince: "",   // WhatsApp the student as soon as a website booking arrives ("we have passed your details to an instructor")
+  maxMsgsInstructor: 8,            // never annoy: at most this many automatic WhatsApps to ONE instructor in 24 hours for non-essential messages (check-ins, balance reminders). Offers and assignments are never held back. 0 = no limit
+  maxMsgsStudent: 4,               // same for ONE student in 24 hours (check-ins, acknowledgements)
+  billingDigest: true,             // every Monday the admin gets ONE WhatsApp + Attention item with who owes what (referral fees and franchise weekly fees)
   balanceAuto: true,               // WhatsApp a referral instructor their outstanding balance (booked students not paid for) once a week, while auto-assign is ON in assign mode
   adminPhone: "", adminAlerts: true,
   refFee: 25,                      // referral fee recorded for referral-model instructors (franchise = 0)
@@ -287,6 +298,7 @@ async function sendAcks(sb: any, cfg: any) {
   for (const w of (waiting || []).slice(0, 60)) {
     if (new Date(w.created_at).getTime() < since || !/\[WEB\]/i.test(w.notes || "") || String(w.notes || "").includes(MARK) || String(w.notes || "").includes("📱 WhatsApp booking acknowledgement failed")) continue;
     const b = readBooking(w); if (!waNumber(b.phone)) continue;
+    if (await tooManyToday(sb, cfg, b.phone, "student")) continue;
     const hAck = londonHour(), awake = hAck >= cfg.hours[0] && hAck < cfg.hours[1];   // outside instructor hours the student is told it will be passed on in the morning
     const r = await sendTemplate(sb, { to: b.phone, template: awake ? "dsq_booking_received" : "dsq_booking_received_later", lang: "en_GB", params: [first(b.name)], student_name: b.name });
     const line = r.ok ? `${today()} · ${MARK}` : `${today()} · 📱 WhatsApp booking acknowledgement failed: ${r.error}`;
@@ -308,7 +320,8 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
       await attention(sb, cfg, { kind: "unpaid_fees", title: `${i.full_name} has ${n} booked students not paid for (£${amt})`, detail: `New students go to other instructors first until these are marked paid. Send them a statement, or just the balance: £${amt}.`, waiting_id: key, instructor_id: String(i.id) });
       out.push({ instructor: i.full_name, unpaid: n, amount: amt });
       // the balance goes to the instructor by WhatsApp, at most once every 7 days, only while auto-assign is ON and sending for real
-      if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0) {
+      const hb = londonHour(), dowB = new Date().getDay();   // balance reminders only in the working day (9am to 6pm UK, not Sundays) so they are never intrusive
+      if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0 && hb >= 9 && hb < 18 && dowB !== 0 && !(await tooManyToday(sb, cfg, i.phone, "instructor"))) {
         const { data: pastB } = await sb.from("wa_log").select("instructor_id,created_at,status").eq("template", "dsq_instructor_balance");
         const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && Date.now() - new Date(x.created_at).getTime() < (x.status === "failed" ? 24 * 3600e3 : 7 * 864e5));   // sent: once a week. failed (e.g. the template is not approved yet): try again tomorrow, not every 2 minutes
         if (!recent) {
@@ -322,6 +335,27 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
     }
   }
   return out;
+}
+
+/* every Monday (from 9am UK): ONE summary to the admin of everything owed to DriveSQ: referral fees (booked students not paid) and franchise weekly fees not paid */
+async function checkBilling(sb: any, cfg: any, cd: any) {
+  if (cfg.billingDigest === false) return null;
+  const lp = londonYMD(Date.now()), dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, weekday: "short" }).format(new Date()));
+  if (dow !== 0 || lp.h < 9 || lp.h >= 18) return null;
+  const weekKey = mondayLondon().toISOString().slice(0, 10), { data: last } = await sb.from("growth_settings").select("value").eq("key", "billing_digest_last").maybeSingle();
+  if (last && last.value && last.value.week === weekKey) return null;   // already sent this Monday
+  const refs: any[] = [], money = (v: number) => "£" + (Math.abs(v - Math.round(v)) < .005 ? Math.round(v) : v.toFixed(2));
+  for (const i of cd.instrs) { if (String(i.instructor_model || "").toLowerCase() !== "referral") continue; const st = cd.stats[i.id] || {}; if ((st.unpaidBooked || 0) > 0 && (st.unpaidAmount || 0) > 0) refs.push({ name: i.full_name, n: st.unpaidBooked, amt: st.unpaidAmount }); }
+  const { data: fees } = await sb.from("instructor_weekly_fees").select("instructor_id,week_start,expected,status").eq("status", "unpaid");
+  const byI: any = {}; (fees || []).forEach((f: any) => { if (new Date(f.week_start + "T00:00:00Z").getTime() > Date.now() || !(parseFloat(f.expected) > 0)) return; const o = byI[f.instructor_id] = byI[f.instructor_id] || { n: 0, amt: 0 }; o.n++; o.amt += parseFloat(f.expected); });
+  const frs = Object.keys(byI).map((id) => { const ins = (cd.instrs || []).find((x: any) => String(x.id) === String(id)); return { name: ins ? ins.full_name : "Instructor", n: byI[id].n, amt: byI[id].amt }; });
+  await sb.from("growth_settings").upsert({ key: "billing_digest_last", value: { week: weekKey, at: new Date().toISOString(), referral: refs.length, franchise: frs.length }, updated_at: new Date().toISOString() }, { onConflict: "key" });
+  if (!refs.length && !frs.length) return { sent: false, reason: "nothing owed" };
+  const rTot = refs.reduce((a, x) => a + x.amt, 0), fTot = frs.reduce((a, x) => a + x.amt, 0);
+  const line = (x: any, what: string) => `${x.name}: ${money(x.amt)} (${x.n} ${what})`;
+  const detail = [refs.length ? `Referral fees ${money(rTot)}: ` + refs.sort((a, b) => b.amt - a.amt).slice(0, 6).map((x) => line(x, "student" + (x.n === 1 ? "" : "s"))).join("; ") : "", frs.length ? `Franchise weekly fees ${money(fTot)}: ` + frs.sort((a, b) => b.amt - a.amt).slice(0, 6).map((x) => line(x, "week" + (x.n === 1 ? "" : "s"))).join("; ") : ""].filter(Boolean).join(". ");
+  await attention(sb, cfg, { kind: "billing_digest", title: `Weekly billing: ${money(rTot + fTot)} to collect from ${refs.length + frs.length} instructor${refs.length + frs.length === 1 ? "" : "s"}`, detail: detail + ". Open Finance / Referrals to chase.", waiting_id: "billing-" + weekKey });
+  return { sent: true, total: rTot + fTot };
 }
 
 /* an approved instructor with no student for droughtDays: tell the admin once and say why (clears itself when they are given one) */
@@ -353,7 +387,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
   for (const i of cd.instrs) {
     const tr = cd.traits[i.id] || {};
     if (exclude.includes(String(i.id))) continue;
-    if (tr.noAuto) { skip(i, "marked Never auto-assign"); continue; }
+    if (tr.noAuto) { skip(i, "marked Never auto-assign" + (tr.noAutoNote ? " (" + tr.noAutoNote + ")" : "")); continue; }
     if (!canTeach(i.car_type || "Manual", b.type)) { skip(i, "does not teach " + b.type.toLowerCase() + " lessons"); continue; }
     if (needFemale(cfg, b) && !tr.female) { skip(i, "the booking asks for a female instructor"); continue; }
     const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) { skip(i, "reached the hard cap of " + cfg.maxPerWeek + " new students this week"); continue; }
@@ -779,7 +813,7 @@ async function autoAssign(sb: any, body: any) {
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
     try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
-    try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
+    try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); await checkBilling(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
   }
   if (!dry && body.cron && !body.force && !cfg.enabled) return { ok: true, off: true, message: "Auto-assign is switched off", followups, unpaidAlerts, acks };
   if (!dry && !body.force) {   // cron AND the "Run now" button: instructors are never messaged outside the offer hours
@@ -1030,6 +1064,7 @@ async function runFollowups(sb: any, cfg: any) {
       const one = async (who: "student" | "instructor") => {
         const to = who === "student" ? r.student_phone : ins.phone; if (!waNumber(to)) return "no number";
         if (weekCount(to) >= cap) return "capped";
+        if (await tooManyToday(sb, cfg, to, who)) return "capped";   // already had plenty of messages today: try again tomorrow
         const t = who === "student"
           ? await sendTemplate(sb, { to, template: "dsq_student_checkin", lang: "en_GB", params: [first(stu), ins.full_name], buttons: ["STU_BOOKED:" + r.id, "STU_NOTYET:" + r.id, "STU_LEFT:" + r.id], instructor_id: String(r.instructor_id), referral_id: r.referral_id, student_name: stu })
           : await sendTemplate(sb, { to, template: "dsq_instructor_checkin", lang: "en_GB", params: [first(ins.full_name), stu], buttons: ["INS_BOOKED:" + r.id, "INS_NOTYET:" + r.id, "INS_LEFT:" + r.id], instructor_id: String(r.instructor_id), referral_id: r.referral_id, student_name: stu });

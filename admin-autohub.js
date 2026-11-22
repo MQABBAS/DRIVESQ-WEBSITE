@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-22-headers', TAB = 'overview', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-22-management', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -52,12 +52,13 @@
       q(sb.from('admin_activity_log').select('created_at,summary,action').eq('area', 'auto_assign').order('created_at', { ascending: false }).limit(60)),
       q(sb.from('wa_log').select('created_at,direction,template,status,error,student_name,to_phone,body').order('created_at', { ascending: false }).limit(40)),
       q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages']))]);
+    var fees = []; try { fees = await q(sb.from('instructor_weekly_fees').select('instructor_id,week_start,expected,status').eq('status', 'unpaid')); } catch (e) { }
     var gs = {}; res[4].forEach(function (x) { gs[x.key] = x.value; });
     var jobIds = res[0].map(function (j) { return j.waiting_id; }), names = {};
     if (jobIds.length) { var w = await q(sb.from('waiting_list').select('id,student_name,postcode,created_at').in('id', jobIds)); w.forEach(function (x) { names[String(x.id)] = x; }); }
     var refs = (DSQ_ADMIN.refs() || []); if (!refs.length) { try { await window.loadReferrals(); refs = DSQ_ADMIN.refs() || []; } catch (e) { } }
     var st = null; try { st = window.DSQWA && await DSQWA.status(false); } catch (e) { }
-    DATA = { cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
+    DATA = { fees: fees, cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
   }
   /* what is each instructor owed (same rule as the server): package minimum, else the franchise minimum, not before their start date */
   function owed(i) {
@@ -120,21 +121,39 @@
   function attn() {
     var a = DATA.att.slice(0, 5); return '<div class="cd"><h3>🚨 Needs you <button class="btn-s" style="font-size:.68rem;padding:1px 10px;margin-left:auto" onclick="DSQAA.openAttention()">Open all (' + DATA.att.length + ')</button></h3>' + (a.length ? a.map(function (x) { return '<div class="fi"><i>⚠️</i><span><b>' + E(x.title) + '</b><br><span style="color:var(--txt3)">' + E((x.detail || '').slice(0, 140)) + '</span></span><time>' + ago(x.created_at) + '</time></div>'; }).join('') : '<div class="empty" style="color:#22c55e">✅ Nothing needs your attention</div>') + '</div>';
   }
-  function overview() { return strip() + '<div style="height:10px"></div>' + kpis() + '<div class="g2"><div>' + queue() + attn() + '</div><div class="cd"><h3>🛰️ What is happening now <span style="font-weight:500;font-size:.7rem;color:#22c55e">● live</span></h3><div class="feed">' + feed(30) + '</div></div></div>'; }
+  /* everything owed to DriveSQ right now: referral fees (booked, unpaid) and franchise weekly fees (unpaid, week started) */
+  function money_() {
+    var rows = [], now = Date.now();
+    DATA.instrs.filter(function (i) { return i.status === 'approved'; }).forEach(function (i) {
+      var s = stats(i), isRef = String(i.instructor_model || '').toLowerCase() === 'referral';
+      var fr = (DATA.fees || []).filter(function (f) { return String(f.instructor_id) === String(i.id) && new Date(f.week_start + 'T00:00:00').getTime() <= now && parseFloat(f.expected) > 0; });
+      var fa = fr.reduce(function (a, f) { return a + parseFloat(f.expected); }, 0);
+      if (isRef && s.unpaidAmt > 0) rows.push({ n: i.full_name, what: s.unpaid + ' referral fee' + (s.unpaid === 1 ? '' : 's'), amt: s.unpaidAmt });
+      if (fa > 0) rows.push({ n: i.full_name, what: fr.length + ' franchise week' + (fr.length === 1 ? '' : 's'), amt: fa });
+    });
+    rows.sort(function (a, b) { return b.amt - a.amt; }); var tot = rows.reduce(function (a, r) { return a + r.amt; }, 0);
+    return '<div class="cd"><h3>💷 Money to collect <span style="margin-left:auto;font-weight:800;color:' + (tot ? '#f59e0b' : '#22c55e') + '">' + money(tot) + '</span></h3>' + (rows.length ? rows.slice(0, 8).map(function (r) { return '<div class="fi"><i>💷</i><span><b>' + E(r.n) + '</b> · ' + money(r.amt) + '<br><span style="color:var(--txt3)">' + E(r.what) + ' unpaid</span></span></div>'; }).join('') + (rows.length > 8 ? '<div style="font-size:.72rem;color:var(--txt4);padding:4px 2px">+ ' + (rows.length - 8) + ' more (see Finance / Referrals)</div>' : '') + '<div style="font-size:.7rem;color:var(--txt4);margin-top:6px">Every Monday you also get one summary in Needs you. Nothing is ever marked paid automatically.</div>' : '<div class="empty">Nobody owes anything. ✅</div>') + '</div>';
+  }
+  function overview() { return strip() + '<div style="height:10px"></div>' + kpis() + '<div class="g2"><div>' + queue() + attn() + money_() + '</div><div class="cd"><h3>🛰️ What is happening now <span style="font-weight:500;font-size:.7rem;color:#22c55e">● live</span></h3><div class="feed">' + feed(30) + '</div></div></div>'; }
 
   /* ---------- instructors ---------- */
   function instructorsTab() {
     var cfg = DATA.cfg, rows = DATA.instrs.filter(function (i) { return i.status === 'approved'; }).map(function (i) {
       var s = stats(i), o = owed(i), t = DATA.traits[i.id] || {}, idle = s.last ? Math.floor((Date.now() - s.last) / 864e5) : null, flags = [];
       if (!o.started) flags.push(['Starts ' + o.start, '#94a3b8']); else if (o.min && s.bookedWeek < o.min) flags.push(['Owed ' + (o.min - s.bookedWeek) + ' job' + (o.min - s.bookedWeek === 1 ? '' : 's'), '#f59e0b']);
-      if (t.noAuto) flags.push(['Never auto-assign', '#94a3b8']);
+      if (t.noAuto) flags.push(['Ignored' + (t.noAutoNote ? ': ' + t.noAutoNote : ''), '#94a3b8']);
       if (cfg.dailyLimit > 0 && s.today >= cfg.dailyLimit) flags.push(['Over daily limit', '#ef4444']); if (cfg.weeklyLimit > 0 && s.bookedWeek >= cfg.weeklyLimit) flags.push(['Over weekly limit', '#ef4444']);
       if (cfg.unpaidLimit > 0 && s.unpaid >= cfg.unpaidLimit) flags.push(['Fees unpaid', '#ef4444']);
       if (idle === null || idle >= (cfg.droughtDays || 7)) flags.push(['No student ' + (idle === null ? 'yet' : idle + 'd'), '#f59e0b']);
       if (!flags.length) flags.push(['Available', '#22c55e']); return { i: i, s: s, o: o, t: t, idle: idle, flags: flags, rank: (!o.started ? 9 : o.min && s.bookedWeek < o.min ? 0 : 1) };
     }).sort(function (a, b) { return a.rank - b.rank || String(a.i.full_name).localeCompare(String(b.i.full_name)); });
+    var nIgn = rows.filter(function (r) { return r.t.noAuto; }).length;
+    var IF = { all: ['All', function () { return true; }], avail: ['Available', function (r) { return !r.t.noAuto && r.flags[0][0] === 'Available'; }], behind: ['Behind minimum', function (r) { return r.o.started && r.o.min && r.s.bookedWeek < r.o.min; }], fees: ['Fees unpaid', function (r) { return r.flags.some(function (f) { return f[0] === 'Fees unpaid'; }); }], ign: ['Ignored (' + nIgn + ')', function (r) { return !!r.t.noAuto; }] };
+    var chips = '<div class="chips" style="margin:6px 0">' + Object.keys(IF).map(function (k) { return '<button class="chip' + (IFILT === k ? ' on' : '') + '" onclick="DSQHub.ifilter(\'' + k + '\')">' + E(IF[k][0]) + '</button>'; }).join('') + '<input class="dsq-inp" id="aaISearch" placeholder="Search name…" value="' + E(ISEARCH) + '" oninput="DSQHub.isearch(this.value)" style="width:150px;padding:3px 8px;font-size:.74rem;margin-left:auto"></div>';
+    var banner = nIgn ? '<div style="background:rgba(148,163,184,.12);border:1px solid #94a3b8;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:.76rem">🚫 ' + nIgn + ' instructor' + (nIgn === 1 ? ' is' : 's are') + ' being ignored: they get no automatic students until you press ↩ Include again.</div>' : '';
+    rows = rows.filter(function (r) { return IF[IFILT][1](r) && (!ISEARCH || String(r.i.full_name).toLowerCase().indexOf(ISEARCH.toLowerCase()) >= 0); });
     var PR = [[2, 'Top'], [1, 'High'], [0, 'Equal'], [-1, 'Low'], [-2, 'Last']];
-    return '<div class="cd"><h3>👥 Who is getting jobs <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">franchise instructors below their weekly minimum are offered the next student first</span></h3>' + (rows.length ? '<div class="scroll"><table><thead><tr><th>Instructor</th><th>Booked this week</th><th>Given today / week</th><th>Last student</th><th>Status</th><th>Priority</th><th>Auto-assign</th></tr></thead><tbody>' + rows.map(function (r) {
+    return '<div class="cd"><h3>👥 Who is getting jobs <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">franchise instructors below their weekly minimum are offered the next student first</span></h3>' + banner + chips + (rows.length ? '<div class="scroll"><table><thead><tr><th>Instructor</th><th>Booked this week</th><th>Given today / week</th><th>Last student</th><th>Status</th><th>Priority</th><th>Auto-assign</th></tr></thead><tbody>' + rows.map(function (r) {
       var pct = r.o.min ? Math.min(100, Math.round(r.s.bookedWeek / r.o.min * 100)) : 0;
       return '<tr style="' + (r.t.noAuto ? 'opacity:.55' : '') + '"><td><b>' + E(r.i.full_name) + '</b><div style="font-size:.66rem;color:var(--txt4)">' + E(String(r.i.instructor_model || 'referral')) + (r.o.src ? ' · ' + r.o.src + ' min ' + r.o.min : '') + '</div></td><td>' + r.s.bookedWeek + (r.o.min ? ' of ' + r.o.min + '<div class="bar"><div style="width:' + pct + '%;background:' + (pct >= 100 ? '#22c55e' : '#f59e0b') + '"></div></div>' : '') + '</td><td>' + r.s.today + ' / ' + r.s.week + '</td><td style="color:var(--txt3)">' + (r.idle === null ? 'never' : r.idle === 0 ? 'today' : r.idle + ' d ago') + '</td><td>' + r.flags.map(function (f) { return '<span class="pill" style="color:' + f[1] + ';border-color:' + f[1] + '66;margin:1px">' + E(f[0]) + '</span>'; }).join('') + '</td><td><select class="dsq-inp" style="width:auto;padding:2px 6px;font-size:.74rem" onchange="DSQHub.prio(\'' + r.i.id + '\',this.value)">' + PR.map(function (p) { return '<option value="' + p[0] + '"' + ((r.t.priority || 0) === p[0] ? ' selected' : '') + '>' + (p[0] === 0 ? 'Equal (default)' : p[1]) + '</option>'; }).join('') + '</select></td><td>' + (r.t.noAuto ? '<button class="btn-p" style="font-size:.7rem;padding:2px 10px;white-space:nowrap" title="Include this instructor in auto-assign again" onclick="DSQHub.ignore(\'' + r.i.id + '\',false)">↩ Include again</button>' : '<button class="btn-s" style="font-size:.7rem;padding:2px 10px;white-space:nowrap" title="Auto-assign will skip this instructor (you can still assign them by hand) until you include them again" onclick="DSQHub.ignore(\'' + r.i.id + '\',true)">🚫 Ignore</button>') + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '<div class="empty">No approved instructors loaded yet.</div>') + '</div>';
@@ -270,7 +289,8 @@
   async function ignore(id, on) {
     var i = DATA.instrs.filter(function (x) { return String(x.id) === String(id); })[0] || {};
     if (on && !confirm('Ignore ' + (i.full_name || 'this instructor') + ' for auto-assign?\n\nThey will not be offered any new students automatically. You can still assign them by hand, and you can include them again at any time.')) return;
-    if (window.DSQAA) { await DSQAA.setTrait(id, 'noAuto', !!on); refresh(true); }
+    var note = ''; if (on) { note = (prompt('Reason (optional, only you see it), e.g. holiday until 5 Dec:', '') || '').trim(); }
+    if (window.DSQAA) { await DSQAA.setTrait(id, 'noAuto', !!on); if (DSQAA.setTraitVal) await DSQAA.setTraitVal(id, 'noAutoNote', on ? note : ''); refresh(true); }
   }
   async function prio(id, v) { if (window.DSQAA) { await DSQAA.setPrio(id, v); refresh(true); } }
   /* take a booking off the list: its job is CLOSED (not deleted), so auto-assign never picks it up again and a late Accept gets "already dealt with". Any alert about it is cleared too. */
@@ -296,6 +316,8 @@
   async function retry(wid) { try { await SBc().from('auto_assign_jobs').delete().eq('waiting_id', String(wid)); await SBc().from('admin_attention').update({ resolved: true, resolved_at: new Date().toISOString() }).eq('waiting_id', String(wid)).eq('resolved', false); } catch (e) { } toast('It will try this booking again on the next run.', 'success', 3500); refresh(true); }
   function openBooking(wid) { close(); if (window.DSQAA) DSQAA.openBooking(wid, ''); }
   function tab(t) { TAB = t; refresh(true); }
+  function ifilter(f) { IFILT = f; refresh(true); }
+  function isearch(v) { ISEARCH = v; refresh(true); setTimeout(function () { var n = document.getElementById('aaISearch'); if (n) { n.focus(); n.setSelectionRange(v.length, v.length); } }, 0); }
   function filter(f) { FILTER = f; refresh(true); }
 
   /* the old Auto-assign button and the top-bar button now open this screen */
@@ -303,5 +325,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { diagnoseWa: diagnoseWa, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { diagnoseWa: diagnoseWa, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();

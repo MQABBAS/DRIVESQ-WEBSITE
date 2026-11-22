@@ -237,6 +237,10 @@
       '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin:2px 0"><input type="checkbox" ' + (t.noAuto ? 'checked' : '') + ' onchange="DSQAA.setTrait(\'' + id + '\',\'noAuto\',this.checked)"> <b>Never auto-assign</b> <span style="color:var(--txt4)">(you still assign them by hand)</span></label>' +
       '<label style="display:flex;gap:6px;align-items:center;margin:4px 0"><b>Priority for jobs</b> <select class="dsq-inp" style="width:auto;padding:2px 6px;font-size:.76rem" onchange="DSQAA.setPrio(\''+id+'\',this.value)">' + PRIO.map(function (p) { return '<option value="' + p[0] + '"' + ((t.priority || 0) === p[0] ? ' selected' : '') + '>' + (p[0] === 0 ? 'Equal (default)' : p[1]) + '</option>'; }).join('') + '</select> <span style="color:var(--txt4);font-size:.7rem">Top / High = offered students sooner</span></label>';
   }
+  async function setTraitVal(id, k, v) {
+    await loadTraits(); if (!TR[id]) return; if (v) TR[id][k] = String(v).slice(0, 80); else delete TR[id][k]; if (!Object.keys(TR[id]).length) delete TR[id];
+    await SBc().from('growth_settings').upsert({ key: 'instructor_traits', value: TR, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  }
   async function setTrait(id, k, on) {
     await loadTraits(); TR[id] = TR[id] || {}; if (on) TR[id][k] = true; else delete TR[id][k]; if (!Object.keys(TR[id]).length) delete TR[id];
     var r = await SBc().from('growth_settings').upsert({ key: 'instructor_traits', value: TR, updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -299,5 +303,5 @@
   }
   takeOver(); window.addEventListener('load', function () { takeOver(); setTimeout(takeOver, 1500); });   // the page's own script defines these after this file loads, so take over again once everything is ready
   (function init() { var t0 = 0, t = setInterval(function () { t0++; if (t0 > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb() && document.getElementById('waApiBtn')) { clearInterval(t); load().then(function () { poll(); setInterval(poll, 60000); }); } }, 1000); })();
-  window.DSQAA = { recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, loadTraits: loadTraits, femaleFirst: femaleFirst, femaleChip: femaleChip, femaleWish: femaleWish, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
+  window.DSQAA = { setTraitVal: setTraitVal, recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, loadTraits: loadTraits, femaleFirst: femaleFirst, femaleChip: femaleChip, femaleWish: femaleWish, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
 })();
