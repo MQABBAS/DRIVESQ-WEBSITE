@@ -101,10 +101,10 @@
   }
   function queue() {
     var names = DATA.names, ins = {}; DATA.instrs.forEach(function (i) { ins[String(i.id)] = i; }); var rows = DATA.jobs.filter(function (j) { return j.state !== 'closed'; }).slice(0, 12);
-    return '<div class="cd"><h3>📋 Bookings being handled <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">last 3 days</span></h3>' + (rows.length ? '<div class="scroll"><table><thead><tr><th>Student</th><th>Status</th><th>Instructor</th><th>Since</th><th></th></tr></thead><tbody>' + rows.map(function (j) {
+    return '<div class="cd"><h3>📋 Bookings being handled <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">last 3 days</span>' + (rows.length ? '<button class="btn-s" style="font-size:.68rem;padding:1px 10px;margin-left:auto" title="Hide every finished or stuck row from this list" onclick="DSQHub.clearList()">🗑 Clear list</button>' : '') + '</h3>' + (rows.length ? '<div class="scroll"><table><thead><tr><th>Student</th><th>Status</th><th>Instructor</th><th>Since</th><th></th></tr></thead><tbody>' + rows.map(function (j) {
       var w = names[String(j.waiting_id)] || {}, st = JOB[j.state] || JOB.closed, i = ins[String(j.instructor_id)] || {}, note = String(j.note || '');
       return '<tr><td><b>' + E(w.student_name || 'Booking') + '</b><div style="font-size:.68rem;color:var(--txt4)">' + E(w.postcode || '') + '</div></td><td><span class="pill" style="color:' + st[2] + ';border-color:' + st[2] + '66">' + st[0] + ' ' + st[1] + '</span>' + (note ? '<div style="font-size:.66rem;color:var(--txt4);max-width:240px">' + E(note.slice(0, 110)) + '</div>' : '') + '</td><td>' + E(i.full_name || (j.instructor_id ? '…' : '–')) + (j.dist ? '<div style="font-size:.66rem;color:var(--txt4)">' + (Math.round(j.dist * 10) / 10) + ' mi</div>' : '') + '</td><td style="white-space:nowrap;color:var(--txt3)">' + ago(j.state === 'pending_accept' && j.expires_at ? j.expires_at : j.updated_at) + '</td><td style="text-align:right">' +
-        (j.state === 'attention' ? '<button class="btn-p" style="font-size:.68rem;padding:2px 10px" onclick="DSQHub.openBooking(\'' + j.waiting_id + '\')">Open</button> <button class="btn-s" style="font-size:.68rem;padding:2px 10px" onclick="DSQHub.retry(\'' + j.waiting_id + '\')">Retry</button>' : '') + '</td></tr>';
+        (j.state === 'attention' ? '<button class="btn-p" style="font-size:.68rem;padding:2px 10px" onclick="DSQHub.openBooking(\'' + j.waiting_id + '\')">Open</button> <button class="btn-s" style="font-size:.68rem;padding:2px 10px" onclick="DSQHub.retry(\'' + j.waiting_id + '\')">Retry</button>' : '') + ' <button class="btn-s" style="font-size:.68rem;padding:2px 9px" title="Remove this booking from the list (it will not be picked up again)" onclick="DSQHub.removeJob(\'' + j.id + '\')">✕ Remove</button></td></tr>';
     }).join('') + '</tbody></table></div>' : '<div class="empty">Nothing in the queue. New website bookings appear here the moment they are picked up.</div>') + '</div>';
   }
   var ICON = function (x) { var s = (x.action || '') + ' ' + (x.summary || ''); return /attention|⚠️|failed/i.test(s) ? '🚨' : /assigned/i.test(s) ? '✅' : /offer|asked|WhatsApp/i.test(s) ? '📲' : /settings|turned/i.test(s) ? '⚙️' : '•'; };
@@ -248,6 +248,26 @@
   async function run() { var c = DATA.cfg; if (!c.enabled) { toast('Switch auto-assign ON first.', 'warn', 3500); return; } if (!confirm('Run auto-assign now? It will ' + (c.mode === 'suggest' ? 'only add suggestions to the attention list.' : 'assign and WhatsApp for real.'))) return; var o = document.getElementById('hubOut'); if (o) o.textContent = 'Running…'; var r = await DSQWA.call({ action: 'auto_assign' });
     if (o) o.innerHTML = r.ok ? (r.off ? 'It is switched off.' : r.waiting ? E(r.waiting) : '✅ Done: ' + (r.summary.assigned || 0) + ' assigned, ' + (r.summary.offered || 0) + ' asked to accept, ' + (r.summary.attention || 0) + ' need attention.') : '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; setTimeout(function () { refresh(true); }, 800); }
   async function prio(id, v) { if (window.DSQAA) { await DSQAA.setPrio(id, v); refresh(true); } }
+  /* take a booking off the list: its job is CLOSED (not deleted), so auto-assign never picks it up again and a late Accept gets "already dealt with". Any alert about it is cleared too. */
+  async function closeJob(j, why) {
+    await SBc().from('auto_assign_jobs').update({ state: 'closed', note: why, updated_at: new Date().toISOString() }).eq('id', j.id);
+    try { await SBc().from('admin_attention').update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('waiting_id', String(j.waiting_id)).eq('resolved', false); } catch (e) { }
+  }
+  async function removeJob(id) {
+    var j = DATA.jobs.filter(function (x) { return String(x.id) === String(id); })[0]; if (!j) return;
+    if (j.state === 'pending_accept' && !confirm('This offer is still waiting for the instructor\'s reply. Remove it anyway? The instructor will be told it has already been dealt with if they tap Accept.')) return;
+    await closeJob(j, 'removed by admin'); try { DSQLog.add(SBc(), { area: 'auto_assign', action: 'removed', summary: 'Booking removed from the auto-assign list by admin', role: 'admin', actor: 'Admin' }); } catch (e) { }
+    toast('Removed from the list', 'success', 1800); refresh(true);
+  }
+  async function clearList() {
+    var rows = DATA.jobs.filter(function (j) { return j.state !== 'closed'; }), live = rows.filter(function (j) { return j.state === 'pending_accept' || j.state === 'working'; }), done = rows.filter(function (j) { return j.state !== 'pending_accept' && j.state !== 'working'; });
+    if (!rows.length) return;
+    var all = live.length && confirm(done.length + ' finished or needs-you row' + (done.length === 1 ? '' : 's') + ' will be cleared.\n\n' + live.length + ' booking' + (live.length === 1 ? ' is' : 's are') + ' still waiting for an instructor to reply.\n\nOK = clear those too (the offers are abandoned)\nCancel = keep the waiting ones');
+    if (!live.length && !confirm('Clear ' + done.length + ' row' + (done.length === 1 ? '' : 's') + ' from the list? They will not be picked up again.')) return;
+    var target = done.concat(all ? live : []); for (var k = 0; k < target.length; k++) await closeJob(target[k], 'removed by admin');
+    try { DSQLog.add(SBc(), { area: 'auto_assign', action: 'removed', summary: target.length + ' booking(s) cleared from the auto-assign list by admin', role: 'admin', actor: 'Admin' }); } catch (e) { }
+    toast('Cleared ' + target.length + ' row' + (target.length === 1 ? '' : 's'), 'success', 2200); refresh(true);
+  }
   async function retry(wid) { try { await SBc().from('auto_assign_jobs').delete().eq('waiting_id', String(wid)); await SBc().from('admin_attention').update({ resolved: true, resolved_at: new Date().toISOString() }).eq('waiting_id', String(wid)).eq('resolved', false); } catch (e) { } toast('It will try this booking again on the next run.', 'success', 3500); refresh(true); }
   function openBooking(wid) { close(); if (window.DSQAA) DSQAA.openBooking(wid, ''); }
   function tab(t) { TAB = t; refresh(true); }
@@ -258,5 +278,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, refresh: refresh, _data: function () { return DATA; } };
 })();
