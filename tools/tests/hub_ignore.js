@@ -35,6 +35,13 @@ console.log('ignored filter rows:',(await rows()).length,'| banner:',await p.eva
 await p.evaluate(()=>DSQHub.ifilter('all'));await p.evaluate(()=>DSQHub.open('overview'));await p.waitForTimeout(1500);
 console.log('money card:',await p.evaluate(()=>(document.getElementById('hubBody').innerText.match(/Money to collect[^\n]*/)||['MISSING'])[0]));
 await p.evaluate(()=>DSQHub.open('instructors'));await p.waitForTimeout(1200);
+await p.evaluate(()=>DSQHub.instrSettings('d'));await p.waitForTimeout(800);
+await p.evaluate(()=>{const d=document.getElementById('aaInstrDlg');d.querySelector('[data-k=only]').value='female';d.querySelector('[data-k=maxMiles]').value='12';d.querySelector('[data-k=pausedUntil]').value='2999-01-01';});
+await p.evaluate(()=>DSQHub.saveInstr('d'));await p.waitForTimeout(1500);
+console.log('per-instructor saved:',JSON.stringify((DB.growth_settings.find(x=>x.key==='instructor_traits')||{}).value));
+console.log('logged:',JSON.stringify((DB.admin_activity_log||[]).filter(x=>x.action==='instructor_settings').map(x=>x.summary)).slice(0,300));
+console.log('badges:',await p.evaluate(()=>/Women only/.test(document.getElementById('hubBody').innerText)&&/Own limits/.test(document.getElementById('hubBody').innerText)&&/Paused to/.test(document.getElementById('hubBody').innerText)));
+await p.evaluate(()=>{window.confirm=()=>true;});await p.evaluate(()=>DSQHub.instrSettings('d'));await p.evaluate(()=>{const d=document.getElementById('aaInstrDlg');d.querySelectorAll('[data-k]').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.tagName==='SELECT')e.value=e.getAttribute('data-k')==='only'?'':'0';else e.value='';});});await p.evaluate(()=>DSQHub.saveInstr('d'));await p.waitForTimeout(1200);
 await p.evaluate(()=>DSQHub.ignore('d',false));await p.waitForTimeout(2000);
 console.log('after including again:',JSON.stringify(await rows()),'| traits:',JSON.stringify((DB.growth_settings.find(x=>x.key==='instructor_traits')||{}).value));
 console.log('errs',errs.filter(e=>!/Chart/.test(e)));await b.close();})();

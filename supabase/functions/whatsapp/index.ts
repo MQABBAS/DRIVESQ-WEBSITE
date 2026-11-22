@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-management";
+const FN_VERSION = "2026-11-22-perinstructor";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -224,6 +224,26 @@ function readBooking(w: any) {
   return { id: w.id, name: w.student_name || "Student", phone: w.student_phone || "", email: pick(/(?:^|\n)\s*Email:\s*(\S+@\S+)/i), postcode: pc, addr: pick(/(?:^|\n)\s*(?:Address|Pick-?up street):\s*([^\n]+)/i) || w.area || "", type, avail: pick(/(?:^|\n)\s*Availability:\s*([^\n]+)/i), notes: n, female: femaleStrict ? "require" : femalePref ? "prefer" : "", ref: pick(/(?:^|\n)\s*Ref:\s*([^\n]+)/i), created: w.created_at };
 }
 
+/* ---------- student gender: a careful guess for instructors who only teach women or only teach men ----------
+   Order of trust: 1) a line you add to the booking ("Student gender: female"), 2) what the student wrote about themselves (Mrs / Miss / Ms / Mr, "I am a woman"), 3) the first name against lists of common UK, South Asian, Arabic, African and European names.
+   Names that are used by both sexes, or that are not in the lists, are NOT guessed: for an "only" instructor they are left out and you get the usual alert (never a wrong guess). */
+const NAMES_F = new Set(("abigail abby ada adaeze adele adriana aileen aimee aisha aishah aisling alana alexandra alice alicia alina alison alicja alisha amanda amber amelia amina aminah amira amy ana anastasia andrea angela angelina angie anita ann anna annabel annabelle anne annette annie antonia aoife april areeba arianna arlene asha ashleigh asma ayesha ayeesha ayla azra barbara beatrice beccy becky bella belinda beth bethan bethany beverley bianca billie bonnie brenda bridget brittany brooke bushra camilla candice cara carla carly carol carole caroline carolyn cassandra catherine cathy cecilia charlene charlotte chelsea cheryl chloe christina christine ciara claire clara clare claudia colleen connie courtney cynthia dana daniela danielle daphne dawn debbie deborah deepa deepika denise diana diane dina dolores donna dora doreen doris dorothy ebony edith eileen elaine eleanor elena eliza elizabeth ella ellen ellie eloise elsie emilia emily emma erica erin esme esther eva eve evelyn evie faith farah fariha farzana fatima fatimah fatma fay faye felicity fiona florence frances francesca freya gabriela gabrielle gemma georgia georgina geraldine gillian gina giulia gloria grace gracie hafsa hajra halima hamida hanan hana hanna hannah harriet hasina hayley hazel heather heidi helen helena hira holly hope humaira ibtisam ilona imaan iman imani india ines ingrid irene iris isabel isabella isabelle isla ivy jacqueline jade jamila jane janet janice jasmin jasmine jean jemima jennifer jenny jess jessica jill joan joanna joanne jodie josephine joy joyce judith julia julie june justine kadija kadijah karen karina kate katherine kathleen kathryn kathy katie katy kayla kaye keira kelly kelsey kerry khadija khadijah kim kimberley kirsty kirstie komal kristina kylie laila lara laura lauren layla leah leanne leila lena leona lesley lexi lia lily linda lindsay lisa lizzie lois lola lorraine louise lucia lucy luna lydia lynn lynne mabel madeleine madison maggie maha mahnoor maisie malika mandy manjit mara marcia margaret maria mariam marianne marie marina marion marissa marlene martha mary maryam masooma matilda maureen maya megan melanie melissa mercy mia michelle mildred millie mina miriam mishal misbah molly mona monica monika morgan muna muneeba myra nabila nadia nadine nadira naila najma nancy naomi natalia natalie natasha nazia nazma neha nell nellie nicola nicole nikita nina noreen nora norma nuala nur nusrat olga olive olivia paige pamela patricia paula pauline pearl penelope philippa phoebe phyllis polly poppy priya priyanka rabia rachael rachel rafia rahima rahma rani rania rebecca regina renata rhiannon rita roberta robyn rochelle rosa rosalind rose rosemary roxanne ruby ruth sabina sabrina sadia safa safia safiya sahar saima sajida salma samantha samira sana sandra sandy sania sara sarah sasha saskia selina serena shabana shahida shaista shakira shannon sharon sheila shelley shireen shirley shumaila sidra sienna sky sofia sophia sophie stacey stella stephanie sue sumaiya summer susan susanna suzanne sylvia tahira talia tamara tammy tanya tara tasneem teresa tess tessa thea theresa tia tiffany tilly tina tracey tracy trisha ummah uzma valentina valerie vanessa vera veronica vicky victoria violet viola virginia vivian wendy whitney willow winifred yasmin yasmeen yvonne zainab zahra zara zaynab zeenat zoe zoey zubaida zuzanna").split(/\s+/));
+const NAMES_M = new Set(("aaron abbas abdi abdul abdulla abdullah abdulrahman abraham adam adeel adil adnan adrian ahmad ahmed aiden ajay akbar akram alan albert alex alexander alfie alfred ali alistair allan amir amar amit amjad anas andre andrew andy angus anthony anwar arif arjun arran arthur arvind asad asif aslam atif austin ayaan ayub azhar babar barry basit ben benjamin bernard bilal billy bobby brad bradley brandon brian bruce bryan callum calvin cameron carl charles charlie chris christian christopher clive colin connor conor craig dale damian damien dan daniel danny darren dave david dean declan dennis derek dev dhruv dominic donald douglas duncan dylan ed eddie edward edwin eli elijah elliot elliott emmanuel eric ethan evan ewan faisal farhan farooq fahad faizan fazal felix finley finn francis frank fraser fred freddie gabriel gareth gary gavin geoff geoffrey george gerald gerard gordon graham grant greg gregory guy habib hamid hamza hannan haroon harry harvey hasan hassan hayden henry hamzah hugh hugo humza hussain hussein ian ibrahim idris imran irfan isaac isa ishaq ismail ivan jack jacob jaden jake jamal james jason jasper javed jay jeremy jerry jesse jim jimmy joe joel john johnny jon jonathan jordan joseph josh joshua jude julian junaid justin kamran karim kashif keith kelvin ken kenneth kevin khalid khalil kian kieran kris kyle lance larry lawrence lee leo leon leonard leroy lewis liam lloyd logan louie louis luca lucas luke malcolm malik mansoor marcus mario mark martin marvin mason matt matthew max maxwell mehmet michael micheal mickey mike miles mohamed mohammad mohammed mohsin moin mubashir mudassar muhammad mukhtar murtaza musa mustafa nadeem naeem nasir nathan neil nicholas nick nigel noah noel norman oliver omar oscar osman owen paddy pat patrick paul pawel pete peter philip phillip piotr qasim quentin rafiq rahim rahul raja rajesh ralph ramesh ramzan randall raymond raza reece reg reggie reuben ricardo richard rick rizwan rob robbie robert robin rod roger ronald ronan ross roy ruben rupert russell ryan sadiq saeed sajid salman sam sami samuel sandeep saqib sean sebastian shabbir shahid shahzad shane shaun shawn shaz sheraz shiraz sid simon sohail sohaib solomon spencer stanley stefan stephen steve steven stewart stuart suleman sultan sunny tahir talha tariq taylor ted teddy terence terry thomas tim timothy tobias toby tom tommy tony trevor tyler tyrone umar usman uzair vijay vincent vishal wasim wayne wesley will william winston yasir yousaf yousef youssef yusuf zachary zack zain zaheer zayn zeeshan ziad zubair zulfiqar").split(/\s+/));
+function guessStudentGender(name: string, notes: string): { g: "" | "female" | "male"; why: string } {
+  const n = String(notes || ""), nm = String(name || "").trim();
+  let m = n.match(/(?:student\s*)?gender\s*[:\-]\s*(female|male|woman|man)\b/i); if (m) return { g: /^(female|woman)/i.test(m[1]) ? "female" : "male", why: "gender noted on the booking" };
+  if (/\b(?:i\s*am|i'm|im)\s+(?:a\s+)?(?:woman|female|lady|girl)\b/i.test(n) || /\bmy name is (?:mrs|miss|ms)\b/i.test(n)) return { g: "female", why: "the student wrote that they are a woman" };
+  if (/\b(?:i\s*am|i'm|im)\s+(?:a\s+)?(?:man|male|guy|boy|gentleman)\b/i.test(n)) return { g: "male", why: "the student wrote that they are a man" };
+  const ws = nm.replace(/[^\p{L}\s'-]/gu, " ").split(/\s+/).filter(Boolean); if (!ws.length) return { g: "", why: "no name" };
+  const t = ws[0].toLowerCase().replace(/[^a-z]/g, "");
+  if (/^(mrs|miss|ms)$/.test(t) && ws[1]) return { g: "female", why: "title " + ws[0] };
+  if (t === "mr" && ws[1]) return { g: "male", why: "title Mr" };
+  const f = ws.length > 1 && /^(mrs|miss|ms|mr|dr)$/.test(t) ? ws[1].toLowerCase().replace(/[^a-z]/g, "") : t;
+  const inF = NAMES_F.has(f), inM = NAMES_M.has(f);
+  if (inF && !inM) return { g: "female", why: "first name " + ws[0] }; if (inM && !inF) return { g: "male", why: "first name " + ws[0] };
+  return { g: "", why: "the first name is not clear enough to tell" };
+}
+
 /* ---------- referral statistics (same booked rule as admin: ✅ confirmed by admin or instructor, not removed later) ---------- */
 const BK_MARKS = ["✅ Booked — confirmed by admin", "✅ Booked — confirmed by instructor", "✅ Booked — confirmed by student"];
 function isBooked(r: any) { if (r.is_paid) return true; if (r.flag_color !== "green") return false; const n = String(r.admin_notes || ""), a = Math.max(...BK_MARKS.map((m) => n.lastIndexOf(m))), b = n.lastIndexOf("↩️ Booked mark removed by admin"); return a > b || (a < 0 && r.reply_status !== "booked"); }
@@ -257,6 +277,7 @@ function entitlement(i: any, cd: any, cfg: any) {
   let min = 0, radius = cfg.confirmMiles, src = "";
   if (t && !t.noGuarantee) { min = p.min != null && p.min !== "" ? +p.min : (t.min || 0); radius = Math.min(cfg.confirmMiles, t.radius || cfg.confirmMiles); src = (t.name || p.tier) + " package"; }
   else if ((!t || t.noGuarantee) && String(i.instructor_model || "").toLowerCase() === "franchise" && cfg.franchiseMin > 0) { min = cfg.franchiseMin; src = "franchise minimum"; }   // a franchise instructor with no package, or on Normal (no guarantee), is still offered students first until they have the franchise minimum
+  const tr = (cd.traits || {})[id] || {}; if (tr.minWeek !== undefined && tr.minWeek !== "" && !isNaN(+tr.minWeek)) { min = +tr.minWeek; src = "set on their profile"; }
   return { started: true, min, radius, src };
 }
 /* days since this instructor was last given a student (no student in the last 90 days = 90). A new instructor counts from their start date */
@@ -385,6 +406,9 @@ async function checkDrought(sb: any, cfg: any, cd: any) {
 }
 
 /* rank the instructors for one booking. exclude = ids already asked */
+/* per-instructor settings (Instructors tab -> Settings): any number left empty means "use the general setting" */
+const tnum = (tr: any, k: string, def: number) => (tr && tr[k] !== undefined && tr[k] !== null && tr[k] !== "" && !isNaN(+tr[k]) ? +tr[k] : def);
+const pausedNow = (tr: any) => !!(tr && tr.pausedUntil && String(tr.pausedUntil) >= new Date().toISOString().slice(0, 10));
 async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reserve = false) {
   const out: any[] = [];
   const sg = await geocode(b.postcode); if (sg && sg.error) return { error: "The postcode service did not answer just now", transient: true, list: [] }; if (!sg) return { error: 'Postcode "' + b.postcode + '" was not found', list: [] };
@@ -393,9 +417,11 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
     const tr = cd.traits[i.id] || {};
     if (exclude.includes(String(i.id))) continue;
     if (tr.noAuto) { skip(i, "marked Never auto-assign" + (tr.noAutoNote ? " (" + tr.noAutoNote + ")" : "")); continue; }
+    if (pausedNow(tr)) { skip(i, "paused until " + tr.pausedUntil); continue; }
     if (!canTeach(i.car_type || "Manual", b.type)) { skip(i, "does not teach " + b.type.toLowerCase() + " lessons"); continue; }
     if (needFemale(cfg, b) && !tr.female) { skip(i, "the booking asks for a female instructor"); continue; }
-    const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (cfg.maxPerWeek > 0 && st.week >= cfg.maxPerWeek) { skip(i, "reached the hard cap of " + cfg.maxPerWeek + " new students this week"); continue; }
+    if (tr.only === "female" || tr.only === "male") { const sgn = b._sg || (b._sg = guessStudentGender(b.name, b.notes)); if (sgn.g !== tr.only) { skip(i, "only teaches " + (tr.only === "female" ? "women" : "men") + " and " + (sgn.g ? "this student looks " + (sgn.g === "female" ? "female" : "male") + " (" + sgn.why + ")" : "the student's gender is unclear (" + sgn.why + ")")); continue; } }
+    const st = cd.stats[i.id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; if (tnum(tr, "maxWeekHard", cfg.maxPerWeek) > 0 && st.week >= tnum(tr, "maxWeekHard", cfg.maxPerWeek)) { skip(i, "reached the hard cap of " + tnum(tr, "maxWeekHard", cfg.maxPerWeek) + " new students this week"); continue; }
     const ent = entitlement(i, cd, cfg); if (!ent.started) { skip(i, "package / franchise " + (ent.why || "has not started yet")); continue; }   // no jobs before the start date
     const pc = instrPc(i); if (!pc) { skip(i, "no postcode or area on their profile"); continue; }
     rows.push({ i, tr, st, ent, pc });
@@ -409,17 +435,19 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
     r.st = cd.stats[r.i.id] || r.st;   // the live numbers (other bookings being handled at the same moment may have just reserved this instructor)
     const over: string[] = [];
     // owed a minimum this week and not there yet (and not already holding plenty of unconfirmed students): offered first, even past the daily limit
-    const short = Math.max(0, (r.ent.min || 0) - r.st.bookedWeek), owed = short > 0 && r.dist <= r.ent.radius && r.st.week < (r.ent.min || 0) + 2;
+    const short = Math.max(0, (r.ent.min || 0) - r.st.bookedWeek), owed = short > 0 && r.dist <= Math.min(r.ent.radius, tnum(r.tr, "maxMiles", 999)) && r.st.week < (r.ent.min || 0) + 2;
     const idl = idleDays(r.i, r.st, r.ent), fb = cfg.fairnessMiles > 0 && idl >= (cfg.fairnessAfterDays || 0) ? Math.min(cfg.fairnessCap || 0, Math.round(idl * cfg.fairnessMiles * 10) / 10) : 0;
-    if (!owed && cfg.dailyLimit > 0 && r.st.today >= cfg.dailyLimit) over.push(`already given ${r.st.today} today`);
-    if (cfg.weeklyLimit > 0 && r.st.bookedWeek >= cfg.weeklyLimit) over.push(`already ${r.st.bookedWeek} booked this week`);
+    const dl = tnum(r.tr, "maxDay", cfg.dailyLimit), wl = tnum(r.tr, "maxWeek", cfg.weeklyLimit);
+    if (!owed && dl > 0 && r.st.today >= dl) over.push(`already given ${r.st.today} today`);
+    if (wl > 0 && r.st.bookedWeek >= wl) over.push(`already ${r.st.bookedWeek} booked this week`);
     if (cfg.unpaidLimit > 0 && String(r.i.instructor_model || "").toLowerCase() === "referral" && (r.st.unpaidBooked || 0) >= cfg.unpaidLimit) over.push(`${r.st.unpaidBooked} booked students not paid yet (£${Math.round(r.st.unpaidAmount || 0)})`);
-    out.push({ id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, owed, short, min: r.ent.min || 0, prio: Math.max(-2, Math.min(2, +r.tr.priority || 0)), idle: Math.round(idleDays(r.i, r.st, r.ent)), boost: fb, eff: Math.round((r.dist - (Math.max(-2, Math.min(2, +r.tr.priority || 0))) * (cfg.priorityMiles || 0) - (owed ? short * (cfg.shortfallMiles || 0) : 0) - fb) * 10) / 10, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
+    const lim = tnum(r.tr, "maxMiles", cfg.confirmMiles);
+    out.push({ limit: lim, id: r.i.id, name: r.i.full_name, phone: r.i.phone, model: String(r.i.instructor_model || "").toLowerCase(), dist: Math.round(r.dist * 10) / 10, score: 0, tier: over.length ? 1 : 0, over, owed, short, min: r.ent.min || 0, prio: Math.max(-2, Math.min(2, +r.tr.priority || 0)), idle: Math.round(idleDays(r.i, r.st, r.ent)), boost: fb, eff: Math.round((r.dist - (Math.max(-2, Math.min(2, +r.tr.priority || 0))) * (cfg.priorityMiles || 0) - (owed ? short * (cfg.shortfallMiles || 0) : 0) - fb) * 10) / 10, today: r.st.today, bookedWeek: r.st.bookedWeek, week: r.st.week, female: !!r.tr.female, rate: r.st.total >= 5 ? Math.round(r.st.booked / r.st.total * 100) : null, instr: r.i });
   }
   // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
   // order: (1) not over a soft limit, (2) owed their weekly minimum, (3) closest after priority / shortfall adjustments
   out.sort((a, c) => (a.tier - c.tier) || (b.female ? (a.female ? 0 : 1) - (c.female ? 0 : 1) : 0) || ((a.owed ? 0 : 1) - (c.owed ? 0 : 1)) || (a.eff - c.eff) || (a.dist - c.dist));   // asked for a woman but men allowed by your rule: women first
-  const near = out.filter((x) => x.dist <= cfg.confirmMiles);
+  const near = out.filter((x) => x.dist <= (x.limit ?? cfg.confirmMiles));
   // when several bookings are handled at the same time, the chosen instructor is reserved at once (no await in between), so the next booking sees them as already busier
   if (reserve && near[0] && cd.stats) { const sx = cd.stats[near[0].id] = cd.stats[near[0].id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; sx.today++; sx.week++; sx.last = Date.now(); }
   const closest = near.slice().sort((a, c) => a.dist - c.dist)[0];
@@ -504,6 +532,7 @@ async function offer(sb: any, cfg: any, b: any, c: any, job: any, attempt: numbe
   if (!r.ok) { await sb.from("auto_assign_jobs").update({ state: "attention", note: r.error }).eq("id", job.id); await attention(sb, cfg, { kind: "msg_failed", title: "Could not message " + c.name, detail: `Offer for ${b.name} (${b.postcode}) did not send: ${r.error}`, waiting_id: String(b.id), instructor_id: c.id, student_name: b.name }); return "offer failed"; }
   const { data: wl } = await sb.from("waiting_list").select("notes").eq("id", b.id).maybeSingle();
   await sb.from("waiting_list").update({ notes: [(wl && wl.notes) || "", `${today()} · 🤖 Offered to ${c.name} (${c.dist} miles), waiting for their reply`].filter(Boolean).join("\n") }).eq("id", b.id);
+  await trail(sb, "offered", `📤 ${b.name} offered to ${c.name} (${c.dist} miles) by WhatsApp${attempt > 1 ? ", attempt " + attempt : ""}${rebooked ? " (existing student)" : ""}`, { instructor_id: c.id, student_name: b.name, id: b.id });
   return "offered";
 }
 
@@ -528,7 +557,7 @@ async function rebook(sb: any, cfg: any, b: any, cd: any, job: any, prev: any) {
 /* decide what to do with one booking. job = its row in auto_assign_jobs. Returns a one-line outcome. */
 async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: string[], attempt: number, dry: boolean) {
   const rk = await rank(sb, cfg, b, cd, tried, !dry && cfg.mode === "assign");
-  const near = (rk.list || []).filter((x: any) => x.dist <= cfg.confirmMiles), nearestAny = (rk.list || []).slice().sort((a: any, c: any) => a.dist - c.dist)[0];
+  const near = (rk.list || []).filter((x: any) => x.dist <= (x.limit ?? cfg.confirmMiles)), nearestAny = (rk.list || []).slice().sort((a: any, c: any) => a.dist - c.dist)[0];
   const top = near.slice(0, 4).map((x: any) => ({ name: x.name, dist: x.dist, today: x.today, bookedWeek: x.bookedWeek, over: x.over, female: x.female }));
   if (rk.transient) { if (!dry) await sb.from("auto_assign_jobs").delete().eq("id", job.id); return { action: "retry", reason: rk.error + ", it will try again on the next run", top }; }   // not the booking's fault: try again in 2 minutes
   if (rk.error) { if (!dry) { await sb.from("auto_assign_jobs").update({ state: "attention", note: rk.error }).eq("id", job.id); await attention(sb, cfg, { kind: "postcode", title: "Check the postcode for " + b.name, detail: rk.error + ". Fix it and assign by hand.", waiting_id: String(b.id), student_name: b.name }); } return { action: "attention", reason: rk.error, top }; }
@@ -568,11 +597,11 @@ async function decide(sb: any, cfg: any, b: any, cd: any, job: any, tried: strin
 /* "what would happen to a booking like THIS?" Nothing is saved or sent. Shows every instructor: who is in the running (and why in that order) and who is left out (and why). */
 async function simulate(sb: any, body: any) {
   const cfg = await loadCfg(sb), pc = fmtPc(body.postcode || ""); if (!pc) return { ok: false, error: "Enter a postcode" };
-  const b = { id: "sim", name: "Test student", phone: "", postcode: pc, type: /auto/i.test(body.type || "") ? "Automatic" : "Manual", female: body.female === "require" ? "require" : body.female === "prefer" ? "prefer" : "" };
+  const b: any = { id: "sim", name: String(body.name || "Test student").slice(0, 60), notes: String(body.notes || "").slice(0, 400), phone: "", postcode: pc, type: /auto/i.test(body.type || "") ? "Automatic" : "Manual", female: body.female === "require" ? "require" : body.female === "prefer" ? "prefer" : "" };
   const cd = await candidateData(sb), rk = await rank(sb, cfg, b, cd, [], false);
   if (rk.error) return { ok: true, error: rk.error, list: [], skipped: [] };
-  const near = rk.list.filter((x: any) => x.dist <= cfg.confirmMiles), best = near[0];
-  const list = rk.list.map((x: any, k: number) => ({ name: x.name, dist: x.dist, within: x.dist <= cfg.confirmMiles, order: k + 1, owed: !!x.owed, short: x.short, min: x.min, over: x.over, prio: x.prio, idle: x.idle, boost: x.boost, eff: x.eff, bookedWeek: x.bookedWeek, today: x.today, why: x.why || "" }));
+  const near = rk.list.filter((x: any) => x.dist <= (x.limit ?? cfg.confirmMiles)), best = near[0];
+  const list = rk.list.map((x: any, k: number) => ({ name: x.name, dist: x.dist, within: x.dist <= (x.limit ?? cfg.confirmMiles), order: k + 1, owed: !!x.owed, short: x.short, min: x.min, over: x.over, prio: x.prio, idle: x.idle, boost: x.boost, eff: x.eff, bookedWeek: x.bookedWeek, today: x.today, why: x.why || "" }));
   const covered = best ? covers(cd.instrs.find((i: any) => String(i.id) === String(best.id)) || {}, pc) : false;
   return { ok: true, postcode: pc, type: b.type, female: b.female, limit: cfg.confirmMiles, mode: cfg.mode, best: best ? { name: best.name, dist: best.dist, why: best.why, direct: best.dist <= cfg.autoMiles, covered } : null, list, skipped: rk.skipped || [], nearestOver: !best && list[0] ? { name: list[0].name, dist: list[0].dist } : null };
 }
@@ -855,6 +884,7 @@ async function autoAssign(sb: any, body: any) {
       const { data: claimed } = await sb.from("auto_assign_jobs").update({ state: "working", updated_at: new Date().toISOString() }).eq("id", j.id).eq("state", "pending_accept").select(); if (!claimed || !claimed.length) return;   // another run (or the instructor's reply) got there first
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); return; }
       const tried = [...(j.tried || []), String(j.instructor_id)];
+      await trail(sb, "no_reply", `⏳ ${w.student_name}: no answer from ${((cd.instrs || []).find((x: any) => String(x.id) === String(j.instructor_id)) || {}).full_name || "the instructor"}, moving to the next`, { instructor_id: j.instructor_id, student_name: w.student_name, id: w.id });
       if (tried.length > cfg.retries) { await sb.from("auto_assign_jobs").update({ state: "attention", note: "no reply" }).eq("id", j.id); await attention(sb, cfg, { kind: "no_reply", title: "Attention: nobody replied for " + w.student_name, detail: `${tried.length} instructor(s) were asked and did not accept in time. Assign by hand.`, waiting_id: String(w.id), student_name: w.student_name }); results.push({ student: w.student_name, action: "attention", reason: "no reply" }); return; }
       results.push({ student: w.student_name, ...(await decide(sb, cfg, readBooking(w), cd, j, tried, tried.length + 1, false)) });
       });
@@ -992,6 +1022,10 @@ async function assignedReply(sb: any, kind: string, refId: string, from: string)
    instructor accepts → 3 days later the STUDENT is asked → no answer in 1 day → the INSTRUCTOR is asked → repeat every 5 days (4 rounds) → attention.
    Every answer updates the referral in admin (flag, reply status, notes) exactly as if admin or the instructor had marked it. */
 const NOTE_LINE = (txt: string) => `${today()} · ${txt}`;
+/* the audit trail: every move auto-assign makes is written to the admin activity log (Control centre -> Activity) */
+async function trail(sb: any, action: string, summary: string, ref: any = {}) {
+  try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action, summary, actor_role: "system", actor_name: "Auto-assign", instructor_id: ref.instructor_id || null, student_name: ref.student_name || null, ref_id: ref.id || null }]); } catch (_) { /* log only */ }
+}
 async function logAct(sb: any, role: string, actor: string, action: string, summary: string, ref: any) {
   try { await sb.from("admin_activity_log").insert([{ area: "referral", action, summary, actor_role: role, actor_name: actor, instructor_id: ref.instructor_id, student_name: ref.student_name, ref_id: ref.id }]); } catch (_) { /* log only */ }
 }

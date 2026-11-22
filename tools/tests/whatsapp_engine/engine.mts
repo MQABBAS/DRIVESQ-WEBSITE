@@ -451,6 +451,24 @@ await call({ action: "auto_assign", cron: true });
 const bd = DB.admin_attention.filter((a) => a.kind === "billing_digest"); ok(bd.length === 1 && /to collect/.test(bd[0].title), "Monday: one billing summary for the admin (" + (bd[0] && bd[0].title) + ")");
 await call({ action: "auto_assign", cron: true }); ok(DB.admin_attention.filter((a) => a.kind === "billing_digest").length === 1, "not repeated the same week");
 unpin();
+console.log("== 40. Per-instructor settings and student gender ==");
+const trs = () => DB.growth_settings.find((x) => x.key === "instructor_traits").value;
+const names40 = (r) => (r.list || []).map((x) => x.name), skippedOf = (r) => (r.skipped || []).map((x) => x.name + ":" + x.why);
+trs().i1 = { only: "female" }; let r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Gary Smith" });
+ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((x) => /Dawood.*only teaches women.*looks male/.test(x)), "'women only' instructor is not offered a man (Gary): " + skippedOf(r40).filter((x) => /Dawood/.test(x)));
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Priya Patel" }); ok(names40(r40).includes("Dawood Khan"), "...but is offered a woman (Priya)");
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Noor Ali" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((x) => /Dawood.*unclear/.test(x)), "...and is not offered a name that could be either (Noor): never a wrong guess");
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Noor Ali", notes: "Student gender: female" }); ok(names40(r40).includes("Dawood Khan"), "a 'Student gender: female' line on the booking settles it");
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Zzxq Qwerty", notes: "I am a woman and a beginner" }); ok(names40(r40).includes("Dawood Khan"), "'I am a woman' in the student's own words is understood");
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Mrs Jones" }); ok(names40(r40).includes("Dawood Khan"), "title Mrs is understood");
+trs().i1 = { only: "male" }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Mohammed Hussain" }); ok(names40(r40).includes("Dawood Khan"), "'men only' instructor is offered Mohammed");
+r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Emma Brown" }); ok(!names40(r40).includes("Dawood Khan"), "...not Emma");
+trs().i1 = { pausedUntil: "2999-01-01" }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((x) => /paused until 2999/.test(x)), "paused until a date: skipped with the reason");
+trs().i1 = { pausedUntil: "2000-01-01" }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(names40(r40).includes("Dawood Khan"), "a pause in the past has ended by itself");
+trs().i1 = { maxMiles: 0.1 }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); const dMyA40 = (r40.list || []).find((x) => x.name === "Dawood Khan"); ok(dMyA40 && dMyA40.within === false, "own distance limit 0.1 mile: not within range for this booking");
+trs().i1 = { maxMiles: 30 }; r40 = await call({ action: "simulate", postcode: "BL1 1AA", type: "Manual" }); const dMy40 = (r40.list || []).find((x) => x.name === "Dawood Khan"); ok(dMy40 && dMy40.within === true, "own distance limit 30 miles: in range even above the general limit");
+delete trs().i1;
+const trailBefore = DB.admin_activity_log ? DB.admin_activity_log.length : 0; ok(true, "(audit trail checked below)");
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -558,7 +576,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-management", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-perinstructor", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

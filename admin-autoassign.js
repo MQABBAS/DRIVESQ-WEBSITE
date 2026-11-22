@@ -248,6 +248,20 @@
       '<label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin:2px 0"><input type="checkbox" ' + (t.noAuto ? 'checked' : '') + ' onchange="DSQAA.setTrait(\'' + id + '\',\'noAuto\',this.checked)"> <b>Never auto-assign</b> <span style="color:var(--txt4)">(you still assign them by hand)</span></label>' +
       '<label style="display:flex;gap:6px;align-items:center;margin:4px 0"><b>Priority for jobs</b> <select class="dsq-inp" style="width:auto;padding:2px 6px;font-size:.76rem" onchange="DSQAA.setPrio(\''+id+'\',this.value)">' + PRIO.map(function (p) { return '<option value="' + p[0] + '"' + ((t.priority || 0) === p[0] ? ' selected' : '') + '>' + (p[0] === 0 ? 'Equal (default)' : p[1]) + '</option>'; }).join('') + '</select> <span style="color:var(--txt4);font-size:.7rem">Top / High = offered students sooner</span></label>';
   }
+  /* save ALL of one instructor's auto-assign settings at once and record what changed in the admin activity log */
+  var TLAB = { female: 'Female instructor', noAuto: 'Ignored', noAutoNote: 'Reason', only: 'Students', pausedUntil: 'Paused until', priority: 'Priority', maxDay: 'Max per day', maxWeek: 'Max booked per week', maxWeekHard: 'Hard cap per week', minWeek: 'Weekly minimum', maxMiles: 'Max miles' };
+  async function saveInstr(id, obj) {
+    await loadTraits(); var old = TR[id] || {}, clean = {};
+    Object.keys(obj).forEach(function (k) { var v = obj[k]; if (v === '' || v === null || v === undefined || v === false) return; clean[k] = typeof v === 'string' ? v.slice(0, 80) : v; });
+    var ch = []; Object.keys(TLAB).forEach(function (k) { if (String(old[k] || '') !== String(clean[k] || '')) ch.push(TLAB[k] + ': ' + (old[k] ? (old[k] === true ? 'on' : old[k]) : 'default') + ' → ' + (clean[k] ? (clean[k] === true ? 'on' : clean[k]) : 'default')); });
+    if (Object.keys(clean).length) TR[id] = clean; else delete TR[id];
+    var r = await SBc().from('growth_settings').upsert({ key: 'instructor_traits', value: TR, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (r.error) { toast('Not saved: ' + r.error.message, 'error', 5000); return false; }
+    var nm = ((window.DSQ_ADMIN.instrs() || []).find(function (i) { return String(i.id) === String(id); }) || {}).full_name || 'instructor';
+    if (ch.length) { try { DSQLog.add(SBc(), { area: 'auto_assign', action: 'instructor_settings', summary: '⚙️ Auto-assign settings for ' + nm + ' changed: ' + ch.join('; '), instructor_id: id }); } catch (e) { } }
+    toast(ch.length ? 'Saved' : 'Nothing changed', 'success', 1500); return true;
+  }
+  function getTraits(id) { return Object.assign({}, TR[id] || {}); }
   async function setTraitVal(id, k, v) {
     await loadTraits(); if (!TR[id]) return; if (v) TR[id][k] = String(v).slice(0, 80); else delete TR[id][k]; if (!Object.keys(TR[id]).length) delete TR[id];
     await SBc().from('growth_settings').upsert({ key: 'instructor_traits', value: TR, updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -314,5 +328,5 @@
   }
   takeOver(); window.addEventListener('load', function () { takeOver(); setTimeout(takeOver, 1500); });   // the page's own script defines these after this file loads, so take over again once everything is ready
   (function init() { var t0 = 0, t = setInterval(function () { t0++; if (t0 > 40) return clearInterval(t); if (window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb() && document.getElementById('waApiBtn')) { clearInterval(t); load().then(function () { poll(); setInterval(poll, 60000); }); } }, 1000); })();
-  window.DSQAA = { setTraitVal: setTraitVal, recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, loadTraits: loadTraits, femaleFirst: femaleFirst, femaleChip: femaleChip, femaleWish: femaleWish, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
+  window.DSQAA = { saveInstr: saveInstr, getTraits: getTraits, loadTraits: loadTraits, setTraitVal: setTraitVal, recent: recent, plain: plain, problems: problems, copyBalance: copyBalance, readiness: readiness, mount: mount, saveForm: saveForm, preview: preview, runNow: runNow, oldOff: oldOff, poll: poll, openAttention: openAttention, resolve: resolve, retry: retry, openBooking: openBooking, traitsHolder: traitsHolder, loadTraits: loadTraits, femaleFirst: femaleFirst, femaleChip: femaleChip, femaleWish: femaleWish, fillTraits: fillTraits, setTrait: setTrait, setPrio: setPrio, load: load, _cfg: function () { return CFG; }, _att: function () { return ATT; } };
 })();
