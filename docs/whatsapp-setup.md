@@ -80,3 +80,8 @@ It emails every NEW website booking that left an email address, once per address
 - Student check-ins and acknowledgements stop after 4 messages to one student in 24 hours. Offers and assignments are never held back.
 - Every Monday (from 9am UK) you get ONE "Weekly billing" item in Needs you: referral fees and franchise weekly fees owed. Overview also has a live "Money to collect" card.
 - Ignore an instructor from Control centre → Instructors (🚫 Ignore, optional reason). They get nothing automatic until you press ↩ Include again.
+
+## Per-instructor settings and the audit trail
+- Control centre → Instructors → ⚙ Settings: for ONE instructor set who they teach (anyone / women only / men only), priority, furthest distance, most per day / week, hard weekly cap, weekly minimum, a holiday pause date, Ignore + reason. Empty = general setting. Every change is written to Activity.
+- Women/men only: the student's gender is read from a "Student gender: female" line on the booking, then from titles and what they wrote, then from the first name (lists of common UK, South Asian, Arabic, African, European names). Unclear or unisex names (e.g. Noor) are never guessed: that instructor is skipped and you get the usual alert.
+- Activity shows every move: offered, no answer, accepted, declined, assigned, alerts, balance reminders, settings changes, WhatsApps.
