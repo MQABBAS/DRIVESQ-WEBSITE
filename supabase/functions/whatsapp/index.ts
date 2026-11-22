@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-ai-assistant-2";
+const FN_VERSION = "2026-11-22-ai-assistant-3";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1142,6 +1142,7 @@ async function webhook(sb: any, raw: string) {
       const payload = (m.button && m.button.payload) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.id) || null;
       const text = (m.text && m.text.body) || (m.button && m.button.text) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.title) || "[" + m.type + "]";
       { const { data: seen } = await sb.from("wa_log").select("id").eq("wa_message_id", m.id).eq("direction", "in").maybeSingle(); if (seen) continue; }   // Meta re-sends a message if we are slow to answer: never process the same one twice
+      console.log("wa-in", String(m.from).slice(-4), m.type, payload ? "button" : "text");   // shows in the Supabase function log: a message from Meta DID arrive
       await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", raw: m }]);
       const fm = payload && String(payload).match(/^(STU_BOOKED|STU_NOTYET|STU_LEFT|INS_BOOKED|INS_NOTYET|INS_LEFT|CONTACT_YES|CONTACT_NO):(.+)$/);
       if (fm) { await followupReply(sb, fm[1], fm[2], m.from); continue; }
@@ -1152,7 +1153,7 @@ async function webhook(sb: any, raw: string) {
       // plain "yes" / "no" typed by an instructor who has an offer waiting
       const t = norm(text); const isYes = YES.includes(t), isNo = NO.includes(t);
       if (isYes || isNo) { const ins = await instructorByPhone(sb, m.from); if (ins) { const { data: jobs } = await sb.from("auto_assign_jobs").select("*").eq("instructor_id", String(ins.id)).eq("state", "pending_accept"); const j = (jobs || []).sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)))[0]; if (j) await offerReply(sb, isYes, j.id, m.from); } }
-      if (!payload && m.type !== "button" && m.type !== "interactive" && m.type !== "reaction") { try { const prof = ((v.contacts || []).find((c: any) => String(c.wa_id) === String(m.from)) || {}).profile; await assistantReply(sb, m.from, m.type === "text" ? text : "[" + m.type + "]", (prof && prof.name) || ""); } catch (e) { console.error("assistant", e); } }
+      if (!payload && m.type !== "button" && m.type !== "interactive" && m.type !== "reaction") { try { const prof = ((v.contacts || []).find((c: any) => String(c.wa_id) === String(m.from)) || {}).profile; const ar = await assistantReply(sb, m.from, m.type === "text" ? text : "[" + m.type + "]", (prof && prof.name) || ""); console.log("assistant:", ar); } catch (e) { console.error("assistant", e); } }
     }
   }
 }
@@ -1174,8 +1175,8 @@ async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant") {
   return r;
 }
 async function assistantReply(sb: any, from: string, text: string, profileName: string) {
-  const cfg = await loadCfg(sb); if (!cfg.aiAssistant || !ANTHROPIC_KEY || !TOKEN || !PHONE_ID) return "off";
-  if (cfg.aiTestOnly && !(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone))) return "test-only";
+  const cfg = await loadCfg(sb); if (!cfg.aiAssistant || !ANTHROPIC_KEY || !TOKEN || !PHONE_ID) return "ignored: " + (!cfg.aiAssistant ? "assistant is switched OFF in settings (tick it and press Save)" : !ANTHROPIC_KEY ? "no ANTHROPIC_API_KEY secret" : "WhatsApp token or phone id missing");
+  if (cfg.aiTestOnly && !(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone))) return "ignored: test mode is on and this number is not your admin phone (admin phone in settings: " + (cfg.adminPhone ? "…" + String(cfg.adminPhone).slice(-4) : "NOT SET") + ", sender ends " + String(from).slice(-4) + ")";
   const isAdminPhone = !!(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone));   // you can test from your own number even if it is also saved as an instructor (e.g. a test "Admin" instructor)
   if (!(cfg.aiTestOnly && isAdminPhone) && await instructorByPhone(sb, from)) return "instructor";
   const num = waNumber(from), since = Date.now() - 864e5;
