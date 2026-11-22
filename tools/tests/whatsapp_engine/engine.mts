@@ -469,3 +469,17 @@ ok(accepted.accepted === true && DB.auto_assign_jobs.length === 0, "the cron cal
 await Promise.all(pending); ok(DB.auto_assign_jobs.length === 1 && DB.auto_assign_jobs[0].state === "pending_accept", "the booking is then handled in the background (offer pending)");
 const manual = await call({ action: "auto_assign", dry: true }); ok(manual.dry === true && Array.isArray(manual.results), "the admin screen still gets the full answer when it asks (preview)");
 delete globalThis.EdgeRuntime;
+
+console.log("== 38. Failed balance reminders are not retried every 2 minutes; an updated form with no earlier copy is processed ==");
+cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().unpaidLimit = 2; cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; delete cfgOf().balanceAuto;
+globalThis.FAIL_TEMPLATES.add("dsq_instructor_balance");
+const bk38 = (id, iid) => ({ id, instructor_id: iid, student_name: "C" + id, student_phone: "0791" + id, amount: 25, is_paid: false, created_at: new Date(Date.now() - 20 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: dd2 + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false });
+DB.referrals = [bk38("6001", "i1"), bk38("6002", "i1")]; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = []; DB.auto_assign_jobs = [];
+for (let k = 0; k < 4; k++) await call({ action: "auto_assign", cron: true });
+ok(DB.wa_log.filter((l) => l.template === "dsq_instructor_balance").length === 1, "template not approved: ONE failed attempt, not one every run (" + DB.wa_log.filter((l) => l.template === "dsq_instructor_balance").length + " in 4 runs)");
+DB.wa_log.forEach((l) => { l.created_at = new Date(Date.now() - 25 * 3600e3).toISOString(); }); globalThis.FAIL_TEMPLATES.clear(); await call({ action: "auto_assign", cron: true });
+ok(sent("dsq_instructor_balance").length === 1, "a day later, once the template exists, it is sent");
+cfgOf().mode = "suggest";
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = [W("Upd Una", "M13 9AA", "— UPDATED request", { student_phone: "07811404040" })]; cfgOf().mode = "assign"; cfgOf().enabled = true;
+await call({ action: "auto_assign", cron: true });
+ok(DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state === "pending_accept", "an 'UPDATED request' whose first copy was never processed is handled normally (" + (DB.auto_assign_jobs[0] && DB.auto_assign_jobs[0].state) + ")");

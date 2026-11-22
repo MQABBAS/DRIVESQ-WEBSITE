@@ -306,7 +306,7 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
       // the balance goes to the instructor by WhatsApp, at most once every 7 days, only while auto-assign is ON and sending for real
       if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0) {
         const { data: pastB } = await sb.from("wa_log").select("instructor_id,created_at,status").eq("template", "dsq_instructor_balance");
-        const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && x.status !== "failed" && Date.now() - new Date(x.created_at).getTime() < 7 * 864e5);
+        const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && Date.now() - new Date(x.created_at).getTime() < (x.status === "failed" ? 24 * 3600e3 : 7 * 864e5));   // sent: once a week. failed (e.g. the template is not approved yet): try again tomorrow, not every 2 minutes
         if (!recent) {
           const rb = await sendTemplate(sb, { to: i.phone, template: "dsq_instructor_balance", lang: "en_GB", params: [first(i.full_name), String(n), String(Math.round(amt * 100) % 100 === 0 ? Math.round(amt) : amt.toFixed(2))], buttons: ["BAL_PAID:" + i.id], instructor_id: String(i.id) });
           if (rb.ok) { try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "balance_sent", summary: `💷 Balance reminder sent to ${i.full_name}: ${n} booked students, £${amt} unpaid (WhatsApp)`, actor_role: "system", actor_name: "Auto-assign", instructor_id: String(i.id) }]); } catch (_) { /* log only */ } }
@@ -618,7 +618,7 @@ async function autoAssign(sb: any, body: any) {
     const dup = ph10.length === 10 && seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : "";
     // an existing student booking again (given to an instructor in the last 14 days, and not marked left): it goes back to THEIR instructor, and you are told
     const prev = !dup && ph10.length === 10 ? recentRefs.filter((r: any) => last10(r.student_phone || "") === ph10 && r.reply_status !== "left" && r.flag_color !== "red").sort((a: any, c: any) => String(c.created_at).localeCompare(String(a.created_at)))[0] : null;
-    if (prev && (Date.now() - new Date(prev.created_at).getTime() < 6 * 3600e3 || /UPDATED request/i.test(String(w.notes || "")))) {   // an edited / re-sent form right after assignment: hold it, never offer the student twice
+    if (prev && Date.now() - new Date(prev.created_at).getTime() < 6 * 3600e3) {   // an edited / re-sent form right after assignment: hold it, never offer the student twice
       seenPhone.set(ph10, b.name);
       if (dry) { results.push({ student: b.name, action: "duplicate", reason: "a request from this phone number was handled in the last few hours (or this is an updated request)" }); continue; }
       const { data: dj2 } = await sb.from("auto_assign_jobs").insert([{ waiting_id: String(w.id), state: "attention", attempt: 1, tried: [], note: "duplicate: updated or re-sent request" }]).select().single();
