@@ -135,6 +135,11 @@ const DEFAULT_CFG = {
   ackStudent: false, ackSince: "",   // WhatsApp the student as soon as a website booking arrives ("we have passed your details to an instructor")
   maxMsgsInstructor: 8,            // never annoy: at most this many automatic WhatsApps to ONE instructor in 24 hours for non-essential messages (check-ins, balance reminders). Offers and assignments are never held back. 0 = no limit
   maxMsgsStudent: 4,               // same for ONE student in 24 hours (check-ins, acknowledgements)
+  balanceAmount: 0,                // £: also alert you and WhatsApp the instructor when what they owe reaches this amount, even before the student count is reached. 0 = off
+  balanceRepeatDays: 7,            // balance reminder to the same instructor at most once every this many days
+  balanceHours: [9, 18],           // balance reminders only inside these UK hours (never on Sundays)
+  digestDay: 0,                    // weekly billing summary day: 0 Monday ... 6 Sunday
+  digestMinAmount: 0,              // only send the weekly summary when at least this much is owed
   billingDigest: true,             // every Monday the admin gets ONE WhatsApp + Attention item with who owes what (referral fees and franchise weekly fees)
   balanceAuto: true,               // WhatsApp a referral instructor their outstanding balance (booked students not paid for) once a week, while auto-assign is ON in assign mode
   adminPhone: "", adminAlerts: true,
@@ -311,19 +316,19 @@ async function sendAcks(sb: any, cfg: any) {
 
 /* referral instructors with too many booked-but-unpaid students: tell the admin once (the item clears itself when the fees are marked paid) */
 async function checkUnpaid(sb: any, cfg: any, cd: any) {
-  if (!(cfg.unpaidLimit > 0)) return [];
+  if (!(cfg.unpaidLimit > 0) && !(cfg.balanceAmount > 0)) return [];
   const out: any[] = [];
   for (const i of cd.instrs) {
     if (String(i.instructor_model || "").toLowerCase() !== "referral") continue;
     const st = cd.stats[i.id] || {}, n = st.unpaidBooked || 0, amt = Math.round((st.unpaidAmount || 0) * 100) / 100, key = "unpaid-" + i.id;
-    if (n >= cfg.unpaidLimit) {
+    if ((cfg.unpaidLimit > 0 && n >= cfg.unpaidLimit) || (cfg.balanceAmount > 0 && amt >= cfg.balanceAmount)) {
       await attention(sb, cfg, { kind: "unpaid_fees", title: `${i.full_name} has ${n} booked students not paid for (£${amt})`, detail: `New students go to other instructors first until these are marked paid. Send them a statement, or just the balance: £${amt}.`, waiting_id: key, instructor_id: String(i.id) });
       out.push({ instructor: i.full_name, unpaid: n, amount: amt });
       // the balance goes to the instructor by WhatsApp, at most once every 7 days, only while auto-assign is ON and sending for real
       const hb = londonHour(), dowB = new Date().getDay();   // balance reminders only in the working day (9am to 6pm UK, not Sundays) so they are never intrusive
-      if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0 && hb >= 9 && hb < 18 && dowB !== 0 && !(await tooManyToday(sb, cfg, i.phone, "instructor"))) {
+      if (cfg.balanceAuto !== false && cfg.enabled && cfg.mode === "assign" && waNumber(i.phone) && amt > 0 && hb >= (cfg.balanceHours?.[0] ?? 9) && hb < (cfg.balanceHours?.[1] ?? 18) && dowB !== 0 && !(await tooManyToday(sb, cfg, i.phone, "instructor"))) {
         const { data: pastB } = await sb.from("wa_log").select("instructor_id,created_at,status").eq("template", "dsq_instructor_balance");
-        const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && Date.now() - new Date(x.created_at).getTime() < (x.status === "failed" ? 24 * 3600e3 : 7 * 864e5));   // sent: once a week. failed (e.g. the template is not approved yet): try again tomorrow, not every 2 minutes
+        const recent = (pastB || []).some((x: any) => String(x.instructor_id) === String(i.id) && Date.now() - new Date(x.created_at).getTime() < (x.status === "failed" ? 24 * 3600e3 : Math.max(1, cfg.balanceRepeatDays || 7) * 864e5));   // sent: once a week. failed (e.g. the template is not approved yet): try again tomorrow, not every 2 minutes
         if (!recent) {
           const rb = await sendTemplate(sb, { to: i.phone, template: "dsq_instructor_balance", lang: "en_GB", params: [first(i.full_name), String(n), String(Math.round(amt * 100) % 100 === 0 ? Math.round(amt) : amt.toFixed(2))], buttons: ["BAL_PAID:" + i.id], instructor_id: String(i.id) });
           if (rb.ok) { try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "balance_sent", summary: `💷 Balance reminder sent to ${i.full_name}: ${n} booked students, £${amt} unpaid (WhatsApp)`, actor_role: "system", actor_name: "Auto-assign", instructor_id: String(i.id) }]); } catch (_) { /* log only */ } }
@@ -341,7 +346,7 @@ async function checkUnpaid(sb: any, cfg: any, cd: any) {
 async function checkBilling(sb: any, cfg: any, cd: any) {
   if (cfg.billingDigest === false) return null;
   const lp = londonYMD(Date.now()), dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, weekday: "short" }).format(new Date()));
-  if (dow !== 0 || lp.h < 9 || lp.h >= 18) return null;
+  if (dow !== (cfg.digestDay ?? 0) || lp.h < 9 || lp.h >= 18) return null;
   const weekKey = mondayLondon().toISOString().slice(0, 10), { data: last } = await sb.from("growth_settings").select("value").eq("key", "billing_digest_last").maybeSingle();
   if (last && last.value && last.value.week === weekKey) return null;   // already sent this Monday
   const refs: any[] = [], money = (v: number) => "£" + (Math.abs(v - Math.round(v)) < .005 ? Math.round(v) : v.toFixed(2));
@@ -350,8 +355,8 @@ async function checkBilling(sb: any, cfg: any, cd: any) {
   const byI: any = {}; (fees || []).forEach((f: any) => { if (new Date(f.week_start + "T00:00:00Z").getTime() > Date.now() || !(parseFloat(f.expected) > 0)) return; const o = byI[f.instructor_id] = byI[f.instructor_id] || { n: 0, amt: 0 }; o.n++; o.amt += parseFloat(f.expected); });
   const frs = Object.keys(byI).map((id) => { const ins = (cd.instrs || []).find((x: any) => String(x.id) === String(id)); return { name: ins ? ins.full_name : "Instructor", n: byI[id].n, amt: byI[id].amt }; });
   await sb.from("growth_settings").upsert({ key: "billing_digest_last", value: { week: weekKey, at: new Date().toISOString(), referral: refs.length, franchise: frs.length }, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  if (!refs.length && !frs.length) return { sent: false, reason: "nothing owed" };
   const rTot = refs.reduce((a, x) => a + x.amt, 0), fTot = frs.reduce((a, x) => a + x.amt, 0);
+  if ((!refs.length && !frs.length) || rTot + fTot < (cfg.digestMinAmount || 0)) return { sent: false, reason: "nothing owed" };
   const line = (x: any, what: string) => `${x.name}: ${money(x.amt)} (${x.n} ${what})`;
   const detail = [refs.length ? `Referral fees ${money(rTot)}: ` + refs.sort((a, b) => b.amt - a.amt).slice(0, 6).map((x) => line(x, "student" + (x.n === 1 ? "" : "s"))).join("; ") : "", frs.length ? `Franchise weekly fees ${money(fTot)}: ` + frs.sort((a, b) => b.amt - a.amt).slice(0, 6).map((x) => line(x, "week" + (x.n === 1 ? "" : "s"))).join("; ") : ""].filter(Boolean).join(". ");
   await attention(sb, cfg, { kind: "billing_digest", title: `Weekly billing: ${money(rTot + fTot)} to collect from ${refs.length + frs.length} instructor${refs.length + frs.length === 1 ? "" : "s"}`, detail: detail + ". Open Finance / Referrals to chase.", waiting_id: "billing-" + weekKey });
