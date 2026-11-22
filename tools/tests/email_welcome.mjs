@@ -3,7 +3,7 @@ const LONDON="Europe/London";
 const ukDate=(d)=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:LONDON});
 const norm=(e)=>String(e||"").trim().toLowerCase(), EMAIL_RE=/^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]{2,}$/, firstName=(n)=>String(n||"").trim().split(/\s+/)[0]||"";
 const RESEND_KEY="k", FROM="DriveSQ <hello@drivesq.co.uk>", REPLY_TO=""; const fnUrl=()=>"https://f"; const unsubUrl=async(e)=>"https://u/"+e;
-const SENT=[]; const resendBatch=async(m)=>{m.forEach(x=>SENT.push(x));return m.map(()=>({status:"sent"}));};
+const SENT=[]; const resendBatch=async(m)=>{m.forEach(x=>SENT.push(x));return m.map((x)=>x.to[0]==="bob@x.com"?({status:"failed",error:"mailbox does not exist"}):({status:"sent"}));};
 const {build,text,personalise}=(function(){  var ASSET = "https://www.drivesq.co.uk/email/";
   var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
 
@@ -147,6 +147,7 @@ const {build,text,personalise}=(function(){  var ASSET = "https://www.drivesq.co
 
   return {build:build,text:text,personalise:personalise};})();
 const londonParts=()=>({}); const londonMidnight=()=>0;
+
 
 // ===================== FOLLOW-UP EMAILS TO ENQUIRIES WHO HAVEN'T BOOKED =====================
 // POST { action: "nurture", dry: true }                       — preview who is due what (sends nothing)
@@ -300,9 +301,10 @@ async function welcome(sb, req, body) {
   const unsub = new Set((contacts || []).filter((r) => r.status && r.status !== "subscribed").map((r) => r.email_key));
   const emailOf = (w) => { const m = String(w.notes || "").match(/^Email:\s*(\S+@\S+)/mi); return m ? norm(m[1]) : ""; };
   const welcomed = new Set(); (wl || []).forEach((w) => { if (/Welcome email sent/.test(w.notes || "")) { const e = emailOf(w); if (e) welcomed.add(e); } });   // one welcome per address
-  const jobs = [], skipped = { noEmail: 0, already: 0, unsubscribed: 0, notWeb: 0, cancelled: 0 };
+  const jobs = [], skipped = { noEmail: 0, already: 0, unsubscribed: 0, notWeb: 0, cancelled: 0, failedBefore: 0 };
   for (const w of wl || []) {
     if (!/\[WEB\]/i.test(w.notes || "")) { skipped.notWeb++; continue; }
+    if (/Welcome email could not be sent/.test(w.notes || "")) { skipped.failedBefore++; continue; }   // one failed attempt is noted on the booking and not repeated every run
     if (w.status === "cancelled" || w.status === "removed") { skipped.cancelled++; continue; }
     if (/Welcome email sent/.test(w.notes || "")) { skipped.already++; continue; }
     const e = emailOf(w); if (!EMAIL_RE.test(e)) { skipped.noEmail++; continue; }
@@ -320,7 +322,12 @@ async function welcome(sb, req, body) {
         headers: { "List-Unsubscribe": `<${u}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, tags: [{ name: "campaign", value: "booking_welcome" }], ...(REPLY_TO ? { reply_to: REPLY_TO } : {}) });
     }
     const rs = await resendBatch(mails);
-    for (let k = 0; k < rs.length; k++) { out.push({ student: chunk[k].w.student_name, status: rs[k].status, error: rs[k].error || null }); if (rs[k].status === "sent") await sb.from("waiting_list").update({ notes: (chunk[k].w.notes ? chunk[k].w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) to ${chunk[k].e}` }).eq("id", chunk[k].w.id); }
+    for (let k = 0; k < rs.length; k++) {
+      out.push({ student: chunk[k].w.student_name, status: rs[k].status, error: rs[k].error || null });
+      const base = chunk[k].w.notes ? chunk[k].w.notes + "\n" : "";
+      if (rs[k].status === "sent") await sb.from("waiting_list").update({ notes: base + `${ukDate(now)} · 📧 Welcome email sent (booking received) to ${chunk[k].e}` }).eq("id", chunk[k].w.id);
+      else await sb.from("waiting_list").update({ notes: base + `${ukDate(now)} · 📧 Welcome email could not be sent (${String(rs[k].error || rs[k].status || "unknown").slice(0, 120)}). Not retried.` }).eq("id", chunk[k].w.id);
+    }
   }
   for (const j of jobs.filter((x) => x.mark)) await sb.from("waiting_list").update({ notes: (j.w.notes ? j.w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) — ${j.mark === "dup" ? "not sent again: this address was already welcomed" : "not sent: unsubscribed"}` }).eq("id", j.w.id);
   const sent = out.filter((r) => r.status === "sent").length, failed = out.length - sent;
@@ -347,4 +354,12 @@ ok(!SENT.some(m=>m.to[0]==="olly@x.com")&&!SENT.some(m=>m.to[0]==="una@x.com")&&
 const r2=await welcome(sb,{},{cron:true,fn_name:"x"}); ok(r2.sent===0&&SENT.length===1,"running again sends nothing (no second welcome)");
 ok(/not sent again: this address was already welcomed/.test(DB.waiting_list[3].notes),"the repeat booking from the same address is noted, not emailed");
 DB.growth_settings=[{key:"welcome_config",value:{enabled:false,start:"2026-01-01"}}];DB.waiting_list.push(W("b1","New Nat","nat@x.com",1));const r3=await welcome(sb,{},{cron:true,fn_name:"x"});ok(r3.off===true&&SENT.length===1,"switched off in settings -> nothing sent");
+DB.growth_settings=[{key:"welcome_config",value:{enabled:true,start:"2026-01-01"}}];
+DB.waiting_list.push(W("c1","Bad Bob","bob@x.com",1));
+const before=SENT.filter(m=>m.to[0]==="bob@x.com").length;
+const r4=await welcome(sb,{},{cron:true,fn_name:"x"});
+const bobRow=DB.waiting_list.find(w=>w.id==="c1");
+ok(r4.failed===1&&/Welcome email could not be sent/.test(bobRow.notes),"a send that fails is noted on the booking: "+(bobRow.notes.split("\n").pop()||"").slice(0,90));
+await welcome(sb,{},{cron:true,fn_name:"x"}); await welcome(sb,{},{cron:true,fn_name:"x"});
+ok(SENT.filter(m=>m.to[0]==="bob@x.com").length===before+1,"and it is not retried on every run (attempts: "+(SENT.filter(m=>m.to[0]==="bob@x.com").length-before)+")");
 const t=await welcome(sb,{},{test_to:"me@x.com",fn_name:"x"}); ok(t.ok&&SENT[SENT.length-1].subject.startsWith("[TEST]"),"a test email can be sent to yourself");

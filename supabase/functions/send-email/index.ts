@@ -564,9 +564,10 @@ async function welcome(sb, req, body) {
   const unsub = new Set((contacts || []).filter((r) => r.status && r.status !== "subscribed").map((r) => r.email_key));
   const emailOf = (w) => { const m = String(w.notes || "").match(/^Email:\s*(\S+@\S+)/mi); return m ? norm(m[1]) : ""; };
   const welcomed = new Set(); (wl || []).forEach((w) => { if (/Welcome email sent/.test(w.notes || "")) { const e = emailOf(w); if (e) welcomed.add(e); } });   // one welcome per address
-  const jobs = [], skipped = { noEmail: 0, already: 0, unsubscribed: 0, notWeb: 0, cancelled: 0 };
+  const jobs = [], skipped = { noEmail: 0, already: 0, unsubscribed: 0, notWeb: 0, cancelled: 0, failedBefore: 0 };
   for (const w of wl || []) {
     if (!/\[WEB\]/i.test(w.notes || "")) { skipped.notWeb++; continue; }
+    if (/Welcome email could not be sent/.test(w.notes || "")) { skipped.failedBefore++; continue; }   // one failed attempt is noted on the booking and not repeated every run
     if (w.status === "cancelled" || w.status === "removed") { skipped.cancelled++; continue; }
     if (/Welcome email sent/.test(w.notes || "")) { skipped.already++; continue; }
     const e = emailOf(w); if (!EMAIL_RE.test(e)) { skipped.noEmail++; continue; }
@@ -584,7 +585,12 @@ async function welcome(sb, req, body) {
         headers: { "List-Unsubscribe": `<${u}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, tags: [{ name: "campaign", value: "booking_welcome" }], ...(REPLY_TO ? { reply_to: REPLY_TO } : {}) });
     }
     const rs = await resendBatch(mails);
-    for (let k = 0; k < rs.length; k++) { out.push({ student: chunk[k].w.student_name, status: rs[k].status, error: rs[k].error || null }); if (rs[k].status === "sent") await sb.from("waiting_list").update({ notes: (chunk[k].w.notes ? chunk[k].w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) to ${chunk[k].e}` }).eq("id", chunk[k].w.id); }
+    for (let k = 0; k < rs.length; k++) {
+      out.push({ student: chunk[k].w.student_name, status: rs[k].status, error: rs[k].error || null });
+      const base = chunk[k].w.notes ? chunk[k].w.notes + "\n" : "";
+      if (rs[k].status === "sent") await sb.from("waiting_list").update({ notes: base + `${ukDate(now)} · 📧 Welcome email sent (booking received) to ${chunk[k].e}` }).eq("id", chunk[k].w.id);
+      else await sb.from("waiting_list").update({ notes: base + `${ukDate(now)} · 📧 Welcome email could not be sent (${String(rs[k].error || rs[k].status || "unknown").slice(0, 120)}). Not retried.` }).eq("id", chunk[k].w.id);
+    }
   }
   for (const j of jobs.filter((x) => x.mark)) await sb.from("waiting_list").update({ notes: (j.w.notes ? j.w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) — ${j.mark === "dup" ? "not sent again: this address was already welcomed" : "not sent: unsubscribed"}` }).eq("id", j.w.id);
   const sent = out.filter((r) => r.status === "sent").length, failed = out.length - sent;
