@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-diagnose";
+const FN_VERSION = "2026-11-22-headers";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -541,6 +541,7 @@ async function simulate(sb: any, body: any) {
 const TEMPLATE_DEFS: any[] = [
  {
   "name": "dsq_new_student",
+ "header": "New student assigned",
   "category": "UTILITY",
   "body": "Hi {{1}}, DriveSQ has assigned you a new student. 🚗\n\n*Student details*\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\n*What to do next*\n1. Contact the student within 24 hours to arrange the first lesson.\n2. Check their provisional licence and eyesight at lesson one.\n3. Update their status in your Instructor Portal: booked, not booked yet, can't reach or not going ahead.\n\nYour Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nTap Accept if you can take them, or Can't take if you can't. Thank you!",
   "params": [
@@ -558,6 +559,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_student_offer",
+ "header": "New student for you",
   "category": "MARKETING",
   "body": "Hi {{1}}, DriveSQ has a new student near {{2}}, about {{3}} miles from you, wanting {{4}} lessons.\n\nCan you take them? Tap Accept or Can't take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nPlease reply within a few hours so we can find someone else if you can't. Thank you!",
   "params": [
@@ -573,6 +575,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_student_welcome_2",
+ "header": "Your driving instructor",
   "category": "UTILITY",
   "body": "Hi {{1}}, welcome to DriveSQ! 🚗 You're now registered with us.\n\nYour driving instructor is *{{2}}*, on {{3}}.\n\nYour instructor may be in a lesson right now, so there might be a short wait. In the meantime, please message them with the days and times you're available so you can get started: {{4}}\n\n*Your free Student Portal*\nhttps://www.drivesq.co.uk/student\nLog in with your mobile number, no password needed. You can see your lessons, practise your theory test, message your instructor and track your progress.\n\nPlease have your provisional driving licence ready for your first lesson.\n\nIf you have any questions, just reply here.",
   "params": [
@@ -585,6 +588,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_student_welcome",
+ "header": "Your driving instructor",
   "category": "UTILITY",
   "body": "Hi {{1}}, welcome to DriveSQ! 🚗\n\nYour instructor is *{{2}}* on {{3}}. They will contact you to arrange your first lesson, and you are welcome to message them first to say hello and tell them which days and times suit you.\n\n*Your free Student Portal*\nhttps://www.drivesq.co.uk/student\nLog in with your mobile number. No password needed. You can:\n✅ see your lessons\n📚 practise your theory test\n💬 message your instructor\n📊 track your progress\n\nPlease have your provisional driving licence ready for your first lesson.\n\nIf you have any questions, just reply here.",
   "params": [
@@ -596,6 +600,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_admin_attention",
+ "header": "Attention needed",
   "category": "MARKETING",
   "body": "DriveSQ admin: attention needed. {{1}}. Details: {{2}}\n\nPlease open DriveSQ admin to review it.",
   "params": [
@@ -606,6 +611,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_student_checkin",
+ "header": "Quick check-in",
   "category": "MARKETING",
   "body": "Hi {{1}}, it's DriveSQ checking in. 🚗\n\nHas {{2}} booked your first driving lesson with you yet?\n\nPlease tap one of the buttons below. It helps us make sure you're looked after.",
   "params": [
@@ -620,6 +626,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_instructor_checkin",
+ "header": "Student update needed",
   "category": "MARKETING",
   "body": "Hi {{1}}, quick check from DriveSQ about {{2}}.\n\nHave you booked a lesson with them yet? Tap a button below. It takes a second and keeps your records up to date.",
   "params": [
@@ -634,6 +641,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_booking_received",
+ "header": "We have your booking",
   "category": "UTILITY",
   "body": "Hi {{1}}, thanks for booking with DriveSQ! 🚗\n\nWe have passed your details to a driving instructor near you, and they will contact you shortly. They may be in a lesson when they see it, so if you don't hear straight away, they will get back to you as soon as they can.\n\nIf anything changes, or you have a question, just reply here.",
   "params": [
@@ -643,6 +651,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_booking_received_later",
+ "header": "We have your booking",
   "category": "UTILITY",
   "body": "Hi {{1}}, thanks for booking with DriveSQ! 🚗\n\nOur instructors are offline at this time, so we will pass your details to a driving instructor near you first thing in the morning, and they will contact you then. They may be in a lesson when they see it, so if you don't hear straight away, they will get back to you as soon as they can.\n\nIf anything changes, or you have a question, just reply here.",
   "params": [
@@ -652,6 +661,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_female_unavailable",
+ "header": "Instructor availability",
   "category": "UTILITY",
   "body": "Hi {{1}}, thanks for booking with DriveSQ. 🚗\n\nUnfortunately a female instructor is not available in your area at the moment.\n\nWould you like us to book you with our closest male instructor instead, or would you rather wait for a female instructor? Please tap one of the buttons below.",
   "params": [
@@ -664,6 +674,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_student_terms",
+ "header": "Your terms and conditions",
   "category": "UTILITY",
   "body": "Hi {{1}}, here are the DriveSQ terms & conditions for your lessons: https://www.drivesq.co.uk/terms.html\n\nThe key points:\n• Cancel or move a lesson more than 24 hours before it starts: free.\n• Less than 24 hours' notice, or a no-show: charged for the time reserved, £35 per hour booked.\n• Money paid to the DriveSQ business account is DriveSQ's responsibility. A payment made directly to an instructor is a private arrangement and DriveSQ is not responsible.\n\nBy having lessons with us you agree to these terms.",
   "params": [
@@ -673,6 +684,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_instructor_rebooked",
+ "header": "Student booking again",
   "category": "UTILITY",
   "body": "Hi {{1}}, one of your existing students, {{2}}, has booked with DriveSQ again (near {{3}}, {{4}} lessons).\n\nCan you take them again? Tap Accept or Can't take below. If you accept, we will send you their full details and add them to your Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nPlease reply within a few hours so we can find someone else if you can't. Thank you!",
   "params": [
@@ -688,6 +700,7 @@ const TEMPLATE_DEFS: any[] = [
  },
  {
   "name": "dsq_instructor_balance",
+ "header": "Fees reminder",
   "category": "UTILITY",
   "body": "Hi {{1}}, this is a reminder from DriveSQ. You have {{2}} booked students with referral fees of £{{3}} still unpaid.\n\nPlease pay the DriveSQ business account and tap the button below once it is done. New students are sent to other instructors first until your balance is cleared.\n\nThank you!",
   "params": [
@@ -740,7 +753,7 @@ async function createTemplates(b: any) {
   const d = await diagnose(); if (!d.ok) return d; if (!d.found || !d.match) return { ok: false, error: "Could not find the account that owns your number, so nothing was created.", advice: d.advice };
   const want = Array.isArray(b.names) && b.names.length ? new Set(b.names) : null, todo = TEMPLATE_DEFS.filter((t) => d.missing.includes(t.name) && (!want || want.has(t.name))), out: any[] = [];
   for (const t of todo) {
-    const vars = (t.body.match(/\{\{\d+\}\}/g) || []).length, components: any[] = [{ type: "BODY", text: t.body, ...(vars ? { example: { body_text: [t.params.slice(0, vars).map(sampleFor)] } } : {}) }];
+    const vars = (t.body.match(/\{\{\d+\}\}/g) || []).length, components: any[] = [...(t.header ? [{ type: "HEADER", format: "TEXT", text: t.header }] : []), { type: "BODY", text: t.body, ...(vars ? { example: { body_text: [t.params.slice(0, vars).map(sampleFor)] } } : {}) }];   // a plain text header (no variables), so nothing extra is sent with each message
     if (t.buttons && t.buttons.length) components.push({ type: "BUTTONS", buttons: t.buttons.map((x: string) => ({ type: "QUICK_REPLY", text: x })) });
     const r = await graph("/" + d.match + "/message_templates", { name: t.name, language: "en_GB", category: t.category, components });
     out.push({ name: t.name, ok: r.ok, status: r.ok && r.j ? r.j.status || "PENDING" : null, error: r.ok ? null : ((r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "Meta error " + r.status) });

@@ -518,9 +518,10 @@ const cr = await call({ action: "create_templates" });
 ok(cr.ok && cr.created === 13 && cr.failed === 0 && cr.account === "W2", "create_templates: 13 submitted to YOUR account (" + cr.created + ")");
 const made = globalThis.GRAPH.created, offer = made.find((m) => m.name === "dsq_student_offer");
 ok(made.every((m) => m.waba === "W2" && m.language === "en_GB"), "all created in account W2 with language en_GB");
-ok(offer.category === "MARKETING" && offer.components[0].type === "BODY" && offer.components[0].example.body_text[0].length === 4 && offer.components[1].buttons.length === 2 && offer.components[1].buttons[0].type === "QUICK_REPLY", "the offer: category MARKETING, 4 sample values, 2 quick-reply buttons");
-ok(made.find((m) => m.name === "dsq_student_terms").components.length === 1 && made.find((m) => m.name === "dsq_student_terms").components[0].example.body_text[0][0] === "Sara", "terms: body only, sample 'Sara'");
-ok(made.find((m) => m.name === "dsq_student_checkin").components[1].buttons.map((b) => b.text).join("|") === "Yes, booked|Not yet|Gone elsewhere", "check-in buttons carry the right labels");
+const comp = (m, t) => m.components.find((c) => c.type === t);
+ok(offer.category === "MARKETING" && comp(offer, "BODY") && comp(offer, "BODY").example.body_text[0].length === 4 && comp(offer, "BUTTONS").buttons.length === 2 && comp(offer, "BUTTONS").buttons[0].type === "QUICK_REPLY", "the offer: category MARKETING, 4 sample values, 2 quick-reply buttons");
+ok(!comp(made.find((m) => m.name === "dsq_student_terms"), "BUTTONS") && comp(made.find((m) => m.name === "dsq_student_terms"), "BODY").example.body_text[0][0] === "Sara", "terms: no buttons, sample 'Sara'");
+ok(comp(made.find((m) => m.name === "dsq_student_checkin"), "BUTTONS").buttons.map((b) => b.text).join("|") === "Yes, booked|Not yet|Gone elsewhere", "check-in buttons carry the right labels");
 dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 13, "afterwards: nothing missing, 13 waiting for Meta's review");
 const again = await call({ action: "create_templates" }); ok(again.created === 0 && /already exists/.test(again.note), "running it again creates nothing (no duplicates)");
 globalThis.GRAPH.wabas[1].templates = []; globalThis.GRAPH.failCreate = ["dsq_booking_received"]; const part = await call({ action: "create_templates" });
@@ -529,4 +530,12 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-diagnose", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-headers", "the status call reports the function version (" + stv.version + ")");
+
+console.log("== 43. Headers on the templates ==");
+globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
+const crH = await call({ action: "create_templates" }); const mH = globalThis.GRAPH.created;
+ok(crH.created === 13 && mH.every((m) => m.components[0].type === "HEADER" && m.components[0].format === "TEXT" && m.components[0].text.length <= 60 && !/\{\{/.test(m.components[0].text)), "all 13 are created with a plain text header (no variables, under 60 characters)");
+ok(mH.find((m) => m.name === "dsq_student_offer").components[0].text === "New student for you" && mH.find((m) => m.name === "dsq_admin_attention").components[0].text === "Attention needed" && mH.find((m) => m.name === "dsq_student_terms").components[1].type === "BODY", "e.g. offer: 'New student for you', alert: 'Attention needed', and the body follows the header");
+ok(mH.find((m) => m.name === "dsq_student_checkin").components.map((c) => c.type).join(",") === "HEADER,BODY,BUTTONS", "components are in Meta's order: HEADER, BODY, BUTTONS");
+delete globalThis.GRAPH;
