@@ -329,6 +329,7 @@ async function checkDrought(sb: any, cfg: any, cd: any) {
   const out: any[] = [];
   for (const i of cd.instrs) {
     const key = "drought-" + i.id, tr = cd.traits[i.id] || {}, ent = entitlement(i, cd, cfg), st = cd.stats[i.id] || {}, idl = Math.round(idleDays(i, st, ent));
+    if (tr.noAuto) { await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false); continue; }   // ignored on purpose: no 'no students' warning
     if (!ent.started || idl < cfg.droughtDays) { await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false); continue; }
     const why: string[] = [];
     if (tr.noAuto) why.push("marked Never auto-assign");
@@ -587,7 +588,7 @@ async function autoAssign(sb: any, body: any) {
       await pool(tA, cfg.concurrency);
     }
     const tB: any[] = [];
-    for (const j of (stale || []).filter((x: any) => !(cd.instrs || []).some((i: any) => String(i.id) === String(x.instructor_id)) /* instructor blocked since the offer: move on now */ || (x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin))) {
+    for (const j of (stale || []).filter((x: any) => !(cd.instrs || []).some((i: any) => String(i.id) === String(x.instructor_id)) /* instructor blocked since the offer: move on now */ || ((cd.traits || {})[x.instructor_id] || {}).noAuto /* ignored for auto-assign since the offer: move on now */ || (x.expires_at && activeMinutes(new Date(x.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]) >= replyMin))) {
       tB.push(async () => {
       const { data: claimed } = await sb.from("auto_assign_jobs").update({ state: "working", updated_at: new Date().toISOString() }).eq("id", j.id).eq("state", "pending_accept").select(); if (!claimed || !claimed.length) return;   // another run (or the instructor's reply) got there first
       const { data: w } = await sb.from("waiting_list").select("*").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", j.id); return; }

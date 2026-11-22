@@ -489,3 +489,18 @@ globalThis.FAIL_TEMPLATES.add("dsq_student_offer"); cfgOf().anytime = true; cfgO
 DB.waiting_list = [W("Hint Hal", "M13 9AA", "", { student_phone: "07866 787878" })]; await call({ action: "auto_assign", cron: true });
 ok(DB.admin_attention.some((a) => /SAME WhatsApp Business Account/.test(a.detail)) && DB.auto_assign_jobs[0].state === "attention", "a missing template tells you to check it is in the SAME WhatsApp account, English (UK)");
 globalThis.FAIL_TEMPLATES.clear();
+
+console.log("== 40. Ignored instructors ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().maxPerDay = 500; cfgOf().mode = "assign"; cfgOf().enabled = true; cfgOf().droughtDays = 7; cfgOf().franchiseMin = 0; cfgOf().fairnessMiles = 0; cfgOf().dailyLimit = 0; cfgOf().femaleRule = "require";
+DB.instructors.forEach((i) => { i.coverage_postcodes = "ZZ1"; }); DB.growth_settings.find((x) => x.key === "instructor_traits").value = {};
+DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.waiting_list = [W("Ign Ivy", "M13 9AA", "", { student_phone: "07866 929292" })];
+let pvI = await call({ action: "auto_assign", dry: true }); const firstPick = pvI.results[0].instructor;
+const firstId = DB.instructors.find((i) => i.full_name === firstPick).id;
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = { [firstId]: { noAuto: true } };
+pvI = await call({ action: "auto_assign", dry: true }); ok(pvI.results[0].instructor !== firstPick, "ignoring the first choice (" + firstPick + ") -> the next instructor is picked (" + pvI.results[0].instructor + ")");
+await call({ action: "auto_assign", cron: true }); const jI = DB.auto_assign_jobs[0], ignoredNow = jI.instructor_id; ok(jI.state === "pending_accept" && jI.instructor_id !== firstId, "a real run skips the ignored instructor too");
+DB.growth_settings.find((x) => x.key === "instructor_traits").value = { [ignoredNow]: { noAuto: true } };
+await call({ action: "auto_assign", cron: true }); ok(DB.auto_assign_jobs[0].instructor_id !== ignoredNow, "ignoring the instructor who has a waiting offer moves it to someone else straight away");
+const sim40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(sim40.skipped.some((x) => /Never auto-assign/.test(x.why)), "the simulator lists them under 'Left out: marked Never auto-assign'");
+DB.admin_attention = []; DB.referrals = []; await call({ action: "auto_assign", cron: true });
+ok(!DB.admin_attention.some((a) => a.kind === "no_jobs" && a.instructor_id === ignoredNow), "ignored instructors do not trigger 'no students for 7 days' warnings");
