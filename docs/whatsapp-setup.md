@@ -70,3 +70,7 @@ Every student within 8 miles is **offered** to the nearest suitable instructor (
 
 ## Optional: see template approval inside admin
 Add the Supabase secret `WHATSAPP_WABA_ID` (your WhatsApp Business Account ID, shown in WhatsApp Manager → Account tools / Settings). The Auto-assign control centre → **Test & readiness** then lists each template as Active / In review / Rejected.
+
+## Welcome email when a website booking comes in (sendemail function)
+Supabase → Integrations → Cron → new job: every **2 minutes** (`*/2 * * * *`) → Supabase Edge Function → **sendemail** → POST, header `x-admin-key` = your email admin key, body `{"action":"welcome","cron":true}`.
+It emails every NEW website booking that left an email address, once per address, and notes "📧 Welcome email sent (booking received)" on the booking. Switch it off with growth_settings key `welcome_config` = `{"enabled": false}`. Admin's own in-browser welcome email is skipped automatically once this function is deployed.

@@ -4930,6 +4930,7 @@ function _replyChip(r){
   return `<div style="display:inline-block;margin-top:4px;padding:2px 9px;border-radius:12px;background:${u[3]};border:1px solid ${u[2]}66;color:${u[2]};font-size:.64rem;font-weight:700;line-height:1.5">${u[0]} ${/^Student/.test(r.reply_note||'')?(r.reply_status==='left'?'Student confirmed they have left':'Student says: '+u[1]):'Instructor marked this student as '+u[1]}${when?' · '+when:''}</div>${r.reply_note?`<div style="font-size:.62rem;color:${u[2]};font-style:italic;margin-top:1px">“${esc(r.reply_note)}”</div>`:''}`;
 }
 const REPLY_FLAG={booked:'purple',not_yet:'purple',unreachable:'red',not_interested:'red',left:'red'};
+const REF_UNSURE_MK='🟣 Marked unsure by admin',REF_UNSURE_OFF_MK='🟣 Unsure mark removed by admin';
 const REF_CONFIRM_MK='✅ Booked — confirmed by admin',REF_CONFIRM_INSTR='✅ Booked — confirmed by instructor',REF_CONFIRM_STU='✅ Booked — confirmed by student',REF_UNCONFIRM_MK='↩️ Booked mark removed by admin';
 /* booked = confirmed by admin: green flag set by admin (or paid). Older green flags that came from an instructor's "booked" reply need confirming once. */
 function _refAdminBooked(r){
@@ -4970,6 +4971,11 @@ async function _saveRefFlag(refId,color){
   if(r&&(color==='green'||r.flag_color==='green')){
     const mk=color==='green'?REF_CONFIRM_MK:REF_UNCONFIRM_MK;
     patch.admin_notes=[r.admin_notes||'',new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+mk].filter(Boolean).join('\n');
+  }
+  // the admin's own 🟣 Unsure is noted too: only THIS (not an instructor's or student's "not yet" reply) triggers the "ready to get started?" email
+  if(r&&(color==='purple'||r.flag_color==='purple')&&color!==r.flag_color){
+    const mk=color==='purple'?REF_UNSURE_MK:REF_UNSURE_OFF_MK;
+    patch.admin_notes=[patch.admin_notes||r.admin_notes||'',new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+mk].filter(Boolean).join('\n');
   }
   const{error}=await sb.from('referrals').update(patch).eq('id',refId);
   if(error){showToast('Flag save failed: '+error.message,'error');return false;}
@@ -19963,7 +19969,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
    Students (by referral status, instructor = the referral's instructor, name + number from their profile):
      web  website booking received → "We've got your details"
      A    booked → "You're booked in" (or "Welcome back" after a cancellation; "Your new instructor" after a reassignment)
-     B    unsure / not booked yet / no update, 3+ days → "Ready to get started?" (+ one reminder 7 days later)
+     B    marked 🟣 Unsure by the admin, or no label for 3+ days → "Ready to get started?" (+ one reminder 7 days later)
      C    instructor can't reach them → "Your instructor is trying to reach you"
      D    cancelled / not going ahead (not reassignments) → "Sorry it didn't work out — can we help?"
    Instructors: summary of students to contact (portal + notification + email), max every 2 days, each student max twice;
@@ -20013,7 +20019,11 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   const isBooked = r => !r.is_cancelled && !r.is_credit && (typeof window._refAdminBooked === "function" ? window._refAdminBooked(r) : (r.flag_color === "green" || r.is_paid));   // booked = confirmed by admin
   const isCancelled = r => !reassigned(r) && !r.is_credit && (r.is_cancelled || r.reply_status === "not_interested" || r.flag_color === "red") && !isBooked(r);
   const isUnreach = r => !r.is_cancelled && !isBooked(r) && r.reply_status === "unreachable";
-  const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && r.reply_status !== "booked" && ageDays(r.created_at) >= 3 && (r.reply_status === "not_yet" || r.flag_color === "purple" || !r.reply_status);
+  /* the "Ready to get started?" email goes out ONLY when (a) the admin marked the student 🟣 Unsure, or (b) the student has had no label at all (no flag, no instructor reply) for 3+ days.
+     An instructor's or student's own "not yet" reply is NOT enough on its own. */
+  const adminUnsure = r => { const n = String(r.admin_notes || ""), a = n.lastIndexOf("🟣 Marked unsure by admin"), b = n.lastIndexOf("🟣 Unsure mark removed by admin"); return r.flag_color === "purple" && a >= 0 && a > b; };
+  const noLabel = r => !r.flag_color && !r.reply_status && !r.is_paid;
+  const isUnsure = r => !r.is_cancelled && !isBooked(r) && !isCancelled(r) && !isUnreach(r) && r.reply_status !== "booked" && (adminUnsure(r) || (noLabel(r) && ageDays(r.created_at) >= 3));
 
   /* which student email is due for a referral (or null) */
   function due(r, all) { const k = due0(r, all); return k && hasLeft(r) && ["B", "B2", "C"].includes(k) ? null : k; }
@@ -20106,7 +20116,8 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
       const email = find(r); if (!email || seen.has(email)) continue; seen.add(email);
       out.push({ kind: k, rec: "ref", r, email, name: r.student_name, ins: instrOf(r) });
     }
-    if (on("web")) {
+    let srvWelcome = false; try { srvWelcome = !!(await monStatus()).welcome; } catch (e) {}   // the email function sends the booking welcome by itself (Cron), so admin does not
+    if (on("web") && !srvWelcome) {
       const since = new Date(Date.now() - (all ? 365 : 14) * 864e5).toISOString();
       for (const x of await q("waiting_list", "id,student_name,student_phone,notes,created_at", y => y.gte("created_at", since).order("created_at", { ascending: false }))) {
         const m = String(x.notes || "").match(/Email:\s*([^\s,]+@[^\s,]+)/i), email = m && m[1].toLowerCase();
@@ -20261,7 +20272,7 @@ document.addEventListener('keydown',function(e){ if(e.altKey&&!e.ctrlKey&&!e.met
   let MON = { feat: null, last: null, at: 0 };
   async function monStatus(force) {
     if (!force && MON.feat !== null && Date.now() - MON.at < 10 * 60e3) return MON;
-    try { const j = await DSQMailSend.call({ action: "status" }); MON = { feat: (j.features || []).includes("monday"), last: j.monday_last || null, at: Date.now() }; }
+    try { const j = await DSQMailSend.call({ action: "status" }); MON = { feat: (j.features || []).includes("monday"), welcome: (j.features || []).includes("welcome"), last: j.monday_last || null, at: Date.now() }; }
     catch (e) { MON = { feat: false, last: MON.last, at: Date.now() }; }
     return MON;
   }

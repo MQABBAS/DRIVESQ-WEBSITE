@@ -523,6 +523,75 @@ async function nurture(sb, req, body) {
   return { ok: true, ...summary, results: out };
 }
 
+// ===================== WELCOME EMAIL WHEN A WEBSITE BOOKING COMES IN =====================
+// POST { action: "welcome", cron: true }   — from Supabase Cron every 2-5 minutes: emails every NEW website booking that left an email address
+// POST { action: "welcome", dry: true }    — preview
+// POST { action: "welcome", test_to: "me@x.com" } — one sample
+// Rules: only bookings tagged [WEB] created in the last 3 days and on/after the start date; one welcome per email address (never twice);
+// never to someone who unsubscribed; noted on the booking as "📧 Welcome email sent (booking received)" so admin does not send it again.
+const WELCOME_PORTAL = "https://www.drivesq.co.uk/drivesq-student-portal.html", WELCOME_WA = "https://wa.me/447352932003";
+function welcomeSummary(notes) {
+  const n = String(notes || ""), get = (k) => { const m = n.match(new RegExp("^" + k + ":\\s*(.+)$", "mi")); return m ? m[1].trim() : ""; };
+  const pc = get("Postcode").toUpperCase().replace(/\s+/g, " "), area = pc ? pc.split(" ")[0] : "";
+  return { ref: get("Ref"), rows: [["Reference", get("Ref")], ["Lessons", get("Gearbox")], ["Package", get("Package")], ["Area", area], ["Preferred start", get("Start")], ["Test date", get("Test date")]].filter((r) => r[1]) };
+}
+function welcomeDesign(notes) {
+  const bs = welcomeSummary(notes);
+  return { theme: "night", banner: "welcome", greeting: "Hi {{first_name}},", signoff: "Speak soon,\nThe DriveSQ team",
+    subject: "Welcome to DriveSQ, {{first_name}} — we've received your booking" + (bs.ref ? " (" + bs.ref + ")" : ""), preheader: "Your instructor will be in touch shortly. In the meantime, explore your free Student Portal.",
+    headline: "We've got your **booking request**",
+    body: "Thank you for choosing DriveSQ. We've received your details and we're already matching you with an instructor." + (bs.rows.length ? "\n\n**Your booking**\n" + bs.rows.map((r) => "- " + r[0] + ": **" + r[1] + "**").join("\n") : "") +
+      "\n\n**What happens next**\n- We match you with a DVSA-approved instructor near you\n- Your instructor will contact you shortly to arrange your first lesson\n- Questions? Reply to this email or WhatsApp us — a real person will answer\n\n**In the meantime — explore the Student Portal**\n- 700+ theory questions across all 14 DVSA categories\n- 14 full mock tests with instant results\n- Hazard perception practice — and your lesson progress once you start\n\nDon't have your provisional licence yet? Apply on GOV.UK — you'll need it for your first lesson.",
+    highlightValue: "10 hours for £330", highlightLabel: "New learner offer — your first 10-hour block, paid in advance (normally £350). Manual or automatic.", buttonText: "Explore the Student Portal", buttonUrl: WELCOME_PORTAL,
+    secondaryText: "[Apply for a provisional licence (GOV.UK)](https://www.gov.uk/apply-first-provisional-driving-licence) · [WhatsApp us](" + WELCOME_WA + ")" + (bs.ref ? " · Please quote **" + bs.ref + "** if you contact us." : "") };
+}
+async function welcome(sb, req, body) {
+  const now = new Date();
+  if (!RESEND_KEY && !body.dry) return { ok: false, error: "RESEND_API_KEY is not set" };
+  const base = fnUrl(req, String(body.fn_name || ""));
+  const cfgRow = await sb.from("growth_settings").select("value").eq("key", "welcome_config").maybeSingle();
+  const cfg = Object.assign({ enabled: true, start: "2026-11-22" }, (cfgRow.data && cfgRow.data.value) || {});
+  if (body.test_to) {
+    const to = norm(String(body.test_to)); if (!EMAIL_RE.test(to)) return { ok: false, error: "That test email address doesn't look right" };
+    const d = welcomeDesign("Ref: DSQ-TEST1\nGearbox: Manual\nPackage: 10-hour block\nPostcode: M14 5AB\nStart: This week"), u = await unsubUrl(to, base), c = { name: "Sara", email: to };
+    const res = await resendBatch([{ from: FROM, to: [to], subject: "[TEST] " + personalise(d.subject, c), html: personalise(build(d), c).split("{{unsubscribe_url}}").join(u), text: personalise(text(d), c).split("{{unsubscribe_url}}").join(u), headers: { "List-Unsubscribe": `<${u}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, ...(REPLY_TO ? { reply_to: REPLY_TO } : {}) }]);
+    return { ok: res[0].status === "sent", test: true, to, status: res[0].status, error: res[0].error || null };
+  }
+  if (!cfg.enabled && !body.dry) return { ok: true, off: true, message: "Welcome emails are switched off" };
+  const since = new Date(Math.max(now.getTime() - 3 * 864e5, new Date(String(cfg.start) + "T00:00:00Z").getTime())).toISOString();
+  const { data: wl } = await sb.from("waiting_list").select("id,student_name,notes,status,created_at").gte("created_at", since).order("created_at", { ascending: true }).limit(500);
+  const { data: contacts } = await sb.from("email_contacts").select("email_key,status").limit(10000);
+  const unsub = new Set((contacts || []).filter((r) => r.status && r.status !== "subscribed").map((r) => r.email_key));
+  const emailOf = (w) => { const m = String(w.notes || "").match(/^Email:\s*(\S+@\S+)/mi); return m ? norm(m[1]) : ""; };
+  const welcomed = new Set(); (wl || []).forEach((w) => { if (/Welcome email sent/.test(w.notes || "")) { const e = emailOf(w); if (e) welcomed.add(e); } });   // one welcome per address
+  const jobs = [], skipped = { noEmail: 0, already: 0, unsubscribed: 0, notWeb: 0, cancelled: 0 };
+  for (const w of wl || []) {
+    if (!/\[WEB\]/i.test(w.notes || "")) { skipped.notWeb++; continue; }
+    if (w.status === "cancelled" || w.status === "removed") { skipped.cancelled++; continue; }
+    if (/Welcome email sent/.test(w.notes || "")) { skipped.already++; continue; }
+    const e = emailOf(w); if (!EMAIL_RE.test(e)) { skipped.noEmail++; continue; }
+    if (welcomed.has(e)) { skipped.already++; jobs.push({ w, e, mark: "dup" }); continue; }   // same address already welcomed: just note it, no second email
+    if (unsub.has(e)) { skipped.unsubscribed++; jobs.push({ w, e, mark: "unsub" }); continue; }
+    welcomed.add(e); jobs.push({ w, e, d: welcomeDesign(w.notes) });
+  }
+  if (body.dry) return { ok: true, dry: true, enabled: !!cfg.enabled, would_send: jobs.filter((j) => j.d).length, skipped, sample: jobs.filter((j) => j.d).slice(0, 5).map((j) => ({ student: j.w.student_name, email: String(j.e).replace(/^(.).*(@.*)$/, "$1***$2"), subject: j.d.subject })) };
+  const real = jobs.filter((j) => j.d), out = [];
+  for (let i = 0; i < real.length; i += 50) {
+    const chunk = real.slice(i, i + 50), mails = [];
+    for (const j of chunk) {
+      const u = await unsubUrl(j.e, base), c = { name: j.w.student_name, email: j.e };
+      mails.push({ from: FROM, to: [j.e], subject: personalise(j.d.subject, c), html: personalise(build(j.d), c).split("{{unsubscribe_url}}").join(u), text: personalise(text(j.d), c).split("{{unsubscribe_url}}").join(u),
+        headers: { "List-Unsubscribe": `<${u}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, tags: [{ name: "campaign", value: "booking_welcome" }], ...(REPLY_TO ? { reply_to: REPLY_TO } : {}) });
+    }
+    const rs = await resendBatch(mails);
+    for (let k = 0; k < rs.length; k++) { out.push({ student: chunk[k].w.student_name, status: rs[k].status, error: rs[k].error || null }); if (rs[k].status === "sent") await sb.from("waiting_list").update({ notes: (chunk[k].w.notes ? chunk[k].w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) to ${chunk[k].e}` }).eq("id", chunk[k].w.id); }
+  }
+  for (const j of jobs.filter((x) => x.mark)) await sb.from("waiting_list").update({ notes: (j.w.notes ? j.w.notes + "\n" : "") + `${ukDate(now)} · 📧 Welcome email sent (booking received) — ${j.mark === "dup" ? "not sent again: this address was already welcomed" : "not sent: unsubscribed"}` }).eq("id", j.w.id);
+  const sent = out.filter((r) => r.status === "sent").length, failed = out.length - sent;
+  if (body.cron || sent || failed) await sb.from("growth_settings").upsert({ key: "welcome_last", value: { at: now.toISOString(), sent, failed, skipped }, updated_at: now.toISOString() }, { onConflict: "key" });
+  return { ok: true, sent, failed, skipped, results: out };
+}
+
 // ===================== EMAIL LOOP: send one email to a list, N a day, round after round =====================
 // Settings (admin → Email loop) are in growth_settings "emailloop"; progress is kept in growth_settings "emailloop_state".
 // POST { action: "loop", dry: true }              — preview today's batch (sends nothing)
@@ -701,9 +770,10 @@ serve(async (req) => {
 
   if (body.action === "status") {
     const last = await sb.from("growth_settings").select("value").eq("key", "monday_last").maybeSingle();
-    return json({ ok: true, from: FROM, replyTo: REPLY_TO || null, resend: !!RESEND_KEY, service: !!SERVICE_KEY, features: ["monday", "nurture", "loop"], monday_last: (last.data && last.data.value) || null });
+    return json({ ok: true, from: FROM, replyTo: REPLY_TO || null, resend: !!RESEND_KEY, service: !!SERVICE_KEY, features: ["monday", "nurture", "loop", "welcome"], monday_last: (last.data && last.data.value) || null });
   }
   if (body.action === "loop") { try { return json(await loop(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
+  if (body.action === "welcome") { try { return json(await welcome(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
   if (body.action === "nurture") { try { return json(await nurture(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
   if (body.action === "monday") { try { return json(await monday(sb, req, body)); } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); } }
   if (body.action !== "send") return json({ ok: false, error: "Unknown action" }, 400);
