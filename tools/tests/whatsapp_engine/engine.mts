@@ -627,6 +627,25 @@ console.log("== 44. WhatsApp enquiries are held a few minutes so Claude can coll
   const dX = mk("Detail Dan", base + "\nAI-updated: " + new Date(Date.now() - 1 * 60000).toISOString(), 12); DB.waiting_list.push(dX); await call({ action: "auto_assign", cron: true }); ok(!jobFor(dX), "new details 1 minute ago restart the wait (even though it was created 12 minutes ago)");
   const mX = mk("Max Mo", base + "\nAI-updated: " + new Date(Date.now() - 1 * 60000).toISOString(), 16); DB.waiting_list.push(mX); await call({ action: "auto_assign", cron: true }); ok(jobFor(mX), "but never held longer than 15 minutes in total");
   cfgOf().aiHoldMinutes = 0; const zZ = mk("Zero Zed", base, 0); DB.waiting_list.push(zZ); await call({ action: "auto_assign", cron: true }); ok(jobFor(zZ), "hold set to 0: no wait"); cfgOf().aiHoldMinutes = 5; }
+const waNum = (p) => "44" + String(p).replace(/\D/g, "").replace(/^0/, "");
+console.log("== 45. The instructor accepts ONCE ==");
+{ cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().sources = ["[WEB]"]; cfgOf().messageStudent = true; cfgOf().messageInstructor = true; cfgOf().aiHoldMinutes = 5; DB.waiting_list = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.referrals = []; globalThis.FAIL_TEMPLATES.clear();
+  const w = W("Once Olivia", "M13 9AA"); DB.waiting_list.push(w); await call({ action: "auto_assign", cron: true });
+  const job = DB.auto_assign_jobs.find((j) => String(j.waiting_id) === String(w.id)); ok(job && job.state === "pending_accept", "the offer is sent (one Accept button)");
+  const inst = DB.instructors.find((i) => String(i.id) === String(job.instructor_id)); CALLS.length = 0; DB.wa_log = [];
+  await hook({ from: waNum(inst.phone), p: "OFFER_ACCEPT:" + job.id });
+  const tplOut = (n) => CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === n);
+  const det = tplOut("dsq_student_details"), old = tplOut("dsq_new_student");
+  ok(det.length === 1 && det[0].wa.template.components.filter((c) => c.type === "button").length === 0 && old.length === 0, "after the FIRST Accept the instructor gets the student's details with NO second Accept button");
+  ok(tplOut("dsq_student_welcome_2").length + tplOut("dsq_student_welcome").length >= 1, "and the student is welcomed straight away (no waiting for a second tap)");
+  // until the new template is approved: the old details message is used, and a second tap must be harmless
+  globalThis.FAIL_TEMPLATES.add("dsq_student_details"); DB.waiting_list = [W("Fallback Fran", "M13 9AA")]; DB.auto_assign_jobs = []; DB.referrals = []; await call({ action: "auto_assign", cron: true });
+  const job2 = DB.auto_assign_jobs[0]; const inst2 = DB.instructors.find((i) => String(i.id) === String(job2.instructor_id)); CALLS.length = 0;
+  await hook({ from: waNum(inst2.phone), p: "OFFER_ACCEPT:" + job2.id });
+  ok(tplOut("dsq_new_student").length === 1, "template not approved yet: the older details message (with buttons) is used instead");
+  const ref2 = DB.referrals[0]; const nBefore = CALLS.filter((c) => c.wa && c.wa.template && /welcome/.test(c.wa.template.name)).length; await hook({ from: waNum(inst2.phone), p: "ACCEPT:" + ref2.id });
+  ok(CALLS.filter((c) => c.wa && c.wa.template && /welcome/.test(c.wa.template.name)).length === nBefore, "a second Accept tap changes nothing and the student is not welcomed twice");
+  globalThis.FAIL_TEMPLATES.clear(); }
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -715,31 +734,31 @@ globalThis.GRAPH = { wabas: [
   { id: "W1", name: "Test WhatsApp Business Account", phones: [{ id: "999", display_phone_number: "+1 555 000 1111", verified_name: "Test" }], templates: [{ name: "hello_world", status: "APPROVED", language: "en_US" }, { name: "jaspers_market_image_cta_v1", status: "APPROVED", language: "en_US" }, ...ALLN.slice(0, 8).map((n) => ({ name: n, status: "APPROVED", language: "en_GB" }))] },
   { id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
 let dg = await call({ action: "diagnose" });
-ok(dg.ok && dg.match === "W2" && dg.missing.length === 13, "diagnose: your number is in the account 'DriveSQ' (W2) and all 13 templates are missing there (" + dg.missing.length + ")");
+ok(dg.ok && dg.match === "W2" && dg.missing.length === 14, "diagnose: your number is in the account 'DriveSQ' (W2) and all 14 templates are missing there (" + dg.missing.length + ")");
 ok(dg.advice.some((a) => /DriveSQ/.test(a)) && dg.advice.some((a) => /another account/.test(a) && /Test WhatsApp/.test(a)), "it says in plain words that the right names exist in the TEST account, which your number cannot use");
 const tst = await call({ action: "templates" }); ok(tst.ok && tst.account === "W2" && tst.templates.every((t) => t.status === "MISSING"), "the readiness check now sees the statuses with no secret needed (all MISSING in your account)");
 const cr = await call({ action: "create_templates" });
-ok(cr.ok && cr.created === 13 && cr.failed === 0 && cr.account === "W2", "create_templates: 13 submitted to YOUR account (" + cr.created + ")");
+ok(cr.ok && cr.created === 14 && cr.failed === 0 && cr.account === "W2", "create_templates: 14 submitted to YOUR account (" + cr.created + ")");
 const made = globalThis.GRAPH.created, offer = made.find((m) => m.name === "dsq_student_offer");
 ok(made.every((m) => m.waba === "W2" && m.language === "en_GB"), "all created in account W2 with language en_GB");
 const comp = (m, t) => m.components.find((c) => c.type === t);
 ok(offer.category === "MARKETING" && comp(offer, "BODY") && comp(offer, "BODY").example.body_text[0].length === 4 && comp(offer, "BUTTONS").buttons.length === 2 && comp(offer, "BUTTONS").buttons[0].type === "QUICK_REPLY", "the offer: category MARKETING, 4 sample values, 2 quick-reply buttons");
 ok(!comp(made.find((m) => m.name === "dsq_student_terms"), "BUTTONS") && comp(made.find((m) => m.name === "dsq_student_terms"), "BODY").example.body_text[0][0] === "Sara", "terms: no buttons, sample 'Sara'");
 ok(comp(made.find((m) => m.name === "dsq_student_checkin"), "BUTTONS").buttons.map((b) => b.text).join("|") === "Yes, booked|Not yet|Gone elsewhere", "check-in buttons carry the right labels");
-dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 13, "afterwards: nothing missing, 13 waiting for Meta's review");
+dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 14, "afterwards: nothing missing, 14 waiting for Meta's review");
 const again = await call({ action: "create_templates" }); ok(again.created === 0 && /already exists/.test(again.note), "running it again creates nothing (no duplicates)");
 globalThis.GRAPH.wabas[1].templates = []; globalThis.GRAPH.failCreate = ["dsq_booking_received"]; const part = await call({ action: "create_templates" });
-ok(part.created === 12 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
+ok(part.created === 13 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
 globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: "diagnose" }); ok(dg.match === null && dg.advice.some((a) => /not in any account/.test(a)), "if the token cannot see the number's account, it says so");
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-hold-enquiries", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-one-accept", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
 const crH = await call({ action: "create_templates" }); const mH = globalThis.GRAPH.created;
-ok(crH.created === 13 && mH.every((m) => m.components[0].type === "HEADER" && m.components[0].format === "TEXT" && m.components[0].text.length <= 60 && !/\{\{/.test(m.components[0].text)), "all 13 are created with a plain text header (no variables, under 60 characters)");
+ok(crH.created === 14 && mH.every((m) => m.components[0].type === "HEADER" && m.components[0].format === "TEXT" && m.components[0].text.length <= 60 && !/\{\{/.test(m.components[0].text)), "all 14 are created with a plain text header (no variables, under 60 characters)");
 ok(mH.find((m) => m.name === "dsq_student_offer").components[0].text === "New student for you" && mH.find((m) => m.name === "dsq_admin_attention").components[0].text === "Attention needed" && mH.find((m) => m.name === "dsq_student_terms").components[1].type === "BODY", "e.g. offer: 'New student for you', alert: 'Attention needed', and the body follows the header");
 ok(mH.find((m) => m.name === "dsq_student_checkin").components.map((c) => c.type).join(",") === "HEADER,BODY,BUTTONS", "components are in Meta's order: HEADER, BODY, BUTTONS");
 delete globalThis.GRAPH;

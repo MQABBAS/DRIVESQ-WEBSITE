@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-hold-enquiries";
+const FN_VERSION = "2026-11-23-one-accept";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -535,7 +535,10 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
   const msgs: string[] = [];
   if (cfg.messageInstructor && c.phone) {
     const det = [b.avail ? "Availability: " + b.avail : "", pickup ? "Address: " + pickup : ""].filter(Boolean).join(" | ") || "None";
-    const r1 = await sendTemplate(sb, { to: c.phone, template: "dsq_new_student", lang: "en_GB", params: [first(c.name), b.name, fmtPhone(b.phone) || "Not provided", b.postcode || "Not provided", b.type, det], buttons: ["ACCEPT:" + ref.id, "DECLINE:" + ref.id], instructor_id: c.id, referral_id: ref.id, student_name: b.name });
+    const dp = [first(c.name), b.name, fmtPhone(b.phone) || "Not provided", b.postcode || "Not provided", b.type, det];
+    // the instructor ALREADY accepted this student (tapped Accept on the offer): send the details with NO second Accept button. Until that template is approved the old message (with buttons) is used, and a second tap is harmless.
+    let r1 = agreed ? await sendTemplate(sb, { to: c.phone, template: "dsq_student_details", lang: "en_GB", params: dp, instructor_id: c.id, referral_id: ref.id, student_name: b.name }) : null;
+    if (!r1 || !r1.ok) r1 = await sendTemplate(sb, { to: c.phone, template: "dsq_new_student", lang: "en_GB", params: dp, buttons: ["ACCEPT:" + ref.id, "DECLINE:" + ref.id], instructor_id: c.id, referral_id: ref.id, student_name: b.name });
     msgs.push(r1.ok ? "instructor messaged" : "instructor message failed: " + r1.error);
     if (!r1.ok) await attention(sb, cfg, { kind: "msg_failed", title: "WhatsApp to " + c.name + " did not send", detail: `${b.name} was assigned but the message failed: ${r1.error}. Contact them by hand.`, waiting_id: String(b.id), referral_id: ref.id, instructor_id: c.id, student_name: b.name });
   }
@@ -650,6 +653,21 @@ const TEMPLATE_DEFS: any[] = [
    "Accept",
    "Can't take"
   ]
+ },
+ {
+  "name": "dsq_student_details",
+  "header": "Your new student",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, thanks for accepting! 🚗 Here are your new student's details.\n\n*Student details*\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\n*What to do next*\n1. Contact the student within 24 hours to arrange the first lesson.\n2. Check their provisional licence and eyesight at lesson one.\n3. Update their status in your Instructor Portal: booked, not booked yet, can't reach or not going ahead.\n\nYour Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nNo need to reply. Thank you!",
+  "params": [
+   "Instructor first name",
+   "Student name",
+   "Student phone",
+   "Postcode",
+   "Lesson type",
+   "Other details"
+  ],
+  "buttons": []
  },
  {
   "name": "dsq_student_offer",

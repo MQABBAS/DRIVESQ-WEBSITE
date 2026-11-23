@@ -16,6 +16,8 @@
 
   /* ---------- templates (submit these in Meta → WhatsApp Manager → Message templates; category UTILITY, language English (UK)) ---------- */
   var TPL = {
+    dsq_student_details: { who: 'Instructor', buttons: [], params: ['Instructor first name', 'Student name', 'Student phone', 'Postcode', 'Lesson type', 'Other details'],
+      body: 'Hi {{1}}, thanks for accepting! 🚗 Here are your new student\'s details.\n\n*Student details*\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\n*What to do next*\n1. Contact the student within 24 hours to arrange the first lesson.\n2. Check their provisional licence and eyesight at lesson one.\n3. Update their status in your Instructor Portal: booked, not booked yet, can\'t reach or not going ahead.\n\nYour Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nNo need to reply. Thank you!' },
     dsq_new_student: { who: 'Instructor', buttons: ['Accept', "Can't take"], params: ['Instructor first name', 'Student name', 'Student phone', 'Postcode', 'Lesson type', 'Other details'],
       body: 'Hi {{1}}, DriveSQ has assigned you a new student. 🚗\n\n*Student details*\nName: {{2}}\nPhone: {{3}}\nPostcode: {{4}}\nLessons: {{5}}\nDetails: {{6}}\n\n*What to do next*\n1. Contact the student within 24 hours to arrange the first lesson.\n2. Check their provisional licence and eyesight at lesson one.\n3. Update their status in your Instructor Portal: booked, not booked yet, can\'t reach or not going ahead.\n\nYour Instructor Portal: https://www.drivesq.co.uk/dashboard\n\nTap Accept if you can take them, or Can\'t take if you can\'t. Thank you!' },
     dsq_student_welcome_old: { who: 'Student', buttons: [], params: ['Student first name', 'Instructor name', 'Instructor phone'],
