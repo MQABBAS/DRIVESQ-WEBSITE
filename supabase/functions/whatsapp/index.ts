@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-readonly-fix";
+const FN_VERSION = "2026-11-23-rebook-fix";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1430,7 +1430,7 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
   if (day.some((x: any) => x.status !== "muted" && (x.template === "ai_handoff" || x.template === "ai_booked"))) {   // (a read-only "would have said" line never counts: in read-only mode Claude keeps reading every message)   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
     const booked = day.some((x: any) => x.template === "ai_booked"), rx0 = classifyMessage(text), cl0 = cfg.aiClassifier !== false ? await understand(text, "") : null, r0: any = routeMessage(rx0, cl0, cfg.aiMinConfidence || 0.65), k0 = r0.action === "kind" || r0.action === "abuse" ? r0.kind : "", ks = await knownStudent(sb, from);
-    if (booked && !k0) { try { const ed2: any = await extractDetails(sb, cfg, day, profileName); if (ed2.a) await enrichBooking(sb, cfg, from, ed2.a); } catch (_) { /* best effort */ } }   // they added availability / address / test date after booking: it goes into the same booking
+    if (booked && !k0) { try { await extractFromChat(sb, cfg, from, day, profileName); } catch (e) { console.error("extract-handled", e); } }   // new details go into their booking; if that booking no longer exists (you deleted it) and the details are complete, a new one is saved   // they added availability / address / test date after booking: it goes into the same booking
     if (k0 === "urgent") await send(KINDS.urgent.reply, "ai_handoff");
     await attention(sb, cfg, { kind: "ai_handoff", title: `${r0.urgency !== "normal" && k0 !== "urgent" ? "🚨 " : ""}${k0 ? KINDS[k0].title + ": " : "New WhatsApp message from "}${profileName || num}${booked ? " (after their booking)" : ""}${ks ? " · student of " + ks.instructor : ""}`, detail: `"${String(text).slice(0, 200)}". Their number: ${num}. Reply to them yourself on WhatsApp.`, waiting_id: "ai-msg-" + num + "-" + londonYMD(Date.now()).d });
     return "handled: told you (alert), the assistant stays quiet";

@@ -584,6 +584,10 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       globalThis.CLASSIFY_Q = [lb("unclear", 0.3)]; globalThis.EXTRACT_Q = [ext({})]; await hook({ from: G }, "hmm ok");
       globalThis.CLASSIFY_Q = [lb("booking", 0.9)]; globalThis.EXTRACT_Q = [ext({ name: "Gina Lee", postcode: "m13 9aa", gearbox: "automatic" })]; await hook({ from: G }, "Gina Lee M13 9AA automatic");
       ok(DB.waiting_list.some((w) => /Gina Lee/.test(w.student_name)) && textsTo(G).length === 0, "read-only: an earlier message Claude was unsure about does NOT stop it reading the details sent next: booking saved, nothing sent"); }
+    { const H = "447920000088", lb = (intent, conf) => ({ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent, urgency: "normal", confidence: conf, summary: "x" } }] });
+      DB.wa_log.push({ id: "old-ab", direction: "out", to_phone: H, template: "ai_booked", status: "sent", body: "booked earlier", created_at: new Date().toISOString() }); DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== H);
+      globalThis.CLASSIFY_Q = [lb("booking", 0.9)]; globalThis.EXTRACT_Q = [ext({ name: "Syed Ali", postcode: "m13 9aa", gearbox: "manual", availability: "Mon Tue Wed" })]; await hook({ from: H }, "Syed Ali M13 9AA manual Mon Tue Wed");
+      ok(DB.waiting_list.some((w) => /Syed Ali/.test(w.student_name) && /Mon Tue Wed/.test(w.notes)), "marked booked earlier today but that booking no longer exists: complete new details create a NEW booking (with availability)"); }
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
     ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
     globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
@@ -767,7 +771,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-readonly-fix", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-rebook-fix", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
