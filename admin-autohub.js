@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-23-understanding', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-23-read-only', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -261,6 +261,7 @@
     h.innerHTML = '<style>' + CSS + '</style><div class="hb"><div class="hh"><h1>🤖 Auto-assign control centre</h1><div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:.78rem;font-weight:700">' + (on ? 'ON' : 'OFF') + '</span><button class="sw' + (on ? ' on' : '') + '" style="background:' + (on ? '#22c55e' : '#475569') + '" title="Turn auto-assign ' + (on ? 'off' : 'on') + '" onclick="DSQHub.toggle()"></button>' +
       '<select class="dsq-inp" id="hubMode" style="width:auto;padding:4px 8px;font-size:.76rem" onchange="DSQHub.mode(this.value)"><option value="suggest"' + (c.mode === 'suggest' ? ' selected' : '') + '>Suggest only (safe)</option><option value="assign"' + (c.mode === 'assign' ? ' selected' : '') + '>Assign + WhatsApp</option></select>' +
+      '<select class="dsq-inp" id="hubAi" title="WhatsApp booking assistant (Claude)" style="width:auto;padding:4px 8px;font-size:.76rem" onchange="DSQHub.aiMode(this.value)"><option value="off"' + (!c.aiAssistant ? ' selected' : '') + '>🤖 Claude: off</option><option value="read"' + (c.aiAssistant && c.aiSend === false ? ' selected' : '') + '>🤖 Claude: read only</option><option value="reply"' + (c.aiAssistant && c.aiSend !== false ? ' selected' : '') + '>🤖 Claude: read + send</option></select>' +
       '<button class="btn-s" onclick="DSQHub.preview()">👀 Preview</button><button class="btn-p" onclick="DSQHub.run()">▶ Run now</button><button class="btn-s" onclick="DSQHub.close()">✕ Close</button></div></div>' +
       '<div class="tabs">' + tabs.map(function (t) { return '<button class="tab' + (TAB === t[0] ? ' on' : '') + '" onclick="DSQHub.tab(\'' + t[0] + '\')">' + t[1] + (t[0] === 'overview' && DATA.att && DATA.att.length ? ' <span style="background:#fff;color:#dc2626;border-radius:99px;padding:0 6px;font-size:.66rem">' + DATA.att.length + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<div id="hubOut" style="font-size:.78rem;margin:0 0 10px"></div><div id="hubBody">' + body() + '</div></div>';
@@ -288,6 +289,15 @@
     if (turningOn && c.mode === 'assign') { try { var its = await readiness(); var bad = its.filter(function (x) { return x.level === 'bad'; }); if (bad.length) warn = '\n\n❌ NOT READY:\n' + bad.map(function (x) { return '• ' + x.title + ': ' + x.detail; }).join('\n') + '\n\nSwitching on now may fail or send nothing. Use "Suggest only" until these are fixed.'; } catch (e) { } }
     if (turningOn && !confirm('Turn auto-assign ON in "' + (c.mode === 'suggest' ? 'suggest only' : 'assign + WhatsApp') + '" mode?\n\nOnly website bookings from now on are handled.' + (c.mode === 'assign' ? '\nInstructors and students will be messaged for real.' : '\nNothing is sent or assigned in suggest mode.') + warn)) return;
     if (await saveCfg({ enabled: turningOn, since: turningOn && !c.enabled ? new Date().toISOString() : c.since }, 'Auto-assign turned ' + (turningOn ? 'ON (' + c.mode + ')' : 'OFF'))) { toast(turningOn ? '🤖 Auto-assign is ON' : 'Auto-assign is OFF', 'success', 2500); refresh(true); }
+  }
+  /* Claude on WhatsApp: off / read only (reads chats, extracts and saves bookings, sends NOTHING) / read + send (also replies to students) */
+  async function aiMode(v) {
+    var c = DATA.cfg || {};
+    if (v === 'reply' && !confirm('Let Claude SEND messages?\n\nIt will reply to ' + (c.aiTestOnly !== false ? 'your own phone only (Test mode is on)' : 'real students who WhatsApp the number') + ': ask for their details and confirm bookings. Make sure the Meta AI is not also answering.')) { refresh(true); return; }
+    if (v === 'read' && !confirm('Read only: Claude will read WhatsApp chats and save bookings it finds, but will NEVER send a message.\n\nContinue?')) { refresh(true); return; }
+    var patch = v === 'off' ? { aiAssistant: false } : { aiAssistant: true, aiSend: v === 'reply' };
+    if (await saveCfg(patch, 'WhatsApp assistant set to: ' + (v === 'off' ? 'off' : v === 'read' ? 'read only (sends nothing)' : 'read + send messages'))) { toast(v === 'off' ? 'Claude is off' : v === 'read' ? 'Claude can only read and extract' : 'Claude can read and send messages', 'success', 3000); }
+    refresh(true);
   }
   async function mode(v) { if (v === 'assign' && !confirm('Switch to ASSIGN + WhatsApp?\n\nStudents will be assigned and real WhatsApp messages sent. Use Preview first if unsure.')) { refresh(true); return; } if (await saveCfg({ mode: v }, 'Auto-assign mode set to ' + v)) { toast('Mode: ' + (v === 'suggest' ? 'suggest only' : 'assign + WhatsApp'), 'success', 2500); refresh(true); } }
   async function preview() { var o = document.getElementById('hubOut'); if (!o) return; o.textContent = 'Working it out…'; var r = await DSQWA.call({ action: 'auto_assign', dry: true }); if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; }
@@ -361,5 +371,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();

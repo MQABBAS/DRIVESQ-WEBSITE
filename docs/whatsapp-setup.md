@@ -111,3 +111,10 @@ Fixed safe replies + an alert (no Claude needed): emergency/accident, complaint,
 3. If the keyword check and Claude disagree it is shown in the alert, and Claude's reading wins only when it is confident. If Claude is unreachable the keyword rules take over.
 4. Every decision is written to Activity in plain English, e.g. "test_date (96% sure, time_sensitive) -> fixed reply (test) and alert". The 999 line is only sent for a confirmed real emergency.
 Settings can switch the classifier off (aiClassifier) or change the confidence threshold (aiMinConfidence).
+
+## Claude: off / read only / read + send
+Control centre header (and Settings → 🤖 WhatsApp booking assistant) has three modes:
+- **Off**: Claude does nothing.
+- **Read only**: Claude reads the chats on the number (also what a student told another assistant such as the Meta AI), takes out ONLY what they actually said (name, postcode, gearbox, times) and saves the booking for auto-assign when all three are there. Otherwise you get an alert listing what it found and what is missing. It NEVER sends a message (what it would have said is logged as "not sent"). Serious messages (refund, complaint, emergency...) become alerts only.
+- **Read + send**: as above, and it also replies to students and confirms bookings.
+Claude cannot see the Meta AI's own notes or its replies: it only sees the student's messages, from the last 24 hours.

@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-understanding";
+const FN_VERSION = "2026-11-23-read-only";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -148,6 +148,7 @@ const DEFAULT_CFG = {
   maxMsgsInstructor: 8,            // never annoy: at most this many automatic WhatsApps to ONE instructor in 24 hours for non-essential messages (check-ins, balance reminders). Offers and assignments are never held back. 0 = no limit
   maxMsgsStudent: 4,               // same for ONE student in 24 hours (check-ins, acknowledgements)
   aiAssistant: false,              // Claude answers students who WhatsApp the number to book a lesson: collects name, postcode, gearbox and times, then creates the booking for auto-assign. Needs the ANTHROPIC_API_KEY secret
+  aiSend: true,                    // may Claude SEND messages (replies, confirmations)? Off = READ ONLY: Claude reads the chat, extracts the booking details and saves the booking, but never sends anything
   aiTestOnly: true,                // while testing it only answers YOUR admin phone number. Switch off to let it answer real students
   aiMaxMessages: 14,               // after this many messages from one person in a day it hands over to you
   aiMaxPerDay: 300,                // safety: most Claude replies per day across everyone
@@ -1237,7 +1238,8 @@ const DEFAULT_FACTS = `- Lessons are in Greater Manchester and surrounding areas
 - Money paid to the DriveSQ business account (our website, a DriveSQ payment link, or bank transfer to DriveSQ) is DriveSQ's responsibility. Money paid directly to an instructor is a private arrangement between the learner and the instructor.
 - Refunds: 14-day cooling-off if no lessons have been taken. After that, lessons already taken are deducted at £35 per hour.
 - Full terms: https://www.drivesq.co.uk/terms.html . The team's WhatsApp number is 07352 932003.`;
-async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant") {
+async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant", mute = false) {
+  if (mute) { try { await sb.from("wa_log").insert([{ direction: "out", to_phone: waNumber(to), template: tag, body: "(not sent: Claude is in read-only mode) " + text.slice(0, 800), status: "muted" }]); } catch (_) { /* log only */ } return { ok: true, muted: true, j: {} }; }
   const r = await sendText(waNumber(to), text);
   try { await sb.from("wa_log").insert([{ direction: "out", wa_message_id: (r.j && r.j.messages && r.j.messages[0] && r.j.messages[0].id) || null, to_phone: waNumber(to), template: tag, body: text.slice(0, 900), status: r.ok ? "sent" : "failed", error: r.ok ? null : ((r.j && r.j.error && r.j.error.message) || "send failed") }]); } catch (_) { /* log only */ }
   return r;
@@ -1305,24 +1307,64 @@ async function knownStudent(sb: any, from: string) {
     return { name: r.student_name || "", instructor: (ins && ins.full_name) || "their instructor", instructorPhone: (ins && ins.phone) || "" };
   } catch (_) { return null; }
 }
+/* save a booking found by Claude (from the chat, or in read-only mode from the student's own messages). Same record the website form makes, tagged so auto-assign picks it up. */
+async function saveAiBooking(sb: any, from: string, a: any, source: string) {
+  const num = waNumber(from), name = String(a.name || "").replace(/[^\p{L}\p{M}' .-]/gu, "").trim().slice(0, 60), pc = fmtPc(String(a.postcode || ""));
+  if (name.length < 2) return { ok: false, why: "name" };
+  const g = pc ? await geocode(pc) : null; if (!pc || !g || g.error) return { ok: false, why: "postcode" };
+  const { data: ex } = await sb.from("waiting_list").select("id,student_phone,created_at,status").eq("status", "waiting");
+  if ((ex || []).some((w: any) => last10(w.student_phone || "") === last10(from) && Date.now() - new Date(w.created_at).getTime() < 14 * 864e5)) return { ok: false, why: "duplicate" };
+  const gear = /auto/i.test(String(a.gearbox)) ? "Automatic" : "Manual", ig = String(a.instructor_gender || ""), lt = String(a.lesson_type || ""), ltype = lt === "intensive" ? "Intensive" : lt === "mock_test" ? "Mock Test" : gear;
+  const notes = ["[WHATSAPP]", "[AUTO]", "Source: " + source, "Postcode: " + pc, "Gearbox: " + gear, lt && lt !== "standard" ? "Lesson type: " + lt.replace("_", " ") : "", a.availability ? "Availability: " + String(a.availability).slice(0, 200) : "", ig === "female_required" ? "FEMALE INSTRUCTOR REQUESTED" : ig === "female_preferred" ? "FEMALE PREFERRED" : ig === "male" ? "Prefers a male instructor" : "", a.notes ? "Notes: " + String(a.notes).slice(0, 300) : ""].filter(Boolean).join("\n");
+  const { error } = await sb.from("waiting_list").insert([{ student_name: name, student_phone: num, postcode: pc, lesson_type: ltype, notes, status: "waiting", created_at: new Date().toISOString() }]);
+  if (error) return { ok: false, why: "save", error: error.message };
+  return { ok: true, name, pc, gear };
+}
+/* READ-ONLY mode: Claude never sends anything. It reads what the student has written (also their answers to another assistant, such as the Meta AI), takes out ONLY what they actually said, and saves the booking when name, postcode and gearbox are all there. Otherwise you get an alert listing what it found and what is missing. */
+const EXTRACT_SYSTEM = `You read messages a person sent to a UK driving school on WhatsApp, in order. They may be answering questions from an automated assistant whose questions you cannot see. Take out ONLY what the person clearly states themselves. Never guess, never invent, never fill gaps. Leave a field empty when it was not stated. A reply such as "manual" or "M13 9AA" counts if it is obviously an answer. Return it with the save_details tool.`;
+const EXTRACT_TOOL = { name: "save_details", description: "The booking details the person stated.", input_schema: { type: "object", properties: { name: { type: "string", description: "their full name, only if stated" }, postcode: { type: "string", description: "UK postcode where lessons would start, only if stated" }, gearbox: { type: "string", enum: ["", "manual", "automatic"] }, availability: { type: "string" }, instructor_gender: { type: "string", enum: ["", "female_required", "female_preferred", "male"] }, lesson_type: { type: "string", enum: ["", "standard", "intensive", "refresher", "mock_test"] }, notes: { type: "string" } }, required: [] } };
+async function extractFromChat(sb: any, cfg: any, from: string, day: any[], profileName: string) {
+  const mine = day.filter((x: any) => x.direction === "in" && x.body && !String(x.body).startsWith("[")).map((x: any) => "- " + String(x.body).slice(0, 300));
+  if (!mine.length) return { action: "none" };
+  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 300, system: EXTRACT_SYSTEM, tools: [EXTRACT_TOOL], tool_choice: { type: "tool", name: "save_details" }, messages: [{ role: "user", content: "Messages from the person, oldest first:\n" + mine.join("\n") + (profileName ? `\n(Their WhatsApp profile name is "${profileName}", but only use it if they confirm it.)` : "") }] }, 2);
+  if (!r.ok) { await attention(sb, cfg, { kind: "ai_error", title: "The WhatsApp assistant could not read a chat", detail: `${String(r.error || "Claude did not answer")}. Check the ANTHROPIC_API_KEY secret and your Anthropic credit.`, waiting_id: "ai-error-" + londonYMD(Date.now()).d }); return { action: "error" }; }
+  const t = ((r.j && r.j.content) || []).find((x: any) => x.type === "tool_use" && x.name === "save_details"), a = (t && t.input) || {};
+  const num = waNumber(from), has = { name: String(a.name || "").trim().length >= 2, postcode: !!fmtPc(String(a.postcode || "")), gearbox: /^(manual|automatic)$/i.test(String(a.gearbox || "")) };
+  const key = "ai-draft-" + num + "-" + londonYMD(Date.now()).d;
+  if (has.name && has.postcode && has.gearbox) {
+    const sv: any = await saveAiBooking(sb, from, a, "WhatsApp chat (details read by Claude)");
+    if (sv.ok) {
+      await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("waiting_id", key).eq("resolved", false);
+      await trail(sb, "ai_booking", `📥 Claude read the WhatsApp chat with ${sv.name} and saved a booking (${sv.pc}, ${sv.gear}); auto-assign picks it up. Nothing was sent to the student.`);
+      await attention(sb, cfg, { kind: "ai_handoff", title: `📥 Booking read from a WhatsApp chat: ${sv.name}`, detail: `${sv.pc}, ${sv.gear}${a.availability ? ", " + String(a.availability).slice(0, 80) : ""}. Saved to the waiting list for auto-assign. Nothing was sent to them (Claude is in read-only mode), so tell them yourself if they need a reply. Number: ${num}.`, waiting_id: "ai-saved-" + num, quiet: true });
+      return { action: "saved" };
+    }
+    if (sv.why === "duplicate") return { action: "duplicate" };
+    if (sv.why === "postcode") has.postcode = false;
+  }
+  const found = [has.name ? "name " + String(a.name).slice(0, 40) : "", has.postcode ? "postcode " + String(a.postcode).slice(0, 12) : "", has.gearbox ? String(a.gearbox) : ""].filter(Boolean), missing = [!has.name ? "name" : "", !has.postcode ? "a valid postcode" : "", !has.gearbox ? "manual or automatic" : ""].filter(Boolean);
+  if (found.length) await attention(sb, cfg, { kind: "ai_handoff", title: `📥 WhatsApp enquiry still incomplete: ${profileName || a.name || num}`, detail: `Claude has: ${found.join(", ")}. Still missing: ${missing.join(", ")}. Nothing was sent. Number: ${num}. Message them to get the rest, or add it to the waiting list yourself.`, waiting_id: key, quiet: true });
+  return { action: "incomplete", found, missing };
+}
 async function assistantReply(sb: any, from: string, text: string, profileName: string) {
   const cfg = await loadCfg(sb); if (!cfg.aiAssistant || !ANTHROPIC_KEY || !TOKEN || !PHONE_ID) return "ignored: " + (!cfg.aiAssistant ? "assistant is switched OFF in settings (tick it and press Save)" : !ANTHROPIC_KEY ? "no ANTHROPIC_API_KEY secret" : "WhatsApp token or phone id missing");
   if (cfg.aiTestOnly && !(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone))) return "ignored: test mode is on and this number is not your admin phone (admin phone in settings: " + (cfg.adminPhone ? "…" + String(cfg.adminPhone).slice(-4) : "NOT SET") + ", sender ends " + String(from).slice(-4) + ")";
   const isAdminPhone = !!(waNumber(cfg.adminPhone || "") && last10(from) === last10(cfg.adminPhone));   // you can test from your own number even if it is also saved as an instructor (e.g. a test "Admin" instructor)
   if (!(cfg.aiTestOnly && isAdminPhone) && await instructorByPhone(sb, from)) return "instructor";
+  const mute = cfg.aiSend === false, send = (text: string, tag = "ai_assistant") => aiSend(sb, from, text, tag, mute);   // read-only: nothing is ever sent, but what would have been said is logged
   const num = waNumber(from), since = Date.now() - 864e5;
   const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone").eq("to_phone", num);
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
   if (day.some((x: any) => x.template === "ai_handoff" || x.template === "ai_booked")) {   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
     const booked = day.some((x: any) => x.template === "ai_booked"), rx0 = classifyMessage(text), cl0 = cfg.aiClassifier !== false ? await understand(text, "") : null, r0: any = routeMessage(rx0, cl0, cfg.aiMinConfidence || 0.65), k0 = r0.action === "kind" || r0.action === "abuse" ? r0.kind : "", ks = await knownStudent(sb, from);
-    if (k0 === "urgent") await aiSend(sb, from, KINDS.urgent.reply, "ai_handoff");
+    if (k0 === "urgent") await send(KINDS.urgent.reply, "ai_handoff");
     await attention(sb, cfg, { kind: "ai_handoff", title: `${r0.urgency !== "normal" && k0 !== "urgent" ? "🚨 " : ""}${k0 ? KINDS[k0].title + ": " : "New WhatsApp message from "}${profileName || num}${booked ? " (after their booking)" : ""}${ks ? " · student of " + ks.instructor : ""}`, detail: `"${String(text).slice(0, 200)}". Their number: ${num}. Reply to them yourself on WhatsApp.`, waiting_id: "ai-msg-" + num + "-" + londonYMD(Date.now()).d });
     return "handled: told you (alert), the assistant stays quiet";
   }
   const ins = day.filter((x: any) => x.direction === "in").length;
   const callsToday = (await sb.from("wa_log").select("id").eq("template", "ai_assistant").gte("created_at", new Date(londonMidnightToday()).toISOString())).data || [];
   const handoff = async (reason: string, say = "Thanks! I've asked a member of our team to message you shortly.", title = "") => {
-    await aiSend(sb, from, say, "ai_handoff");
+    await send(say, "ai_handoff");
     await attention(sb, cfg, { kind: "ai_handoff", title: title || `WhatsApp chat needs you: ${profileName || num}`, detail: `${reason}. Their number: ${num}. Last message: "${String(text).slice(0, 160)}". The assistant has stopped replying to them today.`, waiting_id: "ai-" + num + "-" + londonYMD(Date.now()).d });
     await trail(sb, "ai_handoff", `🤖 WhatsApp chat with ${profileName || num} handed to you: ${reason}`);
     return "handoff";
@@ -1346,6 +1388,7 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
     return handoff(KINDS[rt.kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE)" : "") + "." + sum + (rt.note ? " [" + rt.note + "]" : "") + who, KINDS[rt.kind].reply, `${rush ? "🚨 " : ""}${KINDS[rt.kind].title}: ${profileName || num}${who}`);
   }
   if (rt.urgency !== "normal") await attention(sb, cfg, { kind: "ai_handoff", title: `⏱ Time-sensitive WhatsApp enquiry: ${profileName || num}`, detail: `${rt.summary || String(text).slice(0, 120)}. The assistant is still collecting their details. Their number: ${num}.`, waiting_id: "ai-rush-" + num + "-" + londonYMD(Date.now()).d });
+  if (mute) { const ex = await extractFromChat(sb, cfg, from, day, profileName); return "read-only: " + ex.action; }   // Claude only reads and extracts; it sends nothing
   // the conversation so far (today): their messages and the assistant's replies, alternating
   const msgs: any[] = [];
   for (const x of day) { const role = x.direction === "in" ? "user" : (x.template === "ai_assistant" ? "assistant" : ""); if (!role || !x.body) continue; if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += "\n" + x.body; else msgs.push({ role, content: String(x.body) }); }
@@ -1360,20 +1403,18 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   const blocks: any[] = j.content || [], tool = blocks.find((x) => x.type === "tool_use"), say = blocks.filter((x) => x.type === "text").map((x) => x.text).join("\n").trim();
   if (tool && tool.name === "hand_off") return handoff(String((tool.input && tool.input.reason) || "the assistant asked for a person").slice(0, 160));
   if (tool && tool.name === "create_booking") {
-    const a = tool.input || {}, name = String(a.name || "").replace(/[^\p{L}\p{M}' .-]/gu, "").trim().slice(0, 60), pc = fmtPc(String(a.postcode || ""));
-    if (name.length < 2) return aiSend(sb, from, "Sorry, could you tell me your full name?");
-    const g = pc ? await geocode(pc) : null; if (!pc || !g || g.error) return aiSend(sb, from, "Sorry, I could not find that postcode. Could you check it and send it again?");
-    const { data: ex } = await sb.from("waiting_list").select("id,student_phone,created_at,status").eq("status", "waiting");
-    if ((ex || []).some((w: any) => last10(w.student_phone || "") === last10(from) && Date.now() - new Date(w.created_at).getTime() < 14 * 864e5)) { await aiSend(sb, from, "We already have your details, thank you! The team will be in touch shortly.", "ai_booked"); return "duplicate"; }
-    const gear = /auto/i.test(String(a.gearbox)) ? "Automatic" : "Manual", ig = String(a.instructor_gender || ""), lt = String(a.lesson_type || ""), ltype = lt === "intensive" ? "Intensive" : lt === "mock_test" ? "Mock Test" : gear;
-    const notes = ["[WHATSAPP]", "[AUTO]", "Source: WhatsApp enquiry (assistant)", "Postcode: " + pc, "Gearbox: " + gear, lt && lt !== "standard" ? "Lesson type: " + lt.replace("_", " ") : "", a.availability ? "Availability: " + String(a.availability).slice(0, 200) : "", ig === "female_required" ? "FEMALE INSTRUCTOR REQUESTED" : ig === "female_preferred" ? "FEMALE PREFERRED" : ig === "male" ? "Prefers a male instructor" : "", a.notes ? "Notes: " + String(a.notes).slice(0, 300) : ""].filter(Boolean).join("\n");
-    const { error } = await sb.from("waiting_list").insert([{ student_name: name, student_phone: num, postcode: pc, lesson_type: ltype, notes, status: "waiting", created_at: new Date().toISOString() }]);
-    if (error) return handoff("the booking could not be saved (" + error.message + ")");
-    await aiSend(sb, from, `Thanks ${first(name)}! I've passed your details to our team. An instructor will message you shortly to arrange your lessons.`, "ai_booked");
-    await trail(sb, "ai_booking", `🤖 WhatsApp enquiry from ${name} (${pc}, ${gear}) saved by the assistant and sent to auto-assign`);
+    const a = tool.input || {}, sv: any = await saveAiBooking(sb, from, a, "WhatsApp enquiry (assistant)");
+    if (!sv.ok) {
+      if (sv.why === "name") return send("Sorry, could you tell me your full name?");
+      if (sv.why === "postcode") return send("Sorry, I could not find that postcode. Could you check it and send it again?");
+      if (sv.why === "duplicate") { await send("We already have your details, thank you! The team will be in touch shortly.", "ai_booked"); return "duplicate"; }
+      return handoff("the booking could not be saved (" + (sv.error || "unknown") + ")");
+    }
+    await send(`Thanks ${first(sv.name)}! I've passed your details to our team. An instructor will message you shortly to arrange your lessons.`, "ai_booked");
+    await trail(sb, "ai_booking", `🤖 WhatsApp enquiry from ${sv.name} (${sv.pc}, ${sv.gear}) saved by the assistant and sent to auto-assign`);
     return "booked";
   }
-  if (say) { await aiSend(sb, from, say.slice(0, 600)); return "replied"; }
+  if (say) { await send(say.slice(0, 600)); return "replied"; }
   return handoff("the assistant gave no answer");
 }
 

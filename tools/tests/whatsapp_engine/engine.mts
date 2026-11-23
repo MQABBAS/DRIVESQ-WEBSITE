@@ -554,6 +554,28 @@ console.log("== 42. AI booking assistant ==");
     ok(/payment question/.test(r.said), "Claude unreachable: the keyword rules still give a safe fixed reply");
     CALLS.length = 0; globalThis.CLASSIFY_Q = [lab("booking", "normal", 0.9)]; globalThis.CLAUDE_Q = [say("Thanks! And your postcode?")]; await hook({ from: "447910000011" }, "Hannah Brown"); const cc = (CALLS.find((c) => c.classify) || { classify: { messages: [{ content: "" }] } }).classify; ok(cc.tool_choice && cc.tool_choice.name === "classify_message" && /NEW MESSAGE: Hannah Brown/.test(cc.messages[0].content), "the classifier is forced to answer with the label tool and sees the message");
     cfgOf().aiClassifier = false; r = await act("447910000012", "I need to cancel my lesson", lab("booking", "normal", 0.9)); ok(!r.cls && /cancellation terms/.test(r.said), "classifier switched off: keyword rules only"); cfgOf().aiClassifier = true; globalThis.CLASSIFY_Q = []; globalThis.CLAUDE_Q = []; }
+  // ---- READ-ONLY mode: Claude reads, extracts, saves, and sends NOTHING ----
+  {
+    const ext = (o) => ({ content: [{ type: "tool_use", id: "e1", name: "save_details", input: o }] });
+    const RO = async (F, msg, extraction) => { DB.admin_attention = []; CALLS.length = 0; globalThis.EXTRACT_Q = extraction ? [extraction] : []; globalThis.CLASSIFY_Q = []; globalThis.CLAUDE_Q = []; await hook({ from: F }, msg); return { texts: textsTo(F), att: DB.admin_attention.map((x) => x.title + " | " + x.detail).join(" || "), chat: CALLS.some((c) => c.claude), extract: CALLS.some((c) => c.extract) }; };
+    const prevTest = cfgOf().aiTestOnly, prevOn = cfgOf().aiAssistant;
+    cfgOf().aiSend = false; cfgOf().aiAssistant = true; cfgOf().aiTestOnly = false; cfgOf().aiClassifier = true;
+    const F = "447920000001"; let r = await RO(F, "Sam Khan", ext({ name: "Sam Khan" }));
+    ok(r.extract && !r.chat && r.texts.length === 0 && /still incomplete/.test(r.att) && /postcode/.test(r.att) && /manual or automatic/.test(r.att), "read-only: a partial chat -> nothing sent, alert says what Claude found and what is missing (" + r.att.slice(0, 120) + ")");
+    r = await RO(F, "M13 9AA manual please", ext({ name: "Sam Khan", postcode: "m13 9aa", gearbox: "manual", availability: "weekday evenings" }));
+    const wl = DB.waiting_list.find((w) => /Sam Khan/.test(w.student_name));
+    ok(wl && wl.postcode === "M13 9AA" && /\[AUTO\]/.test(wl.notes) && /read by Claude/.test(wl.notes) && wl.student_phone === F && r.texts.length === 0, "read-only: complete details -> booking saved for auto-assign, STILL nothing sent to the student");
+    ok(!DB.wa_log.some((l) => l.direction === "out" && l.to_phone === F && l.status === "sent"), "no outgoing message to that student was logged as sent");
+    ok(DB.admin_attention.some((x) => /Booking read from a WhatsApp chat/.test(x.title)), "you are told a booking was read from the chat");
+    r = await RO("447920000002", "I need a refund please", null);
+    ok(r.texts.length === 0 && /Payment/.test(r.att), "read-only: a refund message -> alert only, no reply sent");
+    r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
+    ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
+    globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
+    cfgOf().aiSend = true; CALLS.length = 0; globalThis.CLASSIFY_Q = [{ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent: "booking", urgency: "normal", confidence: 0.9, summary: "x" } }] }]; globalThis.CLAUDE_Q = [say("Hello! What is your full name?")]; await hook({ from: "447920000005" }, "hi");
+    ok(textsTo("447920000005")[0] === "Hello! What is your full name?" && !CALLS.some((c) => c.extract), "switching 'Claude can send messages' ON: it replies again (and does not use the read-only extraction)");
+    cfgOf().aiSend = true; cfgOf().aiTestOnly = prevTest; cfgOf().aiAssistant = prevOn; globalThis.EXTRACT_Q = []; globalThis.CLASSIFY_Q = []; globalThis.CLAUDE_Q = [];
+  }
   { const F = "447900002000"; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "you are all useless idiots"); ok(textsTo(F).length === 0 && DB.admin_attention.some((x) => /Abusive/.test(x.title)), "abusive message: no reply, you are alerted"); }
   { const F = "447900003000"; DB.referrals = [{ id: "rk1", instructor_id: "i1", student_name: "Known Kate", student_phone: "07900003000", created_at: new Date().toISOString(), is_cancelled: false }]; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "I need to cancel my lesson");
     ok(DB.admin_attention.some((x) => /student of Dawood Khan/.test(x.title)), "an existing student: the alert names their instructor (" + (DB.admin_attention[0] || {}).title + ")"); DB.referrals = []; }
@@ -676,7 +698,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-understanding", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-read-only", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
