@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-one-accept";
+const FN_VERSION = "2026-11-23-roster-error";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -518,8 +518,8 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
   } catch (_) { /* non-fatal, like Find & Assign */ }
   const notesStr = [b.avail ? "Availability: " + b.avail : "", b.postcode ? "Postcode: " + b.postcode : ""].filter(Boolean).join("\n") || null;
   const base = { instructor_id: c.id, name: b.name, phone: b.phone || null, address: pickup || null, created_at: now };
-  let prof = false; for (const p of [{ ...base, lesson_type: b.type, notes: notesStr, availability: b.avail || null }, { ...base, lesson_type: b.type, notes: notesStr }, { ...base, lesson_type: b.type }, base]) { const { error } = await sb.from("student_profiles").insert([p]); if (!error) { prof = true; break; } }
-  if (!prof) throw new Error("could not save the student to the instructor's roster");
+  let prof = false, profErr = ""; for (const p of [{ ...base, lesson_type: b.type, notes: notesStr, availability: b.avail || null }, { ...base, lesson_type: b.type, notes: notesStr }, { ...base, lesson_type: b.type }, base, { instructor_id: c.id, name: b.name }]) { const { error } = await sb.from("student_profiles").insert([p]); if (!error) { prof = true; break; } profErr = String(error.message || error.details || error.code || error); }
+  if (!prof) throw new Error("could not save the student to the instructor's roster: " + (profErr || "unknown reason"));
   try { await sb.from("student_requests").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, pickup_address: null, postcode: b.postcode || null, lesson_type: b.type, notes: [b.avail ? "Availability: " + b.avail : "", pickup ? "Address: " + pickup : ""].filter(Boolean).join("\n") || null, status: "approved", created_at: now }]); } catch (_) { /* audit only */ }
   const amount = c.model === "referral" ? (parseFloat(cfg.refFee) || 0) : 0;
   const { data: ref, error: rerr } = await sb.from("referrals").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, amount, is_paid: false, paid_at: null, is_cancelled: false, is_credit: false, credit_fulfilled: false, notes: ["Auto-assigned (website booking)", b.postcode ? "Postcode: " + b.postcode : "", pickup ? "Address: " + pickup : "", b.avail ? "Availability: " + b.avail : "", b.ref ? "Ref: " + b.ref : ""].filter(Boolean).join("\n"), admin_notes: `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)${via ? " — " + via : ""}`, created_at: now }]).select().single();
