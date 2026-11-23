@@ -519,6 +519,19 @@ console.log("== 42. AI booking assistant ==");
   { const i0 = DB.instructors[0]; cfgOf().aiTestOnly = true; cfgOf().adminPhone = i0.phone; CALLS.length = 0; globalThis.CLAUDE_Q = [say("Hello admin")]; await hook({ from: "44" + i0.phone.replace(/^0/, "") }, "test");
     ok(CALLS.some((c) => c.claude), "test mode: your own number is answered even if it is also saved as an instructor"); cfgOf().aiTestOnly = false; CALLS.length = 0; globalThis.CLAUDE_Q = [say("x")]; await hook({ from: "44" + i0.phone.replace(/^0/, "") }, "late");
     ok(!CALLS.some((c) => c.claude), "live mode: a number saved as an instructor is never answered"); cfgOf().adminPhone = "07700900999"; }
+  // ---- fixed handlers for every kind of message ----
+  globalThis.CLAUDE_Q = [];
+  const KT = [["urgent", "I've had an accident on my lesson", /urgent|999/i, /URGENT/], ["complaint", "I want to make a complaint, the instructor never turned up", /sorry to hear/i, /Complaint/], ["payment", "I need a refund please", /payment question/i, /Payment/], ["cancel", "I need to cancel my lesson tomorrow", /cancellation terms/i, /Cancel/], ["test", "How do I book my theory test?", /test question/i, /test/i], ["instructor", "my instructor hasn't contacted me", /let the team know/i, /instructor/i], ["person", "can I talk to a real person", /member of our team/i, /speak to someone/i]];
+  let n9 = 0; for (const [k, msg, rep, title] of KT) { const F = "44790000" + String(1000 + n9++); DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, msg);
+    ok(!CALLS.some((c) => c.claude) && rep.test(textsTo(F)[0] || "") && DB.admin_attention.some((x) => x.kind === "ai_handoff" && title.test(x.title)), k + ": fixed reply sent, you are alerted, Claude not needed (" + (textsTo(F)[0] || "").slice(0, 50) + ")"); }
+  { const F = "447900002000"; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "you are all useless idiots"); ok(textsTo(F).length === 0 && DB.admin_attention.some((x) => /Abusive/.test(x.title)), "abusive message: no reply, you are alerted"); }
+  { const F = "447900003000"; DB.referrals = [{ id: "rk1", instructor_id: "i1", student_name: "Known Kate", student_phone: "07900003000", created_at: new Date().toISOString(), is_cancelled: false }]; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "I need to cancel my lesson");
+    ok(DB.admin_attention.some((x) => /student of Dawood Khan/.test(x.title)), "an existing student: the alert names their instructor (" + (DB.admin_attention[0] || {}).title + ")"); DB.referrals = []; }
+  { const F = "447900004000"; CALLS.length = 0; await hook({ from: F }, "STOP"); ok(/unsubscribed/i.test(textsTo(F)[0] || ""), "STOP: confirmed"); const r = await call({ action: "send_template", to: "07900004000", template: "dsq_student_checkin", lang: "en_GB", params: ["A"] }); ok(r.ok === false && /STOP/.test(r.error || ""), "...and no automatic message goes to them any more");
+    CALLS.length = 0; await hook({ from: F }, "start"); const r2 = await call({ action: "send_template", to: "07900004000", template: "dsq_student_checkin", lang: "en_GB", params: ["A"] }); ok(r2.ok === true, "START: messages resume"); }
+  { const F = "447900005000"; CALLS.length = 0; globalThis.CLAUDE_Q = [say("ok")]; await hook({ from: F }, "hi"); const sys = (CALLS.find((c) => c.claude) || { claude: { system: "" } }).claude.system; ok(/minimum booking is 2 hours/.test(sys) && /£35 for each hour/.test(sys), "built-in facts (2 hour minimum, cancellation, refunds) are given to Claude");
+    cfgOf().aiFacts = "Lessons are 2 hours minimum. We are closed on Sundays."; CALLS.length = 0; globalThis.CLAUDE_Q = [say("ok")]; await hook({ from: "447900005001" }, "hi"); const sys2 = (CALLS.find((c) => c.claude) || { claude: { system: "" } }).claude.system; ok(/closed on Sundays/.test(sys2) && !/£35 for each hour/.test(sys2), "your own facts box replaces the built-in facts"); cfgOf().aiFacts = ""; }
+  { const F = "447900006000"; CALLS.length = 0; globalThis.CLAUDE_Q = [tool("create_booking", { name: "Ian Intense", postcode: "M13 9AA", gearbox: "manual", lesson_type: "intensive" })]; await hook({ from: F }, "Ian Intense M13 9AA manual intensive"); const w6 = DB.waiting_list.find((w) => /Ian/.test(w.student_name)); ok(w6 && w6.lesson_type === "Intensive" && /Lesson type: intensive/.test(w6.notes), "an intensive course enquiry is recorded as Intensive"); }
   cfgOf().aiAssistant = false;
 }
 console.log("== 43. Is the Meta app subscribed to the WhatsApp account? ==");
@@ -633,7 +646,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-female-students", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-all-outcomes", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

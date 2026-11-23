@@ -101,3 +101,6 @@ Control centre → Instructors → ⚙ Settings → "📍 Only students in the p
 
 ## Female students
 Settings → Who gets the jobs → "Female students: a female instructor first". When the student looks female (name, title, or her own words) a female instructor within 5 miles (changeable) is offered first; beyond that, or if none, the normal order. Nobody is excluded. Explicit requests for a female instructor still work as before.
+
+## Every kind of student message
+Fixed safe replies + an alert (no Claude needed): emergency/accident, complaint, payment/refund, cancel/reschedule, theory/driving test questions, questions about their instructor, "speak to a person". Abusive messages get no reply, only an alert. STOP stops every automatic message to that number until they send START. Existing students' alerts name their instructor. Settings → WhatsApp booking assistant → Facts box: the only facts the assistant may state (empty = built-in facts from the terms, incl. 2 hour minimum). Everything else Claude says the team will confirm.
