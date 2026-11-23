@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-22-ai-assistant-5";
+const FN_VERSION = "2026-11-23-covered-only";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -423,6 +423,7 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
     if (exclude.includes(String(i.id))) continue;
     if (tr.noAuto) { skip(i, "marked Never auto-assign" + (tr.noAutoNote ? " (" + tr.noAutoNote + ")" : "")); continue; }
     if (pausedNow(tr)) { skip(i, "paused until " + tr.pausedUntil); continue; }
+    if (tr.coveredOnly && !covers(i, b.postcode)) { skip(i, !String(i.coverage_postcodes || "").trim() ? "only teaches their covered postcodes and none are set on their profile" : `only teaches their covered postcodes (${String(i.coverage_postcodes).slice(0, 60)}) and ${outward(b.postcode) || b.postcode} is not one`); continue; }
     if (!canTeach(i.car_type || "Manual", b.type)) { skip(i, "does not teach " + b.type.toLowerCase() + " lessons"); continue; }
     if (needFemale(cfg, b) && !tr.female) { skip(i, "the booking asks for a female instructor"); continue; }
     if (tr.only === "female" || tr.only === "male") { const sgn = b._sg || (b._sg = guessStudentGender(b.name, b.notes)); if (sgn.g !== tr.only) { skip(i, "only teaches " + (tr.only === "female" ? "women" : "men") + " and " + (sgn.g ? "this student looks " + (sgn.g === "female" ? "female" : "male") + " (" + sgn.why + ")" : "the student's gender is unclear (" + sgn.why + ")")); continue; } }

@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-22-ai-assistant-5', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-23-covered-only', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -141,6 +141,7 @@
     var cfg = DATA.cfg, rows = DATA.instrs.filter(function (i) { return i.status === 'approved'; }).map(function (i) {
       var s = stats(i), o = owed(i), t = DATA.traits[i.id] || {}, idle = s.last ? Math.floor((Date.now() - s.last) / 864e5) : null, flags = [];
       if (!o.started) flags.push(['Starts ' + o.start, '#94a3b8']); else if (o.min && s.bookedWeek < o.min) flags.push(['Owed ' + (o.min - s.bookedWeek) + ' job' + (o.min - s.bookedWeek === 1 ? '' : 's'), '#f59e0b']);
+      if (t.coveredOnly) flags.push(['Covered areas only', '#a78bfa']);
       if (t.only) flags.push([t.only === 'female' ? 'Women only' : 'Men only', '#a78bfa']); if (t.pausedUntil && t.pausedUntil >= new Date().toISOString().slice(0, 10)) flags.push(['Paused to ' + t.pausedUntil, '#94a3b8']);
       var own = ['maxMiles', 'maxDay', 'maxWeek', 'maxWeekHard', 'minWeek'].filter(function (k) { return t[k] !== undefined; }).length; if (own) flags.push(['Own limits', '#60a5fa']);
       if (t.noAuto) flags.push(['Ignored' + (t.noAutoNote ? ': ' + t.noAutoNote : ''), '#94a3b8']);
@@ -314,7 +315,8 @@
       '<label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">Priority for jobs</span><select data-k="priority" class="dsq-inp" style="margin-top:2px;width:100%">' + [[2, 'Top'], [1, 'High'], [0, 'Equal (default)'], [-1, 'Low'], [-2, 'Last']].map(function (p) { return '<option value="' + p[0] + '"' + ((t.priority || 0) === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select></label>' +
       inp('maxMiles', 'Furthest they will travel (miles)', 'Over the general limit is allowed', 0.5) + inp('maxDay', 'Most students given in a day', 'Over this they are asked last') + inp('maxWeek', 'Most booked in a week', 'Over this they are asked last') + inp('maxWeekHard', 'Hard cap: new students a week', 'Never more than this') + inp('minWeek', 'Weekly minimum owed', 'Offered first until reached') +
       '<label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">Pause until (date)</span><input type="date" data-k="pausedUntil" class="dsq-inp" value="' + E(t.pausedUntil || '') + '" style="margin-top:2px;width:100%"><span style="color:var(--txt4);font-size:.64rem">Holiday: nothing automatic until this day, then back by itself</span></label></div>' +
-      '<label style="display:flex;gap:7px;align-items:center;font-size:.78rem;margin-top:10px"><input type="checkbox" data-k="female"' + (t.female ? ' checked' : '') + '> Female instructor (for students who ask for a woman)</label>' +
+      '<label style="display:flex;gap:7px;align-items:flex-start;font-size:.78rem;margin-top:10px"><input type="checkbox" data-k="coveredOnly"' + (t.coveredOnly ? ' checked' : '') + ' style="margin-top:3px"> <span><b>📍 Only students in the postcodes they cover</b>: nobody is offered to them unless the student\'s postcode is in their list.<br><span style="color:var(--txt4)">Their covered postcodes: <b>' + E(i.coverage_postcodes || 'none set yet') + '</b> (change them on their profile)</span></span></label>' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:.78rem;margin-top:6px"><input type="checkbox" data-k="female"' + (t.female ? ' checked' : '') + '> Female instructor (for students who ask for a woman)</label>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:.78rem;margin-top:6px"><input type="checkbox" data-k="noAuto"' + (t.noAuto ? ' checked' : '') + '> 🚫 Ignore: give them no students until I change this back</label>' +
       '<label style="font-size:.72rem;display:block;margin-top:4px"><span style="color:var(--txt3)">Reason (only you see it)</span><input type="text" data-k="noAutoNote" class="dsq-inp" maxlength="60" value="' + E(t.noAutoNote || '') + '" style="margin-top:2px;width:100%"></label>' +
       '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-p" onclick="DSQHub.saveInstr(\'' + E(String(id)) + '\')">💾 Save</button><button class="btn-s" onclick="document.getElementById(\'aaInstrDlg\').remove()">Cancel</button></div></div>';

@@ -257,7 +257,7 @@
       '<label style="display:flex;gap:6px;align-items:center;margin:4px 0"><b>Priority for jobs</b> <select class="dsq-inp" style="width:auto;padding:2px 6px;font-size:.76rem" onchange="DSQAA.setPrio(\''+id+'\',this.value)">' + PRIO.map(function (p) { return '<option value="' + p[0] + '"' + ((t.priority || 0) === p[0] ? ' selected' : '') + '>' + (p[0] === 0 ? 'Equal (default)' : p[1]) + '</option>'; }).join('') + '</select> <span style="color:var(--txt4);font-size:.7rem">Top / High = offered students sooner</span></label>';
   }
   /* save ALL of one instructor's auto-assign settings at once and record what changed in the admin activity log */
-  var TLAB = { female: 'Female instructor', noAuto: 'Ignored', noAutoNote: 'Reason', only: 'Students', pausedUntil: 'Paused until', priority: 'Priority', maxDay: 'Max per day', maxWeek: 'Max booked per week', maxWeekHard: 'Hard cap per week', minWeek: 'Weekly minimum', maxMiles: 'Max miles' };
+  var TLAB = { coveredOnly: 'Covered areas only', female: 'Female instructor', noAuto: 'Ignored', noAutoNote: 'Reason', only: 'Students', pausedUntil: 'Paused until', priority: 'Priority', maxDay: 'Max per day', maxWeek: 'Max booked per week', maxWeekHard: 'Hard cap per week', minWeek: 'Weekly minimum', maxMiles: 'Max miles' };
   async function saveInstr(id, obj) {
     await loadTraits(); var old = TR[id] || {}, clean = {};
     Object.keys(obj).forEach(function (k) { var v = obj[k]; if (v === '' || v === null || v === undefined || v === false) return; clean[k] = typeof v === 'string' ? v.slice(0, 80) : v; });

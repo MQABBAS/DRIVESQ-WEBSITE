@@ -446,7 +446,7 @@ unpin(); pinDate("2026-11-22T11:00:00Z"); await call({ action: "auto_assign", cr
 unpin(); pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; for (let n = 0; n < 8; n++) DB.wa_log.push({ to_phone: "447700900001", direction: "out", status: "sent", template: "x", created_at: new Date().toISOString() });
 await call({ action: "auto_assign", cron: true }); ok(sent("dsq_instructor_balance").length === 0, "an instructor who already had 8 messages today gets no reminder (daily limit)");
 console.log("== 34b. Weekly billing digest to the admin ==");
-DB.wa_log = []; DB.admin_attention = []; delete DB.growth_settings.billing_digest_last; unpin(); pinDate("2026-11-23T10:00:00Z"); // Monday 10am
+DB.wa_log = []; DB.admin_attention = []; DB.growth_settings = DB.growth_settings.filter((k) => k.key !== "billing_digest_last"); DB.admin_attention = []; unpin(); pinDate("2026-11-23T10:00:00Z"); // Monday 10am
 await call({ action: "auto_assign", cron: true });
 const bd = DB.admin_attention.filter((a) => a.kind === "billing_digest"); ok(bd.length === 1 && /to collect/.test(bd[0].title), "Monday: one billing summary for the admin (" + (bd[0] && bd[0].title) + ")");
 await call({ action: "auto_assign", cron: true }); ok(DB.admin_attention.filter((a) => a.kind === "billing_digest").length === 1, "not repeated the same week");
@@ -467,6 +467,9 @@ trs().i1 = { pausedUntil: "2999-01-01" }; r40 = await call({ action: "simulate",
 trs().i1 = { pausedUntil: "2000-01-01" }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(names40(r40).includes("Dawood Khan"), "a pause in the past has ended by itself");
 trs().i1 = { maxMiles: 0.1 }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); const dMyA40 = (r40.list || []).find((x) => x.name === "Dawood Khan"); ok(dMyA40 && dMyA40.within === false, "own distance limit 0.1 mile: not within range for this booking");
 trs().i1 = { maxMiles: 30 }; r40 = await call({ action: "simulate", postcode: "BL1 1AA", type: "Manual" }); const dMy40 = (r40.list || []).find((x) => x.name === "Dawood Khan"); ok(dMy40 && dMy40.within === true, "own distance limit 30 miles: in range even above the general limit");
+trs().i1 = { coveredOnly: true }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(names40(r40).includes("Dawood Khan"), "covered-only instructor IS offered a postcode they cover (M13)");
+r40 = await call({ action: "simulate", postcode: "M4 1AA", type: "Manual" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((q) => /Dawood.*only teaches their covered postcodes/.test(q)), "...but NOT one they do not cover (M4): " + skippedOf(r40).filter((q) => /Dawood/.test(q)));
+{ const d0 = DB.instructors[0], keep = d0.coverage_postcodes; d0.coverage_postcodes = ""; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((q) => /none are set/.test(q)), "covered-only with no postcodes set: not offered anything, with the reason"); d0.coverage_postcodes = keep; }
 delete trs().i1;
 const trailBefore = DB.admin_activity_log ? DB.admin_activity_log.length : 0; ok(true, "(audit trail checked below)");
 console.log("== 41. WhatsApp enquiry ticked for auto-assign ==");
@@ -626,7 +629,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-22-ai-assistant-5", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-covered-only", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

@@ -95,3 +95,6 @@ Admin → Waiting List → Add: paste what the AI collected, press ✨ Fill in, 
 3. Turn it ON with Test mode ticked: it only answers your admin phone. Chat to it from your own phone, then untick Test mode.
 4. Only one assistant may answer on the number: pause the Meta AI replies first.
 It asks name, postcode, gearbox, times, then adds the booking ([WHATSAPP] [AUTO]) for auto-assign. It never quotes prices; anything else is handed to you as an alert and it goes quiet for that person for the day.
+
+## Covered areas only
+Control centre → Instructors → ⚙ Settings → "📍 Only students in the postcodes they cover". An instructor with this on is only offered students whose postcode (e.g. M13) is in their covered postcodes on their profile. No covered postcodes set = they get nothing until you add some. Shown as a "Covered areas only" badge.
