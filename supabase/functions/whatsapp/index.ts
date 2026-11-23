@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-roster-error";
+const FN_VERSION = "2026-11-23-accepted-label";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -529,7 +529,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
   try { await fetch(SUPABASE_URL + "/functions/v1/send-push", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + SERVICE_KEY }, body: JSON.stringify({ instructor_id: c.id, title: "👤 New Student Assigned: " + b.name, body: (b.phone ? fmtPhone(b.phone) + " · " : "") + (pickup || ""), url: "/dashboard.html" }) }); } catch (_) { /* push is best effort */ }
   let up = await sb.from("waiting_list").update({ status: "assigned", assigned_instructor_id: c.id }).eq("id", b.id); if (up.error) up = await sb.from("waiting_list").update({ status: "assigned" }).eq("id", b.id);
   const { data: wl } = await sb.from("waiting_list").select("notes").eq("id", b.id).maybeSingle();
-  await sb.from("waiting_list").update({ notes: [(wl && wl.notes) || "", `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)`].filter(Boolean).join("\n") }).eq("id", b.id);
+  await sb.from("waiting_list").update({ notes: [(wl && wl.notes) || "", `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles) — ${agreed ? c.name + " accepted" : "waiting for " + c.name + " to accept"}`].filter(Boolean).join("\n") }).eq("id", b.id);
   try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "assigned", summary: `🤖 ${b.name} auto-assigned to ${c.name} (${c.dist} miles)`, actor_role: "system", actor_name: "Auto-assign", instructor_id: c.id, student_name: b.name, ref_id: ref.id }]); } catch (_) { /* log only */ }
   // WhatsApp: instructor gets the details with Accept / Can't take; the student gets their welcome
   const msgs: string[] = [];
@@ -1066,6 +1066,7 @@ async function assignedReply(sb: any, kind: string, refId: string, from: string)
   const line = ok ? `${today()} · 👨‍🏫 ${name} accepted this student on WhatsApp` : `${today()} · 🚫 ${name} can't take this student (WhatsApp) — please reassign`;
   const patch: any = { admin_notes: [r.admin_notes || "", line].filter(Boolean).join("\n") }; if (!ok && !r.flag_color) patch.flag_color = "purple";
   await sb.from("referrals").update(patch).eq("id", refId);
+  if (ok) { try { const { data: wls } = await sb.from("waiting_list").select("id,notes,student_phone").eq("status", "assigned"), tag = "waiting for " + name + " to accept"; for (const w0 of (wls || []).filter((x: any) => last10(x.student_phone || "") === last10(r.student_phone || "") && String(x.notes || "").includes(tag))) await sb.from("waiting_list").update({ notes: String(w0.notes).replace(tag, name + " accepted") }).eq("id", w0.id); } catch (_) { /* label only */ } }
   try { await sb.from("admin_activity_log").insert([{ area: "referral", action: ok ? "wa_accepted" : "wa_declined", summary: `${name} ${ok ? "accepted" : "can't take"} ${r.student_name || "a student"} (WhatsApp)`, actor_role: "instructor", actor_name: name, instructor_id: r.instructor_id, student_name: r.student_name, ref_id: refId }]); } catch (_) { /* log */ }
   try {
     const { data: f0 } = await sb.from("student_followups").select("*").eq("referral_id", String(refId)).maybeSingle();

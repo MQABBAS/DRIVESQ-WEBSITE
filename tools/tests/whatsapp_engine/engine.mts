@@ -252,6 +252,7 @@ ok(first1 && second1 && first1 !== second1, "daily limit 1: the instructor holdi
 const jobA = DB.auto_assign_jobs[0]; const insA = DB.instructors.find((x) => x.id === jobA.instructor_id);
 await Promise.all([hook({ from: "44" + insA.phone.replace(/^0/, "").replace(/\s/g, ""), p: "OFFER_ACCEPT:" + jobA.id }), hook({ from: "44" + insA.phone.replace(/^0/, "").replace(/\s/g, ""), p: "OFFER_ACCEPT:" + jobA.id })]);
 ok(DB.referrals.filter((r) => r.student_name === "Pend A").length === 1, "two Accept taps at the same moment -> the student is assigned once (" + DB.referrals.filter((r) => r.student_name === "Pend A").length + ")");
+ok(DB.waiting_list.some((w) => w.student_name === "Pend A" && /Auto-assigned to .* — .* accepted/.test(w.notes || "")), "after the instructor accepts, the website booking says who it was auto-assigned to and that they accepted");
 
 console.log("== 20. Odd bookings never crash the run ==");
 cfgOf().dailyLimit = 0; cfgOf().mode = "assign";
@@ -753,7 +754,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-roster-error", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-accepted-label", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
