@@ -118,3 +118,6 @@ Control centre header (and Settings → 🤖 WhatsApp booking assistant) has thr
 - **Read only**: Claude reads the chats on the number (also what a student told another assistant such as the Meta AI), takes out ONLY what they actually said (name, postcode, gearbox, times) and saves the booking for auto-assign when all three are there. Otherwise you get an alert listing what it found and what is missing. It NEVER sends a message (what it would have said is logged as "not sent"). Serious messages (refund, complaint, emergency...) become alerts only.
 - **Read + send**: as above, and it also replies to students and confirms bookings.
 Claude cannot see the Meta AI's own notes or its replies: it only sees the student's messages, from the last 24 hours.
+
+## WhatsApp enquiries are held a few minutes
+A booking Claude took from a WhatsApp chat waits 5 minutes (Settings: "Hold a WhatsApp enquiry for … minutes", max 15 in total) before auto-assign offers it, so the student can still give availability, address and the rest. New details restart the wait. If availability is already given it is assigned at once. A booking you pasted yourself, or a website booking, is never held. Preview shows held enquiries as "waiting".

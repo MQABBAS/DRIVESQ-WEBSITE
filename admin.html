@@ -3899,7 +3899,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/admin-fees.js?v=20261124"></script>
 <script src="/admin-health.js?v=20261127"></script>
 <script src="/admin-whatsapp.js?v=20261201"></script>
-<script src="/admin-autoassign.js?v=20261206"></script>
+<script src="/admin-autoassign.js?v=20261207"></script>
 <script src="/admin-autohub.js?v=20261206"></script>
 <script src="/dsq-log.js?v=20261126"></script>
 <script src="/admin-insights.js?v=20261126"></script>
@@ -11297,7 +11297,7 @@ async function editWaitlistEntry(id){
   _wlNormalise(r);
   const n=String(r.notes||'');
   const av=(n.match(/(?:^|\n)\s*Availability:\s*([^\n]+)/i)||[])[1]||'';
-  const cleanN=n.split('\n').filter(l=>!/^\s*(Availability:|Address:|Source:|Landing:|Page:|Email:|\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\])/i.test(l)).join('\n').trim();
+  const cleanN=n.split('\n').filter(l=>!/^\s*(Availability:|Address:|Source:|Landing:|Page:|Email:|AI-updated:|\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\])/i.test(l)).join('\n').trim();
   const set=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
   set('wl-edit-id',r.id);set('wl-name',r.student_name);set('wl-phone',r.student_phone);set('wl-postcode',r.postcode);
   set('wl-area',_fcAddrOnly(r.area,r.postcode));set('wl-avail',av.trim());set('wl-notes',cleanN);
@@ -11320,7 +11320,7 @@ async function saveWaitlistEntry(){
   // keep any machine lines that were already on the entry (Source, Landing, [WEB] tag, Email…)
   let keep='';
   if(editId){const{data:old}=await sb.from('waiting_list').select('notes').eq('id',editId).maybeSingle();
-    keep=String(old?.notes||'').split('\n').filter(l=>/^\s*(\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\]|Source:|Landing:|Page:|Email:)/i.test(l)&&userNotes.indexOf(l.trim())<0).join('\n');}
+    keep=String(old?.notes||'').split('\n').filter(l=>/^\s*(\[(WEB|CALL|WHATSAPP|OTHER|AUTO)\]|Source:|Landing:|Page:|Email:|AI-updated:)/i.test(l)&&userNotes.indexOf(l.trim())<0).join('\n');}
   const autoTag=(!editId&&document.getElementById('wl-auto')?.checked)?'[WHATSAPP]\n[AUTO]\nSource: WhatsApp enquiry':'';
   const notesStr=[autoTag,keep,userNotes,avail?'Availability: '+avail:'',area?'Address: '+area:''].filter(Boolean).join('\n')||null;
   const full={

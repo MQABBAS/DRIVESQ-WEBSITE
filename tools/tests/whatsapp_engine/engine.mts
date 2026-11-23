@@ -609,6 +609,24 @@ console.log("== 43. Is the Meta app subscribed to the WhatsApp account? ==");
   let wc = await call({ action: "webhook_check" }); ok(wc.ok && wc.subscribed === false && /NOT subscribed/.test(wc.advice[0]), "not subscribed: it says so (" + wc.advice[0].slice(0, 60) + ")");
   wc = await call({ action: "webhook_check", fix: true }); ok(wc.ok && wc.subscribed && wc.fixed && /Done/.test(wc.advice[0]), "fix: the app is subscribed to the account");
   wc = await call({ action: "webhook_check" }); ok(wc.subscribed && !wc.fixed && /is subscribed/.test(wc.advice[0]), "afterwards it reports subscribed"); delete globalThis.GRAPH; }
+console.log("== 44. WhatsApp enquiries are held a few minutes so Claude can collect more ==");
+{ cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().sources = ["[WEB]"]; cfgOf().aiHoldMinutes = 5; cfgOf().aiHoldMaxMinutes = 15; delete cfgOf().since;
+  const mk = (name, notes, ageMin) => { const w = W(name, "M13 9AA"); w.notes = notes; w.created_at = new Date(Date.now() - ageMin * 60000).toISOString(); return w; };
+  const base = "[WHATSAPP]\n[AUTO]\nSource: WhatsApp enquiry (assistant)\nPostcode: M13 9AA\nGearbox: Manual";
+  DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = [];
+  const hA = mk("Hold Henry", base + "\nAI-updated: " + new Date(Date.now() - 1 * 60000).toISOString(), 1), vB = mk("Avail Alice", base + "\nAvailability: weekday evenings\nAI-updated: " + new Date().toISOString(), 1), pC = mk("Pasted Pat", "[WHATSAPP]\n[AUTO]\nSource: WhatsApp enquiry\nPostcode: M13 9AA", 1), wD = mk("Web Wendy", "[WEB]\nPostcode: M13 9AA", 1);
+  DB.waiting_list = [hA, vB, pC, wD]; const jobFor = (w) => DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(w.id));
+  const pv = await call({ action: "auto_assign", dry: true }); const wait = (pv.results || []).find((r) => r.student === "Hold Henry");
+  ok(wait && wait.action === "waiting" && /held \d+ more minute/.test(wait.reason), "preview: a fresh WhatsApp enquiry without availability shows as held (" + (wait && wait.reason || "").slice(0, 70) + ")");
+  await call({ action: "auto_assign", cron: true });
+  ok(!jobFor(hA), "a 1-minute-old WhatsApp enquiry without availability is NOT offered yet");
+  ok(jobFor(vB), "...one whose availability is already given is offered straight away");
+  ok(jobFor(pC) && jobFor(wD), "...a booking you pasted yourself, or a website booking, is never held");
+  hA.notes = base + "\nAI-updated: " + new Date(Date.now() - 6 * 60000).toISOString(); hA.created_at = new Date(Date.now() - 6 * 60000).toISOString();
+  await call({ action: "auto_assign", cron: true }); ok(jobFor(hA), "after the 5 minutes it is offered even without availability");
+  const dX = mk("Detail Dan", base + "\nAI-updated: " + new Date(Date.now() - 1 * 60000).toISOString(), 12); DB.waiting_list.push(dX); await call({ action: "auto_assign", cron: true }); ok(!jobFor(dX), "new details 1 minute ago restart the wait (even though it was created 12 minutes ago)");
+  const mX = mk("Max Mo", base + "\nAI-updated: " + new Date(Date.now() - 1 * 60000).toISOString(), 16); DB.waiting_list.push(mX); await call({ action: "auto_assign", cron: true }); ok(jobFor(mX), "but never held longer than 15 minutes in total");
+  cfgOf().aiHoldMinutes = 0; const zZ = mk("Zero Zed", base, 0); DB.waiting_list.push(zZ); await call({ action: "auto_assign", cron: true }); ok(jobFor(zZ), "hold set to 0: no wait"); cfgOf().aiHoldMinutes = 5; }
 console.log("== 34c. Billing thresholds from the control centre ==");
 pinDate("2026-11-24T11:00:00Z"); DB.wa_log = []; DB.admin_attention = []; cfgOf().balanceAuto = true; cfgOf().unpaidLimit = 5; cfgOf().balanceAmount = 0;
 DB.referrals = [bk34("7001", "i1", 80)]; await call({ action: "auto_assign", cron: true });
@@ -716,7 +734,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-full-details", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-hold-enquiries", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

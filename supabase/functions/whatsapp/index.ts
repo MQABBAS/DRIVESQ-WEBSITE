@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-full-details";
+const FN_VERSION = "2026-11-23-hold-enquiries";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -148,6 +148,8 @@ const DEFAULT_CFG = {
   maxMsgsInstructor: 8,            // never annoy: at most this many automatic WhatsApps to ONE instructor in 24 hours for non-essential messages (check-ins, balance reminders). Offers and assignments are never held back. 0 = no limit
   maxMsgsStudent: 4,               // same for ONE student in 24 hours (check-ins, acknowledgements)
   aiAssistant: false,              // Claude answers students who WhatsApp the number to book a lesson: collects name, postcode, gearbox and times, then creates the booking for auto-assign. Needs the ANTHROPIC_API_KEY secret
+  aiHoldMinutes: 5,                // a booking Claude took from WhatsApp waits this many minutes before auto-assign offers it, so Claude can collect availability and the rest. Skipped as soon as availability is given. 0 = no wait
+  aiHoldMaxMinutes: 15,            // ...but never longer than this in total
   aiSend: true,                    // may Claude SEND messages (replies, confirmations)? Off = READ ONLY: Claude reads the chat, extracts the booking details and saves the booking, but never sends anything
   aiTestOnly: true,                // while testing it only answers YOUR admin phone number. Switch off to let it answer real students
   aiMaxMessages: 14,               // after this many messages from one person in a day it hands over to you
@@ -948,6 +950,7 @@ async function autoAssign(sb: any, body: any) {
     if (handled.has(String(w.id))) { if (ph10.length === 10 && !seenPhone.has(ph10)) seenPhone.set(ph10, w.student_name || ""); continue; }
     if (new Date(w.created_at).getTime() < since && !body.includeOlder) continue;
     if (!tags.some((t: string) => String(w.notes || "").toLowerCase().includes(t))) continue;
+    { const hd: any = aiHold(w, cfg); if (hd.wait > 0) { if (dry) results.push({ student: w.student_name, action: "waiting", reason: `WhatsApp enquiry: held ${hd.wait} more minute${hd.wait === 1 ? "" : "s"} so Claude can collect availability and the rest (assigned sooner if availability arrives)` }); continue; } }   // picked up by a later run
     const b = readBooking(w);
     // the same student sending the booking twice (or already placed with an instructor in the last 2 weeks) must never be given to a second instructor
     const dup = ph10.length === 10 && seenPhone.has(ph10) ? "another booking from the same phone number is already being handled" : "";
@@ -1321,6 +1324,15 @@ function aiDetailLines(a: any) {
     a.notes ? "Notes: " + String(a.notes).slice(0, 300) : "",
   ].filter(Boolean);
 }
+/* a booking Claude took from WhatsApp is held for a few minutes so the student can still give availability and the rest. Not held when availability is already there, or for a booking you pasted yourself. */
+function aiHold(w: any, cfg: any) {
+  const n = String(w.notes || ""); if (!/Source: WhatsApp (?:chat|enquiry) \((?:assistant|details read by Claude)\)/i.test(n)) return { wait: 0 };
+  const mins = cfg.aiHoldMinutes === undefined ? 5 : +cfg.aiHoldMinutes; if (!(mins > 0)) return { wait: 0 };
+  if (/(^|\n)\s*Availability:/i.test(n)) return { wait: 0, why: "availability already given" };
+  const m = n.match(/(?:^|\n)AI-updated:\s*(\S+)/), created = new Date(w.created_at).getTime(), touched = Math.max(created, m ? Date.parse(m[1]) || 0 : 0);
+  const until = Math.min(touched + mins * 60000, created + Math.max(mins, +cfg.aiHoldMaxMinutes || 15) * 60000), left = Math.ceil((until - Date.now()) / 60000);
+  return { wait: Math.max(0, left), mins };
+}
 /* the student told us more AFTER the booking was saved: add it to the same booking (never a second booking). If it was already handed to an instructor you are told, so you can pass it on. */
 async function enrichBooking(sb: any, cfg: any, from: string, a: any) {
   const lines = aiDetailLines(a);
@@ -1334,7 +1346,7 @@ async function enrichBooking(sb: any, cfg: any, from: string, a: any) {
     if (!have.includes(key)) add.push(L); else if (val && !have.includes(val)) add.push(L.replace(": ", " (update): "));
   }
   if (!add.length) return { added: [] as string[], booking: w };
-  await sb.from("waiting_list").update({ notes: [w.notes || "", ...add].join("\n") }).eq("id", w.id);
+  await sb.from("waiting_list").update({ notes: [...String(w.notes || "").split("\n").filter((l: string) => !/^AI-updated:/.test(l)), ...add, "AI-updated: " + new Date().toISOString()].join("\n") }).eq("id", w.id);
   await trail(sb, "ai_update", `📎 More details added to ${w.student_name}'s WhatsApp booking: ${add.join("; ")}`);
   if (w.status !== "waiting") await attention(sb, cfg, { kind: "ai_handoff", title: `📎 ${w.student_name} sent more details after being assigned`, detail: `${add.join("; ")}. They were already given to an instructor, so pass this on. Number: ${waNumber(from)}.`, waiting_id: "ai-more-" + w.id, quiet: true });
   return { added: add, booking: w };
@@ -1347,7 +1359,7 @@ async function saveAiBooking(sb: any, from: string, a: any, source: string) {
   const { data: ex } = await sb.from("waiting_list").select("id,student_phone,created_at,status").eq("status", "waiting");
   if ((ex || []).some((w: any) => last10(w.student_phone || "") === last10(from) && Date.now() - new Date(w.created_at).getTime() < 14 * 864e5)) return { ok: false, why: "duplicate" };
   const gear = /auto/i.test(String(a.gearbox)) ? "Automatic" : "Manual", lt = String(a.lesson_type || ""), ltype = lt === "intensive" ? "Intensive" : lt === "mock_test" ? "Mock Test" : gear;
-  const notes = ["[WHATSAPP]", "[AUTO]", "Source: " + source, "Postcode: " + pc, "Gearbox: " + gear, ...aiDetailLines(a)].join("\n");
+  const notes = ["[WHATSAPP]", "[AUTO]", "Source: " + source, "Postcode: " + pc, "Gearbox: " + gear, ...aiDetailLines(a), "AI-updated: " + new Date().toISOString()].join("\n");
   const { error } = await sb.from("waiting_list").insert([{ student_name: name, student_phone: num, postcode: pc, lesson_type: ltype, notes, status: "waiting", created_at: new Date().toISOString() }]);
   if (error) return { ok: false, why: "save", error: error.message };
   return { ok: true, name, pc, gear };
