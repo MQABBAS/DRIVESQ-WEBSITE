@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-23-accepted-label', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-23-count-by-given', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -71,7 +71,7 @@
     var mon = monday(), d0 = dayStart(), s = { today: 0, week: 0, bookedWeek: 0, last: 0, unconfirmed: 0, unpaid: 0, unpaidAmt: 0, assigned30: 0, booked30: 0 }, t30 = Date.now() - 30 * 864e5;
     DATA.refs.forEach(function (r) {
       if (String(r.instructor_id) !== String(i.id) || r.is_cancelled || r.is_credit) return; var c = new Date(r.created_at).getTime(); if (c > s.last) s.last = c;
-      if (c >= mon) s.week++; if (c >= d0) s.today++; var bk = isBooked(r); if (bk && bookedWhen(r) >= mon) s.bookedWeek++;
+      if (c >= mon) s.week++; if (c >= d0) s.today++; var bk = isBooked(r); if (bk && c >= mon) s.bookedWeek++;
       if (c >= t30) { s.assigned30++; if (bk) s.booked30++; }
       if (!bk && !r.flag_color && !r.reply_status && !r.is_paid && (Date.now() - c) / 864e5 >= 3 && (Date.now() - c) / 864e5 < 45) s.unconfirmed++;
       if (bk && !r.is_paid && String(i.instructor_model || '').toLowerCase() === 'referral') { s.unpaid++; s.unpaidAmt += parseFloat(r.amount) || 0; }
@@ -96,7 +96,7 @@
     var jobs = DATA.jobs, cfg = DATA.cfg, since = cfg.since ? new Date(cfg.since).getTime() : 0, mon = monday(), d0 = dayStart();
     var waiting = DATA.waiting.filter(function (w) { return /\[WEB\]/i.test(w.notes || '') && new Date(w.created_at).getTime() >= since && !jobs.some(function (j) { return String(j.waiting_id) === String(w.id); }); }).length;
     var offers = jobs.filter(function (j) { return j.state === 'pending_accept'; }).length, auto = DATA.refs.filter(isAuto), aToday = auto.filter(function (r) { return new Date(r.created_at).getTime() >= d0; }).length, aWeek = auto.filter(function (r) { return new Date(r.created_at).getTime() >= mon; }).length;
-    var bookedWk = DATA.refs.filter(function (r) { return isBooked(r) && bookedWhen(r) >= mon; }).length, old = auto.filter(function (r) { return Date.now() - new Date(r.created_at) > 7 * 864e5 && Date.now() - new Date(r.created_at) < 45 * 864e5 && !r.is_cancelled; }), conv = old.length ? Math.round(old.filter(isBooked).length / old.length * 100) : null;
+    var bookedWk = DATA.refs.filter(function (r) { return isBooked(r) && new Date(r.created_at).getTime() >= mon; }).length, old = auto.filter(function (r) { return Date.now() - new Date(r.created_at) > 7 * 864e5 && Date.now() - new Date(r.created_at) < 45 * 864e5 && !r.is_cancelled; }), conv = old.length ? Math.round(old.filter(isBooked).length / old.length * 100) : null;
     var k = function (n, t, s, col) { return '<div class="k"><span>' + t + '</span><b' + (col ? ' style="color:' + col + '"' : '') + '>' + n + '</b>' + (s ? '<small>' + s + '</small>' : '') + '</div>'; };
     return '<div class="kp">' + k(waiting, 'Waiting to be picked up', 'new website bookings', waiting ? '#60a5fa' : '') + k(offers, 'Offers awaiting reply', 'instructors asked', offers ? '#a78bfa' : '') + k(aToday, 'Auto-assigned today', aWeek + ' this week') + k(bookedWk, 'Students booked this week', 'confirmed (admin / instructor / student)', '#22c55e') + k(conv === null ? '–' : conv + '%', 'Turned into bookings', 'auto-assigned students older than a week') + k(DATA.att.length, 'Need your attention', '', DATA.att.length ? '#ef4444' : '#22c55e') + '</div>';
   }

@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-accepted-label";
+const FN_VERSION = "2026-11-23-count-by-given";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -323,7 +323,7 @@ async function candidateData(sb: any) {
     { const ca = new Date(r.created_at).getTime(); if (!s.last || ca > s.last) s.last = ca; }
     if (new Date(r.created_at).getTime() >= mon) s.week++;
     if (new Date(r.created_at).getTime() >= midnight) s.today++;
-    if (isBooked(r) && bookedAt(r) >= mon) s.bookedWeek++;
+    if (isBooked(r) && new Date(r.created_at).getTime() >= mon) s.bookedWeek++;   // counted by the day the student was GIVEN to the instructor, not the day it was confirmed: an old student confirmed this week must not hide that nobody new was given this week
     const age = (Date.now() - new Date(r.created_at).getTime()) / 864e5; if (age < 7) return;
     s.total++; if (isBooked(r)) s.booked++; else if (!r.flag_color && !r.reply_status && !r.is_paid && age >= 3) s.unmarked++;
   });

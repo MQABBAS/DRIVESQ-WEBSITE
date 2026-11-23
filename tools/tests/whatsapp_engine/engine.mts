@@ -28,9 +28,13 @@ ok(r.results[0].instructor === "Sara Female" && /already given 2 today/.test(r.r
 
 console.log("== 3. Soft weekly limit (4 booked this week) ==");
 const d = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
-DB.referrals = [1, 2, 3, 4].map((n) => ({ id: "b" + n, instructor_id: "i1", student_name: "B" + n, created_at: new Date(now - 4 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: d + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false }));
+DB.referrals = [1, 2, 3, 4].map((n) => ({ id: "b" + n, instructor_id: "i1", student_name: "B" + n, created_at: new Date(globalThis.__waTest.mondayLondon().getTime() + 60000).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: d + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false }));
 r = await call({ action: "auto_assign", dry: true }); console.log("   ->", r.results[0].instructor, "|", r.results[0].why);
 ok(r.results[0].instructor === "Sara Female" && /4 booked this week/.test(r.results[0].why), "Dawood has 4 booked this week -> Sara gets it");
+const _keep3 = DB.referrals;
+DB.referrals = [1, 2, 3, 4].map((n) => ({ id: "old" + n, instructor_id: "i1", student_name: "Old" + n, created_at: new Date(globalThis.__waTest.mondayLondon().getTime() - 3 * 864e5).toISOString(), flag_color: "green", reply_status: "booked", admin_notes: d + " · ✅ Booked — confirmed by admin", is_cancelled: false, is_credit: false }));
+r = await call({ action: "auto_assign", dry: true }); ok(r.results[0].instructor === "Dawood Khan" && !/booked this week/.test(r.results[0].why || ""), "4 students GIVEN last week but confirmed booked this week do NOT count as booked this week: Dawood can still get a student (" + r.results[0].instructor + ")");
+DB.referrals = _keep3;
 
 console.log("== 4. Everyone close is over a limit -> the closest gets it anyway ==");
 DB.referrals = DB.referrals.concat(["i2", "i3"].flatMap((iid) => [1, 2].map((n) => ({ id: "s" + iid + n, instructor_id: iid, student_name: "S" + iid + n, created_at: today, flag_color: null, is_cancelled: false, is_credit: false }))));
@@ -754,7 +758,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-accepted-label", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-count-by-given", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
