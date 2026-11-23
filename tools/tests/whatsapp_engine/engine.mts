@@ -588,6 +588,9 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       DB.wa_log.push({ id: "old-ab", direction: "out", to_phone: H, template: "ai_booked", status: "sent", body: "booked earlier", created_at: new Date().toISOString() }); DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== H);
       globalThis.CLASSIFY_Q = [lb("booking", 0.9)]; globalThis.EXTRACT_Q = [ext({ name: "Syed Ali", postcode: "m13 9aa", gearbox: "manual", availability: "Mon Tue Wed" })]; await hook({ from: H }, "Syed Ali M13 9AA manual Mon Tue Wed");
       ok(DB.waiting_list.some((w) => /Syed Ali/.test(w.student_name) && /Mon Tue Wed/.test(w.notes)), "marked booked earlier today but that booking no longer exists: complete new details create a NEW booking (with availability)"); }
+    { const R = "447920000099"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== R); DB.wa_log = []; DB.wa_log.push(...["Kay Lee", "M13 9AA", "automatic please", "weekends"].map((b, i) => ({ id: "rc" + i, direction: "in", to_phone: R, template: null, status: "received", body: b, created_at: new Date(Date.now() - (4 - i) * 60000).toISOString() })));
+      globalThis.EXTRACT_Q = [ext({ name: "Kay Lee", postcode: "m13 9aa", gearbox: "automatic", availability: "weekends" })]; const rc = await call({ action: "read_chats" });
+      ok(rc.ok && rc.saved >= 1 && DB.waiting_list.some((w) => /Kay Lee/.test(w.student_name) && /weekends/.test(w.notes)) && textsTo(R).length === 0, "'Read recent chats now' saves the booking from chats already received, without the student sending anything again and without sending them anything"); }
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
     ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
     globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
@@ -771,7 +774,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-rebook-fix", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-read-chats", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

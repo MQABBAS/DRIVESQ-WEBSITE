@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-rebook-fix";
+const FN_VERSION = "2026-11-23-read-chats";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1492,6 +1492,22 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   return handoff("the assistant gave no answer");
 }
 
+/* "Read recent chats now": goes through everything people WhatsApped in the last 24 hours and saves the bookings Claude finds (same rules as when a message arrives; sends nothing). For chats that were skipped, e.g. while test mode was on. */
+async function readChats(sb: any) {
+  if (!ANTHROPIC_KEY) return { ok: false, error: "The ANTHROPIC_API_KEY secret is missing, so Claude cannot read the chats." };
+  const cfg = await loadCfg(sb), since = new Date(Date.now() - 864e5).toISOString();
+  const { data } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").gte("created_at", since);
+  const by: any = {}; (data || []).forEach((x: any) => { if (x.to_phone) (by[x.to_phone] = by[x.to_phone] || []).push(x); });
+  const out: any[] = [], adminNum = waNumber(cfg.adminPhone || "");
+  for (const num of Object.keys(by)) {
+    const rows = by[num].sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
+    if (!rows.some((x: any) => x.direction === "in")) continue;
+    if (!(adminNum && last10(num) === last10(adminNum)) && await instructorByPhone(sb, num)) { out.push({ number: "…" + num.slice(-4), result: "skipped (an instructor)" }); continue; }
+    try { const r: any = await extractFromChat(sb, cfg, num, rows, ""); out.push({ number: "…" + num.slice(-4), result: r.action, found: r.found, missing: r.missing }); } catch (e) { out.push({ number: "…" + num.slice(-4), result: "error: " + String((e && (e as any).message) || e) }); }
+  }
+  return { ok: true, chats: out.length, saved: out.filter((x) => x.result === "saved").length, results: out };
+}
+
 /* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
 function background(p: Promise<any>) { try { const er = (globalThis as any).EdgeRuntime; if (er && typeof er.waitUntil === "function") { er.waitUntil(p); return true; } } catch (_) { /* not available */ } return false; }
 
@@ -1525,6 +1541,7 @@ serve(async (req) => {
       if (b.cron && !b.dry) { const pr = autoAssign(sb, b).catch((e) => console.error("auto_assign", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); }
       return json(await autoAssign(sb, b));
     }
+    if (b.action === "read_chats") return json(await readChats(sb));
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());
     if (b.action === "diagnose") return json(await diagnose());
