@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-count-by-given";
+const FN_VERSION = "2026-11-23-terms-off";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -144,6 +144,7 @@ const DEFAULT_CFG = {
   retries: 2,                      // after a "can't take" or no reply, try this many other instructors before asking you
   maxPerWeek: 0,                   // (old hard cap, off) 0 = none
   messageInstructor: true, messageStudent: true,
+  sendTerms: false,                // send the student the terms & conditions message after their welcome (off by default)
   ackStudent: false, ackSince: "",   // WhatsApp the student as soon as a website booking arrives ("we have passed your details to an instructor")
   maxMsgsInstructor: 8,            // never annoy: at most this many automatic WhatsApps to ONE instructor in 24 hours for non-essential messages (check-ins, balance reminders). Offers and assignments are never held back. 0 = no limit
   maxMsgsStudent: 4,               // same for ONE student in 24 hours (check-ins, acknowledgements)
@@ -498,7 +499,7 @@ async function welcomeStudent(sb: any, cfg: any, ref: any, c: any, waitingId?: a
   if (r2.ok) {
     const n = String((cur && cur.admin_notes) || ""), lines = [`${today()} · 💬 Student welcomed on WhatsApp (after ${c.name} agreed)`];
     // right after the welcome: the terms & conditions link and the key rules (once per student)
-    if (!n.includes("📄 Terms")) {
+    if (cfg.sendTerms === true && !n.includes("📄 Terms")) {   // off by default: the terms message is only sent when switched on in the settings
       const rt = await sendTemplate(sb, { to: ref.student_phone, template: "dsq_student_terms", lang: "en_GB", params: [first(ref.student_name)], instructor_id: c.id, referral_id: ref.id, student_name: ref.student_name });
       lines.push(rt.ok ? `${today()} · 📄 Terms & conditions link sent on WhatsApp` : `${today()} · 📄 Terms message could not be sent (${rt.error}). Send them the link: https://www.drivesq.co.uk/terms.html`);
       if (!rt.ok) await attention(sb, cfg, { kind: "msg_failed", title: "Terms link did not send to " + (ref.student_name || "the student"), detail: `${rt.error}. Send them https://www.drivesq.co.uk/terms.html yourself (instructor page: Send terms button).`, waiting_id: String(waitingId || ref.id) + "-terms", referral_id: ref.id, instructor_id: c.id, student_name: ref.student_name, quiet: true });

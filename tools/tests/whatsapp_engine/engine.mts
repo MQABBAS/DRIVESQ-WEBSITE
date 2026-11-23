@@ -5,7 +5,7 @@ const sigf = async (b) => { const k = await crypto.subtle.importKey("raw", new T
 const hook = async (payload, text) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "in" + Math.random(), from: payload.from, type: payload.p ? "button" : "text", ...(payload.p ? { button: { payload: payload.p, text: "x" } } : { text: { body: text } }) }] } }] }] }); return h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": await sigf(body) }, body })); };
 const I = (id, name, area, phone, extra = {}) => ({ id, full_name: name, status: "approved", area, phone, car_type: "Both", instructor_model: "referral", coverage_postcodes: area.split(" ")[0], ...extra });
 DB.instructors = [I("i1", "Dawood Khan", "M13 0PG", "07700900001"), I("i2", "Sara Female", "M20 0AA", "07700900002"), I("i3", "Mo Sale", "M33 0AA", "07700900003", { instructor_model: "franchise" }), I("i4", "Far Frank", "BL1 0AA", "07700900004")];
-DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
+DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, sendTerms: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
 const now = Date.now(), ph = () => "07700" + String(900000 + globalThis.SEQ++).slice(-6);
 const W = (name, pc, notes = "", extra = {}) => ({ id: "w" + (globalThis.SEQ++), student_name: name, student_phone: ph(), postcode: pc, lesson_type: "Manual", status: "waiting", created_at: new Date(now - 3600e3).toISOString(), notes: "[WEB] Email: x@x.com\n" + notes, ...extra });
 const ok = (c, m) => console.log((c ? "PASS " : "FAIL ") + m);
@@ -125,7 +125,7 @@ DB.referrals = [bk("u1", "i1", 25), bk("u2", "i1", 25)]; DB.growth_settings.find
 ok(r.results[0].instructor === "Dawood Khan", "limit set to 0 -> rule is off");
 
 console.log("== 11. 45-minute reply time + acknowledgement ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackHours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, sendTerms: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 0, autoAssignAfterMinutes: 0, ackHours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString() };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = [];
 DB.waiting_list = [W("Offer Ola", "M13 9AA"), W("Call Cal", "M13 9AA", "", { notes: "[CALL] phone booking" })];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
@@ -138,7 +138,7 @@ const firstInstr = jo.instructor_id; jo.expires_at = new Date(Date.now() - 61 * 
 ok(jo.instructor_id !== firstInstr && jo.state === "pending_accept" && JSON.stringify(jo.tried).includes(String(firstInstr)), "no reply in 60 min -> offered to the NEXT instructor straight away");
 
 console.log("== 12. Offer first; no reply after 35 min -> auto-assign if they cover the area ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], autoMiles: 0 };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, sendTerms: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], autoMiles: 0 };
 DB.referrals = []; DB.admin_attention = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.student_followups = [];
 DB.waiting_list = [W("Cover Cora", "M13 9AA"), W("Nocover Nick", "M4 1AA")];
 CALLS.length = 0; r = await call({ action: "auto_assign", cron: true });
@@ -164,7 +164,7 @@ ok(AM(at("18", "12:00"), at("18", "12:35"), 8, 20) === 35, "midday offer, 35 min
 ok(AM(at("18", "20:00"), at("19", "08:00"), 8, 20) === 0, "overnight 20:00-08:00 counts nothing");
 
 console.log("== 14. Night booking -> different wording; outside ack hours -> not sent yet ==");
-DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString(), ackHours: [0, 24], autoAssignAfterMinutes: 0 };
+DB.growth_settings.find((x) => x.key === "auto_assign_cfg").value = { enabled: true, sendTerms: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), mode: "assign", hours: [0, 24], ackStudent: true, ackSince: new Date(Date.now() - 864e5).toISOString(), ackHours: [0, 24], autoAssignAfterMinutes: 0 };
 DB.referrals = []; DB.wa_log = []; DB.auto_assign_jobs = []; DB.waiting_list = [W("Awake Ann", "M13 9AA")]; await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_booking_received").length === 1 && sent("dsq_booking_received_later").length === 0, "inside the offer hours -> 'we have passed your details'");
 const hNow = new Date().getUTCHours(); const away = [(hNow + 3) % 24, ((hNow + 3) % 24) + 1];   // a window that does NOT contain the current hour
@@ -418,6 +418,11 @@ const callT = CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name ==
 ok(/Terms & conditions link sent/.test(refT.admin_notes), "noted on the referral so admin can see it was sent");
 await hook({ from: fromT, p: "ACCEPT:" + refT.id }); ok(sent("dsq_student_terms").length === 1, "tapping Accept again does not send it twice");
 
+cfgOf().sendTerms = false; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = [];
+DB.waiting_list = [W("No Terms Nia", "M13 9AA", "", { student_phone: "07844555666" })]; await call({ action: "auto_assign", cron: true });
+{ const jn = DB.auto_assign_jobs[0], inn = DB.instructors.find((i) => i.id === jn.instructor_id); await hook({ from: "44" + inn.phone.replace(/^0/, ""), p: "OFFER_ACCEPT:" + jn.id }); }
+ok(sent("dsq_student_welcome_2").length + sent("dsq_student_welcome").length >= 1 && sent("dsq_student_terms").length === 0, "terms switched OFF: the student is welcomed but NO terms & conditions message is sent");
+cfgOf().sendTerms = true;
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -758,7 +763,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-count-by-given", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-terms-off", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
