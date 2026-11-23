@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-all-outcomes";
+const FN_VERSION = "2026-11-23-all-outcomes-2";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1217,12 +1217,13 @@ const KINDS: any = {
 };
 function classifyMessage(t: string): string {
   const x = String(t || "").toLowerCase();
-  if (/\b(accident|crash(ed)?|injur(ed|y)|hospital|ambulance|police|emergency|broke down|broken down)\b/.test(x)) return "urgent";
+  const testy = /\b(driving test|practical test|theory test|hazard perception|test (date|booking|slot|centre|center|time)|book(ed|ing)? (a |my |the )?test|(emergency|urgent|cancellation|earlier|earliest) test|dvsa)\b/.test(x) || (/\btest\b/.test(x) && /\b(wrong|different|change|move|earlier|rebook|re-book|date|day|booked)\b/.test(x) && !/\blesson\b/.test(x));
+  if (/\b(accidents?|crash(ed|es)?|injur(ed|y|ies)|hospital|ambulance|police|broke down|broken down|breakdown|999)\b/.test(x) || (/\bemergency\b/.test(x) && !testy && !/\b(lesson|booking|book|date|slot|session)\b/.test(x))) return "urgent";
   if (/\b(f+u+c+k|cunt|wankers?|bastards?|idiots?|stupid|scam(mers?)?)\b/.test(x)) return "abuse";
   if (/\b(complain|complaint|unhappy|disappointed|terrible|awful|rude|never turned up|didn'?t turn up|no show|report you|trading standards|solicitor|ombudsman)\b/.test(x)) return "complaint";
   if (/\b(refund|invoice|receipt|overcharg\w*|money back|charged|payment|bank transfer)\b/.test(x)) return "payment";
-  if (/\b(cancel\w*|re-?schedul\w*|postpone\w*|can'?t make|cannot make|change (my |the )?(lesson|time|date|day))\b/.test(x)) return "cancel";
-  if (/\b(driving test|practical test|theory test|hazard perception|test date|book (a |my )?test)\b/.test(x)) return "test";
+  if (testy) return "test";   // a driving-test problem is handled before ordinary lesson changes
+  if (/\b(cancel\w*|re-?schedul\w*|postpone\w*|can'?t make|cannot make|change (my |the )?(lesson|time|date|day)|(booked|book)[^.?!]{0,30}(wrong|different) (day|date|time))\b/.test(x)) return "cancel";
   if (/\b(my instructor|instructor (hasn'?t|has not|didn'?t|never)|when (is|will) my (lesson|instructor)|haven'?t heard)\b/.test(x)) return "instructor";
   if (/\b(speak|talk|call|ring|phone)\b[^.?!]{0,30}\b(someone|person|human|manager|somebody|agent|you|me)\b|\bhuman\b|\breal person\b/.test(x)) return "person";
   return "";
@@ -1278,7 +1279,8 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
         await attention(sb, cfg, { kind: "ai_handoff", title: `${KINDS.abuse.title} from ${profileName || num}`, detail: `"${String(text).slice(0, 160)}". Their number: ${num}. The assistant did not reply and has stopped answering them today.`, waiting_id: "ai-" + num + "-" + londonYMD(Date.now()).d });
         return "abuse: told you, no reply";
       }
-      return handoff(KINDS[kind].title.replace(/^\S+\s/, "") + who, KINDS[kind].reply, `${KINDS[kind].title}: ${profileName || num}${who}`);
+      const rush = kind === "test" && /\b(urgent|emergency|asap|tomorrow|this week|next week|soon|deadline|\d+ days?)\b/i.test(text);   // a test date problem is time-sensitive (DVSA needs notice to move a test)
+      return handoff(KINDS[kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE: " + String(text).slice(0, 100) + ")" : "") + who, KINDS[kind].reply, `${rush ? "🚨 " : ""}${KINDS[kind].title}: ${profileName || num}${who}`);
     } }
   if (ins > (cfg.aiMaxMessages || 14)) return handoff("long conversation with no booking made");
   if (callsToday.length >= (cfg.aiMaxPerDay || 300)) return handoff("the assistant's daily limit was reached");

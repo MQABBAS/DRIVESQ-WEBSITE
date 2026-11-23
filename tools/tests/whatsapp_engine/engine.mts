@@ -524,6 +524,10 @@ console.log("== 42. AI booking assistant ==");
   const KT = [["urgent", "I've had an accident on my lesson", /urgent|999/i, /URGENT/], ["complaint", "I want to make a complaint, the instructor never turned up", /sorry to hear/i, /Complaint/], ["payment", "I need a refund please", /payment question/i, /Payment/], ["cancel", "I need to cancel my lesson tomorrow", /cancellation terms/i, /Cancel/], ["test", "How do I book my theory test?", /test question/i, /test/i], ["instructor", "my instructor hasn't contacted me", /let the team know/i, /instructor/i], ["person", "can I talk to a real person", /member of our team/i, /speak to someone/i]];
   let n9 = 0; for (const [k, msg, rep, title] of KT) { const F = "44790000" + String(1000 + n9++); DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, msg);
     ok(!CALLS.some((c) => c.claude) && rep.test(textsTo(F)[0] || "") && DB.admin_attention.some((x) => x.kind === "ai_handoff" && title.test(x.title)), k + ": fixed reply sent, you are alerted, Claude not needed (" + (textsTo(F)[0] || "").slice(0, 50) + ")"); }
+  { const F = "447900007000"; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "I have to book an emergency test and have accidentally booked for a different date");
+    ok(!/999/.test(textsTo(F)[0] || "") && /test question/i.test(textsTo(F)[0] || "") && DB.admin_attention.some((x) => /🚨.*test/i.test(x.title) && /TIME-SENSITIVE/.test(x.detail)), "'emergency test, booked a different date': NOT treated as an accident; handled as a time-sensitive test problem (" + (DB.admin_attention[0] || {}).title + ")");
+    for (const [m, expect] of [["I crashed my car on the way", "urgent"], ["I am in hospital and need to cancel", "urgent"], ["I accidentally booked the wrong day for my lesson", "cancel"], ["this is an emergency, I need a lesson tomorrow", ""], ["can I move my test date please", "test"]]) { DB.admin_attention = []; CALLS.length = 0; const FF = "447900008" + String(Math.floor(Math.random() * 900) + 100); globalThis.CLAUDE_Q = [say("ok")]; await hook({ from: FF }, m);
+      const got = DB.admin_attention.length ? (/URGENT/.test(DB.admin_attention[0].title) ? "urgent" : /Cancel/.test(DB.admin_attention[0].title) ? "cancel" : /test/i.test(DB.admin_attention[0].title) ? "test" : "other") : ""; ok(got === expect, `"${m}" -> ${expect || "goes to Claude"} (got ${got || "Claude"})`); } }
   { const F = "447900002000"; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "you are all useless idiots"); ok(textsTo(F).length === 0 && DB.admin_attention.some((x) => /Abusive/.test(x.title)), "abusive message: no reply, you are alerted"); }
   { const F = "447900003000"; DB.referrals = [{ id: "rk1", instructor_id: "i1", student_name: "Known Kate", student_phone: "07900003000", created_at: new Date().toISOString(), is_cancelled: false }]; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "I need to cancel my lesson");
     ok(DB.admin_attention.some((x) => /student of Dawood Khan/.test(x.title)), "an existing student: the alert names their instructor (" + (DB.admin_attention[0] || {}).title + ")"); DB.referrals = []; }
@@ -646,7 +650,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-all-outcomes", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-all-outcomes-2", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
