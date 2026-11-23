@@ -580,6 +580,10 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
     ok(DB.admin_attention.some((x) => /Booking read from a WhatsApp chat/.test(x.title)), "you are told a booking was read from the chat");
     r = await RO("447920000002", "I need a refund please", null);
     ok(r.texts.length === 0 && /Payment/.test(r.att), "read-only: a refund message -> alert only, no reply sent");
+    { const G = "447920000077", lb = (intent, conf) => ({ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent, urgency: "normal", confidence: conf, summary: "x" } }] }); DB.admin_attention = [];
+      globalThis.CLASSIFY_Q = [lb("unclear", 0.3)]; globalThis.EXTRACT_Q = [ext({})]; await hook({ from: G }, "hmm ok");
+      globalThis.CLASSIFY_Q = [lb("booking", 0.9)]; globalThis.EXTRACT_Q = [ext({ name: "Gina Lee", postcode: "m13 9aa", gearbox: "automatic" })]; await hook({ from: G }, "Gina Lee M13 9AA automatic");
+      ok(DB.waiting_list.some((w) => /Gina Lee/.test(w.student_name)) && textsTo(G).length === 0, "read-only: an earlier message Claude was unsure about does NOT stop it reading the details sent next: booking saved, nothing sent"); }
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
     ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
     globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
@@ -763,7 +767,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-terms-off", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-readonly-fix", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-terms-off";
+const FN_VERSION = "2026-11-23-readonly-fix";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1426,9 +1426,9 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   if (!(cfg.aiTestOnly && isAdminPhone) && await instructorByPhone(sb, from)) return "instructor";
   const mute = cfg.aiSend === false, send = (text: string, tag = "ai_assistant") => aiSend(sb, from, text, tag, mute);   // read-only: nothing is ever sent, but what would have been said is logged
   const num = waNumber(from), since = Date.now() - 864e5;
-  const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone").eq("to_phone", num);
+  const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").eq("to_phone", num);
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
-  if (day.some((x: any) => x.template === "ai_handoff" || x.template === "ai_booked")) {   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
+  if (day.some((x: any) => x.status !== "muted" && (x.template === "ai_handoff" || x.template === "ai_booked"))) {   // (a read-only "would have said" line never counts: in read-only mode Claude keeps reading every message)   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
     const booked = day.some((x: any) => x.template === "ai_booked"), rx0 = classifyMessage(text), cl0 = cfg.aiClassifier !== false ? await understand(text, "") : null, r0: any = routeMessage(rx0, cl0, cfg.aiMinConfidence || 0.65), k0 = r0.action === "kind" || r0.action === "abuse" ? r0.kind : "", ks = await knownStudent(sb, from);
     if (booked && !k0) { try { const ed2: any = await extractDetails(sb, cfg, day, profileName); if (ed2.a) await enrichBooking(sb, cfg, from, ed2.a); } catch (_) { /* best effort */ } }   // they added availability / address / test date after booking: it goes into the same booking
     if (k0 === "urgent") await send(KINDS.urgent.reply, "ai_handoff");
@@ -1457,7 +1457,7 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
       await attention(sb, cfg, { kind: "ai_handoff", title: `${KINDS.abuse.title} from ${profileName || num}`, detail: `"${String(text).slice(0, 160)}". Their number: ${num}. The assistant did not reply and has stopped answering them today.`, waiting_id: "ai-" + num + "-" + londonYMD(Date.now()).d });
       return "abuse: told you, no reply";
     }
-    if (rt.action === "handoff") return handoff(rt.note + "." + sum + who);
+    if (rt.action === "handoff") { if (mute) { try { await extractFromChat(sb, cfg, from, day, profileName); } catch (e) { console.error("extract", e); } } return handoff(rt.note + "." + sum + who); }   // read-only: even a message Claude is unsure about is still read for booking details
     const rush = rt.urgency !== "normal" || (rt.kind === "test" && /\b(urgent|emergency|asap|tomorrow|this week|next week|soon|deadline|\d+ days?)\b/i.test(text));   // a test date problem is time-sensitive: DVSA needs notice to move a test
     return handoff(KINDS[rt.kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE)" : "") + "." + sum + (rt.note ? " [" + rt.note + "]" : "") + who, KINDS[rt.kind].reply, `${rush ? "🚨 " : ""}${KINDS[rt.kind].title}: ${profileName || num}${who}`);
   }
