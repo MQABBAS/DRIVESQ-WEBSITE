@@ -528,6 +528,32 @@ console.log("== 42. AI booking assistant ==");
     ok(!/999/.test(textsTo(F)[0] || "") && /test question/i.test(textsTo(F)[0] || "") && DB.admin_attention.some((x) => /🚨.*test/i.test(x.title) && /TIME-SENSITIVE/.test(x.detail)), "'emergency test, booked a different date': NOT treated as an accident; handled as a time-sensitive test problem (" + (DB.admin_attention[0] || {}).title + ")");
     for (const [m, expect] of [["I crashed my car on the way", "urgent"], ["I am in hospital and need to cancel", "urgent"], ["I accidentally booked the wrong day for my lesson", "cancel"], ["this is an emergency, I need a lesson tomorrow", ""], ["can I move my test date please", "test"]]) { DB.admin_attention = []; CALLS.length = 0; const FF = "447900008" + String(Math.floor(Math.random() * 900) + 100); globalThis.CLAUDE_Q = [say("ok")]; await hook({ from: FF }, m);
       const got = DB.admin_attention.length ? (/URGENT/.test(DB.admin_attention[0].title) ? "urgent" : /Cancel/.test(DB.admin_attention[0].title) ? "cancel" : /test/i.test(DB.admin_attention[0].title) ? "test" : "other") : ""; ok(got === expect, `"${m}" -> ${expect || "goes to Claude"} (got ${got || "Claude"})`); } }
+  // ---- Claude labels the message, fixed rules decide ----
+  const lab = (intent, urgency, confidence, summary = "x") => ({ content: [{ type: "tool_use", id: "c1", name: "classify_message", input: { intent, urgency, confidence, summary } }] });
+  const act = async (F, msg, label, chat) => { DB.admin_attention = []; DB.admin_activity_log = []; CALLS.length = 0; globalThis.CLASSIFY_Q = label ? [label] : []; globalThis.CLAUDE_Q = chat ? [chat] : []; await hook({ from: F }, msg); return { said: textsTo(F)[0] || "", att: DB.admin_attention.map((x) => x.title + " | " + x.detail).join(" || "), chat: CALLS.some((c) => c.claude), cls: CALLS.some((c) => c.classify), trail: (DB.admin_activity_log || []).filter((x) => x.action === "ai_understood").map((x) => x.summary).join(" ") }; };
+  { let r = await act("447910000001", "I have to book an emergency test and have accidentally booked for a different date", lab("test_date", "time_sensitive", 0.96, "needs an earlier test; booked the wrong date"));
+    ok(r.cls && !r.chat && /test question/i.test(r.said) && !/999/.test(r.said) && /🚨/.test(r.att) && /TIME-SENSITIVE/.test(r.att), "Claude: emergency test + wrong date -> test problem, time-sensitive alert, no 999 (" + r.att.slice(0, 70) + ")");
+    ok(/test_date \(96% sure, time_sensitive\)/.test(r.trail) && /fixed reply \(test\)/.test(r.trail), "the decision is written in plain English in Activity: " + r.trail.slice(0, 120));
+    r = await act("447910000002", "I need an emergency lesson as my test is next week", lab("booking", "time_sensitive", 0.9, "wants lessons before a test next week"), say("Sure! What is your full name?"));
+    ok(r.chat && /full name/.test(r.said) && /Time-sensitive WhatsApp enquiry/.test(r.att), "'emergency lesson': the assistant carries on collecting the booking AND you get a time-sensitive heads-up");
+    r = await act("447910000003", "I crashed on the way to my lesson", lab("safety_emergency", "urgent", 0.95, "car crash"));
+    ok(/999/.test(r.said) && /URGENT/.test(r.att), "a real crash: urgent alert and the 999 line");
+    r = await act("447910000004", "hmm maybe", lab("booking", "normal", 0.4, "unsure"));
+    ok(!r.chat && /member of our team/.test(r.said) && /only 40% sure/.test(r.att), "not sure (40%): handed to you, never guessed (" + r.att.slice(0, 90) + ")");
+    r = await act("447910000005", "asdfgh", lab("unclear", "normal", 0.9, "gibberish"));
+    ok(!r.chat && /could not tell what they meant/.test(r.att), "unclear: handed to you");
+    r = await act("447910000006", "is this a scam? are you real?", lab("faq", "normal", 0.92, "asks if the school is genuine"), say("We are a real driving school in Greater Manchester."));
+    ok(r.chat && !/Abusive/.test(r.att) && /We are a real/.test(r.said), "'is this a scam?' is a question, not abuse (the keyword rule is overruled by Claude)");
+    r = await act("447910000007", "you useless idiots", lab("abuse", "normal", 0.97, "insults"));
+    ok(r.said === "" && /Abusive/.test(r.att), "real abuse: no reply, alert only");
+    r = await act("447910000008", "can I cancel tomorrow's lesson", lab("cancel_change", "time_sensitive", 0.93, "cancel tomorrow"));
+    ok(/cancellation terms/.test(r.said) && /🚨.*Cancel/.test(r.att), "cancel tomorrow: fixed reply with the terms link + time-sensitive alert");
+    r = await act("447910000009", "I need to cancel my lesson", { content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent: "made_up", urgency: "normal", confidence: 0.99, summary: "x" } }] });
+    ok(!r.chat && /cancellation terms/.test(r.said) && /keyword rules/.test(r.trail), "a label that does not fit the rules is ignored: the keyword rules take over");
+    globalThis.CLAUDE_FAIL = true; r = await act("447910000010", "I want a refund", null); globalThis.CLAUDE_FAIL = false;
+    ok(/payment question/.test(r.said), "Claude unreachable: the keyword rules still give a safe fixed reply");
+    CALLS.length = 0; globalThis.CLASSIFY_Q = [lab("booking", "normal", 0.9)]; globalThis.CLAUDE_Q = [say("Thanks! And your postcode?")]; await hook({ from: "447910000011" }, "Hannah Brown"); const cc = (CALLS.find((c) => c.classify) || { classify: { messages: [{ content: "" }] } }).classify; ok(cc.tool_choice && cc.tool_choice.name === "classify_message" && /NEW MESSAGE: Hannah Brown/.test(cc.messages[0].content), "the classifier is forced to answer with the label tool and sees the message");
+    cfgOf().aiClassifier = false; r = await act("447910000012", "I need to cancel my lesson", lab("booking", "normal", 0.9)); ok(!r.cls && /cancellation terms/.test(r.said), "classifier switched off: keyword rules only"); cfgOf().aiClassifier = true; globalThis.CLASSIFY_Q = []; globalThis.CLAUDE_Q = []; }
   { const F = "447900002000"; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "you are all useless idiots"); ok(textsTo(F).length === 0 && DB.admin_attention.some((x) => /Abusive/.test(x.title)), "abusive message: no reply, you are alerted"); }
   { const F = "447900003000"; DB.referrals = [{ id: "rk1", instructor_id: "i1", student_name: "Known Kate", student_phone: "07900003000", created_at: new Date().toISOString(), is_cancelled: false }]; DB.admin_attention = []; CALLS.length = 0; await hook({ from: F }, "I need to cancel my lesson");
     ok(DB.admin_attention.some((x) => /student of Dawood Khan/.test(x.title)), "an existing student: the alert names their instructor (" + (DB.admin_attention[0] || {}).title + ")"); DB.referrals = []; }
@@ -650,7 +676,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-all-outcomes-2", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-understanding", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

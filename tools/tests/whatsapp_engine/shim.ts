@@ -28,6 +28,7 @@ globalThis.fetch = async (url, opts) => {
   const u = String(url);
   if (u.includes("postcodes.io")) { const c = decodeURIComponent(u.split("/").pop()).toUpperCase(); const g = GEO[c]; return { ok: true, status: g ? 200 : 404, json: async () => g ? { result: { latitude: g[0], longitude: g[1] } } : { status: 404, result: null } }; }
   if (u.includes("osrm")) throw new Error("no osrm in test");
+  if (u.includes("api.anthropic.com") && /"tool_choice"/.test(String(opts.body))) { const q = (globalThis.CLASSIFY_Q || []); const bodyJ = JSON.parse(opts.body); CALLS.push({ classify: bodyJ }); if (globalThis.CLAUDE_FAIL) return { ok: false, status: 401, json: async () => ({ error: { message: "invalid x-api-key" } }) }; const r = q.length ? q.shift() : { content: [{ type: "text", text: "no label" }] }; return { ok: true, status: 200, json: async () => r }; }
   if (u.includes("api.anthropic.com")) { CALLS.push({ claude: JSON.parse(opts.body) }); if (globalThis.CLAUDE_FAIL) return { ok: false, status: 401, json: async () => ({ error: { message: "invalid x-api-key" } }) }; const r = (globalThis.CLAUDE_Q || []).shift() || { content: [{ type: "text", text: "ok" }] }; return { ok: true, status: 200, json: async () => r }; }
   if (u.includes("send-push")) { CALLS.push({ push: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({}) }; }
   if (u.includes("graph.facebook.com") && globalThis.GRAPH) {   // a fake Meta: accounts, phone numbers, templates

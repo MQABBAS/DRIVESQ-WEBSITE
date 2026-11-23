@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-all-outcomes-2";
+const FN_VERSION = "2026-11-23-understanding";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -153,6 +153,8 @@ const DEFAULT_CFG = {
   aiMaxPerDay: 300,                // safety: most Claude replies per day across everyone
   femaleStudentFirst: true,        // a student who looks female (name, title or her own words) is offered a FEMALE instructor first if one is within femaleStudentMiles; otherwise the normal order. Never excludes anyone
   femaleStudentMiles: 5,
+  aiClassifier: true,              // Claude first works out what each message is about (with a confidence score); fixed rules then decide the action, and anything unsure goes to you. Switch off to use keyword rules only
+  aiMinConfidence: 0.65,           // below this the message goes to you instead of guessing
   aiFacts: "",                    // facts the assistant may state to students (empty = the built-in facts from your terms). Anything not written here, it says the team will confirm
   balanceAmount: 0,                // £: also alert you and WhatsApp the instructor when what they owe reaches this amount, even before the student count is reached. 0 = off
   balanceRepeatDays: 7,            // balance reminder to the same instructor at most once every this many days
@@ -1240,6 +1242,60 @@ async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant") {
   try { await sb.from("wa_log").insert([{ direction: "out", wa_message_id: (r.j && r.j.messages && r.j.messages[0] && r.j.messages[0].id) || null, to_phone: waNumber(to), template: tag, body: text.slice(0, 900), status: r.ok ? "sent" : "failed", error: r.ok ? null : ((r.j && r.j.error && r.j.error.message) || "send failed") }]); } catch (_) { /* log only */ }
   return r;
 }
+/* ---------- understanding a message: Claude CLASSIFIES, fixed rules DECIDE ----------
+   1. Claude reads the message (and the last few lines of the chat) and returns a structured answer: what it is about, how urgent, how sure it is, and a one-line summary.
+   2. routeMessage() (plain rules, easy to test) turns that into ONE action: chat (collect a booking / answer a fact), a fixed safe reply plus an alert for you, or hand-over to you.
+   3. Not sure, or the keyword check and Claude disagree on anything serious: it goes to you, never a guess. If Claude cannot be reached the keyword rules above are used. */
+const INTENTS = ["booking", "faq", "smalltalk", "cancel_change", "test_date", "payment", "complaint", "instructor_question", "speak_to_person", "safety_emergency", "abuse", "unclear"];
+const CLASSIFY_SYSTEM = `You label ONE WhatsApp message sent to a UK driving school (DriveSQ). Return the label with the classify_message tool. Do not answer the person.
+intent (pick exactly one):
+- booking: wants lessons, gives booking details (name, postcode, gearbox, times, intensive/refresher), or answers a question about booking.
+- faq: a general question about the school (areas, how lessons work, what to bring, prices).
+- smalltalk: a greeting, thanks, or a short reply that needs no action ("hi", "thanks", "ok").
+- cancel_change: cancel, move or change an existing LESSON, or says they booked a lesson for the wrong day or time.
+- test_date: anything about a driving test or theory test: booking one, changing its date, a test booked on the wrong date, needing an earlier or emergency test slot.
+- payment: refund, invoice, receipt, an unexpected charge, how or who to pay.
+- complaint: unhappy with the service or an instructor, no-show, rude, threatening to report.
+- instructor_question: asks about their instructor or when their lesson is, or says they have not heard from them.
+- speak_to_person: wants to talk to a human, manager or the team.
+- safety_emergency: a REAL physical emergency: an accident, injury, crash, breakdown or danger to someone right now. The word "emergency" alone does NOT make it one: "I need an emergency driving test" or "emergency lesson" is test_date or booking. "Accidentally booked the wrong date" is NOT an accident.
+- abuse: insults, swearing or threats aimed at us. A question such as "is this a scam?" is faq or complaint, not abuse.
+- unclear: you cannot tell, it is in a language you cannot read, or it mixes several things.
+urgency: urgent = someone is in danger; time_sensitive = something with a deadline in days (a test soon, a lesson tomorrow, a date that must be fixed fast); normal = everything else.
+confidence: 0 to 1, how sure you are of the intent. Use below 0.65 whenever you are unsure.
+summary: at most 20 words, in English, say what they want.
+Examples: "I have to book an emergency test and have accidentally booked a different date" = test_date, time_sensitive. "I crashed on the way to my lesson" = safety_emergency, urgent. "Can I cancel tomorrow's lesson" = cancel_change, time_sensitive. "How much is a lesson?" = faq, normal. "yes" after a booking question = booking.`;
+const CLASSIFY_TOOL = { name: "classify_message", description: "Label the message.", input_schema: { type: "object", properties: { intent: { type: "string", enum: INTENTS }, urgency: { type: "string", enum: ["normal", "time_sensitive", "urgent"] }, confidence: { type: "number" }, summary: { type: "string" } }, required: ["intent", "urgency", "confidence", "summary"] } };
+async function claudeCall(body: any, tries = 2) {   // one retry on a busy or overloaded answer; never waits more than 20 seconds
+  let last: any = null;
+  for (let k = 0; k < tries; k++) {
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+      const j = await r.json().catch(() => ({})); if (r.ok) return { ok: true, j }; last = { ok: false, status: r.status, error: (j && j.error && j.error.message) || "Claude did not answer" };
+      if (r.status !== 429 && r.status < 500) break;
+    } catch (e) { last = { ok: false, status: 0, error: String((e && (e as any).message) || e) }; }
+    await new Promise((res) => setTimeout(res, 800));
+  }
+  return last || { ok: false, error: "no answer" };
+}
+/* returns a checked label, or null when Claude is unreachable or answers something that does not fit the rules (then the keyword rules are used) */
+async function understand(text: string, recent: string) {
+  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 200, system: CLASSIFY_SYSTEM, tools: [CLASSIFY_TOOL], tool_choice: { type: "tool", name: "classify_message" }, messages: [{ role: "user", content: (recent ? "Recent chat:\n" + recent + "\n\n" : "") + "NEW MESSAGE: " + String(text).slice(0, 700) }] }, 2);
+  if (!r.ok) return null;
+  const t = ((r.j && r.j.content) || []).find((x: any) => x.type === "tool_use" && x.name === "classify_message"), a = t && t.input; if (!a) return null;
+  const conf = +a.confidence; if (!INTENTS.includes(a.intent) || !["normal", "time_sensitive", "urgent"].includes(a.urgency) || !(conf >= 0 && conf <= 1)) return null;
+  return { intent: a.intent, urgency: a.urgency, confidence: conf, summary: String(a.summary || "").slice(0, 160) };
+}
+const INTENT_KIND: any = { cancel_change: "cancel", test_date: "test", payment: "payment", complaint: "complaint", instructor_question: "instructor", speak_to_person: "person", safety_emergency: "urgent", abuse: "abuse" };
+/* the decision, as plain rules: rx = what the keyword check found ("" if nothing), cl = Claude's checked label (or null) */
+function routeMessage(rx: string, cl: any, minConf = 0.65) {
+  if (!cl) return rx ? { action: rx === "abuse" ? "abuse" : "kind", kind: rx, urgency: rx === "urgent" ? "urgent" : "normal", summary: "", source: "keywords", note: "" } : { action: "chat", kind: "", urgency: "normal", summary: "", source: "none", note: "" };
+  const kind = INTENT_KIND[cl.intent] || "", note = rx && rx !== kind ? `the words suggested "${rx}" but it was understood as "${cl.intent}"` : "";
+  if (cl.intent === "unclear" || cl.confidence < minConf) return { action: "handoff", kind: "", urgency: cl.urgency, summary: cl.summary, source: "claude", note: (cl.intent === "unclear" ? "the assistant could not tell what they meant" : `the assistant was only ${Math.round(cl.confidence * 100)}% sure (${cl.intent})`) + (note ? "; " + note : "") };
+  if (kind === "abuse") return { action: "abuse", kind, urgency: cl.urgency, summary: cl.summary, source: "claude", note };
+  if (kind) return { action: "kind", kind, urgency: cl.urgency, summary: cl.summary, source: "claude", note };
+  return { action: "chat", kind: "", urgency: cl.urgency, summary: cl.summary, source: "claude", note };
+}
 /* is this number an existing student? (their latest instructor, so the alert says who to ask) */
 async function knownStudent(sb: any, from: string) {
   try {
@@ -1258,9 +1314,9 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   const { data: all } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone").eq("to_phone", num);
   const day = (all || []).filter((x: any) => new Date(x.created_at).getTime() >= since).sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
   if (day.some((x: any) => x.template === "ai_handoff" || x.template === "ai_booked")) {   // the booking is made or a person has this chat: the assistant stays quiet, but you are told about every new message so nobody is ignored
-    const booked = day.some((x: any) => x.template === "ai_booked"), k0 = classifyMessage(text), ks = await knownStudent(sb, from);
+    const booked = day.some((x: any) => x.template === "ai_booked"), rx0 = classifyMessage(text), cl0 = cfg.aiClassifier !== false ? await understand(text, "") : null, r0: any = routeMessage(rx0, cl0, cfg.aiMinConfidence || 0.65), k0 = r0.action === "kind" || r0.action === "abuse" ? r0.kind : "", ks = await knownStudent(sb, from);
     if (k0 === "urgent") await aiSend(sb, from, KINDS.urgent.reply, "ai_handoff");
-    await attention(sb, cfg, { kind: "ai_handoff", title: `${k0 ? KINDS[k0].title + ": " : "New WhatsApp message from "}${profileName || num}${booked ? " (after their booking)" : ""}${ks ? " · student of " + ks.instructor : ""}`, detail: `"${String(text).slice(0, 200)}". Their number: ${num}. Reply to them yourself on WhatsApp.`, waiting_id: "ai-msg-" + num + "-" + londonYMD(Date.now()).d });
+    await attention(sb, cfg, { kind: "ai_handoff", title: `${r0.urgency !== "normal" && k0 !== "urgent" ? "🚨 " : ""}${k0 ? KINDS[k0].title + ": " : "New WhatsApp message from "}${profileName || num}${booked ? " (after their booking)" : ""}${ks ? " · student of " + ks.instructor : ""}`, detail: `"${String(text).slice(0, 200)}". Their number: ${num}. Reply to them yourself on WhatsApp.`, waiting_id: "ai-msg-" + num + "-" + londonYMD(Date.now()).d });
     return "handled: told you (alert), the assistant stays quiet";
   }
   const ins = day.filter((x: any) => x.direction === "in").length;
@@ -1271,33 +1327,36 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
     await trail(sb, "ai_handoff", `🤖 WhatsApp chat with ${profileName || num} handed to you: ${reason}`);
     return "handoff";
   };
-  { const kind = classifyMessage(text);   // safe, fixed answers for complaints, payments, cancellations, emergencies, requests for a person...
-    if (kind) {
-      const ks = await knownStudent(sb, from), who = ks ? " · student of " + ks.instructor + (ks.instructorPhone ? " (" + ks.instructorPhone + ")" : "") : "";
-      if (kind === "abuse") {
-        try { await sb.from("wa_log").insert([{ direction: "out", to_phone: num, template: "ai_handoff", body: "(no reply sent: abusive message)", status: "sent" }]); } catch (_) { /* log only */ }
-        await attention(sb, cfg, { kind: "ai_handoff", title: `${KINDS.abuse.title} from ${profileName || num}`, detail: `"${String(text).slice(0, 160)}". Their number: ${num}. The assistant did not reply and has stopped answering them today.`, waiting_id: "ai-" + num + "-" + londonYMD(Date.now()).d });
-        return "abuse: told you, no reply";
-      }
-      const rush = kind === "test" && /\b(urgent|emergency|asap|tomorrow|this week|next week|soon|deadline|\d+ days?)\b/i.test(text);   // a test date problem is time-sensitive (DVSA needs notice to move a test)
-      return handoff(KINDS[kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE: " + String(text).slice(0, 100) + ")" : "") + who, KINDS[kind].reply, `${rush ? "🚨 " : ""}${KINDS[kind].title}: ${profileName || num}${who}`);
-    } }
   if (ins > (cfg.aiMaxMessages || 14)) return handoff("long conversation with no booking made");
   if (callsToday.length >= (cfg.aiMaxPerDay || 300)) return handoff("the assistant's daily limit was reached");
   if (/^\s*\[(image|audio|video|document|sticker|location|contacts)\]/i.test(text)) return handoff("they sent a " + String(text).replace(/[\[\]]/g, "") + " the assistant cannot read", "Thanks! I can only read text messages. I've asked a member of our team to message you shortly.");
+  // what is this message about? Claude labels it, plain rules decide (routeMessage); nothing unsure is guessed
+  const rx = classifyMessage(text), recent = day.slice(-4).map((x: any) => (x.direction === "in" ? "Student: " : "Assistant: ") + String(x.body || "").slice(0, 160)).join("\n");
+  const cl = cfg.aiClassifier !== false ? await understand(text, recent) : null, rt: any = routeMessage(rx, cl, cfg.aiMinConfidence || 0.65);
+  await trail(sb, "ai_understood", `🤖 ${profileName || num}: "${String(text).slice(0, 80)}" → ${cl ? `${cl.intent} (${Math.round(cl.confidence * 100)}% sure, ${cl.urgency})` : "keyword rules (Claude not used)"} → ${rt.action === "chat" ? "the assistant replies" : rt.action === "handoff" ? "handed to you" : rt.action === "abuse" ? "no reply, alert only" : "fixed reply (" + rt.kind + ") and alert"}${rt.note ? " [" + rt.note + "]" : ""}`);
+  if (rt.action !== "chat") {
+    const ks = await knownStudent(sb, from), who = ks ? " · student of " + ks.instructor + (ks.instructorPhone ? " (" + ks.instructorPhone + ")" : "") : "", sum = rt.summary ? ` They seem to want: ${rt.summary}.` : "";
+    if (rt.action === "abuse") {
+      try { await sb.from("wa_log").insert([{ direction: "out", to_phone: num, template: "ai_handoff", body: "(no reply sent: abusive message)", status: "sent" }]); } catch (_) { /* log only */ }
+      await attention(sb, cfg, { kind: "ai_handoff", title: `${KINDS.abuse.title} from ${profileName || num}`, detail: `"${String(text).slice(0, 160)}". Their number: ${num}. The assistant did not reply and has stopped answering them today.`, waiting_id: "ai-" + num + "-" + londonYMD(Date.now()).d });
+      return "abuse: told you, no reply";
+    }
+    if (rt.action === "handoff") return handoff(rt.note + "." + sum + who);
+    const rush = rt.urgency !== "normal" || (rt.kind === "test" && /\b(urgent|emergency|asap|tomorrow|this week|next week|soon|deadline|\d+ days?)\b/i.test(text));   // a test date problem is time-sensitive: DVSA needs notice to move a test
+    return handoff(KINDS[rt.kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE)" : "") + "." + sum + (rt.note ? " [" + rt.note + "]" : "") + who, KINDS[rt.kind].reply, `${rush ? "🚨 " : ""}${KINDS[rt.kind].title}: ${profileName || num}${who}`);
+  }
+  if (rt.urgency !== "normal") await attention(sb, cfg, { kind: "ai_handoff", title: `⏱ Time-sensitive WhatsApp enquiry: ${profileName || num}`, detail: `${rt.summary || String(text).slice(0, 120)}. The assistant is still collecting their details. Their number: ${num}.`, waiting_id: "ai-rush-" + num + "-" + londonYMD(Date.now()).d });
   // the conversation so far (today): their messages and the assistant's replies, alternating
   const msgs: any[] = [];
   for (const x of day) { const role = x.direction === "in" ? "user" : (x.template === "ai_assistant" ? "assistant" : ""); if (!role || !x.body) continue; if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += "\n" + x.body; else msgs.push({ role, content: String(x.body) }); }
   if (!msgs.length || msgs[msgs.length - 1].role !== "user") msgs.push({ role: "user", content: String(text) });
   while (msgs.length && msgs[0].role !== "user") msgs.shift();
-  let j: any;
-  try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }, body: JSON.stringify({ model: AI_MODEL, max_tokens: 400, system: AI_SYSTEM + "\nAPPROVED FACTS about DriveSQ. You may state these if asked, and NOTHING else about DriveSQ (anything else: say the team will confirm):\n" + (String(cfg.aiFacts || "").trim() || DEFAULT_FACTS) + (profileName ? `\nTheir WhatsApp profile name is "${profileName}" (they may have given a different name: use what they tell you).` : ""), tools: AI_TOOLS, messages: msgs }) });
-    j = await r.json(); if (!r.ok) throw new Error((j && j.error && j.error.message) || "Claude did not answer");
-  } catch (e) {
-    await attention(sb, cfg, { kind: "ai_error", title: "The WhatsApp assistant could not answer", detail: `${String((e && e.message) || e)}. Check the ANTHROPIC_API_KEY secret and your Anthropic credit. Message from ${profileName || num}: "${String(text).slice(0, 120)}"`, waiting_id: "ai-error-" + londonYMD(Date.now()).d });
+  const cr: any = await claudeCall({ model: AI_MODEL, max_tokens: 400, system: AI_SYSTEM + "\nAPPROVED FACTS about DriveSQ. You may state these if asked, and NOTHING else about DriveSQ (anything else: say the team will confirm):\n" + (String(cfg.aiFacts || "").trim() || DEFAULT_FACTS) + (profileName ? `\nTheir WhatsApp profile name is "${profileName}" (they may have given a different name: use what they tell you).` : ""), tools: AI_TOOLS, messages: msgs });
+  if (!cr.ok) {
+    await attention(sb, cfg, { kind: "ai_error", title: "The WhatsApp assistant could not answer", detail: `${String(cr.error || "Claude did not answer")}. Check the ANTHROPIC_API_KEY secret and your Anthropic credit. Message from ${profileName || num}: "${String(text).slice(0, 120)}"`, waiting_id: "ai-error-" + londonYMD(Date.now()).d });
     return "error";
   }
+  const j: any = cr.j;
   const blocks: any[] = j.content || [], tool = blocks.find((x) => x.type === "tool_use"), say = blocks.filter((x) => x.type === "text").map((x) => x.text).join("\n").trim();
   if (tool && tool.name === "hand_off") return handoff(String((tool.input && tool.input.reason) || "the assistant asked for a person").slice(0, 160));
   if (tool && tool.name === "create_booking") {

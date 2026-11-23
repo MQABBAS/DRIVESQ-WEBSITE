@@ -104,3 +104,10 @@ Settings → Who gets the jobs → "Female students: a female instructor first".
 
 ## Every kind of student message
 Fixed safe replies + an alert (no Claude needed): emergency/accident, complaint, payment/refund, cancel/reschedule, theory/driving test questions, questions about their instructor, "speak to a person". Abusive messages get no reply, only an alert. STOP stops every automatic message to that number until they send START. Existing students' alerts name their instructor. Settings → WhatsApp booking assistant → Facts box: the only facts the assistant may state (empty = built-in facts from the terms, incl. 2 hour minimum). Everything else Claude says the team will confirm.
+
+## How a student message is understood (no guessing)
+1. Claude labels the message (booking, faq, smalltalk, cancel/change, test date, payment, complaint, instructor question, speak to a person, real emergency, abuse, unclear) with an urgency and a confidence score.
+2. Plain rules decide: booking/faq/smalltalk -> the assistant replies; the serious kinds -> a fixed safe reply + an alert to you; unclear or under 65% sure -> handed to you.
+3. If the keyword check and Claude disagree it is shown in the alert, and Claude's reading wins only when it is confident. If Claude is unreachable the keyword rules take over.
+4. Every decision is written to Activity in plain English, e.g. "test_date (96% sure, time_sensitive) -> fixed reply (test) and alert". The 999 line is only sent for a confirmed real emergency.
+Settings can switch the classifier off (aiClassifier) or change the confidence threshold (aiMinConfidence).
