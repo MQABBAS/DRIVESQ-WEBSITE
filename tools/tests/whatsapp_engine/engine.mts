@@ -483,6 +483,7 @@ console.log("== 41. WhatsApp enquiry ticked for auto-assign ==");
   ok(DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(wa.id)), "a WhatsApp enquiry ticked for auto-assign is picked up (even though sources is only [WEB])");
   ok(!DB.auto_assign_jobs.some((j) => String(j.waiting_id) === String(hand.id)), "an entry added by hand with no tag is left alone"); }
 console.log("== 42. AI booking assistant ==");
+const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Address:\s*([^\n]+)/i) || [])[1] || "").trim() });
 {
   const textsTo = (to) => CALLS.filter((c) => c.wa && c.wa.type === "text" && String(c.wa.to) === to).map((c) => c.wa.text.body);
   const tool = (name, input) => ({ content: [{ type: "tool_use", id: "t1", name, input }] });
@@ -572,6 +573,23 @@ console.log("== 42. AI booking assistant ==");
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
     ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
     globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
+    // ---- everything the student says goes into the booking; the booking is saved as soon as the main details are there ----
+    { const G = "447920000010";
+      r = await RO(G, "Priya Patel M13 9AA automatic. I can do weekday evenings and Saturdays, I live at 12 Kingsway, I'm a complete beginner and my test is 14 March, I have a provisional licence", ext({ name: "Priya Patel", postcode: "M13 9AA", gearbox: "automatic", availability: "weekday evenings and Saturdays", address: "12 Kingsway", experience: "complete beginner", test_date: "14 March", licence: "yes", instructor_gender: "female_preferred", notes: "nervous driver" }));
+      const w1 = DB.waiting_list.find((w) => /Priya/.test(w.student_name));
+      ok(w1 && /Availability: weekday evenings and Saturdays/.test(w1.notes) && /Address: 12 Kingsway/.test(w1.notes) && /Experience: complete beginner/.test(w1.notes) && /Test date: 14 March/.test(w1.notes) && /Provisional licence: yes/.test(w1.notes) && /FEMALE PREFERRED/.test(w1.notes) && /Notes: nervous driver/.test(w1.notes), "everything given is in the booking: availability, address, experience, test date, licence, gender wish, notes");
+      ok(readBookingTest(w1).addr === "12 Kingsway", "the address line is read by auto-assign as the pick-up address");
+      // a booking with only the main details is saved straight away (nothing is waited for)
+      const H = "447920000011"; r = await RO(H, "Tom Hill M13 9AA manual", ext({ name: "Tom Hill", postcode: "M13 9AA", gearbox: "manual" }));
+      const w2 = DB.waiting_list.find((w) => /Tom Hill/.test(w.student_name)); ok(w2 && !/Availability/.test(w2.notes), "main details only: saved immediately, without availability");
+      // later the student adds availability and an address: same booking, no second one
+      const n0 = DB.waiting_list.length; r = await RO(H, "I'm free on Tuesday mornings, pick me up from 5 High Street", ext({ name: "Tom Hill", postcode: "M13 9AA", gearbox: "manual", availability: "Tuesday mornings", address: "5 High Street" }));
+      const w3 = DB.waiting_list.find((w) => /Tom Hill/.test(w.student_name));
+      ok(DB.waiting_list.length === n0 && /Availability: Tuesday mornings/.test(w3.notes) && /Address: 5 High Street/.test(w3.notes) && r.texts.length === 0, "later messages add availability and address to the SAME booking (no duplicate), still nothing sent");
+      DB.activity = null; r = await RO(H, "Also I can do Tuesday mornings", ext({ name: "Tom Hill", postcode: "M13 9AA", gearbox: "manual", availability: "Tuesday mornings" })); const w4 = DB.waiting_list.find((w) => /Tom Hill/.test(w.student_name)); ok((w4.notes.match(/Availability/g) || []).length === 1, "saying the same thing twice does not repeat the line");
+      // after assignment: you are told to pass it on
+      DB.waiting_list.find((w) => /Tom Hill/.test(w.student_name)).status = "assigned"; DB.admin_attention = []; r = await RO(H, "actually Thursdays are better too", ext({ name: "Tom Hill", postcode: "M13 9AA", gearbox: "manual", availability: "Tuesday mornings and Thursdays" }));
+      ok(DB.admin_attention.some((x) => /more details after being assigned/.test(x.title)), "extra details after the student was given to an instructor: you are told to pass them on"); }
     cfgOf().aiSend = true; CALLS.length = 0; globalThis.CLASSIFY_Q = [{ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent: "booking", urgency: "normal", confidence: 0.9, summary: "x" } }] }]; globalThis.CLAUDE_Q = [say("Hello! What is your full name?")]; await hook({ from: "447920000005" }, "hi");
     ok(textsTo("447920000005")[0] === "Hello! What is your full name?" && !CALLS.some((c) => c.extract), "switching 'Claude can send messages' ON: it replies again (and does not use the read-only extraction)");
     cfgOf().aiSend = true; cfgOf().aiTestOnly = prevTest; cfgOf().aiAssistant = prevOn; globalThis.EXTRACT_Q = []; globalThis.CLASSIFY_Q = []; globalThis.CLAUDE_Q = [];
@@ -698,7 +716,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-read-only", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-full-details", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
