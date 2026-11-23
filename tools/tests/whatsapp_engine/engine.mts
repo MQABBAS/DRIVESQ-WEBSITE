@@ -470,7 +470,11 @@ trs().i1 = { maxMiles: 30 }; r40 = await call({ action: "simulate", postcode: "B
 trs().i1 = { coveredOnly: true }; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(names40(r40).includes("Dawood Khan"), "covered-only instructor IS offered a postcode they cover (M13)");
 r40 = await call({ action: "simulate", postcode: "M4 1AA", type: "Manual" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((q) => /Dawood.*only teaches their covered postcodes/.test(q)), "...but NOT one they do not cover (M4): " + skippedOf(r40).filter((q) => /Dawood/.test(q)));
 { const d0 = DB.instructors[0], keep = d0.coverage_postcodes; d0.coverage_postcodes = ""; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual" }); ok(!names40(r40).includes("Dawood Khan") && skippedOf(r40).some((q) => /none are set/.test(q)), "covered-only with no postcodes set: not offered anything, with the reason"); d0.coverage_postcodes = keep; }
-delete trs().i1;
+delete trs().i1; trs().i2 = { female: true };
+{ r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Priya Patel" }); const l = r40.list || []; ok(l.length && l[0].name === "Sara Female" || l.findIndex((q) => q.name === "Sara Female") < l.findIndex((q) => q.name === "Mo Sale"), "a female student: the female instructor is ahead of the closer male one (Mo): " + l.map((q) => q.name + " " + q.dist).join(", "));
+  r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Gary Smith" }); const l2 = r40.list || []; ok(l2.findIndex((q) => q.name === "Mo Sale") < l2.findIndex((q) => q.name === "Sara Female"), "a male student: normal order (closest first)");
+  cfgOf().femaleStudentMiles = 1; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Priya Patel" }); const l3 = r40.list || []; ok(l3.findIndex((q) => q.name === "Mo Sale") < l3.findIndex((q) => q.name === "Sara Female"), "female instructor beyond the limit (1 mile): normal order, nobody excluded");
+  cfgOf().femaleStudentMiles = 5; cfgOf().femaleStudentFirst = false; r40 = await call({ action: "simulate", postcode: "M13 9AA", type: "Manual", name: "Priya Patel" }); const l4 = r40.list || []; ok(l4.findIndex((q) => q.name === "Mo Sale") < l4.findIndex((q) => q.name === "Sara Female"), "switched off: normal order"); cfgOf().femaleStudentFirst = true; }
 const trailBefore = DB.admin_activity_log ? DB.admin_activity_log.length : 0; ok(true, "(audit trail checked below)");
 console.log("== 41. WhatsApp enquiry ticked for auto-assign ==");
 { cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().sources = ["[WEB]"]; DB.waiting_list = []; DB.auto_assign_jobs = []; DB.wa_log = [];
@@ -629,7 +633,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-covered-only", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-female-students", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

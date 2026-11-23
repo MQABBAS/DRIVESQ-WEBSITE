@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-covered-only";
+const FN_VERSION = "2026-11-23-female-students";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -140,6 +140,8 @@ const DEFAULT_CFG = {
   aiTestOnly: true,                // while testing it only answers YOUR admin phone number. Switch off to let it answer real students
   aiMaxMessages: 14,               // after this many messages from one person in a day it hands over to you
   aiMaxPerDay: 300,                // safety: most Claude replies per day across everyone
+  femaleStudentFirst: true,        // a student who looks female (name, title or her own words) is offered a FEMALE instructor first if one is within femaleStudentMiles; otherwise the normal order. Never excludes anyone
+  femaleStudentMiles: 5,
   balanceAmount: 0,                // £: also alert you and WhatsApp the instructor when what they owe reaches this amount, even before the student count is reached. 0 = off
   balanceRepeatDays: 7,            // balance reminder to the same instructor at most once every this many days
   balanceHours: [9, 18],           // balance reminders only inside these UK hours (never on Sundays)
@@ -452,7 +454,8 @@ async function rank(sb: any, cfg: any, b: any, cd: any, exclude: string[], reser
   }
   // the closest instructor first, but anyone over a soft limit is asked LAST (still closest first inside each group)
   // order: (1) not over a soft limit, (2) owed their weekly minimum, (3) closest after priority / shortfall adjustments
-  out.sort((a, c) => (a.tier - c.tier) || (b.female ? (a.female ? 0 : 1) - (c.female ? 0 : 1) : 0) || ((a.owed ? 0 : 1) - (c.owed ? 0 : 1)) || (a.eff - c.eff) || (a.dist - c.dist));   // asked for a woman but men allowed by your rule: women first
+  const fpOn = !b.female && cfg.femaleStudentFirst !== false && guessStudentGender(b.name, b.notes).g === "female", fpMi = cfg.femaleStudentMiles > 0 ? cfg.femaleStudentMiles : 5, fp = (x: any) => (fpOn && x.female && x.dist <= fpMi ? 0 : 1);   // a female student: a woman instructor within 5 miles goes first
+  out.sort((a, c) => (a.tier - c.tier) || (fp(a) - fp(c)) || (b.female ? (a.female ? 0 : 1) - (c.female ? 0 : 1) : 0) || ((a.owed ? 0 : 1) - (c.owed ? 0 : 1)) || (a.eff - c.eff) || (a.dist - c.dist));   // asked for a woman but men allowed by your rule: women first
   const near = out.filter((x) => x.dist <= (x.limit ?? cfg.confirmMiles));
   // when several bookings are handled at the same time, the chosen instructor is reserved at once (no await in between), so the next booking sees them as already busier
   if (reserve && near[0] && cd.stats) { const sx = cd.stats[near[0].id] = cd.stats[near[0].id] || { week: 0, today: 0, bookedWeek: 0, total: 0, booked: 0, unmarked: 0 }; sx.today++; sx.week++; sx.last = Date.now(); }

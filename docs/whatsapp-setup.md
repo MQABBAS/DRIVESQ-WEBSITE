@@ -98,3 +98,6 @@ It asks name, postcode, gearbox, times, then adds the booking ([WHATSAPP] [AUTO]
 
 ## Covered areas only
 Control centre → Instructors → ⚙ Settings → "📍 Only students in the postcodes they cover". An instructor with this on is only offered students whose postcode (e.g. M13) is in their covered postcodes on their profile. No covered postcodes set = they get nothing until you add some. Shown as a "Covered areas only" badge.
+
+## Female students
+Settings → Who gets the jobs → "Female students: a female instructor first". When the student looks female (name, title, or her own words) a female instructor within 5 miles (changeable) is offered first; beyond that, or if none, the normal order. Nobody is excluded. Explicit requests for a female instructor still work as before.
