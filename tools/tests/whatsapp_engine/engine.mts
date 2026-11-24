@@ -637,6 +637,13 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       ok(DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)) && DB.waiting_list.some((w) => /Ruth Hale/.test(w.student_name)) && textsTo(S).length === 0, "automatic catch-up (read-only mode): each chat is read on its own and both bookings are saved without anyone pressing a button, nothing is sent");
       const n0 = DB.waiting_list.length, c0 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs about once a minute at most and never re-reads a chat that has no new message");
+      { const FP = "447920000022"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== FP); DB.wa_log = [{ id: "fp1", direction: "in", to_phone: FP, template: null, status: "received", body: "Fran Bell M13 9AA manual weekdays, I would prefer a female instructor", created_at: new Date().toISOString() }];
+        globalThis.EXTRACT_Q = [ext({ name: "Fran Bell", postcode: "m13 9aa", gearbox: "manual", availability: "weekdays", instructor_gender: "female_preferred" })]; const sd = DB.growth_settings.find((x) => x.key === "ai_sweep_state"); if (sd) sd.value = { ...sd.value, at: 0, seen: {} };
+        const savedCfg = { ...cfgOf() }; cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().since = new Date(Date.now() - 864e5).toISOString(); cfgOf().femaleRule = "require";
+        await call({ action: "auto_assign", cron: true }); const wf = DB.waiting_list.find((w) => w.student_phone === FP);
+        const jf = wf && DB.auto_assign_jobs.find((j) => String(j.waiting_id) === String(wf.id)), rf = jf && { instructor: (DB.instructors.find((i) => i.id === jf.instructor_id) || {}).full_name };
+        ok(wf && /FEMALE PREFERRED/.test(wf.notes) && rf && rf.instructor === "Sara Female", "a student who says she would prefer a female instructor: the booking is marked FEMALE PREFERRED and auto-assign picks the FEMALE instructor (" + (rf && rf.instructor) + ")");
+        Object.assign(cfgOf(), savedCfg); }
       { const T2 = "447920000033"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== T2); DB.wa_log = [];
         const full = ext({ name: "Twin Tom", postcode: "m13 9aa", gearbox: "manual" }); globalThis.EXTRACT_Q = [full, full]; globalThis.CLASSIFY_Q = [];
         await Promise.all([hook({ from: T2 }, "Twin Tom M13 9AA manual"), hook({ from: T2 }, "manual")]);
@@ -829,7 +836,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-every-minute", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-female-pref", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
