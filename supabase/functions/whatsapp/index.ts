@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-chat-feed";
+const FN_VERSION = "2026-11-24-one-booking";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1382,8 +1382,10 @@ async function saveAiBooking(sb: any, from: string, a: any, source: string) {
   if ((ex || []).some((w: any) => last10(w.student_phone || "") === last10(from) && Date.now() - new Date(w.created_at).getTime() < 14 * 864e5)) return { ok: false, why: "duplicate" };
   const gear = /auto/i.test(String(a.gearbox)) ? "Automatic" : "Manual", lt = String(a.lesson_type || ""), ltype = lt === "intensive" ? "Intensive" : lt === "mock_test" ? "Mock Test" : gear;
   const notes = ["[WHATSAPP]", "[AUTO]", "Source: " + source, "Postcode: " + pc, "Gearbox: " + gear, ...aiDetailLines(a), "AI-updated: " + new Date().toISOString()].join("\n");
-  const { error } = await sb.from("waiting_list").insert([{ student_name: name, student_phone: num, postcode: pc, lesson_type: ltype, notes, status: "waiting", created_at: new Date().toISOString() }]);
+  const { data: ins, error } = await sb.from("waiting_list").insert([{ student_name: name, student_phone: num, postcode: pc, lesson_type: ltype, notes, status: "waiting", created_at: new Date().toISOString() }]).select().single();
   if (error) return { ok: false, why: "save", error: error.message };
+  // two messages that arrive in the same second can both pass the check above: keep only the first booking (the one with the smallest id), remove ours
+  try { const { data: twins } = await sb.from("waiting_list").select("id,student_phone,created_at,status").eq("status", "waiting"); const mine = (twins || []).filter((w: any) => last10(w.student_phone || "") === last10(from) && Date.now() - new Date(w.created_at).getTime() < 120000).sort((p: any, q: any) => String(p.id).localeCompare(String(q.id))); if (ins && mine.length > 1 && String(mine[0].id) !== String(ins.id)) { await sb.from("waiting_list").delete().eq("id", ins.id); return { ok: false, why: "duplicate" }; } } catch (_) { /* best effort */ }
   return { ok: true, name, pc, gear };
 }
 /* READ-ONLY mode: Claude never sends anything. It reads what the student has written (also their answers to another assistant, such as the Meta AI), takes out ONLY what they actually said, and saves the booking when name, postcode and gearbox are all there. Otherwise you get an alert listing what it found and what is missing. */

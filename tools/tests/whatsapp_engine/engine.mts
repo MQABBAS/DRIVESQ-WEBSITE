@@ -613,6 +613,10 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       ok(DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)) && DB.waiting_list.some((w) => /Ruth Hale/.test(w.student_name)) && textsTo(S).length === 0, "automatic catch-up (read-only mode): each chat is read on its own and both bookings are saved without anyone pressing a button, nothing is sent");
       const n0 = DB.waiting_list.length, c0 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs at most every 3 minutes and never re-reads a chat that has no new message");
+      { const T2 = "447920000033"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== T2); DB.wa_log = [];
+        const full = ext({ name: "Twin Tom", postcode: "m13 9aa", gearbox: "manual" }); globalThis.EXTRACT_Q = [full, full]; globalThis.CLASSIFY_Q = [];
+        await Promise.all([hook({ from: T2 }, "Twin Tom M13 9AA manual"), hook({ from: T2 }, "manual")]);
+        ok(DB.waiting_list.filter((w) => w.student_phone === T2).length === 1, "two messages arriving in the same second still make ONE booking"); }
       { const sw = DB.growth_settings.find((x) => x.key === "ai_sweep_state"); if (sw) sw.value = { ...sw.value, at: 0 }; } const c1 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(CALLS.slice(c1).every((c) => !c.extract), "...and a chat already read is not read again when nothing new was written");
       ok(DB.growth_settings.some((x) => x.key === "ai_sweep_state" && x.value.at && typeof x.value.read === "number"), "the catch-up records when it last checked and how many chats it read (shown on the readiness list)");
@@ -801,7 +805,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-chat-feed", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-one-booking", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
