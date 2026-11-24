@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-23-auto-sweep', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-24-test-centre', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -261,7 +261,7 @@
       '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:7px 9px;font-size:.74rem;max-height:130px;overflow:auto;margin-bottom:10px"><b style="font-size:.7rem;color:var(--txt3)">What they wrote</b>' + ((r.messages || []).length ? r.messages.map(function (m) { return '<div>• ' + E(m.text) + '</div>'; }).join('') : '<div>(no text messages in the last 3 days)</div>') + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px">' + fld('name', 'Full name *', p.name) + fld('postcode', 'Postcode *', p.postcode, 'e.g. M14 5AA') +
       sel('gearbox', 'Gearbox *', [['', 'Choose…'], ['manual', 'Manual'], ['automatic', 'Automatic']], String(p.gearbox || '').toLowerCase()) + sel('lesson_type', 'Lesson type', [['standard', 'Standard'], ['intensive', 'Intensive'], ['refresher', 'Refresher'], ['mock_test', 'Mock test']], p.lesson_type || 'standard') +
-      fld('availability', 'Availability', p.availability, 'days / times') + fld('address', 'Address / pick-up', p.address) + fld('experience', 'Experience', p.experience) + fld('test_date', 'Test date', p.test_date) + fld('licence', 'Provisional licence', p.licence, 'yes / no / applying') +
+      fld('availability', 'Availability', p.availability, 'days / times') + fld('address', 'Address / pick-up', p.address) + fld('experience', 'Experience', p.experience) + fld('test_date', 'Test date / time', p.test_date) + fld('test_centre', 'Test centre', p.test_centre) + fld('licence', 'Provisional licence', p.licence, 'yes / no / applying') +
       sel('instructor_gender', 'Instructor', [['', 'No preference'], ['female_required', 'Female only'], ['female_preferred', 'Female preferred'], ['male', 'Male']], p.instructor_gender) + '</div>' +
       '<label style="font-size:.72rem;display:block;margin-top:9px"><span style="color:var(--txt3)">Notes</span><input type="text" data-c="notes" class="dsq-inp" value="' + E(p.notes || '') + '" style="margin-top:2px;width:100%"></label>' +
       '<div id="aaChatMsg" style="font-size:.78rem;margin-top:8px"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn-p" onclick="DSQHub.saveChatBooking(\'' + E(r.phone) + '\')">💾 Create booking</button><button class="btn-s" onclick="document.getElementById(\'aaChatDlg\').remove()">Cancel</button></div>';

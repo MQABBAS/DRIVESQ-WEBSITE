@@ -598,6 +598,10 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       ok(cb.ok && wb && wb.postcode === "M14 5AA" && /Availability: Weekends/.test(wb.notes) && /\[AUTO\]/.test(wb.notes) && /added by admin/.test(wb.notes) && textsTo(P).length === 0, "admin creates a booking from the chosen chat with the details they confirmed (picked up by auto-assign, nothing sent to the student)");
       const cb2 = await call({ action: "create_booking", phone: P, name: "Zara Ndlovu", postcode: "m14 5aa", gearbox: "automatic" }); const cb3 = await call({ action: "create_booking", phone: "447920000067", name: "Bad Pc", postcode: "ZZ99 9ZZ", gearbox: "manual" }); const cb4 = await call({ action: "create_booking", phone: "447920000068", name: "X", postcode: "m14 5aa", gearbox: "manual" });
       ok(!cb2.ok && /already has a booking/.test(cb2.error) && !cb3.ok && /postcode/i.test(cb3.error) && !cb4.ok && /name/i.test(cb4.error), "a second booking for the same number, a made-up postcode and a one-letter name are all refused with a clear reason"); }
+    { const cI = await call({ action: "create_booking", phone: "447920000041", name: "M h", postcode: "m13 9aa", gearbox: "manual", test_centre: "Trafford Park", test_date: "14 March 10:30" }); const wI = DB.waiting_list.find((w) => w.student_phone === "447920000041");
+      const cJ = await call({ action: "create_booking", phone: "447920000042", name: "hello", postcode: "m13 9aa", gearbox: "manual" });
+      ok(cI.ok && wI && wI.student_name === "M h" && /Test centre: Trafford Park/.test(wI.notes) && /Test date: 14 March 10:30/.test(wI.notes), "initials such as 'M h' are accepted as a name, and the test centre is saved on the booking");
+      ok(!cJ.ok && /name/i.test(cJ.error), "a greeting or gearbox word ('hello') is never accepted as a name"); }
     { const S = "447920000055", S2 = "447920000056", mkc = (n, bodies) => bodies.map((b, i) => ({ id: "sw" + n + i, direction: "in", to_phone: n, template: null, status: "received", body: b, created_at: new Date(Date.now() - (6 - i) * 60000).toISOString() }));
       DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== S && w.student_phone !== S2); DB.wa_log = [...mkc(S, ["Omar Reid", "M13 9AA", "manual"]), ...mkc(S2, ["Ruth Hale", "M13 9AA", "automatic"])]; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state");
       const _ap = cfgOf().adminPhone; cfgOf().aiAssistant = true; cfgOf().aiSend = false; cfgOf().aiTestOnly = true; cfgOf().adminPhone = "07700900999";
@@ -795,7 +799,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-auto-sweep", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-test-centre", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
