@@ -591,6 +591,27 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
     { const R = "447920000099"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== R); DB.wa_log = []; DB.wa_log.push(...["Kay Lee", "M13 9AA", "automatic please", "weekends"].map((b, i) => ({ id: "rc" + i, direction: "in", to_phone: R, template: null, status: "received", body: b, created_at: new Date(Date.now() - (4 - i) * 60000).toISOString() })));
       globalThis.EXTRACT_Q = [ext({ name: "Kay Lee", postcode: "m13 9aa", gearbox: "automatic", availability: "weekends" })]; const rc = await call({ action: "read_chats" });
       ok(rc.ok && rc.saved >= 1 && DB.waiting_list.some((w) => /Kay Lee/.test(w.student_name) && /weekends/.test(w.notes)) && textsTo(R).length === 0, "'Read recent chats now' saves the booking from chats already received, without the student sending anything again and without sending them anything"); }
+    { const P = "447920000066"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== P); DB.wa_log = []; DB.wa_log.push(...["Hi", "Zara Ndlovu here", "M14 5AA", "auto"].map((b, i) => ({ id: "cd" + i, direction: "in", to_phone: P, template: null, status: "received", body: b, created_at: new Date(Date.now() - (4 - i) * 60000).toISOString() })));
+      globalThis.EXTRACT_Q = [ext({ name: "Zara Ndlovu", postcode: "m14 5aa", gearbox: "automatic" })]; const cdr = await call({ action: "chat_details", phone: P });
+      ok(cdr.ok && cdr.messages.length === 4 && cdr.proposed.name === "Zara Ndlovu" && !cdr.existing && !DB.waiting_list.some((w) => /Zara/.test(w.student_name)), "pick a chat: it shows what they wrote and what Claude would fill in, and saves nothing yet");
+      const cb = await call({ action: "create_booking", phone: P, name: "Zara Ndlovu", postcode: "m14 5aa", gearbox: "automatic", availability: "Weekends", lesson_type: "standard" }); const wb = DB.waiting_list.find((w) => /Zara/.test(w.student_name));
+      ok(cb.ok && wb && wb.postcode === "M14 5AA" && /Availability: Weekends/.test(wb.notes) && /\[AUTO\]/.test(wb.notes) && /added by admin/.test(wb.notes) && textsTo(P).length === 0, "admin creates a booking from the chosen chat with the details they confirmed (picked up by auto-assign, nothing sent to the student)");
+      const cb2 = await call({ action: "create_booking", phone: P, name: "Zara Ndlovu", postcode: "m14 5aa", gearbox: "automatic" }); const cb3 = await call({ action: "create_booking", phone: "447920000067", name: "Bad Pc", postcode: "ZZ99 9ZZ", gearbox: "manual" }); const cb4 = await call({ action: "create_booking", phone: "447920000068", name: "X", postcode: "m14 5aa", gearbox: "manual" });
+      ok(!cb2.ok && /already has a booking/.test(cb2.error) && !cb3.ok && /postcode/i.test(cb3.error) && !cb4.ok && /name/i.test(cb4.error), "a second booking for the same number, a made-up postcode and a one-letter name are all refused with a clear reason"); }
+    { const S = "447920000055", S2 = "447920000056", mkc = (n, bodies) => bodies.map((b, i) => ({ id: "sw" + n + i, direction: "in", to_phone: n, template: null, status: "received", body: b, created_at: new Date(Date.now() - (6 - i) * 60000).toISOString() }));
+      DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== S && w.student_phone !== S2); DB.wa_log = [...mkc(S, ["Omar Reid", "M13 9AA", "manual"]), ...mkc(S2, ["Ruth Hale", "M13 9AA", "automatic"])]; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state");
+      const _ap = cfgOf().adminPhone; cfgOf().aiAssistant = true; cfgOf().aiSend = false; cfgOf().aiTestOnly = true; cfgOf().adminPhone = "07700900999";
+      globalThis.EXTRACT_Q = [ext({ name: "Omar Reid", postcode: "m13 9aa", gearbox: "manual" })]; await call({ action: "auto_assign", cron: true });
+      ok(!DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)), "automatic catch-up while test mode is on: only YOUR admin phone is read, real students are left alone");
+      cfgOf().aiTestOnly = false; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state");
+      globalThis.EXTRACT_Q = [ext({ name: "Omar Reid", postcode: "m13 9aa", gearbox: "manual" }), ext({ name: "Ruth Hale", postcode: "m13 9aa", gearbox: "automatic" })]; await call({ action: "auto_assign", cron: true });
+      ok(DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)) && DB.waiting_list.some((w) => /Ruth Hale/.test(w.student_name)) && textsTo(S).length === 0, "automatic catch-up (read-only mode): each chat is read on its own and both bookings are saved without anyone pressing a button, nothing is sent");
+      const n0 = DB.waiting_list.length, c0 = CALLS.length; await call({ action: "auto_assign", cron: true });
+      ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs at most every 3 minutes and never re-reads a chat that has no new message");
+      { const sw = DB.growth_settings.find((x) => x.key === "ai_sweep_state"); if (sw) sw.value = { ...sw.value, at: 0 }; } const c1 = CALLS.length; await call({ action: "auto_assign", cron: true });
+      ok(CALLS.slice(c1).every((c) => !c.extract), "...and a chat already read is not read again when nothing new was written");
+      cfgOf().aiSend = true; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state"); DB.wa_log = mkc("447920000057", ["Ann Fox", "M13 9AA", "manual"]); const c2 = CALLS.length; await call({ action: "auto_assign", cron: true });
+      ok(CALLS.slice(c2).every((c) => !c.extract), "when Claude may send messages the catch-up stays out of it (the assistant answers each message as it arrives)"); cfgOf().aiSend = false; cfgOf().aiTestOnly = false; cfgOf().adminPhone = _ap; DB.wa_log = []; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state"); }
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
     ok(!DB.waiting_list.some((w) => /Zed/.test(w.student_name)) && /valid postcode/.test(r.att), "read-only: an unknown postcode is never saved (Claude is not trusted to invent one)");
     globalThis.CLAUDE_FAIL = true; r = await RO("447920000004", "hello there", null); globalThis.CLAUDE_FAIL = false; ok(r.texts.length === 0 && /could not read a chat|could not answer/.test(r.att), "read-only: if Claude is down you get an alert and nothing is sent");
@@ -774,7 +795,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-read-chats", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-23-auto-sweep", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

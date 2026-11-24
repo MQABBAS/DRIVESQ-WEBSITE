@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-23-read-chats";
+const FN_VERSION = "2026-11-23-auto-sweep";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -906,6 +906,7 @@ async function autoAssign(sb: any, body: any) {
   let unpaidAlerts: any[] = [], acks: any[] = [];
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
+    try { await sweepChats(sb, cfg); } catch (e) { console.error("sweep", e); }
     try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
     try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); await checkBilling(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
   }
@@ -1462,7 +1463,7 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
     return handoff(KINDS[rt.kind].title.replace(/^\S+\s/, "") + (rush ? " (TIME-SENSITIVE)" : "") + "." + sum + (rt.note ? " [" + rt.note + "]" : "") + who, KINDS[rt.kind].reply, `${rush ? "🚨 " : ""}${KINDS[rt.kind].title}: ${profileName || num}${who}`);
   }
   if (rt.urgency !== "normal") await attention(sb, cfg, { kind: "ai_handoff", title: `⏱ Time-sensitive WhatsApp enquiry: ${profileName || num}`, detail: `${rt.summary || String(text).slice(0, 120)}. The assistant is still collecting their details. Their number: ${num}.`, waiting_id: "ai-rush-" + num + "-" + londonYMD(Date.now()).d });
-  if (mute) { const ex = await extractFromChat(sb, cfg, from, day, profileName); return "read-only: " + ex.action; }   // Claude only reads and extracts; it sends nothing
+  if (mute) { const ex = await extractFromChat(sb, cfg, from, day, profileName); if (ex.action !== "error") { try { const { data: st2 } = await sb.from("growth_settings").select("value").eq("key", "ai_sweep_state").maybeSingle(), v2: any = (st2 && st2.value) || {}; await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: v2.at || 0, seen: { ...(v2.seen || {}), [num]: new Date().toISOString() } }, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (_) { /* best effort */ } } return "read-only: " + ex.action; }   // (marked as read, so the catch-up does not read it again)   // Claude only reads and extracts; it sends nothing
   // the conversation so far (today): their messages and the assistant's replies, alternating
   const msgs: any[] = [];
   for (const x of day) { const role = x.direction === "in" ? "user" : (x.template === "ai_assistant" ? "assistant" : ""); if (!role || !x.body) continue; if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += "\n" + x.body; else msgs.push({ role, content: String(x.body) }); }
@@ -1492,6 +1493,28 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   return handoff("the assistant gave no answer");
 }
 
+/* automatic catch-up while Claude is in READ-ONLY mode: every 3 minutes (from the timer) it reads any chat from the last 3 hours that has a message it has not read yet, so nothing waits for you to press a button. Each person's chat is read on its own (by phone number). */
+async function sweepChats(sb: any, cfg: any) {
+  if (!cfg.aiAssistant || cfg.aiSend !== false || !ANTHROPIC_KEY) return [];
+  const { data: st } = await sb.from("growth_settings").select("value").eq("key", "ai_sweep_state").maybeSingle(), state: any = (st && st.value) || {}, seen: any = { ...(state.seen || {}) };
+  if (Date.now() - (state.at || 0) < 3 * 60000) return [];
+  await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: Date.now(), seen }, updated_at: new Date().toISOString() }, { onConflict: "key" });   // claimed first, so overlapping runs do not repeat it
+  const { data } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").gte("created_at", new Date(Date.now() - 3 * 36e5).toISOString());
+  const by: any = {}; (data || []).forEach((x: any) => { if (x.to_phone) (by[x.to_phone] = by[x.to_phone] || []).push(x); });
+  const adminNum = waNumber(cfg.adminPhone || ""), out: any[] = [];
+  for (const num of Object.keys(by)) {
+    if (out.length >= 8) break;
+    const rows = by[num].sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at))), inb = rows.filter((x: any) => x.direction === "in");
+    if (!inb.length) continue; const latest = inb[inb.length - 1].created_at; if (seen[num] && String(seen[num]) >= String(latest)) continue;
+    const isAdmin = !!(adminNum && last10(num) === last10(adminNum));
+    if (cfg.aiTestOnly && !isAdmin) continue;
+    if (!isAdmin && await instructorByPhone(sb, num)) { seen[num] = latest; continue; }
+    try { const r: any = await extractFromChat(sb, cfg, num, rows, ""); if (r.action !== "error") seen[num] = latest; out.push({ number: "…" + num.slice(-4), result: r.action }); } catch (e) { console.error("sweep", e); }
+  }
+  for (const n of Object.keys(seen)) if (!by[n] && Object.keys(seen).length > 200) delete seen[n];
+  await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: Date.now(), seen }, updated_at: new Date().toISOString() }, { onConflict: "key" });
+  return out;
+}
 /* "Read recent chats now": goes through everything people WhatsApped in the last 24 hours and saves the bookings Claude finds (same rules as when a message arrives; sends nothing). For chats that were skipped, e.g. while test mode was on. */
 async function readChats(sb: any) {
   if (!ANTHROPIC_KEY) return { ok: false, error: "The ANTHROPIC_API_KEY secret is missing, so Claude cannot read the chats." };
@@ -1506,6 +1529,29 @@ async function readChats(sb: any) {
     try { const r: any = await extractFromChat(sb, cfg, num, rows, ""); out.push({ number: "…" + num.slice(-4), result: r.action, found: r.found, missing: r.missing }); } catch (e) { out.push({ number: "…" + num.slice(-4), result: "error: " + String((e && (e as any).message) || e) }); }
   }
   return { ok: true, chats: out.length, saved: out.filter((x) => x.result === "saved").length, results: out };
+}
+
+/* Admin picks a chat (from the live feed) and creates the booking by hand. chat_details: what that person wrote + what Claude would fill in (nothing saved). create_booking: saves what the admin confirmed. */
+async function chatDetails(sb: any, b: any) {
+  const num = waNumber(b.phone || ""); if (!num) return { ok: false, error: "That phone number does not look right." };
+  const { data } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").eq("to_phone", num);
+  const rows = (data || []).filter((x: any) => Date.now() - new Date(x.created_at).getTime() < 3 * 864e5).sort((a: any, c: any) => String(a.created_at).localeCompare(String(c.created_at)));
+  const msgs = rows.filter((x: any) => x.direction === "in" && x.body).map((x: any) => ({ at: x.created_at, text: String(x.body).slice(0, 300) }));
+  let proposed: any = {}, note = "";
+  if (!ANTHROPIC_KEY) note = "Claude is not connected (no ANTHROPIC_API_KEY), so fill the boxes in yourself.";
+  else if (msgs.length) { const cfg = await loadCfg(sb), ed: any = await extractDetails(sb, cfg, rows, ""); if (ed.a) proposed = ed.a; else if (ed.error) note = "Claude could not read this chat just now. Fill the boxes in yourself."; }
+  const { data: ex } = await sb.from("waiting_list").select("id,student_name,status,created_at,student_phone").gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString());
+  const have = (ex || []).filter((w: any) => last10(w.student_phone || "") === last10(num)).sort((p: any, q: any) => String(q.created_at).localeCompare(String(p.created_at)))[0] || null;
+  return { ok: true, phone: num, messages: msgs, proposed, note, existing: have ? { name: have.student_name, status: have.status } : null };
+}
+async function createBookingByAdmin(sb: any, b: any) {
+  const num = waNumber(b.phone || ""); if (!num) return { ok: false, error: "That phone number does not look right." };
+  const a: any = { name: b.name, postcode: b.postcode, gearbox: b.gearbox, availability: b.availability, address: b.address, experience: b.experience, test_date: b.test_date, licence: b.licence, instructor_gender: b.instructor_gender, lesson_type: b.lesson_type, notes: b.notes };
+  const sv: any = await saveAiBooking(sb, num, a, "WhatsApp chat (added by admin)");
+  if (!sv.ok) return { ok: false, error: sv.why === "name" ? "Enter their name (at least 2 letters)." : sv.why === "postcode" ? "That postcode was not found. Check it." : sv.why === "duplicate" ? "This number already has a booking waiting from the last 14 days. Open it on the waiting list and edit it there." : "Could not save the booking" + (sv.error ? ": " + sv.error : ".") };
+  try { const { data: at } = await sb.from("admin_attention").select("id,waiting_id").eq("resolved", false); for (const x of (at || []).filter((y: any) => String(y.waiting_id || "").startsWith("ai-") && String(y.waiting_id).includes(num))) await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("id", x.id); } catch (_) { /* tidy-up only */ }
+  await trail(sb, "ai_booking", `✍️ Admin created a booking for ${sv.name} (${sv.pc}, ${sv.gear}) from their WhatsApp chat; auto-assign picks it up`);
+  return { ok: true, name: sv.name, pc: sv.pc, gear: sv.gear };
 }
 
 /* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
@@ -1542,6 +1588,8 @@ serve(async (req) => {
       return json(await autoAssign(sb, b));
     }
     if (b.action === "read_chats") return json(await readChats(sb));
+    if (b.action === "chat_details") return json(await chatDetails(sb, b));
+    if (b.action === "create_booking") return json(await createBookingByAdmin(sb, b));
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());
     if (b.action === "diagnose") return json(await diagnose());

@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-23-read-chats', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-23-auto-sweep', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -50,7 +50,7 @@
       q(sb.from('auto_assign_jobs').select('*').gte('updated_at', since3).order('updated_at', { ascending: false }).limit(80)),
       q(sb.from('waiting_list').select('id,student_name,postcode,notes,status,created_at').eq('status', 'waiting').order('created_at', { ascending: false }).limit(120)),
       q(sb.from('admin_activity_log').select('created_at,summary,action').eq('area', 'auto_assign').order('created_at', { ascending: false }).limit(60)),
-      q(sb.from('wa_log').select('created_at,direction,template,status,error,student_name,to_phone,body').order('created_at', { ascending: false }).limit(40)),
+      q(sb.from('wa_log').select('created_at,direction,template,status,error,student_name,to_phone,body,payload').order('created_at', { ascending: false }).limit(40)),
       q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages']))]);
     var fees = []; try { fees = await q(sb.from('instructor_weekly_fees').select('instructor_id,week_start,expected,status').eq('status', 'unpaid')); } catch (e) { }
     var gs = {}; res[4].forEach(function (x) { gs[x.key] = x.value; });
@@ -111,12 +111,13 @@
   var ICON = function (x) { var s = (x.action || '') + ' ' + (x.summary || ''); return /attention|⚠️|failed/i.test(s) ? '🚨' : /assigned/i.test(s) ? '✅' : /offer|asked|WhatsApp/i.test(s) ? '📲' : /settings|turned/i.test(s) ? '⚙️' : '•'; };
   function feedItems() {
     var items = DATA.log.map(function (x) { return { t: x.created_at, i: ICON(x), s: x.summary, k: /attention|⚠️|failed/i.test((x.action || '') + (x.summary || '')) ? 'attention' : /assigned/i.test(x.summary || '') ? 'assigned' : 'other' }; });
-    DATA.wa.forEach(function (w) { var out = w.direction === 'out', lab = String(w.template || '').replace(/^dsq_/, '').replace(/_/g, ' '); items.push({ t: w.created_at, i: w.status === 'failed' ? '❌' : out ? '📤' : '📥', s: (out ? 'WhatsApp ' + (w.status === 'failed' ? 'FAILED' : 'sent') + ' · ' + lab + (w.student_name ? ' · ' + w.student_name : '') : 'WhatsApp reply received' + (w.body ? ': ' + String(w.body).slice(0, 60) : '')) + (w.error ? ' (' + w.error + ')' : ''), k: w.status === 'failed' ? 'attention' : 'messages' }); });
+    var ip = {}; (DATA.instrs || []).forEach(function (i) { var d = String(i.phone || '').replace(/\D/g, '').slice(-10); if (d) ip[d] = 1; });
+    DATA.wa.forEach(function (w) { var out = w.direction === 'out', lab = String(w.template || '').replace(/^dsq_/, '').replace(/_/g, ' '); items.push({ t: w.created_at, i: w.status === 'failed' ? '❌' : out ? '📤' : '📥', s: (out ? 'WhatsApp ' + (w.status === 'failed' ? 'FAILED' : 'sent') + ' · ' + lab + (w.student_name ? ' · ' + w.student_name : '') : 'WhatsApp reply received' + (w.body ? ': ' + String(w.body).slice(0, 60) : '')) + (w.error ? ' (' + w.error + ')' : ''), k: w.status === 'failed' ? 'attention' : 'messages', phone: (!out && w.to_phone && !ip[String(w.to_phone).replace(/\D/g, '').slice(-10)] && w.body && !w.payload && !/^\[/.test(w.body)) ? w.to_phone : '' }); });
     return items.sort(function (a, b) { return new Date(b.t) - new Date(a.t); });
   }
   function feed(n, filter) {
     var it = feedItems().filter(function (x) { return !filter || filter === 'all' || x.k === filter; }).slice(0, n);
-    return it.length ? it.map(function (x) { return '<div class="fi"><i>' + x.i + '</i><span>' + E(x.s) + '</span><time>' + ago(x.t) + '</time></div>'; }).join('') : '<div class="empty">Nothing yet. Once auto-assign picks up a booking, every step shows here live.</div>';
+    return it.length ? it.map(function (x) { return '<div class="fi"><i>' + x.i + '</i><span>' + E(x.s) + (x.phone ? ' <button class="btn-s" style="font-size:.64rem;padding:1px 8px;margin-left:6px" title="Create a booking from this person\'s WhatsApp chat" onclick="DSQHub.chatBooking(\'' + E(x.phone) + '\')">➕ Booking</button>' : '') + '</span><time>' + ago(x.t) + '</time></div>'; }).join('') : '<div class="empty">Nothing yet. Once auto-assign picks up a booking, every step shows here live.</div>';
   }
   function attn() {
     var a = DATA.att.slice(0, 5); return '<div class="cd"><h3>🚨 Needs you <button class="btn-s" style="font-size:.68rem;padding:1px 10px;margin-left:auto" onclick="DSQAA.openAttention()">Open all (' + DATA.att.length + ')</button></h3>' + (a.length ? a.map(function (x) { return '<div class="fi"><i>⚠️</i><span><b>' + E(x.title) + '</b><br><span style="color:var(--txt3)">' + E((x.detail || '').slice(0, 140)) + '</span></span><time>' + ago(x.created_at) + '</time></div>'; }).join('') : '<div class="empty" style="color:#22c55e">✅ Nothing needs your attention</div>') + '</div>';
@@ -243,6 +244,35 @@
     if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; }
     var T = { saved: '✅ booking saved', updated: '📎 details added to their booking', duplicate: 'already had their booking', incomplete: '⚠️ still missing something', none: 'nothing to read', error: '❌ Claude could not read it' };
     o.innerHTML = '<div class="fi"><i>📥</i><span><b>' + r.chats + ' chat(s) read, ' + r.saved + ' booking(s) saved.</b> Nothing was sent to anyone.</span></div>' + (r.results || []).map(function (x) { return '<div class="fi"><i>•</i><span>' + E(x.number) + ': ' + E(T[x.result] || x.result) + (x.missing && x.missing.length ? ' (missing ' + E(x.missing.join(', ')) + ')' : '') + '</span></div>'; }).join('');
+  }
+  /* create a booking by hand from a person's WhatsApp chat: Claude fills the boxes from what they wrote, you check or change anything, then save */
+  async function chatBooking(phone) {
+    var old = document.getElementById('aaChatDlg'); if (old) old.remove();
+    var d = document.createElement('div'); d.id = 'aaChatDlg'; d.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:12px';
+    d.innerHTML = '<div style="background:var(--dk2,#16161c);border:1px solid var(--bdr,#2a2a33);border-radius:14px;max-width:640px;width:100%;max-height:92vh;overflow:auto;padding:16px"><div class="empty">Claude is reading the chat…</div></div>'; document.body.appendChild(d);
+    var r = await DSQWA.call({ action: 'chat_details', phone: phone }), box = d.firstChild;
+    if (!r.ok) { box.innerHTML = '<div style="color:#f87171">' + E(r.error || 'Failed') + '</div><button class="btn-s" style="margin-top:10px" onclick="document.getElementById(\'aaChatDlg\').remove()">Close</button>'; return; }
+    var p = r.proposed || {}, fld = function (k, label, v, ph) { return '<label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">' + label + '</span><input type="text" data-c="' + k + '" class="dsq-inp" value="' + E(v || '') + '" placeholder="' + E(ph || '') + '" style="margin-top:2px;width:100%"></label>'; };
+    var sel = function (k, label, opts, v) { return '<label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">' + label + '</span><select data-c="' + k + '" class="dsq-inp" style="margin-top:2px;width:100%">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === (v || '') ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>'; };
+    box.innerHTML = '<div style="display:flex;align-items:center"><b>➕ Create a booking from this chat</b><button class="btn-s" style="margin-left:auto" onclick="document.getElementById(\'aaChatDlg\').remove()">✕</button></div>' +
+      '<div style="font-size:.72rem;color:var(--txt4);margin:4px 0 8px">Number: ' + E(r.phone) + '. Claude filled in what the person clearly wrote. Check or change anything, then save. Nothing is sent to them.</div>' +
+      (r.existing ? '<div style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.4);border-radius:8px;padding:6px 9px;font-size:.74rem;margin-bottom:8px">⚠️ This number already has a booking (' + E(r.existing.name) + ', ' + E(r.existing.status) + ') in the last 14 days. If it is still waiting, edit that one on the waiting list instead.</div>' : '') +
+      (r.note ? '<div style="font-size:.74rem;color:#fbbf24;margin-bottom:8px">' + E(r.note) + '</div>' : '') +
+      '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:7px 9px;font-size:.74rem;max-height:130px;overflow:auto;margin-bottom:10px"><b style="font-size:.7rem;color:var(--txt3)">What they wrote</b>' + ((r.messages || []).length ? r.messages.map(function (m) { return '<div>• ' + E(m.text) + '</div>'; }).join('') : '<div>(no text messages in the last 3 days)</div>') + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px">' + fld('name', 'Full name *', p.name) + fld('postcode', 'Postcode *', p.postcode, 'e.g. M14 5AA') +
+      sel('gearbox', 'Gearbox *', [['', 'Choose…'], ['manual', 'Manual'], ['automatic', 'Automatic']], String(p.gearbox || '').toLowerCase()) + sel('lesson_type', 'Lesson type', [['standard', 'Standard'], ['intensive', 'Intensive'], ['refresher', 'Refresher'], ['mock_test', 'Mock test']], p.lesson_type || 'standard') +
+      fld('availability', 'Availability', p.availability, 'days / times') + fld('address', 'Address / pick-up', p.address) + fld('experience', 'Experience', p.experience) + fld('test_date', 'Test date', p.test_date) + fld('licence', 'Provisional licence', p.licence, 'yes / no / applying') +
+      sel('instructor_gender', 'Instructor', [['', 'No preference'], ['female_required', 'Female only'], ['female_preferred', 'Female preferred'], ['male', 'Male']], p.instructor_gender) + '</div>' +
+      '<label style="font-size:.72rem;display:block;margin-top:9px"><span style="color:var(--txt3)">Notes</span><input type="text" data-c="notes" class="dsq-inp" value="' + E(p.notes || '') + '" style="margin-top:2px;width:100%"></label>' +
+      '<div id="aaChatMsg" style="font-size:.78rem;margin-top:8px"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn-p" onclick="DSQHub.saveChatBooking(\'' + E(r.phone) + '\')">💾 Create booking</button><button class="btn-s" onclick="document.getElementById(\'aaChatDlg\').remove()">Cancel</button></div>';
+  }
+  async function saveChatBooking(phone) {
+    var d = document.getElementById('aaChatDlg'); if (!d) return; var o = { action: 'create_booking', phone: phone }, m = document.getElementById('aaChatMsg');
+    d.querySelectorAll('[data-c]').forEach(function (el) { o[el.getAttribute('data-c')] = el.value; });
+    if (!String(o.name || '').trim() || !String(o.postcode || '').trim() || !o.gearbox) { m.innerHTML = '<span style="color:#f87171">Name, postcode and gearbox are needed.</span>'; return; }
+    m.textContent = 'Saving…'; var r = await DSQWA.call(o);
+    if (!r.ok) { m.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; }
+    m.innerHTML = '<span style="color:#4ade80">✅ Booking created for ' + E(r.name) + ' (' + E(r.pc) + ', ' + E(r.gear) + '). Auto-assign will pick it up.</span>'; setTimeout(function () { var x = document.getElementById('aaChatDlg'); if (x) x.remove(); refresh(true); }, 1400);
   }
   async function createTpls() {
     var o = document.getElementById('waDiag'); if (!o) return;
@@ -377,5 +407,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();
