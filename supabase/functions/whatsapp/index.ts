@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-test-centre";
+const FN_VERSION = "2026-11-24-chat-feed";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1418,6 +1418,7 @@ async function extractFromChat(sb: any, cfg: any, from: string, day: any[], prof
     if (sv.why === "postcode") has.postcode = false;
   }
   const found = [has.name ? "name " + String(a.name).slice(0, 40) : "", has.postcode ? "postcode " + String(a.postcode).slice(0, 12) : "", has.gearbox ? String(a.gearbox) : "", ...aiDetailLines(a)].filter(Boolean), missing = [!has.name ? "name" : "", !has.postcode ? "a valid postcode" : "", !has.gearbox ? "manual or automatic" : ""].filter(Boolean);
+  if (found.length) await trail(sb, "ai_incomplete", `📥 Claude read ${profileName || a.name || "…" + num.slice(-4)}'s WhatsApp chat but it is still missing: ${missing.join(", ")} (found: ${found.join("; ").slice(0, 160)})`);
   if (found.length) await attention(sb, cfg, { kind: "ai_handoff", title: `📥 WhatsApp enquiry still incomplete: ${profileName || a.name || num}`, detail: `Claude has: ${found.join("; ")}. Still missing: ${missing.join(", ")}. Nothing was sent. Number: ${num}. Message them to get the rest, or add it to the waiting list yourself.`, waiting_id: key, quiet: true });
   return { action: "incomplete", found, missing };
 }
@@ -1513,7 +1514,7 @@ async function sweepChats(sb: any, cfg: any) {
     try { const r: any = await extractFromChat(sb, cfg, num, rows, ""); if (r.action !== "error") seen[num] = latest; out.push({ number: "…" + num.slice(-4), result: r.action }); } catch (e) { console.error("sweep", e); }
   }
   for (const n of Object.keys(seen)) if (!by[n] && Object.keys(seen).length > 200) delete seen[n];
-  await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: Date.now(), seen }, updated_at: new Date().toISOString() }, { onConflict: "key" });
+  await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: Date.now(), seen, read: out.length, saved: out.filter((x: any) => x.result === "saved").length }, updated_at: new Date().toISOString() }, { onConflict: "key" });
   return out;
 }
 /* "Read recent chats now": goes through everything people WhatsApped in the last 24 hours and saves the bookings Claude finds (same rules as when a message arrives; sends nothing). For chats that were skipped, e.g. while test mode was on. */

@@ -573,6 +573,7 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
     cfgOf().aiSend = false; cfgOf().aiAssistant = true; cfgOf().aiTestOnly = false; cfgOf().aiClassifier = true;
     const F = "447920000001"; let r = await RO(F, "Sam Khan", ext({ name: "Sam Khan" }));
     ok(r.extract && !r.chat && r.texts.length === 0 && /still incomplete/.test(r.att) && /postcode/.test(r.att) && /manual or automatic/.test(r.att), "read-only: a partial chat -> nothing sent, alert says what Claude found and what is missing (" + r.att.slice(0, 120) + ")");
+    ok((DB.admin_activity_log || []).some((x) => x.action === "ai_incomplete" && /still missing/.test(x.summary)), "an incomplete chat also shows in the live feed: Claude read it and what is still missing");
     r = await RO(F, "M13 9AA manual please", ext({ name: "Sam Khan", postcode: "m13 9aa", gearbox: "manual", availability: "weekday evenings" }));
     const wl = DB.waiting_list.find((w) => /Sam Khan/.test(w.student_name));
     ok(wl && wl.postcode === "M13 9AA" && /\[AUTO\]/.test(wl.notes) && /read by Claude/.test(wl.notes) && wl.student_phone === F && r.texts.length === 0, "read-only: complete details -> booking saved for auto-assign, STILL nothing sent to the student");
@@ -614,6 +615,7 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs at most every 3 minutes and never re-reads a chat that has no new message");
       { const sw = DB.growth_settings.find((x) => x.key === "ai_sweep_state"); if (sw) sw.value = { ...sw.value, at: 0 }; } const c1 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(CALLS.slice(c1).every((c) => !c.extract), "...and a chat already read is not read again when nothing new was written");
+      ok(DB.growth_settings.some((x) => x.key === "ai_sweep_state" && x.value.at && typeof x.value.read === "number"), "the catch-up records when it last checked and how many chats it read (shown on the readiness list)");
       cfgOf().aiSend = true; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state"); DB.wa_log = mkc("447920000057", ["Ann Fox", "M13 9AA", "manual"]); const c2 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(CALLS.slice(c2).every((c) => !c.extract), "when Claude may send messages the catch-up stays out of it (the assistant answers each message as it arrives)"); cfgOf().aiSend = false; cfgOf().aiTestOnly = false; cfgOf().adminPhone = _ap; DB.wa_log = []; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "ai_sweep_state"); }
     r = await RO("447920000003", "Zed Zed", ext({ name: "Zed Zed", postcode: "ZZ99 9ZZ", gearbox: "manual" }));
@@ -799,7 +801,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-test-centre", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-chat-feed", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

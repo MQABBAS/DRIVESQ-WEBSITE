@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-24-test-centre', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-24-chat-feed', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -51,14 +51,14 @@
       q(sb.from('waiting_list').select('id,student_name,postcode,notes,status,created_at').eq('status', 'waiting').order('created_at', { ascending: false }).limit(120)),
       q(sb.from('admin_activity_log').select('created_at,summary,action').eq('area', 'auto_assign').order('created_at', { ascending: false }).limit(60)),
       q(sb.from('wa_log').select('created_at,direction,template,status,error,student_name,to_phone,body,payload').order('created_at', { ascending: false }).limit(40)),
-      q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages']))]);
+      q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages', 'ai_sweep_state']))]);
     var fees = []; try { fees = await q(sb.from('instructor_weekly_fees').select('instructor_id,week_start,expected,status').eq('status', 'unpaid')); } catch (e) { }
     var gs = {}; res[4].forEach(function (x) { gs[x.key] = x.value; });
     var jobIds = res[0].map(function (j) { return j.waiting_id; }), names = {};
     if (jobIds.length) { var w = await q(sb.from('waiting_list').select('id,student_name,postcode,created_at').in('id', jobIds)); w.forEach(function (x) { names[String(x.id)] = x; }); }
     var refs = (DSQ_ADMIN.refs() || []); if (!refs.length) { try { await window.loadReferrals(); refs = DSQ_ADMIN.refs() || []; } catch (e) { } }
     var st = null; try { st = window.DSQWA && await DSQWA.status(false); } catch (e) { }
-    DATA = { fees: fees, cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
+    DATA = { fees: fees, cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, sweep: gs.ai_sweep_state || {}, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
   }
   /* what is each instructor owed (same rule as the server): package minimum, else the franchise minimum, not before their start date */
   function owed(i) {
@@ -210,6 +210,11 @@
       add(core.length ? 'bad' : bad.length ? 'warn' : 'ok', 'Message templates approved', bad.length ? bad.map(function (t) { return t.name + ': ' + t.status + (t.reason ? ' (' + t.reason + ')' : ''); }).join(' · ') : 'All ' + tp.templates.length + ' are Active', bad.length ? ((tp.missing && tp.missing.length ? tp.missing.length + ' do not exist in your number\'s account: press "Create the missing templates in Meta" below. ' : '') + 'Templates that are In review cannot send yet. The instructor offer templates must be Active before you use Assign mode.') : ''); }
     var age = DATA.last && DATA.last.at ? Math.round((Date.now() - new Date(DATA.last.at)) / 6e4) : null;
     add(age !== null && age <= 15 ? 'ok' : (c.enabled ? 'bad' : 'warn'), 'Runs by itself (Cron job)', age === null ? 'It has never run by itself' : 'Last run ' + (age < 1 ? 'just now' : age + ' min ago'), age !== null && age <= 15 ? '' : 'Supabase → Integrations → Cron → every 2 minutes → whatsapp, body {"action":"auto_assign","cron":true}, header x-admin-key. See Settings → "Make it run by itself".');
+    var sw = DATA.sweep || {}, swAge = sw.at ? Math.round((Date.now() - sw.at) / 6e4) : null;
+    if (!c.aiAssistant) add('warn', 'Claude reads WhatsApp chats', 'Claude is OFF', 'Use the Claude dropdown at the top of the control centre: Read only (Claude reads chats and saves bookings, sends nothing) or Read + send.');
+    else if (c.aiSend !== false) add('ok', 'Claude reads WhatsApp chats', 'Claude answers each message as it arrives', '');
+    else if (c.aiTestOnly) add('warn', 'Claude reads WhatsApp chats', 'Test mode is ON: only your own phone is read, real students are skipped', 'Settings → WhatsApp booking assistant → untick test mode and Save.');
+    else add(swAge !== null && swAge <= 10 ? 'ok' : 'warn', 'Claude reads WhatsApp chats', 'Reads each message as it arrives, and checks for unread chats every 3 minutes. ' + (swAge === null ? 'The catch-up has not run yet.' : 'Last check ' + (swAge < 1 ? 'just now' : swAge + ' min ago') + (sw.read ? ', read ' + sw.read + ' chat' + (sw.read === 1 ? '' : 's') + (sw.saved ? ', saved ' + sw.saved + ' booking' + (sw.saved === 1 ? '' : 's') : '') : ', nothing new')), swAge !== null && swAge <= 10 ? '' : 'It runs from the timer (cron). Check the line above says it last ran a minute or two ago.');
     var ins = DATA.instrs.filter(function (i) { return i.status === 'approved'; }), noLoc = ins.filter(function (i) { return !(String(i.postcode || '').trim() || /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(String(i.area || '') + ' ' + String(i.address || '')) || /\b[A-Z]{1,2}\d{1,2}[A-Z]?\b/i.test(String(i.area || '') + ' ' + String(i.coverage_postcodes || ''))); }), noPh = ins.filter(function (i) { return String(i.phone || '').replace(/\D/g, '').length < 10; }), noCov = ins.filter(function (i) { return !String(i.coverage_postcodes || '').trim(); });
     add(!ins.length ? 'bad' : (noLoc.length || noPh.length) ? 'warn' : 'ok', 'Instructors have a location and mobile number', ins.length ? (ins.length - Math.max(noLoc.length, noPh.length)) + ' of ' + ins.length + ' ready' + (noLoc.length ? ' · no location: ' + noLoc.map(function (i) { return i.full_name; }).join(', ') : '') + (noPh.length ? ' · no mobile: ' + noPh.map(function (i) { return i.full_name; }).join(', ') : '') : 'No approved instructors', (noLoc.length || noPh.length) ? 'Add the missing postcode / mobile number on their profile (Settings → 🩺 Check my data lists them).' : '');
     if (noCov.length) add('warn', 'Covered postcodes', noCov.length + ' instructor(s) have none set: ' + noCov.slice(0, 6).map(function (i) { return i.full_name; }).join(', '), 'They still get offers by distance, but the "no reply after 35 minutes, assign anyway" rule only works for postcodes they cover.');
