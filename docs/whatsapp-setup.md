@@ -121,3 +121,11 @@ Claude cannot see the Meta AI's own notes or its replies: it only sees the stude
 
 ## WhatsApp enquiries are held a few minutes
 A booking Claude took from a WhatsApp chat waits 5 minutes (Settings: "Hold a WhatsApp enquiry for … minutes", max 15 in total) before auto-assign offers it, so the student can still give availability, address and the rest. New details restart the wait. If availability is already given it is assigned at once. A booking you pasted yourself, or a website booking, is never held. Preview shows held enquiries as "waiting".
+
+## Sending students straight away (franchise, or instructors you choose)
+
+- By default **franchise** instructors are sent a student's full details at once, with **no Accept needed**, when the student is within **6 miles** (Settings → "Send details straight away within … miles"). Referral instructors are asked first (an offer with Accept / Can't take), as before.
+- Per instructor: ⚙ Settings → **How new students reach them**: *Default*, *Send details straight away*, or *Ask first*. The choice is recorded in Activity.
+- A direct instructor gets the details message **with the Accept / Can't take buttons still on it**, and the student is told who their instructor is **immediately**. The booking card says "details sent straight away, no Accept needed".
+- If that instructor taps **Can't take**: the student gets a new message ("we are finding you another instructor"), the instructor's record for that student is cancelled and removed from their lists, and auto-assign gives the student to the **next** instructor automatically (direct or asked first, by the same rules). If nobody is left, or the retries run out, you get an alert in Needs you.
+- New message template: **dsq_student_reassign**. Press "Create the missing templates in Meta" in the control centre (Test & readiness) once. Until it is approved, the message is sent as a normal text if the student messaged recently, otherwise you get an alert to tell them by hand.

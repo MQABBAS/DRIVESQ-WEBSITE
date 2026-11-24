@@ -3899,8 +3899,8 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/admin-fees.js?v=20261124"></script>
 <script src="/admin-health.js?v=20261127"></script>
 <script src="/admin-whatsapp.js?v=20261208"></script>
-<script src="/admin-autoassign.js?v=20261208"></script>
-<script src="/admin-autohub.js?v=20261219"></script>
+<script src="/admin-autoassign.js?v=20261209"></script>
+<script src="/admin-autohub.js?v=20261220"></script>
 <script src="/dsq-log.js?v=20261126"></script>
 <script src="/admin-insights.js?v=20261126"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
@@ -11561,7 +11561,7 @@ function renderWebBookings(){
     const _ph10=String(r.student_phone||'').replace(/\D/g,'').slice(-10),_nm=String(r.student_name||'').trim().toLowerCase();
     const _refFor=_isAssigned&&!(r.assigned_instructor_id||r.instructor_id)?(_refData||[]).filter(x=>!x.is_cancelled&&((_ph10&&String(x.student_phone||'').replace(/\D/g,'').slice(-10)===_ph10)||(_nm&&String(x.student_name||'').trim().toLowerCase()===_nm))).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]:null;
     const _aIns=_isAssigned?(allInstrs||[]).find(i=>i.id===(r.assigned_instructor_id||r.instructor_id||(_refFor&&_refFor.instructor_id))):null;
-    const _aaN=_isAssigned?((r.notes||'').match(/Auto-assigned to ([^\n(]+?) \([^)]*\) — (waiting for [^\n]+ to accept|[^\n]+ accepted)/)||[]):[],_aaLbl=_aaN[1]?(/accepted$/.test(_aaN[2])?'🤖 Auto-assigned to '+_aaN[1].trim()+', who has accepted':'🤖 Auto-assigned to '+_aaN[1].trim()+' ('+_aaN[2]+')'):'';
+    const _aaN=_isAssigned?((r.notes||'').match(/Auto-assigned to ([^\n(]+?) \([^)]*\) — (waiting for [^\n]+ to accept|details sent directly to [^\n]+|[^\n]+ accepted)/)||[]):[],_aaLbl=_aaN[1]?(/accepted$/.test(_aaN[2])?'🤖 Auto-assigned to '+_aaN[1].trim()+', who has accepted':/^details sent directly/.test(_aaN[2])?'🤖 Auto-assigned to '+_aaN[1].trim()+' (details sent straight away, no Accept needed)':'🤖 Auto-assigned to '+_aaN[1].trim()+' ('+_aaN[2]+')'):'';
     const _chan=/\[WHATSAPP\]/i.test(r.notes||'')?['WhatsApp','#25d366','bi-whatsapp']:/\[CALL\]/i.test(r.notes||'')?['Phone call','#60a5fa','bi-telephone-fill']:/\[OTHER\]/i.test(r.notes||'')?['Other','#94a3b8','bi-chat-dots']:null;
     const _isNewOpen=isNew&&r.status==='waiting';
     const _when=new Date(r.created_at),_time=_when.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),_date=_when.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
