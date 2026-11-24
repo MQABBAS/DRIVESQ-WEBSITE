@@ -636,7 +636,7 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       globalThis.EXTRACT_Q = [ext({ name: "Omar Reid", postcode: "m13 9aa", gearbox: "manual" }), ext({ name: "Ruth Hale", postcode: "m13 9aa", gearbox: "automatic" })]; await call({ action: "auto_assign", cron: true });
       ok(DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)) && DB.waiting_list.some((w) => /Ruth Hale/.test(w.student_name)) && textsTo(S).length === 0, "automatic catch-up (read-only mode): each chat is read on its own and both bookings are saved without anyone pressing a button, nothing is sent");
       const n0 = DB.waiting_list.length, c0 = CALLS.length; await call({ action: "auto_assign", cron: true });
-      ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs at most every 3 minutes and never re-reads a chat that has no new message");
+      ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs about once a minute at most and never re-reads a chat that has no new message");
       { const T2 = "447920000033"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== T2); DB.wa_log = [];
         const full = ext({ name: "Twin Tom", postcode: "m13 9aa", gearbox: "manual" }); globalThis.EXTRACT_Q = [full, full]; globalThis.CLASSIFY_Q = [];
         await Promise.all([hook({ from: T2 }, "Twin Tom M13 9AA manual"), hook({ from: T2 }, "manual")]);
@@ -829,7 +829,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-typed-yes", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-every-minute", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

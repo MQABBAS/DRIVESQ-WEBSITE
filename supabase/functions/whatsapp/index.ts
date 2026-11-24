@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-typed-yes";
+const FN_VERSION = "2026-11-24-every-minute";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1515,11 +1515,11 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   return handoff("the assistant gave no answer");
 }
 
-/* automatic catch-up while Claude is in READ-ONLY mode: every 3 minutes (from the timer) it reads any chat from the last 3 hours that has a message it has not read yet, so nothing waits for you to press a button. Each person's chat is read on its own (by phone number). */
+/* automatic catch-up while Claude is in READ-ONLY mode: every minute (from the timer) it reads any chat from the last 3 hours that has a message it has not read yet, so nothing waits for you to press a button. Each person's chat is read on its own (by phone number). */
 async function sweepChats(sb: any, cfg: any) {
   if (!cfg.aiAssistant || cfg.aiSend !== false || !ANTHROPIC_KEY) return [];
   const { data: st } = await sb.from("growth_settings").select("value").eq("key", "ai_sweep_state").maybeSingle(), state: any = (st && st.value) || {}, seen: any = { ...(state.seen || {}) };
-  if (Date.now() - (state.at || 0) < 3 * 60000) return [];
+  if (Date.now() - (state.at || 0) < 50000) return [];
   await sb.from("growth_settings").upsert({ key: "ai_sweep_state", value: { at: Date.now(), seen }, updated_at: new Date().toISOString() }, { onConflict: "key" });   // claimed first, so overlapping runs do not repeat it
   const { data } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").gte("created_at", new Date(Date.now() - 3 * 36e5).toISOString());
   const by: any = {}; (data || []).forEach((x: any) => { if (x.to_phone) (by[x.to_phone] = by[x.to_phone] || []).push(x); });
