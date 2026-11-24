@@ -10,6 +10,7 @@ function builder(t) {
   const match = (r) => st.f.every(([k, o, v]) => o === "eq" ? String(r[k]) === String(v) : o === "neq" ? String(r[k]) !== String(v) : o === "gte" ? String(r[k]) >= String(v) : true);
   const run = () => {
     const tbl = T(t);
+    if (st.op === "insert" && globalThis.FAIL_INSERT && globalThis.FAIL_INSERT.has(t)) return { data: null, error: { message: "simulated: column does not exist" } };
     if (st.op === "insert") { const out = []; for (const row of st.rows) { const u = UNIQ[t]; if (u && tbl.some((x) => String(x[u]) === String(row[u]))) return { data: null, error: { message: "duplicate key" } }; const r = { id: uid(), created_at: new Date().toISOString(), ...row }; tbl.push(r); out.push(r); } return { data: out, error: null }; }
     if (st.op === "upsert") { const row = st.rows, ex = tbl.find((x) => String(x.key) === String(row.key)); if (ex) Object.assign(ex, row); else tbl.push({ id: uid(), ...row }); return { data: [row], error: null }; }
     if (st.op === "update") { const hit = tbl.filter(match); hit.forEach((r) => Object.assign(r, st.patch)); return { data: hit, error: null }; }

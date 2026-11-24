@@ -423,6 +423,18 @@ DB.waiting_list = [W("No Terms Nia", "M13 9AA", "", { student_phone: "0784455566
 { const jn = DB.auto_assign_jobs[0], inn = DB.instructors.find((i) => i.id === jn.instructor_id); await hook({ from: "44" + inn.phone.replace(/^0/, ""), p: "OFFER_ACCEPT:" + jn.id }); }
 ok(sent("dsq_student_welcome_2").length + sent("dsq_student_welcome").length >= 1 && sent("dsq_student_terms").length === 0, "terms switched OFF: the student is welcomed but NO terms & conditions message is sent");
 cfgOf().sendTerms = true;
+console.log("== 32b. A roster that cannot be saved does not stop the assignment ==");
+cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().messageStudent = true; cfgOf().sendTerms = false; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = []; CALLS.length = 0;
+DB.waiting_list = [W("Roster Rae", "M13 9AA", "", { student_phone: "447844777888" })]; await call({ action: "auto_assign", cron: true });
+globalThis.FAIL_INSERT = new Set(["student_profiles"]);
+{ const jr = DB.auto_assign_jobs[0], inr = DB.instructors.find((i) => i.id === jr.instructor_id); await hook({ from: "44" + inr.phone.replace(/^0/, ""), p: "OFFER_ACCEPT:" + jr.id }); }
+globalThis.FAIL_INSERT = new Set();
+ok(DB.referrals.some((r) => r.student_name === "Roster Rae") && DB.waiting_list.find((w) => w.student_name === "Roster Rae").status === "assigned", "roster save fails: the student is STILL assigned to the instructor");
+ok(DB.admin_attention.some((x) => x.kind === "roster_failed" && /Roster Rae/.test(x.title) && /simulated/.test(x.detail)), "...and you are told to add them by hand, with the real reason");
+const dcall = CALLS.filter((c) => c.wa && c.wa.template && /dsq_student_details|dsq_new_student/.test(c.wa.template.name)).pop();
+ok(dcall && JSON.stringify(dcall.wa.template.components[0].parameters).includes("07844 777888"), "a number that came from WhatsApp (447844777888) is shown to the instructor as 07844 777888");
+ok(sent("dsq_student_welcome_2").length + sent("dsq_student_welcome").length >= 1, "...and the student is still welcomed");
+
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -805,7 +817,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-one-booking", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-assign-safe", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

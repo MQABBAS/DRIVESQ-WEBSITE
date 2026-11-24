@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-one-booking";
+const FN_VERSION = "2026-11-24-assign-safe";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -45,7 +45,7 @@ function waNumber(raw: string) {   // 07700 900123 / +44 7700 900123 → 4477009
 const last10 = (p: string) => String(p || "").replace(/\D/g, "").slice(-10);
 const param = (v: unknown) => ({ type: "text", text: (String(v == null ? "" : v).replace(/[\r\n\t]+/g, " | ").replace(/ {5,}/g, "    ").replace(/( \| )+/g, " | ").trim().slice(0, 900)) || "-" });
 const first = (n: string) => String(n || "").trim().split(/\s+/)[0] || "there";
-const fmtPhone = (p: string) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "0" ? d.slice(0, 5) + " " + d.slice(5) : String(p || "").trim(); };
+const fmtPhone = (p: string) => { let d = String(p || "").replace(/\D/g, ""); if (d.length === 12 && d.startsWith("44")) d = "0" + d.slice(2); return d.length === 11 && d[0] === "0" ? d.slice(0, 5) + " " + d.slice(5) : String(p || "").trim(); };   // 447898182402 (a number from WhatsApp) is shown as 07898 182402
 const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: LONDON });
 const londonHour = () => +new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, hour: "2-digit", hour12: false }).format(new Date()) % 24;
 /* minutes between two moments that fall INSIDE the waking window [h0, h1) UK time: the reply timers only run while instructors are awake */
@@ -520,7 +520,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
   const notesStr = [b.avail ? "Availability: " + b.avail : "", b.postcode ? "Postcode: " + b.postcode : ""].filter(Boolean).join("\n") || null;
   const base = { instructor_id: c.id, name: b.name, phone: b.phone || null, address: pickup || null, created_at: now };
   let prof = false, profErr = ""; for (const p of [{ ...base, lesson_type: b.type, notes: notesStr, availability: b.avail || null }, { ...base, lesson_type: b.type, notes: notesStr }, { ...base, lesson_type: b.type }, base, { instructor_id: c.id, name: b.name }]) { const { error } = await sb.from("student_profiles").insert([p]); if (!error) { prof = true; break; } profErr = String(error.message || error.details || error.code || error); }
-  if (!prof) throw new Error("could not save the student to the instructor's roster: " + (profErr || "unknown reason"));
+  // (a roster that cannot be saved no longer stops the assignment: the student is still given to the instructor and you are told to add them by hand, see below)
   try { await sb.from("student_requests").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, pickup_address: null, postcode: b.postcode || null, lesson_type: b.type, notes: [b.avail ? "Availability: " + b.avail : "", pickup ? "Address: " + pickup : ""].filter(Boolean).join("\n") || null, status: "approved", created_at: now }]); } catch (_) { /* audit only */ }
   const amount = c.model === "referral" ? (parseFloat(cfg.refFee) || 0) : 0;
   const { data: ref, error: rerr } = await sb.from("referrals").insert([{ instructor_id: c.id, student_name: b.name, student_phone: b.phone || null, amount, is_paid: false, paid_at: null, is_cancelled: false, is_credit: false, credit_fulfilled: false, notes: ["Auto-assigned (website booking)", b.postcode ? "Postcode: " + b.postcode : "", pickup ? "Address: " + pickup : "", b.avail ? "Availability: " + b.avail : "", b.ref ? "Ref: " + b.ref : ""].filter(Boolean).join("\n"), admin_notes: `${today()} · 🤖 Auto-assigned to ${c.name} (${c.dist} miles)${via ? " — " + via : ""}`, created_at: now }]).select().single();
@@ -534,6 +534,7 @@ async function assign(sb: any, cfg: any, b: any, c: any, agreed = false, via = "
   try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "assigned", summary: `🤖 ${b.name} auto-assigned to ${c.name} (${c.dist} miles)`, actor_role: "system", actor_name: "Auto-assign", instructor_id: c.id, student_name: b.name, ref_id: ref.id }]); } catch (_) { /* log only */ }
   // WhatsApp: instructor gets the details with Accept / Can't take; the student gets their welcome
   const msgs: string[] = [];
+  if (!prof) { msgs.push("could not be added to the instructor's student list: " + (profErr || "unknown reason")); await attention(sb, cfg, { kind: "roster_failed", title: `${b.name} could not be added to ${c.name}'s student list`, detail: `The student WAS given to ${c.name} and they have been messaged, but saving them to the instructor's roster failed (${profErr || "unknown reason"}). Add them in the instructor's students list by hand.`, waiting_id: "roster-" + b.id, referral_id: ref.id, instructor_id: c.id, student_name: b.name }); }
   if (cfg.messageInstructor && c.phone) {
     const det = [b.avail ? "Availability: " + b.avail : "", pickup ? "Address: " + pickup : ""].filter(Boolean).join(" | ") || "None";
     const dp = [first(c.name), b.name, fmtPhone(b.phone) || "Not provided", b.postcode || "Not provided", b.type, det];
