@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-female-pref";
+const FN_VERSION = "2026-11-24-profile-name";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1210,7 +1210,8 @@ async function webhook(sb: any, raw: string) {
       const text = (m.text && m.text.body) || (m.button && m.button.text) || (m.interactive && m.interactive.button_reply && m.interactive.button_reply.title) || "[" + m.type + "]";
       { const { data: seen } = await sb.from("wa_log").select("id").eq("wa_message_id", m.id).eq("direction", "in").maybeSingle(); if (seen) continue; }   // Meta re-sends a message if we are slow to answer: never process the same one twice
       console.log("wa-in", String(m.from).slice(-4), m.type, payload ? "button" : "text");   // shows in the Supabase function log: a message from Meta DID arrive
-      await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", raw: m }]);
+      const prof0 = ((v.contacts || []).find((c: any) => String(c.wa_id) === String(m.from)) || {}).profile;   // the name on their WhatsApp account (kept with the message, used only when they do not give a name themselves)
+      await sb.from("wa_log").insert([{ direction: "in", wa_message_id: m.id, to_phone: m.from, body: String(text).slice(0, 900), payload, status: "received", student_name: (prof0 && prof0.name) ? String(prof0.name).slice(0, 80) : null, raw: m }]);
       if (!payload && m.type === "text") {   // STOP / START: respected for every automatic message, whether or not the assistant is on
         if (OPT_STOP.test(text)) { await setOptOut(sb, m.from, true); try { await sendText(m.from, "You're unsubscribed: we won't send you automatic WhatsApp messages. Reply START if you change your mind."); } catch (_) { /* best effort */ } await attention(sb, await loadCfg(sb), { kind: "ai_handoff", title: `🔕 ${m.from} asked us to stop messaging them`, detail: "They sent STOP, so no automatic WhatsApp will go to them. If they have an open booking, contact them another way.", waiting_id: "optout-" + m.from }); continue; }
         if (OPT_START.test(text)) { await setOptOut(sb, m.from, false); try { await sendText(m.from, "Welcome back! You'll get our messages again."); } catch (_) { /* best effort */ } continue; }
@@ -1361,6 +1362,7 @@ function aiDetailLines(a: any) {
     a.test_centre ? "Test centre: " + String(a.test_centre).slice(0, 60) : "",
     a.licence ? "Provisional licence: " + String(a.licence).slice(0, 40) : "",
     ig === "female_required" ? "FEMALE INSTRUCTOR REQUESTED" : ig === "female_preferred" ? "FEMALE PREFERRED" : ig === "male" ? "Prefers a male instructor" : "",
+    a.name_source ? "Name taken from their WhatsApp profile (they did not give one): check it with them" : "",
     a.notes ? "Notes: " + String(a.notes).slice(0, 300) : "",
   ].filter(Boolean);
 }
@@ -1418,9 +1420,14 @@ async function extractDetails(sb: any, cfg: any, day: any[], profileName: string
   const t = ((r.j && r.j.content) || []).find((x: any) => x.type === "tool_use" && x.name === "save_details");
   return { a: (t && t.input) || {} };
 }
+/* the name on the person's WhatsApp account, tidied (no emojis or digits); "" if it is not usable as a name */
+const cleanProfile = (v: any) => { const n = String(v || "").replace(/[^\p{L}\p{M}' .-]/gu, "").replace(/\s+/g, " ").trim(); return n.length >= 2 && !/^(hi|hey|hello|ok|okay|yes|no|me|user|whatsapp|business|admin|test|none|unknown)$/i.test(n) ? n.slice(0, 60) : ""; };
+const profileOf = (rows: any[], given = "") => cleanProfile(given) || cleanProfile((rows || []).filter((x: any) => x.direction === "in" && x.student_name).map((x: any) => x.student_name).pop());
 async function extractFromChat(sb: any, cfg: any, from: string, day: any[], profileName: string) {
   const ed: any = await extractDetails(sb, cfg, day, profileName); if (ed.error) return { action: "error" }; if (!ed.a) return { action: "none" };
   const a = ed.a, num = waNumber(from);
+  // they did not give a name: use the name on their WhatsApp account (only then; a name they wrote always wins)
+  if (String(a.name || "").trim().length < 2) { const pn = profileOf(day, profileName); if (pn) { a.name = pn; a.name_source = "WhatsApp profile"; } }
   // already saved earlier: anything new they said (availability, address, test date...) goes into that same booking
   const en: any = await enrichBooking(sb, cfg, from, a);
   if (!en.none) return { action: en.added.length ? "updated" : "duplicate" };
@@ -1559,9 +1566,10 @@ async function chatDetails(sb: any, b: any) {
   const { data } = await sb.from("wa_log").select("direction,template,body,created_at,to_phone,status").eq("to_phone", num);
   const rows = (data || []).filter((x: any) => Date.now() - new Date(x.created_at).getTime() < 3 * 864e5).sort((a: any, c: any) => String(a.created_at).localeCompare(String(c.created_at)));
   const msgs = rows.filter((x: any) => x.direction === "in" && x.body).map((x: any) => ({ at: x.created_at, text: String(x.body).slice(0, 300) }));
-  let proposed: any = {}, note = "";
+  let proposed: any = {}, note = ""; const profN = profileOf(rows);
   if (!ANTHROPIC_KEY) note = "Claude is not connected (no ANTHROPIC_API_KEY), so fill the boxes in yourself.";
   else if (msgs.length) { const cfg = await loadCfg(sb), ed: any = await extractDetails(sb, cfg, rows, ""); if (ed.a) proposed = ed.a; else if (ed.error) note = "Claude could not read this chat just now. Fill the boxes in yourself."; }
+  if (profN && String(proposed.name || "").trim().length < 2) { proposed.name = profN; note = (note ? note + " " : "") + "The name is taken from their WhatsApp account (they did not write one): check it."; }
   const { data: ex } = await sb.from("waiting_list").select("id,student_name,status,created_at,student_phone").gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString());
   const have = (ex || []).filter((w: any) => last10(w.student_phone || "") === last10(num)).sort((p: any, q: any) => String(q.created_at).localeCompare(String(p.created_at)))[0] || null;
   return { ok: true, phone: num, messages: msgs, proposed, note, existing: have ? { name: have.student_name, status: have.status } : null };

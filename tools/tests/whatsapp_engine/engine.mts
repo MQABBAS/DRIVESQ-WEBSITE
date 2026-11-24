@@ -2,7 +2,7 @@ import "/tmp/claude-0/watest/fn2.ts";
 const h = globalThis.__h, mk = (body) => new Request("https://f/whatsapp", { method: "POST", headers: { "x-admin-key": "adm" }, body: JSON.stringify(body) });
 const call = async (b) => (await (await h(mk(b))).json());
 const sigf = async (b) => { const k = await crypto.subtle.importKey("raw", new TextEncoder().encode("sec"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return "sha256=" + Array.from(new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(b)))).map((x) => x.toString(16).padStart(2, "0")).join(""); };
-const hook = async (payload, text) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "in" + Math.random(), from: payload.from, type: payload.p ? "button" : "text", ...(payload.p ? { button: { payload: payload.p, text: "x" } } : { text: { body: text } }) }] } }] }] }); return h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": await sigf(body) }, body })); };
+const hook = async (payload, text) => { const body = JSON.stringify({ entry: [{ changes: [{ value: { ...(payload.name ? { contacts: [{ wa_id: payload.from, profile: { name: payload.name } }] } : {}), messages: [{ id: "in" + Math.random(), from: payload.from, type: payload.p ? "button" : "text", ...(payload.p ? { button: { payload: payload.p, text: "x" } } : { text: { body: text } }) }] } }] }] }); return h(new Request("https://f/whatsapp", { method: "POST", headers: { "x-hub-signature-256": await sigf(body) }, body })); };
 const I = (id, name, area, phone, extra = {}) => ({ id, full_name: name, status: "approved", area, phone, car_type: "Both", instructor_model: "referral", coverage_postcodes: area.split(" ")[0], ...extra });
 DB.instructors = [I("i1", "Dawood Khan", "M13 0PG", "07700900001"), I("i2", "Sara Female", "M20 0AA", "07700900002"), I("i3", "Mo Sale", "M33 0AA", "07700900003", { instructor_model: "franchise" }), I("i4", "Far Frank", "BL1 0AA", "07700900004")];
 DB.growth_settings = [{ key: "instructor_traits", value: { i2: { female: true } } }, { key: "auto_assign_cfg", value: { enabled: true, sendTerms: true, franchiseMin: 0, replyMinutes: 60, anytime: false, fairnessMiles: 0, since: new Date(Date.now() - 2 * 864e5).toISOString(), adminPhone: "07700900999", mode: "assign", hours: [0, 24], autoMiles: 5, autoAssignAfterMinutes: 0 } }];
@@ -637,6 +637,13 @@ const readBookingTest = (w) => ({ addr: ((String(w.notes).match(/(?:^|\n)\s*Addr
       ok(DB.waiting_list.some((w) => /Omar Reid/.test(w.student_name)) && DB.waiting_list.some((w) => /Ruth Hale/.test(w.student_name)) && textsTo(S).length === 0, "automatic catch-up (read-only mode): each chat is read on its own and both bookings are saved without anyone pressing a button, nothing is sent");
       const n0 = DB.waiting_list.length, c0 = CALLS.length; await call({ action: "auto_assign", cron: true });
       ok(DB.waiting_list.length === n0 && CALLS.length === c0 || CALLS.slice(c0).every((c) => !c.extract), "the catch-up runs about once a minute at most and never re-reads a chat that has no new message");
+      { const PN = "447920000031", PM = "447920000032"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== PN && w.student_phone !== PM); DB.wa_log = []; const sdp = () => { const x = DB.growth_settings.find((q) => q.key === "ai_sweep_state"); if (x) x.value = { ...x.value, at: 0, seen: {} }; };
+        globalThis.EXTRACT_Q = [ext({ postcode: "m13 9aa", gearbox: "manual", availability: "weekdays" })]; sdp(); await hook({ from: PN, name: "Jess Moore 😊" }, "M13 9AA manual weekdays"); await call({ action: "auto_assign", cron: true });
+        const wp = DB.waiting_list.find((w) => w.student_phone === PN);
+        ok(wp && wp.student_name === "Jess Moore" && /Name taken from their WhatsApp profile/.test(wp.notes), "no name given: the name on their WhatsApp account (emoji removed) is used, and the booking says so");
+        globalThis.EXTRACT_Q = [ext({ name: "Jessica Moore-Hall", postcode: "m13 9aa", gearbox: "manual", availability: "weekdays" })]; sdp(); await hook({ from: PM, name: "Jess 😊" }, "Jessica Moore-Hall M13 9AA manual weekdays"); await call({ action: "auto_assign", cron: true });
+        const wq = DB.waiting_list.find((w) => w.student_phone === PM);
+        ok(wq && wq.student_name === "Jessica Moore-Hall" && !/WhatsApp profile/.test(wq.notes), "a name they wrote always wins over the WhatsApp account name"); }
       { const FP = "447920000022"; DB.waiting_list = DB.waiting_list.filter((w) => w.student_phone !== FP); DB.wa_log = [{ id: "fp1", direction: "in", to_phone: FP, template: null, status: "received", body: "Fran Bell M13 9AA manual weekdays, I would prefer a female instructor", created_at: new Date().toISOString() }];
         globalThis.EXTRACT_Q = [ext({ name: "Fran Bell", postcode: "m13 9aa", gearbox: "manual", availability: "weekdays", instructor_gender: "female_preferred" })]; const sd = DB.growth_settings.find((x) => x.key === "ai_sweep_state"); if (sd) sd.value = { ...sd.value, at: 0, seen: {} };
         const savedCfg = { ...cfgOf() }; cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().since = new Date(Date.now() - 864e5).toISOString(); cfgOf().femaleRule = "require";
@@ -836,7 +843,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-female-pref", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-profile-name", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
