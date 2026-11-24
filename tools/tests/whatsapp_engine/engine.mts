@@ -435,6 +435,18 @@ const dcall = CALLS.filter((c) => c.wa && c.wa.template && /dsq_student_details|
 ok(dcall && JSON.stringify(dcall.wa.template.components[0].parameters).includes("07844 777888"), "a number that came from WhatsApp (447844777888) is shown to the instructor as 07844 777888");
 ok(sent("dsq_student_welcome_2").length + sent("dsq_student_welcome").length >= 1, "...and the student is still welcomed");
 
+console.log("== 32c. An instructor TYPES the answer instead of tapping the button ==");
+{ const resetT = () => { cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().autoMiles = 0; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = []; CALLS.length = 0; };
+  const textsTo = (to) => CALLS.filter((c) => c.wa && c.wa.type === "text" && String(c.wa.to) === to).map((c) => c.wa.text.body), insOf = (job) => DB.instructors.find((i) => i.id === job.instructor_id), numOf = (i) => "44" + i.phone.replace(/^0/, "").replace(/\s/g, "");
+  resetT(); DB.waiting_list = [W("Typed Tess", "M13 9AA", "", { student_phone: "07844000111" })]; await call({ action: "auto_assign", cron: true });
+  let jt = DB.auto_assign_jobs[0], it = insOf(jt); await hook({ from: numOf(it) }, "Yes please");
+  ok(DB.referrals.some((r) => r.student_name === "Typed Tess" && r.instructor_id === it.id), "typed 'Yes please' = Accept: the student is assigned");
+  resetT(); DB.waiting_list = [W("Typed Tom", "M13 9AA", "", { student_phone: "07844000222" })]; await call({ action: "auto_assign", cron: true });
+  jt = DB.auto_assign_jobs[0]; it = insOf(jt); await hook({ from: numOf(it) }, "What is the postcode exactly?"); await hook({ from: numOf(it) }, "and the name?");
+  ok(!DB.referrals.some((r) => r.student_name === "Typed Tom") && DB.auto_assign_jobs[0].state === "pending_accept" && textsTo(numOf(it)).filter((x) => /tap \*Accept\*/.test(x)).length === 1, "an unclear typed message is never guessed: nothing is assigned, and they are told once how to answer");
+  await hook({ from: numOf(it) }, "I can't, sorry");
+  ok(!DB.referrals.some((r) => r.student_name === "Typed Tom" && r.instructor_id === it.id) && (DB.auto_assign_jobs[0].state !== "pending_accept" || DB.auto_assign_jobs[0].instructor_id !== it.id), "typed 'I can't, sorry' = Can't take: the offer moves on");
+  resetT(); cfgOf().autoMiles = 0; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -817,7 +829,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-assign-safe", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-typed-yes", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

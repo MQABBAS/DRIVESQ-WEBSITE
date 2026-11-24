@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-assign-safe";
+const FN_VERSION = "2026-11-24-typed-yes";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1019,6 +1019,14 @@ async function autoAssign(sb: any, body: any) {
 /* ---------- replies from instructors ---------- */
 async function instructorByPhone(sb: any, from: string) { const { data } = await sb.from("instructors").select("*").eq("status", "approved"); return (data || []).find((i: any) => last10(i.phone) === last10(from)) || null; }
 const YES = ["yes", "y", "yep", "yeah", "ok", "okay", "sure", "accept", "confirm", "confirmed", "ican", "cantake"], NO = ["no", "nope", "n", "cant", "cannot", "decline", "declined", "reject", "sorry"];
+/* what an instructor typed in reply to an offer: "yes" | "no" | "" (not clear: nothing is guessed) */
+function typedAnswer(text: string): "yes" | "no" | "" {
+  if (/^\s*(👍|✅|👌|🙌)/u.test(String(text || ""))) return "yes"; if (/^\s*(👎|❌|🚫)/u.test(String(text || ""))) return "no";
+  const t = String(text || "").toLowerCase().replace(/[’`]/g, "'").replace(/[^a-z' ]/g, " ").replace(/\s+/g, " ").trim(); if (!t || t.length > 60) return "";
+  const no = /^(no|nope|nah|n|can'?t|cant|cannot|can not|decline[d]?|reject(ed)?|sorry|unable|not able|unfortunately|not available|i'?m full|full|busy|i can'?t|i cannot|i am unable|i won'?t)\b/.test(t), yes = /^(yes|y|yep|yeah|yea|yup|ok|okay|sure|accept(ed)?|confirm(ed)?|i can(?!'?t|not)|can do|happy to|i'?ll take|will do|absolutely|of course)\b/.test(t);
+  if (/^no (problem|worries)/.test(t) || /\b(but|however|not sure|maybe|what|where|when|how|\?)\b/.test(t) || (yes && no)) return "";
+  return no ? "no" : yes ? "yes" : "";
+}
 const norm = (t: string) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 /* an instructor taps "I've paid" on the balance reminder: tell the admin to check the bank (nothing is marked paid automatically) */
 async function balancePaid(sb: any, instrId: string, from: string) {
@@ -1213,9 +1221,18 @@ async function webhook(sb: any, raw: string) {
       const fe = payload && String(payload).match(/^(FEM_YES|FEM_NO):(.+)$/); if (fe) { await femaleReply(sb, fe[1] === "FEM_YES", fe[2], m.from); continue; }
       const mm = payload && String(payload).match(/^(OFFER_ACCEPT|OFFER_DECLINE|ACCEPT|DECLINE):(.+)$/);
       if (mm) { if (mm[1].startsWith("OFFER_")) await offerReply(sb, mm[1] === "OFFER_ACCEPT", mm[2], m.from); else await assignedReply(sb, mm[1], mm[2], m.from); continue; }
-      // plain "yes" / "no" typed by an instructor who has an offer waiting
-      const t = norm(text); const isYes = YES.includes(t), isNo = NO.includes(t);
-      if (isYes || isNo) { const ins = await instructorByPhone(sb, m.from); if (ins) { const { data: jobs } = await sb.from("auto_assign_jobs").select("*").eq("instructor_id", String(ins.id)).eq("state", "pending_accept"); const j = (jobs || []).sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)))[0]; if (j) await offerReply(sb, isYes, j.id, m.from); } }
+      // an instructor who has an offer waiting TYPES an answer instead of tapping a button ("yes", "Accepted", "can't take", "I can't, sorry"...)
+      if (!payload && m.type === "text") {
+        const ans = typedAnswer(text), ins = await instructorByPhone(sb, m.from);
+        if (ins) {
+          const { data: jobs } = await sb.from("auto_assign_jobs").select("*").eq("instructor_id", String(ins.id)).eq("state", "pending_accept");
+          if ((jobs || []).length === 1 && ans) await offerReply(sb, ans === "yes", jobs[0].id, m.from);
+          else if ((jobs || []).length) {   // several offers waiting, or a message that is not a clear yes / no: never guess; say how to answer (once an hour)
+            const { data: hints } = await sb.from("wa_log").select("created_at").eq("to_phone", waNumber(m.from)).eq("template", "offer_hint");
+            if (!(hints || []).some((x: any) => Date.now() - new Date(x.created_at).getTime() < 36e5)) { try { await aiSend(sb, m.from, (jobs || []).length > 1 ? "Thanks! You have more than one student waiting, so please tap *Accept* or *Can't take* on the message for the one you mean." : "Thanks! To answer the new student offer, please tap *Accept* or *Can't take* on the offer message, or reply YES or NO.", "offer_hint"); } catch (_) { /* window */ } }
+          }
+        }
+      }
       if (!payload && m.type !== "button" && m.type !== "interactive" && m.type !== "reaction") { try { const prof = ((v.contacts || []).find((c: any) => String(c.wa_id) === String(m.from)) || {}).profile; const ar = await assistantReply(sb, m.from, m.type === "text" ? text : "[" + m.type + "]", (prof && prof.name) || ""); console.log("assistant:", ar); } catch (e) { console.error("assistant", e); } }
     }
   }
