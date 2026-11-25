@@ -138,3 +138,13 @@ A booking Claude took from a WhatsApp chat waits 5 minutes (Settings: "Hold a Wh
 - Safety: a hidden field catches bots, the same number is saved once per 10 minutes, and no more than 200 enquiries are taken a day.
 
 **ADI Part 3 / instructor-training enquiries are never assigned to an instructor.** The form saves to the private table and alerts only you. A WhatsApp chat that mentions ADI training, the ADI tests, a trainee (pink badge) licence or becoming an instructor is never turned into a student booking (not by the assistant, the 1-minute catch-up, or "Read recent chats"): you get an alert and reply yourself. Auto-assign also skips any waiting-list entry that mentions ADI training.
+
+## Inbox, morning summary, offer reminders, ADI reply, Claude usage
+
+All of these are new in version 2026-11-26. Three of them use **new WhatsApp templates** (`dsq_admin_summary`, `dsq_offer_reminder`, `dsq_adi_enquiry_received`). Press "Create the missing templates in Meta" once. **While Meta reviews them nothing that works today changes**:
+- **Morning summary**: goes out through your existing alert template until `dsq_admin_summary` is approved (or as a normal message if you messaged the number in the last 24 hours). Settings → "Summary, reminders & ADI replies": on/off and the hour. "Send me the summary now" sends it straight away.
+- **Offer reminder**: one gentle reminder per unanswered offer (default 20 minutes of waking time). Until `dsq_offer_reminder` is approved it is only sent to an instructor who has messaged the number in the last 24 hours; otherwise nothing is sent and nothing fails. 0 turns it off.
+- **ADI reply**: a thank-you on WhatsApp to people who send the ADI Part 3 form. Waits for `dsq_adi_enquiry_received`.
+- **💬 Inbox** (control centre): every chat from the last 30 days, grouped by phone number, with Needs reply / Students / Instructors / ADI filters, the full thread, quick replies and a reply box. WhatsApp allows free text only within 24 hours of the person's last message; outside that window sending is blocked with an explanation. Anyone who sent STOP cannot be messaged. "Mark done" clears a chat from Needs reply. Every reply is logged in Activity.
+- **📈 Claude usage**: calls and tokens per day and per purpose. Enter your Anthropic prices per million tokens under Settings to see an estimated cost.
+- A button reply (Accept, Can't take, check-in answers, "I've paid") only counts when it comes from the person it was meant for.
