@@ -129,3 +129,10 @@ A booking Claude took from a WhatsApp chat waits 5 minutes (Settings: "Hold a Wh
 - A direct instructor gets the details message **with the Accept / Can't take buttons still on it**, and the student is told who their instructor is **immediately**. The booking card says "details sent straight away, no Accept needed".
 - If that instructor taps **Can't take**: the student gets a new message ("we are finding you another instructor"), the instructor's record for that student is cancelled and removed from their lists, and auto-assign gives the student to the **next** instructor automatically (direct or asked first, by the same rules). If nobody is left, or the retries run out, you get an alert in Needs you.
 - New message template: **dsq_student_reassign**. Press "Create the missing templates in Meta" in the control centre (Test & readiness) once. Until it is approved, the message is sent as a normal text if the student messaged recently, otherwise you get an alert to tell them by hand.
+
+## ADI Part 3 training enquiries
+
+- The booking form is `/adi-part-3-training-booking.html`. It posts to the **whatsapp** function (action `adi_enquiry`, the one action that needs no admin key) and also emails a copy through Formspree.
+- Run `supabase/migrations/20261125_adi_enquiries.sql` once. The table is **private**: row level security is on with no policies, so only the function (service role) can read it.
+- Each enquiry creates an alert in Needs you and a WhatsApp to your admin phone. Open **Control centre → 🎓 ADI leads** to reply (WhatsApp / call / email buttons), set a status (New, Contacted, Booked, Closed) and add a note.
+- Safety: a hidden field catches bots, the same number is saved once per 10 minutes, and no more than 200 enquiries are taken a day.

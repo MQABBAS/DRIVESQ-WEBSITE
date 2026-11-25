@@ -30,6 +30,13 @@ CLUSTER = [
     ("/adi-part-3-lesson-planning-client-centred-learning-guide.html", "Planning a client-centred lesson for your ADI Part 3"),
     ("/adi-part-3-test-centres-manchester-pass-rates.html", "ADI Part 3 pass rates at every Manchester test centre"),
     ("/adi-part-3-pass-rate-great-britain-trend.html", "ADI Part 3 pass rates across Great Britain: the trend since 2018"),
+    ("/adi-part-3-training-booking.html", "Book your ADI Part 3 training"),
+    ("/adi-part-3-score-calculator.html", "ADI Part 3 score calculator: score your practice lesson"),
+    ("/adi-part-3-deadline-calculator.html", "ADI Part 3 deadline calculator"),
+    ("/adi-part-3-cost-calculator.html", "ADI Part 3 cost calculator: from Part 1 to your badge"),
+    ("/adi-part-3-report-form-explained.html", "The DVSA ADI Part 3 report form, box by box"),
+    ("/adi-part-3-pupil-and-lesson-theme-guide.html", "Choosing your pupil and lesson theme for the ADI Part 3"),
+    ("/adi-part-3-test-day-checklist.html", "ADI Part 3 test-day checklist (printable)"),
 ]
 MORE = [("/become-driving-instructor-manchester.html", "Become a driving instructor in Manchester"), ("/driving-instructor-jobs-manchester.html", "Driving instructor jobs in Manchester"), ("/adi-vs-pdi-driving-instructor-solihull.html", "ADI vs PDI: what is the difference?")]
 
@@ -53,7 +60,7 @@ def page(slug, title, desc, h1, body, faq, about):
 {body}
 <h2>Questions people ask</h2>{faqh}
 <h2>Talk to DriveSQ about ADI Part 3 training</h2><p>DriveSQ is a Greater Manchester driving school that trains instructors for the ADI Part 3. Message us on WhatsApp to ask about the course, dates, price and how a training session works.</p>
-<a class="cta" href="{WA}" rel="nofollow noopener">WhatsApp 07352 932003</a>
+<a class="cta" href="/adi-part-3-training-booking.html?from={slug}">Book ADI Part 3 training</a><a class="cta alt" href="{WA}" rel="nofollow noopener">WhatsApp 07352 932003</a>
 <h2>More for trainee instructors</h2><ul>{rel}</ul>
 <p class="src"><strong>Source and method.</strong> Rules, fees and test details are taken from the official GOV.UK pages on the <a href="{GOV_P3}" rel="noopener">ADI part 3 test</a>, <a href="{G}trainee-driving-instructor-licence-the-rules" rel="noopener">trainee driving instructor licence</a> and <a href="{G}approved-driving-instructor-adi-fees" rel="noopener">ADI fees</a>, checked on {CHECKED}. The rules for Northern Ireland are different. Rules and fees can change, so always check GOV.UK before you book or pay. Worked examples, timelines and arithmetic on this page are DriveSQ's own illustrations, not DVSA figures. This is general information, not legal advice.</p></main>
 <footer>DriveSQ Driving School · Greater Manchester &amp; Solihull · <a href="/">drivesq.co.uk</a> · <a href="/about.html">About</a> · <a href="/reviews.html">Reviews</a> · <a href="/areas.html">Areas</a></footer>
@@ -64,6 +71,9 @@ pages = {}
 # ============ 1. PILLAR ============
 b1 = f'''<p class="lead">The ADI Part 3 is the last of the three tests you pass to become an Approved Driving Instructor, and for most people it is the hardest. It is not a driving test. A DVSA examiner watches you teach a real pupil for about 45 minutes and scores how well you plan, manage risk and teach. DriveSQ trains instructors for exactly this test in Greater Manchester.</p>
 <div class="note"><b>In one line:</b> you can book Part 3 once you have passed Part 2; it costs £111; you get a maximum of three attempts; and you score 31 or more out of 51 to pass.</div>
+<p><a class="cta" href="/adi-part-3-training-booking.html?from=adi-part-3-training-manchester">Book ADI Part 3 training</a></p>
+<h2>Free ADI Part 3 tools</h2>
+<ul><li><a href="/adi-part-3-score-calculator.html"><b>Score calculator</b></a>: score a practice lesson on the 17 official areas and see your grade.</li><li><a href="/adi-part-3-deadline-calculator.html"><b>Deadline calculator</b></a>: your 2-year Part 1 window, licence expiry and badge deadline.</li><li><a href="/adi-part-3-cost-calculator.html"><b>Cost calculator</b></a>: the official fees from Part 1 to your badge, plus retakes.</li><li><a href="/adi-part-3-report-form-explained.html"><b>The report form, box by box</b></a> and the <a href="/adi-part-3-test-day-checklist.html"><b>test-day checklist</b></a>.</li></ul>
 <h2>What the ADI Part 3 actually tests</h2>
 <p>Parts 1 and 2 test what you know and how you drive. Part 3 tests something different: whether you can help <em>someone else</em> learn. The examiner sits in the back and scores 17 areas of competence, each from 0 to 3, grouped into three categories:</p>
 <ul><li><b>Lesson planning</b>: finding out what the pupil needs and agreeing a sensible plan.</li><li><b>Risk management</b>: keeping the lesson safe and making sure the pupil understands who is responsible for what.</li><li><b>Teaching and learning strategies</b>: how you explain, question, give feedback and adapt as the lesson goes.</li></ul>
