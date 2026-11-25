@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-25-safe-replies";
+const FN_VERSION = "2026-11-26-inbox-summary";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -45,6 +45,45 @@ function waNumber(raw: string) {   // 07700 900123 / +44 7700 900123 → 4477009
 const last10 = (p: string) => String(p || "").replace(/\D/g, "").slice(-10);
 /* a button reply only counts when it comes from the person it was meant for (a forwarded message, a shared phone or a made-up reply cannot accept a student or mark a payment). If we have no number on file for them we cannot check, so it is allowed. */
 const samePhone = (from: string, expected: any) => { const y = last10(String(expected || "")); return !y || last10(from) === y; };
+/* ---------- NEW optional templates: while Meta is still reviewing them, nothing that already works changes ----------
+   Every feature below that needs a new template checks first whether Meta has approved it. If not, it uses what already works (or quietly does nothing): no failed sends, no alerts, no noise. It switches on by itself the moment the template is approved. */
+const OPTIONAL_TEMPLATES = ["dsq_admin_summary", "dsq_offer_reminder", "dsq_adi_enquiry_received"];
+let TPL_CACHE: { at: number; ok: Set<string> } | null = null;
+async function tplApproved(name: string): Promise<boolean> {
+  const ov = (globalThis as any).__tplApproved; if (ov) return ov.has(name);   // (used by the tests)
+  if (!TOKEN || !PHONE_ID) return false;
+  try {
+    if (!TPL_CACHE || Date.now() - TPL_CACHE.at > 10 * 60000) {
+      const ids = await findWabas(), ok = new Set<string>();
+      if (ids.length) { const mine = (await Promise.all(ids.map(readWaba))).find((w: any) => w.hasPhone); if (mine) mine.templates.forEach((t: any) => { if (t.status === "APPROVED") ok.add(t.name); }); }
+      TPL_CACHE = { at: Date.now(), ok };
+    }
+    return TPL_CACHE.ok.has(name);
+  } catch (_) { return false; }   // cannot tell: treat the new template as not ready
+}
+/* WhatsApp lets us send free text only while the person has messaged us in the last 24 hours. Returns when the window closes, or null if it is closed. */
+async function windowOpen(sb: any, phone: string) {
+  const to = waNumber(phone); if (!to) return null; const { data } = await sb.from("wa_log").select("created_at,direction,to_phone").eq("to_phone", to);
+  const last = (data || []).filter((x: any) => x.direction === "in").map((x: any) => new Date(x.created_at).getTime()).sort((p: number, q: number) => q - p)[0];
+  return last && Date.now() - last < 864e5 ? new Date(last + 864e5).toISOString() : null;
+}
+async function getKv(sb: any, key: string) { const { data } = await sb.from("growth_settings").select("value").eq("key", key).maybeSingle(); return (data && data.value) || {}; }
+async function setKv(sb: any, key: string, value: any) { await sb.from("growth_settings").upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" }); }
+/* ---------- Claude usage (tokens are counted as calls happen and saved at the end of each request) ---------- */
+let USAGE: any = {};
+function noteUsage(kind: string, u: any) {
+  const d = londonYMD(Date.now()), day = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`, x = USAGE[day] = USAGE[day] || { calls: 0, in: 0, out: 0, kinds: {} }, k = x.kinds[kind] = x.kinds[kind] || { calls: 0, in: 0, out: 0 };
+  const i = +(u && u.input_tokens) || 0, o = +(u && u.output_tokens) || 0; x.calls++; x.in += i; x.out += o; k.calls++; k.in += i; k.out += o;
+}
+async function flushUsage(sb: any) {
+  const add = USAGE; USAGE = {}; if (!Object.keys(add).length) return;
+  try {
+    const cur = await getKv(sb, "claude_usage"), days: any = { ...(cur.days || {}) };
+    for (const day of Object.keys(add)) { const t = days[day] = days[day] || { calls: 0, in: 0, out: 0, kinds: {} }, a = add[day]; t.calls += a.calls; t.in += a.in; t.out += a.out; for (const k of Object.keys(a.kinds)) { const z = t.kinds[k] = t.kinds[k] || { calls: 0, in: 0, out: 0 }; z.calls += a.kinds[k].calls; z.in += a.kinds[k].in; z.out += a.kinds[k].out; } }
+    const keep = Object.keys(days).sort().slice(-90), out: any = {}; keep.forEach((k) => { out[k] = days[k]; });
+    await setKv(sb, "claude_usage", { days: out });
+  } catch (e) { console.error("usage", e); }
+}
 async function wrongSender(sb: any, what: string, from: string) { try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "ignored_reply", summary: `🛡️ Ignored ${what} from ${waNumber(from) || from}: it did not come from the person it was meant for`, actor_role: "system", actor_name: "Auto-assign" }]); } catch (_) { /* log only */ } }
 const param = (v: unknown) => ({ type: "text", text: (String(v == null ? "" : v).replace(/[\r\n\t]+/g, " | ").replace(/ {5,}/g, "    ").replace(/( \| )+/g, " | ").trim().slice(0, 900)) || "-" });
 const first = (n: string) => String(n || "").trim().split(/\s+/)[0] || "there";
@@ -171,6 +210,11 @@ const DEFAULT_CFG = {
   digestMinAmount: 0,              // only send the weekly summary when at least this much is owed
   billingDigest: true,             // every Monday the admin gets ONE WhatsApp + Attention item with who owes what (referral fees and franchise weekly fees)
   balanceAuto: true,               // WhatsApp a referral instructor their outstanding balance (booked students not paid for) once a week, while auto-assign is ON in assign mode
+  morningSummary: true,            // every morning (from morningHour, UK time) WhatsApp YOU a summary: new bookings, offers waiting, who is yet to reply, failed messages, ADI enquiries, chats waiting for you. Needs your admin phone below
+  morningHour: 8,
+  chaseMinutes: 20,                // an offer nobody has answered after this many minutes of waking time gets ONE gentle reminder to the instructor. 0 = off
+  adiAutoReply: true,              // acknowledge an ADI Part 3 form enquiry on WhatsApp (needs the dsq_adi_enquiry_received template to be approved; until then nothing is sent and nothing else changes)
+  claudeInPrice: "", claudeOutPrice: "",   // optional: what you pay Anthropic per million input / output tokens, so the Claude usage page can show a cost estimate (left empty it shows tokens only)
   adminPhone: "", adminAlerts: true,
   refFee: 25,                      // referral fee recorded for referral-model instructors (franchise = 0)
   followups: { enabled: true, acceptWaitHours: 24, checkinDays: 3, instructorAfterDays: 0, repeatDays: 4, rounds: 4, maxPerWeek: 2 },   // 3 days after they accept, the student AND the instructor are asked at the same moment. After that every 4 days, at most 2 check-in messages a week to each person
@@ -692,6 +736,38 @@ const TEMPLATE_DEFS: any[] = [
   ]
  },
  {
+  "name": "dsq_admin_summary",
+ "header": "DriveSQ daily summary",
+  "category": "UTILITY",
+  "body": "DriveSQ summary for {{1}}.\n\n{{2}}\n\nOpen DriveSQ admin to see everything.",
+  "params": [
+   "Date",
+   "Summary"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_offer_reminder",
+ "header": "Student still waiting",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, a quick reminder from DriveSQ: the student near {{2}} is still waiting for an answer.\n\nPlease tap Accept or Can't take on our earlier message, or reply YES or NO.\n\nThank you!",
+  "params": [
+   "Instructor first name",
+   "Area (postcode district)"
+  ],
+  "buttons": []
+ },
+ {
+  "name": "dsq_adi_enquiry_received",
+ "header": "We have your enquiry",
+  "category": "UTILITY",
+  "body": "Hi {{1}}, thanks for your ADI Part 3 training enquiry with DriveSQ. 🎓\n\nWe have received it and will message you shortly. If it is urgent, just reply here.\n\nThank you!",
+  "params": [
+   "First name"
+  ],
+  "buttons": []
+ },
+ {
   "name": "dsq_student_reassign",
  "header": "Finding you another instructor",
   "category": "UTILITY",
@@ -842,7 +918,7 @@ const TEMPLATE_DEFS: any[] = [
  }
 ];
 
-const SAMPLE_BY_LABEL: [RegExp, string][] = [[/first name/i, "Sara"], [/student name/i, "Alex Khan"], [/instructor name/i, "Dawood Khan"], [/whatsapp link/i, "https://wa.me/447700900123"], [/phone/i, "07700 900123"], [/area|postcode/i, "M14"], [/miles/i, "2.5"], [/lesson type/i, "Manual"], [/number of booked/i, "3"], [/amount/i, "75"], [/what needs attention/i, "No match for a booking"], [/details/i, "Open admin to review it"]];
+const SAMPLE_BY_LABEL: [RegExp, string][] = [[/first name/i, "Sara"], [/student name/i, "Alex Khan"], [/instructor name/i, "Dawood Khan"], [/whatsapp link/i, "https://wa.me/447700900123"], [/phone/i, "07700 900123"], [/area|postcode/i, "M14"], [/miles/i, "2.5"], [/lesson type/i, "Manual"], [/number of booked/i, "3"], [/amount/i, "75"], [/what needs attention/i, "No match for a booking"], [/^date$/i, "25 Nov 2026"], [/^summary$/i, "3 new bookings, 2 offers waiting"], [/details/i, "Open admin to review it"]];
 const sampleFor = (label: string) => { for (const [re, v] of SAMPLE_BY_LABEL) if (re.test(label)) return v; return "Example"; };
 const gget = (path: string) => graph(path);
 /* every WhatsApp Business Account this token can see (or the one in WHATSAPP_WABA_ID) */
@@ -884,9 +960,11 @@ async function diagnose() {
   if (!mine) advice.push(`Your number (phone number ID ${PHONE_ID}) is not in any account this token can read. Accounts seen: ${wabas.map((w) => (w.name || w.id) + " [" + w.phones.map((p: any) => p.display).join(", ") + "]").join("; ")}. The token or the phone number ID in the Supabase secrets belongs to a different account.`);
   else {
     advice.push(`Your number ${(mine.phones.find((p: any) => p.id === String(PHONE_ID)) || {}).display || ""} is in the account "${mine.name || mine.id}".`);
-    if (missing.length) advice.push(`${missing.length} of ${TEMPLATE_DEFS.length} templates do NOT exist in that account: ${missing.join(", ")}. That is why messages fail with "Template name does not exist". Press "Create the missing templates" and they are submitted to Meta in the right account.`);
+    const missCore = missing.filter((n: string) => !OPTIONAL_TEMPLATES.includes(n)), missOpt = missing.filter((n: string) => OPTIONAL_TEMPLATES.includes(n));
+    if (missCore.length) advice.push(`${missCore.length} of ${TEMPLATE_DEFS.length} templates do NOT exist in that account: ${missCore.join(", ")}. That is why messages fail with "Template name does not exist". Press "Create the missing templates" and they are submitted to Meta in the right account.`);
+    if (missOpt.length) advice.push(`${missOpt.length} optional new template${missOpt.length === 1 ? " is" : "s are"} not created yet (${missOpt.join(", ")}). Nothing that works today depends on them: each feature switches on by itself once Meta approves its template. Press "Create the missing templates" to submit them.`);
     if (elsewhere.length) advice.push(`Templates with the right names exist in another account (${Array.from(new Set(elsewhere)).slice(0, 6).join(", ")}). They cannot be used by your number: that is the mismatch.`);
-    if (notApproved.length) advice.push(`Waiting for Meta: ${notApproved.join(", ")}. A template that is not Active cannot send yet.`);
+    if (notApproved.length) advice.push(`Waiting for Meta: ${notApproved.join(", ")}. A template that is not Active cannot send yet.${notApproved.some((x: string) => OPTIONAL_TEMPLATES.includes(x.split(" ")[0])) ? " The optional new ones (summary, reminder, ADI reply) only switch a feature on: everything else keeps working while they are in review." : ""}`);
     if (!missing.length && !notApproved.length) advice.push("All templates exist and are approved in the right account.");
   }
   return { ok: true, found: true, phoneId: String(PHONE_ID), match: mine ? mine.id : null, accounts: wabas.map((w) => ({ id: w.id, name: w.name, phones: w.phones, hasPhone: w.hasPhone, templates: w.templates.length })), templates: TEMPLATE_DEFS.map((d) => { const t = inMine.find((x: any) => x.name === d.name); return { name: d.name, status: t ? t.status : "MISSING", language: t ? t.language : "" }; }), missing, notApproved, advice };
@@ -905,7 +983,7 @@ async function createTemplates(b: any) {
 }
 
 /* which of OUR message templates Meta has approved. Needs the WhatsApp Business Account ID as the secret WHATSAPP_WABA_ID */
-const OUR_TEMPLATES = ["dsq_student_reassign", "dsq_instructor_balance", "dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
+const OUR_TEMPLATES = ["dsq_admin_summary", "dsq_offer_reminder", "dsq_adi_enquiry_received", "dsq_student_reassign", "dsq_instructor_balance", "dsq_instructor_rebooked", "dsq_student_terms", "dsq_female_unavailable", "dsq_new_student", "dsq_student_offer", "dsq_student_welcome_2", "dsq_admin_attention", "dsq_student_checkin", "dsq_instructor_checkin", "dsq_booking_received", "dsq_booking_received_later"];
 async function templateStatus() {
   if (!TOKEN) return { ok: true, needToken: true, templates: [] };
   const d = await diagnose(); if (!d.ok) return d;
@@ -914,7 +992,8 @@ async function templateStatus() {
   return { ok: true, templates: d.templates.map((t: any) => ({ name: t.name, status: t.status, language: t.language, reason: "" })), account: d.match, advice: d.advice, missing: d.missing };
 }
 
-async function autoAssign(sb: any, body: any) {
+async function autoAssign(sb: any, body: any) { try { return await autoAssign0(sb, body); } finally { await flushUsage(sb); } }
+async function autoAssign0(sb: any, body: any) {
   const cfg = await loadCfg(sb), dry = !!body.dry, now = Date.now(), t0 = Date.now();
   if (body.cron && !dry) { try { await sb.from("growth_settings").upsert({ key: "auto_assign_last_run", value: { at: new Date().toISOString(), enabled: cfg.enabled, mode: cfg.mode, hour: londonHour() }, updated_at: new Date().toISOString() }, { onConflict: "key" }); } catch (_) { /* the admin screen shows "last ran" from this */ } }
   let followups: any[] = [];
@@ -922,6 +1001,7 @@ async function autoAssign(sb: any, body: any) {
   if (!dry && body.cron) {   // these run whether or not auto-assign is on
     try { followups = await runFollowups(sb, cfg); } catch (e) { console.error("followups", e); }
     try { await sweepChats(sb, cfg); } catch (e) { console.error("sweep", e); }
+    try { await runMorning(sb, cfg); } catch (e) { console.error("morning", e); }
     try { const hh0 = londonHour(); if (hh0 >= cfg.ackHours[0] && hh0 < cfg.ackHours[1]) acks = await sendAcks(sb, cfg); } catch (e) { console.error("acks", e); }
     try { const hh = londonHour(); if (hh >= cfg.hours[0] && hh < cfg.hours[1]) { const cdx = await candidateData(sb); unpaidAlerts = await checkUnpaid(sb, cfg, cdx); await checkDrought(sb, cfg, cdx); await checkBilling(sb, cfg, cdx); } } catch (e) { console.error("unpaid", e); }
   }
@@ -939,6 +1019,7 @@ async function autoAssign(sb: any, body: any) {
     const { data: stale } = await sb.from("auto_assign_jobs").select("*").eq("state", "pending_accept");
     // 1a. no reply after autoAssignAfterMinutes and the instructor covers the student's area: assign them anyway (they are probably in a lesson)
     const replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 90;
+    try { await runChasers(sb, cfg, stale || [], cd.instrs || [], now); } catch (e) { console.error("chase", e); }
     if (cfg.autoAssignAfterMinutes > 0 && cfg.mode === "assign") {
       const cdA = await candidateData(sb);
       const tA: any[] = [];
@@ -1365,12 +1446,12 @@ confidence: 0 to 1, how sure you are of the intent. Use below 0.65 whenever you 
 summary: at most 20 words, in English, say what they want.
 Examples: "I have to book an emergency test and have accidentally booked a different date" = test_date, time_sensitive. "I crashed on the way to my lesson" = safety_emergency, urgent. "Can I cancel tomorrow's lesson" = cancel_change, time_sensitive. "How much is a lesson?" = faq, normal. "yes" after a booking question = booking.`;
 const CLASSIFY_TOOL = { name: "classify_message", description: "Label the message.", input_schema: { type: "object", properties: { intent: { type: "string", enum: INTENTS }, urgency: { type: "string", enum: ["normal", "time_sensitive", "urgent"] }, confidence: { type: "number" }, summary: { type: "string" } }, required: ["intent", "urgency", "confidence", "summary"] } };
-async function claudeCall(body: any, tries = 2) {   // one retry on a busy or overloaded answer; never waits more than 20 seconds
+async function claudeCall(body: any, tries = 2, kind = "other") {   // one retry on a busy or overloaded answer; never waits more than 20 seconds
   let last: any = null;
   for (let k = 0; k < tries; k++) {
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
-      const j = await r.json().catch(() => ({})); if (r.ok) return { ok: true, j }; last = { ok: false, status: r.status, error: (j && j.error && j.error.message) || "Claude did not answer" };
+      const j = await r.json().catch(() => ({})); if (r.ok) { noteUsage(kind, (j as any).usage); return { ok: true, j }; } last = { ok: false, status: r.status, error: (j && j.error && j.error.message) || "Claude did not answer" };
       if (r.status !== 429 && r.status < 500) break;
     } catch (e) { last = { ok: false, status: 0, error: String((e && (e as any).message) || e) }; }
     await new Promise((res) => setTimeout(res, 800));
@@ -1379,7 +1460,7 @@ async function claudeCall(body: any, tries = 2) {   // one retry on a busy or ov
 }
 /* returns a checked label, or null when Claude is unreachable or answers something that does not fit the rules (then the keyword rules are used) */
 async function understand(text: string, recent: string) {
-  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 200, system: CLASSIFY_SYSTEM, tools: [CLASSIFY_TOOL], tool_choice: { type: "tool", name: "classify_message" }, messages: [{ role: "user", content: (recent ? "Recent chat:\n" + recent + "\n\n" : "") + "NEW MESSAGE: " + String(text).slice(0, 700) }] }, 2);
+  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 200, system: CLASSIFY_SYSTEM, tools: [CLASSIFY_TOOL], tool_choice: { type: "tool", name: "classify_message" }, messages: [{ role: "user", content: (recent ? "Recent chat:\n" + recent + "\n\n" : "") + "NEW MESSAGE: " + String(text).slice(0, 700) }] }, 2, "classify");
   if (!r.ok) return null;
   const t = ((r.j && r.j.content) || []).find((x: any) => x.type === "tool_use" && x.name === "classify_message"), a = t && t.input; if (!a) return null;
   const conf = +a.confidence; if (!INTENTS.includes(a.intent) || !["normal", "time_sensitive", "urgent"].includes(a.urgency) || !(conf >= 0 && conf <= 1)) return null;
@@ -1470,7 +1551,7 @@ const EXTRACT_TOOL = { name: "save_details", description: "The booking details t
 async function extractDetails(sb: any, cfg: any, day: any[], profileName: string) {
   const mine = day.filter((x: any) => x.direction === "in" && x.body && !String(x.body).startsWith("[")).map((x: any) => "- " + String(x.body).slice(0, 300));
   if (!mine.length) return { a: null as any };
-  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 400, system: EXTRACT_SYSTEM, tools: [EXTRACT_TOOL], tool_choice: { type: "tool", name: "save_details" }, messages: [{ role: "user", content: "Messages from the person, oldest first:\n" + mine.join("\n") + (profileName ? `\n(Their WhatsApp profile name is "${profileName}", but only use it if they confirm it.)` : "") }] }, 2);
+  const r: any = await claudeCall({ model: AI_MODEL, max_tokens: 400, system: EXTRACT_SYSTEM, tools: [EXTRACT_TOOL], tool_choice: { type: "tool", name: "save_details" }, messages: [{ role: "user", content: "Messages from the person, oldest first:\n" + mine.join("\n") + (profileName ? `\n(Their WhatsApp profile name is "${profileName}", but only use it if they confirm it.)` : "") }] }, 2, "extract");
   if (!r.ok) { await attention(sb, cfg, { kind: "ai_error", title: "The WhatsApp assistant could not read a chat", detail: `${String(r.error || "Claude did not answer")}. Check the ANTHROPIC_API_KEY secret and your Anthropic credit.`, waiting_id: "ai-error-" + londonYMD(Date.now()).d }); return { a: null as any, error: true }; }
   const t = ((r.j && r.j.content) || []).find((x: any) => x.type === "tool_use" && x.name === "save_details");
   return { a: (t && t.input) || {} };
@@ -1555,7 +1636,7 @@ async function assistantReply(sb: any, from: string, text: string, profileName: 
   for (const x of day) { const role = x.direction === "in" ? "user" : (x.template === "ai_assistant" ? "assistant" : ""); if (!role || !x.body) continue; if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += "\n" + x.body; else msgs.push({ role, content: String(x.body) }); }
   if (!msgs.length || msgs[msgs.length - 1].role !== "user") msgs.push({ role: "user", content: String(text) });
   while (msgs.length && msgs[0].role !== "user") msgs.shift();
-  const cr: any = await claudeCall({ model: AI_MODEL, max_tokens: 400, system: AI_SYSTEM + "\nAPPROVED FACTS about DriveSQ. You may state these if asked, and NOTHING else about DriveSQ (anything else: say the team will confirm):\n" + (String(cfg.aiFacts || "").trim() || DEFAULT_FACTS) + (profileName ? `\nTheir WhatsApp profile name is "${profileName}" (they may have given a different name: use what they tell you).` : ""), tools: AI_TOOLS, messages: msgs });
+  const cr: any = await claudeCall({ model: AI_MODEL, max_tokens: 400, system: AI_SYSTEM + "\nAPPROVED FACTS about DriveSQ. You may state these if asked, and NOTHING else about DriveSQ (anything else: say the team will confirm):\n" + (String(cfg.aiFacts || "").trim() || DEFAULT_FACTS) + (profileName ? `\nTheir WhatsApp profile name is "${profileName}" (they may have given a different name: use what they tell you).` : ""), tools: AI_TOOLS, messages: msgs }, 2, "chat");
   if (!cr.ok) {
     await attention(sb, cfg, { kind: "ai_error", title: "The WhatsApp assistant could not answer", detail: `${String(cr.error || "Claude did not answer")}. Check the ANTHROPIC_API_KEY secret and your Anthropic credit. Message from ${profileName || num}: "${String(text).slice(0, 120)}"`, waiting_id: "ai-error-" + londonYMD(Date.now()).d });
     return "error";
@@ -1665,6 +1746,7 @@ async function adiEnquiry(sb: any, b: any) {
     await trail(sb, "adi_lead", `🎓 New ADI Part 3 training enquiry from ${name} (${fmtPhone(phone)})`);
     await attention(sb, cfg, { kind: "adi_lead", title: `🎓 New ADI Part 3 enquiry: ${name}`, detail: `${fmtPhone(phone)}${bits ? " · " + bits : ""}. Open Control centre → ADI leads to reply.`, waiting_id: "adi-" + ins.id });
   } catch (e) { console.error("adi alert", e); }
+  try { const cfg2 = await loadCfg(sb); if (cfg2.adiAutoReply !== false && await tplApproved("dsq_adi_enquiry_received")) { const rr = await sendTemplate(sb, { to: phone, template: "dsq_adi_enquiry_received", lang: "en_GB", params: [first(name)], student_name: name }); if (rr.ok) await trail(sb, "adi_autoreply", `🎓 Confirmation sent to ${name} on WhatsApp`); } } catch (e) { console.error("adi reply", e); }   // only once Meta has approved the template; until then nothing changes
   return { ok: true };
 }
 async function adiLeads(sb: any) {
@@ -1678,6 +1760,121 @@ async function adiLeadUpdate(sb: any, b: any) {
   if (status) { try { const { data: l } = await sb.from("adi_enquiries").select("name").eq("id", id).maybeSingle(); await trail(sb, "adi_lead_" + status, `🎓 ADI enquiry from ${(l && l.name) || "someone"} marked ${status}`); if (status !== "new") await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("waiting_id", "adi-" + id).eq("resolved", false); } catch (_) { /* log only */ } }
   return { ok: true };
 }
+
+/* ================= WhatsApp inbox (admin) ================= */
+const keyOf = (p: string) => last10(p || "");
+async function contactsMap(sb: any) {
+  const map: any = {}, put = (phone: any, name: any, role: string, extra: any = {}) => { const k = keyOf(String(phone || "")); if (k.length === 10 && !map[k]) map[k] = { name: String(name || ""), role, ...extra }; };
+  try { const { data } = await sb.from("instructors").select("id,full_name,phone,status,instructor_model"); (data || []).forEach((i: any) => put(i.phone, i.full_name, "instructor", { instructor_id: i.id, model: i.instructor_model })); } catch (_) { /* optional */ }
+  try { const { data } = await sb.from("adi_enquiries").select("name,phone"); (data || []).forEach((a: any) => put(a.phone, a.name, "adi")); } catch (_) { /* table may not exist yet */ }
+  try { const { data } = await sb.from("referrals").select("student_name,student_phone"); (data || []).forEach((r: any) => put(r.student_phone, r.student_name, "student")); } catch (_) { /* optional */ }
+  try { const { data } = await sb.from("waiting_list").select("student_name,student_phone"); (data || []).forEach((r: any) => put(r.student_phone, r.student_name, "student")); } catch (_) { /* optional */ }
+  return map;
+}
+const labelOf = (t: string) => String(t || "").replace(/^dsq_/, "").replace(/_/g, " ");
+const showText = (x: any) => x.direction === "in" ? (x.payload ? "🔘 " + String(x.body || "").slice(0, 80) : String(x.body || "").slice(0, 140)) : (x.template && /^dsq_/.test(x.template) ? "📤 " + labelOf(x.template) : String(x.body || "").replace(/^\(not sent: [^)]*\)\s*/, "").slice(0, 140));
+async function inboxList(sb: any) {
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const { data } = await sb.from("wa_log").select("id,created_at,direction,to_phone,template,body,status,payload,student_name").gte("created_at", since).order("created_at", { ascending: false }).limit(1000);
+  const map = await contactsMap(sb), read: any = (await getKv(sb, "wa_inbox_read")) || {}, opt: any = ((await getKv(sb, "wa_optout")) || {}).numbers || {};
+  const by: any = {};
+  for (const x of (data || [])) { if (!x.to_phone || x.status === "muted") continue; const k = keyOf(x.to_phone); (by[k] = by[k] || []).push(x); }
+  const conv = Object.keys(by).map((k) => {
+    const rows = by[k].sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at))), last = rows[0], c = map[k] || {}, ins = rows.filter((r: any) => r.direction === "in"), prof = (ins.find((r: any) => r.student_name) || {}).student_name || "";
+    const said = ins.map((r: any) => String(r.body || "")).join(" "), adi = ADI_RE.test(said);
+    const needsReply = last.direction === "in" && !last.payload && (!read[k] || String(read[k]) < String(last.created_at));
+    return { key: k, phone: last.to_phone, name: c.name || prof || "", profile: prof, role: c.role || (adi ? "adi" : "new"), adi, model: c.model || "", needsReply, optedOut: !!opt[waNumber(last.to_phone)], lastAt: last.created_at, lastDir: last.direction, lastText: showText(last), lastStatus: last.status || "", count: rows.length, windowOpen: ins.length ? Date.now() - new Date(ins[0].created_at).getTime() < 864e5 : false };
+  }).sort((a: any, b: any) => String(b.lastAt).localeCompare(String(a.lastAt))).slice(0, 250);
+  return { ok: true, conversations: conv, needsReply: conv.filter((c: any) => c.needsReply).length };
+}
+async function inboxThread(sb: any, b: any) {
+  const num = waNumber(b.phone || ""); if (!num) return { ok: false, error: "That phone number does not look right." };
+  const { data } = await sb.from("wa_log").select("id,created_at,direction,to_phone,template,body,status,payload,error,student_name").eq("to_phone", num).order("created_at", { ascending: false }).limit(200);
+  const msgs = (data || []).filter((x: any) => x.status !== "muted").sort((a: any, c: any) => String(a.created_at).localeCompare(String(c.created_at))).map((x: any) => ({ id: x.id, at: x.created_at, dir: x.direction, text: x.direction === "in" ? String(x.body || "") : (x.template && /^dsq_/.test(x.template) ? "📤 Template: " + labelOf(x.template) + (x.body ? "\n" + String(x.body).slice(0, 400) : "") : String(x.body || "")), button: !!x.payload, tpl: x.template || "", status: x.status || "", error: x.error || "" }));
+  const map = await contactsMap(sb), c = map[keyOf(num)] || {}, prof = ((data || []).find((r: any) => r.direction === "in" && r.student_name) || {}).student_name || "";
+  const win = await windowOpen(sb, num), opt = !!(((await getKv(sb, "wa_optout")) || {}).numbers || {})[num], adi = ADI_RE.test(msgs.filter((m: any) => m.dir === "in").map((m: any) => m.text).join(" "));
+  return { ok: true, phone: num, name: c.name || prof || "", role: c.role || (adi ? "adi" : "new"), model: c.model || "", messages: msgs, windowOpen: !!win, windowEnds: win, optedOut: opt };
+}
+async function inboxSend(sb: any, b: any) {
+  const num = waNumber(b.phone || ""), text = String(b.text || "").replace(/\r/g, "").trim().slice(0, 1000); if (!num) return { ok: false, error: "That phone number does not look right." }; if (!text) return { ok: false, error: "Type a message first." };
+  if (!TOKEN || !PHONE_ID) return { ok: false, error: "WhatsApp is not set up yet." };
+  if (((await getKv(sb, "wa_optout")) || {}).numbers && ((await getKv(sb, "wa_optout")).numbers)[num]) return { ok: false, error: "This person sent STOP, so no WhatsApp message can be sent to them." };
+  if (!(await windowOpen(sb, num))) return { ok: false, closed: true, error: "WhatsApp only lets us send free text within 24 hours of their last message, and that window has closed. Message them from your WhatsApp phone, or send an approved template." };
+  const r = await aiSend(sb, num, text, "admin_reply", false);
+  if (!r.ok) return { ok: false, error: (r.j && r.j.error && (r.j.error.error_user_msg || r.j.error.message)) || "WhatsApp did not accept that message." };
+  const rd: any = (await getKv(sb, "wa_inbox_read")) || {}; rd[keyOf(num)] = new Date().toISOString(); await setKv(sb, "wa_inbox_read", rd);
+  await trail(sb, "admin_reply", `💬 You replied to ${num} on WhatsApp from the inbox`);
+  return { ok: true };
+}
+async function inboxMark(sb: any, b: any) {
+  const k = keyOf(b.phone || ""); if (k.length !== 10) return { ok: false, error: "No chat chosen." }; const rd: any = (await getKv(sb, "wa_inbox_read")) || {};
+  if (b.done === false) delete rd[k]; else rd[k] = new Date().toISOString();
+  const keys = Object.keys(rd); if (keys.length > 600) keys.sort((p, q) => String(rd[p]).localeCompare(String(rd[q]))).slice(0, keys.length - 600).forEach((x) => delete rd[x]);
+  await setKv(sb, "wa_inbox_read", rd); return { ok: true };
+}
+
+/* ================= morning summary to the admin ================= */
+async function buildSummary(sb: any) {
+  const since = new Date(Date.now() - 864e5).toISOString(), L: string[] = [];
+  const q = async (t: string, f: (b: any) => any) => { try { const { data } = await f(sb.from(t)); return data || []; } catch (_) { return []; } };
+  const wl = await q("waiting_list", (b) => b.select("student_name,notes,status,created_at").gte("created_at", since));
+  const web = wl.filter((x: any) => /\[WEB\]/i.test(x.notes || "")).length, wa = wl.filter((x: any) => /\[WHATSAPP\]/i.test(x.notes || "")).length, oth = wl.length - web - wa;
+  L.push(`📥 New bookings in 24 hours: ${wl.length}${wl.length ? " (" + [web ? web + " website" : "", wa ? wa + " WhatsApp" : "", oth > 0 ? oth + " other" : ""].filter(Boolean).join(", ") + ")" : ""}`);
+  const jobs = await q("auto_assign_jobs", (b) => b.select("state,expires_at")), pend = jobs.filter((j: any) => j.state === "pending_accept"), oldest = pend.map((j: any) => j.expires_at ? Date.now() - new Date(j.expires_at).getTime() : 0).sort((a: number, c: number) => c - a)[0] || 0;
+  L.push(`📤 Offers waiting for a reply: ${pend.length}${pend.length && oldest > 0 ? " (oldest " + (oldest >= 36e5 ? Math.round(oldest / 36e5) + " h" : Math.max(1, Math.round(oldest / 6e4)) + " min") + ")" : ""}`);
+  const refs = await q("referrals", (b) => b.select("created_at,notes").gte("created_at", since)), acts = await q("admin_activity_log", (b) => b.select("action,created_at").gte("created_at", since));
+  const assigned = refs.filter((r: any) => /Auto-assigned/.test(r.notes || "")).length, acc = acts.filter((a: any) => a.action === "wa_accepted").length, dec = acts.filter((a: any) => a.action === "wa_declined").length, aib = acts.filter((a: any) => a.action === "ai_booking").length;
+  L.push(`✅ Students assigned: ${assigned} · accepted on WhatsApp: ${acc}${dec ? " · declined: " + dec : ""}`);
+  const att = await q("admin_attention", (b) => b.select("kind,resolved").eq("resolved", false)); L.push(`⚠️ Waiting for you in Needs you: ${att.length}`);
+  const failed = await q("wa_log", (b) => b.select("status,created_at").eq("status", "failed").gte("created_at", since)); if (failed.length) L.push(`❌ WhatsApps that failed to send: ${failed.length}`);
+  const adi = await q("adi_enquiries", (b) => b.select("status,created_at")); if (adi.length) L.push(`🎓 ADI enquiries: ${adi.filter((x: any) => String(x.created_at) >= since).length} new in 24 hours, ${adi.filter((x: any) => x.status === "new").length} not contacted yet`);
+  try { const ib = await inboxList(sb); L.push(`💬 Chats waiting for your reply: ${ib.needsReply}`); } catch (_) { /* optional */ }
+  if (aib) L.push(`🤖 Claude saved ${aib} booking${aib === 1 ? "" : "s"} from WhatsApp`);
+  return L;
+}
+async function sendMorningSummary(sb: any, cfg: any, o: any = {}) {
+  const lines = await buildSummary(sb), dateTxt = today(), text = `☀️ DriveSQ summary, ${dateTxt}\n\n` + lines.join("\n") + "\n\nOpen DriveSQ admin for details.";
+  if (o.dry) return { ok: true, lines, text };
+  const phone = waNumber(cfg.adminPhone || ""); if (!phone) return { ok: false, error: "Set your admin phone in the auto-assign settings first.", lines };
+  let r: any = null, how = "";
+  if (await windowOpen(sb, phone)) { r = await aiSend(sb, phone, text, "admin_summary", false); how = "message"; }   // you messaged us in the last 24 hours: the full message can go as it is
+  if (!r || !r.ok) { if (await tplApproved("dsq_admin_summary")) { r = await sendTemplate(sb, { to: phone, template: "dsq_admin_summary", lang: "en_GB", params: [dateTxt, lines.join(" | ")] }); how = "summary template"; } }
+  if (!r || !r.ok) { r = await sendTemplate(sb, { to: phone, template: "dsq_admin_attention", lang: "en_GB", params: ["Morning summary, " + dateTxt, lines.join(" | ")] }); how = "alert template (the summary template is not approved yet)"; }   // works today
+  if (r && r.ok) await trail(sb, "morning_summary", `☀️ Morning summary sent to your admin phone (${how})`);
+  return { ok: !!(r && r.ok), how, lines, error: r && !r.ok ? r.error || "not sent" : "" };
+}
+async function runMorning(sb: any, cfg: any) {
+  if (cfg.morningSummary === false || !waNumber(cfg.adminPhone || "") || !TOKEN || !PHONE_ID) return null;
+  const lp = londonYMD(Date.now()), day = `${lp.y}-${String(lp.m).padStart(2, "0")}-${String(lp.d).padStart(2, "0")}`, hr = cfg.morningHour === undefined ? 8 : +cfg.morningHour;
+  if (lp.h < hr || lp.h >= Math.min(24, hr + 4)) return null;   // from the chosen hour, for four hours at most
+  const last: any = await getKv(sb, "morning_summary_last"); if (last.date === day && (last.ok || Date.now() - (last.at || 0) < 30 * 60000)) return null;   // once a day; after a failure try again in 30 minutes
+  await setKv(sb, "morning_summary_last", { date: day, ok: false, at: Date.now() });   // claimed first: two runs never send it twice
+  const r = await sendMorningSummary(sb, cfg); await setKv(sb, "morning_summary_last", { date: day, ok: !!r.ok, at: Date.now() }); return r;
+}
+
+/* ================= reminder for an offer nobody has answered ================= */
+async function runChasers(sb: any, cfg: any, stale: any[], cdInstrs: any[], now: number) {
+  const mins = cfg.chaseMinutes === undefined ? 20 : +cfg.chaseMinutes, replyMin = cfg.replyMinutes > 0 ? cfg.replyMinutes : 90; if (!(mins > 0) || cfg.mode !== "assign" || cfg.messageInstructor === false) return 0;
+  const due = (stale || []).filter((j: any) => j.expires_at && (() => { const am = activeMinutes(new Date(j.expires_at).getTime(), now, cfg.hours[0], cfg.hours[1]); return am >= mins && am < replyMin; })()); if (!due.length) return 0;
+  const marks: any = await getKv(sb, "offer_chases"); let n = 0;
+  for (const j of due.slice(0, 10)) {
+    if (marks[j.id]) continue;
+    const i = (cdInstrs || []).find((x: any) => String(x.id) === String(j.instructor_id)); if (!i || !waNumber(i.phone || "")) continue;
+    const { data: w } = await sb.from("waiting_list").select("postcode,status,student_name").eq("id", j.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") continue;
+    if (await tooManyToday(sb, cfg, i.phone, "instructor")) continue;
+    const area = outward(w.postcode || "") || String(w.postcode || "their area"); let r: any = null, how = "";
+    if (await tplApproved("dsq_offer_reminder")) { r = await sendTemplate(sb, { to: i.phone, template: "dsq_offer_reminder", lang: "en_GB", params: [first(i.full_name), area], instructor_id: String(i.id) }); how = "template"; }
+    else { const win = await windowOpen(sb, i.phone); if (win) { r = await aiSend(sb, i.phone, `Hi ${first(i.full_name)}, a quick reminder from DriveSQ: the student near ${area} is still waiting for an answer. Please tap Accept or Can't take on our earlier message, or reply YES or NO. Thank you!`, "offer_chase", false); how = "message"; } }
+    if (!r) continue;   // no approved template and no open 24-hour window: do nothing now, try again on the next run (nothing is sent, nothing fails)
+    marks[j.id] = new Date().toISOString(); n++;
+    if (r.ok) await trail(sb, "offer_chase", `🔔 Reminder sent to ${i.full_name} about the student near ${area} (${how})`, { instructor_id: i.id, student_name: w.student_name });
+  }
+  if (n) { const keys = Object.keys(marks); if (keys.length > 300) keys.sort((p, q) => String(marks[p]).localeCompare(String(marks[q]))).slice(0, keys.length - 300).forEach((x) => delete marks[x]); await setKv(sb, "offer_chases", marks); }
+  return n;
+}
+
+/* ================= Claude usage page ================= */
+async function claudeUsage(sb: any) { const u: any = await getKv(sb, "claude_usage"), cfg = await loadCfg(sb); return { ok: true, days: u.days || {}, inPrice: cfg.claudeInPrice, outPrice: cfg.claudeOutPrice }; }
 
 /* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
 function background(p: Promise<any>) { try { const er = (globalThis as any).EdgeRuntime; if (er && typeof er.waitUntil === "function") { er.waitUntil(p); return true; } } catch (_) { /* not available */ } return false; }
@@ -1693,7 +1890,7 @@ serve(async (req) => {
   if (req.method === "POST" && sig) {
     const raw = await req.text();
     if (!APP_SECRET || !safeEqual(sig, "sha256=" + await hmacHex(APP_SECRET, raw))) return new Response("Bad signature", { status: 401 });
-    const wp = webhook(sb, raw).catch((e) => console.error("webhook", e));   // answer Meta at once and carry on in the background: a slow Claude call must never make Meta retry or time out
+    const wp = webhook(sb, raw).catch((e) => console.error("webhook", e)).finally(() => flushUsage(sb));   // answer Meta at once and carry on in the background: a slow Claude call must never make Meta retry or time out
     if (!background(wp)) await wp;
     return new Response("ok", { status: 200 });
   }
@@ -1716,8 +1913,14 @@ serve(async (req) => {
     }
     if (b.action === "adi_leads") return json(await adiLeads(sb));
     if (b.action === "adi_lead_update") return json(await adiLeadUpdate(sb, b));
-    if (b.action === "read_chats") return json(await readChats(sb));
-    if (b.action === "chat_details") return json(await chatDetails(sb, b));
+    if (b.action === "inbox_list") return json(await inboxList(sb));
+    if (b.action === "inbox_thread") return json(await inboxThread(sb, b));
+    if (b.action === "inbox_send") return json(await inboxSend(sb, b));
+    if (b.action === "inbox_mark") return json(await inboxMark(sb, b));
+    if (b.action === "morning_summary") { const cfgM = await loadCfg(sb); return json(await sendMorningSummary(sb, cfgM, { dry: !!b.dry })); }
+    if (b.action === "claude_usage") return json(await claudeUsage(sb));
+    if (b.action === "read_chats") { const rc = await readChats(sb); await flushUsage(sb); return json(rc); }
+    if (b.action === "chat_details") { const cdr = await chatDetails(sb, b); await flushUsage(sb); return json(cdr); }
     if (b.action === "create_booking") return json(await createBookingByAdmin(sb, b));
     if (b.action === "simulate") return json(await simulate(sb, b));
     if (b.action === "templates") return json(await templateStatus());

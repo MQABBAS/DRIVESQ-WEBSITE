@@ -542,6 +542,64 @@ console.log("== 32g. Replies only count from the right person ==");
   await hook({ from: "447844321321", p: "STU_BOOKED:" + fw.id });
   ok(DB.referrals.find((r) => r.id === rw.id).flag_color === "green", "...but the student's own number does");
   reset(); cfgOf().directMiles = 0; }
+console.log("== 32h. New features: nothing changes while their templates are in review ==");
+{ const pub = async (b) => (await (await h(new Request("https://f/whatsapp", { method: "POST", body: JSON.stringify(b) }))).json());
+  const sentTpl = (n) => CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === n);
+  const textsTo = (to) => CALLS.filter((c) => c.wa && c.wa.type === "text" && String(c.wa.to) === to).map((c) => c.wa.text.body);
+  const numOf = (i) => "44" + i.phone.replace(/^0/, "").replace(/\s/g, "");
+  const reset = () => { cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().autoMiles = 0; cfgOf().directMiles = 0; cfgOf().messageStudent = true; cfgOf().messageInstructor = true; cfgOf().mode = "assign"; cfgOf().enabled = true; cfgOf().adminPhone = "07700900999"; cfgOf().adminAlerts = true; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = []; DB.admin_activity_log = []; DB.adi_enquiries = []; DB.waiting_list = []; DB.growth_settings = DB.growth_settings.filter((x) => !["offer_chases", "morning_summary_last", "wa_inbox_read", "claude_usage"].includes(x.key)); CALLS.length = 0; };
+  // ---- (a) ADI enquiry confirmation
+  reset(); globalThis.__tplApproved = new Set();
+  let r = await pub({ action: "adi_enquiry", name: "Trainee Tia", phone: "07911 400001", consent: true });
+  ok(r.ok && DB.adi_enquiries.length === 1 && sentTpl("dsq_adi_enquiry_received").length === 0 && !DB.wa_log.some((x) => x.status === "failed"), "ADI enquiry, confirmation template NOT approved yet: the enquiry and your alert work as before, nothing is sent to them and nothing fails");
+  globalThis.__tplApproved = new Set(["dsq_adi_enquiry_received"]); CALLS.length = 0; r = await pub({ action: "adi_enquiry", name: "Tom Trainee", phone: "07911 400002", consent: true });
+  ok(r.ok && sentTpl("dsq_adi_enquiry_received").length === 1 && String(sentTpl("dsq_adi_enquiry_received")[0].wa.to) === "447911400002" && sentTpl("dsq_adi_enquiry_received")[0].wa.template.components[0].parameters[0].text === "Tom", "...once the template is approved, the person is thanked on WhatsApp by first name");
+  // ---- (b) offer reminder
+  reset(); globalThis.__tplApproved = new Set(); DB.waiting_list = [W("Chase Cara", "M13 9AA", "", { student_phone: "07844600001" })]; await call({ action: "auto_assign", cron: true });
+  const jc = DB.auto_assign_jobs[0], ic = DB.instructors.find((i) => i.id === jc.instructor_id); jc.expires_at = new Date(Date.now() - 25 * 60000).toISOString(); CALLS.length = 0; DB.wa_log = [];
+  await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_offer_reminder").length === 0 && textsTo(numOf(ic)).length === 0 && !DB.wa_log.some((x) => x.status === "failed") && !DB.admin_attention.some((x) => x.kind === "msg_failed"), "reminder: template not approved and the instructor has not messaged in 24 hours -> NOTHING is sent, nothing fails, no alert");
+  DB.wa_log.push({ id: "w1", direction: "in", to_phone: numOf(ic), status: "received", body: "hi", created_at: new Date().toISOString() }); CALLS.length = 0; await call({ action: "auto_assign", cron: true });
+  ok(textsTo(numOf(ic)).some((t) => /quick reminder/.test(t)), "...if they messaged us in the last 24 hours, the reminder goes as a normal message");
+  const n1 = textsTo(numOf(ic)).length; CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(textsTo(numOf(ic)).length === 0 && n1 === 1, "...and only once per offer");
+  reset(); globalThis.__tplApproved = new Set(["dsq_offer_reminder"]); DB.waiting_list = [W("Chase Cal", "M13 9AA", "", { student_phone: "07844600002" })]; await call({ action: "auto_assign", cron: true });
+  const jd = DB.auto_assign_jobs[0], id2 = DB.instructors.find((i) => i.id === jd.instructor_id); jd.expires_at = new Date(Date.now() - 25 * 60000).toISOString(); CALLS.length = 0; await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_offer_reminder").length === 1 && String(sentTpl("dsq_offer_reminder")[0].wa.to) === numOf(id2), "reminder: once the template is approved it is used (no 24-hour window needed)");
+  reset(); globalThis.__tplApproved = new Set(["dsq_offer_reminder"]); cfgOf().chaseMinutes = 0; DB.waiting_list = [W("Chase Cy", "M13 9AA", "", { student_phone: "07844600003" })]; await call({ action: "auto_assign", cron: true }); DB.auto_assign_jobs[0].expires_at = new Date(Date.now() - 25 * 60000).toISOString(); CALLS.length = 0; await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_offer_reminder").length === 0, "...and 0 minutes in the settings switches reminders off"); cfgOf().chaseMinutes = 20;
+  // ---- (c) morning summary
+  reset(); globalThis.__tplApproved = new Set(); const hr = +new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false }).format(new Date()) % 24; cfgOf().morningHour = Math.min(hr, 20); cfgOf().enabled = false;
+  DB.waiting_list = [W("Sum Sam", "M13 9AA", "[WEB] x", { student_phone: "07844700001" })]; DB.adi_enquiries = [{ id: "a1", name: "Trainee", phone: "447911400009", status: "new", created_at: new Date().toISOString() }]; CALLS.length = 0;
+  await call({ action: "auto_assign", cron: true }); const sm = sentTpl("dsq_admin_attention").filter((c) => /Morning summary/.test(JSON.stringify(c.wa.template.components)));
+  ok(sm.length === 1 && String(sm[0].wa.to) === "447700900999" && /New bookings in 24 hours: 1/.test(JSON.stringify(sm[0].wa.template.components)) && /ADI enquiries/.test(JSON.stringify(sm[0].wa.template.components)), "morning summary: sent to YOUR phone using the template that already works (the new summary template is not approved yet)");
+  CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(sentTpl("dsq_admin_attention").filter((c) => /Morning summary/.test(JSON.stringify(c.wa.template.components))).length === 0, "...and only once a day");
+  globalThis.__tplApproved = new Set(["dsq_admin_summary"]); CALLS.length = 0; const ms = await call({ action: "morning_summary" }); ok(ms.ok && sentTpl("dsq_admin_summary").length === 1 && ms.how === "summary template", "once approved, the summary uses its own template");
+  globalThis.__tplApproved = new Set(); DB.wa_log.push({ id: "w2", direction: "in", to_phone: "447700900999", status: "received", body: "hello", created_at: new Date().toISOString() }); CALLS.length = 0; await call({ action: "morning_summary" });
+  ok(textsTo("447700900999").some((t) => /DriveSQ summary/.test(t) && /Offers waiting/.test(t)), "if you messaged us in the last 24 hours the summary arrives as a normal message");
+  const dry = await call({ action: "morning_summary", dry: true }); ok(dry.ok && dry.lines.length >= 5 && !dry.how, "'preview' shows the summary without sending it"); cfgOf().enabled = true;
+  // ---- (d) inbox
+  reset(); DB.referrals = [{ id: "rI1", instructor_id: "i1", student_name: "Inbox Ivy", student_phone: "07844800001", created_at: new Date().toISOString(), is_cancelled: false }];
+  const t0 = Date.now(); DB.wa_log = [
+    { id: "m1", direction: "in", to_phone: "447844800001", status: "received", body: "Can I move my lesson?", created_at: new Date(t0 - 3 * 60000).toISOString() },
+    { id: "m2", direction: "out", to_phone: "447844800001", template: "dsq_student_welcome_2", status: "read", body: "x", created_at: new Date(t0 - 3600e3).toISOString() },
+    { id: "m3", direction: "in", to_phone: "447911800002", status: "received", body: "Yes", payload: "OFFER_ACCEPT:j1", created_at: new Date(t0 - 2 * 60000).toISOString() },
+    { id: "m4", direction: "in", to_phone: "447911800003", status: "received", body: "I want ADI Part 3 training", created_at: new Date(t0 - 60000).toISOString() },
+    { id: "m5", direction: "in", to_phone: "447911800004", status: "received", body: "hello", created_at: new Date(t0 - 40 * 3600e3).toISOString() }]; CALLS.length = 0;
+  let il = await call({ action: "inbox_list" }); const byK = (k) => il.conversations.find((c) => c.key === k);
+  ok(il.ok && byK("7844800001").name === "Inbox Ivy" && byK("7844800001").role === "student" && byK("7844800001").needsReply && !byK("7911800002").needsReply && byK("7911800003").adi && byK("7911800003").needsReply && il.needsReply === 3, "inbox: contacts are recognised, a button tap is not 'needs reply', ADI chats are flagged, and the Needs-reply count is right");
+  ok(il.conversations[0].key === "7911800003", "inbox: newest conversation first");
+  const th = await call({ action: "inbox_thread", phone: "07844800001" }); ok(th.ok && th.messages.length === 2 && th.messages[1].text === "Can I move my lesson?" && th.windowOpen && th.name === "Inbox Ivy", "inbox: the thread is in time order, shows the template as a label, and says the 24-hour window is open");
+  let sd = await call({ action: "inbox_send", phone: "07844800001", text: "Of course, which day suits you?" });
+  ok(sd.ok && textsTo("447844800001").includes("Of course, which day suits you?") && DB.wa_log.some((x) => x.template === "admin_reply" && x.direction === "out") && !(await call({ action: "inbox_list" })).conversations.find((c) => c.key === "7844800001").needsReply, "inbox: you can reply from admin; it is logged and the chat stops showing as 'needs reply'");
+  sd = await call({ action: "inbox_send", phone: "447911800004", text: "Hello" }); ok(!sd.ok && sd.closed && textsTo("447911800004").length === 0, "inbox: outside the 24-hour window the message is NOT sent and you are told why");
+  await call({ action: "inbox_mark", phone: "447911800003", done: true }); ok(!(await call({ action: "inbox_list" })).conversations.find((c) => c.key === "7911800003").needsReply, "inbox: 'mark as done' clears it");
+  DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "wa_optout"); DB.growth_settings.push({ id: "o1", key: "wa_optout", value: { numbers: { "447844800001": new Date().toISOString() } } }); CALLS.length = 0; sd = await call({ action: "inbox_send", phone: "447844800001", text: "Hi again" }); ok(!sd.ok && /STOP/.test(sd.error) && textsTo("447844800001").length === 0, "inbox: nobody who sent STOP can be messaged"); DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "wa_optout");
+  const unauth = await (await h(new Request("https://f/whatsapp", { method: "POST", body: JSON.stringify({ action: "inbox_list" }) }))).json(); ok(!unauth.ok, "inbox: not available without the admin key");
+  // ---- (e) Claude usage
+  reset(); cfgOf().aiAssistant = true; cfgOf().aiSend = true; cfgOf().aiTestOnly = false; globalThis.CLASSIFY_Q = [{ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent: "booking", urgency: "normal", confidence: 0.9, summary: "x" } }] }]; globalThis.CLAUDE_Q = [{ content: [{ type: "text", text: "What is your postcode?" }] }];
+  await hook({ from: "447920000601" }, "Hi I'd like manual lessons"); const cu = await call({ action: "claude_usage" }), dayK = Object.keys(cu.days)[0], dd = cu.days[dayK];
+  ok(cu.ok && dd && dd.calls === 2 && dd.in === 200 && dd.out === 40 && dd.kinds.classify.calls === 1 && dd.kinds.chat.calls === 1, "Claude usage: every call is counted (calls, input and output tokens) by kind");
+  delete globalThis.__tplApproved; reset(); cfgOf().directMiles = 0; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -919,31 +977,31 @@ globalThis.GRAPH = { wabas: [
   { id: "W1", name: "Test WhatsApp Business Account", phones: [{ id: "999", display_phone_number: "+1 555 000 1111", verified_name: "Test" }], templates: [{ name: "hello_world", status: "APPROVED", language: "en_US" }, { name: "jaspers_market_image_cta_v1", status: "APPROVED", language: "en_US" }, ...ALLN.slice(0, 8).map((n) => ({ name: n, status: "APPROVED", language: "en_GB" }))] },
   { id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
 let dg = await call({ action: "diagnose" });
-ok(dg.ok && dg.match === "W2" && dg.missing.length === 15, "diagnose: your number is in the account 'DriveSQ' (W2) and all 15 templates are missing there (" + dg.missing.length + ")");
+ok(dg.ok && dg.match === "W2" && dg.missing.length === 18, "diagnose: your number is in the account 'DriveSQ' (W2) and all 18 templates are missing there (" + dg.missing.length + ")");
 ok(dg.advice.some((a) => /DriveSQ/.test(a)) && dg.advice.some((a) => /another account/.test(a) && /Test WhatsApp/.test(a)), "it says in plain words that the right names exist in the TEST account, which your number cannot use");
 const tst = await call({ action: "templates" }); ok(tst.ok && tst.account === "W2" && tst.templates.every((t) => t.status === "MISSING"), "the readiness check now sees the statuses with no secret needed (all MISSING in your account)");
 const cr = await call({ action: "create_templates" });
-ok(cr.ok && cr.created === 15 && cr.failed === 0 && cr.account === "W2", "create_templates: 15 submitted to YOUR account (" + cr.created + ")");
+ok(cr.ok && cr.created === 18 && cr.failed === 0 && cr.account === "W2", "create_templates: 18 submitted to YOUR account (" + cr.created + ")");
 const made = globalThis.GRAPH.created, offer = made.find((m) => m.name === "dsq_student_offer");
 ok(made.every((m) => m.waba === "W2" && m.language === "en_GB"), "all created in account W2 with language en_GB");
 const comp = (m, t) => m.components.find((c) => c.type === t);
 ok(offer.category === "MARKETING" && comp(offer, "BODY") && comp(offer, "BODY").example.body_text[0].length === 4 && comp(offer, "BUTTONS").buttons.length === 2 && comp(offer, "BUTTONS").buttons[0].type === "QUICK_REPLY", "the offer: category MARKETING, 4 sample values, 2 quick-reply buttons");
 ok(!comp(made.find((m) => m.name === "dsq_student_terms"), "BUTTONS") && comp(made.find((m) => m.name === "dsq_student_terms"), "BODY").example.body_text[0][0] === "Sara", "terms: no buttons, sample 'Sara'");
 ok(comp(made.find((m) => m.name === "dsq_student_checkin"), "BUTTONS").buttons.map((b) => b.text).join("|") === "Yes, booked|Not yet|Gone elsewhere", "check-in buttons carry the right labels");
-dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 15, "afterwards: nothing missing, 15 waiting for Meta's review");
+dg = await call({ action: "diagnose" }); ok(dg.missing.length === 0 && dg.notApproved.length === 18, "afterwards: nothing missing, 18 waiting for Meta's review");
 const again = await call({ action: "create_templates" }); ok(again.created === 0 && /already exists/.test(again.note), "running it again creates nothing (no duplicates)");
 globalThis.GRAPH.wabas[1].templates = []; globalThis.GRAPH.failCreate = ["dsq_booking_received"]; const part = await call({ action: "create_templates" });
-ok(part.created === 14 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
+ok(part.created === 17 && part.failed === 1 && /start with a variable/.test(part.results.find((r) => !r.ok).error), "if Meta refuses one, the others still go through and the reason is shown");
 globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: "diagnose" }); ok(dg.match === null && dg.advice.some((a) => /not in any account/.test(a)), "if the token cannot see the number's account, it says so");
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-safe-replies", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-26-inbox-summary", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
 const crH = await call({ action: "create_templates" }); const mH = globalThis.GRAPH.created;
-ok(crH.created === 15 && mH.every((m) => m.components[0].type === "HEADER" && m.components[0].format === "TEXT" && m.components[0].text.length <= 60 && !/\{\{/.test(m.components[0].text)), "all 15 are created with a plain text header (no variables, under 60 characters)");
+ok(crH.created === 18 && mH.every((m) => m.components[0].type === "HEADER" && m.components[0].format === "TEXT" && m.components[0].text.length <= 60 && !/\{\{/.test(m.components[0].text)), "all 18 are created with a plain text header (no variables, under 60 characters)");
 ok(mH.find((m) => m.name === "dsq_student_offer").components[0].text === "New student for you" && mH.find((m) => m.name === "dsq_admin_attention").components[0].text === "Attention needed" && mH.find((m) => m.name === "dsq_student_terms").components[1].type === "BODY", "e.g. offer: 'New student for you', alert: 'Attention needed', and the body follows the header");
 ok(mH.find((m) => m.name === "dsq_student_checkin").components.map((c) => c.type).join(",") === "HEADER,BODY,BUTTONS", "components are in Meta's order: HEADER, BODY, BUTTONS");
 delete globalThis.GRAPH;
