@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-25-adi-never-assigned', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-25-safe-replies', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -51,14 +51,16 @@
       q(sb.from('waiting_list').select('id,student_name,postcode,notes,status,created_at').eq('status', 'waiting').order('created_at', { ascending: false }).limit(120)),
       q(sb.from('admin_activity_log').select('created_at,summary,action').eq('area', 'auto_assign').order('created_at', { ascending: false }).limit(60)),
       q(sb.from('wa_log').select('created_at,direction,template,status,error,student_name,to_phone,body,payload').order('created_at', { ascending: false }).limit(40)),
-      q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages', 'ai_sweep_state']))]);
+      q(sb.from('growth_settings').select('key,value').in('key', ['auto_assign_last_run', 'instructor_traits', 'packages', 'ai_sweep_state'])),
+      q(sb.from('wa_log').select('created_at').eq('direction', 'in').order('created_at', { ascending: false }).limit(1)),
+      q(sb.from('wa_log').select('created_at,template,error,to_phone').eq('status', 'failed').gte('created_at', new Date(Date.now() - 864e5).toISOString()).order('created_at', { ascending: false }).limit(50))]);
     var fees = []; try { fees = await q(sb.from('instructor_weekly_fees').select('instructor_id,week_start,expected,status').eq('status', 'unpaid')); } catch (e) { }
     var gs = {}; res[4].forEach(function (x) { gs[x.key] = x.value; });
     var jobIds = res[0].map(function (j) { return j.waiting_id; }), names = {};
     if (jobIds.length) { var w = await q(sb.from('waiting_list').select('id,student_name,postcode,created_at').in('id', jobIds)); w.forEach(function (x) { names[String(x.id)] = x; }); }
     var refs = (DSQ_ADMIN.refs() || []); if (!refs.length) { try { await window.loadReferrals(); refs = DSQ_ADMIN.refs() || []; } catch (e) { } }
     var st = null; try { st = window.DSQWA && await DSQWA.status(false); } catch (e) { }
-    DATA = { fees: fees, cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, sweep: gs.ai_sweep_state || {}, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
+    DATA = { fees: fees, cfg: cfg, jobs: res[0], waiting: res[1], log: res[2], wa: res[3], last: gs.auto_assign_last_run, lastIn: (res[5] || [])[0] || null, failed24: res[6] || [], sweep: gs.ai_sweep_state || {}, traits: gs.instructor_traits || {}, pk: gs.packages || {}, names: names, refs: refs, instrs: (DSQ_ADMIN.instrs() || []), att: (window.DSQAA ? DSQAA._att() : []), wast: st, at: Date.now() };
   }
   /* what is each instructor owed (same rule as the server): package minimum, else the franchise minimum, not before their start date */
   function owed(i) {
@@ -211,6 +213,10 @@
       add(core.length ? 'bad' : bad.length ? 'warn' : 'ok', 'Message templates approved', bad.length ? bad.map(function (t) { return t.name + ': ' + t.status + (t.reason ? ' (' + t.reason + ')' : ''); }).join(' · ') : 'All ' + tp.templates.length + ' are Active', bad.length ? ((tp.missing && tp.missing.length ? tp.missing.length + ' do not exist in your number\'s account: press "Create the missing templates in Meta" below. ' : '') + 'Templates that are In review cannot send yet. The instructor offer templates must be Active before you use Assign mode.') : ''); }
     var age = DATA.last && DATA.last.at ? Math.round((Date.now() - new Date(DATA.last.at)) / 6e4) : null;
     add(age !== null && age <= 15 ? 'ok' : (c.enabled ? 'bad' : 'warn'), 'Runs by itself (Cron job)', age === null ? 'It has never run by itself' : 'Last run ' + (age < 1 ? 'just now' : age + ' min ago'), age !== null && age <= 15 ? '' : 'Supabase → Integrations → Cron → every 2 minutes → whatsapp, body {"action":"auto_assign","cron":true}, header x-admin-key. See Settings → "Make it run by itself".');
+    var inAge = DATA.lastIn ? Math.round((Date.now() - new Date(DATA.lastIn.created_at)) / 6e4) : null, inTxt = inAge === null ? 'no incoming message yet' : (inAge < 1 ? 'just now' : inAge < 60 ? inAge + ' min ago' : inAge < 1440 ? Math.round(inAge / 60) + ' h ago' : Math.round(inAge / 1440) + ' days ago');
+    add(inAge === null ? 'warn' : inAge > 10080 ? 'warn' : 'ok', 'Incoming WhatsApp messages arrive', 'Last one received ' + inTxt, inAge === null || inAge > 10080 ? 'Nothing has arrived for a long time. If people have been messaging you, press "Check incoming messages" below: the Meta app may have lost its link to your WhatsApp account.' : '');
+    var fl = DATA.failed24 || [], flBy = {}; fl.forEach(function (x) { var k = (x.template || 'message') + ': ' + String(x.error || 'failed').slice(0, 90); flBy[k] = (flBy[k] || 0) + 1; });
+    add(fl.length === 0 ? 'ok' : fl.length >= 5 ? 'bad' : 'warn', 'WhatsApp messages that failed to send', fl.length ? fl.length + ' in the last 24 hours. ' + Object.keys(flBy).slice(0, 3).map(function (k) { return flBy[k] + ' × ' + k; }).join(' · ') : 'None in the last 24 hours', fl.length ? 'Open the Activity tab, or press Diagnose below if the reason mentions a template. Each failed offer or welcome also has an alert in Needs you.' : '');
     var sw = DATA.sweep || {}, swAge = sw.at ? Math.round((Date.now() - sw.at) / 6e4) : null;
     if (!c.aiAssistant) add('warn', 'Claude reads WhatsApp chats', 'Claude is OFF', 'Use the Claude dropdown at the top of the control centre: Read only (Claude reads chats and saves bookings, sends nothing) or Read + send.');
     else if (c.aiSend !== false) add('ok', 'Claude reads WhatsApp chats', 'Claude answers each message as it arrives', '');

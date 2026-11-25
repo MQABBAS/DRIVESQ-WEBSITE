@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-25-adi-never-assigned";
+const FN_VERSION = "2026-11-25-safe-replies";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -43,6 +43,9 @@ function waNumber(raw: string) {   // 07700 900123 / +44 7700 900123 → 4477009
   return d.length >= 10 && d.length <= 15 ? d : "";
 }
 const last10 = (p: string) => String(p || "").replace(/\D/g, "").slice(-10);
+/* a button reply only counts when it comes from the person it was meant for (a forwarded message, a shared phone or a made-up reply cannot accept a student or mark a payment). If we have no number on file for them we cannot check, so it is allowed. */
+const samePhone = (from: string, expected: any) => { const y = last10(String(expected || "")); return !y || last10(from) === y; };
+async function wrongSender(sb: any, what: string, from: string) { try { await sb.from("admin_activity_log").insert([{ area: "auto_assign", action: "ignored_reply", summary: `🛡️ Ignored ${what} from ${waNumber(from) || from}: it did not come from the person it was meant for`, actor_role: "system", actor_name: "Auto-assign" }]); } catch (_) { /* log only */ } }
 const param = (v: unknown) => ({ type: "text", text: (String(v == null ? "" : v).replace(/[\r\n\t]+/g, " | ").replace(/ {5,}/g, "    ").replace(/( \| )+/g, " | ").trim().slice(0, 900)) || "-" });
 const first = (n: string) => String(n || "").trim().split(/\s+/)[0] || "there";
 const fmtPhone = (p: string) => { let d = String(p || "").replace(/\D/g, ""); if (d.length === 12 && d.startsWith("44")) d = "0" + d.slice(2); return d.length === 11 && d[0] === "0" ? d.slice(0, 5) + " " + d.slice(5) : String(p || "").trim(); };   // 447898182402 (a number from WhatsApp) is shown as 07898 182402
@@ -1042,7 +1045,8 @@ function typedAnswer(text: string): "yes" | "no" | "" {
 const norm = (t: string) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 /* an instructor taps "I've paid" on the balance reminder: tell the admin to check the bank (nothing is marked paid automatically) */
 async function balancePaid(sb: any, instrId: string, from: string) {
-  const cfg = await loadCfg(sb); const { data: ins } = await sb.from("instructors").select("full_name").eq("id", instrId).maybeSingle(); const name = (ins && ins.full_name) || "An instructor";
+  const cfg = await loadCfg(sb); const { data: ins } = await sb.from("instructors").select("full_name,phone").eq("id", instrId).maybeSingle(); const name = (ins && ins.full_name) || "An instructor";
+  if (!samePhone(from, ins && ins.phone)) { await wrongSender(sb, "an \"I've paid\" answer", from); return; }
   await attention(sb, cfg, { kind: "balance_paid", title: `${name} says they have paid their balance`, detail: "Check the DriveSQ bank account, then mark the referral fees paid in Referrals. Nothing has been marked paid automatically.", waiting_id: "bal-paid-" + instrId, instructor_id: String(instrId) });
   try { await sendText(from, "Thanks! We'll check and update your account shortly 👍"); } catch (_) { /* window */ }
 }
@@ -1050,6 +1054,7 @@ async function balancePaid(sb: any, instrId: string, from: string) {
 async function femaleReply(sb: any, yes: boolean, jobId: string, from: string) {
   const cfg = await loadCfg(sb); const { data: job } = await sb.from("auto_assign_jobs").select("*").eq("id", jobId).maybeSingle(); if (!job) return;
   const { data: w } = await sb.from("waiting_list").select("*").eq("id", job.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { try { await sendText(from, "Thanks, we already have this one in hand 👍"); } catch (_) { /* window */ } return; }
+  if (!samePhone(from, w.student_phone)) { await wrongSender(sb, "a male / female instructor answer", from); return; }
   if (String(w.notes || "").includes(MALE_OK) || /Student prefers to wait for a female/.test(String(w.notes || ""))) { try { await sendText(from, "Thanks, we already have your answer 👍"); } catch (_) { /* window */ } return; }
   const stamp = (t: string) => [w.notes || "", `${today()} · ${t}`].join("\n");
   if (!yes) {
@@ -1069,6 +1074,7 @@ async function offerReply(sb: any, accept: boolean, jobId: string, from: string)
   const cfg = await loadCfg(sb); const { data: job } = await sb.from("auto_assign_jobs").select("*").eq("id", jobId).maybeSingle(); if (!job || job.state !== "pending_accept") { try { await sendText(from, "Thanks. That student has already been dealt with."); } catch (_) { /* window */ } return; }
   const { data: w } = await sb.from("waiting_list").select("*").eq("id", job.waiting_id).maybeSingle(); if (!w || w.status !== "waiting") { await sb.from("auto_assign_jobs").update({ state: "closed" }).eq("id", jobId); return; }
   const b = readBooking(w), cd = await candidateData(sb), i = cd.instrs.find((x: any) => String(x.id) === String(job.instructor_id)); if (!i) return;   // not approved any more: the next run moves the offer on
+  if (!samePhone(from, i.phone)) { await wrongSender(sb, "an Accept / Can't take answer to an offer", from); return; }
   const { data: claim } = await sb.from("auto_assign_jobs").update({ state: "working", updated_at: new Date().toISOString() }).eq("id", jobId).eq("state", "pending_accept").select();
   if (!claim || !claim.length) { try { await sendText(from, "Thanks. That student has already been dealt with."); } catch (_) { /* window */ } return; }   // another run moved it on at the same moment
   const c = { id: i.id, name: i.full_name, phone: i.phone, model: String(i.instructor_model || "").toLowerCase(), dist: Math.round((job.dist || 0) * 10) / 10 };
@@ -1113,7 +1119,8 @@ async function reassignAfterDecline(sb: any, cfg: any, r: any, name: string) {
 /* an instructor tapped Accept / Can't take on a student who was ALREADY assigned */
 async function assignedReply(sb: any, kind: string, refId: string, from: string) {
   const cfg = await loadCfg(sb); const { data: r } = await sb.from("referrals").select("*").eq("id", refId).maybeSingle(); if (!r) return;
-  const { data: ins } = await sb.from("instructors").select("full_name").eq("id", r.instructor_id).maybeSingle(); const name = (ins && ins.full_name) || "Instructor", ok = kind === "ACCEPT";
+  const { data: ins } = await sb.from("instructors").select("full_name,phone").eq("id", r.instructor_id).maybeSingle(); const name = (ins && ins.full_name) || "Instructor", ok = kind === "ACCEPT";
+  if (!samePhone(from, ins && ins.phone)) { await wrongSender(sb, "an Accept / Can't take answer", from); return; }
   if (r.is_cancelled) { try { await sendText(from, "Thanks. That student has already been dealt with."); } catch (_) { /* window */ } return; }   // (a second tap, or the student was already reassigned)
   const line = ok ? `${today()} · 👨‍🏫 ${name} accepted this student on WhatsApp` : `${today()} · 🚫 ${name} can't take this student (WhatsApp) — please reassign`;
   const patch: any = { admin_notes: [r.admin_notes || "", line].filter(Boolean).join("\n") }; if (!ok && !r.flag_color) patch.flag_color = "purple";
@@ -1173,6 +1180,7 @@ async function applyMark(sb: any, refId: string, kind: "booked" | "not_yet" | "l
 async function followupReply(sb: any, kind: string, fid: string, from: string) {
   const cfg = await loadCfg(sb); const { data: f } = await sb.from("student_followups").select("*").eq("id", fid).maybeSingle(); if (!f) return;
   const { data: ins } = await sb.from("instructors").select("full_name,phone").eq("id", f.instructor_id).maybeSingle(); const iName = (ins && ins.full_name) || "the instructor", stu = f.student_name || "the student";
+  if (!samePhone(from, kind.startsWith("INS_") ? (ins && ins.phone) : f.student_phone)) { await wrongSender(sb, "a check-in answer", from); return; }
   const settled = f.state === "done" || f.state === "closed";
   if (kind === "CONTACT_YES" || kind === "CONTACT_NO") {
     const { data: r } = await sb.from("referrals").select("admin_notes").eq("id", f.referral_id).maybeSingle();
@@ -1685,7 +1693,8 @@ serve(async (req) => {
   if (req.method === "POST" && sig) {
     const raw = await req.text();
     if (!APP_SECRET || !safeEqual(sig, "sha256=" + await hmacHex(APP_SECRET, raw))) return new Response("Bad signature", { status: 401 });
-    try { await webhook(sb, raw); } catch (e) { console.error("webhook", e); }
+    const wp = webhook(sb, raw).catch((e) => console.error("webhook", e));   // answer Meta at once and carry on in the background: a slow Claude call must never make Meta retry or time out
+    if (!background(wp)) await wp;
     return new Response("ok", { status: 200 });
   }
   const key = req.headers.get("x-admin-key") || "";

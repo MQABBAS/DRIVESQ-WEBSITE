@@ -81,7 +81,7 @@ await hook({ from: "44" + ll.student_phone.slice(1), p: "STU_LEFT:" + fLL.id });
 ok(ll.flag_color === "red" && ll.reply_status === "left" && /Student confirmed left/.test(ll.admin_notes) && fLL.state === "done", "student 'Gone elsewhere' -> red + left + 'Student confirmed left'");
 
 console.log("== 7. Nobody answers: both asked together, every 4 days, max 2 a week each, then the admin is told ==");
-DB.waiting_list = [W("Quiet Quin", "M13 9AA")]; await call({ action: "auto_assign", cron: true }); const qq = DB.referrals.find((x) => x.student_name === "Quiet Quin"); await hook({ from: "447700900001", p: "ACCEPT:" + qq.id });
+DB.waiting_list = [W("Quiet Quin", "M13 9AA")]; await call({ action: "auto_assign", cron: true }); const qq = DB.referrals.find((x) => x.student_name === "Quiet Quin"); await hook({ from: "44" + DB.instructors.find((i) => i.id === qq.instructor_id).phone.replace(/^0/, "").replace(/\s/g, ""), p: "ACCEPT:" + qq.id });
 const fQ = DB.student_followups.find((f) => f.referral_id === String(qq.id)); const s0 = sent("dsq_student_checkin").length, i0 = sent("dsq_instructor_checkin").length;
 fQ.next_due = new Date(Date.now() - 1000).toISOString(); await call({ action: "auto_assign", cron: true });
 ok(sent("dsq_student_checkin").length === s0 + 1 && sent("dsq_instructor_checkin").length === i0 + 1 && fQ.state === "asked_both", "day 3: student and instructor asked together");
@@ -526,6 +526,22 @@ console.log("== 32f. ADI Part 3 / instructor training is NEVER assigned to an in
   await hook({ from: "447920000514" }, "Hi I'd like manual driving lessons please");
   ok(CALLS.some((c) => c.wa && c.wa.type === "text" && /postcode/.test(c.wa.text.body)), "an ordinary student enquiry is still answered normally");
   Object.assign(cfgOf(), savedCfg); DB.waiting_list = []; DB.auto_assign_jobs = []; DB.adi_enquiries = []; DB.admin_attention = []; DB.wa_log = []; }
+console.log("== 32g. Replies only count from the right person ==");
+{ const reset = () => { cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().autoMiles = 0; cfgOf().directMiles = 0; cfgOf().messageStudent = true; cfgOf().mode = "assign"; cfgOf().enabled = true; DB.referrals = []; DB.auto_assign_jobs = []; DB.wa_log = []; DB.admin_attention = []; DB.student_followups = []; DB.admin_activity_log = []; CALLS.length = 0; };
+  const numOf = (i) => "44" + i.phone.replace(/^0/, "").replace(/\s/g, "");
+  reset(); DB.waiting_list = [W("Wrong Wendy", "M13 9AA", "", { student_phone: "07844321321" })]; await call({ action: "auto_assign", cron: true });
+  const jw = DB.auto_assign_jobs[0], iw = DB.instructors.find((i) => i.id === jw.instructor_id);
+  await hook({ from: "447999111222", p: "OFFER_ACCEPT:" + jw.id });
+  ok(DB.auto_assign_jobs[0].state === "pending_accept" && !DB.referrals.some((r) => r.student_name === "Wrong Wendy") && DB.admin_activity_log.some((x) => x.action === "ignored_reply"), "an Accept from the WRONG phone number does nothing (the offer stays open) and is logged");
+  await hook({ from: numOf(iw), p: "OFFER_ACCEPT:" + jw.id });
+  ok(DB.referrals.some((r) => r.student_name === "Wrong Wendy"), "the same Accept from the instructor's own number works");
+  const rw = DB.referrals.find((r) => r.student_name === "Wrong Wendy"); await hook({ from: "447999111222", p: "DECLINE:" + rw.id });
+  ok(!DB.referrals.find((r) => r.id === rw.id).is_cancelled, "a Can't take from the wrong number cannot cancel an assigned student");
+  const fw = DB.student_followups.find((f) => f.referral_id === String(rw.id)); await hook({ from: "447999111222", p: "STU_BOOKED:" + fw.id });
+  ok(!DB.referrals.find((r) => r.id === rw.id).flag_color, "a check-in 'booked' from a stranger does not mark the student booked");
+  await hook({ from: "447844321321", p: "STU_BOOKED:" + fw.id });
+  ok(DB.referrals.find((r) => r.id === rw.id).flag_color === "green", "...but the student's own number does");
+  reset(); cfgOf().directMiles = 0; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -922,7 +938,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-adi-never-assigned", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-safe-replies", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
