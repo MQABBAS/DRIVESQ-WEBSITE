@@ -28,6 +28,8 @@ CLUSTER = [
     ("/adi-part-3-fail-retake-third-attempt-rules.html", "Failed ADI Part 3? Retakes, the third-attempt rule and what to do next"),
     ("/trainee-driving-instructor-licence-pink-badge-explained.html", "The trainee driving instructor licence (pink badge) explained"),
     ("/adi-part-3-lesson-planning-client-centred-learning-guide.html", "Planning a client-centred lesson for your ADI Part 3"),
+    ("/adi-part-3-test-centres-manchester-pass-rates.html", "ADI Part 3 pass rates at every Manchester test centre"),
+    ("/adi-part-3-pass-rate-great-britain-trend.html", "ADI Part 3 pass rates across Great Britain: the trend since 2018"),
 ]
 MORE = [("/become-driving-instructor-manchester.html", "Become a driving instructor in Manchester"), ("/driving-instructor-jobs-manchester.html", "Driving instructor jobs in Manchester"), ("/adi-vs-pdi-driving-instructor-solihull.html", "ADI vs PDI: what is the difference?")]
 
@@ -79,6 +81,8 @@ b1 = f'''<p class="lead">The ADI Part 3 is the last of the three tests you pass 
 <p>Good Part 3 preparation looks much the same wherever you do it: you teach real pupils, someone who knows the marking sheet watches, and you get specific feedback you can act on before the next lesson. DriveSQ trains instructors for the Part 3. Message us to ask how our sessions are run. Whatever route you choose, the preparation should cover:</p>
 <ul><li>Planning a lesson with the pupil's goals in mind (see <a href="/adi-part-3-lesson-planning-client-centred-learning-guide.html">our lesson-planning guide</a>)</li><li>Managing risk and agreeing responsibility with the pupil</li><li>Explaining, questioning and giving feedback in a way a learner can use</li><li>Knowing exactly what happens in the test room (see <a href="/adi-part-3-test-what-happens-minute-by-minute.html">the test, minute by minute</a>)</li></ul>
 <p>Message us for current dates and the price. DriveSQ works across Greater Manchester and in Solihull.</p>
+<h2>ADI Part 3 test centres in Manchester</h2>
+<p>Eight DVSA centres in the Manchester area publish ADI Part 3 results: Atherton, Bolton, Bredbury, Bury, Cheetham Hill, Rochdale, Sale and West Didsbury. In 2025/26 their pass rates ranged from 14.9% to 30.9%, against 27.8% for Great Britain. See <a href="/adi-part-3-test-centres-manchester-pass-rates.html">the pass rate at every Manchester centre</a>, or the <a href="/adi-part-3-pass-rate-great-britain-trend.html">national trend since 2018</a>. Small numbers make single-centre figures jumpy, so use them to set expectations, not to pick a centre.</p>
 <h2>Are you ready? A quick check</h2>
 <ul><li>You can plan a 45-minute lesson for a pupil you have just met, in about three minutes, in your head.</li><li>You can name the risk in a lesson before it happens and say who is responsible for what.</li><li>Your pupil does most of the talking about what they are finding hard. You are not lecturing.</li><li>You adjust the lesson when it is not working, instead of carrying on with your plan.</li><li>A watcher who knows the marking has seen you score comfortably above the pass mark more than once.</li></ul>
 <p>If you tick fewer than three of these, book more preparation first. A fail means a gap, a fee and a wait.</p>'''
