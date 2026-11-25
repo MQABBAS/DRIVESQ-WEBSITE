@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-24-direct-assign";
+const FN_VERSION = "2026-11-25-adi-leads";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1624,6 +1624,44 @@ async function createBookingByAdmin(sb: any, b: any) {
   return { ok: true, name: sv.name, pc: sv.pc, gear: sv.gear };
 }
 
+/* ---------- ADI Part 3 training enquiries (the public booking form) ----------
+   The ONLY action that works without the admin key. It validates and cleans everything, ignores bots (honeypot), will not take the same number twice within 10 minutes, caps the day,
+   saves to the private adi_enquiries table (service role only) and alerts you (Needs you + a WhatsApp to your admin phone). */
+const clean1 = (v: any, n = 300) => String(v == null ? "" : v).replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
+async function adiEnquiry(sb: any, b: any) {
+  if (clean1(b.website, 50)) return { ok: true };   // a bot filled the hidden field: pretend it worked
+  const name = clean1(b.name, 80), phone = waNumber(clean1(b.phone, 30)), email = clean1(b.email, 120);
+  if (name.length < 2) return { ok: false, error: "Please enter your name." };
+  if (!phone) return { ok: false, error: "Please enter a valid mobile number." };
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: "That email address does not look right." };
+  if (b.consent !== true) return { ok: false, error: "Please tick the box to say we can contact you." };
+  const att = Math.max(0, Math.min(3, parseInt(b.attempts, 10) || 0));
+  const row = { name, phone, email, stage: clean1(b.stage, 80), part1_pass: clean1(b.part1_pass, 20), trainee_licence: clean1(b.trainee_licence, 60), licence_start: clean1(b.licence_start, 20), attempts: att, test_date: clean1(b.test_date, 30), test_centre: clean1(b.test_centre, 40), car: clean1(b.car, 60),
+    help: (Array.isArray(b.help) ? b.help : []).slice(0, 12).map((x: any) => clean1(x, 50)).filter(Boolean), availability: clean1(b.availability, 200), urgency: clean1(b.urgency, 80), postcode: fmtPc(clean1(b.postcode, 10)).slice(0, 10), contact_pref: clean1(b.contact_pref, 20), message: clean1(b.message, 800), source: clean1(b.source, 80) || "adi-part-3-booking", consent: true, status: "new" };
+  const { data: recent } = await sb.from("adi_enquiries").select("id,phone,created_at").gte("created_at", new Date(Date.now() - 864e5).toISOString());
+  if ((recent || []).some((r: any) => last10(r.phone || "") === last10(phone) && Date.now() - new Date(r.created_at).getTime() < 10 * 60000)) return { ok: true, duplicate: true };   // double tap or a repeat: already have it
+  if ((recent || []).length >= 200) return { ok: false, error: "We are getting a lot of requests right now. Please message us on WhatsApp on 07352 932003." };
+  const { data: ins, error } = await sb.from("adi_enquiries").insert([row]).select().single();
+  if (error || !ins) { console.error("adi insert", error && error.message); return { ok: false, error: "We could not save that just now. Please message us on WhatsApp on 07352 932003." }; }
+  try {
+    const cfg = await loadCfg(sb), bits = [row.stage, row.test_date ? "test " + row.test_date : "", row.test_centre, row.attempts ? row.attempts + " previous attempt" + (row.attempts === 1 ? "" : "s") : "", row.help.length ? "wants: " + row.help.join(", ") : "", row.availability ? "free: " + row.availability : "", row.urgency].filter(Boolean).join(" · ");
+    await trail(sb, "adi_lead", `🎓 New ADI Part 3 training enquiry from ${name} (${fmtPhone(phone)})`);
+    await attention(sb, cfg, { kind: "adi_lead", title: `🎓 New ADI Part 3 enquiry: ${name}`, detail: `${fmtPhone(phone)}${bits ? " · " + bits : ""}. Open Control centre → ADI leads to reply.`, waiting_id: "adi-" + ins.id });
+  } catch (e) { console.error("adi alert", e); }
+  return { ok: true };
+}
+async function adiLeads(sb: any) {
+  const { data } = await sb.from("adi_enquiries").select("*").order("created_at", { ascending: false }).limit(300);
+  return { ok: true, leads: data || [] };
+}
+async function adiLeadUpdate(sb: any, b: any) {
+  const id = String(b.id || ""), status = ["new", "contacted", "booked", "closed"].includes(b.status) ? b.status : ""; if (!id) return { ok: false, error: "No enquiry chosen." };
+  const patch: any = {}; if (status) { patch.status = status; if (status === "contacted") patch.contacted_at = new Date().toISOString(); } if (b.note !== undefined) patch.admin_notes = clean1(b.note, 600);
+  const { error } = await sb.from("adi_enquiries").update(patch).eq("id", id); if (error) return { ok: false, error: error.message };
+  if (status) { try { const { data: l } = await sb.from("adi_enquiries").select("name").eq("id", id).maybeSingle(); await trail(sb, "adi_lead_" + status, `🎓 ADI enquiry from ${(l && l.name) || "someone"} marked ${status}`); if (status !== "new") await sb.from("admin_attention").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("waiting_id", "adi-" + id).eq("resolved", false); } catch (_) { /* log only */ } }
+  return { ok: true };
+}
+
 /* keep working after the HTTP answer has gone out (Supabase Edge Functions: EdgeRuntime.waitUntil). Returns false where that is not available. */
 function background(p: Promise<any>) { try { const er = (globalThis as any).EdgeRuntime; if (er && typeof er.waitUntil === "function") { er.waitUntil(p); return true; } } catch (_) { /* not available */ } return false; }
 
@@ -1642,8 +1680,9 @@ serve(async (req) => {
     return new Response("ok", { status: 200 });
   }
   const key = req.headers.get("x-admin-key") || "";
+  let b: any = {}; try { const txt = await req.text(); if (txt.length > 20000) return json({ ok: false, error: "Too large" }, 413); b = JSON.parse(txt); } catch { return json({ ok: false, error: "Bad JSON" }, 400); }
+  if (b && b.action === "adi_enquiry") { try { return json(await adiEnquiry(sb, b)); } catch (e) { console.error("adi", e); return json({ ok: false, error: "Sorry, something went wrong. Please message us on WhatsApp on 07352 932003." }, 500); } }   // the one public action
   if (!ADMIN_KEY || !safeEqual(key, ADMIN_KEY)) return json({ ok: false, error: "Wrong or missing admin key" }, 401);
-  let b: any = {}; try { b = await req.json(); } catch { return json({ ok: false, error: "Bad JSON" }, 400); }
   try {
     if (b.action === "status") {
       const have = { token: !!TOKEN, phone_id: !!PHONE_ID, verify_token: !!VERIFY, app_secret: !!APP_SECRET }; const aiKey = !!ANTHROPIC_KEY; let phone = null, err = null;
@@ -1657,6 +1696,8 @@ serve(async (req) => {
       if (b.cron && !b.dry) { const pr = autoAssign(sb, b).catch((e) => console.error("auto_assign", e)); if (background(pr)) return json({ ok: true, accepted: true, message: "running in the background" }); return json(await pr); }
       return json(await autoAssign(sb, b));
     }
+    if (b.action === "adi_leads") return json(await adiLeads(sb));
+    if (b.action === "adi_lead_update") return json(await adiLeadUpdate(sb, b));
     if (b.action === "read_chats") return json(await readChats(sb));
     if (b.action === "chat_details") return json(await chatDetails(sb, b));
     if (b.action === "create_booking") return json(await createBookingByAdmin(sb, b));

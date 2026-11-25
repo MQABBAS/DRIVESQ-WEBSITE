@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-24-direct-assign', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-25-adi-leads', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -182,6 +182,7 @@
     if (TAB === 'overview') return overview(); if (TAB === 'instructors') return instructorsTab(); if (TAB === 'booked') return booked();
     if (TAB === 'activity') return '<div class="cd"><h3>📜 Everything auto-assign has done</h3><div class="chips">' + [['all', 'All'], ['assigned', 'Assigned'], ['messages', 'WhatsApp'], ['attention', 'Problems']].map(function (f) { return '<button class="chip' + (FILTER === f[0] ? ' on' : '') + '" onclick="DSQHub.filter(\'' + f[0] + '\')">' + f[1] + '</button>'; }).join('') + '</div><div class="feed" style="max-height:none">' + feed(100, FILTER) + '</div></div>';
     if (TAB === 'ready') return readyTab();
+    if (TAB === 'adileads') return '<div class="cd"><h3>🎓 ADI Part 3 training enquiries <span style="font-weight:500;font-size:.72rem;color:var(--txt4)">from the booking form on the website</span><button class="btn-s" style="font-size:.7rem;padding:1px 10px;margin-left:auto" onclick="DSQHub.loadAdi()">↻ Refresh</button></h3><div id="adiList"><div class="empty">Loading…</div></div></div>';
     return '<div id="aaHolder"></div>';
   }
   /* ---------- test & readiness ---------- */
@@ -279,6 +280,35 @@
     if (!r.ok) { m.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Failed') + '</span>'; return; }
     m.innerHTML = '<span style="color:#4ade80">✅ Booking created for ' + E(r.name) + ' (' + E(r.pc) + ', ' + E(r.gear) + '). Auto-assign will pick it up.</span>'; setTimeout(function () { var x = document.getElementById('aaChatDlg'); if (x) x.remove(); refresh(true); }, 1400);
   }
+  /* ---------- ADI Part 3 enquiries (private: read through the function with the admin key) ---------- */
+  var ADI = [], AFILT = 'new';
+  async function loadAdi() {
+    var o = document.getElementById('adiList'); if (!o) return; var r = await DSQWA.call({ action: 'adi_leads' });
+    if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Could not load the enquiries. Deploy the latest whatsapp function and run the adi_enquiries SQL.') + '</span>'; return; }
+    ADI = r.leads || []; drawAdi();
+  }
+  function drawAdi() {
+    var o = document.getElementById('adiList'); if (!o) return; var cnt = function (st) { return ADI.filter(function (x) { return st === 'all' || x.status === st; }).length; };
+    var chips = [['new', 'New'], ['contacted', 'Contacted'], ['booked', 'Booked'], ['closed', 'Closed'], ['all', 'All']].map(function (f) { return '<button class="chip' + (AFILT === f[0] ? ' on' : '') + '" onclick="DSQHub.adiFilter(\'' + f[0] + '\')">' + f[1] + ' (' + cnt(f[0]) + ')</button>'; }).join('');
+    var list = ADI.filter(function (x) { return AFILT === 'all' || x.status === AFILT; });
+    var kv = function (k, v) { return v ? '<div><span style="color:var(--txt4)">' + k + '</span> ' + E(v) + '</div>' : ''; };
+    o.innerHTML = '<div class="chips" style="margin-bottom:8px">' + chips + '</div>' + (list.length ? list.map(function (x) {
+      var num = String(x.phone || '').replace(/\D/g, ''), msg = 'Hi ' + String(x.name || '').split(' ')[0] + ', it is DriveSQ about your ADI Part 3 training enquiry. ';
+      var help = (x.help || []).join(', '), dl = x.test_date ? new Date(x.test_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      return '<div style="border:1px solid var(--bdr,#2a2a33);border-radius:12px;padding:10px 12px;margin-bottom:9px;' + (x.status === 'new' ? 'border-left:4px solid #F5C518' : '') + '">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b style="font-size:.95rem">' + E(x.name) + '</b><span style="color:var(--txt4);font-size:.7rem">' + ago(x.created_at) + '</span>' +
+        '<a class="btn-s" style="font-size:.7rem;padding:2px 9px;margin-left:auto;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/' + num + '?text=' + encodeURIComponent(msg) + '">💬 WhatsApp</a><a class="btn-s" style="font-size:.7rem;padding:2px 9px;text-decoration:none" href="tel:+' + num + '">📞 Call</a>' + (x.email ? '<a class="btn-s" style="font-size:.7rem;padding:2px 9px;text-decoration:none" href="mailto:' + E(x.email) + '">✉️ Email</a>' : '') + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:2px 14px;font-size:.76rem;margin-top:6px">' + kv('Phone', x.phone) + kv('Stage', x.stage) + kv('Part 1 passed', x.part1_pass) + kv('Trainee licence', x.trainee_licence + (x.licence_start ? ' (from ' + x.licence_start + ')' : '')) + kv('Test', [dl, x.test_centre].filter(Boolean).join(' · ')) + kv('Part 3 attempts so far', x.attempts ? String(x.attempts) : '') + kv('Car', x.car) + kv('Wants help with', help) + kv('Free', x.availability) + kv('When', x.urgency) + kv('Postcode', x.postcode) + kv('Contact by', x.contact_pref) + '</div>' +
+        (x.message ? '<div style="font-size:.76rem;margin-top:5px;padding:6px 9px;border-radius:8px;background:rgba(255,255,255,.04)">“' + E(x.message) + '”</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;align-items:center"><select class="dsq-inp" id="adiSt' + E(x.id) + '" style="font-size:.74rem">' + [['new', 'New'], ['contacted', 'Contacted'], ['booked', 'Booked'], ['closed', 'Closed']].map(function (o2) { return '<option value="' + o2[0] + '"' + (x.status === o2[0] ? ' selected' : '') + '>' + o2[1] + '</option>'; }).join('') + '</select>' +
+        '<input class="dsq-inp" id="adiNote' + E(x.id) + '" type="text" maxlength="600" placeholder="Your note (only you see it)" value="' + E(x.admin_notes || '') + '" style="flex:1;min-width:160px;font-size:.74rem"><button class="btn-p" style="font-size:.72rem;padding:3px 12px" onclick="DSQHub.adiSave(\'' + E(x.id) + '\')">💾 Save</button></div></div>';
+    }).join('') : '<div class="empty">No enquiries here yet. They appear the moment someone sends the form.</div>');
+  }
+  async function adiSave(id) {
+    var st = document.getElementById('adiSt' + id), nt = document.getElementById('adiNote' + id); if (!st) return;
+    var r = await DSQWA.call({ action: 'adi_lead_update', id: id, status: st.value, note: nt ? nt.value : '' });
+    if (!r.ok) { alert(r.error || 'Not saved'); return; } ADI.forEach(function (x) { if (String(x.id) === String(id)) { x.status = st.value; x.admin_notes = nt ? nt.value : ''; } }); drawAdi();
+  }
   async function createTpls() {
     var o = document.getElementById('waDiag'); if (!o) return;
     if (!confirm('Create the missing WhatsApp message templates in the account that owns your number?\n\nThey are submitted to Meta for review (usually a few hours). Templates that already exist are left alone.')) return;
@@ -298,7 +328,7 @@
   }
   function shell() {
     var c = DATA.cfg || {}, on = !!c.enabled, h = document.getElementById('aaHub'); if (!h) return;
-    var tabs = [['overview', '📊 Overview'], ['instructors', '👥 Instructors'], ['booked', '🎯 Students booked'], ['ready', '🧪 Test & readiness'], ['settings', '⚙️ Settings'], ['activity', '📜 Activity']];
+    var tabs = [['overview', '📊 Overview'], ['instructors', '👥 Instructors'], ['booked', '🎯 Students booked'], ['adileads', '🎓 ADI leads'], ['ready', '🧪 Test & readiness'], ['settings', '⚙️ Settings'], ['activity', '📜 Activity']];
     h.innerHTML = '<style>' + CSS + '</style><div class="hb"><div class="hh"><h1>🤖 Auto-assign control centre</h1><div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:.78rem;font-weight:700">' + (on ? 'ON' : 'OFF') + '</span><button class="sw' + (on ? ' on' : '') + '" style="background:' + (on ? '#22c55e' : '#475569') + '" title="Turn auto-assign ' + (on ? 'off' : 'on') + '" onclick="DSQHub.toggle()"></button>' +
       '<select class="dsq-inp" id="hubMode" style="width:auto;padding:4px 8px;font-size:.76rem" onchange="DSQHub.mode(this.value)"><option value="suggest"' + (c.mode === 'suggest' ? ' selected' : '') + '>Suggest only (safe)</option><option value="assign"' + (c.mode === 'assign' ? ' selected' : '') + '>Assign + WhatsApp</option></select>' +
@@ -306,11 +336,11 @@
       '<button class="btn-s" onclick="DSQHub.preview()">👀 Preview</button><button class="btn-p" onclick="DSQHub.run()">▶ Run now</button><button class="btn-s" onclick="DSQHub.close()">✕ Close</button></div></div>' +
       '<div class="tabs">' + tabs.map(function (t) { return '<button class="tab' + (TAB === t[0] ? ' on' : '') + '" onclick="DSQHub.tab(\'' + t[0] + '\')">' + t[1] + (t[0] === 'overview' && DATA.att && DATA.att.length ? ' <span style="background:#fff;color:#dc2626;border-radius:99px;padding:0 6px;font-size:.66rem">' + DATA.att.length + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<div id="hubOut" style="font-size:.78rem;margin:0 0 10px"></div><div id="hubBody">' + body() + '</div></div>';
-    if (TAB === 'settings' && window.DSQAA) DSQAA.mount(); if (TAB === 'ready') fillReady();
+    if (TAB === 'settings' && window.DSQAA) DSQAA.mount(); if (TAB === 'ready') fillReady(); if (TAB === 'adileads') loadAdi();
   }
   async function refresh(full) {
     var h = document.getElementById('aaHub'); if (!h) return;
-    if ((TAB === 'settings' || TAB === 'ready') && !full) return;   // do not redraw the form while you are typing in it
+    if ((TAB === 'settings' || TAB === 'ready' || TAB === 'adileads') && !full) return;   // do not redraw the form while you are typing in it
     try { await load(); } catch (e) { var o = document.getElementById('hubOut'); if (o) o.innerHTML = '<span style="color:#f87171">Could not load: ' + E(e.message || e) + '</span>'; return; }
     var scrollY = h.scrollTop, keep = (document.getElementById('hubOut') || {}).innerHTML || ''; shell(); var ho = document.getElementById('hubOut'); if (ho && keep) ho.innerHTML = keep; h.scrollTop = scrollY;
   }
@@ -413,5 +443,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, loadAdi: loadAdi, adiSave: adiSave, adiFilter: function (f) { AFILT = f; drawAdi(); }, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();

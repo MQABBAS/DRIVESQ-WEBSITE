@@ -477,6 +477,25 @@ console.log("== 32d. Franchise / chosen instructors get the student straight awa
   reset(); DB.instructors.forEach((i) => { i.instructor_model = "franchise"; }); cfgOf().directMiles = 0.1; DB.waiting_list = [W("Far Fay", "M13 9AA", "", { student_phone: "07844555105" })]; await call({ action: "auto_assign", cron: true });
   ok(sentTo("dsq_student_offer").length === 1, "further than the direct distance, a franchise instructor is offered the student first");
   DB.instructors.forEach((i, k) => { i.instructor_model = origModel[k]; }); DB.growth_settings.find((x) => x.key === "instructor_traits").value = JSON.parse(origTraits); reset(); cfgOf().directMiles = 0; }
+console.log("== 32e. ADI Part 3 enquiries (public form, private table) ==");
+{ const pub = async (b) => (await (await h(new Request("https://f/whatsapp", { method: "POST", body: JSON.stringify(b) }))).json());
+  DB.adi_enquiries = []; DB.admin_attention = []; DB.admin_activity_log = []; DB.wa_log = []; CALLS.length = 0; cfgOf().adminPhone = "07700900999"; cfgOf().adminAlerts = true;
+  const good = { action: "adi_enquiry", name: "Imran <b>Ali</b>", phone: "07911 123456", email: "imran@example.com", stage: "I have my trainee licence", part1_pass: "2025-09", attempts: 1, test_date: "2026-12-18", test_centre: "West Didsbury", car: "Yes, with dual controls", help: ["Lesson planning", "Risk management"], availability: "Weekday evenings", urgency: "Test within a month", postcode: "m19 2ln", contact_pref: "WhatsApp", message: "Hello", consent: true, website: "" };
+  let r = await pub(good); const row = DB.adi_enquiries[0];
+  ok(r.ok && DB.adi_enquiries.length === 1 && row.phone === "447911123456" && !/[<>]/.test(row.name) && row.postcode === "M19 2LN" && row.help.length === 2 && row.status === "new", "a valid ADI enquiry from the public form (no admin key) is saved, cleaned and set to 'new'");
+  ok(DB.admin_attention.some((x) => x.kind === "adi_lead" && /Imran/.test(x.title) && /Control centre/.test(x.detail)) && CALLS.some((c) => c.wa && c.wa.template && c.wa.template.name === "dsq_admin_attention" && String(c.wa.to) === "447700900999"), "you get an alert in Needs you AND a WhatsApp to your admin phone");
+  r = await pub({ ...good, name: "Bot", phone: "07911 999888", website: "http://spam" }); ok(r.ok && DB.adi_enquiries.length === 1, "a bot that fills the hidden field is ignored (nothing saved)");
+  r = await pub({ ...good, name: "A" }); ok(!r.ok && /name/i.test(r.error), "a one-letter name is refused");
+  r = await pub({ ...good, phone: "123" }); ok(!r.ok && /mobile/i.test(r.error), "an invalid phone number is refused");
+  r = await pub({ ...good, email: "nope" }); ok(!r.ok && /email/i.test(r.error), "a bad email is refused");
+  r = await pub({ ...good, consent: false }); ok(!r.ok && /tick/i.test(r.error), "no consent tick: refused");
+  r = await pub(good); ok(r.ok && r.duplicate && DB.adi_enquiries.length === 1, "the same number again within 10 minutes is one enquiry, not two");
+  const unauth = await (await h(new Request("https://f/whatsapp", { method: "POST", body: JSON.stringify({ action: "adi_leads" }) }))).json();
+  ok(!unauth.ok && /admin key/i.test(unauth.error), "the list of enquiries is NOT available without the admin key");
+  const lst = await call({ action: "adi_leads" }); ok(lst.ok && lst.leads.length === 1 && lst.leads[0].name.includes("Imran"), "with the admin key you can list the enquiries");
+  const up = await call({ action: "adi_lead_update", id: row.id, status: "contacted", note: "Messaged on WhatsApp" }); ok(up.ok && DB.adi_enquiries[0].status === "contacted" && DB.adi_enquiries[0].admin_notes === "Messaged on WhatsApp" && DB.adi_enquiries[0].contacted_at && DB.admin_attention.filter((x) => x.kind === "adi_lead").every((x) => x.resolved), "marking an enquiry contacted saves your note and clears its alert");
+  DB.adi_enquiries = Array.from({ length: 200 }, (_, i) => ({ id: "x" + i, phone: "4479" + String(10000000 + i), created_at: new Date().toISOString(), name: "N" })); r = await pub({ ...good, phone: "07922 000111" }); ok(!r.ok && /WhatsApp/.test(r.error), "a daily cap of 200 stops a flood");
+  DB.adi_enquiries = []; DB.admin_attention = []; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -873,7 +892,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-24-direct-assign", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-adi-leads", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
