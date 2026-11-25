@@ -496,6 +496,36 @@ console.log("== 32e. ADI Part 3 enquiries (public form, private table) ==");
   const up = await call({ action: "adi_lead_update", id: row.id, status: "contacted", note: "Messaged on WhatsApp" }); ok(up.ok && DB.adi_enquiries[0].status === "contacted" && DB.adi_enquiries[0].admin_notes === "Messaged on WhatsApp" && DB.adi_enquiries[0].contacted_at && DB.admin_attention.filter((x) => x.kind === "adi_lead").every((x) => x.resolved), "marking an enquiry contacted saves your note and clears its alert");
   DB.adi_enquiries = Array.from({ length: 200 }, (_, i) => ({ id: "x" + i, phone: "4479" + String(10000000 + i), created_at: new Date().toISOString(), name: "N" })); r = await pub({ ...good, phone: "07922 000111" }); ok(!r.ok && /WhatsApp/.test(r.error), "a daily cap of 200 stops a flood");
   DB.adi_enquiries = []; DB.admin_attention = []; }
+console.log("== 32f. ADI Part 3 / instructor training is NEVER assigned to an instructor ==");
+{ const pub = async (b) => (await (await h(new Request("https://f/whatsapp", { method: "POST", body: JSON.stringify(b) }))).json());
+  const lb = (intent, conf) => ({ content: [{ type: "tool_use", id: "c", name: "classify_message", input: { intent, urgency: "normal", confidence: conf, summary: "x" } }] });
+  const ext = (o) => ({ content: [{ type: "tool_use", id: "e1", name: "save_details", input: o }] });
+  const savedCfg = { ...cfgOf() };
+  // (a) the website form: only the private table + an alert to YOU; no booking, no job, nothing to any instructor
+  DB.adi_enquiries = []; DB.waiting_list = []; DB.auto_assign_jobs = []; DB.referrals = []; DB.admin_attention = []; CALLS.length = 0; cfgOf().adminPhone = "07700900999"; cfgOf().enabled = true; cfgOf().mode = "assign";
+  let r = await pub({ action: "adi_enquiry", name: "Trainee Tim", phone: "07911 555444", consent: true, stage: "Passed Part 2", website: "" }); await call({ action: "auto_assign", cron: true });
+  const toWho = CALLS.filter((c) => c.wa && c.wa.template).map((c) => String(c.wa.to));
+  ok(r.ok && DB.adi_enquiries.length === 1 && DB.waiting_list.length === 0 && DB.auto_assign_jobs.length === 0 && DB.referrals.length === 0 && toWho.every((t) => t === "447700900999"), "an ADI Part 3 form enquiry makes NO booking and NO job, and the only WhatsApp sent is the alert to YOUR admin phone");
+  // (b) a WhatsApp chat asking about ADI training: Claude is in send mode, even if it labels the message as a booking
+  cfgOf().aiAssistant = true; cfgOf().aiSend = true; cfgOf().aiTestOnly = false; cfgOf().aiClassifier = true; DB.wa_log = []; DB.admin_attention = []; CALLS.length = 0; globalThis.CLASSIFY_Q = [lb("booking", 0.95)]; globalThis.CLAUDE_Q = [];
+  await hook({ from: "447920000511" }, "Hi, I want to book ADI part 3 training, my name is Sam, M13 9AA, manual");
+  ok(!DB.waiting_list.some((w) => /Sam/.test(w.student_name)) && DB.admin_attention.some((x) => /ADI Part 3 \/ instructor training/.test(x.title)) && CALLS.some((c) => c.wa && c.wa.type === "text" && /instructor training/.test(c.wa.text.body)), "WhatsApp chat about ADI training (send mode): no student booking is created, you are alerted, and the person gets a safe 'the team will reply' message");
+  // (c) read-only mode: Claude reads the details but must not turn it into a student booking
+  cfgOf().aiSend = false; DB.wa_log = []; DB.admin_attention = []; CALLS.length = 0; globalThis.CLASSIFY_Q = [lb("booking", 0.95)]; globalThis.EXTRACT_Q = [ext({ name: "Ben Hall", postcode: "m13 9aa", gearbox: "manual", availability: "evenings" })];
+  await hook({ from: "447920000512" }, "Ben Hall M13 9AA manual evenings. I'm a trainee instructor looking for ADI Part 3 training");
+  ok(!DB.waiting_list.some((w) => /Ben Hall/.test(w.student_name)) && !CALLS.some((c) => c.wa && String(c.wa.to) === "447920000512"), "read-only mode: the same chat is NOT saved as a booking and nothing is sent to the person");
+  // (d) the 1-minute catch-up and the 'Read chats' button skip it too
+  DB.wa_log = [{ id: "ad1", direction: "in", to_phone: "447920000513", status: "received", body: "Zoe Park", created_at: new Date().toISOString() }, { id: "ad2", direction: "in", to_phone: "447920000513", status: "received", body: "M13 9AA automatic. Interested in ADI training", created_at: new Date().toISOString() }];
+  globalThis.EXTRACT_Q = [ext({ name: "Zoe Park", postcode: "m13 9aa", gearbox: "automatic" })]; const rc = await call({ action: "read_chats" });
+  ok(!DB.waiting_list.some((w) => /Zoe Park/.test(w.student_name)) && rc.results.some((x) => x.result === "adi"), "'Read recent chats' skips an ADI training chat");
+  // (e) a booking that mentions ADI in its notes (e.g. pasted by hand) is never offered to an instructor
+  DB.waiting_list = [W("Adi Hopeful", "M13 9AA", "[WEB] ADI Part 3 training enquiry", { student_phone: "07844999000" })]; DB.auto_assign_jobs = []; DB.wa_log = []; CALLS.length = 0; await call({ action: "auto_assign", cron: true });
+  ok(DB.auto_assign_jobs.length === 0 && !CALLS.some((c) => c.wa && c.wa.template && /student_offer|new_student/.test(c.wa.template.name)), "a waiting-list entry that mentions ADI training is never picked up by auto-assign");
+  // (f) normal student chats still work
+  cfgOf().aiSend = true; DB.waiting_list = []; DB.wa_log = []; globalThis.CLASSIFY_Q = [lb("booking", 0.9)]; globalThis.CLAUDE_Q = [{ content: [{ type: "text", text: "Thanks! What is your postcode?" }] }]; CALLS.length = 0;
+  await hook({ from: "447920000514" }, "Hi I'd like manual driving lessons please");
+  ok(CALLS.some((c) => c.wa && c.wa.type === "text" && /postcode/.test(c.wa.text.body)), "an ordinary student enquiry is still answered normally");
+  Object.assign(cfgOf(), savedCfg); DB.waiting_list = []; DB.auto_assign_jobs = []; DB.adi_enquiries = []; DB.admin_attention = []; DB.wa_log = []; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -892,7 +922,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-adi-leads", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-25-adi-never-assigned", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

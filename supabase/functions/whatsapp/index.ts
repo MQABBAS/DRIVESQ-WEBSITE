@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-25-adi-leads";
+const FN_VERSION = "2026-11-25-adi-never-assigned";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -982,6 +982,7 @@ async function autoAssign(sb: any, body: any) {
     if (handled.has(String(w.id))) { if (ph10.length === 10 && !seenPhone.has(ph10)) seenPhone.set(ph10, w.student_name || ""); continue; }
     if (new Date(w.created_at).getTime() < since && !body.includeOlder) continue;
     if (!tags.some((t: string) => String(w.notes || "").toLowerCase().includes(t))) continue;
+    if (ADI_RE.test(String(w.notes || "")) || ADI_RE.test(String(w.student_name || ""))) continue;   // instructor-training enquiries are never auto-assigned
     { const hd: any = aiHold(w, cfg); if (hd.wait > 0) { if (dry) results.push({ student: w.student_name, action: "waiting", reason: `WhatsApp enquiry: held ${hd.wait} more minute${hd.wait === 1 ? "" : "s"} so Claude can collect availability and the rest (assigned sooner if availability arrives)` }); continue; } }   // picked up by a later run
     const b = readBooking(w);
     // the same student sending the booking twice (or already placed with an instructor in the last 2 weeks) must never be given to a second instructor
@@ -1291,6 +1292,8 @@ const AI_TOOLS = [
   { name: "hand_off", description: "Pass the conversation to the human team.", input_schema: { type: "object", properties: { reason: { type: "string" } }, required: ["reason"] } },
 ];
 /* what a student's message is about, read by rules (not by Claude), so the answer is always safe and the right alert reaches you */
+/* ADI Part 3 / instructor-training enquiries are NEVER given to an instructor. They go to DriveSQ only (the website form saves them privately and alerts you; a WhatsApp chat about it is passed to you). */
+const ADI_RE = /\b(adi\s*(part\s*(3|three)|training|course|test)|part\s*(3|three)\s*(adi|training|instructor|test for instructors?)|(trainee|learner)\s*(driving\s*)?instructor|pink\s*badge|\bpdi\b|become\s*(a\s*)?(driving\s*)?instructor|(driving\s*)?instructor\s*(training|course)|ordit|instructor\s*part\s*(1|2|3|one|two|three))\b|\[ADI\]/i;
 const KINDS: any = {
   urgent: { title: "🚨 URGENT WhatsApp", reply: "Thanks for telling us. I've flagged this as urgent and the team will contact you as soon as possible. If anyone is hurt, please call 999." },
   cancel: { title: "📅 Cancel / change a lesson", reply: "Thanks, I've passed this to the team and your instructor, and they'll confirm with you shortly. Our cancellation terms are at https://www.drivesq.co.uk/terms.html" },
@@ -1300,9 +1303,11 @@ const KINDS: any = {
   instructor: { title: "👨‍🏫 Question about their instructor", reply: "Thanks, I've let the team know and they'll get back to you shortly." },
   test: { title: "📝 Driving or theory test question", reply: "Thanks, I've passed your test question to the team and they'll reply shortly." },
   abuse: { title: "⚠️ Abusive message", reply: "" },
+  adi: { title: "🎓 ADI Part 3 / instructor training enquiry", reply: "Thanks for getting in touch about instructor training! I've passed your message to the DriveSQ team and they'll reply to you personally." },
 };
 function classifyMessage(t: string): string {
   const x = String(t || "").toLowerCase();
+  if (ADI_RE.test(x)) return "adi";   // instructor training is handled by the team, never by the student booking flow
   const testy = /\b(driving test|practical test|theory test|hazard perception|test (date|booking|slot|centre|center|time)|book(ed|ing)? (a |my |the )?test|(emergency|urgent|cancellation|earlier|earliest) test|dvsa)\b/.test(x) || (/\btest\b/.test(x) && /\b(wrong|different|change|move|earlier|rebook|re-book|date|day|booked)\b/.test(x) && !/\blesson\b/.test(x));
   if (/\b(accidents?|crash(ed|es)?|injur(ed|y|ies)|hospital|ambulance|police|broke down|broken down|breakdown|999)\b/.test(x) || (/\bemergency\b/.test(x) && !testy && !/\b(lesson|booking|book|date|slot|session)\b/.test(x))) return "urgent";
   if (/\b(f+u+c+k|cunt|wankers?|bastards?|idiots?|stupid|scam(mers?)?)\b/.test(x)) return "abuse";
@@ -1331,7 +1336,7 @@ async function aiSend(sb: any, to: string, text: string, tag = "ai_assistant", m
    1. Claude reads the message (and the last few lines of the chat) and returns a structured answer: what it is about, how urgent, how sure it is, and a one-line summary.
    2. routeMessage() (plain rules, easy to test) turns that into ONE action: chat (collect a booking / answer a fact), a fixed safe reply plus an alert for you, or hand-over to you.
    3. Not sure, or the keyword check and Claude disagree on anything serious: it goes to you, never a guess. If Claude cannot be reached the keyword rules above are used. */
-const INTENTS = ["booking", "faq", "smalltalk", "cancel_change", "test_date", "payment", "complaint", "instructor_question", "speak_to_person", "safety_emergency", "abuse", "unclear"];
+const INTENTS = ["instructor_training", "booking", "faq", "smalltalk", "cancel_change", "test_date", "payment", "complaint", "instructor_question", "speak_to_person", "safety_emergency", "abuse", "unclear"];
 const CLASSIFY_SYSTEM = `You label ONE WhatsApp message sent to a UK driving school (DriveSQ). Return the label with the classify_message tool. Do not answer the person.
 intent (pick exactly one):
 - booking: wants lessons, gives booking details (name, postcode, gearbox, times, intensive/refresher), or answers a question about booking.
@@ -1345,6 +1350,7 @@ intent (pick exactly one):
 - speak_to_person: wants to talk to a human, manager or the team.
 - safety_emergency: a REAL physical emergency: an accident, injury, crash, breakdown or danger to someone right now. The word "emergency" alone does NOT make it one: "I need an emergency driving test" or "emergency lesson" is test_date or booking. "Accidentally booked the wrong date" is NOT an accident.
 - abuse: insults, swearing or threats aimed at us. A question such as "is this a scam?" is faq or complaint, not abuse.
+- instructor_training: the person wants to BECOME a driving instructor or asks about ADI training, the ADI Part 1, 2 or 3 tests, a trainee (pink badge) licence or instructor courses. This is not a request for driving lessons.
 - unclear: you cannot tell, it is in a language you cannot read, or it mixes several things.
 urgency: urgent = someone is in danger; time_sensitive = something with a deadline in days (a test soon, a lesson tomorrow, a date that must be fixed fast); normal = everything else.
 confidence: 0 to 1, how sure you are of the intent. Use below 0.65 whenever you are unsure.
@@ -1371,9 +1377,10 @@ async function understand(text: string, recent: string) {
   const conf = +a.confidence; if (!INTENTS.includes(a.intent) || !["normal", "time_sensitive", "urgent"].includes(a.urgency) || !(conf >= 0 && conf <= 1)) return null;
   return { intent: a.intent, urgency: a.urgency, confidence: conf, summary: String(a.summary || "").slice(0, 160) };
 }
-const INTENT_KIND: any = { cancel_change: "cancel", test_date: "test", payment: "payment", complaint: "complaint", instructor_question: "instructor", speak_to_person: "person", safety_emergency: "urgent", abuse: "abuse" };
+const INTENT_KIND: any = { instructor_training: "adi", cancel_change: "cancel", test_date: "test", payment: "payment", complaint: "complaint", instructor_question: "instructor", speak_to_person: "person", safety_emergency: "urgent", abuse: "abuse" };
 /* the decision, as plain rules: rx = what the keyword check found ("" if nothing), cl = Claude's checked label (or null) */
 function routeMessage(rx: string, cl: any, minConf = 0.65) {
+  if (rx === "adi") return { action: "kind", kind: "adi", urgency: "normal", summary: cl && cl.summary || "", source: cl ? "claude+keywords" : "keywords", note: "" };   // however Claude labelled it, an ADI training message is never a student booking
   if (!cl) return rx ? { action: rx === "abuse" ? "abuse" : "kind", kind: rx, urgency: rx === "urgent" ? "urgent" : "normal", summary: "", source: "keywords", note: "" } : { action: "chat", kind: "", urgency: "normal", summary: "", source: "none", note: "" };
   const kind = INTENT_KIND[cl.intent] || "", note = rx && rx !== kind ? `the words suggested "${rx}" but it was understood as "${cl.intent}"` : "";
   if (cl.intent === "unclear" || cl.confidence < minConf) return { action: "handoff", kind: "", urgency: cl.urgency, summary: cl.summary, source: "claude", note: (cl.intent === "unclear" ? "the assistant could not tell what they meant" : `the assistant was only ${Math.round(cl.confidence * 100)}% sure (${cl.intent})`) + (note ? "; " + note : "") };
@@ -1464,6 +1471,8 @@ async function extractDetails(sb: any, cfg: any, day: any[], profileName: string
 const cleanProfile = (v: any) => { const n = String(v || "").replace(/[^\p{L}\p{M}' .-]/gu, "").replace(/\s+/g, " ").trim(); return n.length >= 2 && !/^(hi|hey|hello|ok|okay|yes|no|me|user|whatsapp|business|admin|test|none|unknown)$/i.test(n) ? n.slice(0, 60) : ""; };
 const profileOf = (rows: any[], given = "") => cleanProfile(given) || cleanProfile((rows || []).filter((x: any) => x.direction === "in" && x.student_name).map((x: any) => x.student_name).pop());
 async function extractFromChat(sb: any, cfg: any, from: string, day: any[], profileName: string) {
+  { const said = day.filter((x: any) => x.direction === "in" && x.body).map((x: any) => String(x.body)).join(" \n ");
+    if (ADI_RE.test(said)) { const num0 = waNumber(from); await attention(sb, cfg, { kind: "ai_handoff", title: `🎓 ADI Part 3 / instructor training enquiry on WhatsApp: ${profileName || num0}`, detail: `Their messages mention instructor training, so NO student booking was made and nothing is assigned to an instructor. Reply to them yourself. Number: ${num0}.`, waiting_id: "adi-chat-" + num0, quiet: false }); return { action: "adi" }; } }
   const ed: any = await extractDetails(sb, cfg, day, profileName); if (ed.error) return { action: "error" }; if (!ed.a) return { action: "none" };
   const a = ed.a, num = waNumber(from);
   // they did not give a name: use the name on their WhatsApp account (only then; a name they wrote always wins)

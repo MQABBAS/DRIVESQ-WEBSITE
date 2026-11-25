@@ -136,3 +136,5 @@ A booking Claude took from a WhatsApp chat waits 5 minutes (Settings: "Hold a Wh
 - Run `supabase/migrations/20261125_adi_enquiries.sql` once. The table is **private**: row level security is on with no policies, so only the function (service role) can read it.
 - Each enquiry creates an alert in Needs you and a WhatsApp to your admin phone. Open **Control centre → 🎓 ADI leads** to reply (WhatsApp / call / email buttons), set a status (New, Contacted, Booked, Closed) and add a note.
 - Safety: a hidden field catches bots, the same number is saved once per 10 minutes, and no more than 200 enquiries are taken a day.
+
+**ADI Part 3 / instructor-training enquiries are never assigned to an instructor.** The form saves to the private table and alerts only you. A WhatsApp chat that mentions ADI training, the ADI tests, a trainee (pink badge) licence or becoming an instructor is never turned into a student booking (not by the assistant, the 1-minute catch-up, or "Read recent chats"): you get an alert and reply yourself. Auto-assign also skips any waiting-list entry that mentions ADI training.
