@@ -178,3 +178,14 @@ A green **WhatsApp messages** button now opens the real WhatsApp Business conver
 - **Student profile** (and the student view opened from a referral): **WhatsApp messages**.
 
 The pop-up refreshes every 12 seconds. Replies go from the DriveSQ business number; free text is only possible within 24 hours of their last message, and people who sent STOP are blocked. No function redeploy is needed (it uses the existing inbox actions).
+
+## Safer admin login (security stage 1)
+
+Admin passwords used to be stored as readable Base64 in a table anyone with the public website key could read. The new `admin-login` function checks the password on the server (PBKDF2, locks for 15 minutes after 8 wrong tries).
+
+1. Run `20261128_admin_login.sql` (adds a column and a private attempts table; nothing stops working).
+2. Deploy the `admin-login` function with **Verify JWT turned off**.
+3. Sign in to the admin once: your account upgrades itself and the old readable password is wiped.
+4. Check the admin works, then run `20261128_admin_login_lock.sql` to remove public access to the `admins` table.
+
+Undo for step 4: `create policy "tmp_open_admins" on admins for all using (true) with check (true);`

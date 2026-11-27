@@ -4039,12 +4039,23 @@ async function doLogin(){
   if(!email||!pass){showLoginErr('Please enter email and password.');return;}
   btn.textContent='Signing in…';btn.disabled=true;
   try{
-    const{data,error}=await sb.from('admins').select('*').eq('email',email).maybeSingle();
-    if(error){showLoginErr('Connection error. Please try again.');return;}
-    if(!data){showLoginErr('Admin account not found. Check your email address.');return;}
-    let hash;
-    try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
-    if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
+    // Safer login: the password is checked on the server (admin-login function), never in the browser.
+    let fr=null,fnMissing=false;
+    try{
+      const rr=await fetch(SB_URL+'/functions/v1/admin-login',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},body:JSON.stringify({email,password:pass})});
+      if(rr.status===404)fnMissing=true;else fr=await rr.json().catch(()=>null);
+    }catch(e){fnMissing=true;}
+    if(fr){
+      if(!fr.ok){showLoginErr(fr.error||'Could not sign in.');return;}
+    }else if(fnMissing){
+      // Temporary fallback ONLY until the admin-login function is deployed. It stops working by design once admin accounts are locked.
+      const{data,error}=await sb.from('admins').select('*').eq('email',email).maybeSingle();
+      if(error){showLoginErr('Connection error. Please try again.');return;}
+      if(!data){showLoginErr('Admin account not found. Check your email address.');return;}
+      let hash;
+      try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
+      if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
+    }else{showLoginErr('Could not reach the login service. Please try again.');return;}
     _saveSession(email);showApp();
   }catch(e){showLoginErr('Connection error. Please try again.');}
   finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
