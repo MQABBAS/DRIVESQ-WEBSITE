@@ -16,4 +16,11 @@ DB.admin_login_attempts.forEach(x=>x.at=new Date(Date.now()-20*60000).toISOStrin
 r=await call({email:'boss@drivesq.co.uk',password:'Old pass 1!'});ok(r.j.ok,'lock lifts after the window');ok(DB.admin_login_attempts.filter(x=>x.email==='boss@drivesq.co.uk').length===0,'counter cleared after success');
 r=await call({email:'',password:''});ok(r.s===400,'empty input rejected');
 r=await call({ping:1});ok(r.j.version,'ping works');
+r=await call({email:'boss@drivesq.co.uk',password:'Old pass 1!'});ok(r.j.session&&r.j.session.access_token,'login returns a real session');
+ok(USERS.length===1&&USERS[0].app_metadata.role==='admin'&&/^admin-[0-9a-f]{24}@admin\.drivesq\.co\.uk$/.test(USERS[0].email),'admin auth user made with locked role, alias email (never the real address)');
+ok(!/boss/.test(USERS[0].email),'real email not exposed in the alias');
+r=await call({email:'boss@drivesq.co.uk',password:'Old pass 1!'});ok(r.j.session&&USERS.length===1,'second login reuses the same auth user');
+USERS[0].password='changed';r=await call({email:'boss@drivesq.co.uk',password:'Old pass 1!'});ok(r.j.session&&USERS[0].password!=='changed','repairs an auth user whose password drifted');
+r=await call({email:'boss@drivesq.co.uk',password:'wrongwrong'});ok(!r.j.session&&!r.j.ok,'no session for a wrong password');
+AUTHFAIL=true;USERS.length=0;r=await call({email:'boss@drivesq.co.uk',password:'Old pass 1!'});ok(r.j.ok&&!r.j.session&&r.j.sessionError,'if the session cannot be made, sign-in still works');
 console.log(f?'FAILED':'ALL PASS');

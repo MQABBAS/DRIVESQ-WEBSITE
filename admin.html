@@ -4021,6 +4021,7 @@ function _saveSession(email){
   try{localStorage.setItem('dsq_admin_session',JSON.stringify({ok:true,ts:Date.now(),email:email||''}));}catch(e){}
 }
 function _clearSession(){
+  try{localStorage.removeItem('dsq_admin_sbsess');if(typeof sb!=='undefined'&&sb&&sb.auth)sb.auth.signOut();}catch(e){}
   localStorage.removeItem('dsq_admin_session');
   localStorage.removeItem('dsq_admin'); // legacy
 }
@@ -4028,7 +4029,25 @@ function _clearSession(){
 if(localStorage.getItem('dsq_admin')==='true'&&!_isSessionValid()){_saveSession('');localStorage.removeItem('dsq_admin');}
 // Restore a saved session only once the whole page script has run — calling showApp() here, mid-script,
 // touched variables declared further down and crashed the rest of the script for returning admins.
-if(_isSessionValid()){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showApp,{once:true});else setTimeout(showApp,0);}
+// If this browser signed in with the admin session before, make sure it still has it (otherwise ask for a fresh sign-in, so the database never sees an unsigned request).
+async function _secureBadge(){
+  try{
+    if(localStorage.getItem('dsq_admin_sbsess')!=='1')return;
+    const r=await sb.rpc('dsq_is_admin');let ok=false,missing=false;
+    if(r&&r.error)missing=true;else ok=r&&r.data===true;
+    if(missing)return; // step A SQL not run yet: nothing to show
+    let el=document.getElementById('secBadge');if(!el){el=document.createElement('div');el.id='secBadge';el.style.cssText='position:fixed;left:10px;bottom:10px;z-index:9999;font:700 .7rem Inter,sans-serif;padding:5px 10px;border-radius:99px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)';el.onclick=()=>el.remove();document.body.appendChild(el);}
+    el.style.background=ok?'#14532d':'#7f1d1d';el.style.color=ok?'#bbf7d0':'#fecaca';
+    el.textContent=ok?'🔒 Secure admin session':'⚠ Not a secure admin session — sign out and in again';
+  }catch(e){}
+}
+async function _sbSessionOk(){
+  try{if(localStorage.getItem('dsq_admin_sbsess')!=='1')return true;const r=await sb.auth.getSession();return !!(r&&r.data&&r.data.session);}catch(e){return true;}
+}
+if(_isSessionValid()){
+  const _go=async()=>{if(await _sbSessionOk()){showApp();_secureBadge();}else{_clearSession();}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_go,{once:true});else setTimeout(_go,0);
+}
 
 async function doLogin(){
   const btn=document.getElementById('loginBtn');
@@ -4047,6 +4066,11 @@ async function doLogin(){
     }catch(e){fnMissing=true;}
     if(fr){
       if(!fr.ok){showLoginErr(fr.error||'Could not sign in.');return;}
+      // A real signed-in admin session (used to lock the database to admins only). If the function could not make one, sign-in still works without it.
+      try{
+        if(fr.session&&fr.session.access_token){await sb.auth.setSession({access_token:fr.session.access_token,refresh_token:fr.session.refresh_token});localStorage.setItem('dsq_admin_sbsess','1');}
+        else{localStorage.removeItem('dsq_admin_sbsess');if(fr.sessionError)console.warn('admin session:',fr.sessionError);}
+      }catch(e){localStorage.removeItem('dsq_admin_sbsess');}
     }else if(fnMissing){
       // Temporary fallback ONLY until the admin-login function is deployed. It stops working by design once admin accounts are locked.
       const{data,error}=await sb.from('admins').select('*').eq('email',email).maybeSingle();
@@ -4056,7 +4080,7 @@ async function doLogin(){
       try{hash=btoa(pass);}catch(e){showLoginErr('Invalid characters in password.');return;}
       if(data.password_hash!==hash){showLoginErr('Incorrect password.');return;}
     }else{showLoginErr('Could not reach the login service. Please try again.');return;}
-    _saveSession(email);showApp();
+    _saveSession(email);showApp();_secureBadge();
   }catch(e){showLoginErr('Connection error. Please try again.');}
   finally{btn.textContent='Sign In to Admin →';btn.disabled=false;}
 }

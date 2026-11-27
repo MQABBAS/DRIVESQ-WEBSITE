@@ -8,10 +8,14 @@ R,T=sys.argv[1:3]
 s=open(R+'/supabase/functions/admin-login/index.ts',encoding='utf-8').read()
 s=re.sub(r'^import .*$','',s,flags=re.M).replace('export async function','async function')
 mock='''
-globalThis.Deno={env:{get:(k)=>({SUPABASE_SERVICE_ROLE_KEY:"svc"})[k]}};
+globalThis.Deno={env:{get:(k)=>({SUPABASE_SERVICE_ROLE_KEY:"svc",SUPABASE_ANON_KEY:"anon"})[k]}};
+globalThis.USERS=[];globalThis.AUTHFAIL=false;
 const serve=()=>{};
 globalThis.DB={admins:[],admin_login_attempts:[]};let SEQ=1;
-const createClient=()=>({from:(t)=>{const st={f:[],op:"select",rows:null,patch:null};
+const createClient=()=>({auth:{
+ signInWithPassword:async({email,password})=>{if(AUTHFAIL)return{data:{},error:{message:"auth down"}};const u=USERS.find(x=>x.email===email&&x.password===password);return u?{data:{session:{access_token:"at."+email,refresh_token:"rt",expires_in:3600}},error:null}:{data:{},error:{message:"Invalid login credentials"}}},
+ admin:{createUser:async(o)=>{if(USERS.some(x=>x.email===o.email))return{error:{message:"already registered"}};USERS.push({id:"u"+USERS.length,...o});return{data:{},error:null}},
+  listUsers:async()=>({data:{users:USERS},error:null}),updateUserById:async(id,o)=>{Object.assign(USERS.find(x=>x.id===id),o);return{error:null}}}},from:(t)=>{const st={f:[],op:"select",rows:null,patch:null};
  const m=r=>st.f.every(([k,o,v])=>o==="eq"?String(r[k])===String(v):String(r[k])>=String(v));
  const run=()=>{const tb=DB[t];if(!tb)return{data:null,error:{message:"missing"}};
   if(st.op==="insert"){st.rows.forEach(r=>tb.push({id:SEQ++,at:new Date().toISOString(),...r}));return{data:null,error:null}}

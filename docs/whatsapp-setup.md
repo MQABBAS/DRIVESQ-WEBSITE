@@ -189,3 +189,9 @@ Admin passwords used to be stored as readable Base64 in a table anyone with the 
 4. Check the admin works, then run `20261128_admin_login_lock.sql` to remove public access to the `admins` table.
 
 Undo for step 4: `create policy "tmp_open_admins" on admins for all using (true) with check (true);`
+
+## Security stage 2: lock admin-only tables to a signed-in admin
+
+1. Redeploy `admin-login` (Verify JWT off). It now also returns a real Supabase session whose `app_metadata.role` is `admin`.
+2. Run `20261128_admin_secure_1.sql` (adds `dsq_is_admin()`), sign out of admin and sign in again.
+3. A green **🔒 Secure admin session** badge appears bottom-left. Only then run `20261128_admin_secure_2_lock_batch1.sql`, which closes the admin-only tables (`wa_log`, `auto_assign_jobs`, finance, email, notes...) to everyone except that session. The file ends with a one-block undo.
