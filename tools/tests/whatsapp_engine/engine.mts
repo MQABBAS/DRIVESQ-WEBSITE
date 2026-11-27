@@ -1109,7 +1109,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-reasons", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-28-fullhistory", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
@@ -1118,3 +1118,11 @@ ok(crH.created === 18 && mH.every((m) => m.components[0].type === "HEADER" && m.
 ok(mH.find((m) => m.name === "dsq_student_offer").components[0].text === "New student for you" && mH.find((m) => m.name === "dsq_admin_attention").components[0].text === "Attention needed" && mH.find((m) => m.name === "dsq_student_terms").components[1].type === "BODY", "e.g. offer: 'New student for you', alert: 'Attention needed', and the body follows the header");
 ok(mH.find((m) => m.name === "dsq_student_checkin").components.map((c) => c.type).join(",") === "HEADER,BODY,BUTTONS", "components are in Meta's order: HEADER, BODY, BUTTONS");
 delete globalThis.GRAPH;
+globalThis.REAL_LIMIT = false;
+/* full history: 250 messages -> the normal view shows the latest 200 and says there is more; "all" returns everything */
+{ globalThis.REAL_LIMIT = true; const ph = "447700555111"; for (let i = 0; i < 250; i++) DB.wa_log.push({ id: "fh" + i, created_at: new Date(Date.now() - (300 - i) * 60000).toISOString(), direction: i % 2 ? "out" : "in", to_phone: ph, body: "msg " + i, status: "delivered", payload: {} });
+  const a = await call({ action: "inbox_thread", phone: "07700555111" }), b2 = await call({ action: "inbox_thread", phone: "07700555111", all: true });
+  ok(a.ok && a.messages.length === 200 && a.hasMore === true && a.messages[199].text === "msg 249", "history: normal view = latest 200 and says there is more");
+  ok(b2.ok && b2.messages.length === 250 && b2.hasMore === false && b2.messages[0].text === "msg 0", "history: full view returns all 250, oldest first");
+  const sm = await call({ action: "inbox_thread", phone: "07844800001" }); ok(sm.hasMore === false, "history: a short chat has no 'more' button");
+  globalThis.REAL_LIMIT = false; DB.wa_log = DB.wa_log.filter((x) => !String(x.id).startsWith("fh")); }

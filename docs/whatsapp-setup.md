@@ -195,3 +195,7 @@ Undo for step 4: `create policy "tmp_open_admins" on admins for all using (true)
 1. Redeploy `admin-login` (Verify JWT off). It now also returns a real Supabase session whose `app_metadata.role` is `admin`.
 2. Run `20261128_admin_secure_1.sql` (adds `dsq_is_admin()`), sign out of admin and sign in again.
 3. A green **🔒 Secure admin session** badge appears bottom-left. Only then run `20261128_admin_secure_2_lock_batch1.sql`, which closes the admin-only tables (`wa_log`, `auto_assign_jobs`, finance, email, notes...) to everyone except that session. The file ends with a one-block undo.
+
+## Full WhatsApp history
+
+The WhatsApp messages pop-up shows the latest 200 messages. When a chat has more, **⬆ Load the full history** appears at the top and loads up to 3,000 (oldest first). Needs the function version `2026-11-28-fullhistory`; before it is deployed the button simply does not appear.

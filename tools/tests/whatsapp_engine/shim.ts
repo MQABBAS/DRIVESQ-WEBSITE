@@ -14,9 +14,9 @@ function builder(t) {
     if (st.op === "insert") { const out = []; for (const row of st.rows) { const u = UNIQ[t]; if (u && tbl.some((x) => String(x[u]) === String(row[u]))) return { data: null, error: { message: "duplicate key" } }; const r = { id: uid(), created_at: new Date().toISOString(), ...row }; tbl.push(r); out.push(r); } return { data: out, error: null }; }
     if (st.op === "upsert") { const row = st.rows, ex = tbl.find((x) => String(x.key) === String(row.key)); if (ex) Object.assign(ex, row); else tbl.push({ id: uid(), ...row }); return { data: [row], error: null }; }
     if (st.op === "update") { const hit = tbl.filter(match); hit.forEach((r) => Object.assign(r, st.patch)); return { data: hit, error: null }; }
-    let rows = tbl.filter(match); if (st.order) rows = rows.sort((a, b) => String(a[st.order]).localeCompare(String(b[st.order]))); return { data: rows, error: null };
+    let rows = tbl.filter(match); if (st.order) rows = rows.sort((a, b) => String(a[st.order]).localeCompare(String(b[st.order]))); if (globalThis.REAL_LIMIT) { if (st.desc) rows = rows.reverse(); if (st.lim) rows = rows.slice(0, st.lim); } return { data: rows, error: null };
   };
-  const o = { select: () => o, eq: (k, v) => { st.f.push([k, "eq", v]); return o; }, neq: (k, v) => { st.f.push([k, "neq", v]); return o; }, gte: (k, v) => { st.f.push([k, "gte", v]); return o; }, order: (k) => { st.order = k; return o; }, limit: () => o,
+  const o = { select: () => o, eq: (k, v) => { st.f.push([k, "eq", v]); return o; }, neq: (k, v) => { st.f.push([k, "neq", v]); return o; }, gte: (k, v) => { st.f.push([k, "gte", v]); return o; }, order: (k, op) => { st.order = k; st.desc = !!(op && op.ascending === false); return o; }, limit: (n) => { st.lim = n; return o; },
     insert: (rows) => { st.op = "insert"; st.rows = rows; return o; }, upsert: (rows) => { st.op = "upsert"; st.rows = rows; return o; }, update: (p) => { st.op = "update"; st.patch = p; return o; },
     maybeSingle: async () => { const r = run(); return { data: (r.data || [])[0] || null, error: r.error }; }, single: async () => { const r = run(); return { data: (r.data || [])[0] || null, error: r.error }; },
     then: (res, rej) => Promise.resolve(run()).then(res, rej) };

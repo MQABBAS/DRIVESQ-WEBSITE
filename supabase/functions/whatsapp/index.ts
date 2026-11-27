@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-27-reasons";
+const FN_VERSION = "2026-11-28-fullhistory";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1878,11 +1878,11 @@ async function inboxList(sb: any) {
 }
 async function inboxThread(sb: any, b: any) {
   const num = waNumber(b.phone || ""); if (!num) return { ok: false, error: "That phone number does not look right." };
-  const { data } = await sb.from("wa_log").select("id,created_at,direction,to_phone,template,body,status,payload,error,student_name").eq("to_phone", num).order("created_at", { ascending: false }).limit(200);
+  const { data } = await sb.from("wa_log").select("id,created_at,direction,to_phone,template,body,status,payload,error,student_name").eq("to_phone", num).order("created_at", { ascending: false }).limit(b.all ? 3000 : 200);
   const msgs = (data || []).filter((x: any) => x.status !== "muted").sort((a: any, c: any) => String(a.created_at).localeCompare(String(c.created_at))).map((x: any) => ({ id: x.id, at: x.created_at, dir: x.direction, text: x.direction === "in" ? String(x.body || "") : (x.template && /^dsq_/.test(x.template) ? "📤 Template: " + labelOf(x.template) + (x.body ? "\n" + String(x.body).slice(0, 400) : "") : String(x.body || "")), button: !!x.payload, tpl: x.template || "", status: x.status || "", error: x.error || "" }));
   const map = await contactsMap(sb), c = map[keyOf(num)] || {}, prof = ((data || []).find((r: any) => r.direction === "in" && r.student_name) || {}).student_name || "";
   const win = await windowOpen(sb, num), opt = !!(((await getKv(sb, "wa_optout")) || {}).numbers || {})[num], adi = ADI_RE.test(msgs.filter((m: any) => m.dir === "in").map((m: any) => m.text).join(" "));
-  return { ok: true, phone: num, name: c.name || prof || "", role: c.role || (adi ? "adi" : "new"), model: c.model || "", messages: msgs, windowOpen: !!win, windowEnds: win, optedOut: opt };
+  return { ok: true, phone: num, name: c.name || prof || "", role: c.role || (adi ? "adi" : "new"), model: c.model || "", messages: msgs, hasMore: (data || []).length >= (b.all ? 3000 : 200), full: !!b.all, windowOpen: !!win, windowEnds: win, optedOut: opt };
 }
 async function inboxSend(sb: any, b: any) {
   const num = waNumber(b.phone || ""), text = String(b.text || "").replace(/\r/g, "").trim().slice(0, 1000); if (!num) return { ok: false, error: "That phone number does not look right." }; if (!text) return { ok: false, error: "Type a message first." };

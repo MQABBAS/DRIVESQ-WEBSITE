@@ -22,9 +22,10 @@ await p.goto('http://localhost:8765/admin.html',{waitUntil:'domcontentloaded'});
 const nowI=Date.now(),iso=m=>new Date(nowI-m*6e4).toISOString();
 const TH={'447844800001':{ok:true,phone:'447844800001',name:'Ivy',role:'student',windowOpen:true,windowEnds:new Date(nowI+20*36e5).toISOString(),optedOut:false,messages:[{id:'1',at:iso(60),dir:'in',text:'Hello can I book'},{id:'2',at:iso(55),dir:'out',text:'Sure, what area?',status:'read'}]},
 '447844800002':{ok:true,phone:'447844800002',name:'Closed Cal',role:'instructor',windowOpen:false,windowEnds:null,optedOut:false,messages:[{id:'3',at:iso(3000),dir:'out',text:'old template',tpl:'dsq_x',status:'delivered'}]},
+'447844800004':{ok:true,phone:'447844800004',name:'Long Lou',role:'student',windowOpen:true,windowEnds:new Date(nowI+36e5).toISOString(),optedOut:false,hasMore:true,messages:[{id:'9',at:iso(30),dir:'in',text:'recent one'}]},
 '447844800003':{ok:true,phone:'447844800003',name:'Stop Sam',role:'student',windowOpen:true,windowEnds:new Date(nowI+36e5).toISOString(),optedOut:true,messages:[]}};
 await p.route('**/functions/v1/whatsapp',async r=>{const bd=r.request().postDataJSON();WA.push(bd);const j=o=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(o)});
- if(bd.action==='inbox_thread')return j(TH[bd.phone]||{ok:false,error:'no chat'});if(bd.action==='inbox_send')return j({ok:true});return j({ok:true,version:'x'});});
+ if(bd.action==='inbox_thread'){if(bd.phone==='447844800004'&&bd.all)return j({...TH[bd.phone],hasMore:false,full:true,messages:[{id:'8',at:iso(5000),dir:'in',text:'very old one'},...TH[bd.phone].messages]});return j(TH[bd.phone]||{ok:false,error:'no chat'});}if(bd.action==='inbox_send')return j({ok:true});return j({ok:true,version:'x'});});
 const T=s=>p.evaluate(x=>document.querySelector(x)?document.querySelector(x).innerText:'',s);let f=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)f++;};
 await p.evaluate(()=>openWaChat('07844 800001','Ivy Student'));await p.waitForTimeout(1200);
 let t=await T('#wcModal');ok(/Hello can I book/.test(t)&&/Sure, what area\?/.test(t),'shows both directions');ok(/Ivy Student/.test(t),'uses the given name');ok(/Can reply until/.test(t),'window open');
@@ -33,6 +34,9 @@ await p.fill('#wcText','Thanks!');await p.click('#wcSendBtn');await p.waitForTim
 await p.evaluate(()=>openWaChat('447844800002','Cal'));await p.waitForTimeout(1000);ok(await p.evaluate(()=>document.getElementById('wcSendBtn').disabled),'send disabled when 24h window closed');ok(/24-hour window closed/.test(await T('#wcModal')),'closed notice');
 await p.evaluate(()=>openWaChat('447844800003','Sam'));await p.waitForTimeout(1000);ok(await p.evaluate(()=>document.getElementById('wcText').disabled),'blocked after STOP');ok(/STOP/.test(await T('#wcModal')),'STOP notice');
 await p.evaluate(()=>openWaChat('447844800099','Nobody'));await p.waitForTimeout(900);ok(/no chat/.test(await T('#wcModal')),'error shown');
+await p.evaluate(()=>openWaChat('447844800004','Lou'));await p.waitForTimeout(1000);ok(/Load the full history/.test(await T('#wcModal')),'long chat shows a full-history button');ok(!/very old one/.test(await T('#wcModal')),'older messages not loaded yet');
+await p.click('text=Load the full history');await p.waitForTimeout(1000);ok(WA.some(b=>b.action==='inbox_thread'&&b.all===true),'full history requested');ok(/very old one/.test(await T('#wcModal'))&&/recent one/.test(await T('#wcModal')),'older messages now shown');ok(!/Load the full history/.test(await T('#wcModal')),'button gone once everything is loaded');
+await p.evaluate(()=>openWaChat('447844800001','Ivy'));await p.waitForTimeout(900);ok(!/Load the full history/.test(await T('#wcModal')),'short chat has no button');
 await p.click('text=✕ Close');ok(!(await p.$('#wcModal')),'closes');
 const src=require('fs').readFileSync('/home/user/drivesq-website/admin.html','utf8');
 ok((src.match(/openWaChat\(/g)||[]).length>=7,'buttons wired in referrals, instructor + student profiles');

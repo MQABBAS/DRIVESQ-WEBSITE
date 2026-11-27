@@ -3,7 +3,7 @@
    It only READS and drives the pieces that already exist (admin-autoassign.js = settings/attention, admin-whatsapp.js = WhatsApp, the Supabase function = the engine). */
 (function () {
   'use strict';
-  var WANT_FN = '2026-11-27-reasons', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
+  var WANT_FN = '2026-11-28-fullhistory', TAB = 'overview', IFILT = 'all', ISEARCH = '', TIMER = null, FILTER = 'all', DATA = {};
   var E = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var SBc = function () { return window.DSQ_ADMIN && DSQ_ADMIN.sb && DSQ_ADMIN.sb(); };
   var toast = function (m, t, ms) { try { window.showToast(m, t || '', ms); } catch (e) { } };
@@ -382,7 +382,7 @@
   function ibBack() { var g = document.getElementById('ibxGrid'); if (g) g.classList.remove('sel'); IBX.sel = ''; drawList(); }
 
   /* ---------- WhatsApp chat pop-up (referrals, instructor + student profiles) ---------- */
-  var WC = { phone: '', name: '', d: null, busy: false, timer: null, keepNote: false };
+  var WC = { phone: '', name: '', d: null, busy: false, timer: null, keepNote: false, all: false };
   function wcCss() {
     if (document.getElementById('wcStyle')) return; var st = document.createElement('style'); st.id = 'wcStyle';
     st.textContent = '#wcModal{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:12px;font-family:Inter,system-ui,sans-serif}' +
@@ -410,16 +410,18 @@
     var d = WC.d, m = document.getElementById('wcMsgs'); if (!m || !d) return; var atBottom = !keep || m.scrollHeight - m.scrollTop - m.clientHeight < 80, last = '', html = '';
     (d.messages || []).forEach(function (x) { var day = new Date(x.at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); if (day !== last) { html += '<div class="day">' + day + '</div>'; last = day; } var tm = new Date(x.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), tick = x.dir === 'out' ? ({ read: ' ✓✓', delivered: ' ✓✓', sent: ' ✓', failed: ' ❌' }[x.status] || '') : '';
       html += '<div class="bb ' + x.dir + (x.tpl && /^dsq_/.test(x.tpl) ? ' tp' : '') + '">' + (x.button ? '🔘 ' : '') + E(x.text) + (x.error ? '<br><span style="color:#f87171">' + E(x.error) + '</span>' : '') + '<small>' + tm + tick + '</small></div>'; });
-    m.innerHTML = html || '<div style="margin:auto;opacity:.6;font-size:.82rem;text-align:center">No WhatsApp messages with this number yet.</div>'; if (atBottom) m.scrollTop = m.scrollHeight;
+    var top = d.hasMore && !WC.all ? '<div style="text-align:center;margin:2px 0 6px"><button type="button" class="wcbtn" onclick="DSQHub.chatFull()">⬆ Load the full history (older messages)</button></div>' : (WC.all ? '<div class="day">Full history · ' + (d.messages || []).length + ' messages</div>' : '');
+    m.innerHTML = (html ? top + html : '<div style="margin:auto;opacity:.6;font-size:.82rem;text-align:center">No WhatsApp messages with this number yet.</div>'); if (atBottom) m.scrollTop = m.scrollHeight;
   }
+  async function chatFull() { WC.all = true; var m = document.getElementById('wcMsgs'); if (m) m.insertAdjacentHTML('afterbegin', '<div class="day">Loading the full history…</div>'); await wcLoad(false); }
   async function wcLoad(quiet) {
-    var r = await DSQWA.call({ action: 'inbox_thread', phone: WC.phone }); if (!document.getElementById('wcModal')) return;
+    var r = await DSQWA.call({ action: 'inbox_thread', phone: WC.phone, all: WC.all }); if (!document.getElementById('wcModal')) return;
     if (!r.ok) { if (!quiet) { var lt = document.getElementById('wcLoadTx'); if (lt) lt.textContent = ''; var m = document.getElementById('wcMsgs'); if (m) m.innerHTML = '<div style="margin:auto;color:#f87171;font-size:.82rem;text-align:center">' + E(r.error || 'Could not load the messages. Deploy the latest whatsapp function.') + '</div>'; } return; }
     WC.d = r; wcHead(); wcMsgs(quiet);
   }
   function chat(phone, name) {
     var ph = String(phone || '').replace(/\D/g, ''); if (!ph) { alert('There is no phone number saved for this person.'); return; }
-    wcClose(); wcCss(); WC.phone = ph; WC.name = name || ''; WC.keepNote = false;
+    wcClose(); wcCss(); WC.phone = ph; WC.name = name || ''; WC.keepNote = false; WC.all = false;
     var m = document.createElement('div'); m.id = 'wcModal'; m.onclick = function (e) { if (e.target === m) wcClose(); };
     m.innerHTML = '<div class="wcb"><div class="wch" id="wcHead"><b style="flex:1">' + E(name || nice(ph)) + '</b><span id="wcLoadTx" style="opacity:.6;font-size:.76rem">Loading WhatsApp messages…</span><button type="button" class="wcbtn" onclick="DSQHub.chatClose()">✕ Close</button></div><div class="wcm" id="wcMsgs"><div style="margin:auto;opacity:.6;font-size:.82rem">Loading…</div></div><div class="wcc"><textarea id="wcText" maxlength="1000" placeholder="Type a reply… (Enter to send, Shift+Enter for a new line)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();DSQHub.chatSend()}"></textarea><div style="display:flex;gap:8px;align-items:center;margin-top:7px"><span id="wcNote" style="font-size:.7rem;flex:1"></span><button type="button" class="wcbtn wcp" id="wcSendBtn" onclick="DSQHub.chatSend()">Send</button></div></div></div>';
     document.body.appendChild(m); wcLoad(false); WC.timer = setInterval(function () { if (document.getElementById('wcModal')) wcLoad(true); else wcClose(); }, 12000);
@@ -578,5 +580,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { chat: chat, chatSend: chatSend, chatClose: wcClose, aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, ibOpen: ibOpen, ibSend: ibSend, ibDone: ibDone, ibBack: ibBack, ibQuick: ibQuick, ibFilter: function (f) { IBX.filter = f; drawList(); }, ibSearch: function (q) { IBX.q = q; drawList(); }, loadUsage: loadUsage, sendSummary: sendSummary, loadAdi: loadAdi, adiSave: adiSave, adiFilter: function (f) { AFILT = f; drawAdi(); }, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { chatFull: chatFull, chat: chat, chatSend: chatSend, chatClose: wcClose, aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, ibOpen: ibOpen, ibSend: ibSend, ibDone: ibDone, ibBack: ibBack, ibQuick: ibQuick, ibFilter: function (f) { IBX.filter = f; drawList(); }, ibSearch: function (q) { IBX.q = q; drawList(); }, loadUsage: loadUsage, sendSummary: sendSummary, loadAdi: loadAdi, adiSave: adiSave, adiFilter: function (f) { AFILT = f; drawAdi(); }, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();
