@@ -54,9 +54,10 @@ async function init(){
   // Fetch the waiting_list row
   let entry;
   try{
-    const res=await fetch(SB_URL+'/rest/v1/waiting_list?confirm_token=eq.'+encodeURIComponent(token)+'&select=*',{headers:HEADERS});
-    const rows=await res.json();
-    if(!rows||!rows.length){st.innerHTML='<span style="color:#f87171">❌ Assignment not found. It may have already been handled.</span>';return;}
+    const res=await fetch(SB_URL+'/rest/v1/rpc/dsq_confirm_get',{method:'POST',headers:HEADERS,body:JSON.stringify({p_token:token})});
+    const one=await res.json();
+    const rows=one&&!one.code&&!one.message?[one]:[];
+    if(!rows.length){st.innerHTML='<span style="color:#f87171">❌ Assignment not found. It may have already been handled.</span>';return;}
     entry=rows[0];
   }catch(e){st.innerHTML='<span style="color:#f87171">❌ Connection error. Please try again.</span>';return;}
 
@@ -80,11 +81,7 @@ async function init(){
 }
 
 async function respond(entry,status){
-  await fetch(SB_URL+'/rest/v1/waiting_list?confirm_token=eq.'+encodeURIComponent(token),{
-    method:'PATCH',
-    headers:{...HEADERS,'Prefer':'return=minimal'},
-    body:JSON.stringify({confirm_status:status,confirm_responded_at:new Date().toISOString()})
-  }).catch(()=>{});
+  await fetch(SB_URL+'/rest/v1/rpc/dsq_confirm_set',{method:'POST',headers:HEADERS,body:JSON.stringify({p_token:token,p_status:status})}).catch(()=>{});
 }
 
 function showDone(icon,title,msg,entry,color){
