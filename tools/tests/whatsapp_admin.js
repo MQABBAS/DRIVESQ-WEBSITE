@@ -44,7 +44,7 @@ const sent=WA.filter(x=>x.action==='send_template');console.log('sends while ON:
 sent.forEach(x=>console.log('  ->',x.template,'to',x.to,'params',JSON.stringify(x.params).slice(0,160),'buttons',JSON.stringify(x.buttons||[])));
 // untick student -> only instructor
 WA.length=0;await p.evaluate(()=>{openModal('assignModal');});await p.waitForTimeout(700);
-await p.evaluate(()=>{document.getElementById('wa-auto-stu').checked=false;});
+await p.evaluate(()=>{const e=document.getElementById('wa-auto-stu');if(e)e.checked=false;});
 await p.evaluate(a=>DSQWA.afterAssign(a),arg);await p.waitForTimeout(1000);
 console.log('with student unticked:',WA.filter(x=>x.action==='send_template').map(x=>x.template));
 // not connected but ON -> nothing sent, warning

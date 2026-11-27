@@ -6357,41 +6357,6 @@ function adminDeleteStudentFromDetail(){
   adminDeleteStudent(true);
 }
 
-async function adminReassignStudent(idx){
-  // Prefer _adminStudentCtx (set by openStudentDetail) over stale idx
-  let s=_adminStudentCtx?{..._adminStudentCtx,instrId:_adminStudentCtx.instrId,profileId:_adminStudentCtx.profileId||_adminStudentCtx.rosterId}:(_renderedStudents[idx]||null);
-  if(!s||!s.name){showToast('No student loaded — open the student first.','error');return;}
-  const approved=allInstrs.filter(i=>i.status==='approved');
-  if(!approved.length){showToast('No approved instructors found.','error');return;}
-  const opts=approved.map(i=>`<option value="${i.id}"${i.id===s.instrId?' selected':''}>${esc(i.full_name)}</option>`).join('');
-  const result=await new Promise(resolve=>{
-    const overlay=document.createElement('div');
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
-    overlay.innerHTML=`<div style="background:var(--dk2,#161616);border:1px solid var(--bdr,#2a2a2a);border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.7)">
-      <h5 style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:var(--txt,#f0f0f0);margin-bottom:4px"><i class="bi bi-arrow-left-right me-2" style="color:var(--gold,#F5C518)"></i>Reassign Student</h5>
-      <div style="font-size:.8rem;color:var(--txt3,#555);margin-bottom:16px;padding:8px 10px;background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.2);border-radius:8px"><i class="bi bi-person-fill me-1" style="color:var(--gold,#F5C518)"></i><strong style="color:var(--txt,#f0f0f0)">${esc(s.name)}</strong> · Currently: ${esc(allInstrs.find(i=>i.id===s.instrId)?.full_name||'Unknown instructor')}</div>
-      <label style="font-size:.72rem;color:var(--txt3,#555);font-weight:600;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px">New Instructor</label>
-      <select id="_reassignSel" style="width:100%;background:var(--dk3,#1e1e1e);border:1px solid var(--bdr,#2a2a2a);border-radius:8px;color:var(--txt,#f0f0f0);padding:9px 12px;font-family:'Inter',sans-serif;font-size:.84rem;margin-bottom:12px">${opts}</select>
-      <label style="font-size:.72rem;color:var(--txt3,#555);font-weight:600;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px">Reason for Reassignment <span style="color:var(--txt4,#333);font-weight:400;text-transform:none">(sent to old instructor)</span></label>
-      <textarea id="_reassignReason" rows="2" placeholder="e.g. Schedule conflict, student request, area change…" style="width:100%;background:var(--dk3,#1e1e1e);border:1px solid var(--bdr,#2a2a2a);border-radius:8px;color:var(--txt,#f0f0f0);padding:9px 12px;font-family:'Inter',sans-serif;font-size:.84rem;resize:vertical;margin-bottom:16px"></textarea>
-      <div style="display:flex;gap:8px">
-        <button id="_reassignOk" style="flex:1;background:linear-gradient(135deg,#D10A11,#b00007);color:#fff;border:none;border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer"><i class="bi bi-check-lg me-1"></i>Reassign</button>
-        <button id="_reassignCancel" style="flex:1;background:transparent;border:1px solid var(--bdr,#2a2a2a);color:var(--txt3,#555);border-radius:9px;font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;padding:10px;cursor:pointer">Cancel</button>
-      </div>
-    </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector('#_reassignOk').onclick=()=>{
-      const v=overlay.querySelector('#_reassignSel').value;
-      const reason=overlay.querySelector('#_reassignReason').value.trim();
-      document.body.removeChild(overlay);
-      resolve(v?{instrId:v,reason}:null);
-    };
-    overlay.querySelector('#_reassignCancel').onclick=()=>{document.body.removeChild(overlay);resolve(null);};
-  });
-  if(!result)return;
-  await _adminMoveStudent(s,result.instrId,result.reason);
-}
-
 /* Move an existing student (profile, progress, portal account) to another instructor.
    overrides: optional {phone,address,lesson_type,notes} edited in Find & Assign. */
 async function _adminMoveStudent(s,picked,reason,overrides){

@@ -34,7 +34,7 @@ console.log('tried',tried);console.log('NOT FUNCTIONS:',extra.missing.join(', ')
 console.log('ERRORS BY HANDLER:');Object.entries(bad).forEach(([k,v])=>console.log(' ',k,'->',v.slice(0,2).join(' | ')));
 
 const TABS='actions activity add analytics availability bulk calendar coverage dashboard email enquiries expenses feedback finance find followup freehour graph growth infoview instructors lessons map messages notes outreach pending progress-overview referrals requests revenue scorecard students today transfers waitlist'.split(' ');
-const calls=TABS.map(t=>"switchTab('"+t+"')").concat(["viewInstr('i1')","viewInstr('i3')","openRefDetail('i1')","openRefDetail('i1',true)","openInstrReferrals('i1')","openEditForId('i1')","openMsgModal('i1')","openInstrReferrals('nope')","viewInstr('nope')","openRefStudentDetail('Stu One','i1')","openStudentDetail(0)","openEditForId('i2')"]);
+const calls=TABS.map(t=>"switchTab('"+t+"')").concat(["viewInstr('i1')","viewInstr('i3')","openRefDetail('i1')","openRefDetail('i1',true)","openInstrReferrals('i1')","openEditForId('i1')","openMsgModal('i1')","openInstrReferrals('nope')","viewInstr('nope')","openRefStudentDetail('Stu One','i1')","openStudentDetail(0)","openEditForId('i2')","adminReassignStudent()"]);
 const bad2={};
 for(const c of calls){const before=errs.length;const r=await p.evaluate(async c=>{try{await eval(c);return null}catch(e){return e.message}},c);await p.waitForTimeout(500);
  await p.evaluate(()=>{document.querySelectorAll('.modal.show').forEach(m=>{const x=m.querySelector('.btn-close,[data-bs-dismiss]');x&&x.click();});});
