@@ -25,10 +25,13 @@
 
   /* ---------- settings block inside Admin → WhatsApp ---------- */
   var num = function (id, label, val, hint, step) { return '<label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">' + label + '</span><input type="number" id="' + id + '" class="dsq-inp" value="' + E(val) + '" step="' + (step || 1) + '" style="margin-top:2px"' + (hint ? ' title="' + E(hint) + '"' : '') + '></label>'; };
+  var FU_SINCE = '';
   function fu_html() {
     var fu = CFG.followups;
     return '<label style="display:flex;gap:6px;align-items:center;font-size:.76rem;margin:6px 0"><input type="checkbox" id="aaFuOn"' + (fu.enabled ? ' checked' : '') + '> Ask students and instructors whether a lesson is booked, and update Referrals from their answers</label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">' + num('aaFuAcc', 'Hours to wait for the instructor to accept', fu.acceptWaitHours) + num('aaFuDays', 'Ask BOTH the student and the instructor this many days after the instructor accepts', fu.checkinDays) + num('aaFuCap', 'Most check-in messages per person per week', fu.maxPerWeek, 'The student and the instructor are each messaged at most this many times in any 7 days') + num('aaFuRep', 'Repeat every (days)', fu.repeatDays) + num('aaFuRounds', 'Rounds before it comes to you', fu.rounds) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:6px"><label style="font-size:.72rem;display:block"><span style="color:var(--txt3)">Check in on students given from (date)</span><input type="date" id="aaFuSince" class="dsq-inp" value="' + E(FU_SINCE || '2026-11-23') + '" style="margin-top:2px;width:100%"><span style="color:var(--txt4);font-size:.66rem">Earlier students are never asked. Covers students given by auto-assign AND by hand.</span></label></div>' +
+      '<div style="font-size:.7rem;color:var(--txt4);margin-top:6px;line-height:1.55"><b>Who is asked:</b> only a student with <b>no mark</b> or marked <b>🟣 unsure</b> in Referrals, <b>3 days after they were given</b>. A student marked booked, not booked, can\'t reach or left gets <b>no message at all</b>, to the student or the instructor. If a mark is removed they are asked again. An answer from either of them (or a mark in the Instructor Portal) updates the Referral and stops the other being asked.</div>' +
       '<div style="font-size:.7rem;color:var(--txt4);margin-top:4px">Student answers: <b>Yes, booked</b> → green flag; <b>Not yet</b> → note + waiting; <b>Gone elsewhere</b> → red, student left. The instructor is asked at the same time, so nothing waits on the student. If nobody answers after the rounds, it comes to you.</div>';
   }
   /* right-now strip: waiting website bookings, offers pending, items needing you */
@@ -66,6 +69,7 @@
   }
   async function mount() {
     var h = document.getElementById('aaHolder'); if (!h) return; await load();
+    try { var gsf = await SBc().from('growth_settings').select('value').eq('key', 'followups_since').maybeSingle(); FU_SINCE = (gsf.data && gsf.data.value && gsf.data.value.date) || ''; } catch (e) { }
     var fu = CFG.followups, oldOn = null; try { oldOn = typeof window.getAutoAssign === 'function' ? await window.getAutoAssign() : null; } catch (e) { }
     var live = ''; try { live = await liveStatus(); } catch (e) { }
     var sec = function (ico, title, sub, body, open) { return '<details class="aaSec"' + (open ? ' open' : '') + ' style="border:1px solid var(--bdr);border-radius:10px;margin:8px 0;background:rgba(255,255,255,.02)"><summary style="cursor:pointer;padding:9px 12px;font-weight:800;font-size:.82rem;list-style:none">' + ico + ' ' + title + ' <span style="font-weight:500;font-size:.7rem;color:var(--txt4);margin-left:6px">' + sub + '</span></summary><div style="padding:0 12px 12px">' + body + '</div></details>'; };
@@ -181,6 +185,7 @@
     CFG.aiAssistant = !!document.getElementById('aaAi').checked; CFG.aiTestOnly = !!document.getElementById('aaAiTest').checked; CFG.aiSend = !!document.getElementById('aaAiSend').checked; CFG.aiMaxMessages = Math.max(3, Math.round(n('aaAiMax', 14))); CFG.aiHoldMinutes = Math.max(0, n('aaAiHold', 5)); CFG.aiFacts = String((document.getElementById('aaAiFacts') || {}).value || '').slice(0, 2500);
     if (CFG.aiAssistant && !CFG.aiTestOnly && !confirm('Turn the assistant ON for real students?\n\nIt will answer anyone who WhatsApps the number (except instructors). Make sure the Meta AI is not also answering, and that you have tested it from your own phone.')) return;
     if (on && !was) CFG.since = document.getElementById('aaOlder').checked ? '' : new Date().toISOString();   // only bookings from now on, unless you say otherwise
+    var fsEl = document.getElementById('aaFuSince'); if (fsEl && /^\d{4}-\d{2}-\d{2}$/.test(fsEl.value)) { try { await SBc().from('growth_settings').upsert({ key: 'followups_since', value: { date: fsEl.value }, updated_at: new Date().toISOString() }, { onConflict: 'key' }); if (fsEl.value !== FU_SINCE) log('Check-ins now start from students given on or after ' + fsEl.value); FU_SINCE = fsEl.value; } catch (e) { } }
     if (!(await save())) return; log('Auto-assign turned ' + (on ? 'ON (' + CFG.mode + ')' : 'OFF'));
     toast(on ? '🤖 Auto-assign is ON' + (CFG.mode === 'suggest' ? ' (suggest only)' : '') : 'Auto-assign is OFF', 'success', 3500); mount(); try { window.refreshAutoAssignBtn(); } catch (e) { }
   }

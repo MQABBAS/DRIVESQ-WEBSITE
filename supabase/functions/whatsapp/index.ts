@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-26-inbox-summary";
+const FN_VERSION = "2026-11-27-checkins";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1286,17 +1286,43 @@ async function followupReply(sb: any, kind: string, fid: string, from: string) {
     try { await sendText(from, "Thanks, noted. We'll check again in a few days."); } catch (_) { /* window */ }
   }
 }
+/* ---- who needs a check-in ----
+   Only a student with NO mark yet, or marked "unsure" (purple), is asked. Confirmed booked, not going ahead, can't reach and left are all finished: nobody is messaged. If a mark is removed again (booked mark taken off in admin or the portal) the student is asked again. */
+const FOLLOWUPS_START_DEFAULT = "2026-11-23";   // check-ins cover students given on or after this day (a Monday); change it in Settings -> follow-ups
+const needsCheckin = (r: any) => !!r && !r.is_cancelled && !r.is_credit && !isBooked(r) && r.flag_color !== "red" && !["left", "not_interested", "unreachable"].includes(String(r.reply_status || ""));
+async function followupsSince(sb: any) {
+  const v: any = await getKv(sb, "followups_since"), d = /^\d{4}-\d{2}-\d{2}$/.test(String(v.date || "")) ? String(v.date) : FOLLOWUPS_START_DEFAULT, [y, m, dd] = d.split("-").map(Number);
+  return londonMidnight(y, m, dd);
+}
+/* every student given since the start date has a check-in record, however they were given (auto-assign or by hand), and a record that was finished because of a mark is opened again when that mark is removed */
+async function syncFollowups(sb: any, cfg: any, since: number) {
+  const f = cfg.followups; if (!f.enabled) return 0;
+  const { data: refs } = await sb.from("referrals").select("*").gte("created_at", new Date(since).toISOString()), { data: rows } = await sb.from("student_followups").select("*");
+  const have = new Map((rows || []).map((r: any) => [String(r.referral_id), r])); let made = 0, reopened = 0;
+  for (const r of (refs || [])) {
+    if (r.is_cancelled || r.is_credit || new Date(r.created_at).getTime() < since) continue;
+    const ex: any = have.get(String(r.id));
+    if (!ex) { if (made >= 30) continue; await sb.from("student_followups").insert([{ referral_id: String(r.id), instructor_id: String(r.instructor_id), student_name: r.student_name || "", student_phone: r.student_phone || "", state: "waiting_student", round: 1, accepted_at: r.created_at, next_due: new Date(new Date(r.created_at).getTime() + f.checkinDays * 864e5).toISOString() }]); made++; }
+    else if (ex.state === "done" && needsCheckin(r)) { await setF(sb, ex.id, { state: "waiting_student", round: 1, next_due: new Date().toISOString(), result: "the mark was removed: asking again" }); reopened++; }
+  }
+  if (made || reopened) await trail(sb, "followup_sync", `🔁 Check-ins: ${made ? made + " student" + (made === 1 ? "" : "s") + " added (given since " + new Date(since).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: LONDON }) + ")" : ""}${made && reopened ? ", " : ""}${reopened ? reopened + " reopened because a mark was removed" : ""}`);
+  return made + reopened;
+}
 async function runFollowups(sb: any, cfg: any) {
-  const f = cfg.followups; if (!f.enabled || !TOKEN || !PHONE_ID) return [];
+  const f = cfg.followups; if (!f.enabled) return [];
+  const since = await followupsSince(sb); try { await syncFollowups(sb, cfg, since); } catch (e) { console.error("sync followups", e); }
+  if (!TOKEN || !PHONE_ID) return [];
   const h = londonHour(), fh = cfg.anytime ? [8, 21] : cfg.hours; if (h < fh[0] || h >= fh[1]) return [];   // check-ins to students/instructors are not sent in the middle of the night, even in 24/7 mode
   const { data: rows } = await sb.from("student_followups").select("*");
   const due = (rows || []).filter((r: any) => !["done", "attention", "closed"].includes(r.state) && r.next_due && new Date(r.next_due).getTime() <= Date.now());
-  const { data: instrs } = await sb.from("instructors").select("id,full_name,phone,status"); const out: any[] = [];
+  const { data: instrs } = await sb.from("instructors").select("id,full_name,phone,status"); const out: any[] = []; let asked = 0;
   for (const r of due) {
     const insX = (instrs || []).find((i: any) => String(i.id) === String(r.instructor_id));
     if (insX && insX.status === "suspended") { await setF(sb, r.id, { state: "closed", result: "instructor blocked" }); continue; }   // blocked = no messages to them or about them
     const { data: ref } = await sb.from("referrals").select("*").eq("id", r.referral_id).maybeSingle(); const ins = (instrs || []).find((i: any) => String(i.id) === String(r.instructor_id)) || { full_name: "your instructor", phone: "" }, stu = r.student_name || "the student";
-    if (!ref || ref.is_cancelled || isBooked(ref) || ref.reply_status === "left") { await setF(sb, r.id, { state: "done", result: "settled in admin" }); continue; }
+    if (ref && new Date(ref.created_at).getTime() < since) { await setF(sb, r.id, { state: "closed", result: "given before the check-in start date" }); continue; }   // not asked about students from before the start date
+    if (!ref || !needsCheckin(ref)) { await setF(sb, r.id, { state: "done", result: "settled in admin" }); continue; }   // confirmed booked, not going ahead, can't reach or left: nobody is messaged
+    if (++asked > 12) break;   // never a burst: the rest wait for the next run
     // student AND instructor are asked at the same time (no waiting for the student), each at most maxPerWeek times in any 7 days
     const cap = f.maxPerWeek > 0 ? f.maxPerWeek : 2, CHK = ["dsq_student_checkin", "dsq_instructor_checkin"];
     const { data: past } = await sb.from("wa_log").select("to_phone,template,status,created_at").eq("referral_id", String(r.referral_id));

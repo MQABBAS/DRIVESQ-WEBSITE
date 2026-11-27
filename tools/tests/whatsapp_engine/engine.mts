@@ -600,6 +600,41 @@ console.log("== 32h. New features: nothing changes while their templates are in 
   await hook({ from: "447920000601" }, "Hi I'd like manual lessons"); const cu = await call({ action: "claude_usage" }), dayK = Object.keys(cu.days)[0], dd = cu.days[dayK];
   ok(cu.ok && dd && dd.calls === 2 && dd.in === 200 && dd.out === 40 && dd.kinds.classify.calls === 1 && dd.kinds.chat.calls === 1, "Claude usage: every call is counted (calls, input and output tokens) by kind");
   delete globalThis.__tplApproved; reset(); cfgOf().directMiles = 0; }
+console.log("== 32i. Check-ins: this week's students, however they were given, and only unmarked or unsure ones ==");
+{ const sentTpl = (n) => CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === n);
+  const day = (n) => new Date(Date.now() - n * 864e5).toISOString(), numOf = (i) => "44" + i.phone.replace(/^0/, "").replace(/\s/g, "");
+  const reset = () => { cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().enabled = true; cfgOf().mode = "assign"; cfgOf().followups = { ...(cfgOf().followups || {}), enabled: true, checkinDays: 3, maxPerWeek: 2, repeatDays: 4, rounds: 4, acceptWaitHours: 24 }; DB.referrals = []; DB.student_followups = []; DB.auto_assign_jobs = []; DB.waiting_list = []; DB.wa_log = []; DB.admin_attention = []; DB.admin_activity_log = []; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.growth_settings.push({ id: "fs1", key: "followups_since", value: { date: day(10).slice(0, 10) } }); CALLS.length = 0; };
+  const R = (id, name, phone, ago, extra = {}) => ({ id, instructor_id: "i1", student_name: name, student_phone: phone, created_at: day(ago), amount: 25, is_paid: false, is_cancelled: false, is_credit: false, flag_color: null, reply_status: null, admin_notes: "", notes: "", ...extra });
+  const ins1 = () => DB.instructors.find((i) => i.id === "i1");
+  // ---- a) who is asked
+  reset(); DB.referrals = [R("c1", "Cee Unmarked", "07844900001", 5), R("c2", "Cee Booked", "07844900002", 5, { flag_color: "green", reply_status: "booked", admin_notes: day(1).slice(0, 10) + " · ✅ Booked — confirmed by admin" }), R("c3", "Cee Unsure", "07844900003", 5, { flag_color: "purple", reply_status: "not_yet" }), R("c4", "Cee NotBooked", "07844900004", 5, { flag_color: "red", reply_status: "not_interested" }), R("c5", "Cee Unreach", "07844900005", 5, { flag_color: "red", reply_status: "unreachable" }), R("c6", "Cee Old", "07844900006", 15)];
+  await call({ action: "auto_assign", cron: true }); const toS = (n) => sentTpl("dsq_student_checkin").map((c) => String(c.wa.to)).includes(n);
+  ok(DB.student_followups.some((f) => f.referral_id === "c1") && !DB.student_followups.some((f) => f.referral_id === "c6"), "students given by hand since the start date get a check-in record; older ones do not");
+  ok(toS("447844900001") && toS("447844900003"), "a student with NO mark, and one marked UNSURE, are both asked (student message sent)");
+  ok(sentTpl("dsq_instructor_checkin").length === 2 && sentTpl("dsq_instructor_checkin").every((c) => String(c.wa.to) === numOf(ins1())), "...and their instructor is asked about each of them too");
+  ok(!toS("447844900002") && !toS("447844900004") && !toS("447844900005") && !toS("447844900006"), "confirmed booked, not booked, can't reach and from-before-the-start students are NOT messaged");
+  ok(DB.student_followups.find((f) => f.referral_id === "c2").state === "done", "a confirmed-booked student's check-in is finished");
+  // ---- b) mark removed -> asked again
+  CALLS.length = 0; const c2 = DB.referrals.find((r) => r.id === "c2"); c2.flag_color = null; c2.reply_status = null; c2.admin_notes += "\n" + day(0).slice(0, 10) + " · ↩️ Booked mark removed by admin"; await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_student_checkin").some((c) => String(c.wa.to) === "447844900002") && DB.admin_activity_log.some((x) => x.action === "followup_sync" && /reopened/.test(x.summary)), "when the 'booked' mark is removed the student is asked again");
+  // ---- c) answered by the instructor in the portal while waiting
+  reset(); DB.referrals = [R("d1", "Dee Portal", "07844900011", 5)]; DB.student_followups = [{ id: "fd1", referral_id: "d1", instructor_id: "i1", student_name: "Dee Portal", student_phone: "07844900011", state: "waiting_student", round: 1, next_due: day(1) }]; DB.referrals[0].flag_color = "green"; DB.referrals[0].reply_status = "booked"; DB.referrals[0].admin_notes = day(0).slice(0, 10) + " · ✅ Booked — confirmed by instructor"; await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_student_checkin").length === 0 && DB.student_followups[0].state === "done", "an instructor marking the student booked in the portal before the check-in is due: nothing is sent");
+  // ---- d) old follow-up rows from before the start date are closed, never asked
+  reset(); DB.referrals = [R("e1", "Eee Old", "07844900021", 15)]; DB.student_followups = [{ id: "fe1", referral_id: "e1", instructor_id: "i1", student_name: "Eee Old", student_phone: "07844900021", state: "waiting_student", round: 1, next_due: day(1) }]; await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_student_checkin").length === 0 && DB.student_followups[0].state === "closed", "an existing follow-up for a student given before the start date is closed, not asked");
+  // ---- e) first check-in only 3 days after they were given
+  reset(); DB.referrals = [R("f1", "Eff New", "07844900031", 1)]; await call({ action: "auto_assign", cron: true });
+  ok(DB.student_followups.some((f) => f.referral_id === "f1") && sentTpl("dsq_student_checkin").length === 0, "a student given yesterday is not asked yet (first check-in is 3 days after they were given)");
+  const nd = new Date(DB.student_followups.find((f) => f.referral_id === "f1").next_due).getTime() - new Date(DB.referrals[0].created_at).getTime(); ok(Math.abs(nd - 3 * 864e5) < 60000, "...it is scheduled exactly 3 days after");
+  // ---- f) never a burst
+  reset(); DB.referrals = Array.from({ length: 20 }, (_, i) => R("g" + i, "Gee " + i, "078449001" + String(10 + i), 5)); await call({ action: "auto_assign", cron: true });
+  ok(sentTpl("dsq_student_checkin").length === 12 && DB.student_followups.length === 20, "20 students due at once: 12 are asked on this run and the rest on the next (no burst)");
+  CALLS.length = 0; await call({ action: "auto_assign", cron: true }); ok(sentTpl("dsq_student_checkin").length === 8, "...and the other 8 follow on the next run");
+  // ---- g) default start date
+  reset(); DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.referrals = [R("h1", "Aitch Old", "07844900041", 200), R("h2", "Aitch Now", "07844900042", 0)]; await call({ action: "auto_assign", cron: true });
+  ok(!DB.student_followups.some((f) => f.referral_id === "h1") && DB.student_followups.some((f) => f.referral_id === "h2"), "with no start date saved, the default (Monday 23 Nov 2026) applies");
+  reset(); DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.referrals = []; DB.student_followups = []; DB.admin_activity_log = []; DB.wa_log = []; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -996,7 +1031,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-26-inbox-summary", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-checkins", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

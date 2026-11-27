@@ -148,3 +148,10 @@ All of these are new in version 2026-11-26. Three of them use **new WhatsApp tem
 - **💬 Inbox** (control centre): every chat from the last 30 days, grouped by phone number, with Needs reply / Students / Instructors / ADI filters, the full thread, quick replies and a reply box. WhatsApp allows free text only within 24 hours of the person's last message; outside that window sending is blocked with an explanation. Anyone who sent STOP cannot be messaged. "Mark done" clears a chat from Needs reply. Every reply is logged in Activity.
 - **📈 Claude usage**: calls and tokens per day and per purpose. Enter your Anthropic prices per million tokens under Settings to see an estimated cost.
 - A button reply (Accept, Can't take, check-in answers, "I've paid") only counts when it comes from the person it was meant for.
+
+## Check-ins: did the student book a lesson?
+
+- **Who:** every student given since the start date (Settings → follow-ups, default Monday 23 Nov 2026), however they were given: auto-assign **or by hand** in Find & Assign. Earlier students are never asked.
+- **When:** the first check-in goes to the student **and** the instructor 3 days after the student was given (8am to 9pm UK, never more than 12 people per run, at most 2 a week each).
+- **Only unmarked or unsure:** a student with no mark, or marked 🟣 unsure in Referrals, is asked. A student marked **booked, not booked, can't reach or left** gets no message, and neither does their instructor. If a mark is removed they are asked again.
+- **Answers** (a button tap, or a mark in the Instructor Portal) update the Referral: booked → green, not yet → unsure, left → red, with a note and an Activity line, and the other person is no longer asked.
