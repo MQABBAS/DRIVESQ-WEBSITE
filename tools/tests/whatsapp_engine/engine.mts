@@ -635,6 +635,19 @@ console.log("== 32i. Check-ins: this week's students, however they were given, a
   reset(); DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.referrals = [R("h1", "Aitch Old", "07844900041", 200), R("h2", "Aitch Now", "07844900042", 0)]; await call({ action: "auto_assign", cron: true });
   ok(!DB.student_followups.some((f) => f.referral_id === "h1") && DB.student_followups.some((f) => f.referral_id === "h2"), "with no start date saved, the default (Monday 23 Nov 2026) applies");
   reset(); DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.referrals = []; DB.student_followups = []; DB.admin_activity_log = []; DB.wa_log = []; }
+console.log("== 32j. Students are encouraged to message their instructor ==");
+{ const textsTo = (to) => CALLS.filter((c) => c.wa && c.wa.type === "text" && String(c.wa.to) === to).map((c) => c.wa.text.body);
+  const inter = (to) => CALLS.filter((c) => c.wa && c.wa.type === "interactive" && String(c.wa.to) === to).map((c) => c.wa.interactive.body.text);
+  cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().enabled = true; DB.referrals = [{ id: "mi1", instructor_id: "i1", student_name: "Mi Student", student_phone: "07844990001", created_at: new Date().toISOString(), amount: 25, is_cancelled: false, is_credit: false, flag_color: null, reply_status: null, admin_notes: "" }];
+  DB.student_followups = [{ id: "fmi", referral_id: "mi1", instructor_id: "i1", student_name: "Mi Student", student_phone: "07844990001", state: "waiting_student", round: 1, next_due: new Date(Date.now() + 864e5).toISOString() }]; DB.wa_log = []; DB.admin_attention = []; CALLS.length = 0;
+  const i1 = DB.instructors.find((i) => i.id === "i1"), wa = "44" + i1.phone.replace(/^0/, "").replace(/\s/g, "");
+  await hook({ from: "447844990001", p: "STU_NOTYET:fmi" });
+  ok(inter("447844990001").some((t) => t.includes("wa.me/" + wa) && /Tell them the days and times/.test(t)), "student taps 'Not yet': the follow-up question includes a tap-to-chat link to THEIR instructor and tells them to send their days and times");
+  CALLS.length = 0; await hook({ from: "447844990001", p: "CONTACT_NO:fmi" });
+  ok(textsTo("447844990001").some((t) => /We'll chase them/.test(t) && t.includes("wa.me/" + wa)), "'instructor has not been in touch': they are told we will chase, and given the link to message the instructor themselves");
+  CALLS.length = 0; await hook({ from: "447844990001", p: "CONTACT_YES:fmi" });
+  ok(textsTo("447844990001").some((t) => /message .* with the days and times/.test(t)), "'yes in touch': reminded to send their days and times to book the first lesson");
+  DB.student_followups = []; DB.referrals = []; DB.wa_log = []; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -1031,7 +1044,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-checkins", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-message-instructor", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

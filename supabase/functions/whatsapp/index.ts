@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-27-checkins";
+const FN_VERSION = "2026-11-27-message-instructor";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1258,6 +1258,8 @@ async function applyMark(sb: any, refId: string, kind: "booked" | "not_yet" | "l
   await logAct(sb, who, who === "student" ? sName : actor, who === "student" ? "student_" + kind : "wa_" + kind, kind === "booked" ? `${who === "student" ? sName : actor} confirmed ${sName} is booked (WhatsApp)` : kind === "left" ? `${sName} has left (${who} said so on WhatsApp)` : `${sName} not booked yet (${who} said so on WhatsApp)`, r);
   return r;
 }
+/* a short line that nudges the student to message their own instructor, with a tap-to-chat link (free text is allowed here because the student has just replied to us) */
+const reachLine = (name: string, phone: string) => { const w = waNumber(phone || ""); return w ? `You can message ${name} straight away on WhatsApp: https://wa.me/${w} (or call ${fmtPhone(phone)}). Tell them the days and times you're free and they'll arrange your first lesson.` : `Please message ${name} with the days and times you're free so they can arrange your first lesson.`; };
 async function followupReply(sb: any, kind: string, fid: string, from: string) {
   const cfg = await loadCfg(sb); const { data: f } = await sb.from("student_followups").select("*").eq("id", fid).maybeSingle(); if (!f) return;
   const { data: ins } = await sb.from("instructors").select("full_name,phone").eq("id", f.instructor_id).maybeSingle(); const iName = (ins && ins.full_name) || "the instructor", stu = f.student_name || "the student";
@@ -1267,7 +1269,7 @@ async function followupReply(sb: any, kind: string, fid: string, from: string) {
     const { data: r } = await sb.from("referrals").select("admin_notes").eq("id", f.referral_id).maybeSingle();
     const line = kind === "CONTACT_YES" ? NOTE_LINE(`📱 ${stu} says ${iName} has been in touch`) : NOTE_LINE(`📱 ⚠️ ${stu} says ${iName} has NOT been in touch yet`);
     await sb.from("referrals").update({ admin_notes: [(r && r.admin_notes) || "", line].filter(Boolean).join("\n") }).eq("id", f.referral_id);
-    try { await sendText(from, kind === "CONTACT_YES" ? "Thanks, that's helpful 👍 We'll check in again in a few days." : "Sorry about that. We'll chase them for you right away."); } catch (_) { /* window */ }
+    try { await sendText(from, kind === "CONTACT_YES" ? `Thanks, that's helpful 👍 If you haven't booked your first lesson yet, just message ${iName} with the days and times you're free. We'll check in again in a few days.` : `Sorry about that. We'll chase them for you right away. In the meantime: ${reachLine(iName, ins && ins.phone)}`); } catch (_) { /* window */ }
     if (kind === "CONTACT_NO" && !settled) {
       await attention(sb, cfg, { kind: "not_contacted", title: `Attention: ${iName} has not contacted ${stu}`, detail: "The student says their instructor hasn't been in touch. We've messaged the instructor. Consider reassigning.", referral_id: f.referral_id, instructor_id: f.instructor_id, student_name: stu });
       if (ins && ins.phone) await sendTemplate(sb, { to: ins.phone, template: "dsq_instructor_checkin", lang: "en_GB", params: [first(iName), stu], buttons: ["INS_BOOKED:" + f.id, "INS_NOTYET:" + f.id, "INS_LEFT:" + f.id], instructor_id: String(f.instructor_id), referral_id: f.referral_id, student_name: stu });
@@ -1281,7 +1283,7 @@ async function followupReply(sb: any, kind: string, fid: string, from: string) {
   if (what === "left") { await setF(sb, f.id, { state: "done", result: "left (" + who + ")" }); try { await sendText(from, who === "student" ? "No problem, thanks for letting us know. Good luck with your driving!" : "Thanks, we've marked the student as left."); } catch (_) { /* window */ } return; }
   // not yet
   if (who === "student") {
-    try { await sendButtons(from, `Thanks! Has ${iName} been in touch with you yet?`, [{ id: "CONTACT_YES:" + f.id, title: "Yes, in touch" }, { id: "CONTACT_NO:" + f.id, title: "No, not yet" }]); } catch (_) { /* window */ }
+    try { await sendButtons(from, `Thanks! Has ${iName} been in touch with you yet?\n\n${reachLine(iName, ins && ins.phone)}`, [{ id: "CONTACT_YES:" + f.id, title: "Yes, in touch" }, { id: "CONTACT_NO:" + f.id, title: "No, not yet" }]); } catch (_) { /* window */ }
   } else {
     try { await sendText(from, "Thanks, noted. We'll check again in a few days."); } catch (_) { /* window */ }
   }
