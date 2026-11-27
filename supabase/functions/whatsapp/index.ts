@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* bump this whenever the function changes: the admin screen compares it and warns when the copy deployed in Supabase is out of date */
-const FN_VERSION = "2026-11-27-message-instructor";
+const FN_VERSION = "2026-11-27-informed";
 const env = (k: string) => Deno.env.get(k) || "";
 const SUPABASE_URL = env("SUPABASE_URL") || "https://vwvbfqrlumvoabzkjxoa.supabase.co";
 const SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY") || env("SERVICE_ROLE_KEY");
@@ -1291,7 +1291,10 @@ async function followupReply(sb: any, kind: string, fid: string, from: string) {
 /* ---- who needs a check-in ----
    Only a student with NO mark yet, or marked "unsure" (purple), is asked. Confirmed booked, not going ahead, can't reach and left are all finished: nobody is messaged. If a mark is removed again (booked mark taken off in admin or the portal) the student is asked again. */
 const FOLLOWUPS_START_DEFAULT = "2026-11-23";   // check-ins cover students given on or after this day (a Monday); change it in Settings -> follow-ups
-const needsCheckin = (r: any) => !!r && !r.is_cancelled && !r.is_credit && !isBooked(r) && r.flag_color !== "red" && !["left", "not_interested", "unreachable"].includes(String(r.reply_status || ""));
+/* the admin pressed "Been informed" on the referral: no check-in goes to the student or the instructor until it is pressed again (lines in the referral notes, like the booked mark) */
+const INFORMED_MK = "ℹ️ Been informed", INFORMED_OFF = "↩️ Informed mark removed";
+const isInformed = (r: any) => { const n = String((r && r.admin_notes) || ""); return n.lastIndexOf(INFORMED_MK) > n.lastIndexOf(INFORMED_OFF); };
+const needsCheckin = (r: any) => !!r && !r.is_cancelled && !r.is_credit && !isInformed(r) && !isBooked(r) && r.flag_color !== "red" && !["left", "not_interested", "unreachable"].includes(String(r.reply_status || ""));
 async function followupsSince(sb: any) {
   const v: any = await getKv(sb, "followups_since"), d = /^\d{4}-\d{2}-\d{2}$/.test(String(v.date || "")) ? String(v.date) : FOLLOWUPS_START_DEFAULT, [y, m, dd] = d.split("-").map(Number);
   return londonMidnight(y, m, dd);

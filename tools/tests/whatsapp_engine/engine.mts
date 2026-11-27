@@ -648,6 +648,20 @@ console.log("== 32j. Students are encouraged to message their instructor ==");
   CALLS.length = 0; await hook({ from: "447844990001", p: "CONTACT_YES:fmi" });
   ok(textsTo("447844990001").some((t) => /message .* with the days and times/.test(t)), "'yes in touch': reminded to send their days and times to book the first lesson");
   DB.student_followups = []; DB.referrals = []; DB.wa_log = []; }
+console.log("== 32k. 'Been informed' stops the check-ins ==");
+{ const sentTpl = (n) => CALLS.filter((c) => c.wa && c.wa.template && c.wa.template.name === n);
+  const day = (n) => new Date(Date.now() - n * 864e5).toISOString();
+  cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().enabled = true; cfgOf().followups = { ...(cfgOf().followups || {}), enabled: true, checkinDays: 3, maxPerWeek: 2, repeatDays: 4, rounds: 4 };
+  DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); DB.growth_settings.push({ id: "fsi", key: "followups_since", value: { date: day(10).slice(0, 10) } });
+  const R = (id, name, phone, extra = {}) => ({ id, instructor_id: "i1", student_name: name, student_phone: phone, created_at: day(5), amount: 25, is_paid: false, is_cancelled: false, is_credit: false, flag_color: null, reply_status: null, admin_notes: "", notes: "", ...extra });
+  DB.referrals = [R("n1", "Info Informed", "07844995001", { admin_notes: day(1).slice(0, 10) + " · ℹ️ Been informed — no check-in messages" }), R("n2", "Info Normal", "07844995002")]; DB.student_followups = []; DB.wa_log = []; DB.admin_attention = []; DB.admin_activity_log = []; CALLS.length = 0;
+  await call({ action: "auto_assign", cron: true }); const toS = (n) => sentTpl("dsq_student_checkin").map((c) => String(c.wa.to)).includes(n);
+  ok(!toS("447844995001") && toS("447844995002") && sentTpl("dsq_instructor_checkin").length === 1, "a referral marked 'Been informed' gets NO check-in (student or instructor); an ordinary one still does");
+  CALLS.length = 0; const n1 = DB.referrals.find((r) => r.id === "n1"); n1.admin_notes += "\n" + day(0).slice(0, 10) + " · ↩️ Informed mark removed — check-ins resume"; await call({ action: "auto_assign", cron: true });
+  ok(toS("447844995001") && sentTpl("dsq_instructor_checkin").some((c) => true), "pressing it again (mark removed) brings the check-ins back");
+  CALLS.length = 0; n1.admin_notes += "\n" + day(0).slice(0, 10) + " · ℹ️ Been informed — no check-in messages"; n1.flag_color = null; DB.student_followups.find((f) => f.referral_id === "n1").next_due = day(1); DB.student_followups.find((f) => f.referral_id === "n1").state = "asked_both"; await call({ action: "auto_assign", cron: true });
+  ok(!toS("447844995001") && DB.student_followups.find((f) => f.referral_id === "n1").state === "done", "marking a student informed while a later round is due stops the later rounds too");
+  DB.referrals = []; DB.student_followups = []; DB.wa_log = []; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -1044,7 +1058,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-message-instructor", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-informed", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };
