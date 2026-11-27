@@ -3893,6 +3893,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>/* if the chart library is blocked or fails to download, charts stay empty but the admin keeps working */if(typeof Chart==='undefined'){window.Chart=function(){this.destroy=function(){};this.update=function(){};};window.Chart.register=function(){};window.Chart.defaults={};}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/dsq-block.js?v=20261122"></script>
 <script src="/admin-packages.js?v=20261123"></script>
@@ -3910,6 +3911,8 @@ const SB_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dmJmcXJsdW12b2FiemtqeG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzQ4MzgsImV4cCI6MjA5Njc1MDgzOH0.c5UNle-sh1DYuyqaNYvG9r9ru74EMP89uhdteQu2qho';
 let sb;try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#f87171;font-family:Inter,sans-serif;background:#080808;min-height:100vh"><h2 style="font-family:Oswald,sans-serif;color:#D10A11;margin-bottom:12px">Connection Error</h2><p style="color:#666">Could not load the database library. Please refresh the page.<br>If this keeps happening, check your internet connection.</p></div>';throw e;}
 const PORTAL_URL='https://www.drivesq.co.uk/dashboard.html';
+// If the secure admin session ends (expired refresh, signed out in another tab), go back to the sign-in screen instead of showing empty pages.
+try{sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'&&localStorage.getItem('dsq_admin_sbsess')==='1'){try{localStorage.removeItem('dsq_admin_sbsess');localStorage.removeItem('dsq_admin_session');}catch(e){}setTimeout(()=>location.reload(),150);}});}catch(e){}
 // ── Google Review link — update this whenever your GBP link changes ──
 const GOOGLE_REVIEW_URL='https://g.page/r/Cf5Ww977kUeEEBM/review';
 const PUSH_EDGE_URL='https://vwvbfqrlumvoabzkjxoa.supabase.co/functions/v1/send-push';
@@ -5597,7 +5600,7 @@ function renderFollowUpList(){
     const waNum=buildWaNum(current.student_phone||'');
     const instrWaNum=buildWaNum(current.instructor_phone||instr.phone||'');
     document.getElementById('followupCardActions').innerHTML=`
-      ${current.student_phone?`<a href="tel:${current.student_phone}" style="display:inline-flex;align-items:center;gap:6px;background:rgba(209,10,17,.15);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-telephone-fill"></i> Call Student</a>`:''}
+      ${current.student_phone?`<a href="tel:${esc(current.student_phone)}" style="display:inline-flex;align-items:center;gap:6px;background:rgba(209,10,17,.15);border:1px solid rgba(209,10,17,.3);color:#f87171;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-telephone-fill"></i> Call Student</a>`:''}
       ${waNum?`<a href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(current.student_name||'').split(' ')[0]+'! 👋 This is DriveSQ admin following up regarding your driving lessons. How are things going? Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);color:#4ade80;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-whatsapp"></i> WA Student</a>`:''}
       ${instrWaNum?`<a href="https://wa.me/${instrWaNum}?text=${encodeURIComponent('Hi '+(current.instructor_name||instr.full_name||'').split(' ')[0]+'! Quick follow-up — how is '+(current.student_name||'the student')+' getting on? — DriveSQ Admin 🚗')}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:Oswald,sans-serif;font-weight:700;text-decoration:none"><i class="bi bi-whatsapp"></i> WA Instructor</a>`:''}
     `;
