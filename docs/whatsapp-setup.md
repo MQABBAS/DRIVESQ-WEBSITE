@@ -168,3 +168,13 @@ When a student (about themselves) or an instructor (about one of their students)
 - A student already marked booked, informed, or marked red is **never changed** by a message: the reason is noted and you are told to check.
 - Not sure enough, not about lessons, or an instructor who does not say which student: noted or ignored, never guessed. Items that need you appear in Needs you.
 - Switch it off in Settings under "Check the student booked".
+
+## WhatsApp messages from referrals and profiles
+
+A green **WhatsApp messages** button now opens the real WhatsApp Business conversation (read and reply) in a pop-up, from:
+
+- **Referrals** (an instructor's referral list): **💬 Instructor's WhatsApp** in the header, and **💬 Messages** under each student's phone number.
+- **Instructor profile**: **WhatsApp messages** beside the other action buttons.
+- **Student profile** (and the student view opened from a referral): **WhatsApp messages**.
+
+The pop-up refreshes every 12 seconds. Replies go from the DriveSQ business number; free text is only possible within 24 hours of their last message, and people who sent STOP are blocked. No function redeploy is needed (it uses the existing inbox actions).

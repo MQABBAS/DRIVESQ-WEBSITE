@@ -3900,7 +3900,7 @@ alter table lessons add column if not exists instructor_pay_settled boolean defa
 <script src="/admin-health.js?v=20261127"></script>
 <script src="/admin-whatsapp.js?v=20261208"></script>
 <script src="/admin-autoassign.js?v=20261213"></script>
-<script src="/admin-autohub.js?v=20261224"></script>
+<script src="/admin-autohub.js?v=20261225"></script>
 <script src="/dsq-log.js?v=20261126"></script>
 <script src="/admin-insights.js?v=20261126"></script>
 <script id="dsq-sb-catch-shim">/* Supabase query builders have no .catch(); calls like sb.from(x).insert(y).catch(()=>{}) would throw and abort the action. */
@@ -4869,6 +4869,7 @@ function filterInstrs(q){
 
 // Format postcode with a space: M191FX → M19 1FX, SW1A2AA → SW1A 2AA
 function fmtPostcode(pc){if(!pc)return pc;const p=pc.trim().toUpperCase().replace(/\s+/g,'');const m=p.match(/^([A-Z]{1,2}[0-9][0-9A-Z]?)([0-9][A-Z]{2})$/);return m?m[1]+' '+m[2]:p;}
+function openWaChat(phone,name){const n=(typeof buildWaNum==='function'?buildWaNum(phone):String(phone||'').replace(/\D/g,''));if(!n){alert('No phone number saved for '+(name||'this person'));return}if(window.DSQHub&&DSQHub.chat)DSQHub.chat(n,name);else alert('The WhatsApp chat view is still loading. Refresh the page and try again.')}
 function buildWaNum(phone){
   const d=normalizePhone(phone).replace(/\D/g,'');
   if(!d)return'';
@@ -5499,6 +5500,7 @@ async function openRefStudentDetail(studentName, instrId){
     </div>`;
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
+    ${waNum?`<button type="button" class="abtn" onclick="openWaChat('${waNum}','${jsEsc(s.name||'')}')" style="min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);color:#4ade80;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-chat-text-fill"></i>WhatsApp messages</button>`:''}
     ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 14px;font-size:.82rem;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-star-fill"></i>Request Google Review</a>`:''}`;
   document.getElementById('sdProgressSection').style.display='none';
   document.getElementById('sdTopicsSection').style.display='none';
@@ -5890,6 +5892,7 @@ async function viewInstr(id){
         <button class="abtn" style="border-color:rgba(96,165,250,.45);color:#60a5fa" onclick="instrMailOpen('${id}')" title="Professional emails: joining, Google reviews, pass photos, standards, custom"><i class="bi bi-envelope-paper-heart me-1"></i>Email</button>
         <button class="abtn" id="instrRefBtn-${id}" style="border-color:rgba(37,211,102,.45);color:#4ade80" onclick="openInstrReferrals('${id}')" title="All referrals for this instructor, all time"><i class="bi bi-cash-coin me-1"></i>Referrals <span class="ref-cnt"></span></button>
         ${waBtn}
+        ${waNum?`<button class="abtn" style="border-color:rgba(37,211,102,.45);color:#4ade80" onclick="openWaChat('${waNum}','${jsEsc(instr.full_name)}')" title="Read the WhatsApp Business messages with this instructor"><i class="bi bi-chat-text-fill me-1"></i>WhatsApp messages</button>`:''}
         <button onclick="toggleGuideMode('${id}','${jsEsc(instr.full_name)}')" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.25);color:var(--gold);border-radius:8px;padding:7px 14px;font-size:.78rem;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:700;display:flex;align-items:center;gap:5px"><i class="bi bi-mortarboard-fill me-1"></i>Guide Mode</button>
         ${blockBtnHtml}
         <button class="abtn del" onclick="deleteInstr('${id}','${jsEsc(instr.full_name)}')"><i class="bi bi-trash me-1"></i>Remove</button>
@@ -7172,6 +7175,7 @@ async function openStudentDetail(idx,_directData){
   const waNum=buildWaNum(s.phone||'');
   document.getElementById('sdActions').innerHTML=`
     ${waNum?`<a class="btn-green" href="https://wa.me/${waNum}?text=${encodeURIComponent('Hi '+(s.name||'').split(' ')[0]+'! 👋 This is DriveSQ admin. Your student portal is at https://www.drivesq.co.uk/student.html — log in with your phone number '+s.phone+'. Let us know if you need anything! — DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp Student</a>`:''}
+    ${waNum?`<button type="button" class="abtn" onclick="openWaChat('${waNum}','${jsEsc(s.name||'')}')" style="min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);color:#4ade80;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-chat-text-fill"></i>WhatsApp messages</button>`:''}
     ${waNum?`<a class="abtn" href="https://wa.me/${waNum}?text=${encodeURIComponent('📱 Hi '+(s.name||'').split(' ')[0]+'! Your DriveSQ Student Portal is ready.\n\n🔗 https://www.drivesq.co.uk/student.html\n\nLog in with your phone number: '+s.phone+'\n\nTrack your progress, confirm lessons, message your instructor and more — all in one place!\n\n— DriveSQ Team 🚗')}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.18);border:1px solid rgba(37,211,102,.35);color:#25D366;border-radius:8px;cursor:pointer"><i class="bi bi-send me-1"></i>Send Portal Invite</a>`:''}
     ${waNum?`<a class="abtn" href="${buildReviewWaLink(waNum)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 14px;font-size:.82rem;background:rgba(245,197,24,.12);border:1px solid rgba(245,197,24,.35);color:var(--gold);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-star-fill"></i>Request Google Review</a>`:''}
     ${s.address?`<a class="btn-gold" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}" target="_blank" style="text-decoration:none;min-height:36px;padding:6px 12px;font-size:.82rem"><i class="bi bi-map-fill me-1"></i>Maps</a>`:''}
@@ -7547,6 +7551,7 @@ function openRosterStudentEdit(profileId,name,phone,address,lessonType,instrId){
   document.getElementById('sdSub').textContent=`${phone||''}${address?' · '+address:''}`;
   document.getElementById('sdBody').innerHTML=`<div style="padding:12px 0;font-size:.8rem;color:var(--txt3)"><i class="bi bi-info-circle me-1"></i>This student is on the instructor's roster. Edit their details below.</div>`;
   document.getElementById('sdActions').innerHTML=`
+    ${phone?`<button type="button" class="abtn" onclick="openWaChat('${jsEsc(phone)}','${jsEsc(name||'')}')" style="min-height:36px;padding:6px 12px;font-size:.82rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);color:#4ade80;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="bi bi-chat-text-fill"></i>WhatsApp messages</button>`:''}
     <button class="abtn" onclick="openStudentEditModal()" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#60a5fa;border-radius:8px;padding:6px 12px;font-size:.82rem;min-height:36px;cursor:pointer"><i class="bi bi-pencil-square me-1"></i>Edit Profile</button>`;
   document.getElementById('sdProgressSection').style.display='none';
   document.getElementById('sdTopicsSection').style.display='none';
@@ -12010,6 +12015,7 @@ async function openRefDetail(instrId,allTime){
   const instr=allInstrs.find(i=>i.id===instrId)||{full_name:'Unknown Instructor',area:''};
   document.getElementById('refDetailInstrName').textContent=instr.full_name;
   document.getElementById('refDetailSub').innerHTML=esc((instr.area||'')+(instr.phone?' · '+instr.phone:''))+
+    (instr.phone?` · <button type="button" onclick="openWaChat('${jsEsc(instr.phone)}','${jsEsc(instr.full_name)}')" style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);color:#4ade80;border-radius:6px;padding:1px 8px;font-size:.7rem;cursor:pointer;font-weight:700">💬 Instructor's WhatsApp</button>`:'')+
     ` · <span style="color:var(--gold);font-weight:700">${_refDetailAll?'All time':esc(_refRange().label)}</span>`+
     (_refDetailAll?'':` <button type="button" onclick="openRefDetail('${instrId}',true)" style="background:none;border:0;color:#60a5fa;text-decoration:underline;font-size:.74rem;cursor:pointer;padding:0 0 0 6px">Show all time</button>`);
 
@@ -12198,7 +12204,7 @@ async function openRefDetail(instrId,allTime){
           <td style="padding:8px 8px">
             <div style="font-weight:700;color:var(--txt);${isCancelled?'text-decoration:line-through;':'text-decoration:underline;text-decoration-color:rgba(245,197,24,.5);text-underline-offset:2px;'}cursor:pointer;transition:color .15s" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--txt)'" onclick="openRefStudentDetail('${jsEsc(r.student_name)}','${r.instructor_id}')" title="Click to view student details">${esc(r.student_name)}${fc?`<span style="margin-left:5px;font-size:.75rem">${fcEmoji[fc]}</span>`:''} <i class="bi bi-person-lines-fill" style="font-size:.65rem;color:var(--gold);opacity:.7"></i></div>
             <div style="font-size:.58rem;color:var(--txt4);margin-top:1px;cursor:pointer" onclick="openRefStudentDetail('${jsEsc(r.student_name)}','${r.instructor_id}')"><i class="bi bi-info-circle me-1" style="opacity:.6"></i>Tap for details &amp; login history</div>
-            ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${esc(r.student_phone)}</div>`:''}
+            ${r.student_phone?`<div style="font-size:.68rem;color:var(--txt4);margin-top:2px">${esc(r.student_phone)} <button type="button" onclick="openWaChat('${jsEsc(r.student_phone)}','${jsEsc(r.student_name||'')}')" style="background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.4);color:#4ade80;border-radius:6px;padding:0 7px;font-size:.6rem;cursor:pointer;font-weight:700;margin-left:4px" title="Read the WhatsApp messages with this student">💬 Messages</button></div>`:''}
             ${_replyChip(r)}
             ${isCancelled?`<div style="font-size:.62rem;color:#94a3b8;font-style:italic">Student left — not counted</div>`:''}
             ${isCredit?`<div style="font-size:.62rem;color:#f59e0b;font-style:italic;margin-top:2px"><i class="bi bi-arrow-repeat me-1"></i>Credit — replacement student owed</div>`:''}

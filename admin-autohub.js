@@ -380,6 +380,56 @@
   }
   async function ibDone() { if (!IBX.thread) return; await DSQWA.call({ action: 'inbox_mark', phone: IBX.thread.phone, done: true }); var c = IBX.list.filter(function (x) { return x.key === IBX.sel; })[0]; if (c) { c.needsReply = false; INBOX_N = IBX.list.filter(function (x) { return x.needsReply; }).length; } drawList(); pollInbox(); }
   function ibBack() { var g = document.getElementById('ibxGrid'); if (g) g.classList.remove('sel'); IBX.sel = ''; drawList(); }
+
+  /* ---------- WhatsApp chat pop-up (referrals, instructor + student profiles) ---------- */
+  var WC = { phone: '', name: '', d: null, busy: false, timer: null, keepNote: false };
+  function wcCss() {
+    if (document.getElementById('wcStyle')) return; var st = document.createElement('style'); st.id = 'wcStyle';
+    st.textContent = '#wcModal{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:12px;font-family:Inter,system-ui,sans-serif}' +
+      '#wcModal .wcb{background:var(--dk,#0b0b0e);color:var(--txt,#eee);border:1px solid var(--bdr,#2a2a33);border-radius:16px;width:100%;max-width:560px;height:min(82vh,680px);display:flex;flex-direction:column;overflow:hidden}' +
+      '#wcModal .wch{padding:10px 14px;border-bottom:1px solid var(--bdr,#2a2a33);display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
+      '#wcModal .wcm{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.02)}' +
+      '#wcModal .bb{max-width:82%;padding:7px 11px;border-radius:14px;font-size:.82rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}' +
+      '#wcModal .bb.in{align-self:flex-start;background:rgba(127,127,127,.2);border-bottom-left-radius:4px}#wcModal .bb.out{align-self:flex-end;background:rgba(209,10,17,.32);border-bottom-right-radius:4px}#wcModal .bb.tp{opacity:.8;font-style:italic}#wcModal .bb small{display:block;font-size:.62rem;opacity:.7;margin-top:2px;text-align:right}' +
+      '#wcModal .day{align-self:center;font-size:.64rem;color:#999;background:rgba(255,255,255,.06);border-radius:99px;padding:2px 10px;margin:6px 0}' +
+      '#wcModal .wcc{border-top:1px solid var(--bdr,#2a2a33);padding:10px 12px}#wcModal textarea{width:100%;box-sizing:border-box;min-height:54px;border-radius:10px;border:1px solid var(--bdr,#2a2a33);background:transparent;color:inherit;padding:8px;font:inherit;font-size:.84rem;resize:vertical}' +
+      '#wcModal .wcbtn{border:1px solid var(--bdr,#2a2a33);background:transparent;color:inherit;border-radius:8px;padding:3px 10px;font-size:.74rem;cursor:pointer;text-decoration:none}#wcModal .wcp{background:#dc2626;border-color:#dc2626;color:#fff;font-weight:700;padding:6px 16px;font-size:.82rem}#wcModal .wcp:disabled{opacity:.45;cursor:not-allowed}';
+    document.head.appendChild(st);
+  }
+  function wcClose() { var m = document.getElementById('wcModal'); if (m) m.remove(); if (WC.timer) { clearInterval(WC.timer); WC.timer = null; } WC.d = null; }
+  function wcHead() {
+    var d = WC.d, h = document.getElementById('wcHead'); if (!h || !d) return; var r = ROLE[d.role] || ROLE['new'], wa = String(d.phone).replace(/\D/g, ''), win = d.windowEnds ? new Date(d.windowEnds).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+    h.innerHTML = '<div style="flex:1;min-width:150px"><b style="font-size:.98rem">' + E(WC.name || d.name || nice(d.phone)) + '</b> <span style="font-size:.68rem;color:' + r[1] + ';border:1px solid ' + r[1] + '66;border-radius:99px;padding:0 7px;margin-left:4px">' + r[0] + '</span><div style="font-size:.72rem;opacity:.6">' + E(nice(d.phone)) + (d.optedOut ? ' · 🔕 asked us to stop' : '') + '</div></div>' +
+      '<span style="font-size:.7rem;color:' + (d.windowOpen ? '#22c55e' : '#f59e0b') + '">' + (d.windowOpen ? '🟢 Can reply until ' + win : '🟡 24-hour window closed') + '</span>' +
+      '<a class="wcbtn" target="_blank" rel="noopener" href="https://wa.me/' + wa + '">Open in WhatsApp</a><button type="button" class="wcbtn" onclick="DSQHub.chatClose()">✕ Close</button>';
+    var n = document.getElementById('wcNote'), b = document.getElementById('wcSendBtn'), tx = document.getElementById('wcText'), blocked = d.optedOut || !d.windowOpen;
+    if (n && !WC.keepNote) n.innerHTML = d.optedOut ? '<span style="color:#f87171">They sent STOP, so we cannot message them.</span>' : !d.windowOpen ? '<span style="color:#f59e0b">WhatsApp only allows free text within 24 hours of their last message. Message them from your phone, or wait until they write again.</span>' : '<span style="opacity:.6">Sent from the DriveSQ business number.</span>';
+    if (b) b.disabled = blocked; if (tx) tx.disabled = blocked;
+  }
+  function wcMsgs(keep) {
+    var d = WC.d, m = document.getElementById('wcMsgs'); if (!m || !d) return; var atBottom = !keep || m.scrollHeight - m.scrollTop - m.clientHeight < 80, last = '', html = '';
+    (d.messages || []).forEach(function (x) { var day = new Date(x.at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); if (day !== last) { html += '<div class="day">' + day + '</div>'; last = day; } var tm = new Date(x.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), tick = x.dir === 'out' ? ({ read: ' ✓✓', delivered: ' ✓✓', sent: ' ✓', failed: ' ❌' }[x.status] || '') : '';
+      html += '<div class="bb ' + x.dir + (x.tpl && /^dsq_/.test(x.tpl) ? ' tp' : '') + '">' + (x.button ? '🔘 ' : '') + E(x.text) + (x.error ? '<br><span style="color:#f87171">' + E(x.error) + '</span>' : '') + '<small>' + tm + tick + '</small></div>'; });
+    m.innerHTML = html || '<div style="margin:auto;opacity:.6;font-size:.82rem;text-align:center">No WhatsApp messages with this number yet.</div>'; if (atBottom) m.scrollTop = m.scrollHeight;
+  }
+  async function wcLoad(quiet) {
+    var r = await DSQWA.call({ action: 'inbox_thread', phone: WC.phone }); if (!document.getElementById('wcModal')) return;
+    if (!r.ok) { if (!quiet) { var lt = document.getElementById('wcLoadTx'); if (lt) lt.textContent = ''; var m = document.getElementById('wcMsgs'); if (m) m.innerHTML = '<div style="margin:auto;color:#f87171;font-size:.82rem;text-align:center">' + E(r.error || 'Could not load the messages. Deploy the latest whatsapp function.') + '</div>'; } return; }
+    WC.d = r; wcHead(); wcMsgs(quiet);
+  }
+  function chat(phone, name) {
+    var ph = String(phone || '').replace(/\D/g, ''); if (!ph) { alert('There is no phone number saved for this person.'); return; }
+    wcClose(); wcCss(); WC.phone = ph; WC.name = name || ''; WC.keepNote = false;
+    var m = document.createElement('div'); m.id = 'wcModal'; m.onclick = function (e) { if (e.target === m) wcClose(); };
+    m.innerHTML = '<div class="wcb"><div class="wch" id="wcHead"><b style="flex:1">' + E(name || nice(ph)) + '</b><span id="wcLoadTx" style="opacity:.6;font-size:.76rem">Loading WhatsApp messages…</span><button type="button" class="wcbtn" onclick="DSQHub.chatClose()">✕ Close</button></div><div class="wcm" id="wcMsgs"><div style="margin:auto;opacity:.6;font-size:.82rem">Loading…</div></div><div class="wcc"><textarea id="wcText" maxlength="1000" placeholder="Type a reply… (Enter to send, Shift+Enter for a new line)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();DSQHub.chatSend()}"></textarea><div style="display:flex;gap:8px;align-items:center;margin-top:7px"><span id="wcNote" style="font-size:.7rem;flex:1"></span><button type="button" class="wcbtn wcp" id="wcSendBtn" onclick="DSQHub.chatSend()">Send</button></div></div></div>';
+    document.body.appendChild(m); wcLoad(false); WC.timer = setInterval(function () { if (document.getElementById('wcModal')) wcLoad(true); else wcClose(); }, 12000);
+  }
+  async function chatSend() {
+    if (WC.busy || !WC.d) return; var t = document.getElementById('wcText'), b = document.getElementById('wcSendBtn'), n = document.getElementById('wcNote'), txt = (t.value || '').trim(); if (!txt) { n.innerHTML = '<span style="color:#f59e0b">Type a message first.</span>'; return; }
+    WC.busy = true; b.disabled = true; b.textContent = 'Sending…'; var r = await DSQWA.call({ action: 'inbox_send', phone: WC.d.phone, text: txt }); WC.busy = false; b.textContent = 'Send'; b.disabled = false;
+    if (!r.ok) { n.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Not sent') + '</span>'; WC.keepNote = true; if (r.closed) { WC.d.windowOpen = false; WC.keepNote = false; wcHead(); } return; }
+    t.value = ''; n.innerHTML = '<span style="color:#22c55e">✅ Sent</span>'; WC.keepNote = true; await wcLoad(true); setTimeout(function () { WC.keepNote = false; }, 4000);
+  }
   /* ---------- Claude usage ---------- */
   async function loadUsage() {
     var o = document.getElementById('usageBox'); if (!o) return; var r = await DSQWA.call({ action: 'claude_usage' }); if (!r.ok) { o.innerHTML = '<span style="color:#f87171">' + E(r.error || 'Could not load usage. Deploy the latest whatsapp function.') + '</span>'; return; }
@@ -528,5 +578,5 @@
   /* a button in the top bar, next to the WhatsApp button */
   function topBtn() { var host = document.getElementById('waApiBtn'); if (!host || document.getElementById('hubBtn')) return; var b = document.createElement('button'); b.id = 'hubBtn'; b.type = 'button'; b.onclick = function () { open('overview'); }; b.title = 'Auto-assign control centre'; b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.5);border-radius:99px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;margin-left:6px'; b.innerHTML = '🤖 <span>Auto-assign</span>'; host.insertAdjacentElement('afterend', b); }
   takeOver(); window.addEventListener('load', function () { takeOver(); topBtn(); setTimeout(function () { takeOver(); topBtn(); }, 1800); }); setInterval(topBtn, 3000);
-  window.DSQHub = { aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, ibOpen: ibOpen, ibSend: ibSend, ibDone: ibDone, ibBack: ibBack, ibQuick: ibQuick, ibFilter: function (f) { IBX.filter = f; drawList(); }, ibSearch: function (q) { IBX.q = q; drawList(); }, loadUsage: loadUsage, sendSummary: sendSummary, loadAdi: loadAdi, adiSave: adiSave, adiFilter: function (f) { AFILT = f; drawAdi(); }, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
+  window.DSQHub = { chat: chat, chatSend: chatSend, chatClose: wcClose, aiMode: aiMode, instrSettings: instrSettings, saveInstr: saveInstr, diagnoseWa: diagnoseWa, webhookCheck: webhookCheck, readChats: readChats, ibOpen: ibOpen, ibSend: ibSend, ibDone: ibDone, ibBack: ibBack, ibQuick: ibQuick, ibFilter: function (f) { IBX.filter = f; drawList(); }, ibSearch: function (q) { IBX.q = q; drawList(); }, loadUsage: loadUsage, sendSummary: sendSummary, loadAdi: loadAdi, adiSave: adiSave, adiFilter: function (f) { AFILT = f; drawAdi(); }, chatBooking: chatBooking, saveChatBooking: saveChatBooking, createTpls: createTpls, ignore: ignore, removeJob: removeJob, clearList: clearList, recheck: recheck, simulate: simulate, open: open, close: close, tab: tab, toggle: toggle, mode: mode, preview: preview, run: run, prio: prio, retry: retry, openBooking: openBooking, filter: filter, ifilter: ifilter, isearch: isearch, refresh: refresh, _data: function () { return DATA; } };
 })();
