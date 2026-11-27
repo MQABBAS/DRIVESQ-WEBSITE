@@ -662,6 +662,57 @@ console.log("== 32k. 'Been informed' stops the check-ins ==");
   CALLS.length = 0; n1.admin_notes += "\n" + day(0).slice(0, 10) + " · ℹ️ Been informed — no check-in messages"; n1.flag_color = null; DB.student_followups.find((f) => f.referral_id === "n1").next_due = day(1); DB.student_followups.find((f) => f.referral_id === "n1").state = "asked_both"; await call({ action: "auto_assign", cron: true });
   ok(!toS("447844995001") && DB.student_followups.find((f) => f.referral_id === "n1").state === "done", "marking a student informed while a later round is due stops the later rounds too");
   DB.referrals = []; DB.student_followups = []; DB.wa_log = []; DB.growth_settings = DB.growth_settings.filter((x) => x.key !== "followups_since"); }
+console.log("== 32l. What students and instructors SAY is noted in the Referral, with a judgement ==");
+{ const day = (n) => new Date(Date.now() - n * 864e5).toISOString(), numOf = (i) => "44" + i.phone.replace(/^0/, "").replace(/\s/g, "");
+  const upd = (outcome, conf, reason, extra = {}) => ({ content: [{ type: "tool_use", id: "u", name: "note_student_update", input: { outcome, confidence: conf, reason, ...extra } }] });
+  const saved = { ...cfgOf() }; cfgOf().aiAssistant = true; cfgOf().aiSend = false; cfgOf().aiTestOnly = false; cfgOf().aiClassifier = false; cfgOf().referralNotes = true; cfgOf().enabled = true; cfgOf().anytime = true; cfgOf().hours = [0, 24];
+  const R = (id, name, phone, extra = {}) => ({ id, instructor_id: "i1", student_name: name, student_phone: phone, created_at: day(2), amount: 25, is_paid: false, is_cancelled: false, is_credit: false, flag_color: null, reply_status: null, admin_notes: "", notes: "", ...extra });
+  const F = (rid, phone) => ({ id: "f" + rid, referral_id: rid, instructor_id: "i1", student_name: "x", student_phone: phone, state: "waiting_student", round: 1, next_due: day(-1) });
+  const reset = () => { DB.referrals = []; DB.student_followups = []; DB.wa_log = []; DB.admin_attention = []; DB.admin_activity_log = []; DB.auto_assign_jobs = []; CALLS.length = 0; globalThis.CLASSIFY_Q = []; globalThis.EXTRACT_Q = []; globalThis.CLAUDE_Q = []; };
+  const toNum = (n) => CALLS.filter((c) => c.wa && String(c.wa.to) === n).length;
+  const refOf = (id) => DB.referrals.find((r) => r.id === id);
+  // 1 booked
+  reset(); DB.referrals = [R("u1", "Uma Booked", "07844996001")]; DB.student_followups = [F("u1", "07844996001")]; globalThis.CLASSIFY_Q = [upd("booked", 0.95, "Has booked Tuesday 5pm with the instructor.")];
+  await hook({ from: "447844996001" }, "Yes I booked Tuesday 5pm with Dawood");
+  let u1 = refOf("u1"); ok(u1.flag_color === "green" && u1.reply_status === "booked" && /“Yes I booked Tuesday/.test(u1.admin_notes) && /Has booked Tuesday 5pm/.test(u1.admin_notes) && /confirmed by student/.test(u1.admin_notes) && DB.student_followups[0].state === "done" && toNum("447844996001") === 0, "student says they booked: the Referral turns green, the notes quote the message and give the reason, the check-in stops, and NOTHING is sent back");
+  // 2 later with a date
+  reset(); DB.referrals = [R("u2", "Uma Later", "07844996002")]; DB.student_followups = [F("u2", "07844996002")]; globalThis.CLASSIFY_Q = [upd("will_book_later", 0.9, "Waiting until payday on the 5th.", { ask_again_days: 8 })];
+  await hook({ from: "447844996002" }, "I can't afford it until payday on the 5th, will sort it then");
+  let u2 = refOf("u2"); const due2 = new Date(DB.student_followups[0].next_due).getTime() - Date.now(); ok(u2.flag_color === "purple" && u2.reply_status === "not_yet" && /Waiting until payday/.test(u2.admin_notes) && due2 > 7.5 * 864e5 && /Next check-in after 8 days/.test(u2.admin_notes), "student says 'after payday on the 5th': marked unsure with that reason, and the next check-in is moved out by 8 days");
+  // 3 not going ahead
+  reset(); DB.referrals = [R("u3", "Uma Gone", "07844996003")]; DB.student_followups = [F("u3", "07844996003")]; globalThis.CLASSIFY_Q = [upd("not_going_ahead", 0.93, "Found another instructor nearer home.")];
+  await hook({ from: "447844996003" }, "Thanks but I've found someone else nearer to me");
+  let u3 = refOf("u3"); ok(u3.flag_color === "red" && u3.reply_status === "not_interested" && /Found another instructor/.test(u3.admin_notes) && /Not booked/.test(u3.admin_notes) && DB.admin_attention.some((x) => x.kind === "student_update" && /Uma Gone/.test(x.title)) && DB.student_followups[0].state === "done", "student says they found someone else: marked not booked (red) with the reason, you are alerted, and the check-in stops");
+  // 4 not sure enough
+  reset(); DB.referrals = [R("u4", "Uma Vague", "07844996004")]; DB.student_followups = [F("u4", "07844996004")]; globalThis.CLASSIFY_Q = [upd("booked", 0.5, "Maybe booked something.")];
+  await hook({ from: "447844996004" }, "think so, will see");
+  let u4 = refOf("u4"); ok(!u4.flag_color && /not applied: not sure enough/.test(u4.admin_notes) && DB.student_followups[0].state === "waiting_student", "a vague reply is noted but NOT applied (nothing changes, the check-in carries on)");
+  // 5 contradiction with an existing booked mark
+  reset(); DB.referrals = [R("u5", "Uma Booked2", "07844996005", { flag_color: "green", reply_status: "booked", admin_notes: day(1).slice(0, 10) + " · ✅ Booked — confirmed by admin" })]; globalThis.CLASSIFY_Q = [upd("not_going_ahead", 0.95, "Says they have changed their mind.")];
+  await hook({ from: "447844996005" }, "actually I've changed my mind");
+  let u5 = refOf("u5"); ok(u5.flag_color === "green" && /changed their mind/.test(u5.admin_notes) && DB.admin_attention.some((x) => /Check:/.test(x.title)), "a student already confirmed booked who now says they are not going ahead: the Referral is NOT changed, the reason is noted and you are asked to check");
+  // 6 instructor about one of two students
+  reset(); const i1p = numOf(DB.instructors.find((i) => i.id === "i1")); DB.referrals = [R("s1", "Sara Khan", "07844996011"), R("s2", "Tom Reed", "07844996012")]; DB.student_followups = [F("s1", "07844996011"), F("s2", "07844996012")]; globalThis.CLASSIFY_Q = [upd("booked", 0.9, "Sara has booked Thursday morning.", { referral_id: "s1" })];
+  await hook({ from: i1p }, "Sara has booked in for Thursday morning");
+  ok(refOf("s1").flag_color === "green" && /confirmed by instructor/.test(refOf("s1").admin_notes) && !refOf("s2").flag_color && !/Sara has booked/.test(refOf("s2").admin_notes), "an instructor writing about Sara updates Sara only (Tom is untouched), noted as confirmed by the instructor");
+  // 7 instructor, cannot tell which student
+  reset(); DB.referrals = [R("s3", "Sara Khan", "07844996011"), R("s4", "Tom Reed", "07844996012")]; globalThis.CLASSIFY_Q = [upd("not_going_ahead", 0.9, "A student is not going ahead.", { referral_id: "" })];
+  await hook({ from: i1p }, "one of them is not going ahead");
+  ok(!refOf("s3").flag_color && !refOf("s4").flag_color && DB.admin_attention.some((x) => /could not tell which one/.test(x.title)), "an instructor message that does not say which student: nothing is marked, you are told so you can look");
+  // 8 unrelated
+  reset(); DB.referrals = [R("u8", "Uma Thanks", "07844996008")]; globalThis.CLASSIFY_Q = [upd("other", 0.99, "Just says thanks.")]; await hook({ from: "447844996008" }, "Thanks!");
+  ok(refOf("u8").admin_notes === "" && !DB.admin_attention.some((x) => x.kind === "student_update"), "a message that is not about their lessons ('Thanks!') leaves the Referral alone");
+  // 9 switches
+  reset(); DB.referrals = [R("u9", "Uma Off", "07844996009")]; globalThis.CLASSIFY_Q = [upd("booked", 0.95, "x")]; cfgOf().referralNotes = false; await hook({ from: "447844996009" }, "I booked"); ok(!refOf("u9").flag_color, "the setting 'read replies' switched off: nothing is read");
+  cfgOf().referralNotes = true; cfgOf().aiAssistant = false; globalThis.CLASSIFY_Q = [upd("booked", 0.95, "x")]; await hook({ from: "447844996009" }, "I booked"); ok(!refOf("u9").flag_color, "Claude switched off: nothing is read"); cfgOf().aiAssistant = true;
+  cfgOf().aiTestOnly = true; cfgOf().adminPhone = "07700900999"; globalThis.CLASSIFY_Q = [upd("booked", 0.95, "x")]; await hook({ from: "447844996009" }, "I booked"); ok(!refOf("u9").flag_color, "test mode on: a real student's message is not read"); cfgOf().aiTestOnly = false;
+  // 10 instructor yes/no to a waiting offer is the offer answer, not a student update
+  reset(); DB.referrals = [R("u10", "Uma Offer", "07844996010")]; cfgOf().directMiles = 0; cfgOf().autoMiles = 0; cfgOf().mode = "assign"; DB.waiting_list = [W("Offer Olly", "M13 9AA", "", { student_phone: "07844997777" })]; await call({ action: "auto_assign", cron: true }); const jo = DB.auto_assign_jobs[0], io = DB.instructors.find((i) => i.id === jo.instructor_id); CALLS.length = 0; DB.referrals[0].instructor_id = io.id;
+  await hook({ from: numOf(io) }, "yes");
+  ok(!CALLS.some((c) => c.classify && c.classify.tool_choice && c.classify.tool_choice.name === "note_student_update") && DB.referrals.some((r) => r.student_name === "Offer Olly"), "an instructor's plain 'yes' to a waiting offer accepts the offer and is not read as a student update");
+  // 11 usage
+  const cu = await call({ action: "claude_usage" }); ok(Object.values(cu.days).some((d) => d.kinds.referral && d.kinds.referral.calls >= 5), "these reads are counted under 'referral' on the Claude usage page");
+  Object.assign(cfgOf(), saved); reset(); DB.waiting_list = []; }
 console.log("== 33. Re-booking uses its own template, with a fallback ==");
 cfgOf().anytime = true; cfgOf().hours = [0, 24]; cfgOf().femaleRule = "require"; DB.growth_settings.find((x) => x.key === "instructor_traits").value = { i2: { female: true } };
 const rebookSetup = (name, phone) => { DB.referrals = [{ id: "rb" + phone, instructor_id: "i1", student_name: name, student_phone: phone, created_at: new Date(Date.now() - 3 * 864e5).toISOString(), is_cancelled: false, is_credit: false }]; DB.auto_assign_jobs = []; DB.admin_attention = []; DB.wa_log = []; DB.waiting_list = [W(name, "M13 9AA", "", { student_phone: phone.replace(/\s/g, "") })]; };
@@ -1058,7 +1109,7 @@ globalThis.GRAPH.wabas = [globalThis.GRAPH.wabas[0]]; dg = await call({ action: 
 delete globalThis.GRAPH;
 
 console.log("== 42. Version stamp ==");
-const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-informed", "the status call reports the function version (" + stv.version + ")");
+const stv = await call({ action: "status" }); ok(stv.ok && stv.version === "2026-11-27-reasons", "the status call reports the function version (" + stv.version + ")");
 
 console.log("== 43. Headers on the templates ==");
 globalThis.GRAPH = { wabas: [{ id: "W2", name: "DriveSQ", phones: [{ id: "123", display_phone_number: "+44 7352 932003", verified_name: "drivesq" }], templates: [] }] };

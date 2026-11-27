@@ -159,3 +159,12 @@ All of these are new in version 2026-11-26. Three of them use **new WhatsApp tem
 **Encouraging students to message their instructor:** the welcome message already asks them to message the instructor with their days and times (with a tap-to-chat link). Every follow-up answer now does the same: a student who says "Not yet", or that the instructor has not been in touch, gets the instructor's WhatsApp link and number and is told to send the days and times they are free. These replies are free text sent right after the student taps a button, so they need no new template.
 
 **ℹ️ Been informed (Referrals):** each student in an instructor's referral list has a "Been informed" button next to Booked / Not booked / Unsure. Press it when you already know how the student is getting on: no WhatsApp check-in goes to the student **or** the instructor. Press it again ("Informed ✓") to resume. It is saved as a line in the referral notes and in Activity, and it does not change the booked / unsure / not booked flag.
+
+## What students and instructors write is noted as the reason
+
+When a student (about themselves) or an instructor (about one of their students) sends a **free-text** WhatsApp, Claude reads it (needs Claude switched on; while Test mode is on only your own phone is read; nothing is ever sent back):
+- The Referral notes get a line with their words and the reason, for example: `27 Nov 2026 · 📱 Sara on WhatsApp: “can’t afford it until payday on the 5th” → will book later: Waiting until payday on the 5th.`
+- When it is clear (Claude at least 80% sure) and the student is **unmarked or unsure**, the Referral is marked the same way a button or the Instructor Portal would: **booked** (green, "confirmed by student / instructor"), **will book later** (unsure), **not booked / left / can't reach** (red). A "ready in 3 weeks" style date moves the next check-in out by that many days. The check-in stops for any finished mark.
+- A student already marked booked, informed, or marked red is **never changed** by a message: the reason is noted and you are told to check.
+- Not sure enough, not about lessons, or an instructor who does not say which student: noted or ignored, never guessed. Items that need you appear in Needs you.
+- Switch it off in Settings under "Check the student booked".
